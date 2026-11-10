@@ -19,7 +19,9 @@ import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../doma
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
 import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from '../domain/asks';
-import { goalsIn, watchOf, watchScope } from '../domain/review';
+import { dayText, goalsIn, watchOf, watchScope } from '../domain/review';
+import { reviewDate } from '../domain/progress';
+import { NextStepSheet } from '../ui/NextStepSheet';
 import {
   actionList, activityStream, askedOf, barFigures, feedingOrder, feedsLine, firstLook, lastTalked, pathCheck, planFor, postedLine,
   primaryAction, sameReasonText, sinceLooked, updatedLine, streamMatches, whyLine, type ActionItem, type AskedItem, type StreamFilter, type StreamItem,
@@ -629,7 +631,8 @@ function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: b
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
   const isOwner = app.viewer.id === goal.ownerId;
   const state = latest?.pathToGreen?.state ?? 'plan';
-  if (!behind && !(withActions && items.length)) return null;
+  // Every goal still running has somewhere to add a next step (backlog GD(1)); on a wide screen it's in the side column.
+  if (!behind && !(withActions && (items.length || status !== 'done'))) return null;
   return (
     <section className="block doing goal-section" aria-labelledby="g-doing" data-part="Path to green">
       <SectionHead id="g-doing" title="What’s being done" purpose={behind ? 'The owner’s plan to get back on track, and who’s doing what.' : 'Who’s doing what about it, and how each ask stands.'} />
@@ -644,7 +647,19 @@ function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: b
         </div>
       ) : <p className="muted ptg-none">{isOwner ? 'You haven’t said how it gets back on plan yet. Say so in your next check-in.' : `${owner} hasn’t said how it gets back on plan yet.`}</p>)}
       {withActions && items.length > 0 && <ActionRows goal={goal} items={items} />}
+      {withActions && status !== 'done' && <AddNextStep goal={goal} />}
     </section>
+  );
+}
+
+/** Add a next step: what, who and by when (ui/NextStepSheet). */
+function AddNextStep({ goal }: { goal: Goal }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="btn add-next-step" onClick={() => setOpen(true)}>Add a next step</button>
+      {open && <NextStepSheet goal={goal} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -653,11 +668,13 @@ function ActionsSection({ goal, asked }: { goal: Goal; asked: AskedItem[] }) {
   const app = useApp();
   const att = app.attentionOf(goal);
   const items = actionList(goal, app.snapshot, app.week, att.status.status, att.status.latest, app.cycle).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
-  if (!items.length) return null;
+  const running = att.status.status !== 'done';
+  if (!items.length && !running) return null;
   return (
     <section className="block side-actions" aria-labelledby="g-actions" data-part="Actions">
       <SectionHead id="g-actions" title="Actions" purpose="The asks on this goal: who, by when, and how each stands." />
-      <ActionRows goal={goal} items={items} />
+      {items.length > 0 ? <ActionRows goal={goal} items={items} /> : <p className="muted small">No next step yet.</p>}
+      {running && <AddNextStep goal={goal} />}
     </section>
   );
 }
@@ -677,7 +694,12 @@ function ActionRows({ goal, items }: { goal: Goal; items: ActionItem[] }) {
     void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : `${ASK_KIND_LABEL[r.kind]} withdrawn`)).catch(() => { /* the save already said what went wrong */ });
   };
   const done = (r: Ask) => { void app.markActionDone(r).then(() => app.toast('Marked done')).catch(() => { /* the save already said what went wrong */ }); };
+  const [changing, setChanging] = useState<Ask | null>(null);
+  // An action's words, who and when can be changed here by whoever agreed it, or an admin (actions.editCall).
+  const canChange = (r: Ask) => r.kind === 'action' && r.status === 'open' && (r.askedBy === app.viewer.id || app.viewer.admin);
   return (
+    <>
+    {changing && <NextStepSheet goal={goal} existing={changing} onClose={() => setChanging(null)} />}
     <ul className="action-list">
       {items.map((x) => {
         const r = x.kind !== 'path' ? askOf(x.id) : undefined;
@@ -687,10 +709,11 @@ function ActionRows({ goal, items }: { goal: Goal; items: ActionItem[] }) {
             <span className={'action-state state-' + x.state}>{x.state === 'done' ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : x.state === 'overdue' ? <WarnMark /> : <span className="open-mark" aria-hidden="true" />}{STATE_WORD[x.state]}</span>
             <span className="action-body">
               <span className="action-what">{cap(x.what)}</span>
-              <span className="hint">{x.kind !== 'path' ? `${ASK_KIND_LABEL[x.kind]} · ` : ''}{first(x.who)}{x.due != null ? `, by week ${x.due}` : ''} · {x.note}</span>
-              {r && open && (canMarkDone(r, app.viewer) || canWithdraw(r, app.viewer, goal)) && (
+              <span className="hint">{x.kind !== 'path' ? `${ASK_KIND_LABEL[x.kind]} · ` : ''}{first(x.who)}{x.due != null ? `, by week ${x.due} (${dayText(reviewDate(app.cycle, x.due))})` : ''} · {x.note}</span>
+              {r && open && (canMarkDone(r, app.viewer) || canWithdraw(r, app.viewer, goal) || canChange(r)) && (
                 <span className="row action-do" style={{ gap: 'var(--s3)' }}>
                   {canMarkDone(r, app.viewer) && <button type="button" className="linkish small" onClick={() => done(r)}>Mark done</button>}
+                  {canChange(r) && <button type="button" className="linkish small" onClick={() => setChanging(r)}>Change</button>}
                   {canWithdraw(r, app.viewer, goal) && <button type="button" className="linkish small action-withdraw" onClick={() => withdraw(r)}>{r.kind === 'decision' && r.goalIds[0] !== goal.id ? 'Not waiting on it any more' : 'Withdraw'}</button>}
                 </span>
               )}
@@ -699,6 +722,7 @@ function ActionRows({ goal, items }: { goal: Goal; items: ActionItem[] }) {
         );
       })}
     </ul>
+    </>
   );
 }
 

@@ -495,8 +495,18 @@ Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekda
 
 What was said in a review is kept as its summary; owners see questions and actions on their goal page.
 
+- **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U3, U36
+
+### REVIEW-DECIDE
+
+A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
+
+- **Rule:** [Deciding in a review](rules/review-decide.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Tests:** `src/mcp/mcp.test.ts` (1)
+- **Journeys and checks:** N1, U3
 
 ### REVIEW-LIST-STATE
 

@@ -127,6 +127,8 @@ export const SAID: Said[] = [
   ['weekly', 44, 'ns-env', 'action', 'ingrid', 'Decide whether to split data-backed environments into their own goal.', 'camille', 47],
   ['devprod', 44, 'dep-jenkins', 'ask', 'daniel', 'What’s left on Jenkins after the payments team moves?'],
   ['devprod', 44, 'lead-ci-time', 'ask', 'daniel', 'If the runner budget is approved on the 12th, how soon does queue wait drop under five minutes?'],
+  // The next session opens with this (deep review P2): Tariq agreed it in week 44, due in week 46.
+  ['devprod', 44, 'lead-review-rota', 'action', 'daniel', 'Name a review rota for the last repositories without one.', 'tariq', 46],
   ['reliability', 44, 'ns-slo', 'note', 'marisol', 'Clean month. 99.97% across tier-1.'],
   ['dataml', 44, 'ml-gpu', 'action', 'jun', 'Pilot queue-based scheduling with the assistant team’s training jobs.', 'obinna', 48],
   ['weekly', 44, 'cost-storage', 'ask', 'amara', 'No update since week 41. Is the lifecycle work paused, and if so, what does that do to cost per request?'],

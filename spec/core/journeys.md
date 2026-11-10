@@ -13,7 +13,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 |---|---|---|---|---|---|
 | U1 | Weekly check-in, all due goals in one pass | Team lead | `UPDATE-ANYTIME` `CARRY-OVER` `CHECKIN-STATUS-VS-PLAN` `REASON-BEHIND` `PATH-TO-GREEN` `ONE-PER-WEEK` `CHANGE-LOG` `DRAFTS` `PROFILES` `PERSIST` | 17 | `evals/journeys.cjs` |
 | U2 | What needs me? Home shows what’s due, off track, stale or slipping | Team lead | `ATTENTION` `PROFILES` `STALE` | 1 | `evals/journeys.cjs` |
-| U3 | Weekly review: walk the goals worst first and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `ONE-ASK` | 18 | `evals/journeys.cjs` |
+| U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `REVIEW-DECIDE` `ONE-ASK` | 30 | `evals/journeys.cjs` |
 | U4 | Set up a goal, step by step | Team lead | `GOAL-CREATE` `PLAN-SHAPE` `HIERARCHY` `LEVELS` `CHANGE-LOG` `DRAFTS` | 13 | `evals/journeys.cjs` |
 | U5 | Load your own data and switch between it and the example | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
@@ -96,7 +96,7 @@ Checks that Lane’s review notes stay fixed.
 
 | Id | Check | Requirements | Where |
 |---|---|---|---|
-| N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` | `evals/notes/1-reviews.cjs` |
+| N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` `REVIEW-DECIDE` | `evals/notes/1-reviews.cjs` |
 | N2 | Review notes, goal-page (the flagship page) | `GOAL-SUMMARY` `GOAL-PAGE-BAR` `GOAL-PAGE` | `evals/notes/2-goal-page.cjs` |
 | N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-DASHBOARD` | `evals/notes/3-attention-home.cjs` |
 | N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |

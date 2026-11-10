@@ -35,6 +35,19 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goals-filters', 'home', 'goals', 'keys'],
   },
   {
+    id: 'decide-in-review',
+    date: '2026-11-10',
+    title: 'Decide in the review',
+    points: [
+      'In a review, a goal off track or at risk asks “What happens next, who, by when?” before it’s marked reviewed: a next step with an owner and a date, or “We accept the risk” with a reason.',
+      'Who does it is found by searching for a name or a team, never chosen from a list of everyone.',
+      'A goal’s page shows its next steps with who and the date. Anyone can add one, and whoever agreed it can change it there. An overdue one is flagged.',
+      'The next session opens with what the last one agreed, and asks if it’s done. Finish review says what was decided and who owns what, with Undo.',
+      'A new workspace no longer says a review is to do before anything is due, and Home’s “Not held yet” mark is the right size again.',
+    ],
+    articles: ['reviews', 'goal-page'],
+  },
+  {
     id: 'setup-tells-the-truth',
     date: '2026-11-10',
     title: 'Set-up that tells the truth',

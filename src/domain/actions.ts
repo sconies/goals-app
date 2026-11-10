@@ -2,6 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
+import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
 import type { Lookup } from './changes';
@@ -164,6 +165,15 @@ export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: C
     decisions: [d],
     changes: [{ id: x.newId('chg'), at: d.at, actorId: x.actor.id, goalId: goal.id, entity: 'decision', entityId: d.id, action: kind === 'note' ? 'noted' : 'acknowledged', summary: `${kind === 'note' ? 'Added a note' : 'Looked at it'} in ${review.name}`, diffs: text ? [{ field: 'Note', from: '—', to: text }] : [] }],
   };
+}
+
+/**
+ * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
+ * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone in the review.
+ */
+export function acceptRisk(x: ActionContext, goal: Goal, review: Review, reason: string, week: number): Commit {
+  if (reason.trim().length < MIN_ACCEPT_REASON) no('Say why the review accepts the risk.');
+  return reviewCall(x, goal, review, 'note', acceptNote(reason), { week });
 }
 
 /**
