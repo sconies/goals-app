@@ -2721,7 +2721,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   const perms = await p.locator('.ws-perms').innerText();
   h.set('attention', /you’re a member here/.test(perms) && /Grace Achterberg/.test(perms) && /Access and Features/.test(perms) && !/Cycles/.test(perms), `a member’s permissions line says “${perms}”`);
   if (!phone) h.set('attention', !/Admin/.test(await p.locator('.side .me').innerText()), 'a member’s badge says Admin');
-  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 5, 'the overview does not lead with what needs attention, then every section');
+  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 3, 'the overview does not lead with what needs attention, then every section');
   await h.checkpoint('member');
   // Part-way through a check-in, switching asks first and says the draft stays. (A phone's check-in takes the whole
   // screen, with no switcher: there you switch from Home.)
