@@ -329,7 +329,7 @@ New: `NAV-PLACES` ("The menu lists places in the same groups for everyone, and f
 | # | Item | What | Effort | Depends on |
 |---|---|---|---|---|
 | NV1 | **The menu in groups, collapsed and on a phone** | 2.1, 2.2, 2.3, 2.7; rule 1; the Workspace spec's 2.13 (WR5: one Feedback, one name, one Demo panel); U67, U68, F12, P18 | M | The Goals page's scope tabs (GL1) must land with or before it, since Mine and Watching leave the sidebar. People's row needs WR1; Metrics' row needs ML1: each appears when its page exists |
-| NV2 | **Where you are** | 2.5 (the back link, section links on Settings, leaving a form), 2.6; rules 2, 3, 4; U69, U70, U72 | S–M | Nothing. The goal page's section links are built with GD1 |
+| NV2 | **Where you are** | 2.5 (the back link, section links on Settings, leaving a form), 2.6; rules 2, 3, 4; U69, U70, U72 | S–M | Nothing. The goal page's section links are built with GT1 |
 | NV3 | **The check-in queue** | 2.4; U71 | S | Nothing |
 
 **This replaces backlog NAV** ((1) to (4), (6), (7); (5) is the onboarding spec's OB1) **and builds WR5**. The order across areas is in `docs/design/README.md`.
