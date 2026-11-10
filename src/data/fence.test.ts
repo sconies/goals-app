@@ -203,6 +203,26 @@ describe('Faro fenced off in a shared database', () => {
     await db.exec(`drop schema cron cascade`);
   });
 
+  it('changes Storage’s rules in 0037 by trying: when the table belongs to a role the runner isn’t in, as on hosted Supabase', async () => {
+    const STORAGE = read('0037_storage_rules.sql');
+    // Hosted Supabase: storage.objects belongs to supabase_storage_admin, postgres is not in that role, yet may change its
+    // rules. Stock Postgres has no such grant short of being a superuser, so the test database's superuser stands in.
+    await db.exec(`create role storage_admin nologin; alter table storage.objects owner to storage_admin;`);
+    try {
+      expect(await rows(`select 1 from pg_auth_members m where m.roleid = 'storage_admin'::regrole and m.member = current_user::regrole`)).toEqual([]);
+      await db.exec(`create policy "markups: builders read" on storage.objects for select to authenticated using (bucket_id = 'markups')`);
+      await db.exec(STORAGE);
+      expect((await rows<{ polname: string }>(`select polname from pg_policy where polrelid = 'storage.objects'::regclass order by 1`)).map((r) => r.polname)).toEqual(['markups: upload']);
+      // A role with no right to change them stops, so CI fails loudly rather than recording 0037 as done.
+      await expect(as('anon', STORAGE)).rejects.toThrow(/anon can't change Storage's rules/);
+      // The Faro role, by design, changes nothing and goes on; the fence check is what then fails.
+      await expect(as('faro_owner', STORAGE)).resolves.toBeDefined();
+      expect((await rows<{ polname: string }>(`select polname from pg_policy where polrelid = 'storage.objects'::regclass order by 1`)).map((r) => r.polname)).toEqual(['markups: upload']);
+    } finally {
+      await db.exec(`alter table storage.objects owner to postgres; drop role storage_admin;`);
+    }
+  });
+
   it('says there is nothing to fence before 0035', async () => {
     const early = new PGlite();
     expect(await fenceReport(async (q: string) => (await early.query(q)).rows)).toMatchObject({ state: 'no-schema' });

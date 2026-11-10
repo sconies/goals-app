@@ -13,23 +13,29 @@
 
 do $$
 begin
-  if to_regclass('storage.objects') is null then return; end if;
-  if not pg_has_role(current_user, (select relowner from pg_class where oid = 'storage.objects'::regclass), 'usage') then
+  -- From the catalog, which any role may read (to_regclass would need rights on the storage schema).
+  if not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'storage' and c.relname = 'objects') then
+    return;
+  end if;
+  -- Try, rather than ask first: on hosted Supabase postgres may change Storage's rules without owning storage.objects or
+  -- being a member of the role that does (pg_has_role says no), so the only true answer is whether it works.
+  begin
+    execute 'drop policy if exists "markups: builders read" on storage.objects';
+    execute 'drop policy if exists "markups: upload" on storage.objects';
+    execute $policy$
+      create policy "markups: upload" on storage.objects for insert to anon with check (
+        bucket_id = 'markups'
+        and array_length(storage.foldername(name), 1) = 1
+        and (storage.foldername(name))[1] ~ '^mk_[0-9a-f]{16}$'
+        and storage.filename(name) in ('screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg')
+      )
+    $policy$;
+  exception when insufficient_privilege then
     -- The Faro role can't, by design: the fence check then reports the rules still to change. Anyone else stops here.
     if current_user = 'faro_owner' then
       raise notice 'Not changing Storage''s rules: faro_owner can''t. Apply 0037 as postgres.';
       return;
     end if;
     raise exception '% can''t change Storage''s rules (storage.objects). Apply 0037 as postgres.', current_user;
-  end if;
-  execute 'drop policy if exists "markups: builders read" on storage.objects';
-  execute 'drop policy if exists "markups: upload" on storage.objects';
-  execute $policy$
-    create policy "markups: upload" on storage.objects for insert to anon with check (
-      bucket_id = 'markups'
-      and array_length(storage.foldername(name), 1) = 1
-      and (storage.foldername(name))[1] ~ '^mk_[0-9a-f]{16}$'
-      and storage.filename(name) in ('screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg')
-    )
-  $policy$;
+  end;
 end $$;
