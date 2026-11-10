@@ -986,7 +986,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.',
+        'Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.',
         'The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.',
         'Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.',
         'Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.',
@@ -1019,7 +1019,7 @@ const CORE_ARTICLES: Article[] = [
         'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
         'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
         'It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.',
-        'Send feedback, at the top, opens the same sheet as Send feedback in the sidebar.',
+        'Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it.',
       ] },
       { heading: 'Working through it', list: [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
@@ -1067,7 +1067,7 @@ const CORE_ARTICLES: Article[] = [
         'On a phone the tabs are Home, Check-in, Goals and Reviews for someone with a goal to check in on, or Home, Goals, Reviews and People; More holds the rest, in the same groups.',
       ] },
       { heading: 'How it fits', list: [
-        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.',
+        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, in the same groups as the sidebar, including Data, Settings, Help and Feedback.',
         'On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.',
         'Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.',
         'Text follows your browser’s text size, and every control is big enough to tap.',
@@ -1075,7 +1075,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Your work is safe', list: [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.',
-        'Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
+        'Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
       { heading: 'On your home screen', list: [
         'Put Faro on your phone’s home screen like an app: in Chrome on Android, open the menu and choose Add to home screen (or Install app); in Safari on an iPhone, tap Share, then Add to Home Screen. It opens full screen, without the browser around it.',

@@ -165,7 +165,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
-    // The Feedback page's Send feedback opens the same sheet as the sidebar's.
+    // The Feedback page's Send feedback opens the sheet (Feedback is the one menu item for it, WR5).
     const send = () => setSheet('feedback');
     window.addEventListener('keydown', key);
     window.addEventListener('faro:send-feedback', send);

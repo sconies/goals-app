@@ -29,8 +29,9 @@ export const WHATS_NEW: NewsEntry[] = [
       'How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.',
       'One line under the bar counts the goals shown and their statuses.',
       'The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.',
+      'Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from.',
     ],
-    articles: ['goals', 'any-device'],
+    articles: ['goals', 'any-device', 'feedback'],
   },
   {
     id: 'one-list-bar',
