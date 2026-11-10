@@ -375,3 +375,9 @@ The fixes for #94's finding 1, #97's finding 1 and both of #90's, as suggested. 
 - `matchesWords` calls `textMatches`; `teamSummary` calls `teamPeople` and `teamMembers(…).current`.
 
 **Nothing found.** Those findings are closed. Still as #90 noted: People and Teams search through `findInDirectory` and `findTeams` rather than the Search port, and the picker's older `findPeople` remains; they now share the one matching rule, so this is tidying, not a defect.
+
+### #107 Goals counts once and says its filters in words (track 1, merged 17:58 UTC)
+
+The fix for #101's finding 1, as suggested. Confirmed in the demo as Rhea: `/goals?scope=team&q=queue` shows only "3 goals match. 3 off track"; `?owner=rhea&status=off` shows "2 goals match. 2 off track" and then "Filtered by: Status Off track (Remove) · Owner Rhea Kapoor (Remove) · Clear filters"; "G-48" shows "1 goal matches. 1 on track"; no chips are drawn. The filter line's words come from `queryParts` in `src/domain/query.ts`, with tests.
+
+**Nothing found.** That finding is closed. Also confirmed on the same deploy: About's Year fact now reads "The wrap-up opens on 21 Dec 2026." (#106).
