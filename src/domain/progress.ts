@@ -86,7 +86,9 @@ export const WEEKDAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
  * can just mean nobody has reported. Shown as "2 of 4 first check-ins in" until every goal has one (product review, 3 Nov).
  */
 export function firstReports(s: Snapshot, cycle: Cycle, week: number): { total: number; reported: number; waiting: { ownerId: string; goals: number }[]; silent: string[]; due: string } | null {
-  const live = s.goals.filter((g) => firstDueWeek(g, cycle) <= week && (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) < Math.max(1, week)));
+  // A goal counts once its first check-in is due. A plan that starts this week (every goal set up today) is due too, so it
+  // counts: day one once said "0 of 2" beside "3 goals" (deep review U6). Only a plan that starts in a later week waits.
+  const live = s.goals.filter((g) => firstDueWeek(g, cycle) <= week && (g.kind !== 'metric' || (g.plan.fromWeek ?? 0) <= week));
   const silent = live.filter((g) => !s.checkIns.some((c) => c.goalId === g.id));
   if (week < 1 || !live.length || !silent.length) return null;
   const by = new Map<string, number>();

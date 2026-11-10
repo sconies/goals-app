@@ -15,6 +15,8 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 **Leaving.** Anyone may leave a workspace themselves. It is the same as an admin marking them as left (whoever takes over their goals and open asks is chosen first; they leave the reviews they were in), logged as "Name left the workspace". The only admin may not leave.
 
+**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (`mergePeople`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (`stagesFromNow`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (`stagesFromJoining`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (`/?workspace=<id>`), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
+
 **What needs attention** on the overview, most pressing first: the year ending (the wrap-up open, or opening within 4 weeks); no goals in the cycle; then, for admins only, fewer than 3 people, people with no email, people in no team, teams with no lead, and no review set up; then new markups and feedback sent from this workspace. Admins are told what only they can fix; everyone is told what anyone can.
 
 ## Worked examples
@@ -27,6 +29,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The same workspace with a second cycle nobody has checked in to. | `No goals and no check-ins yet: it can be deleted` |
 | One goal with two check-ins, in the only cycle. | `1 goal, 2 check-ins: it stays` |
 | A team led by Lee, who is in it, with Pat in it too. | `2 people` |
+| Theo Brandt (theo@) and Mina Okafor (no email) typed, then a file with THEO@, Mina Okafor (mina@) and Ana Silva uploaded. | `Theo Brandt theo@example.com; Mina Okafor mina@example.com; Ana Silva ana@example.com` |
+| A spreadsheet loaded at set-up in week 46 of 53: “Canary releases live” at Design@2; Pilot@6; All services@10, and “Later” at A@47; B@50. | `Canary releases live: Design@47; Pilot@50; All services@53 / Later: A@47; B@50` |
 | A workspace name of 83 characters. | `Keep the name to 80 characters or fewer: it has 83.` |
 | A workspace name of 62 characters, as it is typed. | `62 of 80 characters` |
 | Lee, the only admin, leaves. | `refused: You’re the only admin here: make someone else an admin before you leave.` |
@@ -44,6 +48,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `teamPeople`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `nameProblem`, `nameLength`, `MAX_WORKSPACE_NAME`
 - [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `cycleWhen`, `ENDING_WEEKS`
+- [src/domain/people.ts](../../../src/domain/people.ts): `mergePeople`
+- [src/domain/templates.ts](../../../src/domain/templates.ts): `stagesFromJoining`, `stagesFromNow`
 
 ## Requirements
 
@@ -64,3 +70,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what needs attention in a workspace (backlog WS) › tells admins what only they can fix, and everyone what anyone can
 - what needs attention in a workspace (backlog WS) › says when the year is ending, then when its wrap-up is open
 - what needs attention in a workspace (backlog WS) › gives a cycle’s dates and where it stands
+
+### [src/domain/setupTruth.test.ts](../../../src/domain/setupTruth.test.ts)
+
+- set-up that tells the truth › counts an uploaded template’s stages from the joining week, so nothing is late on day one (U4)
+- set-up that tells the truth › keeps the stage weeks of an uploaded goal that has check-ins in the file: its history happened (U4)
+- set-up that tells the truth › adds an upload’s people after those already typed, never replacing them or adding anyone twice (U5)
+- set-up that tells the truth › offers the decimal places a refused number needs, and nothing for a number that fits (U3)
+- set-up that tells the truth › counts every goal set up today among the first check-ins, as Ready counts them (U6)
+- set-up that tells the truth › names no team lead at set-up, which never asks who leads a team (U7)
