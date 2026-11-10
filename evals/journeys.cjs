@@ -840,7 +840,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   if (!first.includes(`0 of ${readyGoals} goals`)) fail(`Goals says “${first}” after Ready said ${readyGoals} goals`);
   const late = await p.getByText(/\d+ weeks? late|up to \d+ weeks/).filter({ visible: true }).allInnerTexts();
   if (late.length) fail('a goal from the spreadsheet is late on day one: ' + late.join(' | ').slice(0, 300));
-  await p.goto(url('/workspace/teams'));
+  await p.goto(url('/teams'));
   await see(p, 'No lead', 'Teams names a lead set-up never asked for');
   // A colleague opens the invitation in a browser that would open another workspace: it opens Field Operations.
   const state = await p.context().storageState();
@@ -1093,8 +1093,7 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
 
 journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them an admin', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
-  await p.goto(url('/workspace/people'));
-  await see(p, 'You’re an admin');
+  await p.goto(url('/people'));
   await h.inView(p.getByRole('button', { name: 'Add a person' }), 'entry', 'Add a person');
   await h.checkpoint('workspace');
   await h.click(p.getByRole('button', { name: 'Add a person' }));
@@ -1107,17 +1106,20 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   await h.checkpoint('add person');
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }));
   await see(p, 'Added Ines Karim');
-  // 98 people are listed by team; the new person has none yet, so find them by name.
-  await h.fill(p.getByPlaceholder('Find by name, role or team'), 'Ines Karim');
-  h.set('attention', await p.locator('.opt', { hasText: 'Ines Karim' }).getByText('Admin').isVisible(), 'the new admin is not marked');
+  // The new person's page opens (WR1): it says they're an admin, and People lists them as one.
+  await p.getByRole('heading', { level: 1, name: 'Ines Karim' }).waitFor();
+  const role = await p.locator('.person-facts').innerText().catch(() => '');
+  await p.goto(url('/people?q=Ines'));
+  const row = await p.locator('.people-row', { hasText: 'Ines Karim' }).innerText().catch(() => '');
+  h.set('attention', /Admin\./.test(role) && /^Admin/m.test(row.split('\n').pop() ?? ''), `the new admin is not marked: “${role.slice(0, 80)}” / “${row}”`);
   h.set('finish', true);
   h.set('progress', true);
   const s = await h.snapshot();
   h.set('logged', s.people.some((x) => x.name === 'Ines Karim' && x.admin) && s.changes.some((c) => c.entity === 'person' && c.actorId === 'amara'), 'the new person is not saved and logged');
   // Someone who isn't an admin can't add people.
   await viewAs(p, 'Oskar');
-  await p.goto(url('/workspace/people'));
-  await see(p, 'Admins can add people');
+  await p.goto(url('/people'));
+  await p.locator('.people-row').first().waitFor();
   if (await p.getByRole('button', { name: 'Add a person' }).count()) fail('a non-admin was offered Add a person');
   await p.context().close();
 });
@@ -2522,8 +2524,8 @@ journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, peop
   await p.context().close();
 }, ['logged']);
 
-journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, People, Teams, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
-  const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
+journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
+  const SECTIONS = [['overview', 'Overview'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace'));
@@ -2542,15 +2544,14 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   h.set('progress', phone ? await p.locator('.ws-menu').count() === 0 && await p.locator('.ws-counts').count() === 0 : await p.locator('.ws-counts').isVisible(), phone ? 'a phone shows the side menu or the overview instead of the list' : 'a computer does not show the overview beside the menu');
   await h.checkpoint('sections');
   // Into a section and back, from the menu or the list: its address, its heading, and (on a phone) the way back.
-  await h.click(menu.getByRole('link', { name: /^People/ }));
-  await p.waitForURL(/\/workspace\/people(\?|$)/);
-  await p.getByRole('button', { name: 'Add a person' }).waitFor();
+  await h.click(menu.getByRole('link', { name: /^Cycles/ }));
+  await p.waitForURL(/\/workspace\/cycles(\?|$)/);
+  await p.locator('.cycles-block').waitFor();
   const heading = phone ? await p.locator('.page-head h1').innerText() : await p.locator('.ws-body h2').first().innerText();
-  h.set('entry', heading === 'People' && await p.getByRole('button', { name: 'Add a person' }).isVisible(), `People opened with the heading “${heading}”`);
-  await h.inView(p.getByRole('button', { name: 'Add a person' }), 'entry', 'Add a person');
-  await h.checkpoint('people');
+  h.set('entry', heading === 'Cycles', `Cycles opened with the heading “${heading}”`);
+  await h.checkpoint('cycles');
   if (phone) { await h.click(p.getByRole('link', { name: 'Workspace', exact: true })); await menu.waitFor(); }
-  else h.set('attention', await menu.getByRole('link', { name: /^People/ }).getAttribute('aria-current') === 'page', 'the menu does not mark the section that’s open');
+  else h.set('attention', await menu.getByRole('link', { name: /^Cycles/ }).getAttribute('aria-current') === 'page', 'the menu does not mark the section that’s open');
   // Every address opens its own section, with one main action at most.
   const broken = [];
   for (const [id, label] of SECTIONS) {
@@ -2565,9 +2566,9 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   await p.goto(url('/workspace?inbox=1&markup=mk_old'));
   const toInbox = await p.waitForURL(/\/feedback\?markup=mk_old/, { timeout: 5000 }).then(() => true, () => false);
   await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#people');
-  const toPeople = await p.waitForURL(/\/workspace\/people/, { timeout: 5000 }).then(() => true, () => false);
+  const toPeople = await p.waitForURL(/\/demo\/people(\?|$)/, { timeout: 5000 }).then(() => true, () => false);
   h.set('errors', toInbox && toPeople, `old links: the inbox’s ${toInbox}, #people ${toPeople}`);
-  // Someone who isn't an admin: Overview, People, Teams, Cycles, Privacy and Recently removed, and an admins' section says whose it is.
+  // Someone who isn't an admin: Overview, Cycles, Privacy and Recently removed, and an admins' section says whose it is.
   await viewAs(p, 'Oskar');
   await p.goto(url('/workspace'));
   await menu.waitFor();
@@ -2583,9 +2584,76 @@ journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own 
   const cyclesRead = await see(p, 'Only admins delete a cycle').then(() => true, () => false) && await p.getByRole('button', { name: /^Delete the cycle/ }).count() === 0;
   await p.goto(url('/workspace/removed'));
   const ownOnly = await see(p, 'Admins see what everyone has removed.').then(() => true, () => false);
-  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'People', 'Teams', 'Cycles', 'Privacy', 'Recently removed']) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
+  h.set('attention', JSON.stringify(theirs) === JSON.stringify(['Overview', 'Cycles', 'Privacy', 'Recently removed']) && told && reads && noSwitch && cyclesRead && ownOnly && await p.getByRole('button', { name: 'Make an MCP token' }).count() === 0, `someone who isn’t an admin sees ${theirs.join(', ')}; told Access is for admins ${told}; Privacy read-only ${reads && noSwitch}; Cycles read-only ${cyclesRead}; Recently removed their own ${ownOnly}`);
   await p.context().close();
 }, ['logged']);
+
+/* App redesign WR1 (docs/design/workspace/spec.md): People has its own place. */
+journey('U58', ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'], 'Anyone finds a person and a team: as Oskar, People from the sidebar (More on a phone), search, open Rhea, see her goals; Teams, open CI/CD, whose counts are Goals’ By team, and see its goals; no button changes anything; every old address lands', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await navTo(h, p, 'People');
+  await p.waitForURL(/\/demo\/people(\?|$)/);
+  await p.locator('.people-row').first().waitFor();
+  await h.inView(p.getByPlaceholder('Find by name, job title or team'), 'entry', 'Find a person');
+  const count = (await p.locator('.people-count').innerText()).trim();
+  h.set('progress', /^\d+ people, A to Z\. Showing 1 to 50\.$/.test(count), `People’s count line says “${count}”`);
+  await h.checkpoint('people');
+  await h.fill(p.getByPlaceholder('Find by name, job title or team'), 'rhea');
+  await see(p, '1 person matches.', 'a search for “rhea” does not find one person');
+  // The search is in the address, so Back and a shared link bring it back.
+  h.set('attention', /[?&]q=rhea/.test(p.url()), `the search is not in the address: ${p.url()}`);
+  await h.click(p.locator('.people-row', { hasText: 'Rhea Kapoor' }));
+  await p.getByRole('heading', { level: 1, name: 'Rhea Kapoor' }).waitFor();
+  const see8 = p.getByRole('link', { name: /^See Rhea’s \d+ goals$/ });
+  await h.inView(see8, 'entry', 'See Rhea’s goals');
+  const said = Number((await see8.innerText()).match(/\d+/)[0]);
+  const facts = await p.locator('.person-facts').innerText();
+  h.set('attention', /CI\/CD, which Rhea leads/.test(facts) && /Member\./.test(facts), `Rhea’s facts say “${facts.replace(/\s+/g, ' ').slice(0, 160)}”`);
+  await h.checkpoint('person');
+  const noChange = async () => p.getByRole('button', { name: /^(Add a person|Add a team|Change|Mark as left|Remove|Delete)/ }).count();
+  let offered = await noChange();
+  await h.click(see8);
+  await p.waitForURL(/\/goals\?.*owner=rhea/);
+  await p.locator('main').getByText(/Rhea Kapoor/).first().waitFor();
+  // Back to her page, then Teams, then CI/CD.
+  await p.goBack();
+  await p.getByRole('heading', { level: 1, name: 'Rhea Kapoor' }).waitFor();
+  await p.goto(url('/teams'));
+  await p.locator('.team-row').first().waitFor();
+  offered += await noChange();
+  await h.checkpoint('teams');
+  await h.click(p.locator('.team-row', { hasText: 'CI/CD' }));
+  await p.getByRole('heading', { level: 1, name: 'CI/CD' }).waitFor();
+  offered += await noChange();
+  const counts = (await p.locator('section[aria-labelledby="team-goals"] .team-counts').getAttribute('aria-label')) || '';
+  const seeAll = p.getByRole('link', { name: /^See its \d+ goals$/ });
+  const teamGoals = Number((await seeAll.innerText()).match(/\d+/)[0]);
+  await h.checkpoint('team');
+  // Goals' By team says the same for CI/CD.
+  const g = await p.context().newPage();
+  await g.goto(url('/goals?show=teams'));
+  const byTeam = (await g.locator('section[aria-label="CI/CD"] .team-counts').getAttribute('aria-label').catch(() => '')) || '';
+  await g.close();
+  const tail = (x) => x.split(': ').slice(1).join(': ');
+  h.set('finish', !!counts && tail(counts) === tail(byTeam) && said > 0 && teamGoals > 0, `CI/CD’s counts on its page (“${counts}”) and under Goals’ By team (“${byTeam}”)`);
+  await h.click(seeAll);
+  await p.waitForURL(/\/goals\?.*team=cicd/);
+  h.set('errors', offered === 0, `a member was offered ${offered} buttons that change people or teams`);
+  // Every old address lands where the table says, without a history entry.
+  const old = [['/workspace/people', /\/demo\/people\?today=/], ['/workspace/people?team=cicd', /\/demo\/teams\/cicd\?today=/], ['/workspace/people?team=-', /\/demo\/people\?team=-&today=/], ['/workspace/teams', /\/demo\/teams\?today=/]];
+  const wrong = [];
+  for (const [from, to] of old) {
+    await p.goto(url(from));
+    await p.locator('main h1').first().waitFor();
+    if (!to.test(p.url())) wrong.push(`${from} → ${p.url()}`);
+  }
+  await p.goto(BASE + '/demo/workspace?today=' + TODAY + '#teams');
+  await p.locator('main h1').first().waitFor();
+  if (!/\/demo\/teams\?today=/.test(p.url())) wrong.push(`#teams → ${p.url()}`);
+  h.set('logged', !wrong.length, `old addresses: ${wrong.join('; ')}`);
+  await p.context().close();
+});
 
 journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
   // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
@@ -2692,7 +2760,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   const perms = await p.locator('.ws-perms').innerText();
   h.set('attention', /you’re a member here/.test(perms) && /Grace Achterberg/.test(perms) && /Access and Features/.test(perms) && !/Cycles/.test(perms), `a member’s permissions line says “${perms}”`);
   if (!phone) h.set('attention', !/Admin/.test(await p.locator('.side .me').innerText()), 'a member’s badge says Admin');
-  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 5, 'the overview does not lead with what needs attention, then every section');
+  h.set('attention', await p.getByRole('heading', { name: /To look at here/ }).isVisible() && await p.getByRole('list', { name: 'Every section' }).getByRole('link').count() === 3, 'the overview does not lead with what needs attention, then every section');
   await h.checkpoint('member');
   // Part-way through a check-in, switching asks first and says the draft stays. (A phone's check-in takes the whole
   // screen, with no switcher: there you switch from Home.)
@@ -2726,7 +2794,8 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   // Feedback is its own page beside Help; the old inbox address leads there.
   await p.goto(url('/workspace/inbox'));
   await p.waitForURL(/\/feedback/, { timeout: 5000 });
-  h.set('entry', await p.getByRole('heading', { level: 1, name: 'Feedback' }).isVisible(), 'the inbox’s old address does not open Feedback');
+  // Wait for the page to draw: under a loaded machine the address changes a moment before the heading shows.
+  h.set('entry', await p.getByRole('heading', { level: 1, name: 'Feedback' }).waitFor({ timeout: 5000 }).then(() => true, () => false), 'the inbox’s old address does not open Feedback');
   if (!phone) h.set('entry', await p.locator('.side').getByRole('link', { name: 'Feedback' }).isVisible(), 'Feedback is not in the sidebar');
   // Rhea leaves the example: who takes over her goals first.
   await p.goto(url('/workspace/overview'));
@@ -2748,11 +2817,11 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   await g.goto(url('/workspace/cycles'));
   await see(g, 'Running: week 45 of 53', 'Cycles does not say which cycle is running');
   h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
-  await g.goto(url('/workspace/teams'));
-  await g.getByRole('link', { name: /^CI\/CD: see its/ }).click();
-  await g.waitForURL(/\/workspace\/people\?team=cicd/);
-  const group = await g.locator('.people-block .label').first().innerText().catch(() => '');
-  h.set('finish', /^CI\/CD · \d+$/.test(group.trim()) && await g.locator('.people-block .label').count() === 1, `a team row opens “${group}”, not its people`);
+  await g.goto(url('/teams'));
+  await g.locator('.team-row', { hasText: 'CI/CD' }).click();
+  await g.waitForURL(/\/teams\/cicd/);
+  const group = await g.locator('#team-people').innerText().catch(() => '');
+  h.set('finish', /^People · \d+$/.test(group.trim()), `a team row opens “${group}”, not its people`);
   // Set-up starts as the person you are, and asks about recording, off unless ticked.
   await g.goto(url('/workspace/new'));
   h.set('attention', !(await g.getByRole('checkbox', { name: /Record how the app is used here/ }).isChecked()), 'recording is ticked at set-up before anyone chose it');
@@ -2862,14 +2931,14 @@ const liveCycle = (s) => [...s.cycles].filter((c) => !c.removedAt).sort((a, b) =
 
 journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
-  await p.goto(url('/workspace/people'));
+  await p.goto(url('/people'));
   await p.locator('.page-head').first().waitFor();
   const s0 = await h.snapshot();
   const cycle = liveCycle(s0).id;
   const owned = s0.goals.filter((g) => g.ownerId === 'mateo' && g.cycleId === cycle && !g.removedAt && !g.stoppedAt).map((g) => g.id);
-  await h.fill(p.getByPlaceholder('Find by name, role or team'), 'Mateo');
-  await h.click(p.getByRole('button', { name: /Mateo Fernández/ }).first());
-  await h.click(p.getByRole('dialog').getByRole('button', { name: 'Mark as left…' }));
+  await h.fill(p.getByPlaceholder('Find by name, job title or team'), 'Mateo');
+  await h.click(p.getByRole('link', { name: /Mateo Fernández/ }).first());
+  await h.click(p.getByRole('button', { name: 'Mark as left…' }));
   const dlg = p.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
   await dlg.waitFor();
   // It asks who takes over first: marking him as left with no one chosen says what's missing and saves nothing.
@@ -2883,6 +2952,8 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   await see(p, 'Mateo Fernández is marked as left', 'no message that he left');
   h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
   // Gone from the directory; on Recently removed (its own section), with Restore.
+  await see(p, 'Left Platform Engineering on', 'his page does not say he left');
+  await p.goto(url('/people?q=Mateo'));
   await see(p, 'No one matches', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
   const removed = p.locator('.removed-block');
@@ -3079,7 +3150,9 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
     const wen = s.people.find((x) => x.id === 'wen');
     await window.__goalsStore.commit('platform-org', { people: [{ ...wen, email: null }], changes: [] });
   });
-  await p.goto(url('/workspace/people'));
+  await p.goto(url('/people'));
+  await see(p, '1 person has no email yet.', 'People does not say someone has no email');
+  await h.click(p.getByRole('button', { name: 'Add them' }));
   const list = p.getByRole('region', { name: /People without an email/ }).or(p.locator('section.missing-emails'));
   await list.first().waitFor();
   await see(p, 'People without an email · 1', 'Workspace does not list the person without an email');
@@ -3396,7 +3469,7 @@ async function platformChecks() {
     const c3 = await browser.newContext({ viewport: vp });
     const r = await c3.newPage();
     const problems = [];
-    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/workspace/people'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+    for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['grace', '/'], ['oskar', '/'], ['ingrid', '/'], ['rhea', '/goals'], ['amara', '/goals'], ['rhea', '/goals?show=attention'], ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['rhea', '/activity'], ['rhea', '/data'], ['grace', '/data?t=checkIns'], ['rhea', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/access'], ['amara', '/reviews'], ['amara', '/reviews/weekly'], ['jun', '/reviews/new'], ['rhea', '/watching'], ['oskar', '/watching'], ['jun', '/watching'], ['rhea', '/goals?show=levels'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['tariq', '/goals/new'], ['grace', '/workspace/new'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();
@@ -3430,7 +3503,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?view=table'], ['rhea', '/goals?view=board'], ['rhea', '/goals?view=history'], ['rhea', '/goals?view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/workspace/people'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();

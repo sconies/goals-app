@@ -17,7 +17,7 @@ import { Sheet } from './bits';
 import { Icon } from './Icon';
 
 /** Pages that exist in every workspace: a switch keeps you on them. Anything else (a goal, a check-in) goes Home. */
-const SAME_IN_EVERY = /^\/(goals|watching|reviews|activity|data|workspace(\/[a-z-]+)?|settings|help(\/[^/]+)?|whats-new|feedback|retro)?$/;
+const SAME_IN_EVERY = /^\/(goals|watching|reviews|activity|people|teams|data|workspace(\/[a-z-]+)?|settings|help(\/[^/]+)?|whats-new|feedback|retro)?$/;
 
 /** A task part-way through, whose draft belongs to the workspace it was started in, and its name in words. */
 function taskAt(path: string): string | null {
@@ -38,7 +38,8 @@ function hasDraftIn(wsId: string) {
 }
 
 /** Where a switch lands, from the page you're on. */
-export const landingFor = (path: string) => (SAME_IN_EVERY.test(path) && !taskAt(path) ? path : '/');
+/** A person's or a team's page belongs to the workspace it was in: after a switch, the list it came from (WR1). */
+export const landingFor = (path: string) => (/^\/(people|teams)\/[^/]+$/.test(path) ? `/${path.split('/')[1]}` : SAME_IN_EVERY.test(path) && !taskAt(path) ? path : '/');
 
 type Switch = (id: string, to?: string) => void;
 const Ctx = createContext<Switch | null>(null);

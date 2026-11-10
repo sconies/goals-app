@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { faroClient } from './client';
 import { upgradeAsks } from '../../domain/asks';
 import { withKeys } from '../../domain/goalKey';
 import type { Snapshot, Workspace } from '../../domain/types';
@@ -25,7 +26,7 @@ const timedFetch: typeof fetch = (input, init) => {
   return fetch(input, { ...init, signal: ctl.signal }).finally(() => clearTimeout(timer));
 };
 
-/** Shared records in Supabase's okr_ tables, one workspace at a time. Seeds the example the first time it is empty. */
+/** Shared records in Supabase's okr_ tables (in Faro's own schema, faro, since migration 0035), one workspace at a time. Seeds the example the first time it is empty. */
 export class SupabaseStore implements Store {
   readonly kind = 'supabase' as const;
   /** The real app's data. The example lives in the demo, in each visitor's browser. */
@@ -33,7 +34,7 @@ export class SupabaseStore implements Store {
   private readonly db: SupabaseClient;
 
   constructor(url: string, key: string, client?: SupabaseClient) {
-    this.db = client ?? createClient(url, key, { auth: { persistSession: false, detectSessionInUrl: false }, global: { fetch: timedFetch } });
+    this.db = client ?? faroClient(url, key, { fetch: timedFetch });
   }
 
   private async all<T>(table: string, ws: string): Promise<T[]> {

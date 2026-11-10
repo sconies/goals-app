@@ -1,5 +1,6 @@
 /* A fresh plain-Postgres database for the contract tests: PGlite (Postgres in WebAssembly, no server), with
-   bootstrap.sql and then every migration, exactly as a team on plain Postgres would set one up. Node only. */
+   bootstrap.sql and then every migration, exactly as a team on plain Postgres would set one up. Faro's tables end up in
+   the faro schema (migration 0035), which the session then searches first. Node only. */
 import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
