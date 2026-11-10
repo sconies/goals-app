@@ -102,6 +102,6 @@ Read against `docs/design/workspace/spec.md` sections 1, 2.1 to 2.4, 3, rules 4,
 
 **2. Low. A person who has left is titled "(left) (left)".**
 
-- Where: `src/screens/People.tsx:193`. `app.person` already gives a left person's name with "(left)" (`src/app/state.tsx:452`, `leftName`), and the heading adds it again.
+- Where: `src/screens/People.tsx:212`. `app.person` already gives a left person's name with "(left)" (`src/app/state.tsx:452`, `leftName`), and the heading adds it again.
 - Reproduce: in the demo as Amara, open Oskar Lindgren, "Mark as left…", then open `/people/oskar`: the heading reads "Oskar Lindgren (left) (left)". The browser's title is right.
 - Suggested fix: drop the heading's own suffix; have U43 check the heading's exact words.
