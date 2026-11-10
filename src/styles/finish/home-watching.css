@@ -221,6 +221,8 @@
   .needs-you .need-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; }
   .needs-you .need-what, .needs-you .need-quote, .needs-you .need-meta { grid-column: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .needs-you .need-action { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
+  /* The ask itself is the one thing to read: it wraps to two lines at word breaks rather than being cut mid-word (U27). */
+  .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 /* The hero's list of what's due is one line on a phone; the check-in names each goal as you go. */
 @container app (max-width: 600px) {

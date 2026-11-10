@@ -5,6 +5,7 @@ import { RESULT_MEANING, RESULT_TEXT } from '../domain/story';
 import type { GoalSummary } from '../domain/summary';
 import { WarnMark } from './bits';
 import { FLAG } from '../domain/vocabulary';
+import { waitingOnDecision } from '../domain/attention';
 
 /** Text in which "week 43" and "week-43" never break inside; a line breaks at a space or after "·" instead. */
 export function Keep({ text }: { text: string }) {
@@ -61,10 +62,13 @@ export function TableStory({ s }: { s: GoalSummary }) {
   const st = s.story;
   const { now: live, past } = splitHistory(s);
   const n = live.length;
+  // Waiting on a decision is the attention rule's own flag, whatever the status, so the line names the same goals as
+  // the "Decision or help needed" filter and the saved view built on it (U25).
+  const waiting = waitingOnDecision(s.attention) ? [FLAG.decision.label] : [];
   const parts = s.status === 'stale'
-    ? [st.since ?? 'No check-in for two weeks or more']
+    ? [...waiting, st.since ?? 'No check-in for two weeks or more']
     : [
-      ...(st.needs ? [FLAG.decision.label] : []),
+      ...waiting,
       ...(['off', 'risk'].includes(s.status) ? [st.why ? `Why: ${st.why}` : 'No reason given', st.byWhen ?? 'No date given'] : []),
     ];
   // Warnings by name, not a bare count (demo review, 8 Nov): the first one's own words, then how many more.

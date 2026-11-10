@@ -33,6 +33,8 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | Greener than calculated (`greener`) | not done, the latest call is greener than its calculation, and the status isn't `stale` |
 | Check-in due (`due`) | week ≥ 1, not done, and no check-in for this week yet |
 
+A goal is **waiting on a decision** (`waitingOnDecision`) exactly when it has the `decision` flag. The Goals filter "Decision or help needed" and every saved view built on it, the Table's one-line story, the Board's order within a lane and Home's asks all use this one rule, so they name the same goals.
+
 They are listed worst first: `off`, `missed-path`, `stale`, `decision`, `no-path`, `risk`, `trend`, `greener`, then `due`. A goal's weight is that of its worst flag. A check-in due, on its own, doesn't make a goal need attention. A done goal raises none of them, so it never needs attention and a review lists it with the goals that have nothing flagged.
 
 ### Being handled, and needs attention
@@ -75,7 +77,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Where it lives
 
 - [src/domain/trend.ts](../../../src/domain/trend.ts): `gapTrend`, `planGaps`, `stagesTrend`, `goalTrend`
-- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `lookedAtFor`, `needsAttention`, `attentionGroup`, `attentionList`
+- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `lookedAtFor`, `needsAttention`, `waitingOnDecision`, `attentionGroup`, `attentionList`
 - [src/domain/asks.ts](../../../src/domain/asks.ts): `openFor`, `answeredSince`, `isOverdue`
 
 ## Requirements

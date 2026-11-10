@@ -287,7 +287,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
         <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed"><Icon name="close" /></button>
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
-        {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
+        {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish tap-44" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}
 
         {d.step === 0 && (
           <section className="qsection">
@@ -313,7 +313,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">Weeks follow the calendar: week 1 is the week with the first Thursday of {MONTH_NAMES[startMonth({ startDate: d.startDate } as Cycle)]}{startMonth({ startDate: d.startDate } as Cycle) === 0 ? ', so week numbers match ISO weeks' : ''}. This year has {yearWeeks(d.startDate)} weeks.</span>
               </>
             ) : (
-              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review for everyone <span className="nowrap">on {DAYS[d.reviewDay]}s.</span> The first is on {firstText}, so nothing is due before it. <span className="nowrap"><button type="button" className="linkish" onClick={() => setCycleOpen(true)}>Change</button></span></span>
+              <span className="hint">Goals for the year {yearName(d.startDate, yearWeeks(d.startDate))}, in four quarters, with a weekly review for everyone <span className="nowrap">on {DAYS[d.reviewDay]}s.</span> The first is on {firstText}, so nothing is due before it. <span className="nowrap"><button type="button" className="linkish tap-44" onClick={() => setCycleOpen(true)}>Change</button></span></span>
             )}
             {/* Asked here, off unless chosen (backlog WS, Lane 9 Nov); an admin can change it later, under Privacy. */}
             <label className="check record-check setup-recording">
@@ -465,8 +465,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
-              <button type="button" className="linkish small" onClick={() => go(0)}>Change name or year</button>
-              <button type="button" className="linkish small" onClick={() => go(2)}>Change people</button>
+              <button type="button" className="linkish small tap-44" onClick={() => go(0)}>Change name or year</button>
+              <button type="button" className="linkish small tap-44" onClick={() => go(2)}>Change people</button>
             </div>
             {result.snapshot.goals.length > 0 && (
               <div className="stack" style={{ gap: 'var(--s2)' }}>

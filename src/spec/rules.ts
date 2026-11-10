@@ -369,7 +369,7 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
     id: 'flags',
     title: 'Flags, the trend and needs attention',
     summary: 'Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled.',
-    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'lookedAtFor', 'needsAttention', 'attentionGroup', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
+    code: [{ file: 'src/domain/trend.ts', names: ['gapTrend', 'planGaps', 'stagesTrend', 'goalTrend'] }, { file: 'src/domain/attention.ts', names: ['flagsFor', 'attentionFor', 'handledFor', 'lookedAtFor', 'needsAttention', 'waitingOnDecision', 'attentionGroup', 'attentionList'] }, { file: 'src/domain/asks.ts', names: ['openFor', 'answeredSince', 'isOverdue'] }],
     tests: ['src/domain/attention.test.ts', 'src/domain/story.test.ts', 'evals/attention.eval.ts', 'evals/vocabulary.eval.ts'],
     reqs: ['ATTENTION', 'ATTENTION-HANDLED', 'ONE-ATTENTION-RULE', 'ONE-TREND', 'PATH-TO-GREEN', 'GREENER', 'STALE'],
     body: `
@@ -398,6 +398,8 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 | ${FLAG.trend.label} (\`trend\`) | not done, and the trend is \`worse\` |
 | ${FLAG.greener.label} (\`greener\`) | not done, the latest call is greener than its calculation, and the status isn't \`stale\` |
 | ${FLAG.due.label} (\`due\`) | week ≥ 1, not done, and no check-in for this week yet |
+
+A goal is **waiting on a decision** (\`waitingOnDecision\`) exactly when it has the \`decision\` flag. The Goals filter "${FLAG.decision.label}" and every saved view built on it, the Table's one-line story, the Board's order within a lane and Home's asks all use this one rule, so they name the same goals.
 
 They are listed worst first: ${list(ATTENTION_FLAGS.map((k) => `\`${k}\``))}, then \`due\`. A goal's weight is that of its worst flag. A check-in due, on its own, doesn't make a goal need attention. A done goal raises none of them, so it never needs attention and a review lists it with the goals that have nothing flagged.
 

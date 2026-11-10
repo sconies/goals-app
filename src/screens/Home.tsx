@@ -346,12 +346,17 @@ function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
   const when = d.next ? (d.next.days === 0 ? 'today' : d.next.days === 1 ? 'tomorrow' : `in ${d.next.days} days`) : '';
   return (
     <section className="dash" aria-label="Your week at a glance" data-part="Week at a glance">
-      <Link className="dash-cell dash-goals" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>
-        <span className="dash-label">{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</span>
+      {/* Each count opens its own goals: "11 off track" lists the 11 (U23). The label opens them all. */}
+      <div className="dash-cell dash-goals">
+        <Link className="dash-label dash-all" to={d.scope === 'mine' ? '/goals?show=mine' : '/goals'}>{d.scope === 'mine' ? 'Your goals' : 'All goals'} · {d.total}</Link>
         <span className="dash-counts">
-          {d.counts.map((c) => <span key={c.status} className={'dash-count tone-' + c.status}><StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}</span>)}
+          {d.counts.map((c) => (
+            <Link key={c.status} className={'dash-count tone-' + c.status} to={`/goals?${d.scope === 'mine' ? 'show=mine&' : ''}status=${c.status}`} aria-label={`${c.n} ${LABEL[c.status].toLowerCase()}: show ${c.n === 1 ? 'it' : 'them'}`}>
+              <StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}
+            </Link>
+          ))}
         </span>
-      </Link>
+      </div>
       {d.streak != null && (
         <div className="dash-cell dash-streak">
           <span className="dash-label">On-time streak</span>
