@@ -16,6 +16,7 @@ export const DEMO_LOCAL = [
   'goals-seen:',
   'goals-whats-new-seen',
   'goals-map:',
+  'goals-map-troubled:',
   'goals-app-layout',
   'goals-data-layout:',
   'goals-data-cols:',

@@ -3118,21 +3118,24 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   const panel = p.getByRole('complementary', { name: /Merge queue live for every monorepo/ });
   await panel.waitFor();
   h.set('finish', /Why/.test(await panel.innerText()) && /On the critical path/.test(await panel.innerText()) && await panel.getByRole('link', { name: 'Open the goal' }).isVisible(), 'the story panel is missing its why or link');
-  // Fold the branches, then show only what needs attention.
+  // It opens folded to the top goals with only the critical path beneath them (MAP, 9 Nov); Unfold all shows every
+  // goal, Fold to the top goes back; then show only what needs attention.
   const before = await p.locator('.react-flow__node').count();
-  await h.click(p.getByRole('button', { name: 'Fold all' }));
-  const folded = await p.locator('.react-flow__node').count();
   await h.click(p.getByRole('button', { name: 'Unfold all' }));
-  await h.click(p.getByLabel('Only what needs attention'));
-  // It's the status filter now, so the map redraws from the link.
-  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, before, { timeout: 3000 }).catch(() => {});
-  const attention = await p.locator('.react-flow__node').count();
-  h.set('progress', folded < before && attention < before && attention >= 3, `nodes: ${before} all, ${folded} folded, ${attention} needing attention`);
-  // Dotted lines for goals that also help others.
-  await h.click(p.getByLabel('Only what needs attention'));
-  // The canvas draws its lines after the nodes are measured, so wait for them rather than counting at once.
-  // (Drawn, not necessarily on screen: on a phone the dotted lines sit lower down the canvas.)
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length > n, before, { timeout: 3000 }).catch(() => {});
+  const all = await p.locator('.react-flow__node').count();
+  // Dotted lines for goals that also help others. The canvas draws its lines after the nodes are measured, so wait
+  // for them rather than counting at once. (Drawn, not necessarily on screen: on a phone they sit lower down.)
   const helps = await p.waitForFunction(() => document.querySelectorAll('.react-flow__edge.helps').length > 0, null, { timeout: 5000 }).then(() => true, () => false);
+  await h.click(p.getByRole('button', { name: 'Fold to the top' }));
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, all, { timeout: 3000 }).catch(() => {});
+  const folded = await p.locator('.react-flow__node').count();
+  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
+  // It's the status filter now, so the map redraws from the link, every match unfolded.
+  await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length !== n, folded, { timeout: 3000 }).catch(() => {});
+  const attention = await p.locator('.react-flow__node').count();
+  h.set('progress', before < all && folded === before && attention < all && attention >= 3, `nodes: ${before} on opening, ${all} unfolded, ${folded} folded again, ${attention} needing attention`);
+  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
   h.set('logged', helps, 'no dotted also-helps lines');
   await p.context().close();
 }, ['errors', 'budget']);

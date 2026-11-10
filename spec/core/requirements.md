@@ -714,8 +714,9 @@ The same goals can be seen as a list, a sortable table, a board by status, or a 
 
 ### GOAL-MAP
 
-A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold and framed when the map opens. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
+A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; a find box finds a goal by name or key (G-48), opens its tree, outlines it and moves to it; each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
 
+- **Rule:** [The goal map](rules/map.md)
 - **Help:** “The goal map” (`goal-map`), screens `GoalMap`
 - **Journeys and checks:** U26, U30
 

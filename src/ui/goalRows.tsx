@@ -11,6 +11,7 @@ import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
 import { goalResult, RESULT_TEXT } from '../domain/story';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
 import { feederHead } from '../domain/goalPage';
+import { rollup } from '../domain/map';
 import type { Goal, Level, Watch } from '../domain/types';
 import { Spark, StageSpark } from './charts';
 import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
@@ -135,7 +136,8 @@ export function TreeCard({ node }: { node: TreeNode }) {
   const gap = gapBeside(g, a);
   const fc = projects(g, st.status) ? forecastText(g, a, app.cycle.weeks, app.cycle) : null;
   const feed = descendants(node);
-  const counts = (['off', 'risk', 'stale', 'on', 'done', 'planned'] as const).map((k) => [k, feed.filter((c) => app.statusOf(c).status === k).length] as const).filter(([, n]) => n);
+  // The one roll-up, shared with the map's nodes (domain/map.ts).
+  const counts = rollup(g, app.snapshot.goals, (x) => app.statusOf(x).status)?.counts ?? [];
   return (
     <Link to={'/goals/' + g.id} className="outcome-card">
       <span className="outcome-title">{g.title}<TitleTell goal={g} /><LevelTag level={g.level} /></span>
