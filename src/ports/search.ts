@@ -9,9 +9,9 @@
    - It is asynchronous from day one: a caller shows the answer to the last thing it asked and drops older ones
      (`latestOnly`), though Faro's adapter answers at once.
    Its contract: src/ports/contracts/search.ts. */
-import type { FoundRow, SearchAnswer, SearchAsk } from '../domain/find';
+import type { FoundRow, Recent, SearchAnswer, SearchAsk } from '../domain/find';
 
-export type { FoundRow, SearchAnswer, SearchAsk };
+export type { FoundRow, Recent, SearchAnswer, SearchAsk };
 
 /** The core's kinds; a module adds its own (the metric library: 'metric'). */
 export const CORE_KINDS = ['goal', 'person', 'team', 'workspace'] as const;
@@ -20,6 +20,8 @@ export type SearchKind = (typeof CORE_KINDS)[number] | (string & {});
 export interface Search {
   /** One page of the things of this kind that match, in the kind's order. Refuses a kind nobody registered. */
   search(kind: SearchKind, ask: SearchAsk): Promise<SearchAnswer>;
+  /** Rows to offer before anything is typed (find spec, rule 6): up to 6, for this person, with what they chose lately. */
+  suggest(kind: SearchKind, viewerId: string, recents: Recent[]): Promise<FoundRow[]>;
   /** The kinds it answers, core first. */
   kinds(): SearchKind[];
 }

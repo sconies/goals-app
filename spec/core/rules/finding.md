@@ -17,6 +17,8 @@ What a search matches, the near miss offered when nothing does, and the one sear
 
 **One search per kind.** `search(rows, ask)` with `ask = { q, filters, sort, after, size }` gives `{ total, rows, next, near? }`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (`src/domain/query.ts`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
 
+**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the `Prefs` port.
+
 **The seam.** Screens, pickers and the AI tools reach this through the `Search` port (`src/ports/search.ts`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.
 
 ## Worked examples
@@ -30,6 +32,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | “Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”. | `yes; yes` |
 | Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”. | `rollback; kafka; none; none; queue wait; none; none` |
 | In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”. | `1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0:` |
+| In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor. | `Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor` |
 | In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”. | `1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD` |
 
 ## Not self-explanatory
@@ -39,7 +42,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `page`
+- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `page`, `suggest`, `withRecent`
 - [src/domain/query.ts](../../../src/domain/query.ts): `searchKey`
 
 ## Requirements
@@ -55,6 +58,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 5: a near miss (nearMiss) › “%s” with %j → %s
 - rule 5: a near miss (nearMiss) › chooses the commonest candidate
 - rule 7: a page of the answer › gives every row once, a page at a time, and says where the next starts
+- rule 6: suggestions before typing (suggest) › a person: you, your team A to Z, then those chosen lately; never someone who left
+- rule 6: suggestions before typing (suggest) › keeps the newest twelve recents, without repeats
 
 ### [src/adapters/parts.test.ts](../../../src/adapters/parts.test.ts)
 

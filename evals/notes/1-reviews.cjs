@@ -140,9 +140,11 @@ module.exports = {
       await p.getByPlaceholder('What needs doing').fill('Agree the batching workaround with Web');
       // Who is found by searching, never picked from a list of everyone.
       const dlg = p.getByRole('dialog');
-      fail(!(await dlg.locator('.person-pick .optlist').count()), 'Decide: the person search lists people before anything is typed');
-      await dlg.getByRole('searchbox', { name: /^Who/ }).fill('Diego');
-      await dlg.getByRole('radio', { name: /Diego Ramírez/ }).click();
+      await dlg.locator('.pick').getByRole('button', { name: /Change$|^Who/ }).first().click();
+      const offered = await dlg.getByRole('listbox', { name: 'Who' }).getByRole('option').count();
+      fail(offered > 0 && offered <= 6, `Decide: the person search offers ${offered} people before anything is typed (at most 6 suggestions)`);
+      await dlg.getByRole('combobox', { name: /^Who/ }).fill('Diego');
+      await dlg.getByRole('option', { name: /Diego Ramírez/ }).click();
       await p.getByRole('button', { name: 'Save the next step' }).click();
       fail(await dlg.getByRole('alert').filter({ hasText: 'Choose the week' }).isVisible().catch(() => false), 'Decide: a next step for a goal behind saved with no date');
       await dlg.getByLabel(/^By/).selectOption({ index: 2 });
@@ -398,8 +400,9 @@ module.exports = {
       // Changed on the goal page: the owner is found by searching.
       await rowSel.getByRole('button', { name: 'Change' }).click();
       const d = p.getByRole('dialog');
-      await d.getByRole('searchbox', { name: /^Who/ }).fill('Rhea');
-      await d.getByRole('radio', { name: /Rhea Kapoor/ }).click();
+      await d.locator('.pick').getByRole('button', { name: /Change$|^Who/ }).first().click();
+      await d.getByRole('combobox', { name: /^Who/ }).fill('Rhea');
+      await d.getByRole('option', { name: /Rhea Kapoor/ }).click();
       await d.getByRole('button', { name: 'Save the change' }).click();
       await p.waitForTimeout(500);
       fail(/Rhea · by week/.test(await p.locator('.step-row', { hasText: 'Name a review rota' }).innerText()), 'P2: changing the owner on the goal page did not take');
