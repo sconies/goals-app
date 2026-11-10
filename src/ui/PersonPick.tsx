@@ -20,7 +20,7 @@ export function PersonPick({ value, onChange, label = 'Who', invalid = false }: 
       {q.trim() && (found.length
         ? <div className="optlist compact-opts" role="group" aria-label="People found">{found.map((p) => (
             <button key={p.id} type="button" role="radio" className="opt" aria-checked={p.id === value} onClick={() => { onChange(p.id); setQ(''); }}>
-              <span className="row" style={{ gap: 'var(--s2)' }}><Avatar p={p} size="sm" />{p.name}</span><span className="hint">{team(p.teamId)}</span>
+              <span className="row" style={{ gap: 'var(--s2)' }}><Avatar p={p} size="sm" /><span className="stack" style={{ gap: 0, minWidth: 0 }}><span>{p.name}</span>{team(p.teamId) && <span className="hint">{team(p.teamId)}</span>}</span></span>
             </button>
           ))}</div>
         : <span className="hint">Nobody here matches “{q.trim()}”.</span>)}
