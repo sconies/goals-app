@@ -2,7 +2,7 @@
    plain CSV files under spec/conformance/, made by the real rules. A rebuild proves its rules by reading the same
    workspace (spec/conformance/workspace.json) and matching every row. src/spec/conformance.test.ts recomputes them
    from workspace.json and fails on any difference. Pure: no files are read or written here. */
-import { attentionFor, needsAttention } from '../domain/attention';
+import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
 import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
 import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
 import { goalScorecard } from '../domain/scorecard';
@@ -77,7 +77,7 @@ export interface ConformanceTables { status: string[][]; flags: string[][]; proj
 
 export const HEADERS: Record<keyof ConformanceTables, string[]> = {
   status: ['week', 'goal', 'kind', 'status', 'calculated', 'greener', 'latest_week', 'days_without_update'],
-  flags: ['week', 'goal', 'flags', 'handled', 'needs_attention'],
+  flags: ['week', 'goal', 'flags', 'handled', 'needs_attention', 'attention_group'],
   projection: ['week', 'goal', 'kind', 'to_week', 'value', 'low', 'high', 'slope', 'first_week', 'last_week', 'forecast_misses'],
   scorecard: ['week', 'goal', 'cell', 'value', 'tone', 'likelihood', 'label', 'sub'],
   checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing'],
@@ -103,7 +103,7 @@ export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
       out.status.push([W, k, goal.kind, st.status, st.calc, yes(st.greener), latest ? String(latest.week) : '', String(daysWithoutUpdate(goal, cycle, latest, moment))]);
 
       const a = attentionFor(goal, s, cycle, moment);
-      out.flags.push([W, k, a.status.status === st.status ? a.flags.map((f) => f.kind).join(' ') : 'MISMATCH', a.handled?.kind ?? '', yes(needsAttention(a))]);
+      out.flags.push([W, k, a.status.status === st.status ? a.flags.map((f) => f.kind).join(' ') : 'MISMATCH', a.handled?.kind ?? '', yes(needsAttention(a)), attentionGroup(a) ?? '']);
 
       if (goal.kind !== 'milestone') {
         let p = null as ReturnType<typeof projectionFor>, misses = '';

@@ -1,4 +1,4 @@
-/* The Board layout: a lane per status, worst first; the healthy lanes show a few cards and a count. */
+/* The Board layout: a lane per status, worst first; the healthy lanes show their first few cards and a count. */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -8,6 +8,8 @@ import { SHORT_MEANING } from '../domain/story';
 import { LEVELS } from '../domain/query';
 import type { DisplayStatus } from '../domain/types';
 import { LevelTag, StatusShape, TitleTell } from '../ui/bits';
+import { Icon } from '../ui/Icon';
+import { ATTENTION } from '../domain/vocabulary';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
@@ -15,6 +17,9 @@ import { useSummaries, type ViewGroup } from './GoalViews';
 const COLUMNS: { key: string; title: string; statuses: DisplayStatus[]; always: boolean }[] = (['off', 'risk', 'stale', 'none', 'planned', 'on', 'done'] as const).map((k) => ({
   key: k, title: LABEL[k], statuses: [k], always: k === 'off' || k === 'risk' || k === 'stale' || k === 'on',
 }));
+
+/** How many cards a healthy lane shows before Show all: room for a team's goals, not 3 or 4 of 60 (backlog GP, 9 Nov). */
+export const HEALTHY_SHOWN = 8;
 
 export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const sums = useSummaries(groups);
@@ -31,7 +36,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
       {cols.map((c) => {
         // Healthy lanes show a few cards and a count; the exceptions show everything.
         const healthy = c.key === 'on' || c.key === 'done';
-        const items = healthy && !shown.has(c.key) ? c.items.slice(0, 3) : c.items;
+        const items = healthy && !shown.has(c.key) ? c.items.slice(0, HEALTHY_SHOWN) : c.items;
         return (
         <section key={c.key} className="board-col" aria-label={`${c.title}, ${c.items.length}`}>
           <h2 className={'board-head tone-' + (c.key === 'waiting' ? 'stale' : c.key)}><StatusShape k={c.statuses[0]!} />{c.title}<span className="board-count tnum">{c.items.length}</span></h2>
@@ -43,13 +48,17 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
               {s.goal.level !== 'team' && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
               <span className="board-title">{s.goal.title}</span><TitleTell goal={s.goal} />
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
+              {/* Which goal it feeds, so a card makes sense away from its tree (backlog GP, 9 Nov). */}
+              {s.feedsInto && <span className="hint ellipsis board-parent" title={`Feeds into ${s.feedsInto}`}>Feeds into {s.feedsInto}</span>}
               <ResultTag s={s} />
+              {/* Being handled sits in its status's lane, so the card says so: a shape and the word, and what's in hand (outside review, 10 Nov, U14). */}
+              {s.attention.handled && <span className="board-handled small" title={s.attention.handled.text}><Icon name="check-circle" size={13} />{ATTENTION.handled.label}<span className="muted"> · {s.attention.handled.text}</span></span>}
               {/* The same evidence on every card: the number and its gap, then the owner's account when there is one. */}
               <span className="small muted">{s.now}{s.gap !== s.now && <> · <Keep text={s.gap} /></>}</span>
               {hasStory(s) && <StoryLines s={s} compact brief />}
             </Link>
           ))}
-          {healthy && c.items.length > 3 && (
+          {healthy && c.items.length > HEALTHY_SHOWN && (
             <button type="button" className="btn ghost sm board-more" aria-expanded={items.length === c.items.length}
               onClick={() => setShown((v) => { const n = new Set(v); if (n.has(c.key)) n.delete(c.key); else n.add(c.key); return n; })}>
               {items.length < c.items.length ? `Show all ${c.items.length}` : 'Show fewer'}

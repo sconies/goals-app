@@ -93,7 +93,7 @@ module.exports = {
         return { items, button: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), items_off: [...document.querySelectorAll('.layout-menu .menuitem')].filter(off).length,
           view: name && name.scrollWidth > name.clientWidth + 1 ? name.textContent : '', chips: [...document.querySelectorAll('.filter-chips .filter-chip')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
       });
-      if (m.items.length !== 6 || m.items_off) fail(`${w}px: the Layout menu has ${m.items.length} layouts, ${m.items_off} cut off`);
+      if (m.items.length !== 5 || m.items_off) fail(`${w}px: the Layout menu has ${m.items.length} layouts, ${m.items_off} cut off`);
       if (m.button !== 'Layout: Board') fail(`${w}px: the Layout button says “${m.button}”`);
       if (!m.items.includes('Board A column for each status.')) fail(`${w}px: the Layout menu does not say what the Board layout is (${m.items.join(' | ')})`);
       if (m.view) fail(`${w}px: the open view's name is cut off: ${m.view}`);
