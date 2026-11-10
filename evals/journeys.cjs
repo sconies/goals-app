@@ -2805,7 +2805,7 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
 }, ['logged']);
 
 /* App redesign WR3: admins and tokens where they are listed; Settings about you. */
-journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; stopping being an admin yourself offers no Undo; the only admin has no button; each change is logged', 10, async (h, device) => {
+journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; stopping being an admin yourself offers no Undo; the only admin has no button; each change is logged', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/workspace/access'));
   const add = p.getByRole('button', { name: 'Add an admin' });
