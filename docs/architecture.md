@@ -96,6 +96,14 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 
 Moving an existing feature works the same way. Move its files into the folder, then replace the core's direct imports with places, routes and tools. Spreadsheets (Data's Spreadsheets menu, Import at `/data/import`, Goals' Export these goals, the `export` and `export_table` tools) is the worked example.
 
+## Running an action (backlog RD, AR3, 10 Nov)
+
+Every change a person makes goes one way: `app.run(action, input)` (`src/app/state.tsx`), over one table of actions (`src/app/actions.ts`). The input names records by id (`run('addAction', { goalId, text, assigneeId, dueWeek })`); the dispatcher sets who acts, when and new ids, runs the shared rule from `src/domain` unchanged, saves the `Commit` it returns, and shows Undo after a removal. A rule that says no is shown, not saved. `planChanges` previews and saves only with `apply`.
+
+- The per-action methods on `AppState` (`app.addNote`, `app.stopGoal` and the rest) are aliases of it. New code calls `run` directly.
+- The table's names are the command port's ([the ports at company scale](../spec/rebuild/ports-at-scale.md)): `src/app/actions.test.ts` fails if the table and R1's access table disagree. A new action is a row in each.
+- It is the shape a team copies: to move the rules to a server, replace the dispatcher's body with a call to it, and keep the names and inputs. It doesn't make Faro's saves trustworthy; the browser still runs the rule.
+
 ## The outside parts (item 8c, 9 Nov)
 
 Everything Faro needs from outside its own code sits behind one interface in `src/ports/`, each with a contract test any replacement must pass (`src/ports/contracts/`): the goals store (`Store`), markups (`MarkupStore`), feedback (`FeedbackStore`), who is viewing (`Identity`), the time (`Clock`), files (`Files`) and where a metric's numbers come from (`NumberSource`). The adapters live in `src/adapters/`: `supabase/` (the real app's, and the only code that imports Supabase), `postgres/` (the goals store on plain Postgres, after `bootstrap.sql` and the same migrations), `demo/` (the demo's number source) and `local.ts` (the picker, the clocks, files in memory). `src/adapters/stores.test.ts` and `parts.test.ts` run every contract on Faro's adapters; Supabase's run on a stand-in for its client over real Postgres (PGlite), so they need no network. How to write one for another platform: `spec/rebuild/adapters.md`.
