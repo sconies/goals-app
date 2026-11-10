@@ -7,6 +7,12 @@
    3. A module imports another module only if its module.json lists it under `needs`.
    4. Supabase is imported only by its adapters, src/adapters/supabase/ (backlog 8c): everything else reaches the
       database, files and the rest through the interfaces in src/ports, so a team can swap Supabase for their own.
+   5. The rules don't read the clock (AR1): no `new Date()` or `Date.now()` in src/domain or a module's rules*.ts. The
+      time is a port (Clock); a rule takes `today` or `week`.
+   6. New rules take what they need (AR4, docs/design/architecture.md 4.4): no file in src/domain or a module's rules*.ts
+      may take the whole workspace (`Snapshot`) as a parameter or field, except the files listed in
+      scripts/whole-workspace.json, and those no more times than it says. The list may only shrink: src/app/reads.ts
+      turns the loaded workspace into the rows a new rule reads.
 
    npm run lint:layers runs it; CI runs it, and so does npm test (src/core/layers.test.ts). */
 import fs from 'node:fs';
@@ -57,6 +63,23 @@ const OUTSIDE = /\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(|\b(window|d
 
 const moduleOf = (rel) => /^src\/modules\/([^/]+)\//.exec(rel)?.[1] ?? null;
 
+/** Reading the clock, as a rule must not. */
+const CLOCK = /\bnew\s+Date\s*\(\s*\)|\bDate\s*\.\s*now\s*\(/;
+/** Taking the whole workspace: a parameter or field typed Snapshot. */
+const WHOLE = /\b\w+\??\s*:\s*(?:Readonly<\s*)?Snapshot\b/g;
+/** A file whose code is rules: src/domain, and a module's rules*.ts. */
+const isRules = (f) => !isTest(f) && (f.startsWith('src/domain/') || /^src\/modules\/[^/]+\/rules[^/]*\.ts$/.test(f));
+
+/** How many times each rules file takes the whole workspace, by file. */
+export function wholeWorkspaceUses(root) {
+  const out = {};
+  for (const file of files(root, 'src').filter(isRules)) {
+    const n = [...codeOnly(fs.readFileSync(path.join(root, file), 'utf8')).matchAll(WHOLE)].length;
+    if (n) out[file] = n;
+  }
+  return out;
+}
+
 /** The problems, as "file:line: what". Empty when every layer keeps to itself. */
 export function checkLayers(root) {
   const problems = [];
@@ -88,16 +111,30 @@ export function checkLayers(root) {
         if (m) problems.push(`${file}:${i + 1}: the rules layer (src/domain) uses ${m[0].replace(/\s*[.(]$/, '')}; browser, network and storage code belongs in src/app or src/data`);
       });
     }
+    // 5. The rules don't read the clock.
+    if (isRules(file)) {
+      codeOnly(raw).split('\n').forEach((l, i) => {
+        if (CLOCK.test(l)) problems.push(`${file}:${i + 1}: a rule reads the clock (new Date() or Date.now()); take \`today\` or \`week\` as an input (the Clock port gives it)`);
+      });
+    }
+  }
+  // 6. New rules take what they need.
+  const allowedFile = path.join(root, 'scripts/whole-workspace.json');
+  const allowed = fs.existsSync(allowedFile) ? JSON.parse(fs.readFileSync(allowedFile, 'utf8')).files : {};
+  for (const [file, n] of Object.entries(wholeWorkspaceUses(root))) {
+    const may = allowed[file] ?? 0;
+    if (n > may) problems.push(`${file}: takes the whole workspace (Snapshot) ${n} time(s)${may ? `, more than the ${may} scripts/whole-workspace.json allows` : ''}; a new rule takes only the rows it reads (src/app/reads.ts makes them)`);
   }
   return problems;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  if (process.argv.includes('--whole-workspace')) { console.log(JSON.stringify(wholeWorkspaceUses(root), null, 2)); process.exit(0); }
   const problems = checkLayers(root);
   if (problems.length) {
     console.error(`The layers lint found ${problems.length} problem(s) (docs/architecture.md):\n${problems.map((p) => `  ${p}`).join('\n')}`);
     process.exit(1);
   }
-  console.log('Layers: the rules layer imports only itself, the core depends on no module, and only Supabase’s adapters import Supabase.');
+  console.log('Layers: the rules layer imports only itself and reads no clock, new rules take only what they read, the core depends on no module, and only Supabase’s adapters import Supabase.');
 }

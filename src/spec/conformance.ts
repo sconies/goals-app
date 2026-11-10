@@ -8,6 +8,8 @@ import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../
 import { goalScorecard } from '../domain/scorecard';
 import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../domain/status';
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
+import { search } from '../domain/find';
+import { goalRows, personRows, teamRows } from '../app/reads';
 
 /** The moment the demo workspace is built for: Thursday 5 November 2026, noon UTC (week 45), as the evals pin it. */
 export const CHECK_IN_MOMENT = '2026-11-05T12:00:00.000Z';
@@ -147,6 +149,29 @@ export function checkInRows(w: ConformanceWorkspace): string[][] {
   return rows.sort((a, b) => Number(a[1]) - Number(b[1]) || a[2]!.localeCompare(b[2]!, 'en', { numeric: true }) || a[0]!.localeCompare(b[0]!));
 }
 
+/* ---------- finding things ---------- */
+
+/** The searches find.csv answers: the find rules' worked examples (docs/design/find/spec.md, rules 1, 5 and 7). */
+export const FIND_SEARCHES: [kind: 'goal' | 'person' | 'team', q: string][] = [
+  ['goal', 'G-48'], ['goal', 'g48'], ['goal', '48'], ['goal', 'G-4'], ['goal', 'tunde'], ['goal', 'one click roll'], ['goal', 'off track'],
+  ['goal', 'back'], ['goal', 'rollback'], ['goal', 'rolback'], ['goal', 'kafak'], ['goal', 'qeue wait'], ['goal', 'piplin'], ['goal', 'zzzz'], ['goal', ''],
+  ['person', 'tunde'], ['person', 'rhea'], ['person', 'LUCIA'], ['person', 'kapor'], ['person', ''],
+  ['team', 'ci'], ['team', 'rhea'], ['team', ''],
+];
+export const FIND_HEADER = ['kind', 'q', 'total', 'near', 'ids'];
+
+/** What each search finds in the workspace as it was built for: how many, the near miss if any, and every id in order. */
+export function findRowsOf(w: ConformanceWorkspace): string[][] {
+  const moment = new Date(w.builtFor);
+  const s = asOf(w, moment);
+  const week = currentWeek(w.cycle, moment);
+  const rows = { goal: goalRows(s, w.cycle, moment, week), person: personRows(s), team: teamRows(s) };
+  return FIND_SEARCHES.map(([kind, q]) => {
+    const a = search(rows[kind], { q, size: 200 });
+    return [kind, q, String(a.total), a.near ?? '', a.rows.map((r) => r.id).join(' ')];
+  });
+}
+
 /* ---------- CSV ---------- */
 
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -155,5 +180,5 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 /** The CSV files, by name. */
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
-  return Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])]));
+  return { ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)) };
 }

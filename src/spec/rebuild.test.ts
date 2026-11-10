@@ -26,6 +26,16 @@ describe('the drill harness (scripts/drill.mjs, copied to spec/rebuild/drill.mjs
     expect(r.status).toBe(0);
   }, 30_000);
 
+  it('scores find.csv (the find rules) only when asked, beside stage 1’s five', () => {
+    for (const [f, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), text);
+    expect(drill(dir).stdout).not.toContain('find.csv');
+    const r = drill(dir, '--files', 'find');
+    expect(r.stdout).toContain('find.csv');
+    expect(r.stdout).toContain('PASS');
+    fs.writeFileSync(path.join(dir, 'find.csv'), files['find.csv']!.replace('goal,G-48,1', 'goal,G-48,2'));
+    expect(drill(dir, '--files', 'find').status).toBe(1);
+  }, 30_000);
+
   it('names the week, goal and column of a difference, counts a missing file, and fails', () => {
     const lines = files['status.csv']!.split('\n');
     const at = lines.findIndex((l) => l.startsWith('12,G-7,'));

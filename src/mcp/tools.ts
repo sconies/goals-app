@@ -2,12 +2,14 @@
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
 import { addNote, NotAllowed } from '../domain/actions';
-import { applyQuery, parseQuery } from '../domain/query';
+import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
+import { searchRows } from '../app/reads';
+import { localSearch } from '../adapters/localSearch';
+import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
 import { describe, planChanges, VIA_MCP, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
-import { summariseAll } from '../domain/summary';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { attentionGroup, needsAttention } from '../domain/attention';
@@ -22,7 +24,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById } from '../core/registry';
 import { commentsOf } from '../domain/removal';
-import { findGoal, isKey, normalKey } from '../domain/goalKey';
+import { findGoal, isKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
 import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
 
@@ -144,6 +146,14 @@ const goalRef = (ctx: McpContext, id: unknown) => {
   return g;
 };
 
+/** Every page of a search's answer, in order. A near miss isn't what was asked for, so it finds nothing here. */
+async function allPages(search: Search, kind: string, ask: SearchAsk): Promise<FoundRow[]> {
+  const out: FoundRow[] = [];
+  let after: string | null = null;
+  do { const a = await search.search(kind, { ...ask, size: 200, after }); if (a.near) return []; out.push(...a.rows); after = a.next; } while (after);
+  return out;
+}
+
 const GOAL_FIELDS = {
   title: str('The goal’s name.'),
   owner: str('The owner’s full name, as in the workspace (when only one person has it; owner_email is exact).'),
@@ -185,7 +195,7 @@ const CORE_TOOLS: ToolDef[] = [
     title: 'Find goals',
     description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
-      text: str('Words in the goal’s name, or its key (G-12).'),
+      text: str('Words on the goal’s row (its name, key, owner, team, level, status, reason or definition), each the start of a word; or its key (G-12).'),
       owner: str('Part of the owner’s name.'),
       status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
       needs_attention: bool(`Only the goals on the ${ATTENTION.needs.label} list: those that need attention first, then those ${ATTENTION.handled.label.toLowerCase()} (beingHandled says how), as the Goals screen lists them. ${ATTENTION.needs.long}`),
@@ -196,21 +206,33 @@ const CORE_TOOLS: ToolDef[] = [
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      const has = (s: string, q: unknown) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-      const byKey = normalKey(a.text as string | undefined);
-      let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : null;
+      let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : EMPTY_QUERY;
       if (a.view) {
         const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
         if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
         query = parseQuery(new URLSearchParams(v.params));
       }
+      // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
+      // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
       const status = a.status ? statusIn(a.status) : null;
-      let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week)
-        .filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || attentionGroup(s.attention) !== null));
-      // The same search, filters and sort as the Goals screen (domain/query.ts).
-      if (query) list = applyQuery(list, query, { goals: ctx.snapshot.goals, cycle: ctx.cycle, week: ctx.week });
+      const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
+      const owners = [query.owner.length ? query.owner : null, named, a.mine ? [ctx.actor.id] : null].filter((x): x is string[] => !!x)
+        .reduce<string[] | null>((acc, x) => (acc ? acc.filter((id) => x.includes(id)) : x), null);
+      const asked: GoalQuery = {
+        ...query,
+        q: '',
+        status: status ? (query.status.length ? query.status.filter((x) => x === status) : [status]) : query.status,
+        level: a.level ? [a.level as Level] : query.level,
+        owner: owners ? (owners.length ? owners : ['nobody']) : [],
+        attention: query.attention || !!a.needs_attention,
+      };
+      const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
+      const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+      const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
+      const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
+      let list = found.map((r) => byId.get(r.id)!).filter(Boolean);
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
-      if (a.needs_attention || query?.attention || query?.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
+      if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
       return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(', ')}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ''}`).join('\n') : 'No goals match.' };
     },

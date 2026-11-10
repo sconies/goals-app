@@ -282,6 +282,8 @@ const PARTS: [string, string, string, string][] = [
   ['The time', '`Clock`', '`clockContract`', 'the system clock, and a fixed one for the demo and the evals (`src/adapters/local.ts`)'],
   ['Files', '`Files`', '`filesContract`', 'Supabase Storage (`src/adapters/supabase/files.ts`), memory (`src/adapters/local.ts`)'],
   ['Numbers', '`NumberSource`', '`numberSourceContract`', 'the demo’s “CI analytics” (`src/adapters/demo/numbers.ts`); real connectors are yours'],
+  ['Finding things: one search per kind, a page at a time', '`Search` (`src/ports/search.ts`)', '`searchContract` (`src/ports/contracts/search.ts`): [finding things](../core/rules/finding.md)’ worked examples', 'over the workspace loaded in the browser (`src/adapters/localSearch.ts`, calling `src/domain/find.ts`); your server’s search replaces it'],
+  ['Small preferences per person (opened lately, a list’s last scope)', '`Prefs` (`src/ports/prefs.ts`)', '`prefsContract`', 'this browser (`browserPrefs`, `src/adapters/local.ts`); your server keeps them'],
   ['The AI tools’ endpoint', '`Deps` (`server/mcp.ts`)', 'none yet: `evals/markup.eval.ts` drives it', 'Supabase (`src/adapters/supabase/server.ts`)'],
 ];
 
@@ -392,7 +394,8 @@ const portsAtScale = () => GENERATED + [
   '',
   '- **`GoalSummary`** is one live goal’s summary row: the goal’s own fields, and what the stage 1 rules say about it now: its status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, its latest week and days without an update. The columns are those of [the conformance files](../conformance/README.md), so the conformance data proves the summaries.',
   '- **`GoalQuery`** is the Goals screen’s own filter and sort (`src/domain/query.ts`): search text, status, level, team, owner, kind, needs attention, and the rest. Today the browser applies it to the whole `Snapshot`; on the query port the server applies it to summary rows.',
-  '- **Search** is the server search behind find-and-pick (backlog 0a). It accepts a goal’s key (“G-48”) wherever it accepts a title.',
+  '- **Search** is the server search behind find-and-pick, the list bars and Find. Faro already calls it through a port of this shape: `Search` (`src/ports/search.ts`), `search(kind, { q, filters, sort, after, size })` → `{ total, rows, next, near? }`, with its contract (`searchContract`). `search()` and the list calls above (`people()`, `teams()`, and `goals()` for a picker) are that one call with a kind, and **kinds are open**: the core’s are goal, person, team and workspace, and a module registers its own (the metric library’s metric). It accepts a goal’s key (“G-48”) wherever it accepts a title; what a search matches is [finding things](../core/rules/finding.md). The near miss is optional: a server may never offer one.',
+  '- **New rules already take the query port’s shapes.** Since AR4 no rule added to `src/domain` takes the whole workspace (`Snapshot`): each takes the rows it reads, made by `src/app/reads.ts` from the loaded workspace today and from this port in the rebuild. The older rules that still take it are listed in `scripts/whole-workspace.json`, and the layers lint lets that list only shrink: they are the work left.',
   '- **Only `goal()` reads a goal’s check-ins.** Lists, counts, Home and the AI tools read summaries.',
   '',
   '## The command port: what people and the AI tools change',

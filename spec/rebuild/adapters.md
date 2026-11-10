@@ -25,6 +25,8 @@ For a team that copies Faro’s code rather than rebuilding it from this kit: ev
 | The time | `Clock` | `clockContract` | the system clock, and a fixed one for the demo and the evals (`src/adapters/local.ts`) |
 | Files | `Files` | `filesContract` | Supabase Storage (`src/adapters/supabase/files.ts`), memory (`src/adapters/local.ts`) |
 | Numbers | `NumberSource` | `numberSourceContract` | the demo’s “CI analytics” (`src/adapters/demo/numbers.ts`); real connectors are yours |
+| Finding things: one search per kind, a page at a time | `Search` (`src/ports/search.ts`) | `searchContract` (`src/ports/contracts/search.ts`): [finding things](../core/rules/finding.md)’ worked examples | over the workspace loaded in the browser (`src/adapters/localSearch.ts`, calling `src/domain/find.ts`); your server’s search replaces it |
+| Small preferences per person (opened lately, a list’s last scope) | `Prefs` (`src/ports/prefs.ts`) | `prefsContract` | this browser (`browserPrefs`, `src/adapters/local.ts`); your server keeps them |
 | The AI tools’ endpoint | `Deps` (`server/mcp.ts`) | none yet: `evals/markup.eval.ts` drives it | Supabase (`src/adapters/supabase/server.ts`) |
 
 ## What to build
