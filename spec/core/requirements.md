@@ -283,11 +283,11 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 ### SAVED-VIEWS
 
-Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
+Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
 - **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** U32, U33, U34
+- **Journeys and checks:** N10, U32, U33, U34
 
 ### GOAL-SUMMARY
 
@@ -495,8 +495,18 @@ Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekda
 
 What was said in a review is kept as its summary; owners see questions and actions on their goal page.
 
+- **Rule:** [Deciding in a review](rules/review-decide.md)
 - **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
 - **Journeys and checks:** U3, U36
+
+### REVIEW-DECIDE
+
+A goal off track or at risk leaves a review's walk with a decision: a next step with an owner (chosen by searching, never from a list of everyone) and a week it's due by, or "We accept the risk" with a reason. The goal page shows next steps as dated rows with an owner, changed there, an overdue one flagged; anyone can add one. The next session opens with what the last one agreed and asks if it's done. Finish review says what was decided and who owns what, with Undo. A review isn't "to do" before anything is due.
+
+- **Rule:** [Deciding in a review](rules/review-decide.md)
+- **Help:** “Reviews” (`reviews`), screens `Review`, `Inspect`
+- **Tests:** `src/mcp/mcp.test.ts` (1)
+- **Journeys and checks:** N1, U3
 
 ### REVIEW-LIST-STATE
 
@@ -575,7 +585,7 @@ Every goal has a short, readable key (G-1, G-2 … per workspace) that never cha
 
 - **Help:** “Goal keys and record IDs” (`keys`)
 - **Tests:** `evals/data-ids.eval.ts` (11)
-- **Journeys and checks:** N5
+- **Journeys and checks:** N5, N10
 
 ### ONE-FORMAT
 
@@ -623,10 +633,10 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do.
+An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U5, U11, U49, U54
+- **Journeys and checks:** N10, U5, U11, U49, U54
 
 ### IDENTITY
 
@@ -689,10 +699,10 @@ A goal year's weeks follow the calendar: week 1 is the week with the first Thurs
 
 ### VIEWS
 
-The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, and each card names the goal it feeds into. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
+The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, each card leads with its own status (shape and word) and names the goal it feeds into. By team lists the teams worst first (most off track, then at risk, no recent update, no check-in yet), each with its goals counted by status, shape and word. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen.
 
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
-- **Journeys and checks:** U19
+- **Journeys and checks:** N10, U19
 
 ### GOAL-MAP
 
@@ -813,11 +823,11 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ### HOME-DASHBOARD
 
-Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch.
+Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals ("11 off track" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3
+- **Journeys and checks:** N3, N10
 
 ## Interface
 

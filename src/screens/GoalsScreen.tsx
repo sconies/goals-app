@@ -7,11 +7,11 @@ import { attentionGroup, attentionList, splitAttention } from '../domain/attenti
 import { LEVEL_LABEL } from '../domain/format';
 import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
-import { worst } from '../domain/status';
+import { LABEL, worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty, EmptyResult } from '../ui/bits';
+import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
 import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
-import { worstFirst } from '../domain/order';
+import { statusCounts, worstFirst, worstGroupsFirst } from '../domain/order';
 import { HandledGroup } from '../ui/HandledGroup';
 import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
@@ -61,7 +61,7 @@ export function GoalsScreen() {
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
     : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: HANDLED_LINE }] : [])]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
-    : show === 'teams' ? app.snapshot.teams.map((t) => one(t.id, t.name, app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'teams' ? teamsWorstFirst(app).map(({ team: t, goals }) => one(t.id, t.name, goals))
     : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
     : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -286,18 +286,18 @@ export function GoalsScreen() {
         );
       })}
 
-      {!alt && !refined && show === 'teams' && app.snapshot.teams.map((t) => {
-        const list = app.snapshot.goals.filter((g) => g.teamId === t.id).sort(worstFirst(app));
-        if (!list.length) return null;
-        const st = worst(list.map((g) => app.statusOf(g).status));
+      {/* Teams worst first, each with its goals counted by status, shape and word (U24): which team needs a word is
+          the first thing a leader reads, not something to work out from fourteen headers. */}
+      {!alt && !refined && show === 'teams' && teamsWorstFirst(app).map(({ team: t, goals: list }) => {
+        const counts = statusCounts(list.map((g) => app.statusOf(g).status));
         return (
           <section key={t.id} className="block" aria-label={t.name} data-part={t.name}>
-            <div className="row between nowrap">
-              <span className="stack" style={{ gap: 0, minWidth: 0 }}>
-                <h2 className="block-title">{t.name}</h2>
-                {t.objective && <span className="hint team-objective">{t.objective}</span>}
+            <div className="stack team-head" style={{ gap: 2, minWidth: 0 }}>
+              <h2 className="block-title">{t.name} <span className="hint">· {list.length}</span></h2>
+              <span className="team-counts" aria-label={`${t.name}: ${counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ')}`}>
+                {counts.map((c) => <span key={c.status} className={'team-count tone-' + c.status}><StatusShape k={c.status} />{c.n} {LABEL[c.status].toLowerCase()}</span>)}
               </span>
-              <Chip k={st} />
+              {t.objective && <span className="hint team-objective">{t.objective}</span>}
             </div>
             {/* The same row as every other tab: shape and word, the title and reason, the number over its gap. */}
             <ul className="tree">{list.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}</ul>
@@ -383,4 +383,10 @@ function AttentionCounts({ att, handled }: { att: GoalAttention[]; handled: Goal
       {' '}<button type="button" className="linkish" aria-expanded={why} onClick={() => setWhy(!why)}>{why ? 'Less' : 'Why?'}</button>
     </p>
   );
+}
+
+/** The teams that have goals, worst first (domain/order.ts worstGroupsFirst), each with its goals worst first (U24). */
+function teamsWorstFirst(app: ReturnType<typeof useApp>) {
+  const teams = app.snapshot.teams.map((team) => ({ team, goals: app.snapshot.goals.filter((g) => g.teamId === team.id).sort(worstFirst(app)) })).filter((t) => t.goals.length);
+  return worstGroupsFirst(teams, (t) => t.goals.map((g) => app.statusOf(g).status), (t) => t.team.name);
 }

@@ -18,11 +18,21 @@ a.dash-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .dash-label { font-size: var(--t-xs); line-height: 1rem; font-weight: 500; color: var(--muted); letter-spacing: .01em; }
 .dash-label-when { display: none; }
 .dash-missed .dash-label { display: inline-flex; align-items: center; gap: 4px; color: var(--risk-fg); font-weight: 600; }
+/* The warning mark is a small inline sign beside its words: with no size of its own an SVG fills the tile (deep review, 9 Nov). */
+.dash-missed .dash-label svg { flex: none; width: 12px; height: 12px; }
 .dash-value { font-size: var(--t-md); line-height: 1.375rem; font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
 .dash-sub { font-size: 0.8125rem; line-height: 1.125rem; color: var(--muted); }
 .dash-counts { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }
 .dash-count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); line-height: 1.375rem; font-weight: 600; white-space: nowrap; }
 .dash-count svg { flex: none; width: 14px; height: 14px; }
+/* Each count is a link to its own goals (U23), and the label to them all: plain text until hovered, never a button. */
+a.dash-count, a.dash-all { color: inherit; text-decoration: none; border-radius: 4px; }
+a.dash-count { color: var(--fg); }
+a.dash-all { align-self: flex-start; }
+a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) {
+  a.dash-count:hover, a.dash-all:hover { text-decoration: underline; text-underline-offset: 2px; }
+}
 /* A phone or a narrow tablet: two by two, and slimmer: a label and one line each, so the week's one action stays in
    the first screen. With three cells (someone who owns no goals), the goals by status take the first row. */
 @container page (max-width: 719px) {

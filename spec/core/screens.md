@@ -63,7 +63,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/reviews/:reviewId/edit` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 - `/reviews/:reviewId/summary` (`ReviewSummary`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
+- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
