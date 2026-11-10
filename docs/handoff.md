@@ -24,7 +24,7 @@ Each line says what you do and what Faro gives you for it.
 ### 1. Run it
 
 - [ ] **Host the web app** (static files from `npm run build`) and **one Node endpoint** (`api/mcp.js`, the AI tools). Nothing depends on Vercel.
-- [ ] **Settings:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (the browser's), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (the endpoint's; used only to sign markup pictures). They are Supabase's adapters' settings: your adapters bring their own (step 3).
+- [ ] **Settings:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (the browser's), `SUPABASE_URL`, `VITE_SUPABASE_KEY` again for the endpoint (it uses the public key only, never the service role key). They are Supabase's adapters' settings: your adapters bring their own (step 3).
 
 ### 2. Read R1 and R4 before you touch the goals store
 
