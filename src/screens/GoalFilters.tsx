@@ -50,7 +50,9 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
 /** The views this person sees: their own and the ones an admin pinned for everyone. Data's saved layouts are kept apart. */
 export function useViews(): SavedView[] {
   const app = useApp();
-  return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
+  // A view saved in the Cards layout is the same view in List (Lane, 9 Nov): opening it says so once (GoalsScreen).
+  return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id))
+    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view'))) } : v)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
@@ -252,7 +254,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
         {checks('Status', STATUS_OPTIONS, 'status')}
         {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
         <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
-          <label className="check"><input type="checkbox" checked={q.attention} onChange={(e) => { const on = e.target.checked; setQ((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] })); }} /> Only goals that need attention</label>
+          <label className="check"><input type="checkbox" checked={q.attention} onChange={(e) => { const on = e.target.checked; setQ((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] })); }} /> Only goals that need attention, with those {ATTENTION.handled.label.toLowerCase()} below them</label>
           <span className="hint">Because… (any of these; leave them all clear for any reason)</span>
           <span className="filter-options">{NEED_OPTIONS.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={q.needs.includes(k)} onChange={() => setQ((cur) => { const needs = toggle(cur.needs, k); return { ...cur, needs, attention: cur.attention || needs.length > 0 }; })} /> {l}</label>)}</span>
         </fieldset>

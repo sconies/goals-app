@@ -1,10 +1,11 @@
 // @vitest-environment node
-/* Being handled (Lane's notes, 5 Nov): a goal that is off track or at risk but that someone has looked at since its
-   latest check-in, with nothing new since, is "being handled", not "needs attention". In the Platform Engineering
-   example on Thursday 5 November (week 45), before the leadership weekly. */
+/* Being handled (Lane, 10 Nov): a goal that is off track or at risk is "being handled", not "needs attention", only
+   when, since its latest check-in, an action was agreed with an owner and a due week, or (at risk only) its request
+   was answered, and nothing new has happened since. Marking it reviewed or noting it is "looked at": a quiet line, and
+   it still needs attention. In the Platform Engineering example on Thursday 5 November (week 45). */
 import { buildPlatformOrg } from '../data/platformOrg';
 import { answerAsk, openFor } from './asks';
-import { attentionFor, attentionList, handledFor, needsAttention, splitAttention } from './attention';
+import { attentionFor, attentionList, handledFor, lookedAtFor, needsAttention, splitAttention } from './attention';
 import { aiBrief } from './export';
 import { currentWeek } from './plan';
 import { agendaOf, reviewSession } from './review';
@@ -35,10 +36,13 @@ const checkIn = (s: Snapshot, id: string, postedAt: string, extra: Partial<Check
   return { ...s, checkIns: [...s.checkIns, { ...c, id: `ci_t${++n}`, week, postedAt, ...extra }] };
 };
 const handled = (s: Snapshot, id: string, at = today) => attentionFor(goal(s, id), s, cycle, at).handled;
+const looked = (s: Snapshot, id: string, at = today) => attentionFor(goal(s, id), s, cycle, at).lookedAt;
 
 describe('being handled', () => {
-  it('starts with the halt being handled (reviewed in Reliability weekly after its check-in), and lead time needing attention', () => {
-    expect(handled(s0, 'cfr-halt')).toMatchObject({ kind: 'reviewed', text: `Reviewed in Reliability weekly, week ${week}` });
+  it('starts with the halt looked at (reviewed in Reliability weekly after its check-in) but still needing attention, and lead time needing attention', () => {
+    expect(handled(s0, 'cfr-halt')).toBeNull();
+    expect(looked(s0, 'cfr-halt')).toMatchObject({ kind: 'reviewed', text: expect.stringMatching(new RegExp(`^Looked at by \\w+ in Reliability weekly, week ${week}$`)) });
+    expect(needsAttention(attentionFor(goal(s0, 'cfr-halt'), s0, cycle, today))).toBe(true);
     expect(handled(s0, 'ns-lead')).toBeNull();
     expect(needsAttention(attentionFor(goal(s0, 'ns-lead'), s0, cycle, today))).toBe(true);
     expect(handled(s0, RED)).toBeNull();
@@ -50,8 +54,9 @@ describe('being handled', () => {
     expect(needsAttention(attentionFor(goal(s, RED), s, cycle, today))).toBe(false);
   });
 
-  it('an action is the owner’s unless someone else was named, and one with no week says no week', () => {
-    expect(handled(withSaid(s0, action(RED)), RED)!.text).toBe('Action: Yasmin');
+  it('an action is the owner’s unless someone else was named; one with no due week doesn’t put it in hand', () => {
+    expect(handled(withSaid(s0, action(RED, { recipientId: null, dueWeek: 47 })), RED)!.text).toBe('Action: Yasmin, due week 47');
+    expect(handled(withSaid(s0, action(RED)), RED)).toBeNull();
   });
 
   it('a new check-in makes it news again, even with the same call', () => {
@@ -66,12 +71,18 @@ describe('being handled', () => {
     expect(handled(withSaid(s0, said(RED, 'acknowledge', { at: '2026-10-29T15:00:00.000Z' })), RED)).toBeNull();
   });
 
-  it('marked reviewed in a review counts, and says where and when', () => {
-    expect(handled(withSaid(s0, said(RED, 'acknowledge')), RED)).toMatchObject({ kind: 'reviewed', text: `Reviewed in Platform leadership weekly, week ${week}`, said: '' });
+  it('marked reviewed in a review is a look, not a plan: it still needs attention, and says who looked, where and when', () => {
+    const s = withSaid(s0, said(RED, 'acknowledge'));
+    expect(handled(s, RED)).toBeNull();
+    expect(needsAttention(attentionFor(goal(s, RED), s, cycle, today))).toBe(true);
+    expect(looked(s, RED)).toMatchObject({ kind: 'reviewed', text: `Looked at by Amara in Platform leadership weekly, week ${week}`, said: '' });
+    expect(lookedAtFor(goal(s, RED), s, cycle, today)).toEqual(looked(s, RED));
   });
 
-  it('a note outside a review names who looked', () => {
-    expect(handled(withSaid(s0, said(RED, 'note', { reviewId: null })), RED)!.text).toBe(`Noted by Amara, week ${week}`);
+  it('a note outside a review names who looked, and doesn’t put it in hand either', () => {
+    const s = withSaid(s0, said(RED, 'note', { reviewId: null }));
+    expect(handled(s, RED)).toBeNull();
+    expect(looked(s, RED)!.text).toBe(`Looked at by Amara, week ${week}`);
   });
 
   it('the owner looking at their own goal is not someone else having looked; an action they agreed is', () => {
@@ -89,17 +100,22 @@ describe('being handled', () => {
     expect(handled(withSaid(s0, action(RED, { status: 'withdrawn' })), RED)).toBeNull();
   });
 
-  it('an answered request puts it in hand', () => {
-    const r = openFor('ns-lead', s0)[0]!;
-    const { request } = answerAsk(r, 'Approved: the runner budget for Q4.', 'amara', '2026-11-05T10:00:00.000Z', (p) => `${p}_t${++n}`);
-    const s: Snapshot = { ...s0, requests: (s0.requests ?? []).map((x) => (x.id === r.id ? request : x)) };
-    expect(handled(s, 'ns-lead')).toMatchObject({ kind: 'answered', text: `Request answered by Amara, week ${week}`, said: 'Approved: the runner budget for Q4.' });
+  it('an answered request puts an at-risk goal in hand; an off-track goal stays counted until it has an action', () => {
+    const answered = (id: string) => {
+      const r = openFor(id, s0)[0]!;
+      const { request } = answerAsk(r, 'Approved: the runner budget for Q4.', 'amara', '2026-11-05T10:00:00.000Z', (p) => `${p}_t${++n}`);
+      return { ...s0, requests: (s0.requests ?? []).map((x) => (x.id === r.id ? request : x)) } as Snapshot;
+    };
+    expect(attentionFor(goal(s0, 'ns-lead'), s0, cycle, today).status.status).toBe('off');
+    expect(handled(answered('ns-lead'), 'ns-lead')).toBeNull();
+    const risky = s0.goals.find((g) => openFor(g.id, s0).length && attentionFor(g, s0, cycle, today).status.status === 'risk' && !handled(s0, g.id))!;
+    expect(handled(answered(risky.id), risky.id)).toMatchObject({ kind: 'answered', text: `Request answered by Amara, week ${week}`, said: 'Approved: the runner budget for Q4.' });
   });
 
   it('a new flag since the look makes it news again: the recovery date passes', () => {
     // The latest check-in says it's back on plan by week 45; Amara reviews it this morning.
     const s1: Snapshot = { ...s0, checkIns: s0.checkIns.map((c) => (c.id === latest(s0, RED).id ? { ...c, pathToGreen: { ...c.pathToGreen!, byWeek: 45 } } : c)) };
-    const s = withSaid(s1, said(RED, 'acknowledge'));
+    const s = withSaid(s1, action(RED, { dueWeek: 47 }));
     expect(handled(s, RED)).not.toBeNull();
     // Monday of week 46: still not stale, but the date it was due back on plan has passed.
     const monday = new Date('2026-11-09T12:00:00Z');
@@ -109,7 +125,7 @@ describe('being handled', () => {
 
   it('a check-in coming due does not count as new: the owner has a week to post it', () => {
     const monday = new Date('2026-11-09T12:00:00Z');
-    const s = withSaid(s0, said(RED, 'acknowledge'));
+    const s = withSaid(s0, action(RED, { dueWeek: 47 }));
     expect(attentionFor(goal(s, RED), s, cycle, monday).flags.map((f) => f.kind)).toContain('due');
     expect(handled(s, RED, monday)).not.toBeNull();
   });
@@ -137,7 +153,7 @@ describe('being handled', () => {
   });
 
   it('handledFor is the same rule on its own', () => {
-    const s = withSaid(s0, said(RED, 'acknowledge'));
+    const s = withSaid(s0, action(RED, { dueWeek: 47 }));
     expect(handledFor(goal(s, RED), s, cycle, today)).toEqual(handled(s, RED));
   });
 });
@@ -149,7 +165,7 @@ describe('lists that show attention', () => {
     expect(firstHandled).toBeGreaterThan(0);
     expect(list.slice(firstHandled).every((a) => a.handled)).toBe(true);
     const { needs, handled: inHand } = splitAttention(list);
-    expect(inHand.map((a) => a.goal.id).sort()).toEqual(['cfr-contract', 'cfr-halt', 'dep-jenkins', 'ns-vuln']);
+    expect(inHand.map((a) => a.goal.id).sort()).toEqual(['ns-vuln']);
     expect(needs.map((a) => a.goal.id)).toContain('ns-lead');
     expect(needs.every(needsAttention)).toBe(true);
   });
@@ -175,6 +191,6 @@ describe('lists that show attention', () => {
     const inHand = md.slice(md.indexOf('## Being handled'), md.indexOf('## No recent update'));
     expect(inHand).toContain('### Critical and high vulnerabilities fixed within SLA');
     expect(inHand).toContain('**Being handled:** Action: Farah, due week 48');
-    expect(md).toMatch(/4 behind and being handled/);
+    expect(md).toMatch(/1 behind and being handled/);
   });
 });

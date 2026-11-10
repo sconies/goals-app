@@ -229,7 +229,7 @@
     {
       "id": "VIEWS",
       "area": "Views",
-      "text": "The same goals can be seen as a list, a sortable table, a board by status, a week-by-week history grid of owners’ calls, or cards. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen."
+      "text": "The same goals can be seen as a list, a sortable table, a board by status, or a week-by-week history grid of owners’ calls (each with the goal’s number now). Cards went on 9 Nov: a link, saved view or remembered choice that names it opens the list and says so once. Every layout has the same one-line health summary above the goals (how many off track, at risk, on track and so on, shape and word, as Home counts them). Sorted, the Trees tab is one list across every tree. The Board shows 8 cards in a healthy lane before Show all, and each card names the goal it feeds into. The tabs choose which goals and how they are grouped; the layout is remembered per person and carried in the address. Choosing a tab or a layout is a step in the browser's history, so Back returns to the one before. A link naming a tab, team, owner or tree the workspace doesn't have opens the default instead, with one line saying what was left out. Every tab is shown whole beside the layouts. On a phone the goals come first: which goals (the tabs and saved views, with Export) and the layout are two menus on one line, the first saying the open view and its count, so the first goal starts within about 240px of the top of a 360px screen."
     },
     {
       "id": "SPREADSHEETS-ON-DATA",
@@ -449,7 +449,7 @@
     {
       "id": "ATTENTION-HANDLED",
       "area": "Attention",
-      "text": "Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI)."
+      "text": "Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card."
     },
     {
       "id": "HOME-DASHBOARD",
@@ -564,7 +564,7 @@
     {
       "id": "ONE-ATTENTION-RULE",
       "area": "Attention",
-      "text": "Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's \"Only what needs attention\", the Goals filter (with an optional \"because\"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on; an old link's needs=no-recovery still opens No path to green."
+      "text": "Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's \"Only what needs attention\", the Goals filter (with an optional \"because\"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green."
     },
     {
       "id": "ONE-TREND",

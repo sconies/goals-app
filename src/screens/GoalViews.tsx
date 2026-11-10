@@ -1,8 +1,9 @@
-/* Other ways to see the same goals: a sortable table, a board by status, a week-by-week history grid and cards.
+/* Other ways to see the same goals: a sortable table, a board by status and a week-by-week history grid. (Cards went
+   on 9 Nov, Lane: it showed less than the list and added nothing; a link or saved view naming it opens the list.)
    The Goals tabs say which goals and how they're grouped; the layout says how they're drawn. Each person's
    choice is remembered, and it's in the address so a view can be shared. This file holds what every layout shares
    (the choice of layout, the groups, each goal's summary); each layout has a file of its own: GoalTable, GoalBoard,
-   GoalHistory and GoalCards, with the bulk actions in BulkEdit and a goal's story in ui/GoalStory. */
+   and GoalHistory, with the bulk actions in BulkEdit and a goal's story in ui/GoalStory. */
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useLatestParams } from './GoalFilters';
@@ -11,19 +12,31 @@ import { summarise, type GoalSummary } from '../domain/summary';
 import type { Goal } from '../domain/types';
 import { MenuButton } from '../ui/MenuButton';
 
-export type Layout = 'list' | 'table' | 'board' | 'history' | 'cards' | 'map';
-export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['cards', 'Cards'], ['map', 'Map']];
+export type Layout = 'list' | 'table' | 'board' | 'history' | 'map';
+export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['map', 'Map']];
 /** Each layout in one line, said under the toolbar and on its button (backlog N, 8 Nov). */
 export const LAYOUT_ABOUT: Record<Layout, string> = {
   list: 'rows, grouped as the tab says.',
   table: 'a row per goal; sort any column.',
   board: 'a column for each status.',
   history: 'each goal’s status, week by week.',
-  cards: 'a card per goal, with its gap.',
   map: 'how the goals feed each other.',
 };
 const KEY = 'goals-app-layout';
 const isLayout = (v: string | null): v is Layout => !!v && LAYOUTS.some(([k]) => k === v);
+
+/** The layout that went (Lane, 9 Nov): a link, saved view or remembered choice naming it opens the list. */
+export const GONE_LAYOUT = 'cards';
+export const GONE_LAYOUT_NOTE = 'Cards has gone, so these goals are in List, which shows everything Cards did.';
+
+/** Whether this person's remembered layout was Cards; if so it is forgotten, so the list says so only once. */
+export function forgetGoneLayout(): boolean {
+  try {
+    if (localStorage.getItem(KEY) !== GONE_LAYOUT) return false;
+    localStorage.setItem(KEY, 'list');
+    return true;
+  } catch { return false; }
+}
 
 /** The layout from the address, else this person's last choice, else the list. */
 export function useLayout(): [Layout, (l: Layout) => void] {
@@ -61,7 +74,7 @@ export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (
 }
 
 /**
- * On a phone, the layouts are one choice rather than a row of six buttons (backlog G, 9 Nov): the button says the open
+ * On a phone, the layouts are one choice rather than a row of five buttons (backlog G, 9 Nov): the button says the open
  * layout, and the menu says what each one is, which the line under the toolbar says on a wider screen.
  */
 export function LayoutMenu({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
@@ -78,8 +91,7 @@ function LayoutIcon({ k }: { k: Layout }) {
   if (k === 'table') return <svg {...p}><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 6.5h12M6 6.5V13" /></svg>;
   if (k === 'board') return <svg {...p}><rect x="2" y="3" width="3.5" height="10" rx="1" /><rect x="6.25" y="3" width="3.5" height="7" rx="1" /><rect x="10.5" y="3" width="3.5" height="5" rx="1" /></svg>;
   if (k === 'history') return <svg {...p}><path d="M2 4h2M6 4h2M10 4h2M2 8h2M6 8h2M10 8h4M2 12h2M6 12h4" strokeWidth="2.2" /></svg>;
-  if (k === 'map') return <svg {...p}><rect x="6" y="1.5" width="4" height="3" rx="0.8" /><rect x="1.5" y="11.5" width="4" height="3" rx="0.8" /><rect x="10.5" y="11.5" width="4" height="3" rx="0.8" /><path d="M8 4.5v3.5M3.5 11.5V8h9v3.5" /></svg>;
-  return <svg {...p}><rect x="2" y="2.5" width="5" height="5" rx="1" /><rect x="9" y="2.5" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" /><rect x="9" y="9" width="5" height="5" rx="1" /></svg>;
+  return <svg {...p}><rect x="6" y="1.5" width="4" height="3" rx="0.8" /><rect x="1.5" y="11.5" width="4" height="3" rx="0.8" /><rect x="10.5" y="11.5" width="4" height="3" rx="0.8" /><path d="M8 4.5v3.5M3.5 11.5V8h9v3.5" /></svg>;
 }
 
 /** Goals to draw, in groups (a tree, a level, a team…). Depth indents goals inside a tree. */

@@ -17,6 +17,8 @@
 
 @container app (max-width: 600px) {
   .goals-page .goals-toolbar, .goals-page .layout-about { display: none !important; }
+  /* The health line (backlog GP) is for wider screens: on a phone the goals come first, and the Views button counts them. */
+  .goals-page .goals-about { display: none !important; }
   /* The week line sits under the title, beside New goal, so the header stays one 44px row. */
   .goals-page .page-head.goals-head { align-items: center; }
   .goals-page .goals-head .actions { grid-row: 1 / span 2; align-self: center; }

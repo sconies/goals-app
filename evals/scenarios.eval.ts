@@ -220,7 +220,8 @@ describe('search, filters and saved views', () => {
   it(R('SAVED-VIEWS', 'every word of a search must appear somewhere in the goal or its story'), () => expect(ids({ q: 'runner budget' })).toEqual(['lead-ci-time', 'lead-runners', 'ns-lead']));
   // Needs attention, narrowed to a slipped date: the goals whose date slipped that nobody has picked up yet (the four
   // being handled, cfr-contract, cfr-halt, dep-jenkins and ns-vuln, are left out: the one Needs attention rule).
-  it(R('SAVED-VIEWS', 'a slipped date is a reason Needs attention can be narrowed to'), () => expect(ids({ attention: true, needs: ['slipped'] })).toEqual(['devsat-docs', 'devsat-toil', 'env-templates', 'fresh-lakehouse', 'fresh-streaming', 'lead-flaky', 'lead-merge', 'lead-mq', 'lead-review-rota', 'ml-gpu', 'mttr-gamedays', 'mttr-noise', 'mttr-runbooks', 'net-mtls', 'ns-cfr', 'ns-devsat', 'ns-env', 'slo-multiregion', 'vuln-autofix', 'vuln-containers', 'vuln-distroless']));
+  // Those being handled are on the list too, below the others (Lane, 9 Nov, backlog GP): cfr-contract, cfr-halt, dep-jenkins, ns-vuln.
+  it(R('SAVED-VIEWS', 'a slipped date is a reason Needs attention can be narrowed to'), () => expect(ids({ attention: true, needs: ['slipped'] })).toEqual(['cfr-contract', 'cfr-halt', 'dep-jenkins', 'devsat-docs', 'devsat-toil', 'env-templates', 'fresh-lakehouse', 'fresh-streaming', 'lead-flaky', 'lead-merge', 'lead-mq', 'lead-review-rota', 'ml-gpu', 'mttr-gamedays', 'mttr-noise', 'mttr-runbooks', 'net-mtls', 'ns-cfr', 'ns-devsat', 'ns-env', 'ns-vuln', 'slo-multiregion', 'vuln-autofix', 'vuln-containers', 'vuln-distroless']));
   it(R('SAVED-VIEWS', 'a link carries the whole query, and reads back the same'), () => {
     const q: GoalQuery = { ...EMPTY_QUERY, status: ['off'], due: 'quarter', sort: 'due', dir: -1 };
     expect(parseQuery(new URLSearchParams(queryEntries(q)))).toEqual(q);
