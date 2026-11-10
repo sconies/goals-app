@@ -70,7 +70,7 @@ module.exports = {
       const narrowTitle = rows.filter((t) => r(t.querySelector('.trow-title')).width < r(t).width * 0.6 - 1).length;
       const clamped = [...document.querySelectorAll('.goal-page .trow-why')].filter((w) => w.scrollHeight > w.clientHeight + 1).length;
       const why = [...document.querySelectorAll('.pinned-why')].map((w) => { const cs = getComputedStyle(w); return r(w).height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom); });
-      const sa = document.querySelector('#activity .show-all');
+      const sa = document.querySelector('#history .show-all');
       return {
         narrowTitle, clamped, why,
         mix: document.querySelectorAll('.goal-page .mix').length, counts: document.querySelectorAll('#feeds .feeds-sum .feeds-count').length,
@@ -89,12 +89,12 @@ module.exports = {
     // (Lead time for changes is fed by four goals in two behind states, so two counts to show; the old head had six inputs and three.)
     if (head.mix || head.counts < 2 || !head.countShapes) fails.push(`head: the goals feeding it shown as a colour bar (${head.mix}) not counts with shapes (${head.counts})`);
     if (head.statusAlign !== 'baseline') fails.push('the bar’s status line is not on one baseline');
-    if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`Activity’s “Show all” is ${head.showAll}px wide`);
+    if (!(head.showAll > 0 && head.showAll < 260)) fails.push(`History’s “Show all” is ${head.showAll}px wide`);
     if (head.fc !== 'rgb(70, 87, 89)') fails.push(`projection words in ${head.fc}`);
     if (head.crumbs || !/^Back to /.test(head.back)) fails.push(`head: a breadcrumb (${head.crumbs}) or no named Back link (“${head.back}”)`);
     checkChart(await chartFacts(p), 'head 1280 chart', fails, { ticks: [4, 6] });
-    const changes = await p.locator('#activity .stream > li').count();
-    if (changes > 8 || !(await p.locator('#activity').getByRole('button', { name: /^Show all \d+$/ }).count())) fails.push(`Activity shows ${changes} entries without a Show all`);
+    const changes = await p.locator('#history .stream > li').count();
+    if (changes > 12 || !(await p.locator('#history').getByRole('link', { name: /^Show all \d+$/ }).count())) fails.push(`History shows ${changes} entries without a Show all`);
     await c.close();
 
     // [Goal 2, 4, 7, 31] The same on a phone.
@@ -106,8 +106,8 @@ module.exports = {
       const stacked = rows.length > 0 && rows.every((t) => r(t.querySelector('.trow-title')).width > r(t).width * 0.8);
       return { stacked, sideways: document.documentElement.scrollWidth - innerWidth };
     });
-    await p.locator('#activity .ci-week').first().scrollIntoViewIfNeeded();
-    const weeks = await p.evaluate(() => [...document.querySelectorAll('#activity .ci-week')].map((e) => Math.round(e.getBoundingClientRect().height)));
+    await p.locator('#history .ci-week').first().scrollIntoViewIfNeeded();
+    const weeks = await p.evaluate(() => [...document.querySelectorAll('#history .ci-week')].map((e) => Math.round(e.getBoundingClientRect().height)));
     if (!ph.stacked) fails.push('head 390: rows in What feeds it not stacked (title not full width)');
     if (weeks.some((h) => h > 24)) fails.push(`head 390: “Week n” wraps (${Math.max(...weeks)}px)`);
     if (ph.sideways > 0) fails.push(`head 390: ${ph.sideways}px sideways`);

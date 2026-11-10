@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-history',
+    date: '2026-11-10',
+    title: 'A goal’s history shows the weeks it missed',
+    points: [
+      'Activity on a goal is now History: every week is listed, with “No check-in” where there was none.',
+      'Reviews and Changes are separate filters, with counts, and a filter can be linked to.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'goal-next-steps-and-asks',
     date: '2026-11-10',
     title: 'Everything asked and agreed on a goal, in one list',

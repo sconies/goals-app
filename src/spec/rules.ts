@@ -26,7 +26,7 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
-import { primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
+import { goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { nearMiss, search, textMatches } from '../domain/find';
@@ -775,6 +775,39 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
       ];
     })(),
     unclear: ['How many done rows show before “Show all” (three) is a choice about the page, not the rule.', '“3 weeks ago” counts weeks of the cycle between when it was asked and now, not days.'],
+  },
+
+  /* ---------- a goal's history (goal spec, rule 4; GT2) ---------- */
+  {
+    id: 'goal-history',
+    title: 'A goal’s history',
+    summary: 'Every week of a goal, checked in or not, its comments, what reviews said and its changes, under four filters with counts.',
+    code: [{ file: 'src/domain/goalPage.ts', names: ['goalHistory', 'historyKind', 'activityStream'] }],
+    tests: ['src/domain/goalHistory.test.ts'],
+    reqs: ['GOAL-HISTORY'],
+    body: `
+**Every week.** One entry for each week from the goal's first (the week it was created, or the first week it was checked in, if earlier) to this week, or to the week it stopped: its check-in, or "No check-in". Four or more weeks in a row with none are one entry ("Weeks 12 to 17 · No check-ins (6 weeks)"); fewer are a week each. This week is always its own entry. A goal with no check-in yet has one week entry, this week, "No check-in yet". Check-ins in a row that gave the same reason are one group, as before; every week is in it.
+
+**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
+
+**Counts.** Per kind and for All, which is their sum; a run of missed weeks counts as its weeks, a group as its weeks.
+
+**Order.** Newest first; a week's entry sits at the end of its week, so this week's is at the top.
+
+**Searching** keeps the entries whose words match ([finding things](finding.md), rule 1).`,
+    examples: (() => {
+      const g = { ...g3075, createdAt: '2026-09-07T09:00:00Z' };
+      const run = (weeks: number[], now: number, filter: 'all' | 'checkins' = 'checkins') => goalHistory({ goal: g, checkIns: weeks.map((w) => ci(g.id, w, 40, { why: `Reason ${w}` })), changes: [], cycle: CYCLE, week: now, reviews: [] }, filter);
+      const say = (h: ReturnType<typeof run>) => h.entries.map((x) => (x.kind === 'missed' ? (x.from === x.to ? `${x.from}: ${x.yet ? 'none yet' : 'none'}` : `${x.from}–${x.to}: none (${x.weeks})`) : x.kind === 'checkin' ? `${x.checkIn.week}` : x.kind)).join(', ');
+      return [
+        { given: 'Created in week 1, checked in weeks 1 to 3; now week 5.', then: '5: none, 4: none, 3, 2, 1', run: () => say(run([1, 2, 3], 5)) },
+        { given: 'Checked in weeks 1 and 8; now week 9.', then: '9: none, 8, 2–7: none (6), 1', run: () => say(run([1, 8], 9)) },
+        { given: 'Checked in week 1 only; now week 6: the run reaching this week keeps this week apart.', then: '6: none, 2–5: none (4), 1', run: () => say(run([1], 6)) },
+        { given: 'No check-in yet, in week 3.', then: '3: none yet', run: () => say(run([], 3)) },
+        { given: 'The counts for checked in weeks 1 and 8, now week 9.', then: 'all 9, check-ins 9', run: () => { const h = run([1, 8], 9, 'all'); return `all ${h.counts.all}, check-ins ${h.counts.checkins}`; } },
+      ];
+    })(),
+    unclear: ['How long a run of missed weeks must be to fold into one line (four) is a choice about reading, not a law.'],
   },
 
   /* ---------- finding things (the app redesign, AR1) ---------- */
