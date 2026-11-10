@@ -46,7 +46,7 @@ Across the six areas (the Workspace review has its own twenty-one). Each links t
 | 9 | **Back doesn't bring back what you saw.** Goals replaces history for some choices and adds for others; a remembered layout is drawn under an address that doesn't name it; four pages drop the search from the address | [goals G6](goals/README.md#findings), [find S6](find/README.md#findings) |
 | 10 | **Pages don't say where you are, and a goal's history hides its gaps.** Every goal's browser tab says "Goals"; a goal quiet for two weeks shows no row for them | [navigation V5](navigation/README.md#findings), [goal D6](goal/README.md#findings) |
 
-Still open from the Workspace review: its F1, the 730 px warning mark on the live Workspace overview (decision 9 below).
+The Workspace review's F1, the 730 px warning mark on the live overview, was fixed on main on 10 Nov (PR #82), so WR0 is done.
 
 ## What is shared
 
@@ -129,7 +129,7 @@ Backlog-sized items across the six areas and Workspace, in order. Effort: **S** 
 
 | # | Item | What | Effort | Depends on | Spec |
 |---|---|---|---|---|---|
-| 0 | **WR0** The warning mark, fixed | The 730 px mark on Workspace's overview, and a design check for icon size | S (an hour) | Nothing; Lane's call inside the freeze | workspace |
+| 0 | **WR0** The warning mark, fixed | Done: PR #82, 10 Nov (the mark sized; F7 measures it). The wider design check for icon size (the Workspace spec's P16) rides with WR2 | — | — | workspace |
 | 1 | **FS1** Find-and-pick, everywhere a person, team or goal is chosen | The control, its rules and port, and every select of everything replaced | M | Nothing | find |
 | 2 | **GT1** Act on a goal | One list of next steps and asks, the owner's buttons, one order at every width, section links | M | Nothing hard (FS1 for "who") | goal |
 | 3 | **OB2** Not born late | A stage in the past is asked about; a first number can restart the plan; a new goal's page says less | S–M | Nothing | onboarding |
@@ -152,7 +152,7 @@ Backlog-sized items across the six areas and Workspace, in order. Effort: **S** 
 | 20 | **OB3** Set-up's owners and day one | Owners per template goal, the counter, "Getting started" | S–M | FS1, WR1 | onboarding |
 | 21 | **FS4** Held at company size | The 15,000-person, 30,000-goal check and the lint (this is also WR6 and 0a (4)) | S | FS1, FS2 | find |
 
-**About fifteen releases of work**: eight M, nine S–M, five S.
+**About fifteen releases of work**: eight M, nine S–M, four S.
 
 **Three tracks can run side by side** (one build at a time per area, as `CLAUDE.md` asks), because they share almost no screen code:
 
@@ -191,7 +191,7 @@ Dark mode; a screen-reader pass; the real shared database (the demo and a browse
 
 ## Decisions for Lane
 
-One batch; the recommended answer is first. Each area's README has its own finer list, and its spec says what changes for each other answer; these ten are the ones that shape the set. Workspace's eight (PR #81) stand as asked there.
+One batch; the recommended answer is first. Each area's README has its own finer list, and its spec says what changes for each other answer; these nine are the ones that shape the set. Workspace's eight (PR #81) stand as asked there, less its first (the warning mark), which PR #82 settled.
 
 1. **Find from anywhere** (find, 1).
    - (a) Build it in Faro: it is the picker with a door, and the menu and the phone are designed around it. *Recommended.*
@@ -222,11 +222,7 @@ One batch; the recommended answer is first. Each area's README has its own finer
 8. **Day one** (onboarding, 4, 5).
    - (a) Set-up asks who owns each template goal; Home gets one "Getting started" block for the first week that fits each person, the teammate included. *Recommended.*
    - (b) Only the teammate's welcome line and the true condition on "Add your people".
-9. **The warning mark on the live Workspace overview** (Workspace decision 1, still open; it is on main today).
-   - (a) Fix it now as a one-line hotfix with its design check, inside the freeze. *Recommended.*
-   - (b) No code: mark the demo's one New markup "In hand" before the talk, and fix it after.
-   - (c) Leave it until the redesign is built.
-10. **When, and in what order.**
+9. **When, and in what order.**
     - (a) After 0c and AS, in the plan's order, as three tracks; the first cut is items 1 to 8. This replaces 0a, GD, NAV and 0u in the backlog. *Recommended.*
     - (b) After 0c and AS, one track only (slower, simpler to follow).
     - (c) Only the first cut for now; decide the rest after Wednesday's feedback.
