@@ -2888,6 +2888,58 @@ journey('U62', ['LEAVE-WORKSPACE', 'SETTINGS'], 'Settings is about you: Your pag
   await p.context().close();
 });
 
+/* App redesign OB3: set-up's owners and day one. */
+journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/'));
+  const sw = await openSwitcher(p, h);
+  await h.click(sw.getByRole('button', { name: /Set up a new workspace/ }));
+  await p.locator('.steps').first().waitFor();
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Field Operations');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Who else is on it?');
+  await p.getByLabel('Person 1: name').fill('Ben Ortiz');
+  await p.getByLabel('Person 1: email').fill('ben.ortiz@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Product team/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What outcome are you after?');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'What feeds it?');
+  // Each goal feeding the outcome starts with no owner; give Ben the first and leave the rest.
+  const owners = p.getByRole('combobox', { name: /^Owner/ });
+  const firstOwner = await owners.nth(1).inputValue();
+  await owners.nth(1).selectOption({ label: 'Ben Ortiz' });
+  const left = (await owners.evaluateAll((els) => els.map((e) => e.value))).filter((v) => v === '').length;
+  await h.checkpoint('owners');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
+  h.set('progress', firstOwner === '' && /Step 7 of 7/.test(await p.locator('.steps').innerText()), `a goal’s owner started as “${firstOwner}”`);
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await p.waitForURL(/\/ready/);
+  await p.goto(url('/'));
+  const block = p.getByRole('region', { name: 'Getting started' }).or(p.locator('section.getting-started'));
+  await block.first().waitFor();
+  await h.inView(block.first(), 'entry', 'Getting started');
+  const rows = await block.first().locator('.gs-row').evaluateAll((rs) => rs.map((r) => r.getAttribute('data-row')));
+  const said = await block.first().innerText();
+  h.set('finish', JSON.stringify(rows) === JSON.stringify(['first-check-in', 'assign', 'invite']) && said.includes(`Give ${left === 1 ? '1 goal' : `${left} goals`} an owner.`) && !/Add your people/.test(await p.locator('main').innerText()), `Home’s Getting started: ${rows.join(', ')} · “${said.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await h.checkpoint('home');
+  // Ben, on his first visit: who set it up and what's his.
+  await viewAs(p, 'Ben');
+  await p.goto(url('/'));
+  await block.first().waitFor();
+  const ben = await block.first().innerText();
+  h.set('attention', /set up Field Operations on \d+ \w+ and gave you 1 goal\./.test(ben) && /Post your first check-in/.test(ben), `Ben’s Getting started: “${ben.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await h.click(block.first().getByRole('button', { name: 'Hide this' }));
+  await p.reload();
+  await p.locator('.page-head').first().waitFor();
+  h.set('errors', await p.locator('section.getting-started').count() === 0, 'Hide this does not keep the block away');
+  h.set('logged', true);
+  await p.context().close();
+});
+
 journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
   // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
   const p = h.use(await newPage(device, 'chen'));

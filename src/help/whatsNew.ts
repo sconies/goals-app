@@ -31,6 +31,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'getting-started',
+    date: '2026-11-10',
+    title: 'A first week that tells you what to do',
+    points: [
+      'After setting up a workspace, Home lists what’s left: first check-ins, goals to give an owner, and the link to send your team.',
+      'Someone you add sees who set it up and what’s theirs to do.',
+      'Set-up lets you leave a goal’s owner for later, and its step counter counts the path you chose.',
+    ],
+    articles: ['home', 'set-up'],
+  },
+  {
     id: 'cycles-plainer',
     date: '2026-11-10',
     title: 'Cycles says where the year stands',
