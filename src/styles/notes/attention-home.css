@@ -81,3 +81,10 @@ a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--
 .health-count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); line-height: 1.375rem; font-weight: 600; white-space: nowrap; }
 .health-count svg { flex: none; width: 14px; height: 14px; }
 .group-hint { margin: 0 0 var(--s2); }
+
+/* Getting started (OB3): a hairline list, a sentence and one plain button each, and Hide this. */
+.getting-started { display: flex; flex-direction: column; gap: var(--s2); }
+.gs-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.gs-row { display: flex; align-items: center; gap: var(--s3); padding: 10px 0; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+.gs-says { flex: 1 1 240px; min-width: 0; }
+.gs-hide { align-self: flex-start; }

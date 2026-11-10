@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
+import { usePrefs } from '../app/search';
+import { setupSteps, type SetupStep } from '../domain/dayOne';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
@@ -59,6 +61,7 @@ const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: ''
 const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '', start: '', target: '', owner });
 const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const SETUP_STEPS: SetupStep[] = ['workspace', 'you', 'team', 'start', 'outcome', 'goals', 'check'];
 const STEP_LABELS = ['Workspace', 'You', 'Your team', 'Starting point', 'Outcome', 'Goals', 'Check'];
 /** Each step, for the named flow (src/help/flows.ts). */
 const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7'];
@@ -104,10 +107,11 @@ function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, 
 function goalsTsv(d: SetupDraft) {
   if (d.template === 'file' || d.template === 'later') return '';
   const people = [d.me, ...d.people];
-  const person = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === owner.trim().toLowerCase());
+  // A goal with no owner chosen is made owned by whoever sets up (OB3); Home asks them to give it an owner.
+  const person = (owner: string) => people.find((p) => p.name.trim().toLowerCase() === (owner.trim() || d.me.name.trim()).toLowerCase());
   // The owner by email, as the format matches people, with their name beside it.
   const row = (g: GoalRow, headline: boolean) => [
-    g.title, person(g.owner)?.team.trim() || d.me.team, person(g.owner)?.email ?? '', g.owner, g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
+    g.title, person(g.owner)?.team.trim() || d.me.team, person(g.owner)?.email ?? '', g.owner.trim() || d.me.name.trim(), g.kind, g.kind === 'milestone' ? '' : g.unit, g.kind === 'metric' ? g.start : '', g.kind === 'metric' ? g.target : '',
     g.plan ?? 'straight', g.kind === 'range' ? g.limit ?? '' : '', g.kind === 'range' ? g.bound ?? 'at most' : '', g.kind === 'range' ? g.margin ?? '' : '', g.kind === 'milestone' ? g.stages ?? '' : '', headline ? '' : d.outcome.title, headline ? 'north star' : 'team', '', '', g.kind === 'milestone' ? '' : g.definition ?? '',
   ].map((v) => v.replace(/[\t\n]+/g, ' ')).join('\t');
   const goals = d.goals.filter((g) => g.title.trim());
@@ -180,6 +184,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const personNote = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : (result.notes ?? []).find((x) => x.table === 'People' && x.row === at + 3)?.message; };
   const meEmail = normalEmail(me.email);
   const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
+  const unownedTitles = new Set(d.template === 'file' || d.template === 'later' ? [] : d.goals.filter((g) => g.title.trim() && !g.owner.trim()).map((g) => g.title.trim()));
+  const prefs = usePrefs();
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
 
   // Each field says its own problem (setup review, 8 Nov): a name of at least MIN_NAME characters, and the numbers a goal needs.
@@ -245,7 +251,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     const t = TEMPLATES.find((x) => x.id === id);
     // Stage weeks in a template count from now, so a mid-year setup doesn't start with stages already overdue.
     const now = currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today);
-    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: d.me.name.trim(), ...(g.stages ? { stages: stagesFromNow(g.stages, now, yearWeeks(d.startDate)) } : {}) })) });
+    if (t) set({ template: id, outcome: { ...t.outcome, owner: d.me.name.trim() }, goals: t.goals.map((g) => ({ ...g, owner: '', ...(g.stages ? { stages: stagesFromNow(g.stages, now, yearWeeks(d.startDate)) } : {}) })) });
     else if (id === 'blank') set({ template: id, outcome: blankGoal(d.me.name.trim()), goals: [blankGoal(d.me.name.trim())] });
     else set({ template: id });
   };
@@ -287,7 +293,11 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     setBusy(true);
     try {
       const meId = result.snapshot.people[0]?.id;
-      await setup.createWorkspace(d.name.trim(), result.snapshot, meId, !!d.recording);
+      const wsId = await setup.createWorkspace(d.name.trim(), result.snapshot, meId, !!d.recording);
+      // The goals left without an owner are owned by whoever set up, and remembered for them, for Home's "Give n goals
+      // an owner" (OB3, rule 7). No field is added to a goal.
+      const unowned = result.snapshot.goals.filter((g) => unownedTitles.has(g.title)).map((g) => g.id);
+      if (meId) prefs.set(wsId, meId, 'day-one', { firstSeenAt: null, unowned });
       clear();
       nav('/ready', { replace: true });
     } catch (e) {
@@ -298,6 +308,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
 
   const close = () => (onClose ? onClose() : nav(setup.hasWorkspaces ? '/workspace' : '/'));
   const shownStep = d.step + 1;
+  // The counter counts the path chosen (rule 6): with goals set up later or from a spreadsheet, Check is Step 5 of 5.
+  const counted = setupSteps(d.template);
   useMark(STEP_MARKS[d.step] ?? null);
   const updatePerson = (i: number, p: Partial<PersonRow>) => set({ people: rowsOf.map((x, k) => (k === i ? { ...x, ...p } : x)) });
   const updateGoal = (i: number, p: Partial<GoalRow>) => set({ goals: d.goals.map((x, k) => (k === i ? { ...x, ...p } : x)) });
@@ -307,7 +319,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     <div className={'focus focus-onboard' + (d.step === 2 || d.step === 5 ? ' focus-roomy' : '')}>
       <div className="focus-top">
         <span className="small strong">Set up</span>
-        <Steps at={shownStep} of={7} label={STEP_LABELS[d.step]} />
+        <Steps at={counted ? counted.indexOf(SETUP_STEPS[d.step]!) + 1 : shownStep} of={counted?.length ?? 7} label={STEP_LABELS[d.step]} />
         <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed"><Icon name="close" /></button>
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
@@ -448,6 +460,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <div className="stack" style={{ gap: 'var(--s1)' }}>
               <h1 className="qtitle big">What outcome are you after?</h1>
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
+              {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
             </div>
             <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline />
           </section>
@@ -458,10 +471,11 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             <div className="stack" style={{ gap: 'var(--s1)' }}>
               <h1 className="qtitle big">What feeds it?</h1>
               <span className="hint">Two to four goals that move “{d.outcome.title}”. Pick an owner for each; they check in weekly.</span>
+              {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <SetupGoalFields g={g} owners={owners} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
+                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
                 <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
               </div>
             ))}
@@ -502,11 +516,12 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             {result.snapshot.goals.length > 0 && (
               <div className="stack" style={{ gap: 'var(--s2)' }}>
                 <span className="field-label">Check each goal’s owner, where it starts and its target</span>
+                {unownedTitles.size > 0 && <p className="small setup-unowned">{unownedTitles.size === 1 ? '1 goal has' : `${unownedTitles.size} goals have`} no owner yet. You can choose them now, or from Home afterwards.</p>}
                 <ul className="record">
                   {result.snapshot.goals.map((g) => (
                     <li key={g.id}>
                       <span className="strong">{g.title}{g.level === 'north-star' ? ' · North star' : ''}</span>
-                      <span className="small">{result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {g.kind === 'metric' ? `${fmt(g.plan.start, g)} today → ${targetText(g)}${g.plan.target < g.plan.start ? ', lower is better' : ''}` : targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
+                      <span className="small">{unownedTitles.has(g.title) ? 'No owner yet' : result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {g.kind === 'metric' ? `${fmt(g.plan.start, g)} today → ${targetText(g)}${g.plan.target < g.plan.start ? ', lower is better' : ''}` : targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
                     </li>
                   ))}
                 </ul>
@@ -527,7 +542,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52 }: { g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, ownerHint }: { ownerHint?: string; g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
   const titleIssue = errors?.title;
   const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
@@ -572,8 +587,9 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
         </label>
       )}
       <label className="field"><span className="field-label">Owner</span>
-        <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+        <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{!headline && <option value="">No owner yet</option>}{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
       </label>
+      {ownerHint && <span className="hint">{ownerHint}</span>}
       {issue && !any && <span className="hint tone-off field-error" role="alert">{issue}</span>}
     </div>
   );

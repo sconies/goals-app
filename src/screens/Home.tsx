@@ -1,6 +1,9 @@
 import { Place } from '../core/app';
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { usePrefs } from '../app/search';
+import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
+import { workspaceName } from '../domain/workspaceAttention';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -310,15 +313,7 @@ function AdminCard() {
       </section>
     );
   }
-  // Setting up your own workspace is offered from the workspace switcher and Workspace, not here (Lane, 9 Nov).
-  if (app.snapshot.people.length < 3) {
-    return (
-      <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>Add your people</strong><span className="hint">Goal owners need to be here to check in.</span></span>
-        <Link className="btn" to="/people">Add people</Link>
-      </section>
-    );
-  }
+  // Adding people is Getting started's row now, said only while it's true (OB3).
   return null;
 }
 
@@ -392,6 +387,7 @@ export function Home() {
         <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
         <HomeNews at="head" />
       </div>
+      <GettingStarted />
       <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} streakNote={streakNote(app)} />
       <div className="home-grid split">
         <MyWeek news={<HomeNews at="phone" />} side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
@@ -399,3 +395,43 @@ export function Home() {
     </div>
   );
 }
+
+/**
+ * Day one (OB3, docs/design/onboarding/spec.md 2.9): for the first two weeks a person is in a workspace, what is true
+ * and what to do first, the second person included. The rows are rule 7's (src/domain/dayOne.ts); what each person
+ * has done is kept per person and workspace behind the Prefs port. Every button is a plain one: Home keeps its one
+ * main action.
+ */
+function GettingStarted() {
+  const app = useApp();
+  const prefs = usePrefs();
+  const key = [app.ws.id, app.viewer.id, 'day-one'] as const;
+  const [facts, setFacts] = useState<DayOneFacts>(() => prefs.get<DayOneFacts>(...key) ?? { firstSeenAt: null });
+  // The first visit starts the two weeks.
+  useEffect(() => {
+    if (facts.firstSeenAt || app.ws.kind === 'example') return;
+    const next = { ...facts, firstSeenAt: app.today.toISOString() };
+    prefs.set(...key, next); setFacts(next);
+  }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
+  const rows = gettingStarted(app.viewer.id, app.snapshot, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  if (!rows.length) return null;
+  const invite = `${location.origin}${app.mode === 'demo' ? '/demo' : ''}/?workspace=${encodeURIComponent(app.ws.id)}`;
+  return (
+    <section className="block getting-started" aria-labelledby="getting-started" data-part="Getting started">
+      <h2 className="block-title" id="getting-started">Getting started</h2>
+      <ul className="gs-list">
+        {rows.map((r) => (
+          <li key={r.id} className="gs-row" data-row={r.id}>
+            <span className="gs-says">{r.says}</span>
+            {r.id === 'invite'
+              ? <button type="button" className="btn sm" onClick={() => { void navigator.clipboard?.writeText(invite).then(() => app.toast('Link copied'), () => undefined); save({ inviteCopied: true }); }}>{r.action}</button>
+              : r.to && <Link className="btn sm" to={r.to} onClick={() => { if (r.id === 'see-goals') save({ sawGoals: true }); }}>{r.action}</Link>}
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="linkish small gs-hide" onClick={() => save({ hidden: true })}>Hide this</button>
+    </section>
+  );
+}
+
