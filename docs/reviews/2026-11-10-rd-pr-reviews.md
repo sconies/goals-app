@@ -183,3 +183,19 @@ How it was checked: the local Postgres 16 shaped like Supabase, brought to the s
 - Or, to merge as it is: Lane runs `select pg_has_role('postgres', (select relowner from pg_class where oid = 'storage.objects'::regclass), 'usage');` in the SQL editor. If it says true, this is a GO unchanged.
 
 **2. Low, a trade-off the migration states.** Uploading no longer needs an id issued in the last two hours, only one of the right shape. Anyone with the public key could already issue ids without limit, so the bucket is no more open to filling. The new part: a picture can be added later to an existing markup that lacks one of its four (ids are readable in the open inbox). It can't replace one.
+
+### #94 WR2: Workspace opens on About (track 3, merged 13:32 UTC)
+
+Read against `docs/design/workspace/spec.md` 2.5, 2.12, rules 1, 2, 3, 6 and 7 and section 5. Opened in the demo as Amara and Rhea at 1440 px and as Rhea at 390 px: the one-line header, the menu, the facts and their links, no "To sort out" for the example, the phone's "More in Workspace", an admins-only section opened by a member, an address that is no section, `/workspace/overview`, Leave at the foot of Settings, and the switcher. All as the spec says, apart from finding 1. The departures the PR lists (Leave moved now, `yearLine` built now, the switcher's role only on the open workspace, 260 px in F10) are stated.
+
+**1. Medium. About's Year fact gives the wrap-up's opening date a week early.**
+
+- Where: `src/domain/workspaceAttention.ts:83` (`yearLine`): the first day of week `first` is worked out as the start plus `(first - 1) * 7` days. Weeks count from 0 at the cycle's start (`currentWeek`, and `weekDate` in `src/domain/plan.ts:38`, which is start plus `week * 7`), so that is the Monday before.
+- Reproduce: the demo on 11 Nov 2026, Workspace: "2026, week 46 of 53. The wrap-up opens on 14 Dec 2026." The cycle starts 22 Dec 2025 and the wrap-up opens in week 52 (`wrapUpOpen`), which begins on 21 Dec 2026. With the demo's date set to 14 Dec, the line says 8 Feb 2027 for a wrap-up that opens on 15 Feb.
+- Why the tests didn't catch it: `src/domain/workspace.test.ts:129-130` pins "14 Dec 2026", and feeds the rule week 47 for 11 Nov and week 52 for 15 Dec, which that cycle's dates don't give (46 and 51). The spec asked for a conformance row from `wrapUpOpen`'s own date, and for the rule not to work the week out again.
+- Suggested fix: use `weekDate(cycle, first)` for the date; correct the test's weeks and expect 21 Dec 2026; run `npm run spec`. Step 7 of tomorrow's demo shows this fact.
+
+**2. Low.**
+
+- `src/ui/AdminControls.tsx` is new here, says it is WR3's, and nothing imports it: WR3's code merged a step early, unused and without tests.
+- Rule 1 now exists (`workspaceName`), but `src/screens/People.tsx:32` keeps its own copy, and `GoalScreen.tsx:418` and `Print.tsx:89`, `:195` still strip "Example: " from any workspace's name, which rule 1 says not to do for a real workspace named that way. WR5 ("one name for the workspace") is where the spec puts this; noted so it isn't missed.
