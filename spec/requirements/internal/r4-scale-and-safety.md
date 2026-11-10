@@ -28,7 +28,8 @@ Real goals are worth keeping safe. A backup that has never been restored, or a m
 - There are no summary rows; lists, counts and Home are worked out in the browser from every goal and check-in.
 - The demo workspace has 126 goals; nothing tests a workspace of 15,000 people yet (backlog 0a adds an eval with one for the pickers).
 - Backups are Supabase’s own; no restore has been rehearsed. Migrations are safe to run twice and CI applies them on merge (`scripts/migrate.mjs`), but they aren’t rehearsed on a copy first. Faro never holds real data, so these are left to the internal app (backlog 0c).
-- The MCP server reads and writes with the service role key when it is set (docs/mcp.md), and no longer needs it for anything: markup pictures are in a public-read bucket since the open inbox (migration 0031). Backlog 0c can drop it.
+- The MCP server reads and writes with the app’s public key only, never the service role key (backlog 0c): markup pictures are in a public-read bucket since the open inbox (migration 0031).
+- Faro shares a Supabase project with another app (family-hq). Its tables and functions live in their own schema, `faro`, owned by a Faro-only role that can’t read or write anything else; CI’s migrations run as that role and check the fence first (migration 0035, `scripts/check-fence.mjs`). The internal app gets a database of its own.
 
 ## Worked examples
 

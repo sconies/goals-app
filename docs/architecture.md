@@ -45,7 +45,8 @@ The core is everything outside `src/modules`. It offers these extension points, 
 | Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |
 | Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' view bar, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
 | The goal forms' "Measured by" field | the `goal.measure` place (backlog 0b, 8 Nov): given the goal as saved (null while new), the form's kind, unit and team, and `onChange(pick)`. The form saves the pick after the goal (`app.linkGoalMetric`, or `app.unlinkGoalMetric` for null); with no module in it, nothing renders and nothing extra is saved | `src/screens/GoalWizard.tsx` (after “How it’s measured”), `src/screens/GoalEdit.tsx` (after the name) |
-| A goal's facts, a person's and a team's page | the `goal.facts` place (a line in a goal's summary), `people.person` and `people.team` (blocks on a person's and a team's page, which WR1 draws) (AR2) | `src/core/app.tsx` `PlaceProps` |
+| A person's and a team's page in People | the `people.person` place (given the person) and the `people.team` place (given the team), app redesign WR1, 10 Nov: after the person's facts, and after the team's people. With no module in them, nothing renders | `src/screens/People.tsx` (`PersonPage`, `TeamPage`) |
+| A line in a goal's summary | the `goal.facts` place, given the goal: one short line each ("Measured by …") (AR2) | `src/core/app.tsx` `PlaceProps` |
 | Finders | `finders` in `app.tsx` (kind, nouns, a search, where a row opens); module.json `finders`, by kind. The kind answers find-and-pick and Find through the `Search` port; with the module off it is gone (AR2) | `src/app/search.ts` |
 | Filters on a core list | `filters` in `app.tsx`, declared as data: `{ list: 'goals', id, label, param, column, pick }`, a column of the summary rows compared with what is picked, so a server can apply it (AR2; docs/design/architecture.md 4.2); module.json `filters`, by id | the Goals list (GL1) |
 | Things to sort out | `toSortOut` in `app.tsx`: given names and whether the viewer is an admin, things to do with where to do them, for a module with no Workspace section; module.json `toSortOut: true` (AR2) | Workspace's overview (WR2) |
@@ -100,9 +101,27 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 
 Moving an existing feature works the same way. Move its files into the folder, then replace the core's direct imports with places, routes and tools. Spreadsheets (Data's Spreadsheets menu, Import at `/data/import`, Goals' Export these goals, the `export` and `export_table` tools) is the worked example.
 
+## Running an action (backlog RD, AR3, 10 Nov)
+
+Every change a person makes goes one way: `app.run(action, input)` (`src/app/state.tsx`), over one table of actions (`src/app/actions.ts`). The input names records by id (`run('addAction', { goalId, text, assigneeId, dueWeek })`); the dispatcher sets who acts, when and new ids, runs the shared rule from `src/domain` unchanged, saves the `Commit` it returns, and shows Undo after a removal. A rule that says no is shown, not saved. `planChanges` previews and saves only with `apply`.
+
+- The per-action methods on `AppState` (`app.addNote`, `app.stopGoal` and the rest) are aliases of it. New code calls `run` directly.
+- The table's names are the command port's ([the ports at company scale](../spec/rebuild/ports-at-scale.md)): `src/app/actions.test.ts` fails if the table and R1's access table disagree. A new action is a row in each.
+- It is the shape a team copies: to move the rules to a server, replace the dispatcher's body with a call to it, and keep the names and inputs. It doesn't make Faro's saves trustworthy; the browser still runs the rule.
+
 ## The outside parts (item 8c, 9 Nov)
 
 Everything Faro needs from outside its own code sits behind one interface in `src/ports/`, each with a contract test any replacement must pass (`src/ports/contracts/`): the goals store (`Store`), markups (`MarkupStore`), feedback (`FeedbackStore`), who is viewing (`Identity`), the time (`Clock`), files (`Files`) and where a metric's numbers come from (`NumberSource`). The adapters live in `src/adapters/`: `supabase/` (the real app's, and the only code that imports Supabase), `postgres/` (the goals store on plain Postgres, after `bootstrap.sql` and the same migrations), `demo/` (the demo's number source) and `local.ts` (the picker, the clocks, files in memory). `src/adapters/stores.test.ts` and `parts.test.ts` run every contract on Faro's adapters; Supabase's run on a stand-in for its client over real Postgres (PGlite), so they need no network. How to write one for another platform: `spec/rebuild/adapters.md`.
+
+## The database: fenced off in a shared project (item 0c, 10 Nov)
+
+Faro's Supabase project (family-hq) also holds another app's real family data, so Faro keeps to its own schema:
+
+- **Its own schema.** Every table, view and function is in `faro` (migration 0035). Later migrations use plain names: they run with `search_path` faro, as the Faro role.
+- **Its own role.** `faro_owner` (`supabase/manual/faro-role.sql`) owns `faro` and has no rights on any table outside it, nor on storage or auth. CI's `DATABASE_URL` is that role, and CI's migrate job runs `scripts/check-fence.mjs` before migrating: it fails if the role can read or write any table outside `faro`. It reads the catalog only and prints counts, never another app's names. Two functions read outside Faro and stay with postgres: `okr_markup_pictures_open` (storage.buckets) and the old builder sign-in ones (auth.jwt()).
+- **Its own requests.** The app and the MCP server use the public key only, never the service role key, and ask the Data API for `faro` (`src/adapters/supabase/client.ts`). Until the Data API offers `faro`, they fall back to the redirects 0035 left under the old names in `public` (views with `security_invoker`, and functions that call the ones in `faro`, all marked `faro: redirect`). Backlog 0c2 removes both.
+- **Reset and export.** `npm run faro:reset -- --yes` writes every row of `faro` to `faro-exports/` and then deletes every workspace by the database's own rule (the builders' inbox stays). `npm run faro:export` writes the rows only. Each workspace also downloads as a spreadsheet from Data.
+- **The pictures' bucket** stays in Supabase's `storage` schema with every other bucket (a bucket can't move). Its rules admit only Faro's markup ids.
 
 ## Where it stands
 

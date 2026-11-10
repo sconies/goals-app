@@ -439,7 +439,7 @@ export function setModule(x: ActionContext, ws: { id: string; modulesOff?: strin
 }
 
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
-export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadId?: string | null }): { commit: Commit | null; id: string } {
+export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadId?: string | null; objective?: string }): { commit: Commit | null; id: string } {
   if (!x.actor.admin) no('Only admins can add or change teams.');
   const clean = t.name.trim().replace(/\s+/g, ' ');
   if (!clean) no('Give the team a name.');
@@ -450,10 +450,13 @@ export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadI
   if (same) no(`There’s already a team called ${same.name}.`);
   const leadId = t.leadId === undefined ? before?.leadId ?? '' : t.leadId ?? '';
   if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no('The team lead isn’t in this workspace.');
-  const team = { id: before?.id ?? x.newId('team'), name: clean, leadId, objective: before?.objective ?? '' };
+  // What the team is here to do (People's team page, WR1): optional, one or two sentences.
+  const objective = t.objective === undefined ? before?.objective ?? '' : t.objective.trim().replace(/\s+/g, ' ');
+  if (objective.length > 280) no('Keep what the team is here to do to 280 characters or fewer.');
+  const team = { id: before?.id ?? x.newId('team'), name: clean, leadId, objective };
   const name = (id: string) => x.snapshot.people.find((p) => p.id === id)?.name ?? '—';
   const diffs = before
-    ? [...(before.name !== team.name ? [{ field: 'Team name', from: before.name, to: team.name }] : []), ...((before.leadId || '') !== leadId ? [{ field: 'Team lead', from: name(before.leadId), to: name(leadId) }] : [])]
+    ? [...(before.name !== team.name ? [{ field: 'Team name', from: before.name, to: team.name }] : []), ...((before.leadId || '') !== leadId ? [{ field: 'Team lead', from: name(before.leadId), to: name(leadId) }] : []), ...((before.objective || '') !== objective ? [{ field: 'What it is here to do', from: before.objective || '—', to: objective || '—' }] : [])]
     : [{ field: 'Team', from: '—', to: team.name }];
   if (before && !diffs.length) return { commit: null, id: team.id };
   return { id: team.id, commit: { teams: [team], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'workspace', entityId: team.id, action: before ? 'edited' : 'created', summary: before ? (before.name !== team.name ? `Renamed the team “${before.name}” to “${team.name}”` : `Changed the team “${team.name}”`) : `Added the team “${team.name}”`, diffs }] } };

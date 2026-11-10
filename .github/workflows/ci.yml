@@ -2,7 +2,7 @@
 # the core journeys, a few minutes), the core journeys again with each feature module left out of the build, and a
 # screenshot comparison against the base branch. Merges to main run the full eval suite as four
 # parallel shards, then one scorecard; a failure there opens an issue to fix or revert straight away. Merges to main
-# also apply database migrations, without waiting for the full evals.
+# also apply database migrations, without waiting for the full evals, once the fence check passes.
 name: CI
 
 on:
@@ -242,6 +242,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Faro shares its database with another app's real family data (backlog 0c). Once DATABASE_URL is the Faro role
+      # (supabase/manual/faro-role.sql), this fails, and nothing is migrated, if that role can read or write any table
+      # outside the faro schema. Until then it warns. It reads the catalog only, and prints counts, never names.
+      - name: "Fence: the Faro role can't read or write a table outside faro"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/check-fence.mjs
       - name: Migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

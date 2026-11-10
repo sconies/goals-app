@@ -4,7 +4,7 @@
    (whether the viewer owns goals, names looked up by id), never the workspace. */
 
 /** The core's places in the menu. */
-export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace' | 'settings';
+export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'people' | 'data' | 'new' | 'workspace' | 'settings';
 
 /** Where a menu item belongs: your work (Home, Check-in, Goals, Reviews), or things to look up (Activity, Data…). */
 export type NavGroup = 'work' | 'lookup';
@@ -16,6 +16,7 @@ export const CORE_NAV: Record<NavId, { to: string; label: string; group: NavGrou
   reviews: { to: '/reviews', label: 'Reviews', group: 'work' },
   goals: { to: '/goals', label: 'Goals', group: 'work' },
   activity: { to: '/activity', label: 'Activity', group: 'lookup' },
+  people: { to: '/people', label: 'People', group: 'lookup' },
   data: { to: '/data', label: 'Data', group: 'lookup' },
   new: { to: '/goals/new', label: 'New goal', group: 'work' },
   workspace: { to: '/workspace', label: 'Workspace', group: 'you' },
@@ -27,7 +28,7 @@ export interface ModuleNavItem { id: string; to: string; label: string; group?: 
 
 /** The sidebar: Check-in only for someone who owns a goal. */
 export function sideFor(ownsGoals: boolean): NavId[] {
-  return ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'reviews', 'activity', 'data', 'new', 'workspace'];
+  return ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'reviews', 'activity', 'people', 'data', 'new', 'workspace'];
 }
 
 /** The phone's tabs. An owner gets Check-in; someone who owns nothing mostly follows goals, so gets Watching. */
@@ -54,6 +55,8 @@ export function isLit(id: NavId, path: string, tabs?: NavId[]): boolean {
   const to = CORE_NAV[id].to;
   if (id === 'home') return path === '/';
   if (id === 'goals') return (path.startsWith('/goals') && path !== '/goals/new') || (path === '/watching' && !!tabs && !tabs.includes('watching'));
+  // People and Teams are one place (app redesign WR1).
+  if (id === 'people') return /^\/(people|teams)(\/|$)/.test(path);
   return path === to || path.startsWith(to + '/');
 }
 
@@ -97,6 +100,8 @@ export interface PlaceNames {
   /** A saved view open at these Goals params, if any. */
   view(params: URLSearchParams): string | null;
   article(id: string): string | null;
+  person(id: string): string | null;
+  team(id: string): string | null;
 }
 
 /** Where a Back link leads, said the way the menu says it: "Back to Reviews", "Back to Lead time for changes". */
@@ -111,8 +116,12 @@ export function placeName(path: string, names: PlaceNames): string {
   if (goal) return names.goal(goal[1]!) ?? 'the goal';
   const rev = /^\/reviews\/([^/]+)$/.exec(p);
   if (rev) return names.review(rev[1]!) ?? 'the review';
+  const who = /^\/people\/([^/]+)$/.exec(p);
+  if (who) return names.person(decodeURIComponent(who[1]!)) ?? 'People';
+  const team = /^\/teams\/([^/]+)$/.exec(p);
+  if (team) return names.team(decodeURIComponent(team[1]!)) ?? 'Teams';
   const help = /^\/help\/([^/]+)$/.exec(p);
   if (help) return names.article(help[1]!) ?? 'Help';
-  const known: Record<string, string> = { '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
+  const known: Record<string, string> = { '/people': 'People', '/teams': 'Teams', '/feedback': 'Feedback', '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
   return known[p] ?? 'the last page';
 }

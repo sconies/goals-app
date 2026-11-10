@@ -1,0 +1,50 @@
+/* People: a place for everyone (app redesign WR1, src/screens/People.tsx). Reading width 880 px; hairline-divided rows
+   that are links; status counts as shape plus word; no capsules, no edges. */
+.page.people-page { --page-max: 880px; }
+.page.person-page { --page-max: 880px; }
+
+.people-head { align-items: flex-start; }
+.people-tabs { display: flex; gap: var(--s4); border-bottom: 1px solid var(--line); margin-top: calc(-1 * var(--s2)); }
+.people-tabs a { padding: 8px 0 10px; color: var(--muted); font-weight: 550; text-decoration: none; }
+/* The open tab: its words in full colour, underlined (an underline, not an edge). */
+.people-tabs a[aria-current="page"] { color: var(--fg); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 11px; }
+.people-tabs a:hover { color: var(--fg); }
+
+.people-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.people-find { flex: 2 1 260px; }
+.people-team { flex: 1 1 200px; }
+.people-admins { flex: none; }
+.people-count, .people-emails { margin: 0; }
+
+.people-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.people-list > li { border-bottom: 1px solid var(--line-2); }
+.people-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; padding: 12px var(--s2); color: inherit; text-decoration: none; }
+.people-row.team-row { grid-template-columns: minmax(0, 1fr) auto; }
+.people-row:hover { background: var(--surface-2); }
+.people-row:hover .person-name { text-decoration: underline; }
+.people-row > .avatar { margin-top: 1px; }
+.people-line { color: var(--muted); text-align: right; padding-top: 2px; }
+.people-row .people-counts { justify-content: flex-end; padding-top: 2px; }
+.people-pages { align-items: center; gap: var(--s3); }
+
+.person-head { align-items: flex-start; }
+.person-who { align-items: center; gap: var(--s3); min-width: 0; }
+.person-facts { display: grid; grid-template-columns: 120px minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s3); margin: 0; }
+.person-facts dt { font-size: 0.75rem; line-height: 1.375rem; font-weight: 600; color: var(--muted); }
+.person-facts dd { margin: 0; }
+.people-counts a.team-count { color: inherit; text-decoration: none; }
+.people-counts a.team-count:hover { text-decoration: underline; }
+.team-purpose p { margin: 0; }
+.people-admin { gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--line-2); }
+.people-admin-quiet { margin-top: var(--s2); }
+
+/* A phone: the line beside a row goes under it, and the facts stack. */
+@container page (max-width: 620px) {
+  .people-row { grid-template-columns: 24px minmax(0, 1fr); }
+  .people-row.team-row { grid-template-columns: minmax(0, 1fr); }
+  .people-line, .people-row .people-counts { grid-column: 2; text-align: left; justify-content: flex-start; }
+  .people-row.team-row .people-line, .people-row.team-row .people-counts { grid-column: 1; }
+  .person-facts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .person-facts dd { margin-bottom: var(--s2); }
+  .person-head { flex-direction: column; }
+}

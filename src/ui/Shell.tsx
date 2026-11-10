@@ -36,6 +36,7 @@ const ICONS: Record<NavId, { icon: ReactNode }> = {
   reviews: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10.5" rx="2" /><path d="M2.5 6.5h11M5.5 1.8v2.4M10.5 1.8v2.4" /></svg> },
   goals: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2" /></svg> },
   activity: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 8h3l2-4.5 3 9 2-4.5h3" /></svg> },
+  people: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5" /><path d="M1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" /><path d="M10.5 3.2a2.5 2.5 0 0 1 0 4.6M12 9.8c1.6.5 2.5 1.8 2.5 3.7" /></svg> },
   data: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" /><path d="M2.5 6.5h11M2.5 10h11M6.5 6.5v7" /></svg> },
   new: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg> },
   workspace: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
@@ -185,12 +186,14 @@ function ShellBody({ children }: { children: ReactNode }) {
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
   // The More sheet: everything not on the tab bar. Goals' own items come first, under its name.
-  const all: NavId[] = ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'watching', 'reviews', 'activity', 'data', 'new', 'workspace'];
+  const all: NavId[] = ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'watching', 'reviews', 'activity', 'people', 'data', 'new', 'workspace'];
   const more = all.filter((id) => !tabs.includes(id) && id !== 'watching');
   const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
-  const title = pageName(pathname, at, [...side, ...tabs], moduleName);
+  // A person's or a team's page is named by them (the redesign's rule: a page's name is the thing's own name).
+  const named = /^\/people\/([^/]+)$/.exec(pathname) ? app.person(decodeURIComponent(pathname.split('/')[2]!))?.name : /^\/teams\/([^/]+)$/.exec(pathname) ? app.team(decodeURIComponent(pathname.split('/')[2]!))?.name : undefined;
+  const title = pageName(pathname, at, [...side, ...tabs], named ?? moduleName);
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;

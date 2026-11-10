@@ -38,6 +38,8 @@ function placeName(path: string, app: ReturnType<typeof useApp>): string {
     review: (id) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? null,
     view: (sp) => { const vp = viewParams(sp); return (app.snapshot.views ?? []).find((v) => !v.deletedAt && !!v.params && v.params === vp && (v.pinned || v.personId === app.viewer.id))?.name ?? null; },
     article: (id) => articleById(id)?.title ?? null,
+    person: (id) => app.person(id)?.name ?? null,
+    team: (id) => app.team(id)?.name ?? null,
   });
 }
 

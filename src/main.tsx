@@ -31,6 +31,7 @@ import './styles/notes/recording.css';
 import './styles/notes/goal-flagship.css';
 import './styles/notes/markup.css';
 import './styles/notes/workspace.css';
+import './styles/notes/people.css';
 import './styles/remove.css';
 import './styles/notes/phone-toolbar.css';
 import './styles/notes/goals-phone.css';

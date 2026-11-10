@@ -32,9 +32,9 @@ export interface PlaceProps {
   'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined) => void };
   /** A goal's summary, after its own facts: one short line each ("Measured by Lead time for changes"). */
   'goal.facts': { goal: Goal };
-  /** A person's page, after their goals (WR1 draws it). */
+  /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
-  /** A team's page, after its people and goals (WR1 draws it). */
+  /** A team's page in People, after its people: what the module knows about the team. */
   'people.team': { team: Team };
 }
 
