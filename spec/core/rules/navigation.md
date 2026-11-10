@@ -7,13 +7,13 @@ Which places the menu lists for a viewer, where a module’s items go, which one
 
 ## The rule
 
-**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, People, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
 
-**The lit item** is the one whose address the page is at or under: Home only at `/`; Goals for every address under `/goals` except New goal; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+**The lit item** is the one whose address the page is at or under: Home only at `/`; Goals for every address under `/goals` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
 
 **A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
 
-**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a Help article's title, a menu place by its label, else "the last page".
+**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".
 
 ## Worked examples
 
@@ -21,7 +21,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
-| The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics). | `home checkin goals reviews activity data module:metrics new workspace / home goals reviews activity data module:metrics new workspace` |
+| The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics). | `home checkin goals reviews activity people data module:metrics new workspace / home goals reviews activity people data module:metrics new workspace` |
 | The lit item at /goals/lead-mq, /goals/new and /settings. | `goals, new, none` |
 | The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”. | `Watching, Reviews, Wrap up, Lead time for changes` |
 

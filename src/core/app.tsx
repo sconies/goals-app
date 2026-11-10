@@ -17,6 +17,8 @@ import type { PlaceName } from './module';
 export interface PlaceProps {
   /** Home, after its own blocks. */
   'home.blocks': Record<never, never>;
+  /** A goal's summary, one line under its owner and level: a fact about the goal, such as what measures it (goal spec, section 5). */
+  'goal.facts': { goal: Goal };
   /** A goal's page, after its own sections. */
   'goal.sections': { goal: Goal };
   /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
@@ -30,8 +32,6 @@ export interface PlaceProps {
    * app.unlinkGoalMetric). Nothing renders here unless a module fills it.
    */
   'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined) => void };
-  /** A goal's summary, after its own facts: one short line each ("Measured by Lead time for changes"). */
-  'goal.facts': { goal: Goal };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */

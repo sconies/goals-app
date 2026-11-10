@@ -65,6 +65,8 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
 | U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
 | U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
+| U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
+| U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -96,6 +98,7 @@ Per-area checks from the fit-and-finish reports.
 | F9 | Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart | `NO-SILENT-ROUNDING` `SAME-NAMES` `PLAN-CHANGE` | `evals/finish/9-numbers-names.cjs` |
 | F10 | People and Teams on a phone: the first person near the top, short Teams rows with no buttons, nothing scrolls sideways | `PEOPLE-DIRECTORY` `FIT-AND-FINISH` | `evals/finish/10-people.cjs` |
 | F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
+| F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 
 ## Review notes
 
@@ -110,8 +113,9 @@ Checks that Lane’s review notes stay fixed.
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
 | N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
-| N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
+| N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
+| N15 | Said once: an ask’s words, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` | `evals/notes/11-said-once.cjs` |
 
 ## The ease test
 

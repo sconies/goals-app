@@ -10677,16 +10677,16 @@ var CORE_ARTICLES = [
 				list: [
 					"A decision or help: an owner needs it from someone, and says so in a check-in that is behind (“Need a decision or help”, and who it’s for).",
 					"An update: someone asks a quiet goal’s owner to check in, from the goal’s page. The owner’s next check-in answers it.",
-					"A question: for a goal’s owner, asked in a review or from the goal’s page (Ask as a question, under the comment box).",
+					"A question: for a goal’s owner, asked in a review or from the goal’s page (Ask {owner} a question, under Next steps and asks).",
 					"An action: agreed in a review, for someone to do, with a week it’s due by if one is set. Past its week it shows as overdue until it’s marked done or withdrawn."
 				]
 			},
 			{
 				heading: "How to use it",
 				list: [
-					"Whoever must respond sees each ask once on Home under Needs your response, grouped by kind, however many goals it covers. Its button opens the goal with the ask open under “Asked of you” in the Respond panel, the box ready.",
+					"Whoever must respond sees each ask once on Home under Needs your response, grouped by kind, however many goals it covers. Its button opens the goal with the ask open in Next steps and asks, under For you, in the Respond panel, the box ready.",
 					"The Respond panel is the same for every kind: answer it, check in (an update), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
-					"On a goal’s page, “What’s being done” lists every ask on it with who must respond, by when, and whether it’s open, overdue or done. Whoever asked, or an admin, can withdraw one there; the owner of an action can mark it done.",
+					"On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.",
 					"Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.",
 					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
 				]
@@ -11071,24 +11071,35 @@ var CORE_ARTICLES = [
 				]
 			},
 			{
-				heading: "Below the bar",
+				heading: "The buttons",
 				list: [
-					"Asked of you: every ask waiting on you (a decision or help, a question, an update, an action), each answered or marked done right there in the Respond panel. Home’s buttons open the goal with the ask open and the box ready.",
-					"One line for you: what you just posted (“Posted: at risk → off track · 6 weeks on time”), what has happened since you last looked (“Since you looked on Tuesday: a new check-in and 2 comments”, and nothing when nothing has), or, the first time, what the number measures. While a goal doesn’t say how it’s measured, its owner and admins see a line asking for it, with a link to describe it.",
-					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are: at now, the gap to plan (“9 behind”); at the end, the likely value (“likely 37”) and what’s left to the target (“13 short”, or “on course”). Its top-left corner says which way is better. Drag along it, or use the arrow keys, to read any week: its number, the plan and the reason given. One footnote says the likely end is projected from the last eight weeks, not the owner’s date.",
-					"Every section under the chart has a heading and one line saying what it answers, with a rule between sections.",
-					"Why it could miss without a change (at risk), or Why it will miss without intervention (off track): the status’s own meaning, so a goal at risk that is recovering isn’t said to be behind, and the status word isn’t said twice. Under it, the owner’s reason from their latest check-in, whether anyone is on it yet, its cause and since when, and anything else that flags it, with a warning mark: a call ${lower(FLAG.greener)}, or a goal ${lower(FLAG.trend)} while it is still on track, each said in full. On plan, the same place has the owner’s latest word (or, if only the numbers have something to say, Worth knowing); with ${lower(STATUS.stale)}, how long it has been and how it last stood. Home and Watching shorten these reasons on a phone; here they are whole.",
-					"What’s being done: the owner’s path to green and their date in words, whether the recent trend gets there, and one list of the asks on the goal with who, by when (the week and its date), and whether each is open, overdue or done. An overdue next step is flagged, and a goal behind needs attention again.",
-					"Add a next step, on any goal still running: what happens next, who does it (find them by name or team) and the week it’s due by. Whoever agreed a next step, or an admin, can change its words, who or when there with Change; the log keeps the before and after.",
-					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
-					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list. The newest check-in is never folded in: it always shows on its own, with its number and status.",
-					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
+					"One main button, for what you’d most likely do next, in this order: answer a question or a decision asked of you here; post the first check-in, or check in for this week when it’s due (the owner); mark your next step done; Add a next step, when the goal is behind and its owner has no next step open; ask a quiet goal’s owner for an update.",
+					"Beside it, a plain button: the owner always has Check in again (unless the main button is the check-in); anyone else has Watch, or Watching once they do.",
+					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). An admin checks in for the owner from there."
+				]
+			},
+			{
+				heading: "In order, on a computer and a phone",
+				list: [
+					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, Activity and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
+					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
+					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
+					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
+					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
+					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
+					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top.",
+					"About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.",
+					"On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order."
 				]
 			},
 			{
 				heading: "Changing it",
-				list: ["Change this goal (in About, or the “…” menu) offers three: improve the definition, change the plan or target, change the owner or level. Each asks why, and the reason goes in the activity for everyone watching.", "Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected."]
+				list: [
+					"Change this goal (in About, or the “…” menu) opens the goal’s form. Each change asks why once check-ins have started, and the reason goes in the activity for everyone watching.",
+					"Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected.",
+					"Whoever agreed a next step, or an admin, can change its words, who or when with Change on its row; the log keeps the before and after."
+				]
 			},
 			{
 				heading: "A done goal",
@@ -11108,12 +11119,18 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				list: ["The owner checks in and changes the goal; admins can change any goal.", `Anyone can watch, comment, share, or ask the owner for an update when it has ${lower(STATUS.stale)}.`]
+				list: [
+					"The owner checks in and changes the goal; admins can change any goal.",
+					`Anyone can add a next step, watch, comment, share, ask the owner a question, or ask for an update when it has ${lower(STATUS.stale)}.`,
+					"A button you may not press isn’t shown."
+				]
 			}
 		],
 		routes: ["/goals/:goalId"],
 		screens: ["GoalScreen"],
 		reqs: [
+			"GOAL-ACT",
+			"GOAL-ASK-ONCE",
 			"GOAL-PAGE",
 			"CHART-READ",
 			"GOAL-PAGE-BAR",
@@ -11150,7 +11167,10 @@ var CORE_ARTICLES = [
 			"share",
 			"image",
 			"since you looked",
-			"asked of you",
+			"next steps and asks",
+			"next step",
+			"for you",
+			"check in again",
 			"about"
 		],
 		related: [
@@ -12512,6 +12532,24 @@ var WHATS_NEW = [
 			"The long lists of everyone have gone from these places; the rest follow."
 		],
 		articles: ["finding", "reviews"]
+	},
+	{
+		id: "goal-next-steps-and-asks",
+		date: "2026-11-10",
+		title: "Everything asked and agreed on a goal, in one list",
+		points: [
+			"Next steps and asks replaces Asked of you, What’s being done and Actions on a goal’s page, and an ask is no longer repeated around the page.",
+			"If a goal is behind and nobody has said what happens next, its page says so, and its owner’s main button is Add a next step.",
+			"Owners always have Check in again. Anyone else has Watch beside the main button."
+		],
+		articles: ["goal-page", "requests"]
+	},
+	{
+		id: "goal-order",
+		date: "2026-11-10",
+		title: "The reason comes before the chart",
+		points: ["A goal’s page reads in one order on a computer and a phone: how it is, what’s being done and asked, why, then the chart.", "Links under the scorecard take you down the page."],
+		articles: ["goal-page"]
 	},
 	{
 		id: "people-place",
@@ -40657,11 +40695,23 @@ async function download(db, id, name) {
 		return null;
 	}
 }
-/** Pictures by their public address. Reading the bytes first asks the database, once, whether the bucket is open
-(okr_markup_pictures_open, migration 0031), so an assistant is told why there's no picture rather than "none". */
+/** Whether the markups bucket is open to read (migration 0031), asked of Storage itself rather than the database
+(backlog 0c: no Faro function reads outside faro). The public address of a picture that isn't there answers
+"NoSuchKey" from an open bucket and "NoSuchBucket" from one that isn't open (or isn't there). */
+async function picturesOpen(db) {
+	try {
+		const r = await fetch(publicUrl(db, "faro-open-check", "none.png"));
+		if (r.ok) return true;
+		return (await r.json().catch(() => null))?.code === "NoSuchKey";
+	} catch {
+		return false;
+	}
+}
+/** Pictures by their public address. Reading the bytes first asks Storage, once, whether the bucket is open, so an
+assistant is told why there's no picture rather than "none". */
 function pictures(db) {
 	let open = null;
-	const isOpen = () => open ??= Promise.resolve(db.rpc("okr_markup_pictures_open")).then(({ data, error }) => !error && data === true, () => false);
+	const isOpen = () => open ??= picturesOpen(db);
 	return {
 		pictureUrl: async (id, name) => publicUrl(db, id, name),
 		async pictureBytes(id, name) {
@@ -40788,7 +40838,7 @@ function tokenFeedback(db, hash) {
 // src/adapters/supabase/server.ts
 function supabaseDeps(origin, env = process.env) {
 	const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
-	const key = env.SUPABASE_KEY ?? env.VITE_SUPABASE_KEY;
+	const key = env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
 	const db = faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
@@ -40833,8 +40883,7 @@ function supabaseDeps(origin, env = process.env) {
 			const { error } = await db.rpc("okr_token_find", { hash: "0".repeat(64) });
 			const database = !error;
 			if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
-			const { data: open, error: unknown } = await db.rpc("okr_markup_pictures_open");
-			const pictures = !unknown && open === true;
+			const pictures = await picturesOpen(db);
 			if (!pictures) problems.push(PICTURES_UNREADABLE);
 			return {
 				ok: database && pictures,

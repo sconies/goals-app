@@ -51,7 +51,7 @@ module.exports = {
         await q.locator('.goal-bar').waitFor();
         const page = (await q.locator('main').innerText()).replace(/\s+/g, ' ');
         const path = /path to green/i.test(x.flag);
-        const said = path ? await q.locator('.doing .ptg, .doing .ptg-none').count() > 0 : !!x.full && page.includes(x.full.replace(/\s+/g, ' '));
+        const said = path ? await q.locator('.why-block .ptg, .why-block .ptg-none').count() > 0 : !!x.full && page.includes(x.full.replace(/\s+/g, ' '));
         check(said, `[Home] 1: the reason cut short on a phone (“${x.full.slice(0, 50)}…”) is not in full on ${x.href.replace(/^\/demo/, '')}`);
         await q.close();
       }

@@ -50,7 +50,7 @@ export function HelpHome() {
         <span className="hint">What each page in Faro does, and how to use it.</span>
       </div>
       <div className="help-search">
-        <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus onSearch={(v, settled) => setParams(v ? { q: v } : {}, { replace: historyStep(settled ? 'settled' : 'typing') === 'replace' })} />
+        <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus settleMs={0} onSearch={(v, settled) => setParams(v ? { q: v } : {}, { replace: historyStep(settled ? 'settled' : 'typing') === 'replace' })} />
       </div>
       {latest && !found && (
         <Link to="/whats-new" className="help-news">

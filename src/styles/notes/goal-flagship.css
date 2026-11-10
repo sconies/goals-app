@@ -355,3 +355,34 @@
 .action-do { margin-top: 2px; }
 .save-note { font-weight: 500; }
 .demo-team { padding: var(--s2) 12px 0; }
+
+/* ---------- next steps and asks (goal spec, 2.1 section 3): one list, hairline rows, a word for each state ---------- */
+.goal-page .goal-links { display: flex; flex-wrap: wrap; gap: 0 var(--s4); margin: var(--s2) 0 var(--s3); font-size: 0.875rem; }
+.goal-page .goal-link { display: inline-flex; align-items: center; min-height: 32px; color: var(--fg-2); text-decoration: none; }
+.goal-page .goal-link:hover, .goal-page .goal-link:focus-visible { color: var(--fg); text-decoration: underline; }
+.goal-page .steps-gap { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 var(--s2); font-size: 0.875rem; color: var(--fg); }
+.goal-page .steps-gap svg { flex: none; width: 14px; height: 14px; margin-top: 3px; }
+.goal-page .steps-gap > span { flex: 1 1 auto; min-width: 0; }
+.goal-page .steps-label { margin: var(--s3) 0 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-2); }
+.goal-page .steps-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.goal-page .step-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px var(--s3); align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.goal-page .steps-list .step-row:first-child { border-top: 0; }
+.goal-page .step-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; grid-column: 1; }
+.goal-page .step-text { color: var(--fg); font-weight: 600; overflow-wrap: anywhere; }
+.goal-page .step-row.is-settled .step-text { color: var(--fg-2); font-weight: 400; }
+.goal-page .step-answer { color: var(--fg-2); }
+.goal-page .step-state { grid-column: 2; grid-row: 1; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-2); white-space: nowrap; }
+.goal-page .step-state.is-overdue { color: var(--off-fg); text-transform: none; letter-spacing: 0; font-size: 0.8125rem; }
+.goal-page .step-state svg { width: 13px; height: 13px; flex: none; }
+.goal-page .step-do { grid-column: 1 / -1; }
+.goal-page .step-panel { grid-column: 1 / -1; }
+.goal-page .steps-do { flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
+.goal-page .why-pointer { margin: 0; font-size: 0.875rem; }
+.goal-page .why-block .ptg { display: flex; flex-direction: column; gap: 4px; margin-top: var(--s3); }
+.goal-page .why-block .ptg-what { margin: 0; font-weight: 600; }
+.goal-page .why-block .ptg-when { margin: 0; color: var(--fg-2); }
+.goal-page .feeds-into { margin: 0; font-size: 0.875rem; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.goal-page .feeds-into .nowrap { display: inline-flex; align-items: center; gap: 4px; }
+.goal-page .sc-none { margin: var(--s2) 0 0; }
+.goal-page .about .block-line { display: block; margin-top: 2px; }
+@media (pointer: coarse) { .goal-page .goal-link, .goal-page .step-do .btn, .goal-page .step-line .linkish { min-height: 44px; } }
