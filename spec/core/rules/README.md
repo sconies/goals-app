@@ -21,6 +21,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
 | [A goal’s history](goal-history.md) | Every week of a goal, checked in or not, its comments, what reviews said and its changes, under four filters with counts. |
 | [Who a comment reaches](comment-reach.md) | The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home. |
+| [A goal not born late](not-born-late.md) | A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 
 ## The numbers the rules turn on

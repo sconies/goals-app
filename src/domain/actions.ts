@@ -8,6 +8,8 @@ import type { Commit } from './commit';
 import type { Lookup } from './changes';
 import { nextCycle, RESULT_LABEL, wrapUpOpen } from './cycle';
 import { personChange, personProblems } from './people';
+import { stagesDoneAtSetUp } from './goal';
+import { checkInChange } from './changes';
 import { answerAsk, asksOf, canAnswer, canMarkDone, canWithdraw, editAsk, linkRequest as linked, markDone, openUpdateAsk, raiseAsk, UPDATE_ASK, updateAskText, withdrawAsk } from './asks';
 import { sessionWeek } from './review';
 import { checkInsFor } from './status';
@@ -517,4 +519,19 @@ export function canDeleteWorkspace(actor: Person, kind: 'own' | 'example', name:
   if (!actor.admin) no('Only admins can delete the workspace.');
   if (kind === 'example') no('Examples can be reset, not deleted.');
   if (confirmName.trim() !== name) no(`To confirm, give the workspace’s name exactly: “${name}”.`);
+}
+
+/* ---------- a goal set up with stages already done (onboarding spec, rule 3; OB2) ---------- */
+
+/**
+ * Record the stages said to be already done when a goal was set up: one check-in, in the week of the latest of them,
+ * each stage done in its own due week. The goal's owner or an admin, and only before its first check-in.
+ */
+export function recordStagesDone(x: ActionContext, goal: Goal, stageIds: string[]): Commit | null {
+  if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can say which stages are done.');
+  if (checkInsFor(goal, x.snapshot.checkIns).length) no('This goal has check-ins already: say a stage is done in a check-in.');
+  const c = stagesDoneAtSetUp(goal, stageIds, x.actor.id, x.now, x.newId('ci'));
+  if (!c) return null;
+  const change = checkInChange(null, c, goal, x.actor.id, x.newId('chg'));
+  return { checkIns: [c], changes: change ? [change] : [] };
 }

@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-10 14:08 UTC.
+Run 2026-11-10 14:41 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,8 +8,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 10) |
-| 80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 10) |
+| 85 | A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 23 · 23 (budget 26) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -24,7 +23,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**74 of 151 pass**, 77 untested. Spec scenarios 273/273.
+**73 of 152 pass**, 79 untested. Spec scenarios 278/278.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -51,6 +50,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **STALE** No owner check-in for 14 days shows as No recent update, never as on track. | Status rules | 6 | — |
 | ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | — |
 | ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | — |
+| ✅ | **NEW-GOAL-TRUTH** A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan. | Goals | 5 | U85 |
 | ⚪ | **GOAL-PAGE** The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal. | Goals | 0 | — |
 | ⚪ | **PERSIST** Changes are saved and survive a reload; demo data can be reset. | Platform | 0 | — |
 | ⚪ | **PHONE** Every screen works at phone width (390px) with no horizontal scrolling. | Platform | 0 | — |
@@ -113,10 +113,10 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GOAL-SUMMARY** A goal's facts are worked out once (summaryFacts): the gap to plan, the trend over the last check-ins in the goal's own units with its direction, the change since the last update, and the projection as a range. In a review, the chart and recent check-ins are open and each past check-in opens to the full check-in. | Goals | 8 | — |
 | ✅ | **GOAL-PAGE-BAR** A goal's summary bar reads in two seconds: title, owner, level and key; status as shape and word and the number in the goal's units; then its scorecard. The reason and the goals feeding it have their own sections, said once there. One main action by role and state, and a menu for Share image, Copy link, Print and Change this goal. On scroll it shrinks to one line at the top, a solid panel with a rule and a soft shadow under it: status, number and the gap to plan, and the menu; on a phone it is the page's header. | Goals | 3 | — |
 | ✅ | **GOAL-PAGE-ONCE** Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart. | Goals | 4 | — |
-| ✅ | **GOAL-ACT** A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so. | Goals | 0 | U77 |
+| ⚪ | **GOAL-ACT** A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so. | Goals | 0 | — |
 | ⚪ | **GOAL-ASK-ONCE** Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press. | Goals | 0 | — |
 | ⚪ | **GOAL-HISTORY** A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to. | Goals | 0 | — |
-| ✅ | **GOAL-SAYS** Watching and commenting say who will see what before you do them. | Goals | 0 | U80 |
+| ⚪ | **GOAL-SAYS** Watching and commenting say who will see what before you do them. | Goals | 0 | — |
 | ⚪ | **GOAL-PAGE-SCORECARD** Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it. | Goals | 0 | — |
 | ✅ | **GOAL-PAGE-INTENT** A goal's page follows how you arrived: Home's Answer, Respond and Reply open it with that item expanded under Asked of you and its box focused (?respond=<id>; ?tab=comments still works); after a check-in it says what was posted and the on-time streak; a returning visitor sees what changed since they last looked; a first-time viewer sees what the number measures with About open; drilling down, Back names the goal you came from. | Goals | 2 | — |
 | ✅ | **GOAL-PAGE-ALIVE** A goal's page is readable the moment it opens: its chart and number show their final state at once (backlog T). With the story switched on in the Motion lab, it moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys. | Goals | 2 | — |

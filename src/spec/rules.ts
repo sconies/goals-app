@@ -26,6 +26,8 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
+import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
@@ -837,6 +839,31 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'Oskar, one other watching (and Oskar himself, who isn’t counted).', then: 'Everyone in Platform Engineering can read this. Rhea and the 1 person watching see it on Home.', run: () => say('o', ['a', 'o']) },
       ];
     })(),
+  },
+
+  /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */
+  {
+    id: 'not-born-late',
+    title: 'A goal not born late',
+    summary: 'A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan.',
+    code: [{ file: 'src/domain/goal.ts', names: ['pastStage', 'stagesDoneAtSetUp', 'validateGoal'] }, { file: 'src/domain/checkin.ts', names: ['rebaseOffer', 'rebase', 'REBASE_WEEKS'] }, { file: 'src/domain/actions.ts', names: ['recordStagesDone'] }],
+    tests: ['src/domain/notBornLate.test.ts', 'evals/onboarding.eval.ts'],
+    reqs: ['NEW-GOAL-TRUTH'],
+    body: `
+**A stage already past (rule 3).** Setting up a new goal, a stage due before this week is *past*, and must be answered: *done* or *overdue*. Done: the goal is published with one check-in in the week of the latest stage said to be done, each of those stages done in its own due week (posted by whoever set it up, now, with the note "Recorded as already done when the goal was set up"). So none of them is late, and its quarter can read met. Overdue: published as it stands; the stage is late from the start. Changing an existing goal never asks. Only the goal's owner or an admin records it, and only before its first check-in.
+
+**A fresh start at the first check-in (rule 4).** Offered when all hold: a number to move; no check-in yet; set up at most ${REBASE_WEEKS} weeks ago; the number typed is valid, would not be on plan, and hasn't reached the target. Not for a number kept in range, stages, or a goal with any check-in. Taken, the goal's start becomes the number from this week (\`fromWeek\`), to the same target, due week and shape; hand-set plan numbers after this week are kept. It needs no reason, since no check-in had started; the change log says "Started the plan from {value} at the first check-in (was {start})". The check-in posted then is on plan.`,
+    examples: (() => {
+      const g = metric(5, 2, 'straight', { createdAt: '2026-11-09T09:00:00Z', unit: 'days', plan: { start: 5, target: 2, shape: 'straight', fromWeek: 10 } });
+      const offer = (v: number, created = 10) => { const o = rebaseOffer(g, CYCLE, 10, v, [], created); return o ? `offered (${o.start} → ${o.value})` : 'not offered'; };
+      return [
+        { given: 'Week 10: stages due weeks 12, 10 and 3. Which are past?', then: '3', run: () => [12, 10, 3].filter((w) => pastStage(w, 10)).join(', ') },
+        { given: 'Two stages, A due week 3 and B due week 7, set up in week 10 with A said to be done: the check-in recorded.', then: 'week 3, A done in week 3, B not done', run: () => { const c = stagesDoneAtSetUp(MILESTONE, ['a'], 'p', '2026-11-11T10:00:00Z', 'c')!; return `week ${c.week}, ${c.stages!.map((u) => (u.doneWeek != null ? `${u.stageId.toUpperCase()} done in week ${u.doneWeek}` : `${u.stageId.toUpperCase()} not done`)).join(', ')}`; } },
+        { given: 'Lead time, 5 days down to 2, set up in week 10, no check-in yet: its first number is 7; 5; 2; and 7 for a goal set up in week 1.', then: 'offered (5 → 7); not offered; not offered; not offered', run: () => [offer(7), offer(5), offer(2), offer(7, 1)].join('; ') },
+        { given: 'The same goal, started from 7 in week 10.', then: 'start 7, target 2, from week 10, straight', run: () => { const r = rebase(g, 7, 10); return r.kind === 'metric' ? `start ${r.plan.start}, target ${r.plan.target}, from week ${r.plan.fromWeek}, ${r.plan.shape}` : ''; } },
+      ];
+    })(),
+    unclear: ['How many weeks after set-up a first number may still restart the plan (four) is a choice, not a law.'],
   },
 
   /* ---------- finding things (the app redesign, AR1) ---------- */

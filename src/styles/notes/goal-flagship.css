@@ -403,3 +403,9 @@
 .goal-page .note-open { align-self: flex-start; }
 .goal-page .note-reach { margin: var(--s1) 0 0; }
 .watch-says { margin: 0; }
+
+/* ---------- a stage already past at set-up asks whether it's done (onboarding spec, rule 3; OB2) ---------- */
+.stage-past { display: flex; flex-direction: column; gap: var(--s1); margin: var(--s1) 0 0; }
+.stage-past-do { flex-wrap: wrap; gap: var(--s2); }
+.rebase { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.rebase .row { flex-wrap: wrap; gap: var(--s2); }
