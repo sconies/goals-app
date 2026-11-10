@@ -7,7 +7,7 @@
    Each fact has one home on it (the plan's "one home for each fact" table). */
 import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE } from './format';
-import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
+import { currentWeek, daysSince, weekDate, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
 import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
 import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
 import { dayText, goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
@@ -578,7 +578,7 @@ function historyWords(x: HistoryEntry): string {
 }
 
 /** The end of a week, as an ISO time: where a week's entry sits among the others, newest first. */
-const weekEnd = (cycle: Cycle, w: number) => new Date(Date.parse(cycle.startDate + 'T00:00:00Z') + w * 7 * 86_400_000 - 1000).toISOString();
+const weekEnd = (cycle: Cycle, w: number) => new Date(Date.parse(weekDate(cycle, w + 1) + 'T00:00:00Z') - 1000).toISOString();
 
 /**
  * A goal's history: one entry for every week from its first (the week it was created, or the first it was checked in,

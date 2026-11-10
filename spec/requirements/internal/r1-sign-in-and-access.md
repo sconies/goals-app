@@ -58,7 +58,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Set up a review | Anyone | [`saveReview`](../../../src/domain/actions.ts) |
 | Change a review | Someone in it, whoever set it up, or an admin | [`saveReview`](../../../src/domain/actions.ts) |
 | Say something about a goal in a review (seen, a note, a question, an action) | Anyone; a question or action on your own goal is a note instead | [`reviewCall`](../../../src/domain/actions.ts) |
-| Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone in the review | [`markReviewed`](../../../src/domain/actions.ts), [`acceptRisk`](../../../src/domain/actions.ts) |
+| Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone | [`markReviewed`](../../../src/domain/actions.ts), [`acceptRisk`](../../../src/domain/actions.ts) |
 | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`editCall`](../../../src/domain/actions.ts) |
 | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmarkReviewed`](../../../src/domain/removal.ts) |
 | Remove a note said in a review | Whoever said it, or an admin | [`deleteNote`](../../../src/domain/removal.ts) |
