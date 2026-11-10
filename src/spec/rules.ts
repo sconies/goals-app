@@ -14,8 +14,9 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { teamPeople } from '../domain/actions';
 import { ENDING_WEEKS, workspaceNeeds } from '../domain/workspaceAttention';
-import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
-import { AVATAR_HUES } from '../domain/people';
+import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
+import { stagesFromJoining } from '../domain/templates';
+import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
@@ -327,7 +328,7 @@ It can be posted when nothing is missing.
     title: 'Numbers and names',
     summary: 'How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.',
     code: [
-      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
+      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'placesToKeep', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
       { file: 'src/domain/goal.ts', names: ['validateGoal', 'planHint', 'planQuestion'] },
       { file: 'src/domain/people.ts', names: ['sameNameNote', 'personTell', 'nameWithTell', 'avatarHues', 'duplicateTitles', 'goalTell', 'sameTitleNote'] },
       { file: 'src/domain/thresholds.ts', names: ['MIN_NAME', 'nameProblem'] },
@@ -337,7 +338,7 @@ It can be posted when nothing is missing.
     body: `
 One rule for every way in: the check-in, New goal, goal edit, the workspace set-up, the spreadsheet import and the AI tools (backlog N).
 
-**Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (\`typedDecimals\`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (\`precisionProblem\`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
+**Never rounded quietly.** Each number goal keeps a number of decimal places (*Decimals*, 0 to 3), and every number of it is shown at those places. A number typed with more (\`typedDecimals\`: the digits after the point, trailing zeros not counted; a decimal comma counts as a point) is refused (\`precisionProblem\`), saying what it would show as and the two ways forward: type it at the goal's places, or raise Decimals. In a check-in the refusal offers to raise Decimals for the goal in one step, to the places the number was typed with, up to 3 (\`placesToKeep\`: "Keep 1 decimal place for this goal"), logged as a change to the goal with why. This holds for a check-in's value, a start, target, limit, margin and any plan number typed by hand. A plan already stored isn't judged again when a goal is edited; only numbers changed are. An import that adds a goal without Decimals takes the most decimal places its start, target and limit were typed with (up to 3).
 
 **Letters in a number** get one message everywhere (\`notNumberText\`): ““a12” isn't a number. Type digits only, like 29.4.” (Letters after the digits are read as a unit: “12 days” is 12.)
 
@@ -355,6 +356,7 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
     examples: [
       { given: 'Typed "12.5", "12.50", "1,250", "29,4", "3.25 days".', then: '1, 1, 0, 1, 2', run: () => ['12.5', '12.50', '1,250', '29,4', '3.25 days'].map((x) => String(typedDecimals(x))).join(', ') },
       { given: '12.5 in a goal of whole numbers.', then: '12.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13. Type 13, or set the goal’s Decimals to 1.', run: () => precisionProblem('12.5', 12.5, 0) ?? 'fine' },
+      { given: 'The places a check-in offers to keep for 5.5, 5.25 and 1.23456 on a whole-number goal, and for 5.', then: '1, 2, 3, none', run: () => ['5.5', '5.25', '1.23456', '5'].map((x) => String(placesToKeep(x, Number(x), 0) ?? 'none')).join(', ') },
       { given: '1250000, -12000 and 1250.5 shown.', then: '1,250,000, -12,000, 1,250.5', run: () => ['1250000', '-12000', '1250.5'].map(groupDigits).join(', ') },
       { given: 'A start of 10 signups and a target of 5,000.', then: 'The target is over 100 times the start (10 to 5,000). Is that right?', run: () => setupProblem('signups', 10, 5000) ?? 'fine' },
       { given: '400 typed for the 30→75 goal, then 110.', then: 'questioned; fine', run: () => [farOutside(400, 30, 75), farOutside(110, 30, 75)].map((x) => (x ? 'questioned' : 'fine')).join('; ') },
@@ -569,8 +571,10 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/actions.ts', names: ['teamPeople'] },
       { file: 'src/domain/thresholds.ts', names: ['nameProblem', 'nameLength', 'MAX_WORKSPACE_NAME'] },
       { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'cycleWhen', 'ENDING_WEEKS'] },
+      { file: 'src/domain/people.ts', names: ['mergePeople'] },
+      { file: 'src/domain/templates.ts', names: ['stagesFromJoining', 'stagesFromNow'] },
     ],
-    tests: ['src/domain/workspace.test.ts'],
+    tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
     reqs: ['WORKSPACE-ONE-PLACE'],
     body: `
 **A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over.
@@ -581,12 +585,16 @@ For a range, better means further from the limit on its safe side.
 
 **Leaving.** Anyone may leave a workspace themselves. It is the same as an admin marking them as left (whoever takes over their goals and open asks is chosen first; they leave the reviews they were in), logged as "Name left the workspace". The only admin may not leave.
 
+**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (\`mergePeople\`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (\`stagesFromNow\`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (\`stagesFromJoining\`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (\`/?workspace=<id>\`), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
+
 **What needs attention** on the overview, most pressing first: the year ending (the wrap-up open, or opening within ${ENDING_WEEKS} weeks); no goals in the cycle; then, for admins only, fewer than 3 people, people with no email, people in no team, teams with no lead, and no review set up; then new markups and feedback sent from this workspace. Admins are told what only they can fix; everyone is told what anyone can.`,
     examples: [
       { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
       { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
       { given: 'One goal with two check-ins, in the only cycle.', then: '1 goal, 2 check-ins: it stays', run: () => cycleStanding(workspace([ci('m', 1, 32), ci('m', 2, 34)]), CYCLE.id).says },
       { given: 'A team led by Lee, who is in it, with Pat in it too.', then: '2 people', run: () => `${teamPeople({ snapshot: workspace([]) }, 't').length} people` },
+      { given: 'Theo Brandt (theo@) and Mina Okafor (no email) typed, then a file with THEO@, Mina Okafor (mina@) and Ana Silva uploaded.', then: 'Theo Brandt theo@example.com; Mina Okafor mina@example.com; Ana Silva ana@example.com', run: () => mergePeople([{ name: 'Theo Brandt', email: 'theo@example.com' }, { name: 'Mina Okafor', email: '' }], [{ name: 'Theo B.', email: 'THEO@example.com' }, { name: 'Mina Okafor', email: 'mina@example.com' }, { name: 'Ana Silva', email: 'ana@example.com' }]).map((x) => `${x.name} ${x.email}`).join('; ') },
+      { given: 'A spreadsheet loaded at set-up in week 46 of 53: “Canary releases live” at Design@2; Pilot@6; All services@10, and “Later” at A@47; B@50.', then: 'Canary releases live: Design@47; Pilot@50; All services@53 / Later: A@47; B@50', run: () => stagesFromJoining([{ goal: 'Canary releases live', stages: 'Design@2; Pilot@6; All services@10' }, { goal: 'Later', stages: 'A@47; B@50' }], undefined, 46, 53).goals.map((g) => `${g['goal']}: ${g['stages']}`).join(' / ') },
       { given: 'A workspace name of 83 characters.', then: `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has 83.`, run: () => nameProblem('x'.repeat(83), 'workspace') ?? 'fine' },
       { given: 'A workspace name of 62 characters, as it is typed.', then: `62 of ${MAX_WORKSPACE_NAME} characters`, run: () => nameLength('x'.repeat(62)) ?? 'nothing said' },
       { given: 'Lee, the only admin, leaves.', then: 'refused: You’re the only admin here: make someone else an admin before you leave.', run: () => { try { leaveWorkspace({ snapshot: workspace([]), cycle: CYCLE, week: 2, actor: workspace([]).people[1]!, now: '2026-10-08T12:00:00Z', newId: (p) => p + '_1' }); return 'left'; } catch (e) { return `refused: ${(e as Error).message}`; } } },

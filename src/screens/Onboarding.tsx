@@ -8,11 +8,11 @@ import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
 import type { Rec, Tables } from '../domain/sheets';
-import { isEmail, normalEmail } from '../domain/people';
+import { isEmail, mergePeople, normalEmail } from '../domain/people';
 import type { Cycle } from '../domain/types';
 import { MONTH_NAMES, startMonth, yearStartFor, yearWeeks } from '../domain/year';
 import { yearName } from '../domain/yearName';
-import { stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
+import { stagesFromJoining, stagesFromNow, TEMPLATES, type TemplateGoal } from '../domain/templates';
 import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
@@ -51,6 +51,8 @@ interface SetupDraft {
   newTeams?: string[];
   /** Whether the workspace records how the app is used: off unless chosen here (backlog WS, Lane 9 Nov). */
   recording?: boolean;
+  /** Keep an uploaded spreadsheet's stage weeks as typed, even those before the joining week (deep review U4). */
+  keepFileWeeks?: boolean;
 }
 
 const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: '', admin: false });
@@ -88,6 +90,9 @@ export function peopleFromRecords(recs: Rec[]): { rows: PersonRow[]; objectives:
   }).filter((r) => r.name || r.team || r.email);
   return { rows, objectives };
 }
+
+/** "A", "A and B", "A, B and C". */
+const listText = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 /** The people as the one format's People sheet: you first, then everyone else (a row with no team takes yours). */
 function peopleTsv(me: PersonRow, rows: PersonRow[], objectives: Record<string, string>) {
@@ -153,12 +158,18 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fileNote, setFileNote] = useState('');
+  // The people as they were before the last upload, for its Undo.
+  const [undoUpload, setUndoUpload] = useState<Pick<SetupDraft, 'people' | 'objectives'> | null>(null);
   const [cycleOpen, setCycleOpen] = useState(false);
 
   // A draft kept from before people had emails still opens.
   const me = { ...d.me, email: d.me.email ?? '' };
   const rowsOf = d.people.map((r) => ({ ...r, email: r.email ?? '' }));
-  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(d.template === 'file' && d.fileTables ? { tables: d.fileTables } : {}), now: setup.today, idSuffix: suffix });
+  // Goals from a spreadsheet count their stages from the week you join, unless you keep them as typed (deep review U4).
+  const joinWeek = Math.max(0, currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today));
+  const fromFile = d.template === 'file' && d.fileTables?.goals ? stagesFromJoining(d.fileTables.goals, d.fileTables.checkIns, joinWeek, yearWeeks(d.startDate)) : null;
+  const fileTables = d.fileTables && fromFile && !d.keepFileWeeks ? { ...d.fileTables, goals: fromFile.goals } : d.fileTables;
+  const result = buildWorkspace({ name: d.name, startDate: d.startDate, reviewDay: d.reviewDay, people: peopleTsv(me, rowsOf, d.objectives), goals: goalsTsv(d), ...(d.template === 'file' && fileTables ? { tables: fileTables } : {}), now: setup.today, idSuffix: suffix });
   const issues = (t: ImportIssue['table']) => result.issues.filter((i) => (t === 'Goals' ? i.table !== 'People' : i.table === t));
   // peopleTsv drops empty rows, so map each table row to its line in the sheet: header 1, you 2, then the rest.
   const filled = rowsOf.map((r, k) => (r.name.trim() || r.team.trim() || r.email.trim() ? k : -1)).filter((k) => k >= 0);
@@ -213,7 +224,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const first = firstReview(cycleNow, setup.today);
   const firstText = `${WEEKDAY[d.reviewDay]} ${dayText(first.date).slice(4)}`;
   const [removed, setRemoved] = useState<{ goal: GoalRow; at: number } | null>(null);
-  const go = (step: number) => { setTried(false); setRemoved(null); set({ step }); };
+  const go = (step: number) => { setTried(false); setRemoved(null); setUndoUpload(null); set({ step }); };
   // A problem is said under the field it's about, and that field takes the focus.
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -246,14 +257,27 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       const r = t.people ? peopleFromRecords(t.people) : null;
       // You're already on the first row: the file's row for you (by email, or name) isn't added twice.
       const others = r ? r.rows.filter((x) => !(meEmail && x.email === meEmail) && x.name.trim().toLowerCase() !== d.me.name.trim().toLowerCase()) : [];
-      if (r?.rows.length) { patch.people = others.length ? others : [blankPerson()]; patch.objectives = r.objectives; }
+      // The people already typed stay: the file's are added after them, and anyone already there isn't added twice
+      // (deep review U5: an upload once replaced them without a word).
+      const typed = rowsOf.filter((x) => x.name.trim() || x.email.trim() || x.team.trim());
+      const merged = mergePeople(typed, others);
+      const added = merged.slice(typed.length);
+      if (r?.rows.length) {
+        setUndoUpload({ people: d.people, objectives: d.objectives });
+        patch.people = merged.length ? merged : [blankPerson()];
+        patch.objectives = { ...d.objectives, ...r.objectives };
+      }
       // The goals with their plans and past check-ins, for "Goals from your spreadsheet".
       if (t.goals?.length) patch.fileTables = { goals: t.goals, ...(t.plan ? { plan: t.plan } : {}), ...(t.checkIns ? { checkIns: t.checkIns } : {}) };
       else patch.fileTables = undefined;
       set(patch);
       const n = r?.rows.length ?? 0;
       const extra = [t.plan?.length ? 'plan numbers' : '', t.checkIns?.length ? `${t.checkIns.length} check-ins` : ''].filter(Boolean).join(' and ');
-      setFileNote(`Read ${file.name}: ${n ? `${n} people` : 'no people sheet'}${t.goals?.length ? `, plus a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step` : ''}.`);
+      const there = others.length - added.length;
+      const plural = (k: number) => `${k} ${k === 1 ? 'person' : 'people'}`;
+      const people = !n ? 'no people sheet'
+        : `${added.length ? `added ${plural(added.length)}` : 'no one new to add'}${typed.length ? ` after the ${typed.length} you’d typed` : ''}${there ? `; ${there} in the file ${there === 1 ? 'was' : 'were'} already there` : ''}`;
+      setFileNote(`Read ${file.name}: ${people}.${t.goals?.length ? ` It also has a goals sheet${extra ? ` with ${extra}` : ''} you can use in the next step.` : ''}`);
     } catch (e) {
       setFileNote(`Couldn’t read ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -393,7 +417,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <UploadButton onFile={upload} />
               <button type="button" className="linkish tap" onClick={() => void saveAndSay(setup.toast, { workspace: d.name.trim() || 'new workspace', what: 'template', date: setup.today }, { kind: 'xlsx', sheets: templateSheets() }, 'Template saved')}>Download the Excel template</button>
             </div>
-            {fileNote && <span className="hint" role="status">{fileNote}</span>}
+            {fileNote && <span className="hint" role="status">{fileNote}{undoUpload && <> <button type="button" className="linkish" onClick={() => { set(undoUpload); setUndoUpload(null); setFileNote(''); }}>Undo</button></>}</span>}
           </section>
         )}
 
@@ -463,6 +487,13 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <dt>You</dt><dd>{d.me.name} ({meEmail}), admin</dd>
               <dt>Recording</dt><dd>{d.recording ? 'On: how the app is used here is recorded' : 'Off: nothing about how the app is used here is recorded'}</dd>
               {(d.fileTables?.checkIns?.length ?? 0) > 0 && d.template === 'file' && <><dt>History</dt><dd>{result.snapshot.checkIns.length} past check-ins, from your spreadsheet</dd></>}
+              {/* Stages from the file that would already be late are counted from now, said here with the way back (deep review U4). */}
+              {!!fromFile?.moved.length && <><dt>Stages</dt><dd className="setup-stage-weeks">
+                {d.keepFileWeeks
+                  ? `Kept as typed: ${listText(fromFile.moved.map((t) => `“${t}”`))} ${fromFile.moved.length === 1 ? 'has' : 'have'} stages due before week ${joinWeek}, so ${fromFile.moved.length === 1 ? 'it starts' : 'they start'} late.`
+                  : `Counted from this week, week ${joinWeek}, as a template’s are: ${listText(fromFile.moved.map((t) => `“${t}”`))} had stages due before it, which would start late.`}
+                {' '}<button type="button" className="linkish" onClick={() => set({ keepFileWeeks: !d.keepFileWeeks })}>{d.keepFileWeeks ? 'Count them from this week' : 'Keep the weeks as typed'}</button>
+              </dd></>}
             </dl>
             <div className="row" style={{ gap: 'var(--s3)' }}>
               <button type="button" className="linkish small tap-44" onClick={() => go(0)}>Change name or year</button>

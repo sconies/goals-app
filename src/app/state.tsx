@@ -268,7 +268,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   // Who is viewing (src/ports Identity): today the "Who are you?" picker, remembered in this browser; later, sign-in.
   const identity = useMemo(() => pickerIdentity(K.viewer), [K.viewer]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [wsId, setWsId] = useState<string | null>(() => read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
+  // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
+  // workspace they were invited to, not whichever one this browser or the site would open first.
+  const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
+  const [wsId, setWsId] = useState<string | null>(() => invited || read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
   const [empty, setEmpty] = useState(false);
   // The snapshot and the workspace it belongs to travel together, so a save can never go to a different workspace
   // than the one on screen, even while another one is loading.
@@ -313,6 +316,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       if (!id) { setEmpty(true); setLoaded(null); return; }
       setEmpty(false);
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
+      // Opened from an invitation: remembered like a switch, and the address no longer names it.
+      if (invited && id === invited && read(K.ws) !== id) {
+        write(K.ws, id);
+        try { const u = new URL(location.href); u.searchParams.delete('workspace'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* no history */ }
+      }
       const snap = await store.load(id);
       if (!live) return;
       setLoaded({ ws: id, snap, at: Date.now() });
