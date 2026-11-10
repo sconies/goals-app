@@ -1,15 +1,18 @@
--- Faro's own database role (backlog 0c, Lane, 10 Nov). Run once, as postgres, in Supabase → SQL editor, AFTER CI has
--- applied migration 0035 (it stops and says so if not). Put a long random password in place of the placeholder first
--- (it stops if you haven't); keep it only in CI's DATABASE_URL secret. Safe to run again: it changes nothing twice, and
--- a second run with another password changes the password.
+-- Faro's own database role (backlog 0c, Lane, 10 Nov). Run as postgres, in Supabase → SQL editor, AFTER CI has
+-- applied migrations 0035 and 0036 (it stops and says so if not). Put a long random password in place of the
+-- placeholder first (it stops if you haven't); keep it only in CI's DATABASE_URL secret. Safe to run again: it changes
+-- nothing twice, and a run with another password changes the password.
+-- Run it again after you change the secret, with the same password: anything CI's migrations made as postgres in
+-- between then passes to faro_owner too (until it does, the fence check fails and says so).
 --
 -- What it does:
 --   1. makes faro_owner, a login with no special powers (not a superuser; can't make databases or roles, can't skip
 --      row rules), whose search path is faro;
 --   2. lets postgres act for it (so postgres can hand objects over and still repair anything);
---   3. hands it the faro schema and everything in it, so CI's migrations can change Faro and nothing else. Two functions
---      stay with postgres because they read outside Faro: okr_markup_pictures_open (is the markups bucket public? from
---      storage.buckets) and the builder sign-in functions (auth.jwt()). The Faro role is given no rights on storage or auth;
+--   3. hands it the faro schema and everything in it, so CI's migrations can change Faro and nothing else. Nothing in
+--      faro stays with a stronger role (0036 made the last functions that read outside Faro read only Faro), and no
+--      stronger role runs Faro's code: pg_cron's nightly job is gone (CI runs it as faro_owner). The Faro role is given
+--      no rights on storage, auth or cron;
 --   4. grants it nothing outside faro, and never changes another app's tables. scripts/check-fence.mjs checks before
 --      every CI migration that it can't read or write any table outside faro.
 --
@@ -26,6 +29,9 @@ begin
   end if;
   if to_regclass('faro.okr_goals') is null then
     raise exception 'Migration 0035 hasn''t been applied yet: Faro''s tables are not in the faro schema. Merge it, let CI apply it, then run this.';
+  end if;
+  if exists (select 1 from pg_proc p where p.pronamespace = 'faro'::regnamespace and (p.prosrc like '%auth.%' or p.prosrc like '%storage.%')) then
+    raise exception 'Migration 0036 hasn''t been applied yet: some of Faro''s functions still read outside faro. Merge it, let CI apply it, then run this.';
   end if;
 
   -- 1. The role.
@@ -51,15 +57,16 @@ begin
     execute format('alter %s faro.%I owner to faro_owner',
       case r.relkind when 'v' then 'view' when 'm' then 'materialized view' when 'S' then 'sequence' else 'table' end, r.relname);
   end loop;
-  for r in
-    select p.oid from pg_proc p
-     where p.pronamespace = 'faro'::regnamespace
-       and p.prosrc not like '%storage.%' and p.prosrc not like '%auth.%'
-  loop
+  for r in select p.oid from pg_proc p where p.pronamespace = 'faro'::regnamespace loop
     execute format('alter function %s owner to faro_owner', r.oid::regprocedure);
   end loop;
 
   -- 4. Nothing outside faro. A new role has no rights on other tables, and this script grants none; it never changes
   --    another app's tables. scripts/check-fence.mjs proves it before every migration.
   revoke create on schema public from faro_owner;
+
+  -- 5. No job runs Faro's code as postgres (0036 removed the nightly one; this is in case it came back).
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    execute $job$select cron.unschedule(jobid) from cron.job where command ~ '(faro\.|okr_)' and username <> 'faro_owner'$job$;
+  end if;
 end $$;

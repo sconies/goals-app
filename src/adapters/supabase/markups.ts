@@ -20,11 +20,23 @@ async function download(db: SupabaseClient, id: string, name: string): Promise<U
   } catch { return null; }
 }
 
-/** Pictures by their public address. Reading the bytes first asks the database, once, whether the bucket is open
-    (okr_markup_pictures_open, migration 0031), so an assistant is told why there's no picture rather than "none". */
+/** Whether the markups bucket is open to read (migration 0031), asked of Storage itself rather than the database
+    (backlog 0c: no Faro function reads outside faro). The public address of a picture that isn't there answers
+    "NoSuchKey" from an open bucket and "NoSuchBucket" from one that isn't open (or isn't there). */
+export async function picturesOpen(db: SupabaseClient): Promise<boolean> {
+  try {
+    const r = await fetch(publicUrl(db, 'faro-open-check', 'none.png'));
+    if (r.ok) return true;
+    const body = await r.json().catch(() => null) as { code?: string } | null;
+    return body?.code === 'NoSuchKey';
+  } catch { return false; }
+}
+
+/** Pictures by their public address. Reading the bytes first asks Storage, once, whether the bucket is open, so an
+    assistant is told why there's no picture rather than "none". */
 function pictures(db: SupabaseClient): Pick<MarkupStore, 'pictureUrl' | 'pictureBytes'> {
   let open: Promise<boolean> | null = null;
-  const isOpen = () => (open ??= Promise.resolve(db.rpc('okr_markup_pictures_open')).then(({ data, error }) => !error && data === true, () => false));
+  const isOpen = () => (open ??= picturesOpen(db));
   return {
     pictureUrl: async (id, name) => publicUrl(db, id, name),
     async pictureBytes(id, name) {

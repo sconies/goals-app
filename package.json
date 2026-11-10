@@ -20,6 +20,7 @@
     "fence": "node scripts/check-fence.mjs",
     "faro:export": "node scripts/faro-data.mjs export",
     "faro:reset": "node scripts/faro-data.mjs reset",
+    "faro:nightly": "node scripts/faro-data.mjs nightly",
     "visual": "node evals/visual.mjs",
     "build:mcp": "vite build -c vite.mcp.config.ts --logLevel warn",
     "glossary": "node scripts/glossary.mjs",
