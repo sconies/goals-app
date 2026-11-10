@@ -68,17 +68,6 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
 
-## Watching
-
-[src/screens/Watching.tsx](../../src/screens/Watching.tsx)
-
-- `/watching` (`Watching`): Watch the goals you care about but don’t own, and see what changed in them without opening each one. Help: “Watching goals” (`watching`).
-
-- **Named parts:** “What changed this week”, “What you watch”, “You’re not watching anything yet”, “What changed (region)”
-- **Main action:** Open a goal you watch that needs attention.
-- **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
-
 ## Retro
 
 [src/screens/Retro.tsx](../../src/screens/Retro.tsx)
@@ -95,7 +84,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalsScreen.tsx](../../src/screens/GoalsScreen.tsx)
 
-- `/goals` (`GoalsScreen`): Goals lists every goal this year. Tabs choose which goals and how they’re grouped; layouts choose how they look. Help: “Goals and its layouts” (`goals`).
+- `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
 - **Named parts:** “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.

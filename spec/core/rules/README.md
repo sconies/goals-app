@@ -21,6 +21,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 | [Navigation: the menu, the lit item and a page’s name](navigation.md) | Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says. |
+| [The Goals page: whose goals, how they are grouped, and the switch](goals-page.md) | Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open. |
 
 ## The numbers the rules turn on
 

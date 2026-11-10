@@ -30,6 +30,8 @@ import { primaryAction, standingAction, stepsAndAsks, whyPointer } from '../doma
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
+import { watchedGoals } from '../domain/review';
 import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -853,6 +855,35 @@ RULE_LIST.push({
     { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
     { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
   ],
+});
+
+RULE_LIST.push({
+  id: 'goals-page',
+  title: 'The Goals page: whose goals, how they are grouped, and the switch',
+  summary: 'Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open.',
+  code: [{ file: 'src/domain/goalsPage.ts', names: ['scopesFor', 'ownGroup', 'scopeWords', 'attentionCount', 'goalsLine', 'describeView', 'movedGoals', 'GROUPS'] }],
+  tests: ['src/domain/goalsPage.test.ts'],
+  reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'],
+  body: `
+**Whose goals (the scope).** Mine: the goals someone owns, when they own one. My team: the goals of their own team and of any team they lead, when they have one ("My teams" for several). Watching: the goals they watch. All: every goal. Only goals not stopped count. Goals opens on the scope used last in this workspace when they still have it; otherwise Mine, else Watching when it has goals, else All.
+
+**How they are grouped.** As trees (All's own), by team, by level, or none: one list, worst first (every other scope's own). A group equal to the scope's own is left out of the address.
+
+**The switch.** "Needs attention · {n}" counts the goals in the scope, after the search and the filters, that need attention ([flags](flags.md)); being handled is never counted. On, the goals that need attention come first and those being handled below.
+
+**The line.** Off: the list's count line ([finding things](finding.md)), then each status that has goals, worst first, "{n} {status}", joined with " · ". On: "{n} need attention: " with the same list over those goals, where a status that isn't itself a reason says why ("2 on track, flagged for getting worse"), then how many being handled are listed below.
+
+**Old addresses.** show=mine, watching, outcomes, levels, teams and attention become a scope, a group and the switch; an address with a filter and no scope is All; a bare /goals is the scope that opens; /watching is Watching. A saved view stored in the old form opens in the new one; the record is not rewritten.`,
+  examples: (() => {
+    const facts = (who: string) => ({ goals: demo!.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams: demo!.teams.filter((t) => t.id === demo!.people.find((p) => p.id === who)?.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name })), watched: new Set(watchedGoals(who, demo!).map((g) => g.id)) });
+    const tabs = (who: string) => { const r = scopesFor(facts(who), null); return `${r.tabs.map((t) => `${t.label} ${t.ids.length}`).join(' · ')}; opens on ${r.opens}`; };
+    return [
+      { given: 'Rhea’s tabs (she owns goals and leads CI/CD) in the demo workspace.', then: 'Mine 8 · My team 17 · Watching 12 · All 126; opens on mine', run: () => tabs('rhea') },
+      { given: 'The scope each opens on: Rhea; and someone in no team who owns nothing and watches nothing.', then: 'mine; all', run: () => `${scopesFor(facts('rhea'), null).opens}; ${scopesFor({ goals: facts('rhea').goals, viewerId: 'nobody', teams: [], watched: new Set() }, null).opens}` },
+      { given: 'Each scope’s own group.', then: 'none, none, none, tree', run: () => (['mine', 'team', 'watching', 'all'] as const).map(ownGroup).join(', ') },
+      { given: 'Old addresses: show=levels; show=attention&needs=decision; quiet=2; a bare address for someone who opens on Mine; show=cards-and-more.', then: 'scope=all&group=level / scope=all&attention=1&needs=decision / scope=all&quiet=2 / scope=mine / scope=mine (There’s no “cards-and-more” tab, so these are your goals.)', run: () => ['show=levels', 'show=attention&needs=decision', 'quiet=2', '', 'show=cards-and-more'].map((q) => { const m = movedGoals(q, 'mine', () => true)!; return m.search + (m.note ? ` (${m.note})` : ''); }).join(' / ') },
+    ];
+  })(),
 });
 
 /** The feature modules' rules: each is written in its module's section of the spec. */
