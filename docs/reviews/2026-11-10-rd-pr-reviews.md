@@ -138,3 +138,22 @@ How it was checked: the same local Postgres 16 shaped like Supabase, this time w
 
 - `supabase/manual/faro-role.sql:70` unschedules any pg_cron job whose command contains `faro.` or `okr_`, whoever's it is: the one statement here that could change something that isn't Faro's. Naming the job (`okr-telemetry-nightly`) would be exact. The other app's job was untouched in my run.
 - Once the role owns `faro`, reading Faro's tables as postgres (the dashboard's table editor, the SQL editor) runs whatever `faro_owner` has put behind them, as postgres. `supabase/README.md` should say to `set role faro_owner` first.
+
+### #92 GT1: act on a goal (track 2, merged 13:08 UTC)
+
+Read against `docs/design/goal/spec.md` 2.1, 2.4, 2.6, section 3, rules 1 to 3 and sections 5 and 6, and `docs/design/architecture.md` 1.4 and 4.5.
+
+**Nothing found of medium severity or worse.**
+
+Checked in the demo on Lead time for changes as Rhea, Amara and Oskar at 1440 px and as Amara at 390 px:
+
+- The bar's buttons and the list's rows, labels and buttons are the spec's worked examples for each of the three, and the ask's words are on the page once.
+- Why carries only the pointer; the order is the same at both widths; nothing scrolls sideways.
+- As Oskar, "Add a next step" starts with nobody chosen and asks for all three fields in the spec's words; the new step and a new question appear as rows with the right button for him and for Rhea.
+- On a goal gone quiet, "Ask Kojo for an update" becomes an "Update asked" row with Withdraw.
+- States are words and the overdue mark is the warning mark; no capsules or edges.
+- The new rules take narrow inputs and use `canAnswer`, `canMarkDone` and `canWithdraw` from `asks.ts`; no new action was added for "Ask for a decision or help".
+
+The two things kept back until after Wednesday (`goal.sections` not yet inside About; the review walkthrough's list) are stated in the PR. The section link still says "Activity": the rename to History is GT2's.
+
+**Low.** An open next step's row shows "Change" beside its one button for whoever agreed it or an admin (`src/screens/GoalScreen.tsx`, `StepRowItem`), where the spec gives a row one button at most. It is today's way to correct a step, so it may be meant; the PR doesn't say.
