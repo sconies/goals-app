@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefO
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { useSeen } from '../app/goalSeen';
+import { useDraft } from '../app/drafts';
 import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
@@ -22,7 +23,7 @@ import { ASK_KIND_LABEL, asksOf, canWithdraw, openUpdateAsk } from '../domain/as
 import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
 import {
-  askedOf, asksOnGoal, goalHistory, HISTORY_FILTERS, HISTORY_LABEL, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
+  askedOf, asksOnGoal, commentReach, goalHistory, HISTORY_FILTERS, HISTORY_LABEL, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
   primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
   type AskedItem, type HistoryEntry, type HistoryFilter, type StepRow, type StepsAndAsks, type StreamItem,
 } from '../domain/goalPage';
@@ -869,7 +870,7 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
     <section className="block activity history goal-section" id="history" aria-labelledby="g-history" ref={ref} data-part="History">
       <span id="activity" className="anchor-alias" aria-hidden="true" />
       <SectionHead id="g-history" title="History" purpose="Every week, what was said, and what changed, newest first." />
-      <NoteComposer goal={goal} />
+      <NoteComposer goal={goal} startOpen={focusComposer} />
       <nav className="history-filters" aria-label="Show">
         {HISTORY_FILTERS.map((k) => (
           <a key={k} className="history-filter" href={`?history=${k}`} aria-current={filter === k ? 'true' : undefined}
@@ -933,31 +934,37 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
  * nothing of anyone. Someone who needs the owner to respond asks a question instead: the same words, as an ask that stays
  * open on the owner's Home until they answer it (one way to ask).
  */
-function NoteComposer({ goal }: { goal: Goal }) {
+function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) {
   const app = useApp();
-  const [text, setText] = useState('');
+  // What's typed is kept as a draft: Cancel closes the box and keeps it, as other drafts are kept (goal spec, 2.2).
+  const [draft, keep, clear] = useDraft<{ text: string }>(`${app.ws.id}:comment:${goal.id}`, () => ({ text: '' }));
+  const text = draft.text;
+  const [open, setOpen] = useState(() => !!startOpen || !!text.trim());
   const [saving, setSaving] = useState(false);
-  const isOwner = app.viewer.id === goal.ownerId;
+  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
+  const watcherIds = app.snapshot.people.filter((p) => goalsIn(watchScope(p.id, app.snapshot.watches), app.snapshot.goals).some((g) => g.id === goal.id)).map((p) => p.id);
+  const reach = commentReach({ goal, viewerId: app.viewer.id, ownerFirst, watcherIds, workspace: app.ws.name.replace(/^Example:\s*/, '') });
   const post = async () => {
     if (text.trim().length < 2 || saving) return;
     setSaving(true);
     try {
       await app.addNote(goal, text); app.toast('Comment posted');
-      setText('');
+      clear(); setOpen(false);
     } catch { /* the save already said what went wrong */ } finally {
       setSaving(false);
     }
   };
+  if (!open) return <button type="button" className="btn note-open" onClick={() => { setOpen(true); requestAnimationFrame(() => document.getElementById('note-' + goal.id)?.focus()); }}>Add a comment</button>;
   return (
     <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
       <label className="field"><span className="sr">Add a comment</span>
-        <textarea id={'note-' + goal.id} className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={isOwner ? 'Say why something changed' : 'Add a comment'} aria-label="Add a comment" />
+        <textarea id={'note-' + goal.id} className="input" rows={3} value={text} onChange={(e) => keep({ text: e.target.value })} placeholder="Say what you think, or what you know" aria-label="Add a comment" />
       </label>
-      {text.trim() && (
-        <span className="row note-compose-actions" style={{ gap: 'var(--s2)' }}>
-          <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>
-        </span>
-      )}
+      <p className="hint note-reach">{reach}</p>
+      <span className="row note-compose-actions" style={{ gap: 'var(--s2)' }}>
+        <button className="btn" type="submit" disabled={saving || text.trim().length < 2}>{saving ? 'Posting…' : 'Post comment'}</button>
+        <button className="btn ghost" type="button" onClick={() => setOpen(false)}>Cancel</button>
+      </span>
     </form>
   );
 }

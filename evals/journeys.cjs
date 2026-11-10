@@ -928,7 +928,7 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
   // Anyone can comment; it goes straight into the goal's activity, logged like every other save.
-  await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
+  await p.getByRole('button', { name: 'Add a comment' }).click(); await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
   await h.click(p.getByRole('button', { name: 'Post comment' }));
   await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Comments \d+$/ }));
   await see(p, 'The vendor confirmed their December date holds.', 'the comment shows in the activity');
@@ -1032,8 +1032,11 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
-  await h.click(p.getByRole('button', { name: 'Watch', exact: true }));
-  await h.click(p.getByRole('button', { name: /Watch it and everything feeding it/ }));
+  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3).
+  await h.click(p.locator('.goal-bar').getByRole('button', { name: 'Watch', exact: true }));
+  const watchSheet = p.getByRole('dialog', { name: /^Watch / });
+  await h.click(watchSheet.getByRole('radio', { name: /^It and the \d+ goals? feeding it$/ }));
+  await h.click(watchSheet.getByRole('button', { name: 'Watch', exact: true }));
   await see(p, 'Watching all');
   // And a whole level from Watching.
   await navTo(h, p, 'Watching');
@@ -3542,6 +3545,54 @@ journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, 
   await p.context().close();
 }, []);
 
+journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do them; an owner has no Watch, and About says why', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  // Watch opens a sheet with what watching does; Watch in it, and the button says Watching, with Undo in the message.
+  const bar = p.locator('.goal-bar .bar-actions');
+  await h.inView(bar.getByRole('button', { name: 'Watch', exact: true }), 'entry', 'Watch');
+  await h.click(bar.getByRole('button', { name: 'Watch', exact: true }));
+  const sheet = p.getByRole('dialog', { name: 'Watch Lead time for changes' });
+  await see(sheet, 'show on your Home and under Watching in Goals', 'the Watch sheet does not say what watching does');
+  await see(sheet, 'Faro sends no email');
+  await h.checkpoint('watch sheet');
+  await h.click(sheet.getByRole('button', { name: 'Watch', exact: true }));
+  await see(p, 'Watching Lead time for changes');
+  h.set('finish', await bar.getByRole('button', { name: 'Watching' }).isVisible(), 'the button does not say Watching');
+  // Watching: the sheet has Done and Stop watching; stopping says so, with Undo.
+  await h.click(bar.getByRole('button', { name: 'Watching' }));
+  const again = p.getByRole('dialog', { name: 'You’re watching Lead time for changes' });
+  await h.click(again.getByRole('button', { name: 'Stop watching' }));
+  await see(p, 'Undo', 'stopping has no Undo');
+  // The comment box opens with who reads it and who sees it on Home; Cancel closes it.
+  await h.click(p.getByRole('button', { name: 'Add a comment' }));
+  await see(p, /Everyone in .+ can read this\. Rhea and the \d+ (people|person) watching see it on Home\./, 'the comment box does not say who sees it');
+  await h.click(p.locator('.note-compose').getByRole('button', { name: 'Cancel' }));
+  h.set('errors', !(await p.locator('.note-compose').count()) && await p.getByRole('button', { name: 'Add a comment' }).isVisible(), 'Cancel did not close the comment box');
+  // Ask Rhea a question: a row in Next steps and asks.
+  await h.click(p.getByRole('button', { name: 'Ask Rhea a question' }));
+  const ask = p.getByRole('dialog', { name: /^Ask Rhea a question about/ });
+  await h.fill(ask.getByLabel('Your question'), 'Is week 49 still the date for every monorepo?');
+  await h.click(ask.getByRole('button', { name: 'Ask', exact: true }));
+  await p.locator('.step-row', { hasText: 'Is week 49 still the date for every monorepo?' }).waitFor();
+  // Add a next step, as someone who doesn't own the goal: nobody chosen to start with.
+  await h.click(p.locator('.next-steps').getByRole('button', { name: 'Add a next step' }));
+  const step = p.getByRole('dialog', { name: /^Add a next step/ });
+  h.set('attention', !(await step.locator('.person-chosen').count()) && await step.getByRole('radio', { name: /Oskar .*, you/ }).isVisible(), 'Add a next step starts with someone chosen, or without the suggestions');
+  await step.getByRole('button', { name: 'Cancel' }).click();
+  const s = await h.snapshot();
+  h.set('logged', s.requests.some((r) => r.kind === 'question' && r.askedBy === 'oskar' && /week 49 still/.test(r.ask)) && s.changes.some((c) => c.actorId === 'oskar' && c.entity === 'watch'), 'the question or the watch is not saved and logged');
+  // As Rhea, the owner: no Watch, and About says why.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await p.goto(url('/'));
+  await p.goto(url('/goals/ns-lead') + '#about');
+  await p.locator('.goal-bar').waitFor();
+  h.set('progress', !(await bar.getByRole('button', { name: /^Watch/ }).count()), 'the owner is offered Watch');
+  await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
+  await p.context().close();
+}, []);
+
 async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
@@ -3606,7 +3657,7 @@ async function platformChecks() {
     await q.goto(url('/'));
     await q.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'oskar'));
     await q.goto(url('/goals/ns-lead'));
-    await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     await q.getByText('Kept after a reload, P15').first().waitFor().catch(() => {});
     await q.reload();
@@ -3616,7 +3667,7 @@ async function platformChecks() {
     const note = await q.locator('.save-note').count();
     // A browser that refuses to store: the next change says it lasts only for this visit.
     await q.evaluate(() => { Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); }; });
-    await q.getByLabel('Add a comment').fill('Only for this visit, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Only for this visit, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     let said = false;
     try { await q.locator('.save-note').filter({ hasText: /last only until you reload/ }).waitFor({ timeout: 5000 }); said = true; } catch { /* not said */ }

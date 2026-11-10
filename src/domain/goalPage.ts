@@ -616,6 +616,20 @@ export function goalHistory(i: HistoryInput, filter: HistoryFilter = 'all', q = 
   return { counts, entries };
 }
 
+/* ---------- 7b. who a comment reaches (goal spec, rule 5; GT3) ---------- */
+
+/**
+ * The line under the comment box: everyone in the workspace can read it; the owner and the people watching the goal
+ * (directly, or through a tree or a level) see it on Home. The viewer and the owner are never counted among the watchers.
+ */
+export function commentReach(i: { goal: Goal; viewerId: string; ownerFirst: string; watcherIds: readonly string[]; workspace: string }): string {
+  const n = new Set(i.watcherIds.filter((id) => id !== i.viewerId && id !== i.goal.ownerId)).size;
+  const people = `the ${n} ${n === 1 ? 'person' : 'people'} watching`;
+  const read = `Everyone in ${i.workspace} can read this.`;
+  if (i.viewerId === i.goal.ownerId) return `${read} ${n ? `${people[0]!.toUpperCase()}${people.slice(1)} see it on Home.` : 'Nobody is watching it yet, so it shows on no one else’s Home.'}`;
+  return `${read} ${n ? `${i.ownerFirst} and ${people} see it on Home.` : `${i.ownerFirst} sees it on Home.`}`;
+}
+
 /* ---------- 8. what feeds it ---------- */
 
 /** The goals feeding this one, worst first, with the one most likely to make it miss pinned first and why. */

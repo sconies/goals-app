@@ -70,6 +70,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the bar’s buttons (rule 1) › a stopped goal has no standing button
 - what Why says about an ask (rule 3) › points to the list, naming who it waits on, never the ask’s words
 - what Why says about an ask (rule 3) › to no one in particular: no name
+- who a comment reaches (rule 5) › says the owner and how many watch, never counting the viewer or the owner
 
 ### [evals/goalPage.eval.ts](../../../evals/goalPage.eval.ts)
 
