@@ -364,3 +364,14 @@ Read against `docs/design/goals/spec.md` sections 1, 2.1 and 4, and `docs/design
 
 - `find_goals` did not gain `scope`, which the goals spec's "Changed: `query.ts`" asks for along with the parity entry; the PR doesn't say it is held back.
 - The browser's title on Goals is the scope ("Mine · …"), where the spec's routes table gives "Goals".
+
+### #106 Track 3 review fixes (track 3, merged 17:04 UTC)
+
+The fixes for #94's finding 1, #97's finding 1 and both of #90's, as suggested. Read in the code:
+
+- `yearLine` takes the date from `weekDate(cycle, first)`; the tests now feed the weeks their dates give and expect 21 Dec 2026. Cycles reads the same sentence.
+- Removing your own admin rights offers no Undo; anyone else's offers it only when the save changed something. U60 covers your own row.
+- A left person's heading no longer doubles "(left)", and U43 checks its words.
+- `matchesWords` calls `textMatches`; `teamSummary` calls `teamPeople` and `teamMembers(…).current`.
+
+**Nothing found.** Those findings are closed. Still as #90 noted: People and Teams search through `findInDirectory` and `findTeams` rather than the Search port, and the picker's older `findPeople` remains; they now share the one matching rule, so this is tidying, not a defect.
