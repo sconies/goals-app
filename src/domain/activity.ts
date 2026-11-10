@@ -6,6 +6,7 @@ import { weekDate } from './plan';
 import { quarterOf } from './year';
 import type { Change, Cycle, Level, Snapshot } from './types';
 import { VIA_LABEL, VIA_MCP_BEFORE } from './changeset';
+import { textMatches } from './find';
 
 export type ActivityKind = 'checkins' | 'plans' | 'goals' | 'reviews' | 'comments' | 'people' | 'imports' | 'ai' | 'cycle';
 export const ACTIVITY_KINDS: [ActivityKind, string][] = [
@@ -102,6 +103,11 @@ export function treeOf(goalId: string, s: Snapshot): Set<string> {
   return out;
 }
 
+/** A change's words for search: what it says, who made it, its goal, and each field with its before and after. */
+export function activityWords(c: Change, actor: string, goal: string): string {
+  return [c.summary, actor, goal, ...c.diffs.flatMap((d) => [d.field, d.from, d.to])].join(' ');
+}
+
 /** A test for one change against the query (every setting must match). */
 export function activityFilter(a: ActivityQuery, x: ActivityContext): (c: Change) => boolean {
   const s = x.snapshot;
@@ -124,10 +130,8 @@ export function activityFilter(a: ActivityQuery, x: ActivityContext): (c: Change
     }
     if (a.level.length && (!g || !a.level.includes(g.level))) return false;
     if (a.kind.length && !a.kind.includes(kindOf(c))) return false;
-    if (words.length) {
-      const hay = [c.summary, person(c.actorId)?.name ?? '', g?.title ?? '', ...c.diffs.flatMap((d) => [d.field, d.from, d.to])].join(' ').toLowerCase();
-      if (!words.every((w) => hay.includes(w))) return false;
-    }
+    // What a search matches is find's rule 1, the same as Goals': each word starts a word on the row; a goal's key matches.
+    if (words.length && !textMatches(activityWords(c, person(c.actorId)?.name ?? '', g?.title ?? ''), a.q, g?.key)) return false;
     return true;
   };
 }

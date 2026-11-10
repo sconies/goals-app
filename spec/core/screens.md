@@ -95,7 +95,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalsScreen.tsx](../../src/screens/GoalsScreen.tsx)
 
-- `/goals` (`GoalsScreen`): Goals lists every goal this year. Tabs choose which goals and how they’re grouped; layouts choose how they look. Help: “Goals and its layouts” (`goals`).
+- `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
 - **Named parts:** “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.

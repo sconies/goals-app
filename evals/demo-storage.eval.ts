@@ -81,13 +81,14 @@ describe('one Watching', () => {
   const s = buildPlatformOrg(TODAY);
   const cycle = s.cycles[0]!;
   const week = currentWeek(cycle, TODAY);
-  it(R('ONE-WATCHING', 'Watching is a Goals scope: /watching goes to /goals?show=watching, and there is no four-tab trial'), () => {
+  it(R('ONE-WATCHING', 'Watching is a Goals scope: /watching goes to /goals?scope=watching, and there is no four-tab trial'), () => {
     expect(existsSync(join(__dirname, '../src/app/navMode.ts'))).toBe(false);
     const watching = readFileSync(join(__dirname, '../src/screens/Watching.tsx'), 'utf8');
     expect(watching).toMatch(/<Navigate to=\{'\/goals\?' \+ p\.toString\(\)\} replace \/>/);
-    expect(watching).toMatch(/p\.set\('show', 'watching'\)/);
+    expect(watching).toMatch(/p\.set\('scope', 'watching'\)/);
     const goals = readFileSync(join(__dirname, '../src/screens/GoalsScreen.tsx'), 'utf8');
-    expect(goals).toMatch(/\['watching', 'Watching', watchedCount\]/);
+    const page = readFileSync(join(__dirname, '../src/domain/goalsPage.ts'), 'utf8');
+    expect(page).toMatch(/tabs\.push\(\{ id: 'watching', label: 'Watching'/);
     expect(goals).not.toMatch(/navMode/);
     const shell = readFileSync(join(__dirname, '../src/ui/Shell.tsx'), 'utf8');
     expect(shell).not.toMatch(/navMode|NavMode/);

@@ -146,3 +146,21 @@
 .optlist .opt.team-opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); align-items: center; padding-top: 12px; padding-bottom: 12px; }
 .team-actions { display: flex; gap: var(--s2); }
 @container app (max-width: 480px) { .optlist .opt.team-opt { grid-template-columns: minmax(0, 1fr); row-gap: var(--s2); } }
+
+/* The menu in groups (navigation spec 2.1, NV1): hairlines between them, no visible headings; the collapse button sits
+   in the header beside the wordmark. On the rail, each row names itself with the app's own label (2.2): a small flat
+   box to its right, after a moment on hover, at once on keyboard focus. */
+.side .nav-group { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-top: 1px solid var(--line-2); }
+.side .nav-group-work { border-top: 0; }
+.side .nav-group-you { margin-top: auto; }
+.side .side-brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side .side-brand .collapse-nav { margin-left: auto; }
+.side [data-label] { position: relative; }
+.rail-label { position: fixed; transform: translateY(-50%); z-index: 60; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 0.8125rem; font-weight: 500; white-space: nowrap; pointer-events: none; }
+.app.nav-icons .side .side-brand { flex-direction: column; }
+.app.nav-icons .side .side-brand .collapse-nav { margin-left: 0; }
+.app.nav-icons .side .nav.sub { display: none; }
+@container app (max-width: 1100px) and (min-width: 761px) {
+  .side .side-brand { flex-direction: column; }
+  .side .nav.sub { display: none; }
+}

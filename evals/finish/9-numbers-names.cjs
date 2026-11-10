@@ -89,7 +89,7 @@ module.exports = {
     // Phones (demo review item 14, then backlog G): the layouts are one menu whose button names the open layout and whose
     // items say what each layout is; the open view's name is never cut off; active filters wrap, none cut off.
     for (const w of [360, 390]) {
-      const [c, p] = await open(w, 800, 'rhea', '/goals?view=board&status=off,risk&level=team&owner=rhea', true);
+      const [c, p] = await open(w, 800, 'rhea', '/goals?scope=all&view=board&status=off,risk&level=team&owner=rhea', true);
       await p.locator('.layout-menu > summary').click();
       const m = await p.evaluate(() => {
         const off = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1); };
@@ -110,7 +110,7 @@ module.exports = {
     // A saved view's long name in full on a wide monitor, as its tab.
     {
       const long = 'Platform goals at risk this quarter that need a decision from the steering group';
-      const [c, p] = await open(1920, 1000, 'rhea', '/goals?status=off,risk');
+      const [c, p] = await open(1920, 1000, 'rhea', '/goals?scope=all&status=off,risk');
       await p.getByRole('button', { name: 'Save view' }).first().click();
       await p.getByRole('dialog').getByLabel('Name').fill(long);
       await p.getByRole('dialog').getByRole('button', { name: 'Save view' }).click();

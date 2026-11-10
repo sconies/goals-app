@@ -9997,6 +9997,19 @@ function treeOf(goalId, s) {
 	}
 	return out;
 }
+/** A change's words for search: what it says, who made it, its goal, and each field with its before and after. */
+function activityWords(c, actor, goal) {
+	return [
+		c.summary,
+		actor,
+		goal,
+		...c.diffs.flatMap((d) => [
+			d.field,
+			d.from,
+			d.to
+		])
+	].join(" ");
+}
 /** A test for one change against the query (every setting must match). */
 function activityFilter(a, x) {
 	const s = x.snapshot;
@@ -10019,19 +10032,7 @@ function activityFilter(a, x) {
 		}
 		if (a.level.length && (!g || !a.level.includes(g.level))) return false;
 		if (a.kind.length && !a.kind.includes(kindOf(c))) return false;
-		if (words.length) {
-			const hay = [
-				c.summary,
-				person(c.actorId)?.name ?? "",
-				g?.title ?? "",
-				...c.diffs.flatMap((d) => [
-					d.field,
-					d.from,
-					d.to
-				])
-			].join(" ").toLowerCase();
-			if (!words.every((w) => hay.includes(w))) return false;
-		}
+		if (words.length && !textMatches(activityWords(c, person(c.actorId)?.name ?? "", g?.title ?? ""), a.q, g?.key)) return false;
 		return true;
 	};
 }
@@ -10780,7 +10781,7 @@ var CORE_ARTICLES = [
 	{
 		id: "goals",
 		title: "Goals and its layouts",
-		summary: "Goals lists every goal this year. Tabs choose which goals and how they’re grouped; layouts choose how they look.",
+		summary: "Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.",
 		group: "goals",
 		sections: [
 			{
@@ -10790,17 +10791,19 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
+					"Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.",
+					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
+					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
 					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
-					"Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.",
+					"Old links still work: Trees, By level, By team and Needs attention open All with that group or the switch, /watching opens Watching, and a saved view made before keeps working.",
 					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.",
 					"Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.",
 					"Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.",
 					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
-					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
-					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
+					"A link with a tab this workspace doesn’t have opens the one you’d open first, and a short line says so.",
+					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says whose goals are open and how many, and opens the tabs, Group, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
 					"When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
@@ -10827,6 +10830,9 @@ var CORE_ARTICLES = [
 			"BulkEdit"
 		],
 		reqs: [
+			"GOALS-SCOPE",
+			"GOALS-ATTENTION",
+			"GOALS-ADDRESS",
 			"VIEWS",
 			"OUTCOME-TREE",
 			"HIERARCHY",
@@ -12221,7 +12227,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.",
+					"Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.",
 					"The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.",
 					"Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.",
 					"Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.",
@@ -12275,7 +12281,7 @@ var CORE_ARTICLES = [
 					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
 					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
 					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
-					"Send feedback, at the top, opens the same sheet as Send feedback in the sidebar."
+					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
 				]
 			},
 			{
@@ -12359,9 +12365,17 @@ var CORE_ARTICLES = [
 		group: "you",
 		sections: [
 			{
+				heading: "The menu",
+				list: [
+					"The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it, Reviews), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel.",
+					"Collapsed to icons, each icon names itself when you point at it or move to it with the keyboard. Between a phone and a computer the menu is always icons.",
+					"On a phone the tabs are Home, Check-in, Goals and Reviews for someone with a goal to check in on, or Home, Goals, Reviews and People; More holds the rest, in the same groups."
+				]
+			},
+			{
 				heading: "How it fits",
 				list: [
-					"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.",
+					"On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, in the same groups as the sidebar, including Data, Settings, Help and Feedback.",
 					"On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.",
 					"Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.",
 					"Text follows your browser’s text size, and every control is big enough to tap."
@@ -12372,7 +12386,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
-					"Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
+					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
 			{
@@ -12387,6 +12401,8 @@ var CORE_ARTICLES = [
 		routes: [],
 		screens: [],
 		reqs: [
+			"NAV-PLACES",
+			"NAV-COLLAPSED",
 			"LAUNCH",
 			"PHONE",
 			"A11Y",
@@ -12483,7 +12499,6 @@ var MOVED_ARTICLES = {
 	"workspace-teams": "teams"
 };
 var articleById = (id) => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? "");
-/** All the words of an article, for search. */
 function textOf(a) {
 	return [
 		a.title,
@@ -12506,7 +12521,7 @@ function searchGuide(query) {
 	if (!words.length) return [];
 	return ARTICLES.map((a) => {
 		const all = norm(textOf(a));
-		if (!words.every((w) => all.includes(w))) return null;
+		if (!textMatches(textOf(a), query)) return null;
 		const title = norm(a.title), keys = norm(a.keywords.join(" ")), sum = norm(a.summary);
 		return {
 			a,
@@ -12541,6 +12556,25 @@ var WHATS_NEW = [
 			"workspace",
 			"workspace-access",
 			"people"
+		]
+	},
+	{
+		id: "goals-opens-on-yours",
+		date: "2026-11-10",
+		title: "Goals opens on yours, and the menu is in groups",
+		points: [
+			"Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.",
+			"How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.",
+			"One line under the bar counts the goals shown and their statuses.",
+			"The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.",
+			"Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from.",
+			"Activity and Help search the way Goals does: each word you type starts a word in what they find, a goal’s key finds its changes, a near miss shows the nearest match, and Back after a search returns to the list as it was."
+		],
+		articles: [
+			"goals",
+			"any-device",
+			"feedback",
+			"activity"
 		]
 	},
 	{
