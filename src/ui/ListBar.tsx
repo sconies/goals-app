@@ -8,7 +8,8 @@ import { MenuButton } from './MenuButton';
 import { EmptyResult } from './bits';
 
 /** A search field that writes to the address a moment after typing stops (rule 4: typing replaces until it settles). */
-export function ListSearch({ value, onSearch, label, placeholder, autoFocus }: { value: string; onSearch: (text: string, settled: boolean) => void; label: string; placeholder: string; autoFocus?: boolean }) {
+/** `settleMs`: how long typing must pause before the address follows; 0 follows each key (a short list, like Help). */
+export function ListSearch({ value, onSearch, label, placeholder, autoFocus, settleMs = 150 }: { value: string; onSearch: (text: string, settled: boolean) => void; label: string; placeholder: string; autoFocus?: boolean; settleMs?: number }) {
   const [text, setText] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mine = useRef(value);
@@ -23,7 +24,8 @@ export function ListSearch({ value, onSearch, label, placeholder, autoFocus }: {
           const t = e.target.value;
           setText(t);
           if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(() => send(t, false), 150);
+          if (settleMs <= 0) send(t, false);
+          else timer.current = setTimeout(() => send(t, false), settleMs);
         }}
         onKeyDown={(e) => { if (e.key === 'Enter') { if (timer.current) clearTimeout(timer.current); send(e.currentTarget.value, true); } }}
         onBlur={(e) => { if (timer.current) clearTimeout(timer.current); if (e.currentTarget.value.trim() !== value) send(e.currentTarget.value, true); }} />
