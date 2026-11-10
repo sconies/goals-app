@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-opens-on-yours',
+    date: '2026-11-10',
+    title: 'Goals opens on yours, and the menu is in groups',
+    points: [
+      'Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.',
+      'How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.',
+      'One line under the bar counts the goals shown and their statuses.',
+      'The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.',
+      'Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from.',
+      'Activity and Help search the way Goals does: each word you type starts a word in what they find, a goal’s key finds its changes, a near miss shows the nearest match, and Back after a search returns to the list as it was.',
+    ],
+    articles: ['goals', 'any-device', 'feedback', 'activity'],
+  },
+  {
     id: 'history-week-order',
     date: '2026-11-10',
     title: 'History puts each week in its place',

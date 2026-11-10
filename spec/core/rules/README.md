@@ -24,6 +24,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Who a comment reaches](comment-reach.md) | The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 | [Navigation: the menu, the lit item and a page’s name](navigation.md) | Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says. |
+| [The Goals page: whose goals, how they are grouped, and the switch](goals-page.md) | Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open. |
 
 ## The numbers the rules turn on
 

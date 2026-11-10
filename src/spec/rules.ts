@@ -30,7 +30,9 @@ import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } fro
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
-import { litItem, menuFor, pageName, sideFor } from '../domain/navigation';
+import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
+import { watchedGoals } from '../domain/review';
 import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -897,7 +899,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
-**The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; typing replaces it until Enter, leaving the field or a pause; clearing adds one.
+**The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -929,11 +931,11 @@ RULE_LIST.push({
   id: 'navigation',
   title: 'Navigation: the menu, the lit item and a page’s name',
   summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
-  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'sideFor', 'tabsFor', 'menuFor', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'pageName', 'placeName'] }],
   tests: ['src/domain/navigation.test.ts'],
   reqs: [],
   body: `
-**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, People, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+**The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
 **The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
 
@@ -941,10 +943,40 @@ RULE_LIST.push({
 
 **A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
   examples: [
-    { given: 'The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics).', then: 'home checkin goals reviews activity people data module:metrics new workspace / home goals reviews activity people data module:metrics new workspace', run: () => [true, false].map((o) => menuFor(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]).join(' ')).join(' / ') },
-    { given: 'The lit item at /goals/lead-mq, /goals/new and /settings.', then: 'goals, new, none', run: () => ['/goals/lead-mq', '/goals/new', '/settings'].map((p) => litItem(p, sideFor(true)) ?? 'none').join(', ') },
-    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => [pageName('/goals', 'watching', sideFor(true)), pageName('/reviews/weekly', null, sideFor(true)), pageName('/retro/x', null, sideFor(true)), pageName('/metrics/m1', null, sideFor(true), 'Lead time for changes')].join(', ') },
+    { given: 'The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without.', then: 'home checkin goals reviews | people module:metrics activity data | new | workspace settings help feedback / home goals reviews | people module:metrics activity data | new | workspace settings help feedback', run: () => [true, false].map((o) => { const g = menuGroups(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]); return [g.work, g.lookup, g.make, g.you].map((x) => x.join(' ')).join(' | '); }).join(' / ') },
+    { given: 'The phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals reviews / home goals reviews people', run: () => [phoneTabs(true), phoneTabs(false)].map((x) => x.join(' ')).join(' / ') },
+    { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
+    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
   ],
+});
+
+RULE_LIST.push({
+  id: 'goals-page',
+  title: 'The Goals page: whose goals, how they are grouped, and the switch',
+  summary: 'Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open.',
+  code: [{ file: 'src/domain/goalsPage.ts', names: ['scopesFor', 'ownGroup', 'scopeWords', 'attentionCount', 'goalsLine', 'describeView', 'movedGoals', 'GROUPS'] }],
+  tests: ['src/domain/goalsPage.test.ts'],
+  reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'],
+  body: `
+**Whose goals (the scope).** Mine: the goals someone owns, when they own one. My team: the goals of their own team and of any team they lead, when they have one ("My teams" for several). Watching: the goals they watch. All: every goal. Only goals not stopped count. Goals opens on the scope used last in this workspace when they still have it; otherwise Mine, else Watching when it has goals, else All.
+
+**How they are grouped.** As trees (All's own), by team, by level, or none: one list, worst first (every other scope's own). A group equal to the scope's own is left out of the address.
+
+**The switch.** "Needs attention · {n}" counts the goals in the scope, after the search and the filters, that need attention ([flags](flags.md)); being handled is never counted. On, the goals that need attention come first and those being handled below.
+
+**The line.** Off: the list's count line ([finding things](finding.md)), then each status that has goals, worst first, "{n} {status}", joined with " · ". On: "{n} need attention: " with the same list over those goals, where a status that isn't itself a reason says why ("2 on track, flagged for getting worse"), then how many being handled are listed below.
+
+**Old addresses.** show=mine, watching, outcomes, levels, teams and attention become a scope, a group and the switch; an address with a filter and no scope is All; a bare /goals is the scope that opens; /watching is Watching. A saved view stored in the old form opens in the new one; the record is not rewritten.`,
+  examples: (() => {
+    const facts = (who: string) => ({ goals: demo!.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams: demo!.teams.filter((t) => t.id === demo!.people.find((p) => p.id === who)?.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name })), watched: new Set(watchedGoals(who, demo!).map((g) => g.id)) });
+    const tabs = (who: string) => { const r = scopesFor(facts(who), null); return `${r.tabs.map((t) => `${t.label} ${t.ids.length}`).join(' · ')}; opens on ${r.opens}`; };
+    return [
+      { given: 'Rhea’s tabs (she owns goals and leads CI/CD) in the demo workspace.', then: 'Mine 8 · My team 17 · Watching 12 · All 126; opens on mine', run: () => tabs('rhea') },
+      { given: 'The scope each opens on: Rhea; and someone in no team who owns nothing and watches nothing.', then: 'mine; all', run: () => `${scopesFor(facts('rhea'), null).opens}; ${scopesFor({ goals: facts('rhea').goals, viewerId: 'nobody', teams: [], watched: new Set() }, null).opens}` },
+      { given: 'Each scope’s own group.', then: 'none, none, none, tree', run: () => (['mine', 'team', 'watching', 'all'] as const).map(ownGroup).join(', ') },
+      { given: 'Old addresses: show=levels; show=attention&needs=decision; quiet=2; a bare address for someone who opens on Mine; show=cards-and-more.', then: 'scope=all&group=level / scope=all&attention=1&needs=decision / scope=all&quiet=2 / scope=mine / scope=mine (There’s no “cards-and-more” tab, so these are your goals.)', run: () => ['show=levels', 'show=attention&needs=decision', 'quiet=2', '', 'show=cards-and-more'].map((q) => { const m = movedGoals(q, 'mine', () => true)!; return m.search + (m.note ? ` (${m.note})` : ''); }).join(' / ') },
+    ];
+  })(),
 });
 
 /** The feature modules' rules: each is written in its module's section of the spec. */

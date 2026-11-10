@@ -27,7 +27,7 @@ async function at(browser, url, { w, h, touch, ws = 'platform-org', who, route, 
   await c.addInitScript(([ws, who]) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-workspace', ws); localStorage.setItem('goals-app-viewer:' + ws, who); sessionStorage.setItem('viewer-set', '1'); } }, [ws, who]);
   const p = await c.newPage();
   await p.goto(url(route));
-  await p.locator('.goal-bar, .need, main h1').first().waitFor();
+  await p.locator('.goal-bar:visible, .need:visible, main h1:visible, main .goals-phonebar:visible').first().waitFor();
   await p.waitForTimeout(450);
   return [c, p];
 }

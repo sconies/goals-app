@@ -3,20 +3,33 @@
    where the list would be, what found nothing. The words come from src/domain/find.ts (rules 2, 3 and 5), so every list
    says them alike. The list's state lives in the address (useListQuery). */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { countLine, filterText, noneFound, type FilterPart, type Things } from '../domain/find';
+import { countLine, filterText, noneFound, type FilterPart, type ListChange, type Things } from '../domain/find';
 import { MenuButton } from './MenuButton';
 import { EmptyResult } from './bits';
 
-/** A search field that writes to the address a moment after typing stops (rule 4: typing replaces until it settles). */
-/** `settleMs`: how long typing must pause before the address follows; 0 follows each key (a short list, like Help). */
-export function ListSearch({ value, onSearch, label, placeholder, autoFocus, settleMs = 150 }: { value: string; onSearch: (text: string, settled: boolean) => void; label: string; placeholder: string; autoFocus?: boolean; settleMs?: number }) {
+/**
+ * A search field that writes to the address a moment after typing stops (rule 4): the search's first write adds a
+ * history entry and later ones replace it, so Back returns to the list as it was before; Enter or leaving the field
+ * writes nothing more when the address already says what was typed.
+ * `settleMs`: how long typing must pause before the address follows; 0 follows each key (a short list, like Help).
+ */
+export function ListSearch({ value, onSearch, label, placeholder, autoFocus, settleMs = 150 }: { value: string; onSearch: (text: string, change: ListChange) => void; label: string; placeholder: string; autoFocus?: boolean; settleMs?: number }) {
   const [text, setText] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mine = useRef(value);
-  // The address changed from elsewhere (Back, Clear the search): the field follows it.
-  useEffect(() => { if (value !== mine.current) { mine.current = value; setText(value); } }, [value]);
+  /** Whether this search has already added its history entry. */
+  const started = useRef(false);
+  // The address changed from elsewhere (Back, Clear the search): the field follows it, and the next search starts afresh.
+  useEffect(() => { if (value !== mine.current) { mine.current = value; started.current = false; setText(value); } }, [value]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const send = (t: string, settled: boolean) => { const w = t.trim().slice(0, 200); mine.current = w; onSearch(w, settled); };
+  const send = (t: string, settled: boolean) => {
+    const w = t.trim().slice(0, 200);
+    if (w === mine.current) { if (settled) started.current = false; return; }
+    mine.current = w;
+    const change: ListChange = started.current ? (settled ? 'settled' : 'typing') : 'started';
+    started.current = !settled;
+    onSearch(w, change);
+  };
   return (
     <label className="filter-search list-search"><span className="sr">{label}</span>
       <input className="input" type="search" placeholder={placeholder} maxLength={200} value={text} autoFocus={autoFocus && typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 761px)').matches} aria-label={label}
@@ -28,7 +41,7 @@ export function ListSearch({ value, onSearch, label, placeholder, autoFocus, set
           else timer.current = setTimeout(() => send(t, false), settleMs);
         }}
         onKeyDown={(e) => { if (e.key === 'Enter') { if (timer.current) clearTimeout(timer.current); send(e.currentTarget.value, true); } }}
-        onBlur={(e) => { if (timer.current) clearTimeout(timer.current); if (e.currentTarget.value.trim() !== value) send(e.currentTarget.value, true); }} />
+        onBlur={(e) => { if (timer.current) clearTimeout(timer.current); send(e.currentTarget.value, true); }} />
     </label>
   );
 }

@@ -10,7 +10,8 @@ Tick each line on Tuesday evening, then do the "15 minutes before" block again o
 - [ ] The root page shows the splash then the welcome page (load it once first: the first load is slow).
 - [ ] Walk Parts 1 and 2 of `docs/demo-script.md` once, out loud, timed (targets 10 and 5 minutes). Note any screen that looks odd.
 - [ ] As Amara Nwosu: Home shows 126 goals and the review ring; this week's review walkthrough opens.
-- [ ] Feedback (beside Help) opens and shows items; Workspace → Features lists the modules; the workspace switcher opens from the top of the sidebar.
+- [ ] Feedback (last in the menu, after Help) opens and shows items; Workspace → Features lists the modules; the workspace switcher opens from the top of the menu.
+- [ ] As Amara: Goals opens on Watching with tabs My team, Watching 56, All 126; on All, Needs attention · 41.
 - [ ] Data → Spreadsheets → download: the workbook has a Metrics sheet, and Data has **no** Metrics page yet (main must not have the fallback merged).
 
 **The live build**

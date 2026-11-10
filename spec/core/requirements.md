@@ -385,6 +385,30 @@ Share image makes a PNG of the goal's summary bar and a small chart, with the go
 - **Tests:** `evals/goalPage.eval.ts` (1)
 - **Journeys and checks:** N9
 
+### GOALS-SCOPE
+
+Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they own one, My team when they have a team, Watching, All), each with its count, and it opens on the scope last used, else Mine, else Watching when it has goals, else All. How the goals are grouped (as trees, by team, by level, none) is a separate choice, each scope with its own default; one line counts the goals shown and their statuses, worst first.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
+### GOALS-ATTENTION
+
+Needs attention is a switch on any scope, with its count for that scope and those filters: on, it lists the goals that need attention, then those being handled, and the line says how many need attention and why.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
+### GOALS-ADDRESS
+
+Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
 ## Platform
 
 ### PERSIST
@@ -965,6 +989,22 @@ Anyone can leave a workspace from Settings (last, after a rule), with a confirm 
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Journeys and checks:** U53, U62
+
+## Navigation
+
+### NAV-PLACES
+
+The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups.
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
+
+### NAV-COLLAPSED
+
+Collapsed to a rail (and always between 761 and 1100 px), each icon names itself in the app's own label, after a moment on hover and at once on keyboard focus, with its full words (“Check-in, 5 to do”).
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
 
 ## Finding
 

@@ -24,13 +24,13 @@ module.exports = {
 
     // U28: a goal's key finds it.
     {
-      const [c, p] = await open(1280, 900, 'amara', '/goals');
+      const [c, p] = await open(1280, 900, 'amara', '/goals?scope=all');
       const snap = await p.evaluate(() => window.__goalsStore.load('platform-org'));
       const g = snap.goals.find((x) => x.key === 'G-48');
       chk(!!g, 'U28: the example has no G-48');
       if (g) {
         for (const typed of ['G-48', 'g48', '48']) {
-          await p.goto(url('/goals?q=' + encodeURIComponent(typed)));
+          await p.goto(url('/goals?scope=all&q=' + encodeURIComponent(typed)));
           await settle(p);
           const names = await p.evaluate(() => [...document.querySelectorAll('.trow-name')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
           chk(names.includes(g.title), `U28: searching “${typed}” doesn't find G-48 (${g.title}); found ${names.length}`);
@@ -81,12 +81,12 @@ module.exports = {
 
     // U25: the saved view, the Table and Home agree on which goals wait on a decision.
     {
-      const [c, p] = await open(1280, 900, 'amara', '/goals?needs=decision&sort=worst');
+      const [c, p] = await open(1280, 900, 'amara', '/goals?scope=all&needs=decision&sort=worst');
       await settle(p);
       const view = await p.evaluate(() => [...document.querySelectorAll('.trow-name')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
       const shown = await shownOf(p);
       chk(view.length > 0 && view.length === shown, `U25: the saved view lists ${view.length} goals and says ${shown}`);
-      await p.goto(url('/goals?view=table'));
+      await p.goto(url('/goals?scope=all&view=table'));
       await settle(p, 1200);
       const labelled = await p.evaluate(() => [...document.querySelectorAll('.table-story-line')].filter((e) => /^Decision or help needed\b/.test(e.textContent.trim())).length);
       chk(labelled === view.length, `U25: Table labels ${labelled} goals “Decision or help needed”, the saved view ${view.length}`);
@@ -108,7 +108,7 @@ module.exports = {
 
     // D2: each Board card says its own status, the same as its lane, on a phone.
     {
-      const [c, p] = await open(390, 844, 'amara', '/goals?view=board', true);
+      const [c, p] = await open(390, 844, 'amara', '/goals?scope=all&view=board', true);
       await settle(p);
       const bad = await p.evaluate(() => [...document.querySelectorAll('.board-col')].flatMap((col) => {
         const lane = col.querySelector('.board-head').innerText.replace(/\d+\s*$/, '').trim();

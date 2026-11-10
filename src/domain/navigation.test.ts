@@ -1,30 +1,38 @@
-import { litItem, menuFor, pageName, placeName, sideFor, tabsFor } from './navigation';
+import { litItem, menuGroups, menuRows, menuViews, moreFor, pageName, phoneTabs, placeName } from './navigation';
 
-describe('the menu, the lit item and a page’s name (AR2)', () => {
-  it('gives Check-in only to someone who owns a goal, on the sidebar and the phone’s tabs', () => {
-    expect(sideFor(true)).toEqual(['home', 'checkin', 'goals', 'reviews', 'activity', 'people', 'data', 'new', 'workspace']);
-    expect(sideFor(false)).not.toContain('checkin');
-    expect(tabsFor(true)).toEqual(['home', 'checkin', 'goals', 'reviews']);
-    expect(tabsFor(false)).toEqual(['home', 'goals', 'watching', 'reviews']);
+const rows = (o: boolean) => menuRows(menuGroups(o)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2];
+
+describe('the menu, the lit item and a page’s name (AR2, NV1)', () => {
+  it('groups the menu: your work, look up, make, this workspace and you; Check-in only for someone with a goal to check in on', () => {
+    expect(menuGroups(true)).toEqual({ work: ['home', 'checkin', 'goals', 'reviews'], lookup: ['people', 'activity', 'data'], make: ['new'], you: ['workspace', 'settings', 'help', 'feedback'] });
+    expect(menuGroups(false).work).toEqual(['home', 'goals', 'reviews']);
   });
-  it('places a module’s items by their group', () => {
-    expect(menuFor(false, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }, { id: 'plan', to: '/plan', label: 'Plan', group: 'work' }]))
-      .toEqual(['home', 'goals', 'reviews', 'module:plan', 'activity', 'people', 'data', 'module:metrics', 'new', 'workspace']);
+  it('places a module’s items by their group, in the order they register', () => {
+    const g = menuGroups(false, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }, { id: 'plan', to: '/plan', label: 'Plan', group: 'work' }]);
+    expect(g.work).toEqual(['home', 'goals', 'reviews', 'module:plan']);
+    expect(g.lookup).toEqual(['people', 'module:metrics', 'activity', 'data']);
+  });
+  it('gives a phone four tabs and puts the rest in More, in its groups', () => {
+    expect(phoneTabs(true)).toEqual(['home', 'checkin', 'goals', 'reviews']);
+    expect(phoneTabs(false)).toEqual(['home', 'goals', 'reviews', 'people']);
+    expect(moreFor(menuGroups(false, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]), phoneTabs(false))).toEqual({ lookup: ['module:metrics', 'activity', 'data'], make: ['new'], you: ['workspace', 'settings', 'help', 'feedback'] });
+  });
+  it('lists up to four saved views: pinned A to Z, then yours, the latest opened first', () => {
+    const v = (id: string, pinned: boolean, createdAt = '2026-11-01') => ({ id, name: id, pinned, mine: !pinned, createdAt });
+    expect(menuViews([v('b', true), v('a', true), v('m1', false, '2026-11-02'), v('m2', false, '2026-11-03'), v('m3', false, '2026-11-04')], ['m1']).map((x) => x.id)).toEqual(['a', 'b', 'm1', 'm3']);
   });
   it('lights one item for an address', () => {
-    const items = menuFor(true, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]);
-    expect(litItem('/goals/lead-mq', items)).toBe('goals');
-    expect(litItem('/goals/new', items)).toBe('new');
-    expect(litItem('/metrics/m1', items, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }])).toBe('module:metrics');
-    expect(litItem('/settings', items)).toBeNull();
-    expect(litItem('/watching', ['home', 'goals'], [], ['home', 'goals'])).toBe('goals');
+    const items = menuRows(menuGroups(true, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]));
+    const mods = [{ id: 'metrics', to: '/metrics', label: 'Metrics' }];
+    expect(['/goals/lead-mq', '/goals/new', '/check-in/x', '/quick-check-in', '/teams/cicd', '/whats-new', '/workspace/access', '/workspace/new', '/metrics/m1', '/research'].map((p) => litItem(p, items, mods) ?? 'none'))
+      .toEqual(['goals', 'new', 'checkin', 'checkin', 'people', 'help', 'workspace', 'none', 'module:metrics', 'none']);
   });
   it('names a page', () => {
-    expect(pageName('/goals', 'watching', sideFor(true))).toBe('Watching');
-    expect(pageName('/reviews/weekly', null, sideFor(true))).toBe('Reviews');
-    expect(pageName('/help/check-in', null, sideFor(true))).toBe('Help');
-    expect(pageName('/check-in/ns-lead', null, sideFor(false))).toBe('Check-in');
-    expect(pageName('/metrics/m1', null, sideFor(true), 'Lead time for changes')).toBe('Lead time for changes');
+    expect(pageName('/goals', 'watching', rows(true))).toBe('Watching');
+    expect(pageName('/reviews/weekly', null, rows(true))).toBe('Reviews');
+    expect(pageName('/help/check-in', null, rows(true))).toBe('Help');
+    expect(pageName('/check-in/ns-lead', null, rows(false))).toBe('Check-in');
+    expect(pageName('/metrics/m1', null, rows(true), 'Lead time for changes')).toBe('Lead time for changes');
   });
   it('says where a Back link leads', () => {
     const names = { goal: (id: string) => (id === 'g1' ? 'Lead time' : null), review: () => 'Platform weekly', view: () => null, article: () => 'Checking in on a goal', person: () => 'Rhea Kapoor', team: () => null };

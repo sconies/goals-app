@@ -285,6 +285,10 @@ export function noneFound(t: Things, q: string, filtered: boolean, near?: string
   return `No ${t.things} match these filters.`;
 }
 
-/** Rule 4. What a change does to the browser's history: a choice adds an entry; typing replaces until it settles. */
-export type ListChange = 'choice' | 'typing' | 'settled' | 'clear' | 'remembered' | 'dropped';
-export const historyStep = (c: ListChange): 'push' | 'replace' => (c === 'typing' || c === 'remembered' || c === 'dropped' ? 'replace' : 'push');
+/**
+ * Rule 4. What a change does to the browser's history: a choice adds an entry; a search's first key adds one ("started")
+ * and later keys replace it, so Back returns to the list before the search; settling replaces (and writes nothing when
+ * the address is already what was typed).
+ */
+export type ListChange = 'choice' | 'started' | 'typing' | 'settled' | 'clear' | 'remembered' | 'dropped';
+export const historyStep = (c: ListChange): 'push' | 'replace' => (c === 'typing' || c === 'settled' || c === 'remembered' || c === 'dropped' ? 'replace' : 'push');

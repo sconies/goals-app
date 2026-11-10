@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
 import {
-  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityParts, activityFilter, activityRows, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
+  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityParts, activityFilter, activityRows, activityWords, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
   type ActivityQuery, type When,
 } from '../domain/activity';
 import { toCsv } from '../domain/export';
@@ -12,7 +12,7 @@ import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
 import { Avatar, Sheet } from '../ui/bits';
 import { ChangeItem } from '../ui/ChangeItem';
-import { historyStep, type ListChange } from '../domain/find';
+import { historyStep, nearMiss, type ListChange } from '../domain/find';
 import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
 import { Pick, PickOne } from '../ui/Pick';
 
@@ -51,7 +51,11 @@ export function Activity() {
   const watched = a.watching != null ? new Set(watchedGoals(app.viewer.id, app.snapshot).filter((g) => !level || g.level === level).map((g) => g.id)) : null;
   const all = [...app.snapshot.changes].reverse();
   const base = { ...a, kind: [] as ActivityQuery['kind'] };
-  const inScope = all.filter(activityFilter(base, { snapshot: app.snapshot, cycle: app.cycle, week: app.week, watched }));
+  const ctx = { snapshot: app.snapshot, cycle: app.cycle, week: app.week, watched };
+  const found = all.filter(activityFilter(base, ctx));
+  // A search that finds nothing tries a near miss (find rule 5), as Goals does: those changes are shown, and said so.
+  const near = !found.length && a.q.trim() ? nearMiss(a.q, all.map((c) => activityWords(c, app.person(c.actorId)?.name ?? '', (c.goalId && app.goal(c.goalId)?.title) || ''))) : null;
+  const inScope = near ? all.filter(activityFilter({ ...base, q: near }, ctx)) : found;
   const list = a.kind.length ? inScope.filter((c) => a.kind.includes(kindOf(c))) : inScope;
   const shown = list.slice(0, limit);
   const groups: [string, Change[]][] = [];
@@ -85,7 +89,7 @@ export function Activity() {
       )}
       <div className="filterbar">
         <div className="filterbar-row">
-          <ListSearch value={a.q} label="Find a change" placeholder="Find by person, goal, key or what was said" onSearch={(v, settled) => { setA((cur) => ({ ...cur, q: v }), settled ? 'settled' : 'typing'); setLimit(40); }} />
+          <ListSearch value={a.q} label="Find a change" placeholder="Find by person, goal, key or what was said" onSearch={(v, change) => { setA((cur) => ({ ...cur, q: v }), change); setLimit(40); }} />
           <label className="filter-sort"><span className="sr">When</span>
             <select className="input" value={a.when ?? ''} onChange={(e) => { const v = (e.target.value || null) as When | null; setA((cur) => ({ ...cur, when: v })); if (v === 'custom') setOpen(true); setLimit(40); }}>
               <option value="">Any time</option>
@@ -101,6 +105,7 @@ export function Activity() {
           ))}
         </div>
       </div>
+      {near && <NoneFound things={CHANGES} q={a.q} filtered={parts.length > 0} near={near} onClearSearch={() => setA((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />}
       {list.length > 0 && <CountLine things={CHANGES} n={list.length} narrowed={narrowed || !!a.q.trim()} order="newest first" />}
       <FilterLine parts={parts} onRemove={(k) => setA((cur) => withoutActivity(cur, k))} onClear={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       {groups.length ? groups.map(([day, items]) => (
