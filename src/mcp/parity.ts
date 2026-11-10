@@ -60,6 +60,7 @@ export const ACTIONS: Record<string, Entry> = {
   removeMetric: ['remove_metric', 'restore_removed'],
   linkGoalMetric: ['link_goal_metric'],
   unlinkGoalMetric: ['link_goal_metric'],
+  run: { notForAssistants: 'The one way every action above is run (app/actions.ts): each action has its own entry here.' },
   createWorkspace: { notForAssistants: 'A token belongs to one workspace; a new workspace is set up in the app.' },
   switchWorkspace: { notForAssistants: 'A token belongs to one workspace: switching is choosing another token.' },
   resetExample: { notForAssistants: 'Only the demo has an example to reset, and tokens are for real workspaces.' },

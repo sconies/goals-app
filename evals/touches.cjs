@@ -26,6 +26,8 @@ const RULES = [
   [/^src\/markup\/|^src\/styles\/notes\/(markup|workspace)\.css/, ['U41', 'U42', 'U47', 'U52', 'U53', 'P6']],
   [/^src\/telemetry\//, ['N8']],
   [/^(src\/mcp\/|server\/|api\/)/, ['U22']],
+  // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
+  [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'N10', 'P6']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],

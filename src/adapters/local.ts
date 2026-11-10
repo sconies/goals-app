@@ -1,6 +1,6 @@
 /* Adapters that need no outside service (backlog 8c): who is viewing, chosen with the "Who are you?" picker and
    remembered in this browser; the clock; and files kept in memory (for tests, and as the smallest Files to copy). */
-import type { Clock, Files, Identity } from '../ports';
+import type { Clock, Files, Identity, Prefs } from '../ports';
 
 /** "Who are you?": the person picked, per workspace, kept in this browser under `prefix` + the workspace's id. */
 export function pickerIdentity(prefix: string, storage: () => Storage | null = () => { try { return localStorage; } catch { return null; } }): Identity {
@@ -27,5 +27,18 @@ export function memoryFiles(): Files {
       return f ? `data:${f.type};base64,${btoa(Array.from(f.data, (b) => String.fromCharCode(b)).join(''))}` : null;
     },
     async bytes(path) { return kept.get(path)?.data ?? null; },
+  };
+}
+
+/** Prefs kept in this browser, one entry per workspace, person and key: `prefix` + "ws:person:key", as JSON. */
+export function browserPrefs(prefix: string, storage: () => Storage | null = () => { try { return localStorage; } catch { return null; } }): Prefs {
+  const at = (ws: string, person: string, key: string) => `${prefix}${ws}:${person}:${key}`;
+  return {
+    get<T>(ws: string, person: string, key: string): T | null {
+      try { const v = storage()?.getItem(at(ws, person, key)); return v == null ? null : (JSON.parse(v) as T); } catch { return null; }
+    },
+    set(ws, person, key, value) {
+      try { if (value == null) storage()?.removeItem(at(ws, person, key)); else storage()?.setItem(at(ws, person, key), JSON.stringify(value)); } catch { /* storage blocked: it lasts for this visit */ }
+    },
   };
 }

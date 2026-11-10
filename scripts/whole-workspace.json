@@ -1,0 +1,23 @@
+{
+  "about": "The rules files that take the whole workspace (Snapshot) today, and how many times: the layers lint (rule 6, AR4) fails any other file that does, and any of these that does it more. The work left is to narrow them (docs/design/architecture.md, 4.4); lower a count or drop a file when you do. Count: 74 uses in 18 files on 10 Nov 2026.",
+  "files": {
+    "src/domain/actions.ts": 3,
+    "src/domain/activity.ts": 4,
+    "src/domain/asks.ts": 5,
+    "src/domain/attention.ts": 7,
+    "src/domain/changeset.ts": 2,
+    "src/domain/columns.ts": 5,
+    "src/domain/cycle.ts": 3,
+    "src/domain/decide.ts": 2,
+    "src/domain/export.ts": 1,
+    "src/domain/goalPage.ts": 11,
+    "src/domain/home.ts": 3,
+    "src/domain/importer.ts": 2,
+    "src/domain/onePager.ts": 4,
+    "src/domain/progress.ts": 3,
+    "src/domain/removal.ts": 7,
+    "src/domain/review.ts": 9,
+    "src/domain/story.ts": 1,
+    "src/domain/summary.ts": 2
+  }
+}

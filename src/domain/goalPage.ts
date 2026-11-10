@@ -320,15 +320,15 @@ export const askState = (r: Ask, week: number): ActionState => (isResolved(r) ? 
  * has got to. An ask's state is its own (asks.ts): open until it's answered or marked done, overdue when it's open past
  * its week, and gone once withdrawn. What's settled stays for eight weeks, so the last answers are still in view.
  */
-export function actionList(goal: Goal, s: Snapshot, week: number, status: DisplayStatus, latest: CheckIn | null, cycle?: Cycle): ActionItem[] {
+export function actionList(goal: Goal, s: Snapshot, week: number, status: DisplayStatus, latest: CheckIn | null, cycle: Cycle): ActionItem[] {
   const out: ActionItem[] = [];
   const behind = status === 'off' || status === 'risk';
   const ptg = latest?.pathToGreen;
   if (behind && latest && ptg && ptg.what.trim()) {
     out.push({ id: 'path-' + latest.id, kind: 'path', what: ptg.what, who: goal.ownerId, due: ptg.byWeek ?? null, state: ptg.byWeek != null && ptg.byWeek < week ? 'overdue' : 'open', note: `Path to green, week ${latest.week} check-in`, at: latest.postedAt });
   }
-  // Weeks since a date: a cycle gives the week it fell in; without one, eight weeks is 56 days.
-  const weekOf = (iso: string) => (cycle ? currentWeek(cycle, new Date(iso)) : week - Math.floor(daysSince(iso, new Date()) / 7));
+  // Weeks since a date: the week of the cycle it fell in.
+  const weekOf = (iso: string) => currentWeek(cycle, new Date(iso));
   for (const r of asksOf(s).filter((x) => x.goalIds.includes(goal.id) && x.status !== 'withdrawn')) {
     const state = askState(r, week);
     if (state === 'done' && weekOf(r.answeredAt ?? r.updatedAt) < week - 8) continue;

@@ -28,6 +28,8 @@ import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/t
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
+import { nearMiss, search, textMatches } from '../domain/find';
+import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 
@@ -725,6 +727,47 @@ For a range, better means further from the limit on its safe side.
       ];
     })(),
     unclear: ['How the trees wrap into rows is a choice about drawing, not a rule: any layout in which Fit all shows every goal, the trees in order, at least as large as this one, conforms.'],
+  },
+
+  /* ---------- finding things (the app redesign, AR1) ---------- */
+  {
+    id: 'finding',
+    title: 'Finding things',
+    summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
+    reqs: [],
+    body: `
+**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
+
+**A goal's key** finds it however it is typed: "G-48", "g48", "g-48" or a bare "48". A whole search that is one key finds only that goal ("G-48" isn't G-4); a bare number also matches as words.
+
+**A goal's words** are its title, key, owner, team, level, status word ("Off track"), the owner's latest reason and path to green and what they need, its definition and its source. **A person's** are their name, job title and team; someone marked as left is never found for a picker. **A team's** are its name and its lead's name.
+
+**A near miss.** Only when nothing matches: each word typed that starts none of the list's words, and has 4 letters or more, is corrected to the commonest of the list's words one edit away (one letter added, dropped or changed, or two next to each other swapped). If every such word has one, the corrected search is said and its rows shown; otherwise nothing. Never for a key. (The design said 5 letters; its own example, "qeue" for "queue", needs 4.)
+
+**One search per kind.** \`search(rows, ask)\` with \`ask = { q, filters, sort, after, size }\` gives \`{ total, rows, next, near? }\`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (\`src/domain/query.ts\`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
+
+**The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
+    examples: (() => {
+      const row = 'Rollback in under five minutes G-48 Tunde Bakare Build & Release Team Off track';
+      const cycle = () => demo!.cycles[0]!;
+      const find = (kind: 'goal' | 'person' | 'team', q: string) => {
+        const at = new Date(CHECK_IN_MOMENT), wk = currentWeek(cycle(), at);
+        const rows = kind === 'goal' ? goalRows(demo!, cycle(), at, wk) : kind === 'person' ? personRows(demo!) : teamRows(demo!);
+        const a = search(rows, { q, size: 200 });
+        return `${a.total}${a.near ? ` (near: ${a.near})` : ''}: ${a.rows.slice(0, 3).map((r) => r.name).join(', ')}`;
+      };
+      return [
+        { given: `The row “${row}”, searched for “rollback”, “roll min”, “back”, “off track”.`, then: 'yes, yes, no, yes', run: () => ['rollback', 'roll min', 'back', 'off track'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ') },
+        { given: 'The same row (key G-48), searched for “g-48”, “G48”, “48”; and “Canary halt G-4” (key G-4) for “G-48”.', then: 'yes, yes, yes; no', run: () => `${['g-48', 'G48', '48'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ')}; ${textMatches('Canary halt G-4', 'G-48', 'G-4') ? 'yes' : 'no'}` },
+        { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
+        { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
+        { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
+        { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
+      ];
+    })(),
+    unclear: ['Which of two rows that match equally comes first is the kind\'s order (goals worst first, then by name); a server may break ties another way within a status, as long as the order is stable from page to page.', 'A goal\'s words include its owner\'s latest reason, so a search for “off track” also finds a goal whose reason says both words: 13 goals in the demo, of which 11 are off track.'],
   },
 ];
 
