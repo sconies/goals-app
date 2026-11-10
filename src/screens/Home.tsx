@@ -6,14 +6,14 @@ import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
-import { agendaOf, dayText, daysPast, pastText, reviewedLabel, reviewSession, watchedGoals } from '../domain/review';
+import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
 import { weekDates } from '../domain/plan';
 import { wrapUpOpen } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { periodWord, shortPeriod } from '../domain/year';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
-import type { AskKind } from '../domain/types';
+import type { AskKind, Review } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { saveReviewOrder } from './Inspect';
@@ -27,11 +27,16 @@ function greeting(d: Date) {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function reviewWhen(app: AppState, late = false) {
+/**
+ * When this week's check-ins are due: the workspace's deadline, its review day. Said as a deadline, never as "the review"
+ * (deep review T4, 10 Nov): the person may be in a review on another day, or in none. A review is named only where it
+ * is one they're in (the strip's Next review, a review's own agenda).
+ */
+function dueWhen(app: AppState, late = false) {
   const days = daysToReview(app.cycle, app.week, app.today);
   const day = WEEKDAY[app.cycle.reviewDay];
-  if (late && days < 0) return <span className="tone-off">Due before {day}’s review · {-days === 1 ? '1 day' : -days + ' days'} late</span>;
-  return days > 1 ? `${day}’s review is in ${days} days` : days === 1 ? `${day}’s review is tomorrow` : days === 0 ? `${day}’s review is today` : `This week’s review was ${day}`;
+  if (late && days < 0) return <span className="tone-off">Check-ins were due {day} · {-days === 1 ? '1 day' : -days + ' days'} late</span>;
+  return days > 1 ? `Check-ins are due by ${day}, in ${days} days` : days === 1 ? `Check-ins are due by ${day}, tomorrow` : days === 0 ? `Check-ins are due today, ${day}` : `This week’s check-ins were due ${day}`;
 }
 
 /**
@@ -40,17 +45,17 @@ function reviewWhen(app: AppState, late = false) {
  * due, explains why it is still 0.
  */
 function streakNote(app: AppState): string {
-  if (onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week)) return 'All in before the review';
+  if (onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week)) return 'All in on time';
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const day = WEEKDAY[app.cycle.reviewDay];
-  if (p.upcoming.length && !p.due.length) return `Starts with your first check-ins, due before ${day}’s review`;
-  if (p.goals.length && !p.due.length && daysToReview(app.cycle, app.week, app.today) < 0) return `This week’s came after ${day}’s review: it starts again next week`;
-  return `Weeks with every check-in in before ${day}’s review`;
+  if (p.upcoming.length && !p.due.length) return `Starts with your first check-ins, due by ${day}`;
+  if (p.goals.length && !p.due.length && daysToReview(app.cycle, app.week, app.today) < 0) return `This week’s came after ${day}’s deadline: it starts again next week`;
+  return `Weeks with every check-in in by ${day}`;
 }
 
 function Streak({ weeks }: { weeks: number }) {
   if (weeks < 2) return null;
-  return <span className="streak" title="Weeks in a row with every check-in in before the review"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8.5 1.5c.4 2.2-1.6 3.4-2.6 5C5 8 5.3 10 6.6 10.6 5.8 8.7 7.6 7.8 8 6.5c1.4 1.4 2.9 3 2.4 5.2-.3 1.6-1.7 2.8-3.4 2.8A4.4 4.4 0 0 1 2.6 10c0-3.6 3.7-5.2 5.9-8.5z" fill="currentColor" /></svg>{weeks}-week on-time streak</span>;
+  return <span className="streak" title="Weeks in a row with every check-in in on time"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8.5 1.5c.4 2.2-1.6 3.4-2.6 5C5 8 5.3 10 6.6 10.6 5.8 8.7 7.6 7.8 8 6.5c1.4 1.4 2.9 3 2.4 5.2-.3 1.6-1.7 2.8-3.4 2.8A4.4 4.4 0 0 1 2.6 10c0-3.6 3.7-5.2 5.9-8.5z" fill="currentColor" /></svg>{weeks}-week on-time streak</span>;
 }
 
 /**
@@ -81,7 +86,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
         <div className="hero-body">
           {p.due.length ? (
             <>
-              <span className="eyebrow">{reviewWhen(app, true)}</span>
+              <span className="eyebrow">{dueWhen(app, true)}</span>
               <h2 className="hero-title">{p.due.length === 1 ? '1 check-in to do' : `${p.due.length} check-ins to do`}</h2>
               <span className="muted">About {minutes} min · {p.due.map((g) => g.title).join(', ')}</span>
               <div className="row" style={{ marginTop: 8 }}>
@@ -104,7 +109,10 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
               {/* The same agenda as the review itself: what needs judgment, and what can be covered together (product review, 3 Nov). */}
               {(() => {
                 const { discuss, healthy } = agendaOf(myReview);
-                const next = discuss[0] ?? healthy[0];
+                // Continue picks up the walk in the order the session started with, as the review's page does (deep review T3).
+                const order = walkOrder(sessionPlan(myReview, app.snapshot, app.cycle, app.today));
+                const nextId = order.find((id) => !myReview.covered.has(id));
+                const next = myReview.items.find((a) => a.goal.id === nextId) ?? discuss[0] ?? healthy[0];
                 const resume = myReview.done > 0 && discuss.length > 0;
                 return (
                   <>
@@ -112,7 +120,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
                     <span className="muted">{mine.length && !allIn ? 'Your check-ins are in. ' : ''}{discuss.length && healthy.length ? `${healthy.length} more ${healthy.length === 1 ? 'has' : 'have'} nothing flagged: mark them together at the end.` : 'Worst and stalest first, one at a time.'}</span>
                     <div className="row" style={{ marginTop: 8 }}>
                       {resume && next
-                        ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, discuss.map((a) => a.goal.id))}>Continue: {next.goal.title}</Link>
+                        ? <Link className="btn primary big-btn" to={`/goals/${next.goal.id}?review=${myReview.review.id}`} onClick={() => saveReviewOrder(app.ws.id, myReview.review.id, myReview.week, order)}>Continue: {next.goal.title}</Link>
                         : <Link className="btn primary big-btn" to={`/reviews/${myReview.review.id}`}>{myReview.done ? 'Continue the review' : 'Open the review'}</Link>}
                     </div>
                   </>
@@ -124,14 +132,14 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
               {/* Set up after this week's review (or before the year starts): nothing is due yet (setup review, 8 Nov). */}
               <span className="eyebrow">{app.week < 1 ? `The ${periodWord(app.cycle)} starts this week` : 'Set up this week'}</span>
               <h2 className="hero-title">Your first check-in is next week</h2>
-              <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week {Math.max(1, app.week + 1)}, before {WEEKDAY[app.cycle.reviewDay]} {dayText(reviewDate(app.cycle, Math.max(1, app.week + 1))).slice(4)}’s review.</span>
+              <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week {Math.max(1, app.week + 1)}, by {WEEKDAY[app.cycle.reviewDay]} {dayText(reviewDate(app.cycle, Math.max(1, app.week + 1))).slice(4)}.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
             </>
           ) : mine.length ? (
             <>
-              <span className="eyebrow">{reviewWhen(app)}</span>
+              <span className="eyebrow">{dueWhen(app)}</span>
               <h2 className="hero-title">You’re all set for week {app.week}</h2>
-              <span className="muted">Every goal you own is checked in. It’s in the review as you wrote it.</span>
+              <span className="muted">Every goal you own is checked in. Anyone reviewing it sees it as you wrote it.</span>
               <div className="row" style={{ marginTop: 8 }}><Streak weeks={streak} /><Link className="btn" to="/goals">See all goals</Link></div>
             </>
           ) : (
@@ -197,14 +205,19 @@ function NeedsYou() {
   const app = useApp();
   const me = app.viewer;
   const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
-  const reviewDay = WEEKDAY[app.cycle.reviewDay];
+  // A question raised in a review is due before that review's next session, not "the review" (deep review T4).
+  const questionDue = (rv: Review, raisedWeek: number | null) => {
+    const w = Math.max(upcomingSessionWeek(rv, app.cycle, app.week, app.today), raisedWeek != null ? nextSessionWeek(rv, raisedWeek) : 0);
+    return w <= app.cycle.weeks ? `Before its next session, ${dayText(sessionDate(rv, app.cycle, w))}` : 'Open until you answer';
+  };
   const items = openForPerson(me.id, app.snapshot).flatMap((r) => {
     const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
     if (!goals.length) return [];
-    const where = app.snapshot.reviews.find((v) => v.id === r.reviewId)?.name;
+    const askedIn = app.snapshot.reviews.find((v) => v.id === r.reviewId);
+    const where = askedIn?.name;
     const due = r.dueWeek != null
       ? isOverdue(r, app.week) ? `Was due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})` : r.dueWeek === app.week ? `Due this week (${weekDates(app.cycle, r.dueWeek)})` : `Due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})`
-      : r.kind === 'question' ? `Before ${reviewDay}’s review` : r.kind === 'action' ? 'No date set' : 'Open until you answer';
+      : r.kind === 'question' && askedIn ? questionDue(askedIn, r.week) : r.kind === 'action' ? 'No date set' : 'Open until you answer';
     const who = r.askedBy === me.id ? 'You agreed it' : `${first(r.askedBy)} ${r.kind === 'action' ? 'agreed it' : 'asked'}`;
     const goal = r.kind === 'update' ? goals[0]!.id : null;
     return [{

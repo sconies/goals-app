@@ -722,13 +722,6 @@ h1[tabindex='-1']:focus { outline: none; }
 .hcell.future { background: var(--surface-2); }
 .hcell.backfilled svg { opacity: .65; }
 .hcell-empty { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--stale-mark); vertical-align: middle; }
-.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s3); }
-.gcard { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
-.gcard:hover { border-color: var(--line-strong); }
-.gcard[data-tone="off"] { background: var(--off-wash); }
-.gcard-title { font-weight: 650; line-height: 1.375rem; }
-.gcard-now { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.gcard-now .big { font-size: 1.625rem; font-weight: 700; line-height: 2rem; font-variant-numeric: tabular-nums; }
 .export-list .opt { align-items: center; gap: var(--s3); text-align: left; padding: var(--s3) var(--s4); font-weight: 400; }
 .export-list .opt .stack { min-width: 0; }
 @media (max-width: 640px) {
@@ -793,9 +786,8 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.8125
 .gtable tr[data-tone]:has(+ .story-row) td { border-bottom: 0; }
 .gtable tr[data-tone="off"] td { background: var(--off-wash); }
 .board-meaning { margin-top: -4px; }
-.gcard-numbers { margin-top: auto; padding-top: var(--s2); border-top: 1px solid var(--line-2); }
 .result-tag { display: inline-flex; align-self: flex-start; align-items: center; margin-left: 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
-.board-card .result-tag, .gcard .result-tag { display: inline-flex; align-self: flex-start; align-items: center; margin-left: 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.board-card .result-tag { display: inline-flex; align-self: flex-start; align-items: center; margin-left: 8px; font-size: 0.6875rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .result-completed { color: var(--on-fg); }
 .result-late { color: var(--risk-fg); }
 .result-missed { color: var(--off-fg); }
@@ -815,9 +807,9 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.8125
   .legend-full dd { margin-bottom: var(--s2); }
 }
 .story-row .story { width: 0; min-width: 100%; }
-.gcard .story dl, .board-card .story dl { grid-template-columns: 1fr; gap: 0; }
-.gcard .story dt, .board-card .story dt { font-size: 0.75rem; margin-top: var(--s2); }
-.gcard .story dt:first-child, .board-card .story dt:first-child { margin-top: 0; }
+.board-card .story dl { grid-template-columns: 1fr; gap: 0; }
+.board-card .story dt { font-size: 0.75rem; margin-top: var(--s2); }
+.board-card .story dt:first-child { margin-top: 0; }
 .plantable tr.quarter-row td { font-weight: 600; border-top: 1px solid var(--line-strong); }
 .quarters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); padding: 0; margin: 0; list-style: none; }
 .quarters li { display: flex; flex-direction: column; gap: 4px; padding: var(--s3); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -957,7 +949,6 @@ body.research-picking .research-bar, body.research-picking .research-bar * { cur
 
 /* Board and cards: lanes and cards wide enough to read; a card is as tall as its own story, not its neighbour's. */
 .board { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.gcards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
 .story.brief dd { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Goal rows: the status shape and its word together, in a slot that lines up down the list. */
@@ -1121,8 +1112,6 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .filter-more { margin-top: var(--s4); }
 .filter-more > .filter-sheet { margin-top: var(--s3); }
 .sheet-foot { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s4) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--surface); border-top: 1px solid var(--line); }
-.gcard-figure { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px var(--s2); }
-.gcard-now { font-size: 1.375rem; line-height: 1.75rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 /* Levels are quiet words, not filled labels: the status, the number and the action carry the emphasis (visual review 2). */
 .level, .level-north-star { padding: 0; border: 0; border-radius: 0; background: none; font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .level-north-star { color: var(--accent-text); }

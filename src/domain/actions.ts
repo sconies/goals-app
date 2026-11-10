@@ -167,6 +167,21 @@ export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: C
 }
 
 /**
+ * Mark several goals reviewed in one go: the goals with nothing flagged, together (deep review T3). One "reviewed" per
+ * goal, as if each were marked on its own, saved at once so Undo (removal.unmarkReviewed) takes them all back.
+ */
+export function markReviewed(x: ActionContext, goals: Goal[], review: Review, week: number): Commit {
+  if (!goals.length) no('There’s nothing left to mark reviewed.');
+  const out: Commit = { decisions: [], changes: [] };
+  for (const g of goals) {
+    const c = reviewCall(x, g, review, 'acknowledge', '', { week });
+    out.decisions!.push(...(c.decisions ?? []));
+    out.changes.push(...c.changes);
+  }
+  return out;
+}
+
+/**
  * Correct a note, question or action said in a review (or any ask's words): whoever said it, or an admin. An answered or
  * done ask stays as it was answered. Null when nothing changed.
  */

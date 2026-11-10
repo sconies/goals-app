@@ -8,7 +8,7 @@ import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
 import { wrapUpOpen } from '../domain/cycle';
 import { dashboard } from '../domain/home';
-import { ASK_STATUS, ATTENTION, choices, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
+import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { AskStatus, DisplayStatus } from '../domain/types';
 
 /** A status as the assistant reads it: the words people see, with the code beside them. */
@@ -162,7 +162,7 @@ export const WORK_TOOLS: ToolDef[] = [
         `Your actions: ${actions.length ? actions.map((x) => `${x.action}${x.dueWeek ? ` by week ${x.dueWeek}${x.overdue ? `, ${lower(ASK_STATUS.overdue)}` : ''}` : ''} (${x.id})`).join('; ') : 'none'}.`,
         // Each reason is a sentence with its own full stop: joined into one line, only the line's last one stays.
         `Your goals that need attention: ${attention.length ? attention.map((g) => `${g.title}, ${said(g.status)}: ${g.why.map(clause).join('. ')}`).join('; ') : 'none'}.`,
-        `${ATTENTION.handled.label} (${ATTENTION.handled.meaning.replace(/\.$/, '').toLowerCase()}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,
+        `${ATTENTION.handled.label} (${HANDLED_LINE.replace(/\.$/, '')}): ${handled.length ? handled.map((g) => `${g.title} (${said(g.status)}): ${clause(g.inHand)}`).join('; ') : 'none'}.`,
       ].join('\n');
       return { data, text };
     },

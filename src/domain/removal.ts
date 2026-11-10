@@ -87,6 +87,19 @@ export function deleteNote(x: ActionContext, id: string): Commit {
   return { decisions: [after], changes: [log(x, { entity: 'decision', entityId: d!.id, goalId: d!.goalId, action: 'removed', summary: 'Removed a note', diffs: [{ field: 'Note', from: d!.note, to: '—' }] })] };
 }
 
+/**
+ * Undo marking goals reviewed in a session (deep review T3): those "reviewed" marks are set aside, kept and logged, and
+ * the goals are back on the agenda. Whoever marked them, or an admin.
+ */
+export function unmarkReviewed(x: ActionContext, made: Decision[]): Commit {
+  // The marks as they were saved: Undo can run before the page has the new ones.
+  const marks = made.filter((d) => d.kind === 'acknowledge' && !d.removedAt);
+  if (!marks.length) no('Those goals are no longer marked reviewed.');
+  if (marks.some((d) => d.byId !== x.actor.id) && !x.actor.admin) no('Only whoever marked them, or an admin, can undo it.');
+  const after = marks.map((d): Decision => ({ ...d, removedAt: x.now, removedBy: x.actor.id }));
+  return { decisions: after, changes: after.map((d) => log(x, { entity: 'decision', entityId: d.id, goalId: d.goalId, action: 'undone', summary: 'Undid marking it reviewed' })) };
+}
+
 /* ---------- people ---------- */
 
 /** What a person has left a mark on: goals they owned (in any cycle), check-ins, notes and comments, and asks. */
@@ -489,7 +502,7 @@ export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS):
   for (const c of full.checkIns) if (c.removedAt) add('check-in', c.id, `${goalTitle(c.goalId)}, week ${c.week}`, c.removedBy, c.removedAt);
   for (const r of full.reviews ?? []) { if (r.removedAt) add('review', r.id, r.name, r.removedBy, r.removedAt); else if (r.endedAt) add('ended', r.id, r.name, r.endedBy, r.endedAt); }
   for (const k of commentsOf(full.changes).values()) if (k.removedAt) add('comment', k.id, `${goalTitle(k.goalId)}: “${excerpt(k.text)}”`, k.removedBy, k.removedAt);
-  for (const d of full.decisions) if (d.removedAt) add('note', d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
+  for (const d of full.decisions) if (d.removedAt && d.kind === 'note') add('note', d.id, `${goalTitle(d.goalId)}: “${excerpt(d.note)}”`, d.removedBy, d.removedAt);
   for (const v of full.views ?? []) if (v.deletedAt) add('view', v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
   for (const w of full.watches ?? []) if (w.removedAt) add('watch', w.id, `${nameIn(full, w.personId)} on ${w.kind === 'level' ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
   for (const c of full.cycles) if (c.removedAt) add('cycle', c.id, c.name, c.removedBy, c.removedAt);

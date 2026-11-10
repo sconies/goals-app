@@ -13,7 +13,7 @@ One rule says whether a goal is **getting worse**, **getting better** or neither
 
 `gapTrend(gaps)`: *gaps* are each check-in's distance from where it should be, oldest first, positive when better. Take the last 3; with fewer, `flat`. The two steps between them both down (each by more than 10⁻⁹): `worse` (for a number to move, only if the latest gap is also below −10⁻⁹: short of plan). Both up by more than 10⁻⁹: `better`. Otherwise `flat`.
 
-- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. If that isn't `worse` (whether it was `flat` or `better`) but there are at least 3 numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is `on` while its projection's likeliest value misses the target: `worse` ("on track today, but heading short").
+- **A number to move:** each of the goal's check-ins with a number (in week order, then posting order) gives (*value* − plan for its own week, by the plan as of that week) × the better direction (+1 if the target is above the start, else −1). Unrounded, so a number held flat while the plan moves on is further behind each time. A `worse` from them stands only if it also shows at the goal's decimals (deep review T5): the last of the 3 gaps, rounded to the goal's decimals, is below 0, and the first, rounded, is above it; otherwise it is `flat`. So a number typed as the plan ("on plan" three times) is never getting worse. If that isn't `worse` (whether it was `flat` or `better`) but there are at least 3 numbers, and the latest, judged in its own week against the goal's **current** plan (here, unlike everywhere else, not the plan as of that week; with the earlier numbers for its projection), is `on` while its projection's likeliest value misses the target and so does the better end of its range (*high* when the target is above the start, else *low*; both it and the target rounded to the goal's decimals): `worse` ("on track today, but heading short"). A range that, as shown, includes the target isn't heading short.
 - **A number to keep in range:** the last 3 numbers' room to the limit: (*value* − *limit*) × (−1 for at most, +1 for at least).
 - **Dated stages** (not through `gapTrend`): the last two check-ins with stage updates (fewer: `flat`), each judged as in [the status](status.md) in its own week, so a stage's *expected* week at the earlier check-in is what the status rule gave then (its forecast or due week, never before its due week, and never before that check-in's week once overdue; a done stage's expected week is its done week). Stages are compared in the goal's stage order. `worse` if any stage not done is now expected later than at the one before (this wins); else `better` if a stage is newly done in a week strictly earlier than it was expected at the one before, or any not done is expected strictly sooner; else `flat`.
 
@@ -37,15 +37,20 @@ They are listed worst first: `off`, `missed-path`, `stale`, `decision`, `no-path
 
 ### Being handled, and needs attention
 
-A goal whose official status is `off` or `risk` (and has a check-in) is **being handled** when one of these *looks* happened strictly after its latest check-in's `postedAt` (latest by `postedAt`), on or before today's **date** (the UTC day; the time of day doesn't count):
+A goal whose official status is `off` or `risk` (and has a check-in) is **being handled** (Lane, 10 Nov) when one of these happened strictly after its latest check-in's `postedAt` (latest by `postedAt`), on or before today's **date** (the UTC day; the time of day doesn't count):
 
-- someone other than the owner (this condition is for these two only) marked it reviewed (a decision of kind `acknowledge`, its `at`) or added a review note (`note`) on it;
-- an action (an ask of kind `action` that includes the goal, open now) was created (`createdAt`), and it isn't overdue (an open ask is overdue once its due week is before this week); or
-- a decision ask that includes the goal was answered: its `status` is `answered` (not `done`, which is for actions), timed by `answeredAt`; the latest such answer;
+- an action (an ask of kind `action` that includes the goal, open now) with a due week (`dueWeek` not null) was created (`createdAt`), and it isn't overdue (an open ask is overdue once its due week is before this week). Its owner is its `recipientId`, else the goal's owner; or
+- only when the status is `risk`: a decision ask that includes the goal was answered: its `status` is `answered` (not `done`, which is for actions), timed by `answeredAt`; the latest such answer;
 
-and no flag is raised now (apart from `due`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest look (the earliest of every qualifying look, of any kind) (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. The strongest look names it: an action, then an answer, then a note, then a review; the latest of the strongest kind.
+and no flag is raised now (apart from `due`, left out of *now* only) that wasn't also raised when the same rules are run on the **same workspace** with "today" set to the moment of the earliest of those (the workspace is not re-cut to that moment). Decisions and asks that were removed are not in the workspace at all, so never count. An action names it before an answer; the latest of the strongest kind. Its words: "Action: *first name*, due week *n*", or "Request answered by *first name*, week *n*". An action with no due week, an off-track goal's answered request, and marking it reviewed or noting it never put a goal in hand.
+
+A behind goal is **looked at** (`lookedAtFor`) when, under the same timing, someone other than the owner marked it reviewed (a decision of kind `acknowledge`) or added a note (`note`) on it: the latest such, said "Looked at by *first name* in *review name*, week *n*" (without " in …" outside a review). It is a quiet line only: it doesn't change whether the goal needs attention.
 
 A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and MCP all use this one rule.
+
+### The Needs attention list
+
+`attentionGroup(a)`: `needs` when the goal needs attention; else `handled` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than `due`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's `find_goals` with `needs_attention`), the `needs` group comes first and the `handled` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the `needs` group only, and says so where both are listed. Under the words *Being handled*, wherever a group of them is shown, one line says what it means: “These have an action with an owner and a date, or an answer to their request, agreed after their latest check-in. They come back under Needs attention if anything new happens.”
 
 ## Worked examples
 
@@ -55,25 +60,29 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | Gaps oldest first: −1, −2, −3; 1, 2, 3; −1, −2, −1; −3, −2, −1; only −1, −2; with "short of plan" required: 3, 2, 1. | `worse, better, flat, better, flat, flat` |
 | The 30→75 goal held at 33 in weeks 1, 2 and 3 while the plan moves on. | `worse` |
+| A 10→11 minute goal over 13 weeks, whole minutes, at 10 in weeks 3, 4 and 5 (on plan as shown, a little further behind each time unrounded). | `flat` |
+| The same goal at 10, 10 and 9 in weeks 3, 4 and 5. | `worse` |
 | A range, at most 12: 10, 11, 11.5 in weeks 1–3 (closer to the limit each time). | `worse` |
 | The 30→75 goal: 40 in week 4, called off track with a cause, why and path back by week 7, posted Monday 5 October. The flags on Thursday 8 October. | `off` |
 | The same check-in, a week later (Thursday 15 October, week 5): no check-in yet this week. | `off, due` |
 | Off track in week 4 with a path back by week 5; checked in again for week 6 (posted 19 October), still off track, carrying the same path. On Thursday 22 October (week 6). | `off, missed-path` |
 | Off track in week 4 (posted Monday 5 October) and nothing since: on Thursday 22 October (17 days later), the status itself has gone stale, so it is no longer flagged off track. | `stale, due` |
 | At risk with no path to green, and an open decision ask on the goal (week 4, Thursday 8 October). | `decision, no-path, risk` |
-| Off track in week 4 (posted Monday 5 October), and the lead marked it reviewed on Tuesday 6 October. On Thursday 8 October: being handled, needs attention? | `handled by reviewed; needs attention: no` |
+| Off track in week 4 (posted Monday 5 October), and the lead agreed an action on Tuesday 6 October, due week 6. Which group of the Needs attention list on Thursday 8 October, and on Monday 5 October before that? | `handled; needs` |
+| Off track in week 4 (posted Monday 5 October), and the lead marked it reviewed on Tuesday 6 October. On Thursday 8 October: being handled, needs attention, looked at? | `handled by nothing; needs attention: yes; looked at: reviewed` |
+| The same, but the action agreed on Tuesday has no due week. On Thursday 8 October: being handled? | `handled by nothing; needs attention: yes` |
 
 ## Where it lives
 
 - [src/domain/trend.ts](../../../src/domain/trend.ts): `gapTrend`, `planGaps`, `stagesTrend`, `goalTrend`
-- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `needsAttention`, `attentionList`
+- [src/domain/attention.ts](../../../src/domain/attention.ts): `flagsFor`, `attentionFor`, `handledFor`, `lookedAtFor`, `needsAttention`, `attentionGroup`, `attentionList`
 - [src/domain/asks.ts](../../../src/domain/asks.ts): `openFor`, `answeredSince`, `isOverdue`
 
 ## Requirements
 
 - `ATTENTION`: Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line.
-- `ATTENTION-HANDLED`: Needs attention means new since someone looked: a goal that is red or amber but was reviewed, has an action or answer in hand and no new check-in since, is shown as being handled, not as needing attention, everywhere (Home, Watching, reviews, the AI).
-- `ONE-ATTENTION-RULE`: Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on; an old link's needs=no-recovery still opens No path to green.
+- `ATTENTION-HANDLED`: Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card.
+- `ONE-ATTENTION-RULE`: Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
 - `ONE-TREND`: One trend rule (domain/trend.ts): a goal is getting worse when it is further behind plan in its own units at each of the last two check-ins (closer to its limit, or a stage expected later), or on track but heading short of its target. The Getting worse flag, the goal's story, the summary bar's trend and the words under the chart use it, and say Getting worse or Getting better.
 - `PATH-TO-GREEN`: At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review.
 - `GREENER`: A call greener than the calculation needs a reason and is flagged on the goal.
@@ -83,17 +92,17 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### [src/domain/attention.test.ts](../../../src/domain/attention.test.ts)
 
-- being handled › starts with the halt being handled (reviewed in Reliability weekly after its check-in), and lead time needing attention
+- being handled › starts with the halt looked at (reviewed in Reliability weekly after its check-in) but still needing attention, and lead time needing attention
 - being handled › an action agreed on a red goal puts it in hand, saying who and by when
-- being handled › an action is the owner’s unless someone else was named, and one with no week says no week
+- being handled › an action is the owner’s unless someone else was named; one with no due week doesn’t put it in hand
 - being handled › a new check-in makes it news again, even with the same call
 - being handled › a look from before the latest check-in does not count
-- being handled › marked reviewed in a review counts, and says where and when
-- being handled › a note outside a review names who looked
+- being handled › marked reviewed in a review is a look, not a plan: it still needs attention, and says who looked, where and when
+- being handled › a note outside a review names who looked, and doesn’t put it in hand either
 - being handled › the owner looking at their own goal is not someone else having looked; an action they agreed is
 - being handled › a question for the owner is not in hand: it waits on them
 - being handled › an action marked done or withdrawn is no longer in hand
-- being handled › an answered request puts it in hand
+- being handled › an answered request puts an at-risk goal in hand; an off-track goal stays counted until it has an action
 - being handled › a new flag since the look makes it news again: the recovery date passes
 - being handled › a check-in coming due does not count as new: the owner has a week to post it
 - being handled › an action past its week is news, not in hand
@@ -118,8 +127,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - needs attention means new since someone looked › a red goal with an action agreed in review since its latest check-in is being handled, not needing attention
 - needs attention means new since someone looked › a new check-in makes it need attention again
-- needs attention means new since someone looked › a new warning since the look makes it need attention again: the recovery date passes
-- needs attention means new since someone looked › an answered request puts it in hand; an open question to the owner does not
+- needs attention means new since someone looked › a review mark alone is a look, not a plan: the red goal still needs attention, and says who looked
+- needs attention means new since someone looked › a new warning since the action makes it need attention again: the recovery date passes
+- needs attention means new since someone looked › an answered request doesn’t put an off-track goal in hand (it needs an action); an open question to the owner doesn’t either
 - needs attention means new since someone looked › Watching, the review agenda and the AI brief all split them out the same way
 - one counting rule for attention (re-review, 8 Nov, backlog T) › on ${at.toISOString().slice(0, 10)}, every flagged goal either needs attention or is being handled, so the tab and the board add up
 - one counting rule for attention (re-review, 8 Nov, backlog T) › on ${at.toISOString().slice(0, 10)}, a done goal never needs attention and is never on a review's list to discuss
@@ -130,6 +140,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - one trend rule › the flag, the story, the summary bar and the chart say Getting worse of the same goals (${today.toISOString().slice(0, 10)})
 - one trend rule › the chart’s words come from the same rule: further behind at each check-in is getting worse, closer each time getting better
-- one Needs attention › Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals (${today.toISOString().slice(0, 10)})
+- one Needs attention › Home, Watching, the map, the Goals filter, reviews and the AI pick exactly the same goals, and list those being handled below them (${today.toISOString().slice(0, 10)})
 - one Needs attention › the map’s “Only what needs attention” is the Goals filter itself, not a status filter of its own
 - one Needs attention › a link or saved view from before still opens the goals it meant: needs=no-recovery is No path to green

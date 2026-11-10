@@ -19,11 +19,20 @@ module.exports = {
     const check = (ok, msg) => { if (!ok) fails.push(msg); };
 
     // What Watching says each person's watched goals need: the dashboard must agree with it.
-    // Daniel (an owner who watches three trees) and Amara (a leader who watches the north stars and SVP goals) each have one
-    // goal behind that someone has looked at since its latest check-in; the red goal nobody has looked at is Merge-to-deploy time.
-    const IN_HAND = { daniel: { title: 'Jenkins jobs still running', said: 'Reviewed in Developer Productivity fortnightly, week 44' }, amara: { title: 'Critical and high vulnerabilities fixed within SLA', said: 'Action: Farah, due week 48' } };
+    // Amara (a leader who watches the north stars and SVP goals) has one goal behind with an action agreed since its
+    // latest check-in: being handled. Daniel's Jenkins goal was only marked reviewed in the fortnightly, which since Lane's
+    // call of 10 Nov is a look, not a plan: it still needs attention. The red goal nobody has looked at is Merge-to-deploy time.
+    const IN_HAND = { amara: { title: 'Critical and high vulnerabilities fixed within SLA', said: 'Action: Farah, due week 48' } };
+    const LOOKED = { daniel: 'Jenkins jobs still running' };
     const watchNeeds = {};
-    for (const who of ['daniel', 'amara']) {
+    {
+      const [c, p] = await open(1280, 900, 'daniel', '/watching');
+      const needs = await rowsIn(p.locator('section.block').filter({ has: p.getByRole('heading', { name: /^Needs attention/ }) }));
+      watchNeeds.daniel = needs.length;
+      check(needs.some((t) => t.includes(LOOKED.daniel)) && !(await p.locator('section.handled-block').count()), `[ATTENTION-HANDLED] Daniel's Watching doesn't list ${LOOKED.daniel} (only reviewed) under Needs attention`);
+      await c.close();
+    }
+    for (const who of ['amara']) {
       const [c, p] = await open(1280, 900, who, '/watching');
       const needs = await rowsIn(p.locator('section.block').filter({ has: p.getByRole('heading', { name: /^Needs attention/ }) }));
       const handled = await rowsIn(p.locator('section.handled-block'));
@@ -88,7 +97,8 @@ module.exports = {
         const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*\d+$/, '').trim());
         check(owner === h2.includes('Your goals'), `[HOME-DASHBOARD] ${at}: "Your goals" is ${owner ? 'missing' : 'shown with no goals'}`);
         check((who !== 'diego') === h2.includes('Goals you watch'), `[HOME-DASHBOARD] ${at}: "Goals you watch" is ${who === 'diego' ? 'shown with nothing watched' : 'missing'}`);
-        if (who !== 'diego') {
+        if (who === 'daniel') check(!(await p.locator('details.handled-fold').count()), `[ATTENTION-HANDLED] ${at}: Daniel has nothing being handled, but Home shows the fold`);
+        if (who === 'amara') {
           // Exceptions first, being handled folded away under them.
           const fold = p.locator('details.handled-fold').last();
           check(await fold.count() === 1 && !(await fold.evaluate((d) => d.open)), `[ATTENTION-HANDLED] ${at}: being handled is not folded on Home`);
@@ -106,12 +116,13 @@ module.exports = {
         await c.close();
       }
     }
-    // [ATTENTION-HANDLED] An owner's own list leaves out the goal being handled and keeps the one that needs attention:
-    // Chen's Jenkins goal was looked at in the fortnightly; his integration-tests goal has not been.
+    // [ATTENTION-HANDLED] An owner's own list keeps a goal that was only looked at: Chen's Jenkins goal was marked reviewed
+    // in the fortnightly, with no action, so it still needs attention (Lane, 10 Nov). His integration-tests goal heads for
+    // 88–90% against 90%, which isn't heading short since deep review T5, so it doesn't.
     {
       const [c, p] = await open(1280, 900, 'chen', '/');
       const mine = await section(p, 'Your goals').locator('.alist .arow-title').allInnerTexts();
-      check(!mine.includes('Jenkins jobs still running') && mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
+      check(mine.includes('Jenkins jobs still running') && !mine.includes('Changes shipped with automated integration tests'), `[ATTENTION-HANDLED] Chen's goals that need attention are ${mine.join(', ')}`);
       await c.close();
     }
 
@@ -182,6 +193,44 @@ module.exports = {
       }
       await c.close();
     }
+    // ---------- Deep review T4 and T5 (10 Nov), on the talk's day: /demo?today=2026-11-11 ----------
+    const talk = (route) => url(route).replace(/today=[\d-]+/, 'today=2026-11-11');
+    // T4: Home gives the workspace's deadline as a deadline, and names a review only when it's one the person is in.
+    for (const who of ['rhea', 'tunde']) {
+      const [c, p] = await open(1280, 900, who, '/');
+      await p.goto(talk('/'));
+      await p.locator('.home-hero').waitFor();
+      const t = await p.locator('main').innerText();
+      check(!/[A-Z][a-z]+day’s review|before the review|in the review as you wrote/.test(t), `T4 ${who}: Home calls the deadline a review: "${(t.match(/[^\n]*(day’s review|before the review|in the review as you wrote)[^\n]*/) || [''])[0]}"`);
+      check(/Check-ins (are|were) due/.test(await p.locator('.home-hero').innerText()), `T4 ${who}: the main action doesn't say when check-ins are due`);
+      await c.close();
+    }
+    // T5: Rhea posts on-plan numbers, as the script's step 2 does. No "Getting worse" says three equal steps, and none
+    // says a goal heads short when the range it heads for includes the target.
+    {
+      const [c, p] = await open(1280, 900, 'rhea', '/');
+      await p.goto(talk('/quick-check-in'));
+      const rows = p.locator('input');
+      await rows.first().waitFor();
+      // Each row's plan for this week, typed as it is shown ("Plan 28 hours"), skipping a limit (≤) and a milestone.
+      const plans = await p.evaluate(() => [...document.querySelectorAll('input')].map((i) => { let el = i; let txt = ''; while (el && !/Plan /.test(txt)) { el = el.parentElement; txt = el?.innerText ?? ''; } const m = /Plan ([\d.,]+)/.exec(txt); return m && !/Plan ≤/.test(txt) ? m[1].replace(/,/g, '') : null; }));
+      let typed = 0;
+      for (let i = 0; i < plans.length; i++) if (plans[i]) { await rows.nth(i).fill(plans[i]); typed++; }
+      check(typed >= 3, `T5: typed ${typed} on-plan numbers`);
+      await p.getByRole('button', { name: /^Post/ }).click();
+      await p.waitForURL((u) => !/quick-check-in/.test(u.pathname), { timeout: 5000 }).catch(() => check(false, 'T5: the on-plan check-ins did not post'));
+      await p.goto(talk('/'));
+      await p.locator('.home-mine').waitFor();
+      const mine = await p.locator('.home-mine').innerText();
+      check(!/on plan → on plan → on plan/.test(mine), 'T5: Home says "Getting worse … on plan → on plan → on plan"');
+      for (const m of mine.matchAll(/heads for ([\d.,]+)–([\d.,]+)\S* .*?target of ([\d.,]+)/g)) {
+        const [lo, hi, t] = m.slice(1).map((v) => Number(v.replace(/,/g, '')));
+        check(t < lo || t > hi, `T5: "Getting worse" though the range includes the target: ${m[0]}`);
+      }
+      for (const m of mine.matchAll(/Further behind plan[^:]*: (.+?) → .+? → (.+?) \(/g)) check(m[1] !== m[2] && /behind$/.test(m[2]), `T5: "Getting worse" with no visible change: ${m[0]}`);
+      await c.close();
+    }
+
     return fails;
   },
 };

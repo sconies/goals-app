@@ -59,6 +59,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Change a review | Someone in it, whoever set it up, or an admin | [`saveReview`](../../../src/domain/actions.ts) |
 | Say something about a goal in a review (seen, a note, a question, an action) | Anyone; a question or action on your own goal is a note instead | [`reviewCall`](../../../src/domain/actions.ts) |
 | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`editCall`](../../../src/domain/actions.ts) |
+| Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmarkReviewed`](../../../src/domain/removal.ts) |
 | Remove a note said in a review | Whoever said it, or an admin | [`deleteNote`](../../../src/domain/removal.ts) |
 | End a review, or delete one never held | Whoever set it up, or an admin | [`endReview`](../../../src/domain/removal.ts), [`deleteReview`](../../../src/domain/removal.ts), [`reviewHeld`](../../../src/domain/removal.ts) |
 
