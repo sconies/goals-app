@@ -220,7 +220,7 @@ module.exports = {
         await p.keyboard.press('Escape');
       }
       await p.goto(live('/workspace/overview')); await p.locator('.page-head').first().waitFor();
-      fail(!(await p.locator('.ws-line').count()) && await p.locator('.ws-title').innerText() === 'Acme', '[NAV-GOALS] one workspace: the Workspace page still lists workspaces to switch between');
+      fail(!(await p.locator('.ws-line').count()) && /Acme/.test(await p.locator('.ws-facts').innerText()), '[NAV-GOALS] one workspace: the Workspace page still lists workspaces to switch between');
       await c.close();
       // The demo has one example now (Platform Engineering), so its person menu offers no other example companies; with a
       // workspace of the person's own beside it, the menu lists both and switching works.
@@ -237,7 +237,8 @@ module.exports = {
       const inPerson = await q3.getByRole('dialog', { name: 'Switch person' }).getByRole('group', { name: 'Workspaces' }).count();
       await q3.keyboard.press('Escape');
       await q3.locator('.side .ws-switch').click();
-      const ws = q3.getByRole('dialog', { name: 'Workspaces' }).getByRole('group', { name: 'Your workspaces' }).getByRole('button');
+      // The open one is a row that says "Open now", not a button (WR2); the other is a button.
+      const ws = q3.getByRole('dialog', { name: 'Workspaces' }).getByRole('group', { name: 'Your workspaces' }).locator('.ws-pick');
       fail(!inPerson && await ws.count() === 2, `[NAV-GOALS] the switcher lists ${await ws.count()} workspaces (want the example and the person's own, 2); the person menu lists workspaces: ${inPerson}`);
       await c3.close();
     });
@@ -290,16 +291,16 @@ module.exports = {
     /* ---------- [WORKSPACE-ADMIN] rename the workspace; add, rename and remove teams; not for everyone ---------- */
     await step('workspace admin', async () => {
       for (const [w, h, touch] of [[1280, 800, false], [768, 1024, true], [390, 844, true]]) {
-        const [c, p] = await open(w, h, 'amara', '/workspace/overview', touch);
+        const [c, p] = await open(w, h, 'amara', '/workspace', touch);
         const click = (l) => (touch ? l.tap() : l.click());
         await click(p.getByRole('button', { name: /^Rename Example/ }));
         await p.getByLabel('Workspace name').fill('Acme Platform');
         await click(p.getByRole('button', { name: 'Save the name' }));
         await p.waitForTimeout(300);
-        const shown = await p.evaluate(() => [...document.querySelectorAll('.ws-title, .ws-name, .mtop .tiny, .ws-line[aria-current] .gline-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent).join(' | '));
+        const shown = await p.evaluate(() => [...document.querySelectorAll('.ws-title, .ws-name, .ws-facts dd, .mtop .tiny, .ws-line[aria-current] .gline-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent).join(' | '));
         fail(/Acme Platform/.test(shown), `[WORKSPACE-ADMIN] ${w}: after renaming, the app says "${shown}"`);
         // Teams is a place of its own, in People (app redesign WR1): add a team, change it on its page, remove another.
-        await p.goto(p.url().replace('/workspace/overview', '/teams')); await p.locator('.team-row').first().waitFor();
+        await p.goto(p.url().replace(/\/workspace(\?|$)/, '/teams$1')); await p.locator('.team-row').first().waitFor();
         await click(p.getByRole('button', { name: 'Add a team' }));
         await p.getByRole('dialog').getByLabel('Team name').fill('Insights');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Add the team' }));

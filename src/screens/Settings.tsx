@@ -9,6 +9,8 @@ import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
 import { AiAssistants } from '../ui/AiAssistants';
+import { LeaveWorkspaceSheet } from '../ui/RemoveSheets';
+import { workspaceName } from '../domain/workspaceAttention';
 
 export function Settings() {
   const app = useApp();
@@ -83,7 +85,26 @@ export function Settings() {
           <span className="small muted">{look.story ? <>Story on · {paceWords(look.pace)} · {impactWords(look.impact)} impact · {LANDINGS.find(([k]) => k === look.landing)?.[1]}</> : 'Story off: goal pages show their chart and number at once'}</span>
         </span>
       </section>
+      <LeaveWorkspace />
     </div>
+  );
+}
+
+/** Leaving the open workspace, last on Settings (app redesign WR2: it moved from Workspace, which is about the
+    workspace, to here, which is about you). It first asks who takes over your goals; the only admin is told why not. */
+function LeaveWorkspace() {
+  const app = useApp();
+  const [open, setOpen] = useState(false);
+  const ws = workspaceName(app.ws, app.mode).name;
+  const only = app.viewer.admin && app.snapshot.people.filter((p) => p.admin).length === 1;
+  return (
+    <section className="block settings-block leave-zone" aria-labelledby="set-leave">
+      <h2 className="block-title" id="set-leave">Leave {ws}</h2>
+      <p className="hint" style={{ marginTop: 0 }}>Someone takes over your goals and open asks, and your history stays. An admin can bring you back for 30 days.</p>
+      <div><button type="button" className="btn" disabled={only} aria-describedby={only ? 'leave-only' : undefined} onClick={() => setOpen(true)}>Leave this workspace…</button></div>
+      {only && <p className="hint" id="leave-only">You’re the only admin. Make someone else an admin first, on <Link to="/workspace/access">Workspace, Access</Link>.</p>}
+      {open && <LeaveWorkspaceSheet onClose={() => setOpen(false)} />}
+    </section>
   );
 }
 

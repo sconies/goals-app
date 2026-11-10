@@ -704,43 +704,37 @@ const CORE_ARTICLES: Article[] = [
   },
   {
     id: 'workspace',
-    title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. People and Teams have a place of their own, People.',
+    title: 'Workspace: about this one',
+    summary: 'Workspace opens on About: for admins, what needs sorting out; then the facts about this workspace, each leading to its section. Its other sections are Cycles, Privacy and Recently removed for everyone, and Access and Features for admins.',
     group: 'you',
     sections: [
-      { heading: 'Switching, and setting one up', list: [
-        'The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open, says whether you’re an admin in this one, leads to Workspace, and offers setting up a workspace of your own (in the demo, Try it with your own team).',
-        'Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, a Workspace section), otherwise on Home. While it opens, the page says so.',
-        'Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.',
-        'Switch person (your name at the foot of the sidebar) is only about people.',
+      { heading: 'About', list: [
+        'Under Workspace’s title, one line says whose workspace it is and your part in it: “Platform Engineering · you’re an admin here”, or a member.',
+        'For admins, first, To sort out: no goals yet in the year, no review set up, being the only admin of five people or more, people with no email, people in no team, and teams of three or more with no lead. Each says why it matters and has one button that leads to where it’s dealt with. Three show at a time; “and 2 more” shows the rest. When there is nothing, the block isn’t there at all.',
+        'Then the facts: its name (the example’s says “example data”; one you made in the demo, “kept in this browser”), how many people in how many teams (leading to People), the year and when its wrap-up opens (leading to Cycles), who the admins are (leading to Access, for admins; anyone else is told to ask one of them), which optional features are on (leading to Features) and whether how the app is used is recorded (leading to Privacy).',
+        'Admins rename the workspace with Rename, beside About this workspace. A name has at most 80 characters, and the field counts them as you near the limit.',
+        'Admins of a workspace of their own (not the example) can delete it at the foot of About, after typing its name. It can’t be undone. The example is put back as it was with Start over, in Demo controls, which only touches this browser.',
       ] },
-      { heading: 'Your role', list: [
-        'Where you’re an admin, your name at the foot of the sidebar says Admin.',
-        'Workspace says your permissions in one line under its heading: an admin sees every section; anyone else is told which sections and changes are for admins, and who the admins are.',
+      { heading: 'Switching, and setting one up', list: [
+        'The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace.',
+        'Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.',
+        'Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.',
+        'Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin.',
       ] },
       { heading: 'Finding your way', list: [
-        'On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.',
-        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/cycles, /workspace/privacy and so on.',
-        'Older links to Workspace (from a GitHub issue, say) still open the section they meant.',
-      ] },
-      { heading: 'Overview', list: [
-        'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).',
-        'First, what needs attention here, each line leading to where it’s dealt with: the year ending (the wrap-up open, or opening within four weeks), no goals yet, new markups and feedback sent from this workspace, and for admins too few people, people with no email or no team, teams with no lead, and no review set up. When nothing does, it says so.',
-        'Then every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and MCP tokens, how many optional features are on, whether recording is on and what was removed lately.',
-        'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
-      ] },
-      { heading: 'The sections', list: [
+        'On a computer, the sections are in a menu down the left, About first. On a phone, Workspace is About, and the other sections follow under More in Workspace, each with one line; a section opens with Workspace at the top to go back.',
+        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/cycles, /workspace/privacy and so on. /workspace/overview, and older links from a GitHub issue, still open the page they meant.',
         'People and Teams moved out of Workspace to People, in the sidebar, for everyone. See People: finding someone, and Teams.',
         'Cycles: the goal years, for everyone to read; only admins delete one. Privacy: what the app records, for everyone to read; only admins switch it. Recently removed: an admin sees everything removed lately, anyone else what they removed. Access (the admins and MCP access) and Features: for admins. Each has its own article.',
       ] },
-      { heading: 'Leaving', list: ['Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
-      { heading: 'Who can', list: ['Everyone sees Overview, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
-      { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
+      { heading: 'Leaving', list: ['Leaving a workspace is in Settings, at the end: someone takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
+      { heading: 'Who can', list: ['Everyone sees About, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are, with a way back to Workspace.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
+      { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on. A section can give a fact for About (`says`) and its own things to sort out (`needs`).'] },
     ],
     routes: ['/workspace', '/workspace/overview'],
     screens: ['Workspace'],
-    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'WORKSPACES', 'WORKSPACE-SECTIONS', 'WORKSPACE-ONE-PLACE', 'LEAVE-WORKSPACE'],
-    keywords: ['admin', 'workspace', 'sections', 'overview', 'rename', 'delete workspace', 'switch workspace', 'new workspace', 'reset the example', 'menu', 'settings'],
+    reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'WORKSPACES', 'WORKSPACE-SECTIONS', 'WORKSPACE-ABOUT', 'WORKSPACE-ONE-PLACE'],
+    keywords: ['admin', 'workspace', 'about', 'sections', 'overview', 'to sort out', 'rename', 'delete workspace', 'switch workspace', 'new workspace', 'set up', 'menu', 'admins'],
     related: ['people', 'teams', 'inbox', 'workspace-access', 'set-up', 'settings'],
   },
   {
@@ -823,7 +817,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.',
-        'In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so, and the overview’s line for Access counts only the admins.',
+        'In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so, and its line in Workspace for Access counts only the admins.',
         'MCP access: Make an MCP token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.',
       ] },
       { heading: 'Who can', text: ['Admins. Everyone finds their own MCP tokens in Settings.'] },
@@ -849,14 +843,15 @@ const CORE_ARTICLES: Article[] = [
         'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',
         'Your MCP access: the MCP tokens that act as you, which you can revoke.',
         'Detail pages have a Back link to where you came from.',
+        'Leave, at the very end: leave the workspace that’s open. Someone takes over your goals and open asks first, and your history stays; an admin can bring you back for 30 days. The only admin can’t leave until someone else is an admin, and is told so.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
       { heading: 'Faro’s look', text: ['The app is called Faro, the Spanish and Italian word for a lighthouse. Its logo is at the top of the sidebar (the F alone when the sidebar is icons only), at the top left on a phone, on the welcome page and in the browser tab. The workspace you’re in is named beside it (under it in the sidebar); where you choose between workspaces, each is listed by its name.', 'Its look is warm paper, dark ink and the lighthouse’s teal. The logo’s amber beam is used nowhere else, because in the app amber means At risk.', 'On a phone’s home screen and in the browser tab, the F sits on a deep-teal tile so it’s easy to spot. See On a phone, a tablet or a big screen for adding it to your home screen.'] },
     ],
     routes: ['/settings'],
     screens: ['Settings'],
-    reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE', 'BRAND'],
-    keywords: ['theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link', 'faro', 'logo', 'name', 'teal', 'cobalt'],
+    reqs: ['SETTINGS', 'MOTION', 'MOTION-ALIVE', 'BRAND', 'LEAVE-WORKSPACE'],
+    keywords: ['leave', 'leave workspace', 'theme', 'dark mode', 'light mode', 'accent', 'colour', 'sidebar', 'collapse', 'appearance', 'back link', 'faro', 'logo', 'name', 'teal', 'cobalt'],
     related: ['ai-assistants', 'any-device', 'recording'],
   },
   {
@@ -866,7 +861,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; the overview counts how many are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
+        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
         'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
@@ -987,7 +982,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can read it', list: [
         'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
         'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
-        'It names people, never their email. The New tab says how many are new; Workspace’s overview says how many are about the open workspace.',
+        'It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.',
         'Send feedback, at the top, opens the same sheet as Send feedback in the sidebar.',
       ] },
       { heading: 'Working through it', list: [

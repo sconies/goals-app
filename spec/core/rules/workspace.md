@@ -17,7 +17,9 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 **Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (`mergePeople`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (`stagesFromNow`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (`stagesFromJoining`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (`/?workspace=<id>`), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
 
-**What needs attention** on the overview, most pressing first: the year ending (the wrap-up open, or opening within 4 weeks); no goals in the cycle; then, for admins only, fewer than 3 people, people with no email, people in no team, teams with no lead, and no review set up; then new markups and feedback sent from this workspace. Admins are told what only they can fix; everyone is told what anyone can.
+**What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has 5 people or more; people with no email; people in no team; teams of 3 people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first 3; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
+
+**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (`wrapUpOpen`), or, once it's open, how many goals are still to wrap up; a cycle not started says when it starts.
 
 ## Worked examples
 
@@ -34,12 +36,15 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A workspace name of 83 characters. | `Keep the name to 80 characters or fewer: it has 83.` |
 | A workspace name of 62 characters, as it is typed. | `62 of 80 characters` |
 | Lee, the only admin, leaves. | `refused: You’re the only admin here: make someone else an admin before you leave.` |
-| What needs attention for an admin in week 2: two people with no email, one goal, no review, 4 new markups from here. | `few-people, no-email, no-review, feedback` |
-| The same, for Pat, who isn’t an admin. | `feedback` |
+| What Lee, the admin, has to sort out: two people, neither with an email, one goal, no review. | `No review is set up; 2 people have no email` |
+| The same, for Pat, who isn’t an admin. | `nothing` |
+| The example’s name in the demo, and a workspace called “Growth” in the real app. | `Platform Engineering (example data) / Growth` |
+| Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu. | `Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others` |
+| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up. | `2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.
+- **Not self-explanatory:** When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.
 - **Not self-explanatory:** Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.
 
 ## Where it lives
@@ -47,13 +52,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `cycleStanding`, `cycleDeletable`, `leaveWorkspace`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `teamPeople`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `nameProblem`, `nameLength`, `MAX_WORKSPACE_NAME`
-- [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `cycleWhen`, `ENDING_WEEKS`
+- [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `workspaceName`, `adminsLine`, `yearLine`, `cycleWhen`, `NEEDS_SHOWN`, `ONLY_ADMIN_FROM`, `LEAD_FROM`
 - [src/domain/people.ts](../../../src/domain/people.ts): `mergePeople`
 - [src/domain/templates.ts](../../../src/domain/templates.ts): `stagesFromJoining`, `stagesFromNow`
 
 ## Requirements
 
-- `WORKSPACE-ONE-PLACE`: Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
+- `WORKSPACE-ONE-PLACE`: Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace (the example without its "Example: "), lists every workspace with its kind, says your role on the open one ("Open now"), and leads to About and to setting up a new workspace (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says in one line whose workspace it is and your part in it. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
+- `WORKSPACE-ABOUT`: Workspace opens on About (app redesign WR2). Under the title, one line: "{workspace} · you’re an admin here" or "… a member here". For admins only, "To sort out": no goals, no review, the only admin of five or more people, people with no email, people in no team, teams of three or more with no lead, each a sentence, why, and one button, at most three then "and {k} more"; nothing to sort out leaves it out. Then the facts, each leading to its section: name (and "example data" or "kept in this browser"), people and teams, the year and when its wrap-up opens, the admins (a member is told to ask one of them), which features are on, and recording. Nothing about another workspace: no set-up, demo or reset buttons. A member sees no control they can't use.
 
 ## Tests that check it
 
@@ -67,9 +73,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a workspace’s name (backlog WS) › says the limit while typing near it, and refuses a longer name instead of cutting it
 - leaving a workspace yourself (backlog WS, Lane 9 Nov) › lets someone who isn’t an admin leave, handing over their goals, and logs it in their own words
 - leaving a workspace yourself (backlog WS, Lane 9 Nov) › refuses the only admin, and lets an admin leave while another stays
-- what needs attention in a workspace (backlog WS) › tells admins what only they can fix, and everyone what anyone can
-- what needs attention in a workspace (backlog WS) › says when the year is ending, then when its wrap-up is open
-- what needs attention in a workspace (backlog WS) › gives a cycle’s dates and where it stands
+- what an admin has to sort out (app redesign WR2, rule 3) › the example on 11 November: nothing, for an admin or a member
+- what an admin has to sort out (app redesign WR2, rule 3) › a workspace just set up: two people, one team with no lead, goals and a review: nothing
+- what an admin has to sort out (app redesign WR2, rule 3) › a year on, 12 people, still one admin, three without an email: only-admin, then no-email
+- what an admin has to sort out (app redesign WR2, rule 3) › lists everything in order, for admins only
+- the workspace in words (rules 1, 2 and 6) › names a workspace without the example’s own prefix, with its kind
+- the workspace in words (rules 1, 2 and 6) › says the admins as a sentence, A to Z, with a count beyond three
+- the workspace in words (rules 1, 2 and 6) › says where the year stands, and when its wrap-up opens
+- a cycle’s dates (backlog WS) › gives a cycle’s dates and where it stands
 
 ### [src/domain/setupTruth.test.ts](../../../src/domain/setupTruth.test.ts)
 

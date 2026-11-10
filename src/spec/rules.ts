@@ -17,7 +17,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK,
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
-import { ENDING_WEEKS, workspaceNeeds } from '../domain/workspaceAttention';
+import { adminsLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
@@ -627,12 +627,12 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/removal.ts', names: ['cycleStanding', 'cycleDeletable', 'leaveWorkspace'] },
       { file: 'src/domain/actions.ts', names: ['teamPeople'] },
       { file: 'src/domain/thresholds.ts', names: ['nameProblem', 'nameLength', 'MAX_WORKSPACE_NAME'] },
-      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'cycleWhen', 'ENDING_WEEKS'] },
+      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'workspaceName', 'adminsLine', 'yearLine', 'cycleWhen', 'NEEDS_SHOWN', 'ONLY_ADMIN_FROM', 'LEAD_FROM'] },
       { file: 'src/domain/people.ts', names: ['mergePeople'] },
       { file: 'src/domain/templates.ts', names: ['stagesFromJoining', 'stagesFromNow'] },
     ],
     tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
-    reqs: ['WORKSPACE-ONE-PLACE'],
+    reqs: ['WORKSPACE-ONE-PLACE', 'WORKSPACE-ABOUT'],
     body: `
 **A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over.
 
@@ -644,7 +644,9 @@ For a range, better means further from the limit on its safe side.
 
 **Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (\`mergePeople\`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (\`stagesFromNow\`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (\`stagesFromJoining\`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (\`/?workspace=<id>\`), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
 
-**What needs attention** on the overview, most pressing first: the year ending (the wrap-up open, or opening within ${ENDING_WEEKS} weeks); no goals in the cycle; then, for admins only, fewer than 3 people, people with no email, people in no team, teams with no lead, and no review set up; then new markups and feedback sent from this workspace. Admins are told what only they can fix; everyone is told what anyone can.`,
+**What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has ${ONLY_ADMIN_FROM} people or more; people with no email; people in no team; teams of ${LEAD_FROM} people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first ${NEEDS_SHOWN}; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
+
+**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; a cycle not started says when it starts.`,
     examples: [
       { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
       { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
@@ -655,10 +657,13 @@ For a range, better means further from the limit on its safe side.
       { given: 'A workspace name of 83 characters.', then: `Keep the name to ${MAX_WORKSPACE_NAME} characters or fewer: it has 83.`, run: () => nameProblem('x'.repeat(83), 'workspace') ?? 'fine' },
       { given: 'A workspace name of 62 characters, as it is typed.', then: `62 of ${MAX_WORKSPACE_NAME} characters`, run: () => nameLength('x'.repeat(62)) ?? 'nothing said' },
       { given: 'Lee, the only admin, leaves.', then: 'refused: You’re the only admin here: make someone else an admin before you leave.', run: () => { try { leaveWorkspace({ snapshot: workspace([]), cycle: CYCLE, week: 2, actor: workspace([]).people[1]!, now: '2026-10-08T12:00:00Z', newId: (p) => p + '_1' }); return 'left'; } catch (e) { return `refused: ${(e as Error).message}`; } } },
-      { given: 'What needs attention for an admin in week 2: two people with no email, one goal, no review, 4 new markups from here.', then: 'few-people, no-email, no-review, feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, true, 4).map((x) => x.id).join(', ') },
-      { given: 'The same, for Pat, who isn’t an admin.', then: 'feedback', run: () => workspaceNeeds(workspace([]), CYCLE, 2, false, 4).map((x) => x.id).join(', ') },
+      { given: 'What Lee, the admin, has to sort out: two people, neither with an email, one goal, no review.', then: 'No review is set up; 2 people have no email', run: () => workspaceNeeds(workspace([]), CYCLE, true).map((x) => x.says).join('; ') },
+      { given: 'The same, for Pat, who isn’t an admin.', then: 'nothing', run: () => workspaceNeeds(workspace([]), CYCLE, false).map((x) => x.id).join(', ') || 'nothing' },
+      { given: 'The example’s name in the demo, and a workspace called “Growth” in the real app.', then: 'Platform Engineering (example data) / Growth', run: () => [workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo'), workspaceName({ name: 'Growth', kind: 'own' }, 'live')].map((w) => w.name + (w.kind ? ` (${w.kind})` : '')).join(' / ') },
+      { given: 'Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu.', then: 'Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others', run: () => [adminsLine(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg'].map((name) => ({ name, admin: true }))), adminsLine(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${i}`)].map((name) => ({ name, admin: true })))].join(' / ') },
+      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up.', then: '2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 47, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 52, new Date('2026-12-15T12:00:00Z'), 31)}`; } },
     ],
-    unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
+    unclear: ['When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },
 
   /* ---------- the directory: People and Teams (app redesign WR1) ---------- */
