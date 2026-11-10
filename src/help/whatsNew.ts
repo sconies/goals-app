@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'find-and-pick',
+    date: '2026-11-10',
+    title: 'Type to find a person, a team or a goal',
+    points: [
+      'Choosing who takes part in a review, a next step’s owner, the new owner of goals or who can decide or help is now a search, with you and your team suggested first.',
+      'A goal is found by its words or its key (G-48). Arrow keys and Enter choose; Escape closes.',
+      'The long lists of everyone have gone from these places; the rest follow.',
+    ],
+    articles: ['finding', 'reviews'],
+  },
+  {
     id: 'workspace-mark-size',
     date: '2026-11-10',
     title: 'Workspace’s overview mark back to its size',

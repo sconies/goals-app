@@ -21,11 +21,13 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 
 - Each core screen at its route, with its named parts and one main action at a time.
 - Every core journey, within its step budget, on a phone (390px) and a desktop (1440px).
+- One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.
 
 ## Exit criteria
 
 1. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.
 2. Each core requirement in [the requirements](../core/requirements.md) holds.
+3. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
 
 ## Gaps in the kit
 

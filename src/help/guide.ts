@@ -497,6 +497,29 @@ const CORE_ARTICLES: Article[] = [
     related: ['goal-page', 'data', 'import'],
   },
   {
+    id: 'finding',
+    title: 'Finding and choosing',
+    summary: 'A person, a team or a goal is chosen by typing to find it: you and your team are suggested first, and a goal’s key finds it.',
+    group: 'goals',
+    sections: [
+      { heading: 'Choosing someone or something', list: [
+        'Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).',
+        'Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.',
+        'Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.',
+        'Someone marked as left is never offered.',
+      ] },
+      { heading: 'What a search matches', list: [
+        'Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.',
+        'A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['FIND-AND-PICK'],
+    keywords: ['find', 'search', 'pick', 'choose', 'owner', 'person', 'team', 'type to find', 'select'],
+    related: ['keys', 'reviews', 'goals-filters'],
+  },
+  {
     id: 'new-goal',
     title: 'Setting up a goal',
     summary: 'A new goal takes a few short steps: what you want to achieve, the type, the numbers or stages, and where it fits.',
@@ -556,14 +579,14 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What it’s for', text: ['A regular look at the goals that need it, with notes, questions and actions that stick to the goal.'] },
       { heading: 'Setting one up', list: [
         'Choose Set up a review on Reviews. Give it a name and a cadence: every 1, 2 or 4 weeks, on a weekday.',
-        'Pick the goals: every goal at a level, a goal and everything feeding it, or single goals. Then the people taking part.',
+        'Pick the goals: every goal at a level, a goal and everything feeding it, or single goals, found by typing their name or key. Then the people taking part, found by typing a name or a team (you and your team are suggested).',
       ] },
       { heading: 'Running it', list: [
         'Reviews says where each session stands (not started, in progress with how many reviewed, or held, with the date), when it was last held, and how many actions are open. A session under way is listed first. A session not held by its date is outstanding: it says “Outstanding from” its date and how many days past, with the next session beside it, so the two are never mixed up. The review’s page and the bar you walk it with say the same.',
         'Walking a review, the bar names the goal you’re on among the goals to discuss, and how many of the whole review are reviewed (the goals with nothing flagged count too). The order is fixed when the session starts: reviewing a goal or saving an action never moves one, Continue review picks up at the goal you left, and Previous goal goes back to ones already reviewed. Opening a goal’s walk from its own address keeps the same order.',
         'Open a review to see its agenda: one line per goal, the ones to discuss first: its status, its name, its number and the gap to plan. The name always has the room; a long gap wraps beside it instead. Goals on track with nothing flagged are marked reviewed together at the end, or walked one at a time instead. Marking them asks first, and the message after it has Undo. While goals to discuss are left, the review carries on; when they’re all that’s left, Finish review marks them and records the session as held.',
         'The walk opens each goal’s page in turn, under a bar with the review’s name (in full, on two lines if it needs them) and how far through you are. Mark it reviewed, add a note, ask the owner a question, or agree an action with who and when. Reviewed & next moves on.',
-        'A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; find the person by name or team), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.',
+        'A goal off track or at risk asks first: “What happens next, who, by when?” Add the next step (what, who and the week it’s due by; type to find the person: you and your team are suggested first), or choose We accept the risk and say why. Only then can it be marked reviewed. Skip for now leaves it for later in the session.',
         'A session opens with Last time: what the previous session agreed, who agreed to do it, by when, and whether it’s done. Whoever does it, whoever agreed it, or an admin can mark it done there. Each goal in the walk shows its own.',
         'Finish review says what was decided (each person’s next steps, the risks accepted, the questions still open) before it records the session as held, and its message has Undo. The walk’s last goal finishes the same way.',
         'Once the session is held, the review’s page leads with what was said, with every goal reviewed. Owners see questions and actions on their goal page and Home. Print or save as PDF makes a copy of the session.',

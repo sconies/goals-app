@@ -61,6 +61,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves |  | `WORKSPACE-ONE-PLACE` `FEEDBACK-PAGE` `LEAVE-WORKSPACE` | 45 | `evals/journeys.cjs` |
 | U54 | Set up from the app’s own spreadsheet as the deep review did: people typed are kept, nothing is late on day one, the counts agree, no one is made a team lead, the invitation opens this workspace, and a refused decimal is fixed in one step |  | `ONBOARDING` `WORKSPACES` `HONEST-NUMBERS` | 22 | `evals/journeys.cjs` |
 | U57 | The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation | A goal owner | `HONEST-CHECKIN` `REASON-BEHIND` `DRAFTS` `BULK-EDIT` `GOAL-PAGE-ONCE` | 26 | `evals/journeys.cjs` |
+| U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -90,6 +91,7 @@ Per-area checks from the fit-and-finish reports.
 | F5 | Fit and finish, list-board | `FIT-AND-FINISH-AREAS` | `evals/finish/5-list-board.cjs` |
 | F6 | Fit and finish, map-reviews | `FIT-AND-FINISH-AREAS` | `evals/finish/6-map-reviews.cjs` |
 | F9 | Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart | `NO-SILENT-ROUNDING` `SAME-NAMES` `PLAN-CHANGE` | `evals/finish/9-numbers-names.cjs` |
+| F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 
 ## Review notes
 

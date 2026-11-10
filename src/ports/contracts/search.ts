@@ -72,6 +72,16 @@ export function searchContract(name: string, make: () => Promise<Search>) {
       expect((await search.search('person', { q: '', size: 200 })).rows.some((r) => r.id === 'oskar')).toBe(false);
     });
 
+    it('suggests, before anything is typed, you first, then your team, then those chosen lately', async () => {
+      const rhea = (await search.suggest('person', 'rhea', [])).map((r) => r.id);
+      expect(rhea[0]).toBe('rhea');
+      expect(rhea.length).toBe(6);
+      expect(new Set(rhea).size).toBe(6);
+      expect((await search.suggest('person', 'rhea', [{ kind: 'person', id: 'daniel' }])).map((r) => r.id)).not.toContain('oskar');
+      expect((await search.suggest('team', 'rhea', []))[0]!.id).toBe('cicd');
+      expect((await search.suggest('goal', 'tunde', [])).map((r) => r.id).slice(0, 2).sort()).toEqual(['cfr-contract', 'lead-rollback']);
+    });
+
     it('may offer a near miss when nothing matches, and says nothing when nothing is near', async () => {
       const a = await search.search('goal', { q: 'rolback' });
       if (a.near !== undefined) { expect(a.near).toBe('rollback'); expect(a.rows.map((r) => r.id)).toContain('lead-rollback'); }

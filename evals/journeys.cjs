@@ -1067,11 +1067,14 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
   await p.getByRole('combobox', { name: /^On/ }).selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
-  // People are found by name, as goals are (re-review, 8 Nov, backlog T): the list narrows to the match.
-  await h.fill(p.getByLabel('Find a person by name or team'), 'Mateo');
-  const listed = await p.getByRole('group', { name: 'Who takes part' }).getByRole('checkbox').count();
+  // People are found by typing (find-and-pick, FS1): the list narrows to the match.
+  await h.click(p.getByRole('button', { name: /^People/ }).filter({ hasText: /Choose a person|Add another person/ }).first());
+  await h.fill(p.getByRole('combobox', { name: /^People/ }), 'Mateo');
+  await see(p.locator('.pick-count[role="status"]'), 'match');
+  const listed = await p.getByRole('listbox', { name: 'People' }).getByRole('option').count();
   h.set('attention', listed <= 3, `finding “Mateo” left ${listed} people in the list`);
-  await h.click(p.getByRole('checkbox', { name: /Mateo Fernández/ }));
+  await h.click(p.getByRole('option', { name: /Mateo Fernández/ }));
+  await p.keyboard.press('Escape');
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
   await h.click(p.getByRole('button', { name: 'Set up the review' }));
@@ -2482,6 +2485,42 @@ function seed75() {
   return { markups, feedback };
 }
 
+
+journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone', 9, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/reviews/new'));
+  const people = p.getByRole('button', { name: /^People/ }).filter({ hasText: /Choose a person|Add another person/ });
+  await people.first().waitFor();
+  await h.click(people.first());
+  const list = p.getByRole('listbox', { name: 'People' });
+  await list.waitFor();
+  const first = (await list.getByRole('option').first().locator('.pick-name > span').last().innerText()).trim();
+  h.set('entry', first === 'Rhea Kapoor (you)' && await p.getByText('Suggested').first().isVisible(), `the first suggestion is “${first}”`);
+  await h.checkpoint('people picker');
+  await h.fill(p.getByRole('combobox', { name: /People/ }), 'dan');
+  const count = p.locator('.pick-count[role="status"]');
+  await see(count, '1 matches').catch(() => {});
+  h.set('progress', (await count.innerText()).trim() === '1 matches', `typing “dan” says “${(await count.innerText()).trim()}”`);
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); h.set('parity', true);
+  await p.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached' });
+  const chosen = p.locator('.pick-chosen').first();
+  h.set('finish', /Daniel Okafor/.test(await chosen.innerText()) && await chosen.getByRole('button', { name: 'Remove Daniel Okafor' }).isVisible(), 'Daniel Okafor isn’t listed as chosen, with Remove');
+  h.set('errors', await p.evaluate(() => document.activeElement?.closest('.pick') != null), 'Escape didn’t return to the field');
+  // A goal by its key.
+  await h.click(p.getByRole('button', { name: /^Single goals/ }));
+  await h.fill(p.getByRole('combobox', { name: /Single goals/ }), 'G-48');
+  await see(p.locator('.pick-count[role="status"]'), '1 matches');
+  const row = await p.getByRole('listbox', { name: 'Single goals' }).getByRole('option').first().innerText();
+  h.set('attention', /On track|At risk|Off track|No recent update|Done/.test(row) && /G-48/.test(row), `the goal row reads “${row.replace(/\n/g, ' / ')}”: its status as a word, then its key`);
+  await p.keyboard.press('Enter');
+  await p.keyboard.press('Escape');
+  // Nothing on the page is a select of everyone.
+  const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((s) => s.options.length)));
+  h.set('a11y', big <= 25, `a select on the page has ${big} options`);
+  await h.checkpoint('chosen');
+  await p.context().close();
+}, ['logged']);
 
 journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees Overview, People, Teams, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
   const SECTIONS = [['overview', 'Overview'], ['people', 'People'], ['teams', 'Teams'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
