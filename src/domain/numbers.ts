@@ -27,6 +27,15 @@ export function precisionProblem(raw: string, n: number | null, decimals: number
   return `${raw.trim()} has ${placesText(has)}, but this goal keeps ${placesText(decimals)}, so it would show as ${shown}. Type ${shown}, or set the goal’s Decimals to ${Math.min(3, has)}.`;
 }
 
+/**
+ * The decimal places a refused number needs, so the place it's refused can offer to keep them for its goal in one step
+ * ("Keep 1 decimal place for this goal": deep review U3, where the first check-in dead-ended on a setting set-up never
+ * showed). Null when the number is fine as it is. At most 3, the most a goal keeps.
+ */
+export function placesToKeep(raw: string, n: number | null, decimals: number): number | null {
+  return precisionProblem(raw, n, decimals) ? Math.min(3, typedDecimals(raw)) : null;
+}
+
 /** The one message for letters (or anything else) where a number should be: the same on every screen, sheet and tool. */
 export const notNumberText = (raw: string) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
 
