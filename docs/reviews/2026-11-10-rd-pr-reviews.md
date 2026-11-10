@@ -316,3 +316,20 @@ Read against `docs/design/workspace/spec.md` 2.1, 2.3, 2.6, 2.8, 2.9 and 2.10, a
 - Moving People onto the shared none-found words lost three of the Workspace spec's own: a search that finds no one says "No person matches “zzzz”." where 2.1 (and the find spec) keep "No one matches “zzzz”."; `/people?team=-` with nobody says "No people match these filters." where it said "Everyone is in a team."; and that filter reads "Team none".
 - Recently removed's search matches anywhere in a name (`src/ui/RecentlyRemoved.tsx`, `includes`), a further matcher beside rule 1.
 - Recently removed now opens with two sentences that say the same thing (the section's summary line, then the new one).
+
+### #104 OB3: set-up's owners and day one (track 3, merged 15:38 UTC)
+
+Read against `docs/design/onboarding/spec.md` 2.8, 2.9 and rules 6 and 7, and `docs/design/architecture.md` 1.6, 4.3 and 4.4. Reviewed in the code; the journey U86 walks the set-up itself, and I did not repeat it in the browser. The unowned goals are remembered in the `Prefs` port and no field is added to a goal, as 4.3 asks; "who set it up" comes from the change log; the example never shows the block; the demo's Start over clears the stored values. What waits for other tracks (the re-base line, `scope=`, set-up's owner select) is stated.
+
+**1. Medium. The new rule takes the workspace's whole lists, and the lint that should stop that can't see it.**
+
+- Where: `src/domain/dayOne.ts:70`. `gettingStarted` takes `Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'>`, and Home hands it `app.snapshot`: every goal, every check-in and the whole change log, to work out a handful of sentences for one person.
+- The architecture names this rule (4.4): as first specified it took the snapshot, which is "the shape the deep review's A1 counts 58 times and R4 forbids", and it was changed to take only what it reads, made by `src/app/reads.ts`.
+- Why the lint passed: rule 6 in `scripts/check-layers.mjs:69` only matches a parameter typed exactly `Snapshot`. `Pick<Snapshot, …>` naming the big lists goes through. So do `DirectoryCtx` in `src/domain/directory.ts:60` (#90) and the cast `as unknown as Snapshot` in `goalHistory` (#96).
+- Suggested fix: `gettingStarted` takes what it reads (who set it up, how many people, the viewer's goals and which have no check-in, whether the viewer watches anything, whether the workspace has a goal), made in `reads.ts`; the lint also counts `Pick<Snapshot` that names `goals`, `checkIns`, `changes` or `requests`, and a cast to `Snapshot`, with today's uses listed as the 18 files are.
+
+**2. Low.**
+
+- The `welcome` row has no "seen": for someone who has done everything else it stays as the block's only row until day 14 or "Hide this", where the spec has it done once seen and the block go when every row is done.
+- `invite` is done only by copying the link; the spec also ends it when a second person has opened the workspace.
+- Set-up finds the goals left without an owner by their titles (`src/screens/Onboarding.tsx`, `unownedTitles`), so two template goals with one title, one owned and one not, are both marked.
