@@ -45,7 +45,7 @@ Read against `docs/design/architecture.md` 1.4 and section 2 (AR3). Each alias i
 
 Nothing else found.
 
-### #89 0c: Faro fenced off inside family-hq (reviewed before merge, at 43eef67, at the planning session's request)
+### #89 0c: Faro fenced off inside family-hq (reviewed before merge at 43eef67, at the planning session's request; merged unchanged at 12:46 UTC)
 
 **Verdict: GO to merge.** Migration 0035 is safe for the other app's tables and for the running app. One thing must be fixed before the role script is run and the fence is called done (finding 1); it does not make merging unsafe.
 
@@ -88,3 +88,20 @@ How it was checked: every file read; the PR's own tests run (`src/data/fence.tes
 - The redirects were proven on Postgres and on the repo's stand-in client, not on the real Data API. Saves through the views rely on it working out each view's key and reloading its schema cache after the move. Adding `notify pgrst, 'reload schema';` to the end of 0035 costs nothing; open the shared app and save something straight after the merge, and do step 4 soon so the fallback is short-lived.
 - `src/adapters/supabase/server.ts:21` now reads `SUPABASE_KEY` before `VITE_SUPABASE_KEY`. If Vercel has a `SUPABASE_KEY` holding anything but the public key, the server would use it. Check when deleting the service-role key.
 - A migration applied as postgres between 0035 and the secret change is owned by postgres; run the role script again afterwards (it is safe to).
+
+### #90 WR1: People has its own place (track 3, merged 12:41 UTC)
+
+Read against `docs/design/workspace/spec.md` sections 1, 2.1 to 2.4, 3, rules 4, 5 and 8, and section 6. Opened in the demo at 1440 and 390 px: People, a person, Teams, a team, every old address in the redirect table, a team that doesn't exist, a page past the end, and the status links into Goals. The redirects, counts, paging and "who sees what" are as the spec says; no edge, capsule or sideways scroll on the new rows. The departures the PR lists (the function's name, the demo's real first person, F10's Teams row, the Admin tick box until WR3) are stated. N11 and P16 are left to WR6 and WR2, as the spec's plan has them.
+
+**1. Medium. The directory restates rules that already live elsewhere.** Rules live once; not stated in the PR.
+
+- Word-start matching now exists twice. `src/domain/directory.ts:12-21` (`fold`, `wordsOf`, `matchesWords`) and `src/domain/find.ts:15-34` (`fold`, `wordsOf`, `textMatches`, merged twenty minutes earlier in #88) are the find spec's rule 1 written two ways, with different word breaks (the directory's also breaks at `&` and keeps the unbroken word). The find spec says people's search calls rule 1 for its text.
+- A person is now searched three ways: `findInDirectory` (`directory.ts:38`), `searchPeople` behind the Search port (`find.ts:146`), and the picker's older `findPeople` (`src/domain/people.ts:165`, which matches anywhere in the text). Teams twice: `findTeams` and `searchTeams`. Their orders differ too (the port puts names that start with the search first).
+- `teamSummary` and the team filter write out `teamPeople` and `teamMembers(…).current` again (`directory.ts:43`, `:84-85`; the originals are `src/domain/actions.ts:470-484`). Rule 5 in the spec says to take them from those two functions so the counts can't drift.
+- Suggested fix: `matchesWords` becomes a call to `textMatches`; `teamSummary` and the filter call `teamPeople` and `teamMembers`; and when FS2 lands, People and Teams ask the Search port (`person` with the team and admins filters, `team`) so `findInDirectory`, `findTeams` and `findPeople` go.
+
+**2. Low. A person who has left is titled "(left) (left)".**
+
+- Where: `src/screens/People.tsx:193`. `app.person` already gives a left person's name with "(left)" (`src/app/state.tsx:452`, `leftName`), and the heading adds it again.
+- Reproduce: in the demo as Amara, open Oskar Lindgren, "Mark as left…", then open `/people/oskar`: the heading reads "Oskar Lindgren (left) (left)". The browser's title is right.
+- Suggested fix: drop the heading's own suffix; have U43 check the heading's exact words.
