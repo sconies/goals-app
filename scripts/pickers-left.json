@@ -3,8 +3,6 @@
   "files": {
     "src/markup/Inbox.tsx": 1,
     "src/screens/GoalEdit.tsx": 3,
-    "src/screens/GoalWizard.tsx": 2,
-    "src/screens/People.tsx": 3,
-    "src/ui/AiAssistants.tsx": 1
+    "src/screens/GoalWizard.tsx": 2
   }
 }

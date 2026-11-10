@@ -97,7 +97,7 @@ Anyone can comment on a goal; comments show in the goal’s activity and are log
 Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line.
 
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60
 
 ## Status rules
 
@@ -460,10 +460,10 @@ There are no role labels: owners edit and check in on their goals; everyone else
 
 ### ADMIN
 
-Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed.
+Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14
+- **Journeys and checks:** U5, U10, U14, U60
 
 ### PEOPLE-DIRECTORY
 
@@ -873,11 +873,11 @@ Home opens with a slim dashboard (your goals by status, your on-time check-in st
 
 ### SETTINGS
 
-A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from.
+Settings is about you (app redesign WR3): who you are here, with "Your page" leading to your person page (a member is told which admins change their name, job title or team); your remembered choices, kept in this browser (light, dark or system, an accent colour, a collapsed or full side navigation); your own MCP tokens with Revoke, and no way to make one there (an admin makes them on Access); one line on recording leading to Privacy; the Motion lab; and Leave, last. Detail pages have a Back link to where you came from.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Tests:** `evals/settings.eval.ts` (4)
-- **Journeys and checks:** N4
+- **Journeys and checks:** N4, U62
 
 ### NAV-GOALS
 
@@ -902,7 +902,7 @@ Admins can rename the workspace and add, rename and remove teams (a team with pe
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (6)
-- **Journeys and checks:** N4
+- **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
 
@@ -939,7 +939,7 @@ The inbox of markups and feedback is its own page, Feedback (/feedback), beside 
 Anyone can leave a workspace from Settings (last, after a rule), with a confirm that first asks who takes over their goals and open asks; the only admin sees the button disabled and why. Resetting the example is the demo's Start over, for everyone, and says it only touches this browser; deleting a workspace of your own is for admins, at the foot of About. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Journeys and checks:** U53
+- **Journeys and checks:** U53, U62
 
 ## Finding
 
@@ -1011,7 +1011,7 @@ After a deploy, a tab still running the old build that fails to load a part of i
 
 ### TELEMETRY-PRIVACY
 
-Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
+Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, on Workspace, Privacy (which Settings leads to) and in a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them.
 
 - **Help:** “What the app records” (`recording`)
 - **Tests:** `evals/telemetry.eval.ts` (2)
