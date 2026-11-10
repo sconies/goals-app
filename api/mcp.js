@@ -4810,7 +4810,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 }
 /**
 * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
-* as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone in the review.
+* as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
 */
 function acceptRisk(x, goal, review, reason, week) {
 	if (reason.trim().length < 5) no$1("Say why the review accepts the risk.");
@@ -12545,7 +12545,7 @@ function articleText(a) {
 var WHATS_NEW = [
 	{
 		id: "goals-opens-on-yours",
-		date: "2026-11-12",
+		date: "2026-11-10",
 		title: "Goals opens on yours, and the menu is in groups",
 		points: [
 			"Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.",
@@ -12561,6 +12561,13 @@ var WHATS_NEW = [
 			"feedback",
 			"activity"
 		]
+	},
+	{
+		id: "history-week-order",
+		date: "2026-11-10",
+		title: "History puts each week in its place",
+		points: ["A goal’s History listed some comments and changes above the week they belonged to.", "Each week’s entry now comes after everything said or changed that week, so this week’s comments sit under this week."],
+		articles: ["goal-page"]
 	},
 	{
 		id: "getting-started",

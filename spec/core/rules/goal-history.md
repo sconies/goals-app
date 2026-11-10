@@ -46,6 +46,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/goalHistory.test.ts](../../../src/domain/goalHistory.test.ts)
 
 - a goal’s history (rule 4) › a goal gone quiet lists the weeks it missed, newest first, then its last check-in
+- a goal’s history (rule 4) › a week’s entry sits at the end of its week: a comment made this week is listed under it
 - a goal’s history (rule 4) › Changes holds only edits; Reviews only what reviews said; the counts add up to All
 - a goal’s history (rule 4) › a goal checked in every week has a week entry for each, none missed
 - a goal’s history (rule 4) › six quiet weeks are one entry, counted as six; this week stays its own

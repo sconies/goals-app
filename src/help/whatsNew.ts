@@ -22,7 +22,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'goals-opens-on-yours',
-    date: '2026-11-12',
+    date: '2026-11-10',
     title: 'Goals opens on yours, and the menu is in groups',
     points: [
       'Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.',
@@ -33,6 +33,16 @@ export const WHATS_NEW: NewsEntry[] = [
       'Activity and Help search the way Goals does: each word you type starts a word in what they find, a goal’s key finds its changes, a near miss shows the nearest match, and Back after a search returns to the list as it was.',
     ],
     articles: ['goals', 'any-device', 'feedback', 'activity'],
+  },
+  {
+    id: 'history-week-order',
+    date: '2026-11-10',
+    title: 'History puts each week in its place',
+    points: [
+      'A goal’s History listed some comments and changes above the week they belonged to.',
+      'Each week’s entry now comes after everything said or changed that week, so this week’s comments sit under this week.',
+    ],
+    articles: ['goal-page'],
   },
   {
     id: 'getting-started',

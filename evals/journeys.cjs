@@ -3857,6 +3857,10 @@ journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, 
   await press(filter('All'));
   await shown('All');
   await see(hist, 'The reason is above, under Why.', 'this week’s check-in repeats the reason Why gives');
+  // A week's entry sits at the end of its week: this week's comment is listed under this week's entry, above last week's.
+  const order = await hist.locator('.stream > li').evaluateAll((els) => els.map((e) => e.id || 'row'));
+  const thisWeek = order.indexOf(`hist-week-${NOW}`), lastWeek = order.indexOf(`hist-week-${NOW - 1}`);
+  h.set('attention', thisWeek === 0 && lastWeek > 1 && order.slice(1, lastWeek).includes('row'), `History's order: ${order.slice(0, 6).join(', ')}`);
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.goalId === 'ns-lead'), 'nothing in the change log for the goal');
   await p.context().close();
