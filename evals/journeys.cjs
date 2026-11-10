@@ -3425,12 +3425,16 @@ journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, 
   const filter = (name) => hist.locator('.history-filters').getByRole('link', { name: new RegExp(`^${name} \\d+$`) });
   // The page can open scrolled to History, under the one-line bar: bring a filter to the middle before pressing it.
   const press = async (loc) => { await loc.evaluate((e) => e.scrollIntoView({ block: 'center' })); await h.click(loc); };
+  // A filter has taken effect once it is the current one and its list is drawn.
+  const shown = async (name) => { await hist.locator('.history-filter[aria-current="true"]', { hasText: name }).waitFor(); await p.waitForTimeout(150); };
+  // Every row of the filter: Show all when there are more than 12.
+  const showEvery = async (n) => { if (n > 12) { await press(hist.getByRole('link', { name: /^Show all \d+$/ })); await p.waitForURL(/all=1/); await p.waitForTimeout(150); } };
   const counted = async (name) => Number((await filter(name).innerText()).match(/\d+$/)[0]);
   await press(filter('Changes'));
   await p.waitForURL(/history=changes/);
+  await shown('Changes');
   const changes = await counted('Changes');
-  const showAll = hist.getByRole('link', { name: /^Show all \d+$/ });
-  if (await showAll.count()) { await press(showAll); await p.waitForURL(/all=1/); }
+  await showEvery(changes);
   const rows = await hist.locator('.stream > li').count();
   const reviewWords = await hist.locator('.stream > li').filter({ hasText: /looked at it|added a note/ }).count();
   h.set('finish', rows === changes && reviewWords === 0, `Changes says ${changes} and shows ${rows} rows, ${reviewWords} of them from a review`);
@@ -3439,12 +3443,14 @@ journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, 
   h.set('progress', (await hist.locator('.history-filter[aria-current="true"]').innerText()).startsWith('Changes'), 'a reload lost the filter');
   await press(filter('Reviews'));
   await p.waitForURL(/history=reviews/);
+  await shown('Reviews');
   const reviews = await counted('Reviews');
-  if (await showAll.count()) await press(showAll);
+  await showEvery(reviews);
   const rrows = await hist.locator('.stream > li').count();
   h.set('errors', rrows === reviews && reviews > 0, `Reviews says ${reviews} and shows ${rrows} rows`);
   // This week's check-in is one entry, and points to Why for its reason rather than saying it again.
   await press(filter('All'));
+  await shown('All');
   await see(hist, 'The reason is above, under Why.', 'this week’s check-in repeats the reason Why gives');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.goalId === 'ns-lead'), 'nothing in the change log for the goal');

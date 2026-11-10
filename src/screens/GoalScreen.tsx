@@ -173,8 +173,10 @@ function GoalView({ goal }: { goal: Goal }) {
   useEffect(() => {
     const id = window.location.hash.slice(1);
     if (!/^(now|next|why|chart|feeds|history|activity|about)$/.test(id)) return;
-    const t = setTimeout(() => document.getElementById(id === 'activity' ? 'history' : id)?.scrollIntoView({ block: 'start' }), 60);
-    return () => clearTimeout(t);
+    // Twice: once drawn, and again after the shell has put a new page at its top.
+    const go = () => document.getElementById(id === 'activity' ? 'history' : id)?.scrollIntoView({ block: 'start' });
+    const t = [setTimeout(go, 60), setTimeout(go, 400)];
+    return () => t.forEach(clearTimeout);
   }, []);
   const share = useShare(goal, figures.now, figures.against, why.text ?? '', status);
   const menu = (
@@ -900,7 +902,7 @@ function HistoryRow({ goal, x, latestId, latestWeek }: { goal: Goal; x: HistoryE
     return (
       <li className="stream-missed" id={`hist-week-${x.to}`}>
         <span className="strong">{x.from === x.to ? `Week ${x.from}` : `Weeks ${x.from} to ${x.to}`}</span>
-        <span className="small muted"> · {x.yet ? 'No check-in yet' : x.from === x.to ? 'No check-in' : `No check-ins (${x.weeks} weeks)`}</span>
+        <span className="small muted"> · {x.yet ? STATUS.none.label : x.from === x.to ? 'No check-in' : `No check-ins (${x.weeks} weeks)`}</span>
       </li>
     );
   }

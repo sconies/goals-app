@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-10 13:06 UTC.
+Run 2026-11-10 13:28 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,7 +8,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | **0** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | 2 · 2 (budget 6) |
+| 79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 6) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -21,13 +21,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - **a11y**: No serious accessibility issues; primary buttons are at least 44px tall on a phone
 - **logged**: The change it makes is in the change log with who, when and before → after
 
-### What cost points
-
-- **U79** A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to: phone: locator.click: Timeout 30000ms exceeded.; desktop: locator.click: Timeout 30000ms exceeded.
-
 ## Requirements
 
-**70 of 148 pass**, 3 fail, 75 untested. Spec scenarios 271/273.
+**72 of 148 pass**, 1 fail, 75 untested. Spec scenarios 272/273.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -118,7 +114,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GOAL-PAGE-ONCE** Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart. | Goals | 4 | — |
 | ⚪ | **GOAL-ACT** A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so. | Goals | 0 | — |
 | ⚪ | **GOAL-ASK-ONCE** Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press. | Goals | 0 | — |
-| ❌ | **GOAL-HISTORY** A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to. | Goals | 0 | U79 |
+| ✅ | **GOAL-HISTORY** A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to. | Goals | 0 | U79 |
 | ⚪ | **GOAL-PAGE-SCORECARD** Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it. | Goals | 0 | — |
 | ✅ | **GOAL-PAGE-INTENT** A goal's page follows how you arrived: Home's Answer, Respond and Reply open it with that item expanded under Asked of you and its box focused (?respond=<id>; ?tab=comments still works); after a check-in it says what was posted and the on-time streak; a returning visitor sees what changed since they last looked; a first-time viewer sees what the number measures with About open; drilling down, Back names the goal you came from. | Goals | 2 | — |
 | ✅ | **GOAL-PAGE-ALIVE** A goal's page is readable the moment it opens: its chart and number show their final state at once (backlog T). With the story switched on in the Motion lab, it moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys. | Goals | 2 | — |
@@ -140,7 +136,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **READABLE-IDS** Every goal has a short, readable key (G-1, G-2 … per workspace) that never changes, shown on the goal, in tables, exports and links, and accepted by the AI assistant and imports. | Data | 11 | — |
 | ✅ | **PRINT-EXPORT** A goal and a review each have a print-ready one-page view (save as PDF) with everything critical: status, numbers against plan, chart, path to green, latest check-in, requests and actions. | Export | 4 | — |
 | ✅ | **MOTION-ALIVE** The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion. | Interface | 3 | — |
-| ❌ | **HELP-GUIDE** The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server. | Help | 5 | — |
+| ✅ | **HELP-GUIDE** The app has its own guide: one article per screen or feature saying what it is for, how to use it and who can, reachable from the sidebar, the phone's More sheet and the icon rail, searchable, and opened for the page you are on by a Help link on every page. Every screen, route and requirement has an article (checked by a test), and an AI assistant can read it through the MCP server. | Help | 5 | — |
 | ✅ | **WHATS-NEW** What's new lists each release newest first, with a date, a title, a few plain lines for people and links to the guide. A quiet dot beside Help, and one dismissible line on Home, show a release the person hasn't seen until they open What's new, remembered across reloads. CI refuses a change to the app without an entry, and an AI assistant can read the entries. | Help | 4 | — |
 | ✅ | **TELEMETRY-SIGNALS** The app records traces, logs and metrics in its own database in OpenTelemetry's shape (32-hex trace ids, 16-hex span ids, parent, kind, start and end, status, attributes and resource; logs with timestamp, severity and body), using semantic-convention names. One trace per thing a person does: the action, the save's RPC timed from the client as a CLIENT span (db.system, db.operation), and the page that shows the result. Pages, errors, failed saves (a rule saying no told apart from a network or database fault) and slow loads are recorded. The MCP server records a SERVER span per tool call and joins the caller's trace from a W3C traceparent header. When the tables are missing, the database is down or there is none, the app works exactly as before, with no console errors and no retry storm. | Observability | 4 | — |
 | ⚪ | **STALE-RELOAD** After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. | Observability | 0 | — |
@@ -186,7 +182,6 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Failing scenarios
 
-- **HELP-GUIDE** every screen file, every route and every requirement has an article: AssertionError: expected [ 'GOAL-HISTORY' ] to deeply equal []
 - **ONE-VOCABULARY** no word the vocabulary defines is written anywhere else, src/mcp included, apart from genuine non-status uses: AssertionError: expected [ Array(1) ] to deeply equal []
 
 ## Not built yet
