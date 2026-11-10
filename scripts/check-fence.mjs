@@ -13,6 +13,7 @@
          0035 left in public, which only point into faro, aside);
        may run a security definer function outside faro and the platform's own schemas (another app's function that
          runs as its owner is a way to its rows);
+       or if a row rule on a table outside faro (Storage's, say) calls a function in faro, which it could rewrite;
        or if anything in faro belongs to another role (its owner could run code as that role through it), or a pg_cron
          job that runs Faro's code runs as another role (where the role can see pg_cron's jobs). */
 import { pathToFileURL } from 'node:url';
@@ -48,6 +49,14 @@ export async function fenceReport(query) {
     select (select count(*) from pg_class c where c.relnamespace = 'faro'::regnamespace and c.relowner <> n.nspowner)::int
          + (select count(*) from pg_proc p where p.pronamespace = 'faro'::regnamespace and p.proowner <> n.nspowner)::int as foreign
       from pg_namespace n where n.nspname = 'faro'`);
+  // Row rules on tables outside faro that call a function in faro: they run as whoever uses that table (Storage's
+  // users, say), so faro_owner, who can rewrite the function, would run its code as them.
+  const [{ rules }] = await query(`
+    select count(distinct pol.oid)::int as rules
+      from pg_policy pol join pg_class t on t.oid = pol.polrelid
+      join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = pol.oid and d.refclassid = 'pg_proc'::regclass
+      join pg_proc f on f.oid = d.refobjid
+     where t.relnamespace <> 'faro'::regnamespace and f.pronamespace = 'faro'::regnamespace`);
   const [cron] = await query(`
     select coalesce((select has_schema_privilege(current_user, n.oid, 'USAGE') and has_table_privilege(current_user, c.oid, 'SELECT')
                        from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'cron' and c.relname = 'job'), false) as visible`);
@@ -57,8 +66,9 @@ export async function fenceReport(query) {
   if (!fenced) {
     const warnings = [];
     if (jobs) warnings.push(`${s(jobs, 'pg_cron job runs', 'pg_cron jobs run')} Faro's code as a role other than ${FARO_ROLE}.`);
+    if (rules) warnings.push(`${s(rules, 'row rule', 'row rules')} outside faro ${rules === 1 ? 'calls' : 'call'} a function in faro, which ${FARO_ROLE} could rewrite (migration 0037 removes Faro's).`);
     if (definer) warnings.push(`${s(definer, 'security definer function', 'security definer functions')} outside faro and the platform's schemas may be run by everyone, so ${FARO_ROLE} could run ${definer === 1 ? 'it' : 'them'} too.`);
-    return { state: 'not-fenced', role: me.role, owner: me.owner, definer, jobs, problems: [], warnings };
+    return { state: 'not-fenced', role: me.role, owner: me.owner, definer, rules, jobs, problems: [], warnings };
   }
   const [{ n }] = await query(`
     select count(*)::int as n
@@ -75,9 +85,10 @@ export async function fenceReport(query) {
   if (n) problems.push(`${me.role} may read or write ${s(n, 'table', 'tables')} outside the faro schema.`);
   if (definer) problems.push(`${me.role} may run ${s(definer, 'security definer function', 'security definer functions')} outside faro and the platform's schemas.`);
   if (foreign) problems.push(`${s(foreign, 'thing', 'things')} in faro ${foreign === 1 ? 'belongs' : 'belong'} to another role: run supabase/manual/faro-role.sql again.`);
+  if (rules) problems.push(`${s(rules, 'row rule', 'row rules')} outside faro ${rules === 1 ? 'calls' : 'call'} a function in faro: apply migration 0037 as postgres.`);
   if (jobs) problems.push(`${s(jobs, 'pg_cron job runs', 'pg_cron jobs run')} Faro's code as another role.`);
   const warnings = cron.visible ? [] : [`${me.role} can't see pg_cron's jobs (it can't make any either); a job postgres schedules is checked while CI still runs as postgres.`];
-  return { state: problems.length ? 'leaks' : 'fenced', role: me.role, owner: me.owner, outside: n, definer, foreign, jobs, problems, warnings };
+  return { state: problems.length ? 'leaks' : 'fenced', role: me.role, owner: me.owner, outside: n, definer, rules, foreign, jobs, problems, warnings };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -92,7 +103,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (r.state === 'no-schema') console.log(`::warning::No faro schema yet (migration 0035 not applied): ${r.role} isn't fenced. Apply 0035, run supabase/manual/faro-role.sql, then switch DATABASE_URL to ${FARO_ROLE}.`);
     else if (r.state === 'not-fenced') console.log(`::warning::DATABASE_URL connects as ${r.role}, not ${FARO_ROLE} (the Faro role), so migrations still run with rights beyond Faro. Run supabase/manual/faro-role.sql if you haven't, then switch the secret to ${FARO_ROLE}.`);
     for (const w of r.warnings) console.log(`::warning::${w}`);
-    if (r.state === 'not-fenced') console.log(`Counted as ${r.role}: ${r.definer} security definer function(s) outside faro that everyone may run; ${r.jobs ?? 'unknown'} pg_cron job(s) running Faro's code as another role.`);
+    if (r.state === 'not-fenced') console.log(`Counted as ${r.role}: ${r.definer} security definer function(s) outside faro that everyone may run; ${r.rules} row rule(s) outside faro calling a function in faro; ${r.jobs ?? 'unknown'} pg_cron job(s) running Faro's code as another role.`);
     if (r.state === 'fenced') console.log(`Fenced: ${r.role} owns faro and everything in it, and can't read or write any table, or run any other app's security definer function, outside it.`);
     if (r.state === 'leaks') { for (const p of r.problems) console.log(`::error::${p}`); process.exit(1); }
   } finally {

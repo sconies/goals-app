@@ -196,3 +196,58 @@ export function search(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, a
   const again = near ? run({ ...ask, q: near }) : [];
   return near && again.length ? { ...page(again, ask), near } : page([], ask);
 }
+
+/* ---------- Rule 6: suggestions before typing ---------- */
+
+/** A thing opened or chosen lately: newest first, at most 12, kept per person and workspace (the Prefs port). */
+export interface Recent { kind: string; id: string }
+export const RECENTS = 12;
+export const SUGGESTED = 6;
+
+/** Puts one first in the recents, without repeats, keeping the newest 12. */
+export const withRecent = (recents: Recent[], r: Recent): Recent[] => [r, ...recents.filter((x) => !(x.kind === r.kind && x.id === r.id))].slice(0, RECENTS);
+
+/**
+ * Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+ * then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+ * worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+ * when the rest would fill the list. Nobody marked as left; nothing it can't find.
+ */
+export function suggest(rows: GoalRows | PersonRows | TeamRows, viewerId: string, recents: Recent[]): FoundRow[] {
+  const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+  // Up to two places are kept for what was chosen lately, so it shows even when your own fill the list.
+  const pick = (ids: (string | null | undefined)[], row: (id: string) => FoundRow | null) => {
+    const out: FoundRow[] = [];
+    const add = (id: string | null | undefined, limit: number) => {
+      if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+      const r = row(id);
+      if (r) out.push(r);
+    };
+    const lately = recent.filter((id) => !ids.includes(id) && row(id));
+    for (const id of ids) add(id, SUGGESTED - Math.min(2, lately.length));
+    for (const id of [...recent, ...ids]) add(id, SUGGESTED);
+    return out;
+  };
+  switch (rows.kind) {
+    case 'person': {
+      const all = searchPeople(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const me = rows.people.find((p) => p.id === viewerId);
+      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : [];
+      return pick([viewerId, ...mates], (id) => by.get(id) ?? null);
+    }
+    case 'team': {
+      const all = searchTeams(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+      return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+    }
+    case 'goal': {
+      const all = searchGoals(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+      const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+      return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+    }
+  }
+}

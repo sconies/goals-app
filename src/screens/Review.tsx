@@ -12,13 +12,14 @@ import { answerOf, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWh
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
-import { Avatar, Chip, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
+import { Avatar, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
 import { byDay, CarriedState, saveReviewOrder } from './Inspect';
 import { lastTime, sessionDecisions } from '../domain/decide';
 import { canMarkDone } from '../domain/asks';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
+import { Pick } from '../ui/Pick';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
 import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
 
@@ -340,13 +341,10 @@ export function ReviewEdit() {
   const [r, setDraft, clearDraft, restored] = useDraft<ReviewT>(`${app.ws.id}:review:${reviewId ?? 'new'}`, () => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [q, setQ] = useState('');
-  const [who, setWho] = useState('');
   const set = (p: Partial<ReviewT>) => setDraft(p);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const covered = useMemo(() => goalsIn(r.scope, app.snapshot.goals), [r.scope, app.snapshot.goals]);
   const tops = outcomeTrees(app.snapshot.goals, worstFirst(app)).trees.map((t) => t.goal);
-  const found = app.snapshot.goals.filter((g) => q.trim() && g.title.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
   const ok = r.name.trim().length > 0 && covered.length > 0 && r.people.length > 0;
   const save = async () => {
     setTried(true);
@@ -397,20 +395,13 @@ export function ReviewEdit() {
               </div>
             </div>
           )}
-          <div className="field"><span className="field-label">Single goals</span>
-            <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a goal by name" aria-label="Find a goal by name" />
-            {found.length > 0 && <div className="optlist">{found.map((g) => <button key={g.id} type="button" role="checkbox" className="opt" aria-checked={r.scope.goals.includes(g.id)} onClick={() => set({ scope: { ...r.scope, goals: toggle(r.scope.goals, g.id) } })}><Picked on={r.scope.goals.includes(g.id)}>{g.title}</Picked><Chip k={app.statusOf(g).status} /></button>)}</div>}
-            {r.scope.goals.length > 0 && <span className="hint">Picked: {r.scope.goals.map((id) => app.goal(id)?.title).filter(Boolean).join(', ')}</span>}
-          </div>
+          <Pick kind="goal" several label="Single goals" value={r.scope.goals} onChange={(goals) => set({ scope: { ...r.scope, goals } })} />
         </section>
         <section className="stack" style={{ gap: 'var(--s3)' }} aria-labelledby="ppl-h">
           <h2 className="block-title" id="ppl-h">Who takes part</h2>
-          {/* Found by name or team, as the goals are (re-review, 8 Nov, backlog T); whoever is picked stays listed. */}
-          <input className="input" value={who} onChange={(e) => setWho(e.target.value)} placeholder="Find a person by name or team" aria-label="Find a person by name or team" />
-          <span className="hint">{r.people.length === 1 ? '1 person' : `${r.people.length} people`} so far{r.people.length ? `: ${r.people.map((id) => app.person(id)?.name).filter(Boolean).join(', ')}` : ''}.</span>
-          <div className="optlist" role="group" aria-labelledby="ppl-h">
-            {app.snapshot.people.filter((p) => !who.trim() || r.people.includes(p.id) || `${p.name} ${app.team(p.teamId ?? '')?.name ?? ''}`.toLowerCase().includes(who.trim().toLowerCase())).map((p) => <button key={p.id} type="button" role="checkbox" className="opt" aria-checked={r.people.includes(p.id)} disabled={!!existing && p.id === existing.createdBy && r.people.includes(p.id) && app.viewer.id !== existing.createdBy && !app.viewer.admin} onClick={() => set({ people: toggle(r.people, p.id) })}><Picked on={r.people.includes(p.id)}><Avatar p={p} size="sm" />{p.name}</Picked><span className="hint">{app.team(p.teamId ?? '')?.name ?? ''}</span></button>)}
-          </div>
+          {/* Found by typing, as the goals are (find spec, 2.3); whoever is picked stays listed. */}
+          <Pick kind="person" several label="People" hint={`${r.people.length === 1 ? '1 person' : `${r.people.length} people`} so far.`} value={r.people} onChange={(people) => set({ people })}
+            keep={(id) => !!existing && id === existing.createdBy && app.viewer.id !== existing.createdBy && !app.viewer.admin} />
         </section>
         <div className="focus-foot">
           {tried && !ok && <span className="hint tone-off" role="alert">{problem}</span>}
