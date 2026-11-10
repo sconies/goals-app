@@ -595,7 +595,8 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
   // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns.
   const sw2 = await openSwitcher(p);
-  await sw2.getByRole('button', { name: /Example: Platform Engineering/ }).click();
+  // The example's row says what kind it is (WR2): its name is the same as the one just made.
+  await sw2.getByRole('button', { name: /Example data/ }).click();
   await see(p, 'Grace', 'switching back shows the example again');
   await p.locator('.side .ws-name:visible, .ws-switch-top:visible').filter({ hasText: /Platform Engineering|Example data/ }).first().waitFor();
   await p.goBack();

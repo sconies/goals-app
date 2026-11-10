@@ -901,7 +901,7 @@ Workspace opens on About (app redesign WR2). Under the title, one line: "{worksp
 
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U59, U61
+- **Journeys and checks:** F10, U59, U61
 
 ### WORKSPACE-ONE-PLACE
 
