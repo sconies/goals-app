@@ -2,6 +2,7 @@
    admin has to sort out, the workspace's name and its admins as people read them, where the year stands, and a
    cycle's dates. Workspace's About reads these. Pure. */
 import { wrapUpOpen } from './cycle';
+import { weekDate } from './plan';
 import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
@@ -81,7 +82,7 @@ export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, wee
   if (wrapUpOpen(cycle as Cycle, w)) return `${at} The wrap-up is open: ${left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up'}.`;
   let first = w;
   while (!wrapUpOpen(cycle as Cycle, first) && first < cycle.weeks) first++;
-  return `${at} The wrap-up opens on ${day(new Date(start.getTime() + (first - 1) * 7 * 86_400_000))}.`;
+  return `${at} The wrap-up opens on ${day(new Date(weekDate(cycle as Cycle, first) + 'T00:00:00Z'))}.`;
 }
 
 

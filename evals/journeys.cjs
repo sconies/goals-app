@@ -2885,7 +2885,7 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
 }, ['logged']);
 
 /* App redesign WR3: admins and tokens where they are listed; Settings about you. */
-journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; the only admin has no button; each change is logged', 10, async (h, device) => {
+journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; stopping being an admin yourself offers no Undo; the only admin has no button; each change is logged', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/workspace/access'));
   const add = p.getByRole('button', { name: 'Add an admin' });
@@ -2922,6 +2922,17 @@ journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someo
   await see(p, 'Grace Achterberg is no longer an admin');
   const s2 = await h.snapshot();
   h.set('logged', madeLogged && !s2.people.find((x) => x.id === 'grace').admin && s2.people.find((x) => x.id === 'rhea').admin && s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length >= 4, `admin changes are not saved and logged: made logged ${madeLogged}, Grace admin ${s2.people.find((x) => x.id === 'grace').admin}, Rhea admin ${s2.people.find((x) => x.id === 'rhea').admin}, ${s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length} logged`);
+  // Your own row: Rhea stops being an admin; once her rights are gone she can't give them back, so there's no Undo.
+  const r = p;
+  await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await r.goto(url('/workspace/access'));
+  await h.click(r.getByRole('button', { name: 'Stop being an admin' }));
+  await h.click(r.getByRole('group', { name: 'Stop being an admin' }).getByRole('button', { name: 'Yes, remove' }));
+  await see(r, 'You’re no longer an admin');
+  const ownUndo = await r.locator('.toast-action').filter({ hasText: 'Undo' }).count();
+  const s3 = await h.snapshot();
+  h.set('own', ownUndo === 0 && !s3.people.find((x) => x.id === 'rhea').admin, `removing your own admin rights offers Undo (${ownUndo}) or does not save`);
+  await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'amara'));
   // The only admin has no button: leave Amara alone as admin.
   await p.evaluate(async () => {
     const s = await window.__goalsStore.load('platform-org');
@@ -3319,6 +3330,8 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
   // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'Left Platform Engineering on', 'his page does not say he left');
+  const title = (await p.getByRole('heading', { level: 1 }).first().innerText()).trim();
+  h.set('progress', title === 'Mateo Fernández (left)', `his page is titled “${title}”, not “Mateo Fernández (left)”`);
   await p.goto(url('/people?q=Mateo'));
   await see(p, 'No person matches “Mateo”.', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
@@ -3336,7 +3349,6 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   // History keeps his name, as "Name (left)".
   await p.goto(url('/activity?who=mateo'));
   await see(p, 'Mateo Fernández (left)', 'Activity does not name him as having left');
-  h.set('progress', true);
   await p.context().close();
 }, ['entry']);
 

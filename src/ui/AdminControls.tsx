@@ -1,6 +1,6 @@
 /* Making someone an admin and taking it back (app redesign WR3, docs/design/workspace/spec.md 2.7): on Workspace,
    Access, and from a person's page. Both go through savePerson, so the last-admin rule and its words are the shared
-   action's; this only says it plainly, asks before taking it away, and offers Undo. */
+   action's; this only says it plainly, asks before taking it away, and offers Undo (not when you give up your own rights). */
 import { useRef, useState } from 'react';
 import { useApp } from '../app/state';
 import type { Person } from '../domain/types';
@@ -18,7 +18,11 @@ export function useSetAdmin() {
     try {
       await app.savePerson({ ...before, admin }, before);
     } catch { return; /* the rule's words are shown */ }
-    const said = admin ? `${p.name} is an admin` : p.id === app.viewer.id ? 'You’re no longer an admin' : `${p.name} is no longer an admin`;
+    // Undo only when the save changed something, and never for your own rights: once they're gone, you can't give them back.
+    const changed = !!before.admin !== admin;
+    const you = p.id === app.viewer.id;
+    const said = admin ? `${p.name} is an admin` : you ? 'You’re no longer an admin' : `${p.name} is no longer an admin`;
+    if (!changed || (you && !admin)) { app.toast(said, 'success'); return; }
     app.toast(said, 'success', { label: 'Undo', run: () => { const now = latest.current; void now.savePerson({ ...before, admin: !admin }, { ...before, admin }).then(() => now.toast(admin ? `${p.name} is no longer an admin` : `${p.name} is an admin again`)).catch(() => undefined); } });
   };
 }

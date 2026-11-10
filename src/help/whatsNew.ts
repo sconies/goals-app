@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'track3-fixes',
+    date: '2026-11-10',
+    title: 'The right wrap-up date, and fewer surprises with admins',
+    points: [
+      'Workspace and Cycles said the wrap-up opens a week early. They now give the day it really opens.',
+      'Giving up your own admin rights no longer offers Undo, since only another admin can give them back.',
+      'A person who has left is named once on their page, not “(left) (left)”.',
+    ],
+    articles: ['workspace', 'workspace-access', 'people'],
+  },
+  {
     id: 'goals-opens-on-yours',
     date: '2026-11-10',
     title: 'Goals opens on yours, and the menu is in groups',
