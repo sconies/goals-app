@@ -1,6 +1,7 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
+import { movedGoals } from '../domain/goalsPage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -16,7 +17,7 @@ import { Icon } from '../ui/Icon';
 import { MenuButton, type MenuItem } from '../ui/MenuButton';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
+const VIEW_KEYS = ['scope', 'group', 'show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
 // view=list is the list said out loud (GoalViews' useLayout), the same view as no layout at all.
 export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => VIEW_KEYS.includes(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
 
@@ -51,8 +52,10 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
 export function useViews(): SavedView[] {
   const app = useApp();
   // A view saved in the Cards layout is the same view in List (Lane, 9 Nov): opening it says so once (GoalsScreen).
+  // A view saved in the old form (show=…, no scope) is read in the new one (goals spec, rule 6); the record isn't rewritten.
+  const fresh = (params: string) => viewParams(new URLSearchParams(movedGoals(params, 'all', () => true)?.search ?? params));
   return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id))
-    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view'))) } : v)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
+    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: fresh(viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view')))) } : { ...v, params: fresh(v.params) })).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
@@ -70,8 +73,9 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
     person: (id: string) => app.person(id)?.name ?? 'someone',
     goal: (id: string) => app.goal(id)?.title ?? 'a goal',
   };
-  const chips = describeQuery(q, names);
-  const narrowed = filters(q);
+  // The Needs attention switch sits on the view bar (goals spec, 2.1); it isn't a filter, so it isn't in the line.
+  const chips = describeQuery(q, names).filter((c) => c.key !== 'needs' || q.needs.length > 0);
+  const narrowed = filters({ ...q, attention: false });
   const copyLink = async () => {
     const url = `${window.location.origin}${window.location.pathname}?${current}`;
     try { await navigator.clipboard.writeText(url); app.toast('Link copied. Anyone in the workspace who opens it sees these goals the same way.'); }

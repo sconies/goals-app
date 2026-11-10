@@ -28,12 +28,13 @@ import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { goalWords, nearMiss } from '../domain/find';
 import { NoneFound } from '../ui/ListBar';
+import { usePrefs } from '../app/search';
+import { attentionCount, goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
 
 const GOAL_WORDS = { thing: 'goal', things: 'goals' };
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
-import { HealthLine } from '../ui/HealthLine';
 import { ATTENTION, ATTENTION_FLAGS, HANDLED_LINE, STATUS, STATUS_ORDER } from '../domain/vocabulary';
 import type { GoalAttention } from '../domain/attention';
 
@@ -41,7 +42,6 @@ import type { GoalAttention } from '../domain/attention';
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
-const SHOWS: Show[] = ['outcomes', 'attention', 'levels', 'teams', 'mine', 'watching'];
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** Goals, starting from the trees: each top goal, then what feeds it, worst first. */
@@ -52,10 +52,35 @@ export function GoalsScreen() {
   // Needs attention is new information; what someone has looked at since its latest check-in is being handled.
   const { needs: att, handled } = useMemo(() => splitAttention(attentionList(app.snapshot, app.cycle, app.today)), [app.snapshot, app.cycle, app.today]);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
-  // A tab the address names that isn't one (a mistyped or old link) is Trees, with a line saying so (badLinks, below).
-  const asked = params.get('show');
-  const show: Show = asked && SHOWS.includes(asked as Show) && (asked !== 'mine' || mine.length > 0) ? (asked as Show) : 'outcomes';
-  const watchedCount = useMemo(() => watchedGoals(app.viewer.id, app.snapshot).length, [app.viewer.id, app.snapshot]);
+  // Whose goals (the scope), how they're arranged (the group) and the Needs attention switch (goals spec, rules 1–3).
+  const prefs = usePrefs();
+  const scopeFacts = useMemo(() => ({
+    goals: app.snapshot.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })),
+    viewerId: app.viewer.id,
+    teams: app.snapshot.teams.filter((t) => t.id === app.viewer.teamId || t.leadId === app.viewer.id).map((t) => ({ id: t.id, name: t.name })),
+    watched: new Set(watchedGoals(app.viewer.id, app.snapshot).map((g) => g.id)),
+  }), [app.snapshot, app.viewer.id, app.viewer.teamId]);
+  const { tabs: scopeTabs, opens } = scopesFor(scopeFacts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
+  const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
+  // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
+  const [movedNote, setMovedNote] = useState<string | null>(null);
+  useEffect(() => {
+    // Cards has gone: a link or a remembered layout that says it opens in List, said once.
+    const cur = latest();
+    if (cur.get('view') === GONE_LAYOUT || forgetGoneLayout()) { setMovedNote(GONE_LAYOUT_NOTE); if (cur.get('view') === GONE_LAYOUT) { cur.delete('view'); setParams(cur, { replace: true }); return; } }
+    const moved = movedGoals(cur.toString(), opens, hasScope);
+    if (!moved) return;
+    if (moved.note) setMovedNote(moved.note);
+    setParams(new URLSearchParams(moved.search), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, opens]);
+  const scope: Scope = hasScope(params.get('scope') as Scope) ? (params.get('scope') as Scope) : opens;
+  useEffect(() => { if (params.get('scope')) prefs.set(app.ws.id, app.viewer.id, 'goals-scope', scope); }, [scope, params, prefs, app.ws.id, app.viewer.id]);
+  const scopeTab = scopeTabs.find((t) => t.id === scope)!;
+  const inScope = useMemo(() => new Set(scopeTab.ids), [scopeTab]);
+  const group: Group = (GROUPS.some(([k]) => k === params.get('group')) ? params.get('group') : ownGroup(scope)) as Group;
+  const switchOn = params.get('attention') === '1' || !!params.get('needs');
+  const show: Show = switchOn ? 'attention' : group === 'tree' ? 'outcomes' : group === 'team' ? 'teams' : group === 'level' ? 'levels' : scope === 'watching' ? 'watching' : 'mine';
   const { trees, loose } = outcomeTrees(app.snapshot.goals, worstFirst(app));
   const [layout, setLayout] = useLayout();
   const flat = (n: TreeNode, depth = 0): { goal: Goal; depth: number }[] => [{ goal: n.goal, depth }, ...n.children.flatMap((c) => flat(c, depth + 1))];
@@ -66,26 +91,26 @@ export function GoalsScreen() {
     : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: HANDLED_LINE }] : [])]
     : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? teamsWorstFirst(app).map(({ team: t, goals }) => one(t.id, t.name, goals))
-    : show === 'mine' ? [one('mine', 'Mine', [...mine].sort(worstFirst(app)))]
+    : show === 'mine' ? [one('mine', scopeTab.label, app.snapshot.goals.filter((g) => inScope.has(g.id)).sort(worstFirst(app)))]
     : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [show, app.snapshot, app.viewer.id, att, handled]);
+    [show, app.snapshot, app.viewer.id, att, handled, inScope]);
   // Search, filters and sort apply on top of the grouping, in every layout and in exports.
   const [query, setQuery] = useGoalQuery();
   const narrowed = filters(query);
-  const refined = narrowed || !!query.sort;
+  const refined = narrowed || !!query.sort || scope !== 'all';
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
   const [ranked, near] = useMemo((): [string[] | null, string | null] => {
     if (!refined) return [null, null];
-    const sums = summariseAll(app.snapshot.goals, app.snapshot, app.cycle, app.today, app.week);
+    const sums = summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week);
     const ctx = { goals: app.snapshot.goals, cycle: app.cycle, week: app.week };
     const ids = applyQuery(sums, query, ctx).map((x) => x.goal.id);
     if (ids.length || !query.q.trim()) return [ids, null];
     const fix = nearMiss(query.q, sums.map(goalWords));
     const again = fix ? applyQuery(sums, { ...query, q: fix }, ctx).map((x) => x.goal.id) : [];
     return again.length ? [again, fix] : [ids, null];
-  }, [refined, query, app.snapshot, app.cycle, app.today, app.week]);
+  }, [refined, query, app.snapshot, app.cycle, app.today, app.week, inScope]);
   const views = useViews();
   const activeView = views.find((v) => v.params === viewParams(params));
   // The saved views, once for both places the Views menu sits: beside the tabs, or on a phone beside New goal.
@@ -142,18 +167,12 @@ export function GoalsScreen() {
     return { needs: of('attention'), handled: of('handled') };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups, app.snapshot]);
-  const healthGoals = show === 'attention' || attentionOn ? listed.needs.map((a) => a.goal) : shown;
-  const tabs: [Show, string, number | null][] = [
-    ['outcomes', 'Trees', null],
-    ['attention', ATTENTION.needs.label, att.length],
-    ['levels', 'By level', null],
-    ['teams', 'By team', null],
-    ...(mine.length ? [['mine', 'Mine', mine.length] as [Show, string, number]] : []),
-    ['watching', 'Watching', watchedCount],
-  ];
-
-  const linkNote = useBadLinks(asked, show, mine.length);
-
+  // The switch's count (rule 3): the scope's goals needing attention, after the search and filters.
+  const sumsInScope = useMemo(() => summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week), [app.snapshot, inScope, app.cycle, app.today, app.week]);
+  const switchCount = useMemo(() => attentionCount(sumsInScope, query, { goals: app.snapshot.goals, cycle: app.cycle, week: app.week }), [sumsInScope, query, app.snapshot.goals, app.cycle, app.week]);
+  const shownIds = new Set(shown.map((g) => g.id));
+  const line = goalsLine(sumsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
+  const linkNote = movedNote;
   // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
   const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page' + (show === 'watching' && !alt ? ' watching' : '');
   // Watching is a scope of Goals (one Watching, 5 Nov): the same toolbar, filters and layouts, and in the list its own
@@ -161,8 +180,11 @@ export function GoalsScreen() {
   const watchingList = show === 'watching' && !alt && !query.sort;
   // A view saved in Cards opens with its old address, so the line that says Cards has gone is said once (useBadLinks).
   const openView = (v: { id: string; params: string }) => { const now = latest(), p = new URLSearchParams(app.snapshot.views?.find((x) => x.id === v.id)?.params ?? v.params); for (const k of ['today', 'store']) { const x = now.get(k); if (x) p.set(k, x); } setParams(p); };
-  const pickTab = (k: Show) => { if (show === k && !activeView) return; const p = latest(); if (k === 'outcomes') p.delete('show'); else p.set('show', k); setParams(p); };
-  const viewName = tabs.find(([k]) => k === show)?.[1] ?? 'Goals';
+  // A choice adds a history entry (find spec, rule 4). Choosing a scope keeps the search and filters; its own group returns.
+  const pickScope = (k: Scope) => { if (scope === k && !activeView) return; const p = latest(); p.set('scope', k); p.delete('group'); p.delete('show'); setParams(p); };
+  const pickGroup = (k: Group) => { const p = latest(); if (k === ownGroup(scope)) p.delete('group'); else p.set('group', k); setParams(p); };
+  const toggleSwitch = () => setQuery((cur) => (cur.attention || cur.needs.length ? { ...cur, attention: false, needs: [] } : { ...cur, attention: true }));
+  const viewName = scopeTab.label;
   // The selected tab is always in view, even when it's past the edge of a row that scrolls sideways.
   const tabRow = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -172,7 +194,7 @@ export function GoalsScreen() {
     const left = tab.offsetLeft - row.offsetLeft, right = left + tab.offsetWidth;
     if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
     else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
-  }, [show, activeView?.id]);
+  }, [scope, activeView?.id]);
   return (
     <div className={frame} data-part={show === 'watching' ? 'Watching' : 'Goals'}>
       {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
@@ -191,9 +213,10 @@ export function GoalsScreen() {
       {app.snapshot.goals.length > 0 && (
         <div className="goals-phonebar" data-part="Views and layout">
           <MenuButton className="views-menu show-menu" label="Views" summary=""
-            display={<><span className="sr">Views: </span><span className="show-name">{activeView?.name ?? viewName}</span><span className="sr">, </span><span className="tabcount">{!refined && !activeView ? tabs.find(([k]) => k === show)?.[2] ?? shown.length : shown.length}</span><span className="sr"> goals</span></>}
+            display={<><span className="sr">Views: </span><span className="show-name">{activeView?.name ?? viewName}</span><span className="sr">, </span><span className="tabcount">{refined || activeView ? shown.length : scopeTab.ids.length}</span><span className="sr"> goals</span></>}
             items={[
-              ...tabs.map(([k, l, n]) => ({ section: 'Show', label: l, count: n, current: show === k && !activeView, onClick: () => pickTab(k) })),
+              ...scopeTabs.map((t) => ({ section: 'Whose goals', label: t.label, count: t.ids.length, current: scope === t.id && !activeView, onClick: () => pickScope(t.id) })),
+              ...(layout !== 'map' && !switchOn ? GROUPS.map(([k, l]) => ({ section: 'Group', label: l, current: group === k, onClick: () => pickGroup(k) })) : []),
               ...views.map((v) => ({ section: 'Saved views', label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) })),
             ]}
             extra={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} />
@@ -203,10 +226,10 @@ export function GoalsScreen() {
       {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
       <div className="goals-toolbar">
         <div className="goals-tabs">
-          <div className="seg tabs one-row" role="tablist" aria-label="Show" ref={tabRow}>
-            {tabs.map(([k, l, n]) => (
-              <button key={k} role="tab" aria-selected={show === k && !activeView} onClick={() => pickTab(k)}>
-                {l}{n != null && <span className="tabcount" title={k === 'attention' ? attentionBadge(att.length, handled.length) : undefined}>{n}</span>}
+          <div className="seg tabs one-row" role="tablist" aria-label="Whose goals" ref={tabRow}>
+            {scopeTabs.map((t) => (
+              <button key={t.id} role="tab" aria-selected={scope === t.id && !activeView} onClick={() => pickScope(t.id)}>
+                {t.label}<span className="tabcount">{t.ids.length}</span>
               </button>
             ))}
             {/* A saved view is a tab only while it's open; the rest wait in the Views menu. */}
@@ -220,6 +243,9 @@ export function GoalsScreen() {
         </div>
         {app.snapshot.goals.length > 0 && (
           <div className="row view-bar">
+            <button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>
+            {layout !== 'map' && <MenuButton className="group-menu" label="Group" display={switchOn ? 'Group: needs attention first' : `Group: ${GROUPS.find(([k]) => k === group)![1]}`}
+              items={switchOn ? [{ label: 'Needs attention has its own two groups' }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />}
             <LayoutSwitch layout={layout} onChange={setLayout} />
             {/* Modules' tools for these goals (the goals.tools place): the spreadsheets module's quiet Export these goals. */}
             <span className="row io-buttons" style={{ gap: 'var(--s2)' }}>
@@ -233,7 +259,7 @@ export function GoalsScreen() {
       {app.snapshot.goals.length > 0 && (
         <div className="goals-about">
           <p className="hint layout-about" aria-live="polite"><span className="strong">{LAYOUTS.find(([k]) => k === layout)?.[1]}</span>: {LAYOUT_ABOUT[layout]}</p>
-          {shown.length > 0 && <HealthLine goals={healthGoals} />}
+          {line && <p className="small goals-line" role="status">{line}</p>}
         </div>
       )}
       {app.snapshot.goals.length > 0 && <FilterBar count={shown.length} total={everyone.length} />}
@@ -324,46 +350,6 @@ export function GoalsScreen() {
   );
 }
 
-/**
- * A link with a tab, team, owner or tree this workspace doesn't have (outside review, 9 Nov) used to draw the page with
- * no goals and no word why, or a filter called only "a team" that matched nothing. The address drops what it can't
- * use, and one short line says what was dropped, until the next change.
- */
-function useBadLinks(asked: string | null, show: Show, mineCount: number): string | null {
-  const app = useApp();
-  const [params, setParams] = useSearchParams();
-  const [note, setNote] = useState<{ text: string; at: string } | null>(null);
-  const loaded = app.snapshot.people.length > 0;
-  useEffect(() => {
-    if (note && params.toString() !== note.at) setNote(null);
-    if (!loaded) return;
-    const said: string[] = [];
-    const next = new URLSearchParams(params);
-    if (asked !== null && show !== asked) {
-      next.delete('show');
-      said.push(asked === 'mine' && !mineCount ? 'You don’t own any goals here, so there’s no Mine tab: these are the trees.' : `There’s no “${asked}” tab, so these are the trees.`);
-    }
-    const keep = (key: string, known: (id: string) => boolean, what: string) => {
-      const ids = (params.get(key) ?? '').split(',').filter(Boolean);
-      const gone = ids.filter((id) => !known(id));
-      if (!gone.length) return;
-      const left = ids.filter(known);
-      if (left.length) next.set(key, left.join(',')); else next.delete(key);
-      said.push(`No ${what} “${gone.join('”, “')}” in ${app.ws.name}, so that filter is off.`);
-    };
-    // Cards went on 9 Nov (Lane): a link or saved view that names it, or a remembered choice of it, opens the list.
-    if (params.get('view') === GONE_LAYOUT) { next.delete('view'); said.push(GONE_LAYOUT_NOTE); }
-    else if (forgetGoneLayout()) said.push(GONE_LAYOUT_NOTE);
-    keep('team', (id) => !!app.team(id), 'team');
-    keep('owner', (id) => !!app.person(id), 'person');
-    keep('feeds', (id) => !!app.goal(id), 'goal');
-    if (!said.length) return;
-    setNote({ text: said.join(' '), at: next.toString() });
-    setParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, loaded]);
-  return note?.text ?? null;
-}
 
 /** What the Needs attention tab's count counts, on the count itself (Lane, 9 Nov): the first group, not the second. */
 export function attentionBadge(needs: number, handled: number): string {

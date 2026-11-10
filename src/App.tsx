@@ -10,7 +10,6 @@ import { GoalsScreen } from './screens/GoalsScreen';
 import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
-import { Watching } from './screens/Watching';
 import { RetroGoal, WrapUp } from './screens/Retro';
 import { WorkspaceHome } from './screens/Workspace';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
@@ -54,7 +53,8 @@ export function Routed() {
         <Route path="/reviews/:reviewId" element={<ReviewHome />} />
         <Route path="/reviews/:reviewId/edit" element={<ReviewEdit />} />
         <Route path="/reviews/:reviewId/summary" element={<ReviewSummary />} />
-        <Route path="/watching" element={<Watching />} />
+        {/* Watching is a scope of Goals (goals spec, section 1): the old address keeps its other parts. */}
+        <Route path="/watching" element={<ToWatching />} />
         <Route path="/retro" element={<WrapUp />} />
         <Route path="/retro/:goalId" element={<RetroGoal />} />
         <Route path="/goals" element={<GoalsScreen />} />
@@ -127,4 +127,12 @@ function NotFound() {
       </Empty>
     </div>
   );
+}
+
+/** /watching → /goals?scope=watching, keeping the rest of the address (the demo's date, a level). */
+function ToWatching() {
+  const { search } = useLocation();
+  const p = new URLSearchParams(search);
+  p.set('scope', 'watching');
+  return <Navigate to={`/goals?${p.toString()}`} replace />;
 }
