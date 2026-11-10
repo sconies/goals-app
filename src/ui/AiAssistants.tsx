@@ -1,52 +1,73 @@
 /* MCP access (backlog 10a; it was “AI assistants”): the personal MCP tokens Claude or another AI tool uses to act as one
-   person through MCP. Faro has no AI built in: this is the door other AI tools use. On Settings (your own) and
-   Workspace (everyone's, for admins). */
+   person through MCP. Faro has no AI built in: this is the door other AI tools use. Admins see, make and revoke every
+   token on Workspace, Access (AccessTokens); anyone sees and revokes their own in Settings (MyTokens). Tokens are made
+   only on Access or from a person's page (app redesign WR3). */
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
+import type { ApiToken } from '../domain/types';
 import { Sheet, timeAgo } from './bits';
 
-/** Personal MCP tokens: admins make them; the AI tool using one acts as that person. In Settings (`mine`),
-    your own tokens; on Workspace, an admin sees and manages everyone's. */
-export function AiAssistants({ mine = false }: { mine?: boolean }) {
+/** In the demo, in place of the tokens: why there are none. */
+const DEMO_LINE = 'Tokens work in the real app. The demo’s data stays in this browser, where an AI tool can’t reach it.';
+
+const useLiveTokens = () => {
+  const app = useApp();
+  return (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+};
+
+/** One token: what it's for, whom it acts as (unless they're yours), when it was made and last used, and Revoke. */
+function TokenRow({ t, mine }: { t: ApiToken; mine: boolean }) {
+  const app = useApp();
+  return (
+    <li className="token-row">
+      <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
+        <span>{t.name}{t.builder && <span className="hint"> · builder token</span>}</span>
+        <span className="hint">{mine ? '' : `Acts as ${app.person(t.personId)?.name ?? 'someone'} · `}made {timeAgo(t.createdAt, app.today)} · {t.lastUsedAt ? `last used ${timeAgo(t.lastUsedAt, app.today)}` : 'not used yet'}</span>
+      </span>
+      <button type="button" className="btn sm" onClick={async () => { await app.revokeToken(t.id); app.toast(`Revoked “${t.name}”`); }} aria-label={`Revoke ${t.name}`}>Revoke</button>
+    </li>
+  );
+}
+
+/** Workspace, Access (admins): every token, newest first, and Make a token (the real app only). */
+export function AccessTokens() {
   const app = useApp();
   const [making, setMaking] = useState(false);
-  const live = (app.snapshot.tokens ?? []).filter((t) => !t.revokedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const shown = app.viewer.admin && !mine ? live : live.filter((t) => t.personId === app.viewer.id);
-  const admins = app.snapshot.people.filter((p) => p.admin).map((p) => p.name);
+  const live = useLiveTokens();
   return (
-    <section className="block ai-block" aria-labelledby={mine ? 'ai-mine' : 'ai-all'}>
+    <section className="stack access-tokens" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-tokens">
       <div className="row between">
-        <h2 className="block-title" id={mine ? 'ai-mine' : 'ai-all'}>{mine ? 'Your MCP access' : 'MCP access'}</h2>
-        {app.viewer.admin && app.mode === 'live' && <button className="btn" onClick={() => setMaking(true)}>Make an MCP token</button>}
+        <h3 className="block-title" id="ws-tokens">MCP tokens · {app.mode === 'demo' ? 0 : live.length}</h3>
+        {app.mode === 'live' && <button type="button" className="btn" onClick={() => setMaking(true)}>Make a token</button>}
       </div>
-      <p className="hint">Connect Claude or another AI tool to Faro through MCP. With an MCP token it reads these goals and posts check-ins or changes as one person: the same rights and rules, and every change is logged as theirs, marked “via MCP”.{mine ? ' These are the MCP tokens that act as you.' : ''}</p>
-      {app.mode === 'demo'
-        ? <p className="hint">This works in the real app. In the demo, data stays in your browser, where an AI tool can’t reach it.</p>
-        : !shown.length
-          ? <p className="hint">{app.viewer.admin ? (mine ? 'No MCP tokens act as you yet.' : 'No MCP tokens yet.') : `Ask an admin to make you an MCP token${admins.length ? `: ${admins.join(', ')}` : ''}.`}</p>
-          : (
-            <div className="optlist">
-              {shown.map((t) => (
-                <div key={t.id} className="opt static">
-                  <span className="stack" style={{ gap: 0, minWidth: 0 }}>
-                    <span>{t.name}{t.builder && <span className="hint"> · builder token</span>}</span>
-                    <span className="hint">{mine ? '' : `${app.person(t.personId)?.name ?? 'Someone'} · `}made {timeAgo(t.createdAt, app.today)} · {t.lastUsedAt ? `last used ${timeAgo(t.lastUsedAt, app.today)}` : 'not used yet'}{t.builder ? ' · made as a builder token before the inbox opened to everyone; it works as an ordinary one' : ''}</span>
-                  </span>
-                  <button className="btn sm" onClick={async () => { await app.revokeToken(t.id); app.toast(`Revoked “${t.name}”`); }} aria-label={`Revoke ${t.name}`}>Revoke</button>
-                </div>
-              ))}
-            </div>
-          )}
-      {mine && app.viewer.admin && <p className="hint">As an admin, you see everyone’s tokens and make them for others on <Link to="/workspace/access">Workspace, Access</Link>.</p>}
+      <p className="hint">A token lets Claude or another AI tool act as one person here, with that person’s rights. Every change it makes is logged as theirs, marked “via MCP”.</p>
+      {app.mode === 'demo' ? <p className="hint">{DEMO_LINE}</p> : !live.length ? <p className="hint">No MCP tokens yet.</p> : (
+        <ul className="token-list" aria-label="MCP tokens">{live.map((t) => <TokenRow key={t.id} t={t} mine={false} />)}</ul>
+      )}
       {making && <TokenSheet onClose={() => setMaking(false)} />}
     </section>
   );
 }
 
-function TokenSheet({ onClose }: { onClose: () => void }) {
+/** Settings: the tokens that act as you, with Revoke. Making one is an admin's, on Access. */
+export function MyTokens() {
   const app = useApp();
-  const [personId, setPersonId] = useState(app.viewer.id);
+  const mine = useLiveTokens().filter((t) => t.personId === app.viewer.id);
+  return (
+    <section className="block settings-block ai-block" aria-labelledby="ai-mine">
+      <h2 className="block-title" id="ai-mine">Your MCP tokens · {app.mode === 'demo' ? 0 : mine.length}</h2>
+      <p className="hint" style={{ marginTop: 0 }}>A token lets Claude or another AI tool act as you through MCP, with your rights. Every change it makes is logged as yours, marked “via MCP”.</p>
+      {app.mode === 'demo' ? <p className="hint">{DEMO_LINE}</p> : mine.length > 0 && <ul className="token-list" aria-label="Your MCP tokens">{mine.map((t) => <TokenRow key={t.id} t={t} mine />)}</ul>}
+      {app.mode === 'live' && <p className="hint">{app.viewer.admin ? <>Make one on <Link to="/workspace/access">Workspace, Access</Link>.</> : 'An admin makes a token for you.'}</p>}
+    </section>
+  );
+}
+
+/** Making a token: whom it acts as (chosen already from a person's page) and what it's for; then the token, once. */
+export function TokenSheet({ onClose, personId: fixed }: { onClose: () => void; personId?: string }) {
+  const app = useApp();
+  const [personId, setPersonId] = useState(fixed ?? app.viewer.id);
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,14 +102,16 @@ function TokenSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet open onClose={onClose} title="Make an MCP token">
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void make(); }}>
-        <label className="field"><span className="field-label">Who it acts as</span>
-          <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
-          <span className="hint">The assistant can do anything this person can in the app, with the same rights: check in, change their own goals{app.person(personId)?.admin ? ' (and any goal, as they’re an admin)' : ''}, answer requests, take part in reviews and more.</span>
-        </label>
+        {fixed ? <p className="small">It acts as <strong>{who}</strong>.</p> : (
+          <label className="field"><span className="field-label">Who it acts as</span>
+            <select className="input" value={personId} onChange={(e) => setPersonId(e.target.value)}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
+          </label>
+        )}
+        <span className="hint">The AI tool can do anything {who.split(' ')[0] || 'they'} can in the app, with the same rights: check in, change their own goals{app.person(personId)?.admin ? ' (and any goal, as they’re an admin)' : ''}, answer asks, take part in reviews and more.</span>
         <label className="field"><span className="field-label">What it’s for</span>
           <input className="input" value={name} placeholder="e.g. Claude on my laptop" onChange={(e) => setName(e.target.value)} />
         </label>
-        <p className="hint">Until company sign-in arrives, the app itself doesn’t check who people are. A token makes clear who an assistant acts for, and you can switch it off here at any time.</p>
+        <p className="hint">Until company sign-in arrives, the app itself doesn’t check who people are. A token makes clear who an AI tool acts for, and it can be revoked at any time.</p>
         <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make the token'}</button></div>
       </form>
     </Sheet>

@@ -1100,12 +1100,16 @@ journey('U14', ['ADMIN', 'CHANGE-LOG'], 'An admin adds a person and makes them a
   await h.fill(p.getByRole('dialog').getByLabel('Name'), 'Ines Karim');
   await h.fill(p.getByRole('dialog').getByLabel(/^Email/), 'ines.karim@example.com');
   await h.fill(p.getByRole('dialog').getByLabel(/Job title/), 'Head of SRE');
-  await h.click(p.getByRole('dialog').getByRole('checkbox', { name: /Admin/ }));
+  h.set('attention', await p.getByRole('dialog').getByRole('checkbox', { name: /Admin/ }).count() === 0, 'adding a person still has an Admin tick box (it moved to their page and Access, WR3)');
   await h.checkpoint('add person');
   await h.click(p.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }));
   await see(p, 'Added Ines Karim');
-  // The new person's page opens (WR1): it says they're an admin, and People lists them as one.
+  // The new person's page opens (WR1); Make an admin is there, under For admins (WR3), with Undo.
   await p.getByRole('heading', { level: 1, name: 'Ines Karim' }).waitFor();
+  await h.click(p.getByRole('button', { name: 'Make an admin' }));
+  await see(p, 'Ines Karim is an admin');
+  h.set('errors', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'making someone an admin has no Undo');
+  await p.getByText('Admin.', { exact: false }).first().waitFor();
   const role = await p.locator('.person-facts').innerText().catch(() => '');
   await p.goto(url('/people?q=Ines'));
   const row = await p.locator('.people-row', { hasText: 'Ines Karim' }).innerText().catch(() => '');
@@ -1453,9 +1457,9 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
   });
   await p.goto(live('/workspace/access'));
   // An admin setting, further down the Workspace page: 'entry' is judged on everyday journeys, not this one.
-  await p.getByRole('heading', { name: 'MCP access' }).scrollIntoViewIfNeeded();
-  h.set('attention', /Connect Claude or another AI tool to Faro through MCP/.test(await p.locator('.ai-block').innerText()) && /builder token/.test(await p.locator('.ai-block').getByText('Inbox on my phone').first().innerText()), 'MCP access does not say what it is, or does not label the builder token apart');
-  await h.click(p.getByRole('button', { name: 'Make an MCP token' }));
+  await p.getByRole('heading', { name: /^MCP tokens/ }).scrollIntoViewIfNeeded();
+  h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
+  await h.click(p.getByRole('button', { name: 'Make a token' }));
   const dlg = p.getByRole('dialog');
   await dlg.getByLabel('Who it acts as').selectOption({ label: 'Mateo Fernández' });
   h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
@@ -2702,6 +2706,88 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
   h.set('errors', true);
   await p.context().close();
 }, ['logged']);
+
+/* App redesign WR3: admins and tokens where they are listed; Settings about you. */
+journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; the only admin has no button; each change is logged', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/workspace/access'));
+  const add = p.getByRole('button', { name: 'Add an admin' });
+  await h.inView(add, 'entry', 'Add an admin');
+  await h.checkpoint('access');
+  await h.click(add);
+  const dlg = p.getByRole('dialog', { name: 'Add an admin' });
+  await h.fill(dlg.getByPlaceholder('Find by name, job title or team'), 'rhea');
+  await h.click(dlg.getByRole('button', { name: /Rhea Kapoor/ }));
+  await h.checkpoint('picked');
+  await h.click(dlg.getByRole('button', { name: 'Make Rhea an admin' }));
+  await see(p, 'Rhea Kapoor is an admin');
+  const rows = p.getByRole('list', { name: 'Admins' });
+  await rows.getByText('Rhea Kapoor').waitFor();
+  h.set('progress', await rows.getByRole('listitem').count() === 4, 'Rhea is not listed with the admins');
+  await p.goto(url('/people/rhea'));
+  h.set('attention', /Admin\./.test(await p.locator('.person-facts').innerText()), 'Rhea’s page does not say she is an admin');
+  // Undo, from the toast that said so: made again from Access, then undone.
+  await p.goto(url('/workspace/access'));
+  const s1 = await h.snapshot();
+  const madeLogged = s1.changes.some((c) => c.entity === 'person' && c.entityId === 'rhea' && c.diffs.some((d) => d.field === 'Admin' && d.to === 'Yes'));
+  await h.click(p.getByRole('button', { name: 'Remove as admin: Rhea Kapoor' }));
+  await h.click(p.getByRole('group', { name: 'Remove as admin: Rhea Kapoor' }).getByRole('button', { name: 'Yes, remove' }));
+  await see(p, 'Rhea Kapoor is no longer an admin');
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }).first());
+  await see(p, 'Rhea Kapoor is an admin again');
+  // Remove Grace, asked in place first.
+  await h.click(p.getByRole('button', { name: 'Remove as admin: Grace Achterberg' }));
+  await see(p, 'Stop Grace being an admin? They keep their goals and history.');
+  await h.checkpoint('remove');
+  await h.click(p.getByRole('group', { name: 'Remove as admin: Grace Achterberg' }).getByRole('button', { name: 'Yes, remove' }));
+  await see(p, 'Grace Achterberg is no longer an admin');
+  const s2 = await h.snapshot();
+  h.set('logged', madeLogged && !s2.people.find((x) => x.id === 'grace').admin && s2.people.find((x) => x.id === 'rhea').admin && s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length >= 4, `admin changes are not saved and logged: made logged ${madeLogged}, Grace admin ${s2.people.find((x) => x.id === 'grace').admin}, Rhea admin ${s2.people.find((x) => x.id === 'rhea').admin}, ${s2.changes.filter((c) => c.entity === 'person' && c.diffs.some((d) => d.field === 'Admin')).length} logged`);
+  // The only admin has no button: leave Amara alone as admin.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    await window.__goalsStore.commit('platform-org', { people: s.people.filter((x) => x.admin && x.id !== 'amara').map((x) => ({ ...x, admin: false })), changes: [] });
+  });
+  await p.reload();
+  const only = p.getByRole('list', { name: 'Admins' }).getByRole('listitem');
+  await only.first().waitFor();
+  h.set('finish', await only.count() === 1 && /The only admin/.test(await only.first().innerText()) && await only.first().getByRole('button').count() === 0, 'the only admin is offered a way to stop being one');
+  h.set('errors', true);
+  await p.context().close();
+});
+
+journey('U62', ['LEAVE-WORKSPACE', 'SETTINGS'], 'Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/settings'));
+  const yours = p.getByRole('link', { name: 'Your page' });
+  await h.inView(yours, 'entry', 'Your page');
+  const tokens = await p.locator('.ai-block').innerText();
+  const rec = p.locator('section[aria-labelledby="set-rec"]');
+  h.set('attention', await p.getByRole('button', { name: /^Make/ }).count() === 0 && /Your MCP tokens/.test(tokens) && await rec.getByRole('link', { name: /What’s recorded|Privacy/ }).count() === 1, 'Settings offers to make a token, or its recording line does not lead to Privacy');
+  await h.checkpoint('settings');
+  await h.click(yours);
+  await p.getByRole('heading', { level: 1, name: 'Rhea Kapoor' }).waitFor();
+  h.set('progress', /\/people\/rhea/.test(p.url()), `Your page opened ${p.url()}`);
+  await p.goto(url('/settings'));
+  await h.click(p.getByRole('button', { name: 'Leave this workspace…' }));
+  const leave = p.getByRole('dialog', { name: /Leave .*Platform Engineering/ });
+  await leave.waitFor();
+  h.set('finish', /takes over/i.test(await leave.innerText()), 'leaving does not ask who takes over');
+  await p.keyboard.press('Escape');
+  await p.goto(url('/workspace'));
+  await p.locator('.ws-facts').waitFor();
+  h.set('errors', await p.getByRole('button', { name: /Leave this workspace/ }).count() === 0, 'Workspace still has Leave');
+  // The only admin sees why not.
+  await p.evaluate(async () => {
+    const s = await window.__goalsStore.load('platform-org');
+    await window.__goalsStore.commit('platform-org', { people: s.people.filter((x) => x.admin || x.id === 'rhea').map((x) => ({ ...x, admin: x.id === 'rhea' })), changes: [] });
+  });
+  await p.goto(url('/settings'));
+  const btn = p.getByRole('button', { name: 'Leave this workspace…' });
+  await btn.waitFor();
+  h.set('logged', await btn.isDisabled() && await p.getByText('You’re the only admin. Make someone else an admin first').isVisible(), 'the only admin is not told why they can’t leave');
+  await p.context().close();
+});
 
 journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-PAGE-ONCE'], 'The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation', 26, async (h, device) => {
   // Chen has two goals due (Jenkins jobs, integration tests); Jenkins was behind last week, with a reason and a plan.
