@@ -298,38 +298,40 @@ module.exports = {
         await p.waitForTimeout(300);
         const shown = await p.evaluate(() => [...document.querySelectorAll('.ws-title, .ws-name, .mtop .tiny, .ws-line[aria-current] .gline-title')].filter((e) => e.getClientRects().length).map((e) => e.textContent).join(' | '));
         fail(/Acme Platform/.test(shown), `[WORKSPACE-ADMIN] ${w}: after renaming, the app says "${shown}"`);
-        // Teams is a section of its own (backlog W).
-        await p.goto(p.url().replace('/workspace/overview', '/workspace/teams')); await p.locator('.team-opt').first().waitFor();
+        // Teams is a place of its own, in People (app redesign WR1): add a team, change it on its page, remove another.
+        await p.goto(p.url().replace('/workspace/overview', '/teams')); await p.locator('.team-row').first().waitFor();
         await click(p.getByRole('button', { name: 'Add a team' }));
         await p.getByRole('dialog').getByLabel('Team name').fill('Insights');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Add the team' }));
-        await p.waitForTimeout(300);
-        await click(p.getByRole('button', { name: 'Rename Insights' }));
+        await p.getByRole('heading', { level: 1, name: 'Insights' }).waitFor();
+        await click(p.getByRole('button', { name: 'Change its name, lead or purpose' }));
         await p.getByRole('dialog').getByLabel('Team name').fill('Insights Platform');
         await click(p.getByRole('dialog').getByRole('button', { name: 'Save' }));
         await p.waitForTimeout(300);
-        await click(p.getByRole('button', { name: 'Remove Security Engineering' }));
+        await p.goto(p.url().replace(/\/teams\/[^?]+/, '/teams/sec')); await p.getByRole('heading', { level: 1, name: 'Security Engineering' }).waitFor();
+        await click(p.getByRole('button', { name: 'Remove this team…' }));
         const dlg = p.getByRole('dialog', { name: 'Remove Security Engineering' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
         fail(await dlg.getByRole('alert').filter({ hasText: 'Choose where they go' }).isVisible(), `[WORKSPACE-ADMIN] ${w}: removing a team with people, without saying where they go, is not explained`);
         await dlg.getByLabel('Move them to').selectOption({ label: 'Insights Platform' });
         await click(dlg.getByRole('button', { name: 'Move them and remove' }));
-        await p.waitForTimeout(400);
+        await p.waitForURL(/\/teams(\?|$)/); await p.locator('.team-row').first().waitFor();
+        await p.waitForTimeout(300);
         const s = await p.evaluate(() => window.__goalsStore.load('platform-org'));
         const names = await p.evaluate(() => JSON.parse(localStorage.getItem('goals-app-v2:names') || '{}'));
         const data = s.teams.find((t) => t.name === 'Insights Platform');
         fail(names['platform-org'] === 'Acme Platform', `[WORKSPACE-ADMIN] ${w}: the new name is not saved`);
         fail(!!data && !s.teams.some((t) => t.id === 'sec') && s.people.find((x) => x.id === 'farah').teamId === data.id && s.goals.filter((g) => g.teamId === 'sec').length === 0, `[WORKSPACE-ADMIN] ${w}: teams after the changes: ${s.teams.map((t) => t.name).join(', ')}`);
         fail(['Renamed the workspace to “Acme Platform”', 'Added the team “Insights”', 'Renamed the team “Insights” to “Insights Platform”'].every((x) => s.changes.some((ch) => ch.summary === x && ch.actorId === 'amara')) && s.changes.some((ch) => /^Removed the team “Security Engineering”, moving/.test(ch.summary)), `[WORKSPACE-ADMIN] ${w}: the changes are not all logged`);
-        const visible = await p.locator('.team-opt').allInnerTexts();
+        const visible = await p.locator('.team-row').allInnerTexts();
         fail(visible.some((x) => /Insights Platform/.test(x)) && !visible.some((x) => /^Security/.test(x)), `[WORKSPACE-ADMIN] ${w}: the team list shows ${visible.map((x) => x.split('\n')[0]).join(', ')}`);
-        const m = await p.evaluate(() => ({ side: document.documentElement.scrollWidth - innerWidth, small: [...document.querySelectorAll('.team-opt .btn, .ws-title-row .btn')].filter((b) => b.getBoundingClientRect().height < 40).length }));
+        const m = await p.evaluate(() => ({ side: document.documentElement.scrollWidth - innerWidth, small: [...document.querySelectorAll('.people-head .btn, .ws-title-row .btn')].filter((b) => b.getBoundingClientRect().height < 40).length }));
         fail(m.side <= 1 && (!touch || !m.small), `[WORKSPACE-ADMIN] ${w}: scrolls sideways ${m.side}px; ${m.small} team buttons under 40px`);
         await c.close();
       }
-      const [c, p] = await open(1280, 800, 'rhea', '/workspace/teams');
-      await p.locator('.team-opt').first().waitFor();
-      fail(!(await p.getByRole('button', { name: /^Rename|Add a team|^Remove/ }).count()) && await p.locator('.team-opt').count() >= 6, '[WORKSPACE-ADMIN] someone who isn’t an admin is offered rename, add or remove, or can’t see the teams');
+      const [c, p] = await open(1280, 800, 'rhea', '/teams');
+      await p.locator('.team-row').first().waitFor();
+      fail(!(await p.getByRole('button', { name: /^Rename|Add a team|^Remove|^Change/ }).count()) && await p.locator('.team-row').count() >= 6, '[WORKSPACE-ADMIN] someone who isn’t an admin is offered rename, add or remove, or can’t see the teams');
       // Tokens are admins' business on Workspace (Access); everyone's own are in Settings, in the sidebar.
       fail(await p.getByRole('link', { name: 'Settings' }).first().isVisible() && await p.getByRole('link', { name: /^Access/ }).count() === 0, '[SETTINGS] a non-admin is not pointed to Settings, or is offered Workspace’s Access');
       await c.close();

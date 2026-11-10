@@ -55,7 +55,7 @@ export interface Access {
   code: string[];
 }
 
-const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges';
+const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', MX = 'src/domain/metrics.ts#';
 
 export const ACCESS: Access[] = [
   { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C] },
@@ -76,6 +76,7 @@ export const ACCESS: Access[] = [
   { area: 'Reviews', what: 'Set up a review', who: 'Anyone', code: [`${A}saveReview`] },
   { area: 'Reviews', what: 'Change a review', who: 'Someone in it, whoever set it up, or an admin', code: [`${A}saveReview`] },
   { area: 'Reviews', what: 'Say something about a goal in a review (seen, a note, a question, an action)', who: 'Anyone; a question or action on your own goal is a note instead', code: [`${A}reviewCall`] },
+  { area: 'Reviews', what: 'Mark goals reviewed in a session; accept the risk on a goal behind, with a reason', who: 'Anyone in the review', code: [`${A}markReviewed`, `${A}acceptRisk`] },
   { area: 'Reviews', what: 'Correct what was said in a review, or an ask’s words', who: 'Whoever said or asked it, or an admin', code: [`${A}editCall`] },
   { area: 'Reviews', what: 'Undo marking goals reviewed in a session', who: 'Whoever marked them, or an admin', code: [`${R}unmarkReviewed`] },
   { area: 'Reviews', what: 'Remove a note said in a review', who: 'Whoever said it, or an admin', code: [`${R}deleteNote`] },
@@ -93,6 +94,9 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Make an MCP token for someone', who: 'Admins', code: [`${A}createToken`] },
   { area: 'People, teams and the workspace', what: 'Revoke an MCP token', who: 'An admin, or the token’s person', code: [`${A}revokeToken`] },
   { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone', code: [`${A}sendFeedback`] },
+  { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`] },
+  { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, `${MX}removeMetric`, `${MX}canEditMetric`] },
+  { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: [`${MX}linkGoalMetric`, `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
 ];
 
 /* ---------- the people the examples use ---------- */
@@ -281,7 +285,8 @@ export const INTERNAL: InternalRequirement[] = [
       'There are no summary rows; lists, counts and Home are worked out in the browser from every goal and check-in.',
       'The demo workspace has 126 goals; nothing tests a workspace of 15,000 people yet (backlog 0a adds an eval with one for the pickers).',
       'Backups are Supabase’s own; no restore has been rehearsed. Migrations are safe to run twice and CI applies them on merge (`scripts/migrate.mjs`), but they aren’t rehearsed on a copy first. Faro never holds real data, so these are left to the internal app (backlog 0c).',
-      'The MCP server reads and writes with the service role key when it is set (docs/mcp.md), and no longer needs it for anything: markup pictures are in a public-read bucket since the open inbox (migration 0031). Backlog 0c can drop it.',
+      'The MCP server reads and writes with the app’s public key only, never the service role key (backlog 0c): markup pictures are in a public-read bucket since the open inbox (migration 0031).',
+      'Faro shares a Supabase project with another app (family-hq). Its tables and functions live in their own schema, `faro`, owned by a Faro-only role that can’t read or write anything else; CI’s migrations run as that role and check the fence first (migration 0035, `scripts/check-fence.mjs`). The internal app gets a database of its own.',
     ],
     examples: [
       { given: 'Maya owns 3 goals in a cycle of 30,000. She opens Home.', then: 'The server returns her 3 goals’ summary rows, her open asks and her reviews; no other goal’s check-ins are read.' },

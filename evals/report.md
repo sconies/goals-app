@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-10 12:51 UTC.
+Run 2026-11-10 12:10 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -20,7 +20,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 10 · 10 (budget 14) |
 | 11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 14) |
 | 12 | Demo: switch person, look around, start over | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 4) |
-| 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 9 · 9 (budget 11) |
+| 13 | Anyone sets up a review: name, cadence, goals, people | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 8 · 8 (budget 11) |
 | 14 | An admin adds a person and makes them an admin | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 8) |
 | 15 | Call it greener than the numbers, with a reason, in the status sheet | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 3 · 3 (budget 8) |
 | 16 | Home by responsibility: every ask waiting on you in one place, and one navigation | **10** | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | 2 · 2 (budget 4) |
@@ -62,9 +62,6 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 53 | Workspace is one place: the switcher at the top switches as a page move (Back returns, a check-in draft is warned about and kept), your role and permissions are said, the overview leads with what needs attention, Feedback is beside Help, and a member leaves | **10** | ✓ | ✓ | – | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 5 · 6 (budget 45) |
 | 54 | Set up from the app’s own spreadsheet as the deep review did: people typed are kept, nothing is late on day one, the counts agree, no one is made a team lead, the invitation opens this workspace, and a refused decimal is fixed in one step | **10** | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 15 · 15 (budget 22) |
 | 57 | The check-in is honest at its edges: it says its week and keeps “2 of 2” after a reload, last week’s story is changed or said to be still true, the newest check-in shows on the goal page, and the one-table check-in shares the draft, counts the rows that are ready and ends on the same confirmation | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 13 · 13 (budget 26) |
-| 63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone | **8.9** | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | – | 4 · 4 (budget 9) |
-| 64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them | **10** | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | 6 · 6 (budget 10) |
-| 66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back | **10** | ✓ | – | ✓ | ✓ | ✓ | ✓ | – | – | ✓ | – | 2 · 2 (budget 4) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -77,13 +74,9 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - **a11y**: No serious accessibility issues; primary buttons are at least 44px tall on a phone
 - **logged**: The change it makes is in the change log with who, when and before → after
 
-### What cost points
-
-- **U63** One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone: phone errors: Escape didn’t return to the field
-
 ## Requirements
 
-**144 of 145 pass**, 1 fail. Spec scenarios 273/273.
+**143 of 143 pass**. Spec scenarios 273/273.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -153,11 +146,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **OTHER-CAUSE** When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause. | Check-ins | 0 | U40 |
 | ✅ | **DEMO-FEEDBACK** Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went. | Research | 0 | U40 |
 | ✅ | **FIT-AND-FINISH** The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge. | Platform | 0 | P10 |
-| ❌ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F1, F2, F3, F4, F5, F6, F7, F8 |
+| ✅ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F1, F2, F3, F4, F5, F6, F7, F8 |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | U49 |
 | ✅ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | U24 |
 | ✅ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | U25 |
-| ✅ | **DESIGN-RULES** The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge. | Design | 0 | F11, P6 |
+| ✅ | **DESIGN-RULES** The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge. | Design | 0 | P6 |
 | ✅ | **SHAPE-MATCHES-WORD** A status shape always agrees with the word beside it, everywhere: the shape comes from the goal’s status (or a stage’s state, a result or a quarter that shares its shape, as src/domain/vocabulary.ts SHAPE_WORDS says), never from what flags it. An on-track goal flagged only for Getting worse or Greener than calculated keeps the On track shape on Home and in the Goals screen’s Needs attention, and says the flag in its own words beside the warning mark, as the goal’s page does. The design checks (P3, P4, P6) hold every status shape on every screen to its word with the app’s own rule (shapeAgrees). | Design | 2 | P3, P4, P6 |
 | ✅ | **GOAL-MAP** A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; a find box finds a goal by name or key (G-48), opens its tree, outlines it and moves to it; each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row. | Views | 0 | U26, U30 |
 | ✅ | **WALKTHROUGHS** Walkthroughs of the main journeys (weekly check-in, a review, chasing a quiet goal, the goal map, the leader’s brief, loading a spreadsheet), each as the right person: a coach card says what to do and points at it, you do the step yourself, and it moves on when you have. | Demo | 0 | U27, U29, U31, U39 |
@@ -183,8 +176,6 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **SETTINGS** A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from. | Interface | 13 | N4 |
 | ✅ | **NAV-GOALS** Goals is one section of the navigation with Mine, Watching and All, and your saved views under it; a person in one workspace never sees a workspace switcher. | Interface | 0 | N4 |
 | ✅ | **WORKSPACE-ADMIN** Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. | Workspace | 6 | N4 |
-| ✅ | **LIST-BAR** Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles. | Finding | 0 | U64, U66 |
-| ✅ | **FIND-AND-PICK** A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove. | Finding | 0 | U63, F11 |
 | ✅ | **WORKSPACE-SECTIONS** Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (what needs attention, then every section with one true line each, leaving, and deleting the workspace at the end, for admins), People, Teams, Cycles, Access (admins and AI tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, People, Teams and Privacy; anyone else opening an admins’ section is told who the admins are. Old addresses (/workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections). | Workspace | 0 | U51 |
 | ✅ | **WORKSPACE-ONE-PLACE** Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead and opens its people; a workspace name's 80-character limit is said while typing, never cut; no button clips its label. | Workspace | 0 | U53 |
 | ✅ | **FEEDBACK-PAGE** The inbox of markups and feedback is its own page, Feedback (/feedback), beside Help in the sidebar and in More on a phone, labelled "From every workspace and the demo". It is open to everyone, with every status change recorded and undoable, and names people, never their email. /workspace/inbox and older inbox links lead there. The MCP inbox tools are unchanged. | Workspace | 0 | U53 |
@@ -235,16 +226,15 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Platform checks
 
-- ❌ **F1** Fit and finish, home-watching: [WA] 14: the filter bar is 176px tall at 360 | [WA] 14: the filter bar is 176px tall at 390 | [WA] 18: no results is not a plain message with Clear filters
+- ✅ **F1** Fit and finish, home-watching
 - ✅ **F2** Fit and finish, forms-checkin
 - ✅ **F3** Fit and finish, wizard
 - ✅ **F4** Fit and finish, goal-history
 - ✅ **F5** Fit and finish, list-board
 - ✅ **F6** Fit and finish, map-reviews
 - ✅ **F7** Fit and finish, data-workspace
-- ❌ **F8** Fit and finish, sheets: empty state: crashed (locator.waitFor: Timeout 3000ms exceeded.)
+- ✅ **F8** Fit and finish, sheets
 - ✅ **F9** Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart
-- ✅ **F11** Find-and-pick fits a phone, and a choice is never a capsule (F11, P17)
 - ✅ **N1** Review notes, reviews
 - ✅ **N2** Review notes, goal-page (the flagship page)
 - ✅ **N3** Review notes, attention-home

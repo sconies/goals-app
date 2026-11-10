@@ -175,13 +175,13 @@ module.exports = {
     const lines = await r.evaluate(() => ({ names: [...document.querySelectorAll('.ws-pick .ws-pick-name')].map((m) => m.innerText.trim()), letters: document.querySelectorAll('.ws-pick .wsmark').length }));
     await r.keyboard.press('Escape');
     if (lines.letters || lines.names.length < 2 || new Set(lines.names).size < lines.names.length) fails.push(`[W21] workspace lines: ${JSON.stringify(lines)}`);
-    // People is its own section (backlog W): its heading is the page's, and Add a person is its one main action.
-    await r.goto(url('/workspace/people')); await r.locator('.person-opt').first().waitFor(); await r.waitForTimeout(300);
+    // People is a place of its own (app redesign WR1): its heading is the page's, and Add a person is its one main action.
+    await r.goto(url('/people')); await r.locator('.people-row').first().waitFor(); await r.waitForTimeout(300);
     const ws = await r.evaluate(() => {
-      const opt = document.querySelector('.person-opt'), cs = getComputedStyle(opt);
+      const opt = document.querySelector('.people-row'), cs = getComputedStyle(opt);
       const av = opt.querySelector('.avatar').getBoundingClientRect(), name = opt.querySelector('.person-name').getBoundingClientRect();
       const hint = opt.querySelector('.hint');
-      const h1 = document.querySelector('.page-head h1'), add = [...document.querySelectorAll('.ws-section-head .btn.primary')];
+      const h1 = document.querySelector('.page-head h1'), add = [...document.querySelectorAll('.people-head .btn.primary')];
       return { cols: cs.gridTemplateColumns, align: cs.alignItems, avTop: av.top, nameTop: name.top, nameLeft: name.left, avRight: av.right, hint: hint ? [getComputedStyle(hint).fontWeight, getComputedStyle(hint).color].join(' ') : '', nameW: getComputedStyle(opt.querySelector('.person-name')).fontWeight, title: h1?.innerText.trim(), add: add.map((b) => [b.innerText.trim(), Math.round(b.getBoundingClientRect().bottom)]) };
     });
     if (!/^24px /.test(ws.cols) || ws.align !== 'start' || !near(ws.nameLeft - ws.avRight, 12)) fails.push(`[W1] a person row: ${ws.cols}, align ${ws.align}, name ${Math.round(ws.nameLeft - ws.avRight)}px from the avatar`);

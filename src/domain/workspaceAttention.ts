@@ -39,13 +39,13 @@ export function workspaceNeeds(s: Pick<Snapshot, 'people' | 'teams' | 'goals' | 
   }
   if (!s.goals.length) out.push({ id: 'no-goals', says: `No goals in ${cycle.name} yet. Each owner adds theirs from New goal.`, to: '/goals/new', admins: false });
   if (admin) {
-    if (s.people.length < 3) out.push({ id: 'few-people', says: `Only ${n(s.people.length, 'person', 'people')} here. Goal owners need to be here to check in.`, to: '/workspace/people', admins: true });
+    if (s.people.length < 3) out.push({ id: 'few-people', says: `Only ${n(s.people.length, 'person', 'people')} here. Goal owners need to be here to check in.`, to: '/people', admins: true });
     const noEmail = s.people.filter((p) => !p.email).length;
-    if (noEmail) out.push({ id: 'no-email', says: `${n(noEmail, 'person has', 'people have')} no email yet, which is how two people with one name are told apart.`, to: '/workspace/people', admins: true });
+    if (noEmail) out.push({ id: 'no-email', says: `${n(noEmail, 'person has', 'people have')} no email yet, which is how two people with one name are told apart.`, to: '/people?emails=1', admins: true });
     const noTeam = s.people.filter((p) => !p.teamId || !s.teams.some((t) => t.id === p.teamId)).length;
-    if (noTeam) out.push({ id: 'no-team', says: `${n(noTeam, 'person is', 'people are')} in no team.`, to: '/workspace/people?team=-', admins: true });
+    if (noTeam) out.push({ id: 'no-team', says: `${n(noTeam, 'person is', 'people are')} in no team.`, to: '/people?team=-', admins: true });
     const noLead = s.teams.filter((t) => !t.leadId || !s.people.some((p) => p.id === t.leadId)).length;
-    if (noLead) out.push({ id: 'no-lead', says: `${n(noLead, 'team has', 'teams have')} no lead.`, to: '/workspace/teams', admins: true });
+    if (noLead) out.push({ id: 'no-lead', says: `${n(noLead, 'team has', 'teams have')} no lead.`, to: '/teams', admins: true });
     if (!s.reviews.some((r) => !r.removedAt && !r.endedAt)) out.push({ id: 'no-review', says: 'No review is set up. A weekly review is where the goals that need attention are talked about.', to: '/reviews/new', admins: true });
   }
   if (feedbackNew) out.push({ id: 'feedback', says: `${n(feedbackNew, 'new markup or piece of feedback was', 'new markups and pieces of feedback were')} sent from this workspace.`, to: '/feedback', admins: false });

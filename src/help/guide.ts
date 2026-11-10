@@ -22,7 +22,7 @@ export const GROUPS: { id: GroupId; title: string }[] = [
   { id: 'goals', title: 'Goals' },
   { id: 'leading', title: 'Reviews and the year' },
   { id: 'data', title: 'Data in and out' },
-  { id: 'you', title: 'Workspace, settings and assistants' },
+  { id: 'you', title: 'People, workspace and settings' },
 ];
 
 export interface GuideSection {
@@ -734,7 +734,7 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace',
     title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins.',
+    summary: 'Workspace is in sections, each with its own page: Overview, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. People and Teams have a place of their own, People.',
     group: 'you',
     sections: [
       { heading: 'Switching, and setting one up', list: [
@@ -749,7 +749,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Finding your way', list: [
         'On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.',
-        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/teams and so on.',
+        'Each section has its own address, so you can bookmark one or send a link to it: /workspace/cycles, /workspace/privacy and so on.',
         'Older links to Workspace (from a GitHub issue, say) still open the section they meant.',
       ] },
       { heading: 'Overview', list: [
@@ -759,59 +759,70 @@ const CORE_ARTICLES: Article[] = [
         'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
       { heading: 'The sections', list: [
-        'People: the directory. See Workspace: People.',
-        'Teams: find a team, with its lead and counts. See Workspace: Teams.',
+        'People and Teams moved out of Workspace to People, in the sidebar, for everyone. See People: finding someone, and Teams.',
         'Cycles: the goal years, for everyone to read; only admins delete one. Privacy: what the app records, for everyone to read; only admins switch it. Recently removed: an admin sees everything removed lately, anyone else what they removed. Access (the admins and MCP access) and Features: for admins. Each has its own article.',
       ] },
       { heading: 'Leaving', list: ['Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
-      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
+      { heading: 'Who can', list: ['Everyone sees Overview, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
       { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
     ],
     routes: ['/workspace', '/workspace/overview'],
     screens: ['Workspace'],
     reqs: ['ADMIN', 'WORKSPACE-ADMIN', 'WORKSPACES', 'WORKSPACE-SECTIONS', 'WORKSPACE-ONE-PLACE', 'LEAVE-WORKSPACE'],
     keywords: ['admin', 'workspace', 'sections', 'overview', 'rename', 'delete workspace', 'switch workspace', 'new workspace', 'reset the example', 'menu', 'settings'],
-    related: ['workspace-people', 'workspace-teams', 'inbox', 'workspace-access', 'set-up', 'settings'],
+    related: ['people', 'teams', 'inbox', 'workspace-access', 'set-up', 'settings'],
   },
   {
-    id: 'workspace-people',
-    title: 'Workspace: People',
-    summary: 'The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left.',
+    id: 'people',
+    title: 'People: finding someone',
+    summary: 'Everyone in the workspace, A to Z: find someone by name, job title or team, open them to see their team, their goals and their reviews. Admins add and change people.',
     group: 'you',
     sections: [
+      { heading: 'What it’s for', text: ['People is in the sidebar (on a phone, under More), for everyone. It answers who someone is, what team they are in, and how their goals stand.'] },
       { heading: 'How to use it', list: [
-        'Find a person by name, job title or team, or pick a team. Each shows their job title, team and whether they are an admin. A long list shows 60 at a time, with Show more.',
-        'Admins: Add a person is the main action. Open someone to change their name, email, job title, team, or whether they are an admin. There is always at least one admin. Everyone new needs an email, and no two people share one.',
-        'People without an email: people added before emails were needed are listed for admins, with a box for each. Type the emails you know and save them together.',
-        'Two people can have the same name: the email is who someone is. Adding one says so, and wherever both could be on screen (pickers, this list) each shows their team, or job title, beside the name. Their avatars differ in colour.',
-        'Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead.',
+        'Type in the search to find someone: each word you type starts a word of their name, job title or team, so “eng man” finds the Engineering Managers. Capitals and accents don’t matter: “lucia” finds Lucía.',
+        'Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.',
+        'The list is A to Z, 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.',
+        'Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.',
+        'Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them.',
       ] },
-      { heading: 'Who can', text: ['Everyone sees the directory. Only admins add or change people.'] },
+      { heading: 'For admins', list: [
+        'Add a person is the page’s main action; the new person’s page opens once they are added. Everyone new needs an email, and no two people share one.',
+        'When some people have no email yet, a line above the list says how many, with Add them: type the emails you know and save them together.',
+        'On a person’s page, under For admins: Change details (name, email, job title, team, and whether they are an admin; there is always at least one admin), and, apart, Mark as left. Marking someone as left asks who takes over their goals and open asks first; history keeps their name as “Name (left)”. Someone with no history is deleted instead.',
+        'Two people can have the same name: the email is who someone is, and wherever both could be on screen each shows their team or job title beside the name.',
+      ] },
+      { heading: 'Who can', text: ['Everyone sees People, Teams and every person’s and team’s page. Only admins see the buttons that change them.'] },
+      { heading: 'Moved', text: ['People used to be a section of Workspace. Its old address, /workspace/people, still opens it.'] },
     ],
-    routes: ['/workspace/people'],
-    screens: [],
-    reqs: ['PROFILES', 'PERSON-LEFT', 'PERSON-EMAIL', 'SAME-NAMES'],
-    keywords: ['people', 'directory', 'add person', 'email', 'missing email', 'admin', 'left', 'leaver', 'job title', 'find a person'],
-    related: ['workspace', 'removing', 'workspace-access'],
+    routes: ['/people', '/people/:personId', '/workspace/people'],
+    screens: ['People'],
+    reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES', 'PROFILES', 'PERSON-LEFT', 'PERSON-EMAIL', 'SAME-NAMES'],
+    keywords: ['people', 'directory', 'person', 'find a person', 'add person', 'email', 'missing email', 'admin', 'left', 'leaver', 'job title', 'who is'],
+    related: ['teams', 'workspace', 'removing', 'workspace-access'],
   },
   {
-    id: 'workspace-teams',
-    title: 'Workspace: Teams',
-    summary: 'The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them.',
+    id: 'teams',
+    title: 'Teams',
+    summary: 'The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each team shows its lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.',
-        'Open a team to see its people in the directory, its lead among them.',
-        'Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
+        'Teams is the second tab of People. Find a team by its name or its lead’s.',
+        'Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.',
+        'Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People.',
+      ] },
+      { heading: 'For admins', list: [
+        'Add a team is the main action. On a team’s page, Change its name, lead or purpose; and, apart, Remove this team. An empty team goes at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so.',
       ] },
       { heading: 'Who can', text: ['Everyone sees the teams. Only admins change them.'] },
+      { heading: 'Moved', text: ['Teams used to be a section of Workspace. Its old address, /workspace/teams, still opens it, and an old link to one team’s people opens that team.'] },
     ],
-    routes: ['/workspace/teams'],
+    routes: ['/teams', '/teams/:teamId', '/workspace/teams'],
     screens: [],
-    reqs: ['WORKSPACE-ADMIN'],
-    keywords: ['teams', 'team lead', 'add team', 'rename team', 'remove team', 'move goals'],
-    related: ['workspace', 'workspace-people'],
+    reqs: ['PEOPLE-DIRECTORY', 'WORKSPACE-ADMIN'],
+    keywords: ['teams', 'team', 'team lead', 'add team', 'rename team', 'remove team', 'move goals', 'purpose', 'objective'],
+    related: ['people', 'workspace', 'goals'],
   },
   {
     id: 'workspace-cycles',
@@ -850,7 +861,7 @@ const CORE_ARTICLES: Article[] = [
     screens: [],
     reqs: ['ADMIN', 'MCP-TOKENS'],
     keywords: ['access', 'admins', 'who is an admin', 'revoke', 'assistant access'],
-    related: ['workspace', 'ai-assistants', 'workspace-people'],
+    related: ['workspace', 'ai-assistants', 'people'],
   },
   {
     id: 'settings',
@@ -1103,7 +1114,9 @@ export const ARTICLES: Article[] = (() => {
 })();
 
 const BY_ID = new Map(ARTICLES.map((a) => [a.id, a]));
-export const articleById = (id: string): Article | undefined => BY_ID.get(id);
+/** Articles that were renamed: their old ids, from old links and earlier What's new entries, open the new one. */
+export const MOVED_ARTICLES: Record<string, string> = { 'workspace-people': 'people', 'workspace-teams': 'teams' };
+export const articleById = (id: string): Article | undefined => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? '');
 
 /** All the words of an article, for search. */
 function textOf(a: Article): string {

@@ -2,7 +2,7 @@
    open to anyone on purpose (backlog O, migration 0031; the internal app keeps its own restricted, spec R1 rule 6).
    - openMarkups: the inbox, on the app's public key, which reads every markup and changes its triage columns.
    - tokenMarkups: the MCP server, with any live token, through the database's functions for it
-     (okr_markups_for_token and the others), on whatever key the server has.
+     (okr_markups_for_token and the others), on the public key.
    Pictures are in the public-read bucket "markups": each is opened by its address, which anyone can make from the
    markup's id; nobody can list the bucket. So neither needs the service role key to show or read one. */
 import type { SupabaseClient } from '@supabase/supabase-js';

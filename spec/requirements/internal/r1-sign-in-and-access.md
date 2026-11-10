@@ -58,6 +58,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Set up a review | Anyone | [`saveReview`](../../../src/domain/actions.ts) |
 | Change a review | Someone in it, whoever set it up, or an admin | [`saveReview`](../../../src/domain/actions.ts) |
 | Say something about a goal in a review (seen, a note, a question, an action) | Anyone; a question or action on your own goal is a note instead | [`reviewCall`](../../../src/domain/actions.ts) |
+| Mark goals reviewed in a session; accept the risk on a goal behind, with a reason | Anyone in the review | [`markReviewed`](../../../src/domain/actions.ts), [`acceptRisk`](../../../src/domain/actions.ts) |
 | Correct what was said in a review, or an ask’s words | Whoever said or asked it, or an admin | [`editCall`](../../../src/domain/actions.ts) |
 | Undo marking goals reviewed in a session | Whoever marked them, or an admin | [`unmarkReviewed`](../../../src/domain/removal.ts) |
 | Remove a note said in a review | Whoever said it, or an admin | [`deleteNote`](../../../src/domain/removal.ts) |
@@ -85,6 +86,14 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
 | Revoke an MCP token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
 | Send feedback about the app | Anyone | [`sendFeedback`](../../../src/domain/actions.ts) |
+
+### Metrics
+
+| What | Who may | Enforced today by |
+|---|---|---|
+| Add a metric to the library | Anyone; they own it unless they name another owner | [`saveMetric`](../../../src/domain/metrics.ts) |
+| Change or remove a metric | Its owner, or an admin | [`saveMetric`](../../../src/domain/metrics.ts), [`removeMetric`](../../../src/domain/metrics.ts), [`canEditMetric`](../../../src/domain/metrics.ts) |
+| Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/domain/metrics.ts), [`unlinkGoalMetric`](../../../src/domain/metrics.ts), [`canLinkGoal`](../../../src/domain/metrics.ts) |
 
 ## What Faro does today
 

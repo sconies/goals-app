@@ -3,6 +3,7 @@
    tables that aren't there yet, a refusal or a dead network all mean it quietly stops, without retrying in a loop and
    without a word in the console. Nothing is sent until the workspace's recording switch is known, and nothing at all
    while it is off. */
+import { FARO_SCHEMA, faroFetch } from '../adapters/supabase/schema';
 import type { LogRow, MetricRow, SpanRow } from './model';
 
 export type Table = 'spans' | 'logs' | 'metrics';
@@ -10,7 +11,7 @@ type Row<T extends Table> = T extends 'spans' ? SpanRow : T extends 'logs' ? Log
 
 export const TABLES: Record<Table, string> = { spans: 'okr_telemetry_spans', logs: 'okr_telemetry_logs', metrics: 'okr_telemetry_metrics' };
 
-/** Where batches go: Supabase's REST endpoint for the app's public key. */
+/** Where batches go: Supabase's REST endpoint for the app's public key, in Faro's own schema (backlog 0c). */
 export interface Target { url: string; key: string }
 
 export function supabaseTarget(url: string | undefined, key: string | undefined): Target | null {
@@ -109,14 +110,14 @@ export class Exporter {
       the rest of the visit; a network or server fault waits a while, three times, then stops. */
   private async send(table: Table, body: string, keepalive: boolean): Promise<boolean> {
     const t = this.target!;
-    const headers: Record<string, string> = { apikey: t.key, 'Content-Type': 'application/json', Prefer: 'return=minimal' };
+    const headers: Record<string, string> = { apikey: t.key, 'Content-Type': 'application/json', 'Content-Profile': FARO_SCHEMA, Prefer: 'return=minimal' };
     // A legacy anon key is a JWT and goes in Authorization too; a publishable key goes in apikey only.
     if (t.key.startsWith('eyJ')) headers.Authorization = `Bearer ${t.key}`;
     // A request that hangs (a database that never answers) gives up rather than holding every later batch.
     const ctl = typeof AbortController === 'function' && !keepalive ? new AbortController() : null;
     const timer = ctl ? setTimeout(() => ctl.abort(), 15_000) : null;
     try {
-      const res = await (this.opts.fetch ?? fetch)(`${t.url}/rest/v1/${TABLES[table]}`, { method: 'POST', headers, body, keepalive, credentials: 'omit', ...(ctl ? { signal: ctl.signal } : {}) });
+      const res = await faroFetch(this.opts.fetch)(`${t.url}/rest/v1/${TABLES[table]}`, { method: 'POST', headers, body, keepalive, credentials: 'omit', ...(ctl ? { signal: ctl.signal } : {}) });
       this.sent++;
       if (res.ok) { this.failures = 0; return true; }
       if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) { this.dead = true; this.clear(); return false; }
