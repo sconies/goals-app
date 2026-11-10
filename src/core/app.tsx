@@ -9,6 +9,8 @@ import { useApp } from '../app/state';
 import type { Cell } from '../domain/export';
 import type { Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
 import type { WorkspaceNeed } from '../domain/workspaceAttention';
+import type { NavGroup } from '../domain/navigation';
+import type { Finder } from '../adapters/localSearch';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
 
@@ -46,16 +48,51 @@ export interface ModuleRoute {
   element: ReactNode;
   /** A focused task: the page takes the screen without the sidebar's distractions, as check-in does (ui/Shell). */
   focus?: boolean;
-  /** The page's name in the phone's top bar. */
+  /** The page's name in the phone's top bar, when it is always the same. */
   title?: string;
+  /** The page's name from its thing (a metric's own name), for the top bar, the browser's title and "Opened lately". */
+  name?: (params: Record<string, string | undefined>, reads: PageReads) => string | null;
 }
+
+/** What a page's name may read: names by id. */
+export interface PageReads { goal(id: string): Goal | undefined; person(id: string): Person | undefined; team(id: string): Team | undefined }
 
 export interface ModuleNav {
   id: string;
   to: string;
   label: string;
   icon: ReactNode;
+  /** Where it sits in the menu: your work (after Reviews) or things to look up (after Data, the default). */
+  group?: NavGroup;
 }
+
+/** A kind of thing a module makes findable: in find-and-pick and Find, through the Search port (src/ports/search.ts). */
+export interface ModuleFinder {
+  kind: string;
+  /** Its nouns: "metric", "metrics". */
+  things: { thing: string; things: string };
+  search: Finder;
+  /** Where a row opens. */
+  open(id: string): string;
+}
+
+/**
+ * A filter a module adds to a core list, declared as data so a server can apply it (docs/design/architecture.md, 4.2):
+ * a column the module adds to the list's summary rows, compared with what is picked.
+ */
+export interface ModuleFilter {
+  list: 'goals';
+  id: string;
+  label: string;
+  /** Its parameter in the list's address (?metric=). */
+  param: string;
+  /** The summary row's column it compares. */
+  column: string;
+  /** The kind of thing it is chosen with (find-and-pick). */
+  pick: string;
+}
+
+
 
 /**
  * A section of Workspace (backlog W): its own address, /workspace/<id>, an entry in Workspace's menu (a side menu on a
@@ -90,6 +127,13 @@ export interface AppModule {
   places?: { [K in PlaceName]?: ComponentType<PlaceProps[K]> };
   /** Workspace sections (module.json `sections`, by id). */
   sections?: WorkspaceSection[];
+  /** Kinds it makes findable (module.json `finders`, by kind). */
+  finders?: ModuleFinder[];
+  /** Filters it adds to core lists (module.json `filters`, by id). */
+  filters?: ModuleFilter[];
+  /** What it raises on About's "To sort out" without a Workspace section of its own (module.json `toSortOut`, AR2):
+      the same shape a section's `needs` gives. */
+  toSortOut?: (snapshot: Snapshot, viewer: Person) => WorkspaceNeed[];
 }
 
 /** The modules on in the open workspace: their facts and screens, and why the others are off. */

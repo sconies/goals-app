@@ -66,6 +66,9 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U60 | An admin makes someone an admin on Access and takes it back: Add an admin, find Rhea, her row and her page say so, Undo; Remove as admin on Grace asks first; the only admin has no button; each change is logged |  | `ADMIN` `WORKSPACE-ADMIN` `CHANGE-LOG` | 10 | `evals/journeys.cjs` |
 | U61 | Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone |  | `WORKSPACE-ABOUT` `ONBOARDING` | 6 | `evals/journeys.cjs` |
 | U62 | Settings is about you: Your page opens your person page; no Make button for tokens; one recording line that leads to Privacy; Leave at the foot asks who takes over; the only admin is told why not; Workspace has no Leave |  | `LEAVE-WORKSPACE` `SETTINGS` | 6 | `evals/journeys.cjs` |
+| U63 | One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone |  | `FIND-AND-PICK` | 9 | `evals/journeys.cjs` |
+| U64 | One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them |  | `LIST-BAR` | 10 | `evals/journeys.cjs` |
+| U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
 | U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
 
@@ -98,6 +101,7 @@ Per-area checks from the fit-and-finish reports.
 | F6 | Fit and finish, map-reviews | `FIT-AND-FINISH-AREAS` | `evals/finish/6-map-reviews.cjs` |
 | F9 | Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart | `NO-SILENT-ROUNDING` `SAME-NAMES` `PLAN-CHANGE` | `evals/finish/9-numbers-names.cjs` |
 | F10 | People, Teams and About on a phone: the first person and the first fact near the top, short Teams rows with no buttons, nothing scrolls sideways | `PEOPLE-DIRECTORY` `WORKSPACE-ABOUT` `FIT-AND-FINISH` | `evals/finish/10-people.cjs` |
+| F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 
 ## Review notes

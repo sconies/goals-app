@@ -22,11 +22,15 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 - Each core screen at its route, with its named parts and one main action at a time.
 - Every core journey, within its step budget, on a phone (390px) and a desktop (1440px).
 - A goal’s page in one order at every width: the summary and its buttons, Next steps and asks, Why, the chart, then the rest. Its main button is a rule of who is looking ([acting on a goal](../core/rules/goal-act.md)), not a layout choice; Next steps and asks is one query over the goal’s asks and next steps; someone acting for the owner (R6b) presses the owner’s buttons for them.
+- One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.
+- One list bar on every list (requirement `LIST-BAR`): the search, then the count line, the filter line and what found nothing in [finding things](../core/rules/finding.md)’ words; the list’s search and filters in the address, a choice adding a history entry. The server pages the list (R4).
+- The menu, the lit item and a page’s name as three rules of the viewer and the address ([navigation](../core/rules/navigation.md)), drawn by the shell: a module adds a menu item in a group, names its pages from their thing, and fills places on a goal’s, a person’s and a team’s page.
 
 ## Exit criteria
 
 1. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.
 2. Each core requirement in [the requirements](../core/requirements.md) holds.
+3. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
 
 ## Gaps in the kit
 

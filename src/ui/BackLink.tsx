@@ -8,6 +8,7 @@ import { useApp } from '../app/state';
 import { Icon } from './Icon';
 import { viewParams } from '../screens/GoalFilters';
 import { articleById } from '../help/guide';
+import { placeName as namePlace } from '../domain/navigation';
 
 const KEY = 'goals-trail';
 type Entry = { key: string; path: string };
@@ -30,31 +31,16 @@ export function useTrail() {
 /** Forms: passed through, never gone back to. */
 const FORM = /^\/(check-in|quick-check-in|import|workspace\/new)(\/|$)|^\/goals\/(new|[^/]+\/edit)$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/;
 
-/** A page's name, said the way the navigation says it. */
+/** A page's name, said the way the navigation says it (src/domain/navigation.ts, placeName). */
 function placeName(path: string, app: ReturnType<typeof useApp>): string {
-  const [p = '/', q = ''] = path.split('?');
-  const sp = new URLSearchParams(q);
-  const review = sp.get('review');
-  if (review && p.startsWith('/goals/')) return app.snapshot.reviews.find((r) => r.id === review)?.name ?? 'the review';
-  if (p === '/') return 'Home';
-  if (p === '/goals') {
-    const vp = viewParams(sp);
-    const view = (app.snapshot.views ?? []).find((v) => !v.deletedAt && !!v.params && v.params === vp && (v.pinned || v.personId === app.viewer.id));
-    if (view) return view.name;
-    return sp.get('show') === 'mine' ? 'your goals' : sp.get('show') === 'watching' ? 'Watching' : 'Goals';
-  }
-  const goal = /^\/goals\/([^/]+)$/.exec(p);
-  if (goal) return app.goal(goal[1]!)?.title ?? 'the goal';
-  const rev = /^\/reviews\/([^/]+)$/.exec(p);
-  if (rev) return app.snapshot.reviews.find((r) => r.id === rev[1])?.name ?? 'the review';
-  const who = /^\/people\/([^/]+)$/.exec(p);
-  if (who) return app.person(decodeURIComponent(who[1]!))?.name ?? 'People';
-  const team = /^\/teams\/([^/]+)$/.exec(p);
-  if (team) return app.team(decodeURIComponent(team[1]!))?.name ?? 'Teams';
-  const names: Record<string, string> = { '/people': 'People', '/teams': 'Teams', '/feedback': 'Feedback', '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
-  const help = /^\/help\/([^/]+)$/.exec(p);
-  if (help) return articleById(help[1]!)?.title ?? 'Help';
-  return names[p] ?? 'the last page';
+  return namePlace(path, {
+    goal: (id) => app.goal(id)?.title ?? null,
+    review: (id) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? null,
+    view: (sp) => { const vp = viewParams(sp); return (app.snapshot.views ?? []).find((v) => !v.deletedAt && !!v.params && v.params === vp && (v.pinned || v.personId === app.viewer.id))?.name ?? null; },
+    article: (id) => articleById(id)?.title ?? null,
+    person: (id) => app.person(id)?.name ?? null,
+    team: (id) => app.team(id)?.name ?? null,
+  });
 }
 
 /**

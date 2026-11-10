@@ -6,6 +6,7 @@ import { useApp } from '../app/state';
 import { describe, type ChangeSet } from '../domain/changeset';
 import { LEVEL_LABEL } from '../domain/format';
 import type { Goal, Level } from '../domain/types';
+import { PickOne } from '../ui/Pick';
 import { Sheet } from '../ui/bits';
 import { MenuButton } from '../ui/MenuButton';
 
@@ -61,12 +62,16 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
   return (
     <Sheet open onClose={onClose} title={`${kind === 'owner' ? 'Change the owner of' : 'Change the level of'} ${goals.length} ${goals.length === 1 ? 'goal' : 'goals'}`}>
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }}>
-        <label className="field"><span className="field-label">{kind === 'owner' ? 'New owner' : 'Level'}</span>
-          <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
-            <option value="">Choose…</option>
-            {kind === 'owner' ? app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>) : levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
-          </select>
-        </label>
+        {kind === 'owner' ? (
+          <PickOne kind="person" label="New owner" value={value || null} onChange={(id) => { setValue(id ?? ''); setCs(null); }} />
+        ) : (
+          <label className="field"><span className="field-label">Level</span>
+            <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
+              <option value="">Choose…</option>
+              {levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
+            </select>
+          </label>
+        )}
         <span className="hint">{app.viewer.admin ? 'As an admin you can change any goal.' : 'You can change the goals you own. Leave others out of the selection.'} Each change is logged on its goal.</span>
         {errors.length > 0 && (
           <ul className="issue-list" role="alert">{errors.map((x, i) => <li key={i}><span className="label">{x.goal}</span><span>{x.message}</span></li>)}</ul>

@@ -196,3 +196,95 @@ export function search(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, a
   const again = near ? run({ ...ask, q: near }) : [];
   return near && again.length ? { ...page(again, ask), near } : page([], ask);
 }
+
+/* ---------- Rule 6: suggestions before typing ---------- */
+
+/** A thing opened or chosen lately: newest first, at most 12, kept per person and workspace (the Prefs port). */
+export interface Recent { kind: string; id: string }
+export const RECENTS = 12;
+export const SUGGESTED = 6;
+
+/** Puts one first in the recents, without repeats, keeping the newest 12. */
+export const withRecent = (recents: Recent[], r: Recent): Recent[] => [r, ...recents.filter((x) => !(x.kind === r.kind && x.id === r.id))].slice(0, RECENTS);
+
+/**
+ * Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+ * then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+ * worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+ * when the rest would fill the list. Nobody marked as left; nothing it can't find.
+ */
+export function suggest(rows: GoalRows | PersonRows | TeamRows, viewerId: string, recents: Recent[]): FoundRow[] {
+  const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+  // Up to two places are kept for what was chosen lately, so it shows even when your own fill the list.
+  const pick = (ids: (string | null | undefined)[], row: (id: string) => FoundRow | null) => {
+    const out: FoundRow[] = [];
+    const add = (id: string | null | undefined, limit: number) => {
+      if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+      const r = row(id);
+      if (r) out.push(r);
+    };
+    const lately = recent.filter((id) => !ids.includes(id) && row(id));
+    for (const id of ids) add(id, SUGGESTED - Math.min(2, lately.length));
+    for (const id of [...recent, ...ids]) add(id, SUGGESTED);
+    return out;
+  };
+  switch (rows.kind) {
+    case 'person': {
+      const all = searchPeople(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const me = rows.people.find((p) => p.id === viewerId);
+      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : [];
+      return pick([viewerId, ...mates], (id) => by.get(id) ?? null);
+    }
+    case 'team': {
+      const all = searchTeams(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+      return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+    }
+    case 'goal': {
+      const all = searchGoals(rows, { q: '' });
+      const by = new Map(all.map((r) => [r.id, r]));
+      const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+      const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+      return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+    }
+  }
+}
+
+/* ---------- Rules 2 to 4: the count line, the filter line, and history ---------- */
+
+/** A list's nouns: "goal", "goals"; "person", "people". */
+export interface Things { thing: string; things: string }
+
+/**
+ * Rule 2. The line under a list bar. Not narrowed: "{n} {things}, {order}." (and "Showing a to b." when paged); one
+ * thing: "1 goal."; narrowed: "{n} {things} match." / "1 goal matches."; none: "" (the none-found block or the page's
+ * empty state says it).
+ */
+export function countLine(t: Things, n: number, narrowed: boolean, order?: string | null, shown?: { from: number; to: number } | null): string {
+  if (n === 0) return '';
+  if (narrowed) return n === 1 ? `1 ${t.thing} matches.` : `${n} ${t.things} match.`;
+  const head = n === 1 ? `1 ${t.thing}` : `${n} ${t.things}${order ? `, ${order}` : ''}`;
+  return `${head}.${shown && (shown.from > 1 || shown.to < n) ? ` Showing ${shown.from} to ${shown.to}.` : ''}`;
+}
+
+/** An active filter as the filter line says it: its label and its values. */
+export interface FilterPart { key: string; label: string; values: string[] }
+
+/** Rule 3. "Filtered by: " then each part as "{label} {values joined with ' or '}". Empty with no filter on. */
+export const filterText = (p: FilterPart) => `${p.label} ${p.values.join(' or ')}`;
+export const filterLine = (parts: FilterPart[]) => (parts.length ? `Filtered by: ${parts.map(filterText).join(' · ')}` : '');
+
+/** Rule 5's words, and the none-found block's (find spec, 2.1). */
+export function noneFound(t: Things, q: string, filtered: boolean, near?: string | null): string {
+  const words = q.trim();
+  if (words && near) return `No ${t.thing} matches “${words}”. Showing ${t.things} that match “${near}”.`;
+  if (words && filtered) return `No ${t.thing} matches “${words}” with these filters.`;
+  if (words) return `No ${t.thing} matches “${words}”.`;
+  return `No ${t.things} match these filters.`;
+}
+
+/** Rule 4. What a change does to the browser's history: a choice adds an entry; typing replaces until it settles. */
+export type ListChange = 'choice' | 'typing' | 'settled' | 'clear' | 'remembered' | 'dropped';
+export const historyStep = (c: ListChange): 'push' | 'replace' => (c === 'typing' || c === 'remembered' || c === 'dropped' ? 'replace' : 'push');

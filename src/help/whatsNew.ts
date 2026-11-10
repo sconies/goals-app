@@ -44,6 +44,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace-access', 'settings'],
   },
   {
+    id: 'one-list-bar',
+    date: '2026-11-10',
+    title: 'Searching works the same on Goals, Activity and Help',
+    points: [
+      'A search finds the words you can see on a row, each from its start, a goal’s key included: “roll” finds “Rollback”.',
+      'Each list says how many match in the same words, and when nothing does, says so with Clear the search. One letter off, it shows the nearest match and says so.',
+      'On Activity, choosing a person or a goal to filter by is a search, the filters on read as words with Remove, and the address keeps them, so Back and a shared link show the same list.',
+    ],
+    articles: ['finding', 'activity', 'help'],
+  },
+  {
+    id: 'find-and-pick',
+    date: '2026-11-10',
+    title: 'Type to find a person, a team or a goal',
+    points: [
+      'Choosing who takes part in a review, a next step’s owner, the new owner of goals or who can decide or help is now a search, with you and your team suggested first.',
+      'A goal is found by its words or its key (G-48). Arrow keys and Enter choose; Escape closes.',
+      'The long lists of everyone have gone from these places; the rest follow.',
+    ],
+    articles: ['finding', 'reviews'],
+  },
+  {
     id: 'workspace-about',
     date: '2026-11-10',
     title: 'Workspace opens on what matters',

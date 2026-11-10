@@ -88,7 +88,8 @@ describe('One word for each concept', () => {
   });
 
   it(W('Data is called Data, in the nav and in its help; its named column arrangements are saved layouts, not views'), () => {
-    expect(read('src/ui/Shell.tsx')).toMatch(/data: \{ to: '\/data', label: 'Data'/);
+    // The menu's words are the navigation rules' (src/domain/navigation.ts, AR2).
+    expect(read('src/domain/navigation.ts')).toMatch(/data: \{ to: '\/data', label: 'Data'/);
     expect(articleForPath('/data')?.title).toBe('Data');
     const data = ['src/screens/DataTables.tsx', 'src/screens/DataLayout.tsx', 'src/screens/DataFilters.tsx'].map((f) => withoutComments(read(f))).join('\n');
     expect(data).toContain('Saved layouts');

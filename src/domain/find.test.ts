@@ -1,4 +1,4 @@
-import { nearMiss, oneEditApart, page, textMatches, wordsOf, type FoundRow } from './find';
+import { countLine, filterLine, historyStep, nearMiss, noneFound, oneEditApart, page, suggest, textMatches, withRecent, wordsOf, type FoundRow } from './find';
 
 describe('rule 1: does text match (textMatches)', () => {
   const row = 'Rollback in under five minutes G-48 Tunde Bakare Build & Release Team Off track';
@@ -48,5 +48,48 @@ describe('rule 7: a page of the answer', () => {
     expect(page(rows, { q: '', size: 3 })).toMatchObject({ total: 7, next: '3' });
     expect(page(rows, { q: '', size: 3, after: '6' })).toMatchObject({ total: 7, next: null, rows: [{ id: 'g6' }] });
     expect(page(rows, { q: '' }).rows.length).toBe(7);
+  });
+});
+
+describe('rule 6: suggestions before typing (suggest)', () => {
+  const person = (id: string, name: string, teamId: string | null, leftAt: string | null = null) => ({ id, name, role: '', initials: '', teamId, admin: false, leftAt });
+  const rows = { kind: 'person' as const, people: [person('rhea', 'Rhea Kapoor', 'ci'), person('zed', 'Zed Ames', 'ci'), person('ann', 'Ann Bell', 'ci'), person('gone', 'Al Gone', 'ci', '2026-01-01'), person('dan', 'Daniel Okafor', 'dp')], teamName: (id: string) => (id === 'ci' ? 'CI/CD' : 'DevProd') };
+  it('a person: you, your team A to Z, then those chosen lately; never someone who left', () => {
+    expect(suggest(rows, 'rhea', []).map((r) => r.id)).toEqual(['rhea', 'ann', 'zed']);
+    expect(suggest(rows, 'rhea', [{ kind: 'person', id: 'dan' }, { kind: 'goal', id: 'g1' }, { kind: 'person', id: 'gone' }]).map((r) => r.id)).toEqual(['rhea', 'ann', 'zed', 'dan']);
+  });
+  it('keeps the newest twelve recents, without repeats', () => {
+    let r: { kind: string; id: string }[] = [];
+    for (let i = 0; i < 15; i++) r = withRecent(r, { kind: 'person', id: `p${i % 13}` });
+    expect(r.length).toBe(12);
+    expect(r[0]).toEqual({ kind: 'person', id: 'p1' });
+  });
+});
+
+describe('rules 2 to 4: the count line, the filter line, none found and history', () => {
+  const goals = { thing: 'goal', things: 'goals' }, people = { thing: 'person', things: 'people' };
+  it.each([
+    [goals, 126, false, 'worst first', null, '126 goals, worst first.'],
+    [people, 97, false, 'A to Z', { from: 1, to: 50 }, '97 people, A to Z. Showing 1 to 50.'],
+    [goals, 1, false, 'worst first', null, '1 goal.'],
+    [goals, 17, true, null, null, '17 goals match.'],
+    [goals, 1, true, null, null, '1 goal matches.'],
+    [goals, 0, true, null, null, ''],
+    [people, 1, true, null, null, '1 person matches.'],
+    [goals, 0, false, null, null, ''],
+  ])('%j, %i, narrowed %s → “%s”', (t, n, narrowed, order, shown, want) => expect(countLine(t, n, narrowed, order, shown)).toBe(want));
+  it('says the filters in words', () => {
+    expect(filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }])).toBe('Filtered by: Team CI/CD');
+    expect(filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])).toBe('Filtered by: Team CI/CD · Status Off track or At risk');
+    expect(filterLine([])).toBe('');
+  });
+  it('says what found nothing', () => {
+    expect(noneFound(goals, 'zzzz', false)).toBe('No goal matches “zzzz”.');
+    expect(noneFound(goals, '', true)).toBe('No goals match these filters.');
+    expect(noneFound(goals, 'zzzz', true)).toBe('No goal matches “zzzz” with these filters.');
+    expect(noneFound(goals, 'rolback', false, 'rollback')).toBe('No goal matches “rolback”. Showing goals that match “rollback”.');
+  });
+  it('adds a history entry for a choice, replaces while typing', () => {
+    expect(['choice', 'typing', 'settled', 'clear', 'remembered', 'dropped'].map((c) => historyStep(c as never))).toEqual(['push', 'replace', 'push', 'push', 'replace', 'replace']);
   });
 });

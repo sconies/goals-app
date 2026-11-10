@@ -100,13 +100,17 @@ describe('markups, tokens and feedback (0024)', () => {
     expect((await asAnon(`select * from okr_markups_raised('ws_m', 'bo')`)).rows).toEqual([]);
   });
 
-  it('makes a public-read bucket (0031) the public key can only upload a markup’s four pictures into, under an issued id', async () => {
+  it('makes a public-read bucket (0031) the public key can only upload a markup’s four pictures into, in a folder named like a markup id (0037)', async () => {
     expect((await one<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`, [], false)).public).toBe(true);
     const id = await newId();
     const up = (name: string, bucket = 'markups') => asAnon('insert into storage.objects (bucket_id, name) values ($1, $2)', [bucket, name]);
     await up(`${id}/screen.png`);
     await up(`${id}/ink.png`);
-    await expect(up('mk_0123456789abcdef/screen.png')).rejects.toThrow();
+    await expect(up('mk_0123/screen.png')).rejects.toThrow();
+    await expect(up('not-a-markup/screen.png')).rejects.toThrow();
+    // Storage's rules call nothing in faro (0037), so the Faro role can't change what they let through.
+    expect((await db.query(`select pol.polname from pg_policy pol join pg_depend d on d.classid = 'pg_policy'::regclass and d.objid = pol.oid
+      join pg_proc f on d.refclassid = 'pg_proc'::regclass and f.oid = d.refobjid where f.pronamespace = 'faro'::regnamespace and pol.polrelid = 'storage.objects'::regclass`)).rows).toEqual([]);
     await expect(up(`${id}/other.png`)).rejects.toThrow();
     await expect(up(`${id}/deeper/screen.png`)).rejects.toThrow();
     await expect(asAnon('select * from storage.objects')).rejects.toThrow(/permission denied/);

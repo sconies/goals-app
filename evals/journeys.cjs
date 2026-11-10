@@ -1068,11 +1068,14 @@ journey('U13', ['REVIEW-SETUP', 'LEVELS', 'CHANGE-LOG'], 'Anyone sets up a revie
   await h.click(p.getByRole('button', { name: 'Every 4 weeks' }));
   await p.getByRole('combobox', { name: /^On/ }).selectOption('4');
   await h.click(p.getByRole('button', { name: 'North star', exact: true }));
-  // People are found by name, as goals are (re-review, 8 Nov, backlog T): the list narrows to the match.
-  await h.fill(p.getByLabel('Find a person by name or team'), 'Mateo');
-  const listed = await p.getByRole('group', { name: 'Who takes part' }).getByRole('checkbox').count();
+  // People are found by typing (find-and-pick, FS1): the list narrows to the match.
+  await h.click(p.getByRole('button', { name: /^People/ }).filter({ hasText: /Choose a person|Add another person/ }).first());
+  await h.fill(p.getByRole('combobox', { name: /^People/ }), 'Mateo');
+  await see(p.locator('.pick-count[role="status"]'), 'match');
+  const listed = await p.getByRole('listbox', { name: 'People' }).getByRole('option').count();
   h.set('attention', listed <= 3, `finding “Mateo” left ${listed} people in the list`);
-  await h.click(p.getByRole('checkbox', { name: /Mateo Fernández/ }));
+  await h.click(p.getByRole('option', { name: /Mateo Fernández/ }));
+  await p.keyboard.press('Escape');
   await see(p, /[2-9] goals so far/, 'the form counts the goals picked');
   await h.checkpoint('set up');
   await h.click(p.getByRole('button', { name: 'Set up the review' }));
@@ -1461,7 +1464,9 @@ journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP tok
   h.set('attention', /A token lets Claude or another AI tool act as one person here/.test(await p.locator('.access-tokens').innerText()) && /builder token/.test(await p.locator('.access-tokens').getByText('Inbox on my phone').first().innerText()), 'MCP tokens do not say what they are, or do not label the builder token apart');
   await h.click(p.getByRole('button', { name: 'Make a token' }));
   const dlg = p.getByRole('dialog');
-  await dlg.getByLabel('Who it acts as').selectOption({ label: 'Mateo Fernández' });
+  await dlg.getByRole('button', { name: /^Who it acts as: .*Change$/ }).click();
+  await dlg.getByRole('combobox').fill('Mateo');
+  await dlg.getByRole('option', { name: /Mateo Fernández/ }).click();
   h.set('errors', await dlg.getByRole('button', { name: 'Make the token' }).isDisabled(), 'a token can be made without saying what it is for');
   await h.fill(dlg.getByLabel('What it’s for'), 'Claude on Mateo’s laptop');
   await h.checkpoint('make token');
@@ -1687,7 +1692,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
 journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link', 18, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));
-  const search = p.getByRole('searchbox', { name: 'Search goals' });
+  const search = p.getByRole('searchbox', { name: 'Find a goal' });
   await h.inView(search, 'entry', 'the search box');
   // Search finds goals by any word: a title, an owner, a reason.
   await h.fill(search, 'December date');
@@ -1891,7 +1896,7 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await h.click(p.getByRole('button', { name: 'Show the changes' }));
   await p.waitForURL(/who=grace/, { timeout: 3000 }).catch(() => {});
   h.set('finish', /kind=checkins/.test(p.url()) && /who=grace/.test(p.url()), 'the activity filters are not in the link');
-  await see(p, /\d+ of \d+ changes/, 'the filtered activity does not say how many it shows');
+  await see(p, /\d+ changes? match(es)?\./, 'the filtered activity does not say how many it shows');
   const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
   // On a phone, Save .csv is in the Filters sheet's footer rather than a row of the filter bar.
   if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filters/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
@@ -2490,6 +2495,95 @@ function seed75() {
 }
 
 
+journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, people and goals are found by typing, with you and your team suggested first; a key finds its goal; arrow keys and Enter choose; the choice reads as words with a way to remove it; Escape closes; nothing on the page is a list of everyone', 9, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/reviews/new'));
+  const people = p.getByRole('button', { name: /^People/ }).filter({ hasText: /Choose a person|Add another person/ });
+  await people.first().waitFor();
+  await h.click(people.first());
+  const list = p.getByRole('listbox', { name: 'People' });
+  await list.waitFor();
+  const first = (await list.getByRole('option').first().locator('.pick-name > span').last().innerText()).trim();
+  h.set('entry', first === 'Rhea Kapoor (you)' && await p.getByText('Suggested').first().isVisible(), `the first suggestion is “${first}”`);
+  await h.checkpoint('people picker');
+  await h.fill(p.getByRole('combobox', { name: /People/ }), 'dan');
+  const count = p.locator('.pick-count[role="status"]');
+  await see(count, '1 matches').catch(() => {});
+  h.set('progress', (await count.innerText()).trim() === '1 matches', `typing “dan” says “${(await count.innerText()).trim()}”`);
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); h.set('parity', true);
+  await p.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached' });
+  const chosen = p.locator('.pick-chosen').first();
+  h.set('finish', /Daniel Okafor/.test(await chosen.innerText()) && await chosen.getByRole('button', { name: 'Remove Daniel Okafor' }).isVisible(), 'Daniel Okafor isn’t listed as chosen, with Remove');
+  // Focus goes back to the field once the picker has closed (a frame later).
+  let back = false;
+  for (let i = 0; i < 10 && !back; i++) { back = await p.evaluate(() => document.activeElement?.closest('.pick') != null); if (!back) await p.waitForTimeout(100); }
+  h.set('errors', back, 'Escape didn’t return to the field');
+  // A goal by its key.
+  await h.click(p.getByRole('button', { name: /^Single goals/ }));
+  await h.fill(p.getByRole('combobox', { name: /Single goals/ }), 'G-48');
+  await see(p.locator('.pick-count[role="status"]'), '1 matches');
+  const row = await p.getByRole('listbox', { name: 'Single goals' }).getByRole('option').first().innerText();
+  h.set('attention', /On track|At risk|Off track|No recent update|Done/.test(row) && /G-48/.test(row), `the goal row reads “${row.replace(/\n/g, ' / ')}”: its status as a word, then its key`);
+  await p.keyboard.press('Enter');
+  await p.keyboard.press('Escape');
+  // Nothing on the page is a select of everyone.
+  const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((s) => s.options.length)));
+  h.set('a11y', big <= 25, `a select on the page has ${big} options`);
+  await h.checkpoint('chosen');
+  await p.context().close();
+}, ['logged']);
+
+journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/activity'));
+  const box = p.getByRole('searchbox', { name: 'Find a change' });
+  await box.waitFor();
+  await h.inView(box, 'entry', 'the search');
+  await h.fill(box, 'Rhea'); await box.press('Enter');
+  await see(p.locator('.count-line'), / changes? match(es)?\./, 'Activity does not count what the search matches');
+  h.set('attention', await p.locator('.count-line[role="status"]').isVisible(), 'the count line is not read out when it changes');
+  h.set('finish', /[?&]q=Rhea/.test(p.url()), `the search is not in the address (${p.url()})`);
+  await h.checkpoint('activity search');
+  await h.fill(box, 'zzzz'); await box.press('Enter');
+  await see(p, 'No change matches “zzzz”.', 'a search that finds nothing is not said in the list bar’s words');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  await h.click(p.getByRole('group', { name: 'Kind of change' }).getByRole('button', { name: /^Check-ins/ }));
+  const line = p.locator('.filter-line');
+  await see(line, 'Filtered by: Kind Check-ins', 'the filter is not said in words');
+  h.set('finish', /kind=checkins/.test(p.url()), 'the filter is not in the address');
+  await p.goBack();
+  h.set('errors', !/kind=checkins/.test(p.url()) && !(await line.count()), `Back did not take the filter off (${p.url()})`);
+  await p.goForward();
+  await h.click(line.getByRole('button', { name: /^Remove the filter Kind/ }));
+  await line.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', !(await line.count()) && !/kind=/.test(p.url()), `Remove did not take the filter off (${p.url()})`);
+  // Help says it the same way.
+  await p.goto(url('/help'));
+  const hb = p.getByRole('searchbox', { name: 'Find in Help' });
+  await h.fill(hb, 'xylophone'); await hb.press('Enter');
+  await see(p, 'No article matches “xylophone”.', 'Help does not say what found nothing in the list bar’s words');
+  h.set('progress', true);
+  await p.context().close();
+}, ['logged', 'one-action']);
+
+journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/goals'));
+  const box = p.getByRole('searchbox', { name: 'Find a goal' });
+  await h.inView(box, 'entry', 'the search');
+  await h.fill(box, 'rolback'); await box.press('Enter');
+  await see(p, 'No goal matches “rolback”. Showing goals that match “rollback”.', 'a near miss is not offered');
+  h.set('finish', await p.locator('.goal-row, .gtable tbody tr, .tree li').filter({ hasText: /rollback/i }).count() > 0, 'the goals matching “rollback” are not shown');
+  h.set('errors', (await box.inputValue()) === 'rolback', `the field says “${await box.inputValue()}”`);
+  await h.checkpoint('near miss');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  await p.waitForURL((u) => !/[?&]q=/.test(u.search), { timeout: 3000 }).catch(() => {});
+  for (let i = 0; i < 20 && (await box.inputValue()) !== ''; i++) await p.waitForTimeout(100);
+  h.set('progress', !/[?&]q=/.test(p.url()) && (await box.inputValue()) === '', `Clear the search left the search on (${p.url()}, “${await box.inputValue()}”)`);
+  await p.context().close();
+}, ['logged', 'one-action', 'attention', 'parity']);
+
 journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
   const SECTIONS = [['overview', 'About'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
@@ -2716,8 +2810,10 @@ journey('U60', ['ADMIN', 'WORKSPACE-ADMIN', 'CHANGE-LOG'], 'An admin makes someo
   await h.checkpoint('access');
   await h.click(add);
   const dlg = p.getByRole('dialog', { name: 'Add an admin' });
-  await h.fill(dlg.getByPlaceholder('Find by name, job title or team'), 'rhea');
-  await h.click(dlg.getByRole('button', { name: /Rhea Kapoor/ }));
+  // Find-and-pick (FS1): open it, type, choose.
+  await h.click(dlg.getByRole('button', { name: /Choose a person/ }));
+  await h.fill(dlg.getByRole('combobox'), 'rhea');
+  await h.click(dlg.getByRole('option', { name: /Rhea Kapoor/ }));
   await h.checkpoint('picked');
   await h.click(dlg.getByRole('button', { name: 'Make Rhea an admin' }));
   await see(p, 'Rhea Kapoor is an admin');

@@ -163,8 +163,9 @@ module.exports = {
       await p.getByRole('button', { name: 'Add the next step' }).click();
       const dlg = p.getByRole('dialog');
       await dlg.getByPlaceholder('What needs doing').fill('Chase the vendor for the batching fix date');
-      await dlg.getByRole('searchbox', { name: /^Who/ }).fill('Pavel');
-      await dlg.getByRole('radio', { name: /Pavel/ }).click();
+      await dlg.locator('.pick').getByRole('button', { name: /Change$|^Who/ }).first().click();
+      await dlg.getByRole('combobox', { name: /^Who/ }).fill('Pavel');
+      await dlg.getByRole('option', { name: /Pavel/ }).click();
       await dlg.getByLabel(/^By/).selectOption('46');
       await dlg.getByRole('button', { name: 'Save the next step' }).click();
       await p.locator('.said').getByText('Chase the vendor').waitFor();
