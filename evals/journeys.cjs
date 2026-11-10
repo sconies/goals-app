@@ -379,7 +379,9 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   await p.context().close();
 }, ['errors', 'logged']);
 
-journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG', 'REVIEW-RUN', 'ONE-ASK'], 'Weekly review: walk the goals worst first and record what was said', 18, async (h, device) => {
+// Budget 30, was 18 (deep review P2, 10 Nov): each goal behind now leaves with a next step (add, write, save: three
+// steps), and this walk meets five of them. The walk itself didn't get longer; deciding is the new work.
+journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG', 'REVIEW-RUN', 'REVIEW-DECIDE', 'ONE-ASK'], 'Weekly review: walk the goals worst first, decide what happens next and record what was said', 30, async (h, device) => {
   // Marisol runs the Reliability weekly, already under way this Thursday (nine goals reviewed). One ask model: a
   // question she asks in it is an ask, open on the owner's Home and goal page until they answer it.
   const p = h.use(await newPage(device, 'marisol'));
@@ -416,6 +418,17 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
     const here = p.url();
     const reviewedNext = p.locator('.decide').getByRole('button', { name: /^Reviewed & / });
     const askOwner = p.locator('.decide .quiet-links').getByRole('button', { name: /^Ask / });
+    // A goal behind asks what happens next before it moves on (deep review P2): a next step with an owner and a date.
+    const decideNext = async () => {
+      const add = p.locator('.decide').getByRole('button', { name: 'Add the next step' });
+      await add.or(reviewedNext).first().waitFor();
+      if (!(await add.isVisible().catch(() => false))) return;
+      await h.click(add);
+      await h.fill(p.getByPlaceholder('What needs doing'), 'Owner to bring a recovery plan to the next session');
+      await p.getByRole('dialog').getByLabel(/^By/).selectOption({ index: 1 });
+      await h.click(p.getByRole('button', { name: 'Save the next step' }));
+      await reviewedNext.waitFor();
+    };
     if (!asked && await askOwner.isVisible().catch(() => false)) {
       // Ask the owner in a composer that names the goal; an empty question is refused; saving stays on the goal.
       const title = (await p.locator('h1').first().innerText()).trim();
@@ -429,14 +442,17 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
       h.set('finish', p.url() === here, 'saving a question moved to another goal');
       asked = here;
       await h.checkpoint('saved question');
+      await decideNext();
       await h.click(reviewedNext);
     } else if (items === 2) {
       await h.click(p.getByRole('button', { name: 'Add a note' }));
       await h.fill(p.getByPlaceholder('What the review said'), 'Agreed to pair SRE and Observability on the burn-rate alerts.');
       await h.click(p.getByRole('button', { name: 'Save note' }));
       await p.locator('.said').getByText('Agreed to pair').waitFor();
+      await decideNext();
       await h.click(reviewedNext);
     } else {
+      await decideNext();
       await reviewedNext.click();
     }
     const toasts = await p.locator('.toast').count();
@@ -457,7 +473,7 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   const finish = p.getByRole('dialog', { name: /^Finish Reliability weekly/ });
   await finish.waitFor();
   await h.checkpoint('finish question');
-  await h.click(finish.getByRole('button', { name: 'Mark them and finish' }));
+  await h.click(finish.getByRole('button', { name: 'Finish the review' }));
   await see(p, 'What was said', 'the held review leads with its record');
   disagree.push(...await reviewedEverywhere(p, 'reliability', 'Reliability weekly'));
   h.set('progress', !disagree.length, `the reviewed count differs between views: ${disagree.join('; ')}`);

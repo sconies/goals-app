@@ -141,6 +141,17 @@ describe('MCP server', () => {
     expect(data().goals.find((g) => g.title === 'Runbooks with an owner')!.parentId).toBe('ns-cfr');
   });
 
+  it('[REVIEW-DECIDE] decides in a review and adds a next step, as the app does', async () => {
+    const { call, data } = await setup('daniel');
+    const refused = await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'accept', text: 'no' });
+    expect(refused.isError).toBe(true);
+    await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'accept', text: 'The vendor fix lands next release; nothing we can do sooner.' });
+    expect(data().decisions.at(-1)!.note).toBe('We accept the risk: The vendor fix lands next release; nothing we can do sooner.');
+    await call('add_action', { goal_id: 'lead-review-rota', text: 'Audit CODEOWNERS for payments', who: 'Rhea Kapoor', due_week: 48 });
+    const a = data().requests!.at(-1)!;
+    expect(a).toMatchObject({ kind: 'action', recipientId: 'rhea', dueWeek: 48, ask: 'Audit CODEOWNERS for payments' });
+  });
+
   it('comments and exports', async () => {
     const { call, data } = await setup('oskar');
     await call('add_comment', { goal_id: 'ns-lead', text: 'Merge queue is the bottleneck' });
