@@ -9,7 +9,7 @@ import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { LABEL, worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty, EmptyResult, StatusShape } from '../ui/bits';
+import { AttentionCard, Chip, Empty, StatusShape } from '../ui/bits';
 import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
 import { statusCounts, worstFirst, worstGroupsFirst } from '../domain/order';
 import { HandledGroup } from '../ui/HandledGroup';
@@ -26,6 +26,10 @@ import { Place } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViews, viewParams } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
+import { goalWords, nearMiss } from '../domain/find';
+import { NoneFound } from '../ui/ListBar';
+
+const GOAL_WORDS = { thing: 'goal', things: 'goals' };
 import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
@@ -71,10 +75,16 @@ export function GoalsScreen() {
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort;
   const attentionOn = query.attention || query.needs.length > 0;
-  const ranked = useMemo(() => {
-    if (!refined) return null;
+  // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
+  const [ranked, near] = useMemo((): [string[] | null, string | null] => {
+    if (!refined) return [null, null];
     const sums = summariseAll(app.snapshot.goals, app.snapshot, app.cycle, app.today, app.week);
-    return applyQuery(sums, query, { goals: app.snapshot.goals, cycle: app.cycle, week: app.week }).map((x) => x.goal.id);
+    const ctx = { goals: app.snapshot.goals, cycle: app.cycle, week: app.week };
+    const ids = applyQuery(sums, query, ctx).map((x) => x.goal.id);
+    if (ids.length || !query.q.trim()) return [ids, null];
+    const fix = nearMiss(query.q, sums.map(goalWords));
+    const again = fix ? applyQuery(sums, { ...query, q: fix }, ctx).map((x) => x.goal.id) : [];
+    return again.length ? [again, fix] : [ids, null];
   }, [refined, query, app.snapshot, app.cycle, app.today, app.week]);
   const views = useViews();
   const activeView = views.find((v) => v.params === viewParams(params));
@@ -230,7 +240,7 @@ export function GoalsScreen() {
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
       {show === 'attention' && !activeView && listed.needs.length + listed.handled.length > 0 && <AttentionCounts att={listed.needs} handled={listed.handled} />}
       <FirstReports />
-      {refined && shown.length === 0 && <EmptyResult title="No goals match" action={<button type="button" className="btn" onClick={() => setQuery((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear search and filters</button>}>Remove a filter above, or clear them all.</EmptyResult>}
+      {refined && (shown.length === 0 || near) && <NoneFound things={GOAL_WORDS} q={query.q} filtered={filters({ ...query, q: '' })} near={near} onClearSearch={() => setQuery((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setQuery((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))} />}
       {!app.snapshot.goals.length && <Empty title="No goals yet"><Link className="btn primary sm" to="/goals/new">Set up the first goal</Link></Empty>}
       {alt && !refined && app.snapshot.goals.length > 0 && !shown.length && (show === 'watching' ? <WatchingBody goals={shown} /> : <div className="calm"><Icon name="check-circle" size={15} /> {show === 'attention' ? 'Nothing is off track, stale or slipping.' : 'No goals here.'}</div>)}
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}

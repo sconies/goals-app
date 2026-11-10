@@ -251,3 +251,40 @@ export function suggest(rows: GoalRows | PersonRows | TeamRows, viewerId: string
     }
   }
 }
+
+/* ---------- Rules 2 to 4: the count line, the filter line, and history ---------- */
+
+/** A list's nouns: "goal", "goals"; "person", "people". */
+export interface Things { thing: string; things: string }
+
+/**
+ * Rule 2. The line under a list bar. Not narrowed: "{n} {things}, {order}." (and "Showing a to b." when paged); one
+ * thing: "1 goal."; narrowed: "{n} {things} match." / "1 goal matches."; none: "" (the none-found block or the page's
+ * empty state says it).
+ */
+export function countLine(t: Things, n: number, narrowed: boolean, order?: string | null, shown?: { from: number; to: number } | null): string {
+  if (n === 0) return '';
+  if (narrowed) return n === 1 ? `1 ${t.thing} matches.` : `${n} ${t.things} match.`;
+  const head = n === 1 ? `1 ${t.thing}` : `${n} ${t.things}${order ? `, ${order}` : ''}`;
+  return `${head}.${shown && (shown.from > 1 || shown.to < n) ? ` Showing ${shown.from} to ${shown.to}.` : ''}`;
+}
+
+/** An active filter as the filter line says it: its label and its values. */
+export interface FilterPart { key: string; label: string; values: string[] }
+
+/** Rule 3. "Filtered by: " then each part as "{label} {values joined with ' or '}". Empty with no filter on. */
+export const filterText = (p: FilterPart) => `${p.label} ${p.values.join(' or ')}`;
+export const filterLine = (parts: FilterPart[]) => (parts.length ? `Filtered by: ${parts.map(filterText).join(' · ')}` : '');
+
+/** Rule 5's words, and the none-found block's (find spec, 2.1). */
+export function noneFound(t: Things, q: string, filtered: boolean, near?: string | null): string {
+  const words = q.trim();
+  if (words && near) return `No ${t.thing} matches “${words}”. Showing ${t.things} that match “${near}”.`;
+  if (words && filtered) return `No ${t.thing} matches “${words}” with these filters.`;
+  if (words) return `No ${t.thing} matches “${words}”.`;
+  return `No ${t.things} match these filters.`;
+}
+
+/** Rule 4. What a change does to the browser's history: a choice adds an entry; typing replaces until it settles. */
+export type ListChange = 'choice' | 'typing' | 'settled' | 'clear' | 'remembered' | 'dropped';
+export const historyStep = (c: ListChange): 'push' | 'replace' => (c === 'typing' || c === 'remembered' || c === 'dropped' ? 'replace' : 'push');
