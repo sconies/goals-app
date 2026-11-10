@@ -71,7 +71,9 @@ On the server, for each command:
 
 The browser may still run an action first to explain early (“Only admins can …” before a button is pressed), as Faro does; the server’s answer is the one that counts.
 
-**The actions**, read from R1’s access table so the list can’t drift: `planChanges`, `stopGoal`, `deleteGoal`, `deleteCheckIn`, `saveRetro`, `undoImport`, `addNote`, `addAction`, `editComment`, `deleteComment`, `askForUpdate`, `askQuestion`, `undoUpdateAsk`, `answerRequest`, `markActionDone`, `linkRequest`, `withdrawRequest`, `saveReview`, `reviewCall`, `editCall`, `unmarkReviewed`, `deleteNote`, `endReview`, `deleteReview`, `watch`, `unwatch`, `saveView`, `saveTableView`, `deleteView`, `pinView`, `savePerson`, `markPersonLeft`, `deletePerson`, `leaveWorkspace`, `saveTeam`, `removeTeam`, `startNextCycle`, `deleteCycle`, `renameWorkspace`, `setRecording`, `setModule`, `restoreRemoved`, `createToken`, `revokeToken`, `sendFeedback`. `planChanges` is the change engine: check-ins, goal and plan edits, bulk edits and spreadsheets, with a preview (nothing saved) and an apply. Add `createWorkspace` and `deleteWorkspace`, which `Store` has as methods of its own.
+**Faro already calls it this way** (backlog RD, AR3): every change goes through one dispatcher, `app.run(action, input)` (`src/app/state.tsx`), over one table of actions (`src/app/actions.ts`). The input names records by id; the dispatcher sets who acts, when and new ids, runs the rule from `src/domain`, saves its `Commit`, and shows Undo after a removal. The screens’ per-action methods are aliases of it. To put the command port on a server, replace the dispatcher’s body with a call to the server and keep the table’s names and inputs: no screen changes. `src/app/actions.test.ts` holds the table and the list below together, both ways.
+
+**The actions**, read from R1’s access table so the list can’t drift: `planChanges`, `stopGoal`, `deleteGoal`, `deleteCheckIn`, `saveRetro`, `undoImport`, `addNote`, `addAction`, `editComment`, `deleteComment`, `askForUpdate`, `askQuestion`, `undoUpdateAsk`, `answerRequest`, `markActionDone`, `linkRequest`, `withdrawRequest`, `saveReview`, `reviewCall`, `markReviewed`, `acceptRisk`, `editCall`, `unmarkReviewed`, `deleteNote`, `endReview`, `deleteReview`, `watch`, `unwatch`, `saveView`, `saveTableView`, `deleteView`, `pinView`, `savePerson`, `markPersonLeft`, `deletePerson`, `leaveWorkspace`, `saveTeam`, `removeTeam`, `startNextCycle`, `deleteCycle`, `renameWorkspace`, `setRecording`, `setModule`, `restoreRemoved`, `createToken`, `revokeToken`, `sendFeedback`, `saveMetric`, `removeMetric`, `linkGoalMetric`, `unlinkGoalMetric`. `planChanges` is the change engine: check-ins, goal and plan edits, bulk edits and spreadsheets, with a preview (nothing saved) and an apply. Add `createWorkspace` and `deleteWorkspace`, which `Store` has as methods of its own.
 
 ## How each contract test carries across
 
@@ -103,7 +105,7 @@ In steps, each of which leaves a working app and stage 1’s drill at 100%:
 
 ## Gaps in the kit
 
-- Neither port exists in Faro’s code: the interfaces above are a sketch, and there are no contract tests for them.
+- The query port doesn’t exist in Faro’s code, and neither port has a contract test. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.
 - Most rule functions take a whole `Snapshot`; which records each action and rule actually reads isn’t listed anywhere, so step 3 starts by finding out.
 - The screens read the app’s loaded state directly; which query each screen needs isn’t listed.
 - Goal keys are worked out in the rules and again by a database trigger (`supabase/migrations/0021_goal_keys.sql`); at company scale the server’s is the one that counts.

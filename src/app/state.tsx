@@ -15,8 +15,9 @@ import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import { planChanges, type ChangeSet, type Tables, type Via } from '../domain/changeset';
+import type { ChangeSet, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
+import { commitOf, perform, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
 import * as M from '../domain/metrics';
@@ -26,7 +27,7 @@ import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, RESTORE_DAYS, UNDO_MS }
 
 /** The actions telemetry names, one trace each: every one in AppState (parity.ts lists them), except previewChanges,
     which only works out a change, and createWorkspace, which is timed where it's defined (onboarding uses it too). */
-const TRACED = Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace');
+const TRACED = Object.keys(ACTIONS).filter((k) => k !== 'previewChanges' && k !== 'createWorkspace' && k !== 'run');
 function traced(v: AppState): AppState {
   const out = { ...v } as unknown as Record<string, unknown>;
   for (const k of TRACED) {
@@ -92,6 +93,12 @@ export interface AppState {
   attentionOf(goal: Goal): GoalAttention;
   checkInsOf(goal: Goal): CheckIn[];
   lookup: Lookup;
+  /**
+   * Run an action by name (app/actions.ts): the one way every change goes, in the command port's shape. The input names
+   * records by id; who acts, when and new ids are set here, never by the caller. A rule that says no is shown and thrown;
+   * a removal shows Undo for 10 seconds. The action methods below are aliases of it; new code calls it directly.
+   */
+  run<N extends ActionName>(name: N, input: ActionInput<N>, opts?: { said?: string }): Promise<RunResult<N>>;
   /** Posts (or replaces) this week's check-in and logs it. */
   postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
@@ -468,6 +475,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
+    const rx = (): RunContext => ({ ...ax(), workspace: ws, modules: MODULES });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
@@ -475,20 +483,52 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       if (c) await commit(c);
       return out;
     }
+    const undoBy = (c: Commit, before: Snapshot) => () => { void act(() => R.undoRemoval(ax(), c, before)).then(() => toast('Undone')).catch(() => undefined); };
 
-    /**
-     * A removal (domain/removal): saved and logged, then a message with Undo for 10 seconds. Undo puts back every record
-     * the removal changed, as it was just before (what it handed over or moved included).
-     */
-    async function removal<T extends Commit | { commit: Commit }>(run: () => T, said: (out: T) => string): Promise<T> {
+    // What a removal says, with Undo for 10 seconds (domain/removal). Undo puts back every record the removal changed,
+    // as it was just before (what it handed over or moved included).
+    const nameOf = (id: string) => people.get(id)?.name;
+    const said: { [N in ActionName]?: (out: NonNullable<ReturnType<typeof perform<N>>>, input: ActionInput<N>) => string } = {
+      unwatch: (c) => c.changes[0]?.summary ?? 'Stopped watching',
+      removeMetric: (c) => c.changes[0]!.summary,
+      deleteView: (c) => c.changes[0]!.summary,
+      unlinkGoalMetric: (c) => c.changes[0]!.summary,
+      markPersonLeft: (_, i) => `${nameOf(i.personId) ?? 'They'} ${nameOf(i.personId) ? 'is' : 'are'} marked as left`,
+      deletePerson: (_, i) => `Deleted ${nameOf(i.personId) ?? 'them'}`,
+      stopGoal: (_, i) => `Stopped ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
+      deleteGoal: (_, i) => `Deleted ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
+      deleteCheckIn: (_, i) => `Deleted the check-in for week ${snapshot.checkIns.find((c) => c.id === i.checkInId)?.week ?? ''}`,
+      endReview: (o, i) => `${o.deleted ? 'Deleted' : ENDED} the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
+      deleteReview: (_, i) => `Deleted the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
+      deleteComment: () => COMMENT_REMOVED,
+      deleteNote: () => NOTE_REMOVED,
+      deleteCycle: (_, i) => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === i.cycleId)?.name ?? ''}`,
+    };
+
+    /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
+    async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
       const before = snapshot;
-      const out = await act(run);
-      const c = ('commit' in out ? out.commit : out) as Commit;
-      toast(said(out), 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), c, before)).then(() => toast('Undone')).catch(() => undefined); } });
-      return out;
+      let out: ReturnType<typeof perform<N>>;
+      try { out = perform(rx(), name, input); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+      // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
+      if (name === 'createToken') return (await issueToken(out as Commit)) as RunResult<N>;
+      if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
+      const c = commitOf(name, out, input);
+      if (!c) return out as RunResult<N>;
+      await commit(c);
+      if (name === 'markReviewed') {
+        const n = (input as ActionInput<'markReviewed'>).goalIds.length;
+        const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
+        toast(opts.said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review?.name ?? 'the review'}`, 'success', { label: 'Undo', run: () => { void act(() => R.unmarkReviewed(ax(), c.decisions ?? [])).then(() => toast('Undone: back on the agenda')).catch(() => undefined); } });
+      } else {
+        const say = said[name] as ((o: unknown, i: unknown) => string) | undefined;
+        if (say) toast(opts.said ?? say(out, input), 'success', { label: 'Undo', run: undoBy(c, before) });
+      }
+      return out as RunResult<N>;
     }
 
     return traced({
+      run: (name, input, opts) => telemetry.action(name, () => run(name, input, opts)),
       mode, viewerChosen: mode === 'demo' || chosen,
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
@@ -513,20 +553,20 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         toast(`Deleted ${ws.name}`);
       },
       renameWorkspace: async (name) => {
-        const out = await act(() => A.renameWorkspace(ax(), ws, name));
+        const out = await run('renameWorkspace', { name });
         if (out?.workspace) { const next = out.workspace.name; setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, name: next } : w))); }
       },
-      saveTeam: async (t) => { const out = await act(() => A.saveTeam(ax(), t)); return out.id; },
-      removeTeam: async (id, moveTo) => { await act(() => A.removeTeam(ax(), id, moveTo)); },
+      saveTeam: async (t) => (await run('saveTeam', t)).id,
+      removeTeam: async (id, moveTo) => { await run('removeTeam', { teamId: id, moveTo }); },
       setRecording: async (on) => {
-        const out = await act(() => A.setRecording(ax(), ws, on));
+        const out = await run('setRecording', { on });
         if (!out) return;
         // At once, before anything else is recorded: off means nothing more is sent for this workspace.
         telemetry.setContext({ recording: on });
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
       },
       setModule: async (id, on) => {
-        const out = await act(() => A.setModule(ax(), ws, MODULES, id, on));
+        const out = await run('setModule', { moduleId: id, on });
         if (!out?.modulesOff) return;
         const off = out.modulesOff;
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
@@ -567,11 +607,11 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         void run.catch(() => undefined).finally(() => posting.current.delete(goal.id));
         return run;
       },
-      answerRequest: async (r, answer) => { await act(() => A.answerRequest(ax(), r, answer)); },
-      markActionDone: async (r, note) => { await act(() => A.markActionDone(ax(), r, note ?? '')); },
-      askQuestion: async (goal, text) => { await act(() => A.askQuestion(ax(), goal, text)); },
-      linkRequest: async (r, goal) => { await act(() => A.linkRequest(ax(), r, goal)); },
-      withdrawRequest: async (r, goal) => { await act(() => A.withdrawRequest(ax(), r, goal)); },
+      answerRequest: async (r, answer) => { await run('answerRequest', { askId: r.id, answer }); },
+      markActionDone: async (r, note) => { await run('markActionDone', { askId: r.id, note }); },
+      askQuestion: async (goal, text) => { await run('askQuestion', { goalId: goal.id, text }); },
+      linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
+      withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
       saveGoal: async (after, before, why) => {
         if (makesLoop(after.id, after.parentId, sc.goals)) {
           toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
@@ -583,78 +623,62 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
         await commit({ goals: [after], changes: change ? [change] : [] });
       },
-      addNote: async (goal, text) => { await act(() => A.addNote(ax(), goal, text)); },
-      askForUpdate: async (goal) => { await act(() => A.askForUpdate(ax(), goal)); },
-      undoUpdateAsk: async (goal) => { await act(() => A.undoUpdateAsk(ax(), goal)); },
-      reviewCall: async (goal, review, sessionWeek, kind, note, extra) => { await act(() => A.reviewCall(ax(), goal, review, kind, note, { week: sessionWeek, ...extra })); },
-      markReviewed: async (goals, review, sessionWeek, said) => {
-        const c = await act(() => A.markReviewed(ax(), goals, review, sessionWeek));
-        const n = goals.length;
-        toast(said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review.name}`, 'success', { label: 'Undo', run: () => { void act(() => R.unmarkReviewed(ax(), c.decisions ?? [])).then(() => toast('Undone: back on the agenda')).catch(() => undefined); } });
-      },
-      acceptRisk: async (goal, review, sessionWeek, reason) => { await act(() => A.acceptRisk(ax(), goal, review, reason, sessionWeek)); },
-      addAction: async (goal, text, extra) => { await act(() => A.addAction(ax(), goal, text, extra)); },
-      editCall: async (d, note, extra) => { await act(() => A.editCall(ax(), d, note, extra)); },
-      watch: async (kind, ref) => { await act(() => A.watch(ax(), kind, ref)); },
-      unwatch: async (watchId) => { await removal(() => A.unwatch(ax(), watchId), (c) => c.changes[0]?.summary ?? 'Stopped watching'); },
-      savePerson: async (p, before) => { await act(() => A.savePerson(ax(), p, before)); },
-      saveReview: async (review, before) => { await act(() => A.saveReview(ax(), review, before)); },
-      saveRetro: async (goal, retro) => { await act(() => A.saveRetro(ax(), goal, retro)); },
+      addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
+      askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
+      undoUpdateAsk: async (goal) => { await run('undoUpdateAsk', { goalId: goal.id }); },
+      reviewCall: async (goal, review, sessionWeek, kind, note, extra) => { await run('reviewCall', { goalId: goal.id, reviewId: review.id, kind, note, week: sessionWeek, ...extra }); },
+      markReviewed: async (goals, review, sessionWeek, said) => { await run('markReviewed', { goalIds: goals.map((g) => g.id), reviewId: review.id, week: sessionWeek }, { said }); },
+      acceptRisk: async (goal, review, sessionWeek, reason) => { await run('acceptRisk', { goalId: goal.id, reviewId: review.id, reason, week: sessionWeek }); },
+      addAction: async (goal, text, extra) => { await run('addAction', { goalId: goal.id, text, ...extra }); },
+      editCall: async (d, note, extra) => { await run('editCall', { callId: d.id, note, ...extra }); },
+      watch: async (kind, ref) => { await run('watch', { kind, ref }); },
+      unwatch: async (watchId) => { await run('unwatch', { watchId }); },
+      savePerson: async (p) => { await run('savePerson', { person: p }); },
+      saveReview: async (review) => { await run('saveReview', { review }); },
+      saveRetro: async (goal, retro) => { await run('saveRetro', { goalId: goal.id, result: retro.result, learned: retro.learned, next: retro.next }); },
       sendFeedback: async (mood, text, path) => {
-        await act(() => A.sendFeedback(ax(), mood, text, path));
+        await run('sendFeedback', { mood, text, path });
         // The demo's data lives in this browser only, so its feedback is also sent where the people building the app read it.
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
-      previewChanges: (tables, via, reason, confirm) => planChanges({ tables, snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, via, reason, confirm, full: snapshot }),
+      // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
+      previewChanges: (tables, via, reason, confirm) => perform(rx(), 'planChanges', { tables, via, reason, confirm }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await commit(cs.commit);
       },
-      createToken: async (personId, name) => {
-        let c: Commit;
-        try { c = A.createToken(ax(), personId, name); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
-        // The secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
-        return issueToken(c);
-      },
-      saveView: async (v) => { const out = await act(() => A.saveView(ax(), v)); return out.id; },
-      saveTableView: async (v, head) => { const out = await act(() => A.saveTableView(ax(), v, head)); return out.id; },
-      deleteView: async (id) => {
-        const before = snapshot;
-        const out = await act(() => A.deleteView(ax(), id));
-        if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
-      },
-      saveMetric: async (m) => { const out = await act(() => M.saveMetric(ax(), m)); return out.metric.id; },
-      removeMetric: async (id) => { await removal(() => M.removeMetric(ax(), id), (o) => o.changes[0]!.summary); },
-      linkGoalMetric: async (goal, metricId, teamId) => { await act(() => M.linkGoalMetric(ax(), goal, metricId, teamId)); },
-      unlinkGoalMetric: async (goal) => {
-        const before = snapshot;
-        const out = await act(() => M.unlinkGoalMetric(ax(), goal));
-        if (out) toast(out.changes[0]!.summary, 'success', { label: 'Undo', run: () => { void act(() => R.undoRemoval(ax(), out, before)).then(() => toast('Undone')).catch(() => undefined); } });
-      },
-      markPersonLeft: async (id, to) => { await removal(() => R.markPersonLeft(ax(), id, to), () => `${people.get(id)?.name ?? 'They'} ${people.get(id) ? 'is' : 'are'} marked as left`); },
+      createToken: (personId, name) => run('createToken', { personId, name }),
+      saveView: async (v) => (await run('saveView', v)).id,
+      saveTableView: async (v, head) => (await run('saveTableView', { ...v, head })).id,
+      deleteView: async (id) => { await run('deleteView', { viewId: id }); },
+      saveMetric: async (m) => (await run('saveMetric', m)).metric.id,
+      removeMetric: async (id) => { await run('removeMetric', { metricId: id }); },
+      linkGoalMetric: async (goal, metricId, teamId) => { await run('linkGoalMetric', { goalId: goal.id, metricId, teamId }); },
+      unlinkGoalMetric: async (goal) => { await run('unlinkGoalMetric', { goalId: goal.id }); },
+      markPersonLeft: async (id, to) => { await run('markPersonLeft', { personId: id, ...to }); },
       leaveWorkspace: async (to) => {
-        await act(() => R.leaveWorkspace(ax(), to));
+        await run('leaveWorkspace', to);
         toast(`You’ve left ${ws.name}. An admin can bring you back from Recently removed for ${RESTORE_DAYS} days.`);
         const other = workspaces.find((w) => w.id !== ws.id);
         if (other) { write(K.ws, other.id); setWsId(other.id); }
       },
-      deletePerson: async (id) => { await removal(() => R.deletePerson(ax(), id), () => `Deleted ${people.get(id)?.name ?? 'them'}`); },
-      stopGoal: async (goal, reason) => { await removal(() => R.stopGoal(ax(), goal.id, reason), () => `Stopped ${goal.title}`); },
-      deleteGoal: async (goal) => { await removal(() => R.deleteGoal(ax(), goal.id), () => `Deleted ${goal.title}`); },
-      deleteCheckIn: async (c) => { await removal(() => R.deleteCheckIn(ax(), c.id), () => `Deleted the check-in for week ${c.week}`); },
-      endReview: async (id) => { await removal(() => R.endReview(ax(), id), (o) => `${o.deleted ? 'Deleted' : ENDED} the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
-      deleteReview: async (id) => { await removal(() => R.deleteReview(ax(), id), () => `Deleted the review “${sc.reviews.find((r) => r.id === id)?.name ?? ''}”`); },
-      editComment: async (id, text) => { await act(() => R.editComment(ax(), id, text)); },
-      deleteComment: async (id) => { await removal(() => R.deleteComment(ax(), id), () => COMMENT_REMOVED); },
-      deleteNote: async (id) => { await removal(() => R.deleteNote(ax(), id), () => NOTE_REMOVED); },
-      deleteCycle: async (id) => { await removal(() => R.deleteCycle(ax(), id), () => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === id)?.name ?? ''}`); },
-      undoImport: async (importId) => { const out = await act(() => R.undoImport(ax(), importId)); return { restored: out.restored, skipped: out.skipped }; },
-      restoreRemoved: async (kind, id) => { await act(() => R.restoreRemoved(ax(), kind, id)); },
+      deletePerson: async (id) => { await run('deletePerson', { personId: id }); },
+      stopGoal: async (goal, reason) => { await run('stopGoal', { goalId: goal.id, reason }); },
+      deleteGoal: async (goal) => { await run('deleteGoal', { goalId: goal.id }); },
+      deleteCheckIn: async (c) => { await run('deleteCheckIn', { checkInId: c.id }); },
+      endReview: async (id) => { await run('endReview', { reviewId: id }); },
+      deleteReview: async (id) => { await run('deleteReview', { reviewId: id }); },
+      editComment: async (id, text) => { await run('editComment', { commentId: id, text }); },
+      deleteComment: async (id) => { await run('deleteComment', { commentId: id }); },
+      deleteNote: async (id) => { await run('deleteNote', { noteId: id }); },
+      deleteCycle: async (id) => { await run('deleteCycle', { cycleId: id }); },
+      undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
+      restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
       recentlyRemoved: () => R.recentlyRemoved(snapshot, now),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
-      pinView: async (id, pinned) => { await act(() => A.pinView(ax(), id, pinned)); },
-      revokeToken: async (id) => { await act(() => A.revokeToken(ax(), id)); },
-      startNextCycle: async () => { const out = await act(() => A.startNextCycle(ax())); return out.name; },
+      pinView: async (id, pinned) => { await run('pinView', { viewId: id, pinned }); },
+      revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
+      startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
   }, [loaded, wanted, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
