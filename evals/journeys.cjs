@@ -922,15 +922,15 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   // Check-ins, comments and changes are one stream; Changes shows only the changes.
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Changes', exact: true }));
-  await h.click(p.locator('#activity').getByRole('button', { name: /Show .*change/ }).first());
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Changes \d+$/ }));
+  await h.click(p.locator('#history').getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
   // Anyone can comment; it goes straight into the goal's activity, logged like every other save.
   await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
   await h.click(p.getByRole('button', { name: 'Post comment' }));
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Comments', exact: true }));
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Comments \d+$/ }));
   await see(p, 'The vendor confirmed their December date holds.', 'the comment shows in the activity');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'santiago' && c.goalId === 'fresh-kafka' && c.diffs.some((d) => /December date/.test(d.to))), 'the comment is not in the change log');
@@ -3675,6 +3675,57 @@ journey('U78', ['GOAL-ASK-ONCE', 'ONE-ASK'], 'An ask is said once on a goal, und
   h.set('logged', s.requests.some((r) => r.kind === 'decision' && r.answer === 'Approved for Q4, from the platform reserve.' && r.answeredBy === 'amara'), 'the answer is not saved');
   await p.context().close();
 }, ['progress']);
+
+journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // Portal search has had no check-in since week 39: History says so, week by week (a run of four or more is one entry).
+  await p.goto(url('/goals/env-search') + '#history');
+  const hist = p.locator('#history');
+  // The page scrolls there once it's drawn (and again after the shell puts a new page at its top).
+  await hist.waitFor();
+  await p.waitForFunction(() => { const e = document.getElementById('g-history'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom < innerHeight; }, null, { timeout: 3000 }).catch(() => {});
+  await h.inView(hist.getByRole('heading', { name: 'History' }), 'entry', 'History, opened by #history');
+  const first = (await hist.locator('.stream > li').first().innerText()).replace(/\s+/g, ' ').trim();
+  h.set('attention', first === `Week ${NOW} · No check-in`, `History starts with “${first}”`);
+  await see(hist, 'No check-ins (', 'a run of missed weeks is not said');
+  await h.checkpoint('history');
+  // Changes and Reviews are filters with counts, each count the rows it shows; the filter is in the address.
+  await p.goto(url('/goals/ns-lead'));
+  await hist.waitFor();
+  const filter = (name) => hist.locator('.history-filters').getByRole('link', { name: new RegExp(`^${name} \\d+$`) });
+  // The page can open scrolled to History, under the one-line bar: bring a filter to the middle before pressing it.
+  const press = async (loc) => { await loc.evaluate((e) => e.scrollIntoView({ block: 'center' })); await h.click(loc); };
+  // A filter has taken effect once it is the current one and its list is drawn.
+  const shown = async (name) => { await hist.locator('.history-filter[aria-current="true"]', { hasText: name }).waitFor(); await p.waitForTimeout(150); };
+  // Every row of the filter: Show all when there are more than 12.
+  const showEvery = async (n) => { if (n > 12) { await press(hist.getByRole('link', { name: /^Show all \d+$/ })); await p.waitForURL(/all=1/); await p.waitForTimeout(150); } };
+  const counted = async (name) => Number((await filter(name).innerText()).match(/\d+$/)[0]);
+  await press(filter('Changes'));
+  await p.waitForURL(/history=changes/);
+  await shown('Changes');
+  const changes = await counted('Changes');
+  await showEvery(changes);
+  const rows = await hist.locator('.stream > li').count();
+  const reviewWords = await hist.locator('.stream > li').filter({ hasText: /looked at it|added a note/ }).count();
+  h.set('finish', rows === changes && reviewWords === 0, `Changes says ${changes} and shows ${rows} rows, ${reviewWords} of them from a review`);
+  await p.reload();
+  await hist.waitFor();
+  h.set('progress', (await hist.locator('.history-filter[aria-current="true"]').innerText()).startsWith('Changes'), 'a reload lost the filter');
+  await press(filter('Reviews'));
+  await p.waitForURL(/history=reviews/);
+  await shown('Reviews');
+  const reviews = await counted('Reviews');
+  await showEvery(reviews);
+  const rrows = await hist.locator('.stream > li').count();
+  h.set('errors', rrows === reviews && reviews > 0, `Reviews says ${reviews} and shows ${rrows} rows`);
+  // This week's check-in is one entry, and points to Why for its reason rather than saying it again.
+  await press(filter('All'));
+  await shown('All');
+  await see(hist, 'The reason is above, under Why.', 'this week’s check-in repeats the reason Why gives');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.goalId === 'ns-lead'), 'nothing in the change log for the goal');
+  await p.context().close();
+}, []);
 
 async function finishChecks(add) {
   {
