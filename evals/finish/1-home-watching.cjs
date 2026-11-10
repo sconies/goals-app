@@ -136,7 +136,7 @@ module.exports = {
     // [WA] 4, 5, 7, 14, 22: Activity on a phone.
     for (const w of [360, 390]) {
       const [c, p] = await open(w, 800, 'amara', '/activity', true);
-      check(await p.getAttribute('.filter-search input', 'placeholder') === 'Search changes', '[WA] 5: the search placeholder is still long');
+      check(await p.getAttribute('.filter-search input', 'placeholder') === 'Find by person, goal, key or what was said', '[WA] 5, find spec 2.1: the search placeholder isn’t the list bar’s');
       const fb = await box(p, '.filterbar');
       check(fb && fb.h <= 160, `[WA] 14: the filter bar is ${fb && Math.round(fb.h)}px tall at ${w}`);
       const kc = await box(p, '.kind-chips');
@@ -180,8 +180,9 @@ module.exports = {
     // [WA] 18, 17: no results; a status call has its shape.
     {
       const [c, p] = await open(1280, 800, 'amara', '/activity?q=zzqqxxnothing');
-      const t = p.locator('.activity-none-title');
-      check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(24, 54, 56)' && await p.locator('.activity-none .btn').count() === 1, '[WA] 18: no results is not a plain message with Clear filters');
+      const t = p.locator('.empty-state-title');
+      await t.first().waitFor({ timeout: 5000 }).catch(() => {});
+      check(await t.count() === 1 && await t.evaluate((e) => getComputedStyle(e).color) === 'rgb(24, 54, 56)' && (await t.innerText()) === 'No change matches “zzqqxxnothing”.' && await p.locator('.empty-state .btn', { hasText: 'Clear the search' }).count() === 1, '[WA] 18, find spec 2.1: no results is not the list bar’s message with Clear the search');
       await p.goto(p.url().replace(/\?q=[^&]*&?/, '?'));
       await p.locator('.change-check-in .linkish.tiny').first().click();
       check(await p.locator('.diff-status .status-shape').count() > 0, '[WA] 17: "Status call" has no status shape');

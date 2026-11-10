@@ -31,6 +31,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'one-list-bar',
+    date: '2026-11-10',
+    title: 'Searching works the same on Goals, Activity and Help',
+    points: [
+      'A search finds the words you can see on a row, each from its start, a goal’s key included: “roll” finds “Rollback”.',
+      'Each list says how many match in the same words, and when nothing does, says so with Clear the search. One letter off, it shows the nearest match and says so.',
+      'On Activity, choosing a person or a goal to filter by is a search, the filters on read as words with Remove, and the address keeps them, so Back and a shared link show the same list.',
+    ],
+    articles: ['finding', 'activity', 'help'],
+  },
+  {
     id: 'find-and-pick',
     date: '2026-11-10',
     title: 'Type to find a person, a team or a goal',

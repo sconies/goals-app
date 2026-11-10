@@ -162,8 +162,8 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (text: string
     write.current(words);
   };
   return (
-    <label className="filter-search"><span className="sr">Search goals</span>
-      <input className="input" type="search" placeholder="Search goals" title="Search goals by name, owner, team or reason" maxLength={200} value={text}
+    <label className="filter-search"><span className="sr">Find a goal</span>
+      <input className="input" type="search" placeholder="Find by name, owner, team or key" title="Find goals by the words on them: name, key, owner, team, status or reason" maxLength={200} value={text}
         onChange={(e) => {
           const t = e.target.value;
           setText(t);
