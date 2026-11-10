@@ -68,7 +68,7 @@ export function Routed() {
         <Route path="/workspace" element={<WorkspaceHome />} />
         <Route path="/workspace/new" element={<Onboarding />} />
         {/* Workspace's sections (backlog W); a module's sections are added with its routes below. */}
-        <Route path="/workspace/overview" element={<WorkspaceHome section="overview" />} />
+        <Route path="/workspace/overview" element={<MovedFrom />} />
         {/* People and Teams have places of their own (app redesign WR1); their old addresses lead there (domain/directory movedTo). */}
         <Route path="/workspace/people" element={<MovedFrom />} />
         <Route path="/workspace/teams" element={<MovedFrom />} />

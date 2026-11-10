@@ -462,7 +462,7 @@ There are no role labels: owners edit and check in on their goals; everyone else
 
 Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
+- **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
 - **Journeys and checks:** U5, U10, U14
 
 ### PEOPLE-DIRECTORY
@@ -578,7 +578,7 @@ Unsaved answers survive leaving a flow and are offered back when the user return
 
 The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back.
 
-- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U5, U17, U49, U54
 
 ### BULK-EDIT
@@ -676,7 +676,7 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61
 
 ### IDENTITY
 
@@ -900,23 +900,31 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`; “Teams” (`teams`)
+- **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
 - **Tests:** `evals/workspace-admin.eval.ts` (6)
 - **Journeys and checks:** N4
 
 ### WORKSPACE-SECTIONS
 
-Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and a list on a phone: Overview (what needs attention, then every section with one true line each, leaving, and deleting the workspace at the end, for admins), Cycles, Access (admins and MCP tokens), Features, Privacy and Recently removed. People who aren’t admins see Overview, Cycles, Privacy and Recently removed; anyone else opening an admins’ section is told who the admins are. People and Teams are a place of their own (PEOPLE-DIRECTORY). Old addresses (/workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections).
+Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and, on a phone, as a list under About: About (/workspace: for admins what needs sorting out, then the facts about the workspace, and deleting it at the foot), Cycles, Access (admins and MCP tokens), Features, Privacy and Recently removed. People who aren’t admins see About, Cycles, Privacy and Recently removed; anyone else opening an admins’ section is told who the admins are and led back to Workspace. People and Teams are a place of their own (PEOPLE-DIRECTORY). Old addresses (/workspace/overview, /workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections), with a fact on About (`says`) and its own things to sort out (`needs`).
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U51
+- **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
+- **Journeys and checks:** U51, U59
+
+### WORKSPACE-ABOUT
+
+Workspace opens on About (app redesign WR2). Under the title, one line: "{workspace} · you’re an admin here" or "… a member here". For admins only, "To sort out": no goals, no review, the only admin of five or more people, people with no email, people in no team, teams of three or more with no lead, each a sentence, why, and one button, at most three then "and {k} more"; nothing to sort out leaves it out. Then the facts, each leading to its section: name (and "example data" or "kept in this browser"), people and teams, the year and when its wrap-up opens, the admins (a member is told to ask one of them), which features are on, and recording. Nothing about another workspace: no set-up, demo or reset buttons. A member sees no control they can't use.
+
+- **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
+- **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
+- **Journeys and checks:** F10, U59, U61
 
 ### WORKSPACE-ONE-PLACE
 
-Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace, lists every workspace, says whether you're an admin here, and offers setting up a workspace of your own (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says your permissions in one line (what is for admins, and who they are). The overview lists what needs attention here first (domain/workspaceAttention), then every section. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
+Workspace is one place (backlog WS). The sidebar's header (and a phone's top bar) is the workspace switcher: it names the open workspace (the example without its "Example: "), lists every workspace with its kind, says your role on the open one ("Open now"), and leads to About and to setting up a new workspace (not Home). Switching is navigation with a history entry, so Back returns to the workspace you came from; you land on the same kind of page or Home, never on the old workspace's goal; while the other loads the screen says "Opening <name>…"; part-way through a task with a draft it asks first and says the draft stays in its own workspace. The person menu is only about people. Your role shows: "Admin" beside your name where you are one, and Workspace says in one line whose workspace it is and your part in it. Cycles show their dates, which is running, their goals and check-ins, and their actions; a team counts its lead; a workspace name's 80-character limit is said while typing, never cut; no button clips its label.
 
 - **Rule:** [The workspace: cycles, teams, names, leaving and what needs attention](rules/workspace.md)
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`
 - **Journeys and checks:** U53
 
 ### FEEDBACK-PAGE
@@ -928,9 +936,9 @@ The inbox of markups and feedback is its own page, Feedback (/feedback), beside 
 
 ### LEAVE-WORKSPACE
 
-Anyone can leave a workspace from its overview, with a confirm that first asks who takes over their goals and open asks; the only admin can't leave. Resetting or deleting a shared workspace is for admins; the demo's Start over stays for everyone and says it only touches this browser. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
+Anyone can leave a workspace from Settings (last, after a rule), with a confirm that first asks who takes over their goals and open asks; the only admin sees the button disabled and why. Resetting the example is the demo's Start over, for everyone, and says it only touches this browser; deleting a workspace of your own is for admins, at the foot of About. Set-up asks whether to record how the app is used (off unless ticked), its "Who are you?" step starts as the person you are, and steps skipped on the "Set goals up later" path say so.
 
-- **Help:** “Running the workspace” (`workspace`), screens `Workspace`
+- **Help:** “Settings” (`settings`), screens `Settings`
 - **Journeys and checks:** U53
 
 ## Finding

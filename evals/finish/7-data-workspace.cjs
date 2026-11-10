@@ -193,11 +193,6 @@ module.exports = {
     if (!near(ap.gap, 8, 2)) fails.push(`[W12] "Add a name." is ${Math.round(ap.gap)}px under Name`);
     if (ap.cb[0] < 17 || ap.cb[1] < 17 || ap.word !== '14px 600') fails.push(`[W12] Admin checkbox ${ap.cb.join('x')}, label ${ap.word}`);
     await c.close();
-    [c, r] = await open(1280, 800, 'grace', '/workspace');
-    await r.getByRole('button', { name: 'Reset the example' }).click(); await r.waitForTimeout(200);
-    const rc = await r.evaluate(() => { const q = document.querySelector('.reset-confirm'), btns = [...document.querySelectorAll('.ws-name-block > .row .btn')]; if (!q) return null; const b = q.getBoundingClientRect(); return { below: b.top - Math.max(...btns.map((x) => x.getBoundingClientRect().bottom)), row: new Set([...q.querySelectorAll('.btn')].map((x) => Math.round(x.getBoundingClientRect().top))).size }; });
-    if (!rc || !near(rc.below, 12, 2) || rc.row !== 1) fails.push(`[W13] reset confirm: ${JSON.stringify(rc)}`);
-    await c.close();
     [c, r] = await open(2560, 1440, 'grace', '/workspace');
     const pw = await box(r, '.page.workspace');
     if (pw.w > 1121) fails.push(`[W24] 2560 Workspace page is ${Math.round(pw.w)}px`);
