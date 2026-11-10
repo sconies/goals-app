@@ -1,0 +1,60 @@
+<!doctype html><html lang="en-GB"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workspace</title><style>
+:root{--bg:#F6F5F1;--surface:#fff;--surface-2:#FAF9F6;--line:#E4E1D9;--line-2:#EBE8E1;--fg:#183638;--fg-2:#2F4A4C;--muted:#465759;--faint:#9AA3A1;--accent:#21968E;--accent-text:#136F78;--on:#1D7F5F;--risk:#93450A;--off:#B42318;--off-wash:#FFF6F5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/22px Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-text)}h1{font-size:28px;line-height:34px;margin:0;font-weight:650;letter-spacing:-.01em}h2{font-size:17px;line-height:24px;margin:0;font-weight:650}
+p{margin:0}.hint{color:var(--muted);font-size:14px;line-height:20px}.label{font-size:12px;line-height:16px;font-weight:600;color:var(--muted)}
+.app{display:flex;min-height:100vh}.side{width:236px;flex:none;border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px}
+.brand{font-weight:800;font-size:20px;padding:0 10px 10px}.wsname{padding:6px 10px 14px;display:flex;justify-content:space-between;gap:8px}.wsname b{display:block}.wsname span{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:12px;align-items:center;padding:9px 10px;border-radius:8px;color:var(--fg-2)}.nav.cur{background:var(--surface);font-weight:650;color:var(--fg)}
+.nav i{width:16px;height:16px;border:1.6px solid currentColor;border-radius:4px;flex:none;opacity:.7}.gap{flex:1}.sep{height:1px;background:var(--line);margin:8px 10px}
+.me{display:flex;gap:10px;align-items:center;padding:10px}.av{width:32px;height:32px;border-radius:999px;background:var(--fg);color:var(--bg);font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex:none}.av.sm{width:26px;height:26px;font-size:10px}
+main{flex:1;min-width:0;padding:32px 32px 64px}.page{max-width:880px}.page.wide{max-width:1060px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.head .stack{gap:4px}
+.stack{display:flex;flex-direction:column;gap:8px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-weight:600;color:var(--fg);white-space:nowrap}
+.btn.primary{background:var(--fg);border-color:var(--fg);color:#fff}.btn.quiet{border-color:transparent;background:transparent;color:var(--accent-text);padding:0 4px}.btn.danger{color:var(--off);border-color:#F0A39C}
+.tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin-bottom:18px}.tabs span{padding:10px 0;color:var(--muted);font-weight:600}.tabs .cur{color:var(--fg);box-shadow:0 2px 0 var(--fg)}
+.input{display:flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--faint);flex:1;min-width:200px}
+.list{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:0;padding:0;list-style:none}.list li{display:flex;gap:12px;align-items:center;padding:12px 16px;min-height:56px}.list li+li{border-top:1px solid var(--line-2)}
+.list .t{flex:1;min-width:0}.list .t b{display:block;font-weight:600}.list .t span{color:var(--muted);font-size:14px}.list .r{color:var(--muted);font-size:14px;text-align:right}.chev{color:var(--faint)}
+.offwash{background:var(--off-wash)}
+.layout{display:flex;gap:40px;align-items:flex-start}.menu{width:196px;flex:none;display:flex;flex-direction:column;gap:2px}.menu span{padding:9px 10px;border-radius:8px;color:var(--fg-2)}.menu .cur{background:var(--surface);font-weight:650;color:var(--fg)}.menu .grp{font-size:12px;font-weight:600;color:var(--muted);padding:14px 10px 4px}
+.body{flex:1;min-width:0;display:flex;flex-direction:column;gap:28px}
+.facts{margin:0;display:grid;grid-template-columns:150px 1fr;gap:10px 16px}.facts dt{color:var(--muted)}.facts dd{margin:0}
+.st{display:inline-flex;gap:6px;align-items:center;font-weight:600;white-space:nowrap}.st svg{flex:none}.st.on{color:var(--on)}.st.risk{color:var(--risk)}.st.off{color:var(--off)}.st.stale{color:var(--muted)}
+.counts{display:flex;gap:18px;flex-wrap:wrap}
+.sw{display:inline-flex;gap:8px;align-items:center;font-weight:600}.sw i{width:36px;height:22px;border-radius:999px;border:1.6px solid var(--fg);position:relative;flex:none}.sw i:after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:999px;background:var(--fg)}.sw.is-on i{background:var(--fg)}.sw.is-on i:after{left:17px;background:#fff}
+.sheet{width:440px;max-width:100%;margin:40px auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:20px;display:flex;flex-direction:column;gap:16px}
+.note{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:8px}
+.top,.tabbar{display:none}
+@media (max-width:700px){
+ .side{display:none}.app{display:block}main{padding:16px 16px 32px}
+ .top{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}.top b{display:block}.top span{font-size:12px;color:var(--muted)}.top .f{font-weight:800;font-size:20px}
+ .tabbar{display:flex;margin-top:24px;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around;padding:10px 0 14px;font-size:12px;font-weight:600;color:var(--muted)}.tabbar .cur{color:var(--accent-text)}
+ h1{font-size:24px;line-height:30px}.head{flex-direction:column;align-items:stretch}.layout{display:block}.menu{display:none}.facts{grid-template-columns:1fr;gap:2px 0}.facts dd{margin-bottom:10px}
+ .list li{flex-wrap:wrap}.list .t{flex:1 1 60%}.list .chev{order:2}.list .r.wide{order:3;flex-basis:100%;text-align:left}.list .r.wide:empty{display:none}.phone-only{display:block!important}.desk-only{display:none!important}
+}
+.phone-only{display:none}
+</style>
+<div class="top"><span class="f">F</span><div style="flex:1"><b>Workspace</b><span>Platform Engineering · week 46</span></div><span class="av">RK</span></div>
+<div class="app"><nav class="side"><div class="brand">Faro</div><div class="wsname"><div><b>Platform Engineering</b><span>Example · Week 46 · Q4</span></div><span class="chev">⌄</span></div>
+<div class="nav "><i></i>Home</div><div class="nav "><i></i>Goals</div><div class="nav "><i></i>Reviews</div><div class="nav "><i></i>Activity</div><div class="nav "><i></i>People</div><div class="nav "><i></i>Data</div><div class="nav "><i></i>New goal</div>
+<div class="gap"></div><div class="sep"></div>
+<div class="nav cur"><i></i>Workspace</div><div class="nav "><i></i>Settings</div><div class="nav "><i></i>Help</div><div class="nav "><i></i>Feedback</div>
+<div class="me"><span class="av">RK</span><div><b>Rhea Kapoor</b><div class="hint" style="font-size:12px">CI/CD</div></div></div></nav>
+<main><div class="page wide">
+<div class="head"><div class="stack"><h1>Workspace</h1><p class="hint">Platform Engineering · you’re a member here</p></div></div>
+<div class="layout"><div class="menu"><span class="cur">About</span><span class="">Cycles</span><span class="">Privacy</span><span class="">Recently removed</span></div><div class="body">
+<div class="stack"><h2>About this workspace</h2>
+<dl class="facts">
+<dt>Name</dt><dd>Platform Engineering <span class="hint">· example data</span></dd>
+<dt>People</dt><dd><a>97 people in 14 teams</a></dd>
+<dt>Year</dt><dd>2026, week 46 of 53. The wrap-up opens on 14 December. <a>Cycles</a></dd>
+<dt>Admins</dt><dd>Amara Nwosu, Grace Achterberg and Hamid Rezaei. Ask one of them to add someone, change a team or change a setting.</dd>
+<dt>Features</dt><dd>Metric library and Spreadsheets are on.</dd>
+<dt>Recording</dt><dd>Faro records how the app is used here, never what anyone types. <a>Privacy</a></dd>
+</dl></div>
+<div class="phone-only stack"><span class="label">More in Workspace</span><ul class="list"><li><span class="t"><b>Cycles</b><span>2026, week 46 of 53</span></span><span class="chev">›</span></li><li><span class="t"><b>Privacy</b><span>Recording is on</span></span><span class="chev">›</span></li><li><span class="t"><b>Recently removed</b><span>Nothing of yours in the last 30 days</span></span><span class="chev">›</span></li></ul></div>
+</div></div>
+<p class="note">Wireframe 6. Workspace, as a member (Rhea or Oskar): the same facts, no actions, and who to ask. Nothing for admins is listed and then refused.</p></div></main></div>
+<div class="tabbar"><span>Home</span><span>Goals</span><span>Watching</span><span>Reviews</span><span class="cur">More</span></div></html>
