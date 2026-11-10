@@ -26,6 +26,14 @@ describe('searching, filtering and sorting goals', () => {
     expect(run({ q: 'MergeFlow' })).toContain(id('Merge queue live for every monorepo'));
     expect(run({ q: 'nothing like this' })).toEqual([]);
   });
+  it('finds a goal by its key, however it is typed: “G-48”, “g48”, “48” (U28)', () => {
+    const g = s.goals.find((x) => x.key === 'G-48')!;
+    expect(g).toBeTruthy();
+    for (const typed of ['G-48', 'g48', 'g-48', ' 48 ', '48']) expect(run({ q: typed })).toContain(g.id);
+    expect(run({ q: 'G-48' })).toEqual([g.id]);
+    expect(run({ q: 'G-4' })).not.toContain(g.id);
+    expect(run({ q: 'G-99999' })).toEqual([]);
+  });
   it('counts no done goal as quiet, and the pinned view uses the no-recent-update threshold (demo review, 8 Nov)', () => {
     const quiet = applyQuery(sums, { ...EMPTY_QUERY, quiet: 2 }, ctx);
     expect(quiet.length).toBeGreaterThan(0);

@@ -21,6 +21,20 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'talk-path-polish',
+    date: '2026-11-10',
+    title: 'Find a goal by its key, and counts that open their goals',
+    points: [
+      'Search Goals for a goal’s key and it finds it, however you type it: G-48, g48 or 48.',
+      'On Home, each count of goals by status opens just those goals: “11 off track” lists the 11.',
+      'By team lists the teams worst first, each with how many of its goals are off track, at risk, on track and so on.',
+      'Board cards start with their own status, a shape and its word, so a card says where it stands on a phone too.',
+      'Decision or help needed names the same goals in the filter, its saved view, the Table and the Board. On a phone, what someone asked of you wraps to two lines instead of being cut mid-word, and set-up’s small links are easier to hit.',
+      'The example workspace no longer contradicts itself: a note no longer answers a question that is still open, an ask names the right week, and late check-ins are dated in their own week.',
+    ],
+    articles: ['goals-filters', 'home', 'goals', 'keys'],
+  },
+  {
     id: 'decide-in-review',
     date: '2026-11-10',
     title: 'Decide in the review',

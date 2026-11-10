@@ -3,6 +3,7 @@
 import { LEVEL_LABEL } from './format';
 import { onAttentionList } from './attention';
 import { RANK } from './status';
+import { formatKey, normalKey } from './goalKey';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, LABEL, QUARTER, RESULT, WARNING, type FlagKind } from './vocabulary';
 import type { GoalSummary } from './summary';
 import type { Cycle, Goal, GoalKind, Level } from './types';
@@ -124,12 +125,22 @@ export function treeOf(id: string, goals: Goal[]): Set<string> {
   return out;
 }
 
+/** The goal key a search names, if the whole search is one: "G-48", "g48" or a bare "48" all name G-48. */
+export function searchKey(text: string): string | null {
+  const t = text.trim();
+  return normalKey(t) ?? (/^\d{1,9}$/.test(t) ? formatKey(Number(t)) : null);
+}
+
 /** Does this goal pass every filter in the query? */
 export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: Set<string> | null): boolean {
   const g = s.goal;
   if (q.q.trim()) {
     const hay = [g.title, s.owner, s.team, LEVEL_LABEL[g.level], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', g.definition, g.source].join(' ').toLowerCase();
-    if (!q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
+    // A goal's key finds it, however it's typed ("G-48", "g48", "48"), so people can say "G-48" in a meeting and find
+    // it. A key finds only its own goal ("G-4" isn't G-48); a bare number finds its key and any text with it too.
+    const key = searchKey(q.q);
+    const byKey = !!key && g.key === key;
+    if (normalKey(q.q) != null ? !byKey : !byKey && !q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
   }
   if (q.status.length && !q.status.includes(s.status)) return false;
   if (q.level.length && !q.level.includes(g.level)) return false;

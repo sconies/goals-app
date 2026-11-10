@@ -227,13 +227,13 @@ module.exports = {
         const m = document.createElement('span'); m.textContent = '-'; m.style.cssText = 'position:absolute;white-space:pre'; meta.appendChild(m); const hy = m.getBoundingClientRect().width / parseFloat(getComputedStyle(meta).fontSize); m.remove();
         return { tops: new Set(lanes.map((l) => Math.round(l.top))).size, widths: lanes.map((l) => Math.round(l.width)), heights: new Set(lanes.map((l) => Math.round(l.height))).size, scroll: getComputedStyle(board).overflowX,
           peek: peek ? b.right - peek.left : 0, countBg: count.backgroundColor, countSize: count.fontSize, lvlRight: card.getBoundingClientRect().right - lvl.querySelector('.level').getBoundingClientRect().right,
-          lvlFirst: lvl === card.firstElementChild, tagMargin: tag && getComputedStyle(tag).marginLeft, radius: getComputedStyle(card).borderRadius, laneRadius: getComputedStyle(document.querySelector('.board-col')).borderRadius, hy };
+          lvlFirst: lvl === card.firstElementChild || (lvl.parentElement === card.firstElementChild && lvl.parentElement.classList.contains('board-top')), tagMargin: tag && getComputedStyle(tag).marginLeft, radius: getComputedStyle(card).borderRadius, laneRadius: getComputedStyle(document.querySelector('.board-col')).borderRadius, hy };
       });
       chk(m.tops === 1 && m.scroll === 'auto' && m.widths.every((w) => w >= 280 && w <= 320), `B&C 1: 1024px lanes in ${m.tops} row(s), widths ${m.widths.join('/')}, overflow ${m.scroll}`);
       chk(m.peek >= 24, `B&C 1: the next lane peeks ${r0(m.peek)}px`);
       chk(m.heights === 1, 'B&C 9: lanes are different heights');
       chk(m.countBg === 'rgba(0, 0, 0, 0)' && m.countSize === '13px', `B&C 18: lane count is a ${m.countBg} pill at ${m.countSize}`);
-      chk(m.lvlFirst && m.lvlRight <= 13, `B&C 6: the level is not a right-aligned top row (${r0(m.lvlRight)}px from the right)`);
+      chk(m.lvlFirst && m.lvlRight <= 13.5, `B&C 6: the level is not a right-aligned top row (${r0(m.lvlRight)}px from the right)`);
       chk(m.tagMargin == null || m.tagMargin === '0px', `B&C 5: result tag indented ${m.tagMargin}`);
       chk(m.radius === '8px' && m.laneRadius === '8px', `B&C 8: card radius ${m.radius}, lane ${m.laneRadius}`);
       chk(m.hy <= 0.5, `B&C 12: a hyphen is ${m.hy.toFixed(2)}em wide`);

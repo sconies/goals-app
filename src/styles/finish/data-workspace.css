@@ -196,6 +196,11 @@
 @media (min-width: 1280px) { .focus.focus-roomy { max-width: 800px; } }
 
 /* [W5] Progress: steps not reached are visible; done and current share the accent, the current one taller. */
+/* Set-up's small links in a line of text (Start over, Change, Change people): 44px to hit on a phone or touch screen
+   (D3), without making the line taller: the target reaches above and below the text. */
+@media (pointer: coarse), (max-width: 600px) {
+  .focus-onboard .linkish.tap-44 { min-height: 44px; margin-block: -12px; vertical-align: middle; }
+}
 .focus-onboard .steps-bar { align-items: center; }
 .focus-onboard .steps-bar i { height: 4px; background: var(--line-strong); }
 .focus-onboard .steps-bar i.done, .focus-onboard .steps-bar i.now { background: var(--accent); }

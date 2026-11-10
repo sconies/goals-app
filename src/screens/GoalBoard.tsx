@@ -7,9 +7,10 @@ import { type GoalSummary } from '../domain/summary';
 import { SHORT_MEANING } from '../domain/story';
 import { LEVELS } from '../domain/query';
 import type { DisplayStatus } from '../domain/types';
-import { LevelTag, StatusShape, TitleTell } from '../ui/bits';
+import { LevelTag, StatusShape, StatusWord, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { ATTENTION } from '../domain/vocabulary';
+import { waitingOnDecision } from '../domain/attention';
 import { hasStory, Keep, ResultTag, StoryLines } from '../ui/GoalStory';
 import { useSummaries, type ViewGroup } from './GoalViews';
 
@@ -25,7 +26,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const sums = useSummaries(groups);
   const all = [...sums.values()];
   // Within a lane: the higher goals first (the north star leads), then those waiting on a decision, then by name.
-  const order = (a: GoalSummary, b: GoalSummary) => LEVELS.indexOf(a.goal.level) - LEVELS.indexOf(b.goal.level) || Number(!!b.story.needs) - Number(!!a.story.needs) || a.goal.title.localeCompare(b.goal.title);
+  const order = (a: GoalSummary, b: GoalSummary) => LEVELS.indexOf(a.goal.level) - LEVELS.indexOf(b.goal.level) || Number(waitingOnDecision(b.attention)) - Number(waitingOnDecision(a.attention)) || a.goal.title.localeCompare(b.goal.title);
   // Filtered, an empty lane is noise: only the lanes with goals in them (round 3 and visual review 2).
   const app = useApp();
   const filtered = all.length < app.snapshot.goals.length;
@@ -44,8 +45,12 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
           {c.items.length === 0 && <span className="hint board-empty">None</span>}
           {items.map((s) => (
             <Link key={s.goal.id} to={'/goals/' + s.goal.id} className="board-card" data-tone={s.status}>
-              {/* The level on a short row of its own, right-aligned as on Cards; no row when the goal is a team goal. */}
-              {s.goal.level !== 'team' && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
+              {/* The card's own status first, a shape and its word (D2): on a phone the lanes stack, and a card scrolled
+                  past its lane's heading still says where it stands. The level sits right on the same row. */}
+              <span className="board-top">
+                <StatusWord k={s.status} className="board-status" />
+                {s.goal.level !== 'team' && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
+              </span>
               <span className="board-title">{s.goal.title}</span><TitleTell goal={s.goal} />
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
               {/* Which goal it feeds, so a card makes sense away from its tree (backlog GP, 9 Nov). */}

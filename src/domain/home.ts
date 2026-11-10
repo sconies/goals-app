@@ -5,7 +5,7 @@ import { daysSince } from './plan';
 import { onTimeStreak, WEEKDAY } from './progress';
 import { daysPast, reviewSession, sessionDate, upcomingSessionWeek, watchedGoals } from './review';
 import { goalStatus } from './status';
-import { STATUS_ORDER } from './summary';
+import { statusCounts } from './order';
 import type { Cycle, DisplayStatus, Goal, Snapshot } from './types';
 
 /** Watched goals by what they need: new information, in hand, and the rest. */
@@ -74,12 +74,10 @@ export interface Dashboard {
 export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Dashboard {
   const mine = s.goals.filter((g) => g.ownerId === personId);
   const goals: Goal[] = mine.length ? mine : s.goals;
-  const by = new Map<DisplayStatus, number>();
-  for (const g of goals) { const k = goalStatus(g, cycle, s.checkIns, today).status; by.set(k, (by.get(k) ?? 0) + 1); }
   const watched = watchedGoals(personId, s);
   return {
     scope: mine.length ? 'mine' : 'all',
-    counts: STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({ status: k, n: by.get(k)! })),
+    counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,

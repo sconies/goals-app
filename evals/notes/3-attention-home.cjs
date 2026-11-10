@@ -58,7 +58,7 @@ module.exports = {
         const head = await box(p, '.page.home > .page-head'), dash = await box(p, '.page.home > .dash'), grid = await box(p, '.page.home > .home-grid');
         check(dash && head && grid && dash.y >= head.b && dash.b <= grid.y, `[HOME-DASHBOARD] ${at}: the strip is not between the heading and the rest of Home`);
         check(dash && grid && Math.abs(dash.x - grid.x) <= 1 && Math.abs(dash.w - grid.w) <= 1, `[HOME-DASHBOARD] ${at}: the strip is not on the page's one left edge and width`);
-        const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { x: Math.round(r.x), y: Math.round(r.y), h: r.height, bg: cs.backgroundColor, text: e.innerText, href: e.getAttribute('href') || '' }; }));
+        const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { x: Math.round(r.x), y: Math.round(r.y), h: r.height, bg: cs.backgroundColor, text: e.innerText, href: e.getAttribute('href') || e.querySelector('a.dash-all')?.getAttribute('href') || '' }; }));
         const owner = who !== 'amara';
         // (One Watching: the strip no longer has a Watching cell; what you watch is the “Goals you watch” block under it.)
         check(cells.length === (owner ? 3 : 2), `[HOME-DASHBOARD] ${at}: ${cells.length} cells`);

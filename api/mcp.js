@@ -7845,6 +7845,7 @@ var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) +
 init_format();
 init_attention();
 init_status();
+init_goalKey();
 init_vocabulary();
 init_year();
 var STATUS_OPTIONS = [
@@ -7939,6 +7940,11 @@ function treeOf$1(id, goals) {
 	}
 	return out;
 }
+/** The goal key a search names, if the whole search is one: "G-48", "g48" or a bare "48" all name G-48. */
+function searchKey(text) {
+	const t = text.trim();
+	return normalKey(t) ?? (/^\d{1,9}$/.test(t) ? formatKey(Number(t)) : null);
+}
 /** Does this goal pass every filter in the query? */
 function matches(s, q, ctx, tree) {
 	const g = s.goal;
@@ -7954,7 +7960,9 @@ function matches(s, q, ctx, tree) {
 			g.definition,
 			g.source
 		].join(" ").toLowerCase();
-		if (!q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
+		const key = searchKey(q.q);
+		const byKey = !!key && g.key === key;
+		if (normalKey(q.q) != null ? !byKey : !byKey && !q.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w))) return false;
 	}
 	if (q.status.length && !q.status.includes(s.status)) return false;
 	if (q.level.length && !q.level.includes(g.level)) return false;
@@ -9654,6 +9662,18 @@ function activityFilter(a, x) {
 		return true;
 	};
 }
+// src/domain/order.ts
+init_status();
+init_vocabulary();
+/** How many goals have each status, worst first, only the statuses that have any: "11 off track, 23 at risk …". */
+function statusCounts(statuses) {
+	const by = /* @__PURE__ */ new Map();
+	for (const k of statuses) by.set(k, (by.get(k) ?? 0) + 1);
+	return STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
+		status: k,
+		n: by.get(k)
+	}));
+}
 // src/domain/home.ts
 init_attention();
 init_plan();
@@ -9702,18 +9722,10 @@ function missedReviews(personId, s, cycle, week, today) {
 function dashboard(personId, s, cycle, week, today) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
 	const goals = mine.length ? mine : s.goals;
-	const by = /* @__PURE__ */ new Map();
-	for (const g of goals) {
-		const k = goalStatus(g, cycle, s.checkIns, today).status;
-		by.set(k, (by.get(k) ?? 0) + 1);
-	}
 	const watched = watchedGoals(personId, s);
 	return {
 		scope: mine.length ? "mine" : "all",
-		counts: STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({
-			status: k,
-			n: by.get(k)
-		})),
+		counts: statusCounts(goals.map((g) => goalStatus(g, cycle, s.checkIns, today).status)),
 		total: goals.length,
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
 		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
@@ -9884,9 +9896,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it. The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
+					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
 					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session.",
-					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it.",
+					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
@@ -10059,6 +10071,7 @@ var CORE_ARTICLES = [
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
+					"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
 					"The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.",
 					"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
 					"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
@@ -10395,10 +10408,12 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.",
+					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
 					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
 					"Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.",
-					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into.",
+					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.",
+					"Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.",
 					"Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.",
 					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
 					"A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.",
@@ -10471,6 +10486,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Search finds goals where every word appears in the title, owner, team, level, the owner’s reason, recovery plan or definition. Type or paste as fast as you like: the goals follow a moment after you stop.",
+				"Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.",
 				"Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.",
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Decision or help needed is one press. Each active filter shows as words you can remove.",
@@ -10767,7 +10783,7 @@ var CORE_ARTICLES = [
 			list: [
 				"Keys are given in the order goals are created, per workspace, and are never reused. A goal carried into the next year keeps its key.",
 				"You’ll see the key on the goal’s page, in the Goals table, in Data and in exports.",
-				"Open a goal straight from its key: /goals/G-12.",
+				"Open a goal straight from its key: /goals/G-12. Or type the key in Goals’ search: G-12, g12 and 12 all find it.",
 				"Imports and AI assistants accept a key wherever a goal’s ID goes, and look for the key first: a file from last year still finds the goals carried over, which keep their keys but not their IDs. Check-ins, plans and people have IDs that never change, shown first in Data; people are also matched by their email."
 			]
 		}],
@@ -11978,6 +11994,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "talk-path-polish",
+		date: "2026-11-10",
+		title: "Find a goal by its key, and counts that open their goals",
+		points: [
+			"Search Goals for a goal’s key and it finds it, however you type it: G-48, g48 or 48.",
+			"On Home, each count of goals by status opens just those goals: “11 off track” lists the 11.",
+			"By team lists the teams worst first, each with how many of its goals are off track, at risk, on track and so on.",
+			"Board cards start with their own status, a shape and its word, so a card says where it stands on a phone too.",
+			"Decision or help needed names the same goals in the filter, its saved view, the Table and the Board. On a phone, what someone asked of you wraps to two lines instead of being cut mid-word, and set-up’s small links are easier to hit.",
+			"The example workspace no longer contradicts itself: a note no longer answers a question that is still open, an ask names the right week, and late check-ins are dated in their own week."
+		],
+		articles: [
+			"goals-filters",
+			"home",
+			"goals",
+			"keys"
+		]
+	},
 	{
 		id: "decide-in-review",
 		date: "2026-11-10",
