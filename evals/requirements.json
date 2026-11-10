@@ -424,7 +424,17 @@
     {
       "id": "GOAL-PAGE-ONCE",
       "area": "Goals",
-      "text": "Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. The chart is within the first phone screen."
+      "text": "Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart."
+    },
+    {
+      "id": "GOAL-ACT",
+      "area": "Goals",
+      "text": "A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so."
+    },
+    {
+      "id": "GOAL-ASK-ONCE",
+      "area": "Goals",
+      "text": "Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press."
     },
     {
       "id": "GOAL-PAGE-SCORECARD",

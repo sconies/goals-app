@@ -64,6 +64,8 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U58 | Anyone finds a person and a team: as Oskar, People from the sidebar (More on a phone), search, open Rhea, see her goals; Teams, open CI/CD, whose counts are Goals’ By team, and see its goals; no button changes anything; every old address lands |  | `PEOPLE-DIRECTORY` `OLD-ADDRESSES` | 12 | `evals/journeys.cjs` |
 | U59 | Workspace opens on About: one line under the title, the facts each leading to their section, nothing about another workspace; a member sees the same facts with whom to ask and nothing to sort out, and an admins’ section says who the admins are; on a phone About comes first, then the other sections |  | `WORKSPACE-ABOUT` `WORKSPACE-SECTIONS` | 8 | `evals/journeys.cjs` |
 | U61 | Day one tells the truth: a two-person workspace just set up has nothing to sort out and its team says No lead without a warning; with 12 people and still one admin, About says “You’re the only admin” with Choose someone |  | `WORKSPACE-ABOUT` `ONBOARDING` | 6 | `evals/journeys.cjs` |
+| U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
+| U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
 
 ## Platform checks
 
@@ -94,6 +96,7 @@ Per-area checks from the fit-and-finish reports.
 | F6 | Fit and finish, map-reviews | `FIT-AND-FINISH-AREAS` | `evals/finish/6-map-reviews.cjs` |
 | F9 | Numbers and names: never rounded quietly, odd numbers asked about, shared names told apart | `NO-SILENT-ROUNDING` `SAME-NAMES` `PLAN-CHANGE` | `evals/finish/9-numbers-names.cjs` |
 | F10 | People, Teams and About on a phone: the first person and the first fact near the top, short Teams rows with no buttons, nothing scrolls sideways | `PEOPLE-DIRECTORY` `WORKSPACE-ABOUT` `FIT-AND-FINISH` | `evals/finish/10-people.cjs` |
+| F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 
 ## Review notes
 
@@ -108,8 +111,9 @@ Checks that Lane’s review notes stay fixed.
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
 | N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
-| N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
+| N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
+| N15 | Said once: an ask’s words, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` | `evals/notes/11-said-once.cjs` |
 
 ## The ease test
 

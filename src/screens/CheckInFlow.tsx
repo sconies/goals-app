@@ -232,7 +232,9 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNext, setShowNext] = useState(!!draft.next);
-  const [showNeedsOpen, setShowNeeds] = useState(!!draft.needs);
+  // Opened from a goal's "Ask for a decision or help" (?need=1): the decision-or-help field starts open.
+  const loc = useLocation();
+  const [showNeedsOpen, setShowNeeds] = useState(() => !!draft.needs || new URLSearchParams(loc.search).get('need') === '1');
   const showNeeds = showNeedsOpen || !!draft.needs.trim();
   const [statusOpen, setStatusOpen] = useState(false);
   // Waiting on a decision already asked for another goal: linked here, in the check-in, where the owner says what's

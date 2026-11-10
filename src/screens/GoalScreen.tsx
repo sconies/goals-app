@@ -18,16 +18,16 @@ import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
 import { isYear, quarterOf, quarterResults } from '../domain/year';
-import { ASK_KIND_LABEL, asksOf, canMarkDone, canWithdraw, openUpdateAsk } from '../domain/asks';
-import { dayText, goalsIn, watchOf, watchScope } from '../domain/review';
-import { reviewDate } from '../domain/progress';
+import { ASK_KIND_LABEL, asksOf, canWithdraw, openUpdateAsk } from '../domain/asks';
+import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
 import {
-  actionList, activityStream, askedOf, barFigures, feedingOrder, feedsLine, firstLook, lastTalked, pathCheck, planFor, postedLine,
-  primaryAction, sameReasonText, sinceLooked, updatedLine, streamMatches, whyLine, type ActionItem, type AskedItem, type StreamFilter, type StreamItem,
+  activityStream, askedOf, asksOnGoal, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
+  primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, streamMatches, whyLine, whyPointer,
+  type AskedItem, type StepRow, type StepsAndAsks, type StreamFilter, type StreamItem,
 } from '../domain/goalPage';
-import type { Ask, CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
-import { Avatar, Chip, Empty, LevelTag, StatusShape, timeAgo, WarnMark } from '../ui/bits';
+import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
+import { Avatar, Chip, Empty, LevelTag, Sheet, StatusShape, timeAgo, WarnMark } from '../ui/bits';
 import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList, type Scrub } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { ReviewBar, ReviewCallBar, useReview } from './Inspect';
@@ -49,7 +49,7 @@ import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
 import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
 import { LifeMark } from '../ui/LifeMark';
 import { NO_REASON } from '../domain/checkin';
-import { ASK_KIND, ASK_STATUS, GAP, LABEL as WORD_OF, lower, QUARTER, STATUS } from '../domain/vocabulary';
+import { ASK_STATUS, GAP, LABEL as WORD_OF, lower, QUARTER, STATUS } from '../domain/vocabulary';
 
 export function GoalScreen() {
   const app = useApp();
@@ -94,32 +94,38 @@ function GoalView({ goal }: { goal: Goal }) {
   const [page, width] = useWidth<HTMLDivElement>();
   const wide = width >= WIDE;
 
-  // How the person arrived: to answer something (?respond=<id>, or the older ?tab=comments), just after posting a
-  // check-in (?posted=1), just after publishing (?published=1), or to look.
-  const respondId = params.get('respond');
+  // How the person arrived: to answer something (?ask=<id>; ?respond=<id> and the older ?tab=comments from Home's
+  // links), just after posting a check-in (?posted=1), just after publishing (?published=1), or to look.
+  const respondId = params.get('ask') ?? params.get('respond');
   const tabComments = params.get('tab') === 'comments';
   const [posted] = useState(() => params.get('posted') === '1');
   const published = params.get('published') === '1' && own.length === 0;
   const seen = useSeen(app.ws.id, app.viewer.id, goal.id, status, app.stamp);
   const firstVisit = !seen;
 
+  // Everything asked and agreed on the goal, one list (domain/goalPage stepsAndAsks), and what of it waits on the viewer.
+  const steps = stepsAndAsks({ goal, viewer: app.viewer, week, cycle, status, asks: asksOnGoal(goal.id, app.snapshot), people: [...app.snapshot.people, ...(app.snapshot.archive?.people ?? [])], reviews: app.snapshot.reviews });
   const asked = askedOf(goal, app.snapshot, app.viewer, respondId);
   // ?tab=comments was Home's old Answer link: an owner's open question is what it meant; otherwise the comment box.
   const alias = tabComments && !respondId ? asked.find((x) => x.kind === 'question')?.id ?? null : null;
-  const target = respondId && asked.some((x) => x.id === respondId) ? respondId : alias;
+  const inList = (id: string | null) => !!id && [...steps.forYou, ...steps.open].some((x) => x.id === id);
+  const target = respondId && (inList(respondId) || asked.some((x) => x.id === respondId)) ? respondId : alias;
   const [openAsk, setOpenAsk] = useState<string | null>(target);
   const [focusAsk, setFocusAsk] = useState(!!target);
-  const askedRef = useRef<HTMLElement>(null);
+  const stepsRef = useRef<HTMLElement>(null);
   const done = (id: string) => {
     setOpenAsk((x) => (x === id ? null : x));
-    if (respondId === id) setParams((p) => { p.delete('respond'); return p; }, { replace: true });
+    if (respondId === id) setParams((p) => { p.delete('respond'); p.delete('ask'); return p; }, { replace: true });
   };
 
   const children = app.snapshot.goals.filter((g) => g.parentId === goal.id);
+  const parent = goal.parentId ? app.goal(goal.parentId) : undefined;
   const updateAsk = openUpdateAsk(goal.id, app.snapshot);
   const due = att.flags.some((f) => f.kind === 'due');
   const watching = !isOwner && watchOf(app.viewer.id, goal, app.snapshot) !== null;
-  const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, watching });
+  const openSteps = [...steps.forYou, ...steps.open].filter((x) => x.kind === 'action').length;
+  const primary = primaryAction({ goal, viewer: app.viewer, owner, status, due, week, asked, updateAsked: !!updateAsk, openSteps, firstDue: own.length === 0 });
+  const standing = standingAction({ goal, viewer: app.viewer, primary, watching, status });
 
   const figures = barFigures(goal, app.snapshot, cycle, week, stale);
   const card = goalScorecard(goal, cycle, app.snapshot.checkIns, week, stale);
@@ -152,38 +158,44 @@ function GoalView({ goal }: { goal: Goal }) {
 
   const openAskedItem = (id: string | null) => {
     setOpenAsk(id); setFocusAsk(true);
-    requestAnimationFrame(() => askedRef.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' }));
+    requestAnimationFrame(() => stepsRef.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' }));
   };
+  const [adding, setAdding] = useState(false);
 
-  /* ---------- the bar's one main action, Watch beside it, and the "…" menu ---------- */
+  /* ---------- the bar's primary action, the standing button beside it, and the "…" menu ---------- */
   const stopped = !!goal.stoppedAt;
   const [removing, setRemoving] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState<boolean | null>(null);
+  const aboutWanted = params.get('about') === '1' || (typeof window !== 'undefined' && window.location.hash === '#about');
+  const [aboutOpen, setAboutOpen] = useState<boolean | null>(aboutWanted ? true : null);
   const aboutRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { const on = () => { if (window.location.hash === '#about') setAboutOpen(true); }; window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on); }, []);
   const share = useShare(goal, figures.now, figures.against, why.text ?? '', status);
-  const changeThis = () => { setAboutOpen(true); requestAnimationFrame(() => document.getElementById('change-goal')?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })); };
   const menu = (
     <MenuButton label="More about this goal" className="bar-menu" icon={<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>}
       items={[
         { label: 'Share image', onClick: () => void share.image() },
         { label: 'Copy link', onClick: () => void share.link() },
         { label: 'Print or save as PDF', to: `/goals/${goal.id}/print` },
-        ...(!stopped && isOwner && week > 0 && primary.kind !== 'check-in' ? [{ label: due ? `Check in for week ${week}` : 'Check in again', to: '/check-in/' + goal.id }] : []),
-        ...(!stopped && canEdit ? [{ label: 'Change this goal', onClick: changeThis }] : []),
+        // An admin checks in for the owner from here; the owner's own buttons are on the bar.
+        ...(!stopped && !isOwner && app.viewer.admin && week > 0 ? [{ label: `Check in for ${ownerFirst}`, to: '/check-in/' + goal.id }] : []),
+        ...(!stopped && canEdit ? [{ label: 'Change this goal', to: `/goals/${goal.id}/edit` }] : []),
         // Stop a goal with history (with a reason), or delete one set up by mistake: its owner or an admin.
         ...(!stopped && canEdit ? [{ label: goalRemoveLabel(own.length > 0), onClick: () => setRemoving(true) }] : []),
       ]} />
   );
   const showPrimary = !stopped && !review && !published && !(primary.targetId && openAsk === primary.targetId);
   const mainAction: ReactNode = !showPrimary || !primary.kind ? null
-    : primary.kind === 'check-in' ? <Link className="btn primary" to={'/check-in/' + goal.id}>{primary.label}</Link>
-    : primary.kind === 'watch' ? <WatchButton goal={goal} primary />
+    : primary.kind === 'check-in' || primary.kind === 'first-check-in' ? <Link className="btn primary" to={'/check-in/' + goal.id}>{primary.label}</Link>
     : primary.kind === 'ask-update' ? <button type="button" className="btn primary" disabled={asking} onClick={() => void askForUpdate()}>{primary.label}</button>
+    : primary.kind === 'add-step' ? <button type="button" className="btn primary" onClick={() => setAdding(true)}>{primary.label}</button>
     : <button type="button" className="btn primary" onClick={() => openAskedItem(primary.targetId)}>{primary.label}</button>;
+  const standingButton: ReactNode = review || !standing.kind ? null
+    : standing.kind === 'check-in-again' ? <Link className="btn" to={'/check-in/' + goal.id}>{standing.label}</Link>
+    : <WatchButton goal={goal} />;
   const actions = review ? null : (
     <>
       {mainAction}
-      {!stopped && !isOwner && primary.kind !== 'watch' && <WatchButton goal={goal} />}
+      {standingButton}
       {menu}
     </>
   );
@@ -191,30 +203,27 @@ function GoalView({ goal }: { goal: Goal }) {
     ? <span className="small asked-line" role="status"><span className="strong">Asked {ownerFirst} for an update {timeAgo(updateAsk.createdAt, app.today)}{updateAsk.askedBy !== app.viewer.id ? ` (${app.person(updateAsk.askedBy)?.name.split(' ')[0] ?? 'someone'})` : ''}.</span> It’s open on their Home until they check in or answer it.{canWithdraw(updateAsk, app.viewer, goal) && <> <button type="button" className="linkish" disabled={asking} onClick={() => void undoAsk()}>Undo</button></>}</span>
     : undone ? <span className="small" role="status">Withdrawn. It’s off their Home.</span> : null);
 
-  /* ---------- the parts of the page ---------- */
-  const askedSection = asked.length > 0 && (
-    <AskedOfYou key="asked" sectionRef={askedRef} goal={goal} items={asked} open={openAsk} focus={focusAsk} onOpen={(id) => { setOpenAsk(id); setFocusAsk(true); }} onDone={done} />
-  );
-  const contextLine = (postedText || since || firstVisit) && !review && (
+  /* ---------- the parts of the page, in one order at every width (goal spec, 2.1) ---------- */
+  // What the number measures is said once, in About (open on a first visit), not here as well (goal spec, N15).
+  const contextLine = (postedText || since) && !review && (
     <p key="context" className={'context-line' + (postedText ? ' posted' : '')} role={postedText ? 'status' : undefined}>
       {postedText ? <>
         {postedText.text.replace(/ · \d+ weeks on time$/, '')}
         {postedText.streak >= 2 && <> · <CountNumber value={postedText.streak} from={postedText.streak - 1} format={(n) => `${Math.round(n)} weeks on time`} className="streak-count" duration={600} /></>}
-      </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : firstLook(goal)}
+      </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : null}
     </p>
   );
- // How it's measured, asked for where the owner sees it, not only in the folded About section (setup review, 8 Nov).
-  const measurePrompt = !review && !stopped && canEdit && goal.kind !== 'milestone' && !goal.definition?.trim() && (
-    <p key="measure" className="context-line measure-prompt" data-part="How it’s measured">
-      How it’s measured isn’t described yet, so others can’t tell exactly what’s counted. <Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Describe how it’s measured</Link>
-    </p>
-  );
+  const whyShown = !review && whyShows(goal, app);
+  const links = !review && <SectionLinks key="links" open={steps.openCount} why={whyShown} feeds={children.length > 0 || !!parent} />;
   const chart = <GoalChart key="chart" goal={goal} status={status} landed={posted} hit={hit} card={card} />;
-  const whySection = !review && <WhySection key="why" goal={goal} why={why} />;
-  const doing = !review && <DoingSection key="doing" goal={goal} withActions={!wide} asked={asked} />;
-  const actionsSide = !review && wide && <ActionsSection key="actions" goal={goal} asked={asked} />;
+  const whySection = whyShown && <WhySection key="why" goal={goal} why={why} />;
+  const nextSteps = !review && (
+    <NextStepsSection key="next" goal={goal} steps={steps} asked={asked} open={openAsk} focus={focusAsk} sectionRef={stepsRef}
+      showAll={params.get('steps') === 'all'} onShowAll={() => setParams((p) => { p.set('steps', 'all'); return p; }, { replace: true })}
+      onOpen={(id) => { setOpenAsk(id); setFocusAsk(true); }} onDone={done} onAdd={() => setAdding(true)} />
+  );
   const talked = <TalkedSection key="talked" goal={goal} />;
-  const feeding = !review && children.length > 0 && <FeedsSection key="feeds" feeding={children} feeds={feeds} />;
+  const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <ActivitySection key="activity" goal={goal} focusComposer={tabComments && !alias} />;
   // Modules' sections (the goal.sections place), before Activity.
@@ -224,17 +233,15 @@ function GoalView({ goal }: { goal: Goal }) {
     <section key="evidence" className="block review-evidence" aria-labelledby="g-chart" data-part="Chart and recent check-ins"><h2 className="block-title" id="g-chart">Chart and recent check-ins</h2>{chart}<CheckInRows goal={goal} limit={4} /></section>
   );
 
-  const main = review ? [evidence] : [chart, whySection, doing, feeding, quarters, modules, activity, about];
-  const side = review ? [askedSection, talked] : [askedSection, contextLine, measurePrompt, actionsSide, talked];
-  // On a phone the chart comes first in the first screen: a first look's line on what the number measures waits under it.
-  const firstOnly = !postedText && !since;
-  const phone = review ? [askedSection, evidence, talked] : [askedSection, firstOnly ? null : contextLine, chart, firstOnly ? contextLine : null, measurePrompt, whySection, doing, talked, feeding, quarters, modules, activity, about];
+  const main = review ? [evidence] : [whySection, chart, feeding, quarters, modules, activity, about];
+  const side = review ? [talked] : [contextLine, nextSteps, talked];
+  const phone = review ? [evidence, talked] : [contextLine, nextSteps, whySection, chart, talked, feeding, quarters, modules, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">
       <ReviewBar goalId={goal.id} />
       <GoalBack />
-      <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine}
+      <GoalBar goal={goal} status={status} figures={figures} card={card} actions={actions} askedLine={askedLine} firstDue={own.length === 0}
         statusMoved={statusMoved} hit={hit} countFrom={effectOn('count') ? own.filter((c) => c.value != null).at(-2)?.value ?? null : null} />
 
       {published && (
@@ -250,12 +257,27 @@ function GoalView({ goal }: { goal: Goal }) {
         </section>
       )}
 
+      {links}
       {wide
-        ? <div className="goal-grid split"><div className="split-a goal-main">{main}</div><aside className="split-side goal-side" aria-label="For you">{side}</aside></div>
+        ? <div className="goal-grid split"><div className="split-a goal-main">{main}</div><aside className="split-side goal-side" aria-label="Next steps and asks">{side}</aside></div>
         : <div className="goal-col">{phone}</div>}
       {review && <ReviewCallBar goal={goal} />}
       {removing && <RemoveGoalSheet goal={goal} onClose={() => setRemoving(false)} />}
+      {adding && <NextStepSheet goal={goal} onClose={() => setAdding(false)} />}
     </div>
+  );
+}
+
+/** Links to the page's sections, under the summary: "Now", "Next steps and asks · 2", "Why", "Chart", … (goal spec, 2.1). */
+function SectionLinks({ open, why, feeds }: { open: number; why: boolean; feeds: boolean }) {
+  const items: [string, string][] = [
+    ['now', 'Now'], ['next', `Next steps and asks${open ? ` · ${open}` : ''}`], ...(why ? [['why', 'Why'] as [string, string]] : []), ['chart', 'Chart'],
+    ...(feeds ? [['feeds', 'What feeds it'] as [string, string]] : []), ['activity', 'Activity'], ['about', 'About'],
+  ];
+  return (
+    <nav className="goal-links" aria-label="On this page" data-part="Section links">
+      {items.map(([id, label]) => <a key={id} className="goal-link" href={'#' + id}>{label}</a>)}
+    </nav>
   );
 }
 
@@ -269,9 +291,9 @@ function GoalView({ goal }: { goal: Goal }) {
  * number and the gap to plan, and the "…" menu (the same element, not a copy). On a phone it is the page's header, with
  * the app header's Demo tag and person button at its right.
  */
-function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved, hit, countFrom }: {
+function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved, hit, countFrom, firstDue }: {
   goal: Goal; status: DisplayStatus; figures: ReturnType<typeof barFigures>; card: Scorecard;
-  actions: ReactNode; askedLine: ReactNode; statusMoved: boolean; hit: boolean; countFrom: number | null;
+  actions: ReactNode; askedLine: ReactNode; statusMoved: boolean; hit: boolean; countFrom: number | null; firstDue: boolean;
 }) {
   const app = useApp();
   const owner = app.person(goal.ownerId);
@@ -285,7 +307,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
     ? <CountNumber value={figures.nowValue} from={countFrom} format={(n) => fmt(n, goal)} memo={'goal:' + goal.id} duration={storyOn() ? STORY_MS * storyPace() : MOTION_MS} onLanded={storyOn() ? landedMoment : undefined} land={storyOn()} />
     : figures.now;
   return (
-    <div className="goal-bar-slot" ref={slot} style={c.on ? { height: c.height } : undefined}>
+    <div className="goal-bar-slot" id="now" ref={slot} style={c.on ? { height: c.height } : undefined}>
       <header className={'goal-bar' + (c.on ? ' compact' : '') + (hit ? ' hit' : '') + (goal.stoppedAt ? ' stopped' : '')} data-part="Summary bar" data-tone={goal.stoppedAt ? 'stopped' : status} style={c.on ? { position: 'fixed', top: c.top, left: c.left, width: c.width } : undefined} aria-label="This goal">
         <div className="bar-1">
           <h1 className="bar-title">{goal.title}</h1>
@@ -297,6 +319,8 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           {goal.key && <span className="gkey" title={`This goal’s key: it never changes, and /goals/${goal.key} opens it`}>{goal.key}</span>}
           {updated && <span className="bar-updated hint">{updated}</span>}
         </div>
+        {/* A fact a module adds, such as what measures it (the goal.facts place). */}
+        <Place name="goal.facts" goal={goal} />
         <div className="bar-2">
           {goal.stoppedAt ? <LifeMark k="stopped" className="bar-status bar-life" /> : <span className="bar-status-tap" onClick={secretTap}><Chip k={status} className={'bar-status' + (statusMoved ? ' moved' : '')} /></span>}
           <span className="bar-dot" aria-hidden="true">·</span>
@@ -304,7 +328,7 @@ function GoalBar({ goal, status, figures, card, actions, askedLine, statusMoved,
           {/* Only in the one-line bar: the gap to plan, which the scorecard says in full. */}
           {card.gap && <span className="bar-gap"><span aria-hidden="true">· </span>{card.gap}</span>}
         </div>
-        {card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
+        {firstDue && !goal.stoppedAt ? <p className="small muted sc-none" data-part="Scorecard">The scorecard starts with the first check-in.</p> : card.cells.length > 0 && <ScoreGrid cells={card.cells} />}
         {askedLine && <div className="bar-note">{askedLine}</div>}
         {actions && <div className="bar-actions">{actions}</div>}
       </header>
@@ -422,43 +446,113 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
   };
 }
 
-/* ---------------------------------------------------------------------------------------------------- asked of you */
+/* ---------------------------------------------------------------------------------------------------- next steps and asks */
 
-function AskedOfYou({ goal, items, open, focus, onOpen, onDone, sectionRef }: { goal: Goal; items: AskedItem[]; open: string | null; focus: boolean; onOpen: (id: string) => void; onDone: (id: string) => void; sectionRef: RefObject<HTMLElement | null> }) {
+/**
+ * Next steps and asks: everything asked and agreed on the goal, one list, shown once (goal spec, 2.1 section 3; rule 2).
+ * What waits on the viewer comes first, "For you"; then the other open rows; then the last three answered or done. Each
+ * row has at most one button, and Respond, Answer and Mark done open the one Respond panel in the row, in place.
+ */
+function NextStepsSection({ goal, steps, asked, open, focus, onOpen, onDone, onAdd, sectionRef, showAll, onShowAll }: {
+  goal: Goal; steps: StepsAndAsks; asked: AskedItem[]; open: string | null; focus: boolean; onOpen: (id: string) => void; onDone: (id: string) => void;
+  onAdd: () => void; sectionRef: RefObject<HTMLElement | null>; showAll: boolean; onShowAll: () => void;
+}) {
   const app = useApp();
-  const askOf = (id: string) => asksOf(app.snapshot).find((r) => r.id === id);
-  const what = (x: AskedItem) => x.kind === 'decision' ? `${ASK_KIND.decision.label}, from ${x.fromFirst}`
-    : x.kind === 'question' ? `Question from ${x.fromFirst}${x.where ? ` in ${x.where}` : ''}`
-    : x.kind === 'update' ? `${x.fromFirst} asked for an update`
-    : x.kind === 'action' ? `Action${x.where ? ` from ${x.where}` : ` from ${x.fromFirst}`}${x.due ? `, due week ${x.due}` : ''}`
-    : `${x.fromFirst} commented`;
+  const isOwner = app.viewer.id === goal.ownerId;
+  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
+  const [asking, setAsking] = useState(false);
+  const live = !goal.stoppedAt && app.attentionOf(goal).status.status !== 'done';
+  // A comment is no obligation: it's here only when someone came to reply to it (Home's link).
+  const reply = asked.find((x) => x.kind === 'comment');
+  const done = showAll ? steps.done : steps.done.slice(0, 3);
+  const row = (x: StepRow) => <StepRowItem key={x.id} goal={goal} x={x} open={open === x.id} focus={focus} onOpen={() => onOpen(x.id)} onDone={() => onDone(x.id)} />;
   return (
-    <section className="block asked" aria-labelledby="g-asked" ref={sectionRef} data-part="Asks">
-      <SectionHead id="g-asked" title="Asked of you" purpose="Waiting on you: answer it here." />
-      <ul className="asked-list">
-        {items.map((x) => {
-          const isOpen = open === x.id;
-          const r = x.kind !== 'comment' ? askOf(x.id) : undefined;
-          return (
-            <li key={x.id} className={'asked-item' + (isOpen ? ' is-open' : '')}>
-              <section aria-label={what(x)}>
-                <span className="field-label">{what(x)} <span className="hint">· {timeAgo(x.at, app.today)}</span></span>
-                <p className="asked-text">{cap(x.text)}</p>
-                {/* One Respond panel for every kind of ask; a comment gets a reply box, since it asks nothing. */}
-                {isOpen
-                  ? (r ? <section aria-label="Respond"><RespondForm ask={r} focus={focus} onClose={() => onDone(x.id)} /></section>
-                    : <ReplyBox goal={goal} item={x} focus={focus} onDone={() => onDone(x.id)} />)
-                  : <button type="button" className="btn sm" onClick={() => onOpen(x.id)}>{RESPOND_LABEL[x.kind]}</button>}
-              </section>
-            </li>
-          );
-        })}
-      </ul>
+    <section className="block next-steps goal-section" id="next" aria-labelledby="g-next" ref={sectionRef} data-part="Next steps and asks">
+      <SectionHead id="g-next" title={`Next steps and asks${steps.openCount ? ` · ${steps.openCount} open` : ''}`} purpose="Who is doing what, by when, and what has been asked." />
+      {steps.gap && live && <p className="steps-gap"><WarnMark /><span>No next step yet. Nobody has said what happens next, who does it and by when.</span></p>}
+      {reply && (
+        <div className="asked-item is-open">
+          <span className="field-label">{reply.fromFirst} commented <span className="hint">· {timeAgo(reply.at, app.today)}</span></span>
+          <p className="asked-text">{cap(reply.text)}</p>
+          <ReplyBox goal={goal} item={reply} focus={focus} onDone={() => onDone(reply.id)} />
+        </div>
+      )}
+      {steps.forYou.length > 0 && <><h3 className="steps-label">For you</h3><ul className="steps-list">{steps.forYou.map(row)}</ul></>}
+      {steps.open.length > 0 && <ul className="steps-list">{steps.open.map(row)}</ul>}
+      {steps.done.length > 0 && <><h3 className="steps-label">Done lately</h3><ul className="steps-list">{done.map(row)}</ul></>}
+      {steps.done.length > done.length && <button type="button" className="linkish small show-all" onClick={onShowAll}>Show all {steps.done.length}</button>}
+      {!steps.openCount && !steps.done.length && <p className="muted small">{goal.stoppedAt ? 'Nothing was open when the goal stopped.' : 'No next steps or asks yet.'}</p>}
+      {live && (
+        <div className="row steps-do">
+          <button type="button" className="btn add-next-step" onClick={onAdd}>Add a next step</button>
+          {!isOwner && <button type="button" className="btn" onClick={() => setAsking(true)}>Ask {ownerFirst} a question</button>}
+          {isOwner && app.week > 0 && <Link className="btn" to={`/check-in/${goal.id}?need=1`}>Ask for a decision or help</Link>}
+        </div>
+      )}
+      {asking && <AskQuestionSheet goal={goal} onClose={() => setAsking(false)} />}
     </section>
   );
 }
 
-const RESPOND_LABEL: Record<AskedItem['kind'], string> = { decision: 'Respond', question: 'Answer', update: 'Respond', action: 'Respond', comment: 'Reply' };
+/** One row of Next steps and asks: the kind and the text, who and when, its state, and its one button. */
+function StepRowItem({ goal, x, open, focus, onOpen, onDone }: { goal: Goal; x: StepRow; open: boolean; focus: boolean; onOpen: () => void; onDone: () => void }) {
+  const app = useApp();
+  const r = asksOf(app.snapshot).find((a) => a.id === x.id);
+  const [changing, setChanging] = useState(false);
+  // An open next step's words, who and when can be changed by whoever agreed it, or an admin (actions.editCall).
+  const canChange = !!r && r.kind === 'action' && r.status === 'open' && (r.askedBy === app.viewer.id || app.viewer.admin);
+  const withdraw = () => {
+    if (!r) return;
+    const linked = r.kind === 'decision' && r.goalIds[0] !== goal.id;
+    const run = r.kind === 'update' ? app.undoUpdateAsk(goal) : app.withdrawRequest(r, goal);
+    void run.then(() => app.toast(linked ? 'No longer waiting on that request' : `${ASK_KIND_LABEL[r.kind]} withdrawn`)).catch(() => { /* the save already said what went wrong */ });
+  };
+  const button = !x.button || open ? null
+    : x.button === 'Check in' ? <Link className="btn sm" to={'/check-in/' + goal.id}>Check in</Link>
+    : x.button === 'Withdraw' ? <button type="button" className="btn sm ghost" onClick={withdraw}>Withdraw</button>
+    : <button type="button" className="btn sm" onClick={onOpen}>{x.button}</button>;
+  return (
+    <li className={'step-row' + (open ? ' is-open' : '') + (x.settled ? ' is-settled' : '')} data-ask={x.id}>
+      <span className="step-body">
+        <span className="step-text">{x.text}</span>
+        <span className="hint step-line">{x.line}{canChange && <> · <button type="button" className="linkish small" onClick={() => setChanging(true)}>Change</button></>}</span>
+        {x.answer && <span className="small step-answer">{x.answer}</span>}
+      </span>
+      <span className={'step-state' + (x.overdue ? ' is-overdue' : '')}>{x.overdue && <WarnMark />}{x.state}</span>
+      {button && <span className="step-do">{button}</span>}
+      {open && r && <section className="step-panel" aria-label="Respond"><RespondForm ask={r} focus={focus} onClose={onDone} /></section>}
+      {changing && r && <NextStepSheet goal={goal} existing={r} onClose={() => setChanging(false)} />}
+    </li>
+  );
+}
+
+/** Ask the owner a question (goal spec, 2.6): an ask that stays open on their Home until it's answered. */
+function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
+  const app = useApp();
+  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
+  const [text, setText] = useState('');
+  const [tried, setTried] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const bad = text.trim().length < 2;
+  const save = async () => {
+    setTried(true);
+    if (bad || busy) return;
+    setBusy(true);
+    try { await app.askQuestion(goal, text); app.toast(`Asked ${ownerFirst}. It’s open on their Home until they answer.`); onClose(); } catch { setBusy(false); }
+  };
+  return (
+    <Sheet open onClose={onClose} title={`Ask ${ownerFirst} a question about ${goal.title}`}>
+      <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+        <label className="field"><span className="field-label">Your question</span>
+          <textarea className={'input' + (tried && bad ? ' invalid' : '')} rows={3} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+          {tried && bad && <span className="hint tone-off" role="alert">Type the question.</span>}
+        </label>
+        <span className="hint">It stays open on {ownerFirst}’s Home and in Next steps and asks until it’s answered. Everyone in {app.ws.name} can read it.</span>
+        <div className="foot-row"><button type="button" className="btn ghost big-btn" onClick={onClose}>Cancel</button><button type="submit" className="btn primary big-btn" disabled={busy}>{busy ? 'Asking…' : 'Ask'}</button></div>
+      </form>
+    </Sheet>
+  );
+}
 
 /** Replying to a comment, in place: a comment of your own. It answers nothing, because a comment asks nothing. */
 function ReplyBox({ goal, item, focus, onDone }: { goal: Goal; item: AskedItem; focus: boolean; onDone: () => void }) {
@@ -534,7 +628,7 @@ function GoalChart({ goal, status, landed, hit, card }: { goal: Goal; status: Di
     : null;
   const caption = foot ? <span className="chart-say chart-foot">{foot}</span> : null;
   return (
-    <section className="block goal-chart-block" aria-label="Chart" data-part="Chart">
+    <section className="block goal-chart-block" id="chart" aria-label="Chart" data-part="Chart">
       {goal.kind === 'metric' && a.kind === 'metric' && (
         <figure className="card goal-chart" style={{ margin: 0 }}>
           <MetricChart goal={goal} weeks={cycle.weeks} week={week} series={series} forecast={ahead ? a.forecast : null} projection={ahead ? a.projection : null} ptgBy={ahead ? ptg?.byWeek ?? null : null} scrub={scrub} draw={draw} landed={landed && !reducedMotion()} hit={hit} marks={stale ? null : card.marks} />
@@ -564,10 +658,22 @@ function PlanChanges({ goal }: { goal: MetricGoal }) {
 
 /* ---------------------------------------------------------------------------------------------------- why */
 
+/** Whether Why has anything to say: behind, gone quiet, a reason or next word given, or a flag the status doesn't say. */
+function whyShows(goal: Goal, app: ReturnType<typeof useApp>): boolean {
+  const att = app.attentionOf(goal);
+  const status = att.status.status;
+  const latest = att.status.latest;
+  const behind = status === 'off' || status === 'risk';
+  if (!latest || behind || status === 'stale') return true;
+  const reason = !!latest && !!latest.why && latest.why !== NO_REASON;
+  return reason || !!latest?.next || att.flags.some((f) => !['due', 'off', 'risk', 'stale', 'trend'].includes(f.kind));
+}
+
 /**
- * Why: the owner's reason opens it, then whether anyone is on it, where the reason came from and since when, and
- * anything the numbers would otherwise hide, as small tags. The trend is the scorecard's (vs last week), not a tag here.
- * On plan, the same place carries the owner's latest word; gone quiet, how long since anyone said anything.
+ * Why, with what's being done about it (goal spec, 2.1 section 4): the owner's reason opens it, then where the reason
+ * came from and since when, anything the numbers would otherwise hide, and the owner's path to green and its date. An
+ * open decision or help is pointed to, never repeated: its words live in Next steps and asks. On plan, the same place
+ * carries the owner's latest word; gone quiet, how long since anyone said anything.
  */
 function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine> }) {
   const app = useApp();
@@ -576,13 +682,11 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const status = att.status.status;
   const behind = status === 'off' || status === 'risk';
   const stale = status === 'stale';
-  // What else flags it, in full: Home and Watching show a flag's reason in two lines on a phone, and the whole of it is
-  // here, a tap away. The status's own reason is the text above; a worsening trend is said here only while the status
-  // doesn't already say it's behind. A missed or missing path to green is said in full under What's being done.
-  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale'].includes(f.kind) && !(f.kind === 'trend' && (behind || stale)));
+  // What else flags it, in full. The status's own reason is the text above; a worsening trend is said here only while the
+  // status doesn't already say it's behind. Waiting on a decision is the pointer below, not the ask's words.
+  const signals = att.flags.filter((f) => !['due', 'off', 'risk', 'stale', 'decision'].includes(f.kind) && !(f.kind === 'trend' && (behind || stale)));
+  const pointer = whyPointer(goal, asksOnGoal(goal.id, app.snapshot), app.snapshot.people);
   const reason = !!latest && !!latest.why && latest.why !== NO_REASON;
-  // On plan with nothing said, there's nothing to explain.
-  if (!behind && !stale && !reason && !latest?.next && !signals.length) return null;
   const onlySignals = !behind && !stale && !reason && !latest?.next;
   const own = app.checkInsOf(goal);
   let k = own.length - 1;
@@ -590,20 +694,26 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const runFrom = own[k]?.week;
   const by = latest ? app.person(latest.authorId)?.name.split(' ')[0] ?? 'The owner' : null;
   const when = latest ? (latest.week === app.week ? 'this week’s check-in' : `the week ${latest.week} check-in`) : null;
-  const [title, purpose] = stale ? [`Why it has ${lower(STATUS.stale)}`, 'When the owner last said where it stands.']
+  const path = behind ? pathCheck(goal, app.snapshot, app.cycle, app.week, latest) : null;
+  const ptgState = latest?.pathToGreen?.state ?? 'plan';
+  const isOwner = app.viewer.id === goal.ownerId;
+  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
+  const [title, purpose] = !latest ? ['Why', 'Nothing said yet. The first check-in will say where it stands.']
+    : stale ? [`Why it has ${lower(STATUS.stale)}`, 'When the owner last said where it stands.']
     : behind ? [`Why it ${STATUS[status].short}`, `The owner’s reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
     : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
   return (
-    <section className="block why-block goal-section" aria-labelledby="g-why" data-part="Why">
+    <section className="block why-block goal-section" id="why" aria-labelledby="g-why" data-part="Why">
       <SectionHead id="g-why" title={title} purpose={purpose} />
-      {why.text && (behind || stale || reason || !!latest?.next) && <p className="why-text">{why.text}{stale ? '. Without a newer check-in, the status and any projection can’t be trusted.' : ''}</p>}
+      {latest && why.text && (behind || stale || reason || !!latest?.next) && <p className="why-text">{why.text}{stale ? '. Without a newer check-in, the status and any projection can’t be trusted.' : ''}</p>}
       {why.handledText && <p className={'why-handled ' + (why.handled === 'handled' ? 'is-handled' : 'not-handled')}>{cap(why.handledText)}.</p>}
       {behind && latest && reason && (
         <p className="why-by">
           {latest.cause ? <><strong>{causeLabel(latest.cause)}</strong>, from </> : 'From '}{by}’s check-in in week {latest.week}{runFrom != null && runFrom < latest.week ? `; the same reason since week ${runFrom}` : ''}.
         </p>
       )}
+      {pointer && <p className="why-pointer"><a className="linkish" href="#next">{pointer}</a></p>}
       {signals.length > 0 && (
         <ul className="signal-tags" aria-label="Also worth knowing">
           {signals.map((f) => (
@@ -613,68 +723,16 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-/* ---------------------------------------------------------------------------------------------------- being done */
-
-function DoingSection({ goal, withActions, asked }: { goal: Goal; withActions: boolean; asked: AskedItem[] }) {
-  const app = useApp();
-  const att = app.attentionOf(goal);
-  const status = att.status.status;
-  const latest = att.status.latest;
-  const behind = status === 'off' || status === 'risk';
-  const path = behind ? pathCheck(goal, app.snapshot, app.cycle, app.week, latest) : null;
-  // What's asked of you is answered in "Asked of you"; it isn't listed twice.
-  const items = actionList(goal, app.snapshot, app.week, status, latest, app.cycle).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
-  const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
-  const isOwner = app.viewer.id === goal.ownerId;
-  const state = latest?.pathToGreen?.state ?? 'plan';
-  // Every goal still running has somewhere to add a next step (backlog GD(1)); on a wide screen it's in the side column.
-  if (!behind && !(withActions && (items.length || status !== 'done'))) return null;
-  return (
-    <section className="block doing goal-section" aria-labelledby="g-doing" data-part="Path to green">
-      <SectionHead id="g-doing" title="What’s being done" purpose={behind ? 'The owner’s plan to get back on track, and who’s doing what.' : 'Who’s doing what about it, and how each ask stands.'} />
-      {behind && (path ? (
-        <div className="ptg">
+      {behind && latest && (path ? (
+        <div className="ptg" data-part="Path to green">
           <span className="field-label">Path to green</span>
           <p className="ptg-what">{path.what}</p>
           <p className="small ptg-when">
-            {path.byWeek != null ? <>Owner’s date: back on plan by week {path.byWeek} ({weekDates(app.cycle, path.byWeek)}){state === 'help' ? ', once the decision or help arrives' : ''}. </> : state === 'investigating' ? 'No date yet: still working out what’s wrong. ' : state === 'help' ? 'No date until the decision or help arrives. ' : state === 'target' ? 'The owner says the target should change. ' : ''}
+            {path.byWeek != null ? <>Owner’s date: back on plan by week {path.byWeek} ({weekDates(app.cycle, path.byWeek)}){ptgState === 'help' ? ', once the decision or help arrives' : ''}. </> : ptgState === 'investigating' ? 'No date yet: still working out what’s wrong. ' : ptgState === 'help' ? 'No date until the decision or help arrives. ' : ptgState === 'target' ? 'The owner says the target should change. ' : ''}
             {path.check && <span className={path.reaches === false || path.missed ? 'tone-risk' : 'muted'}>{path.check}</span>}
           </p>
         </div>
-      ) : <p className="muted ptg-none">{isOwner ? 'You haven’t said how it gets back on plan yet. Say so in your next check-in.' : `${owner} hasn’t said how it gets back on plan yet.`}</p>)}
-      {withActions && items.length > 0 && <ActionRows goal={goal} items={items} />}
-      {withActions && status !== 'done' && <AddNextStep goal={goal} />}
-    </section>
-  );
-}
-
-/** Add a next step: what, who and by when (ui/NextStepSheet). */
-function AddNextStep({ goal }: { goal: Goal }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" className="btn add-next-step" onClick={() => setOpen(true)}>Add a next step</button>
-      {open && <NextStepSheet goal={goal} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
-/** On a wide screen the action list sits in the side column, beside what's being done. */
-function ActionsSection({ goal, asked }: { goal: Goal; asked: AskedItem[] }) {
-  const app = useApp();
-  const att = app.attentionOf(goal);
-  const items = actionList(goal, app.snapshot, app.week, att.status.status, att.status.latest, app.cycle).filter((x) => x.kind !== 'path' && !asked.some((a) => a.id === x.id));
-  const running = att.status.status !== 'done';
-  if (!items.length && !running) return null;
-  return (
-    <section className="block side-actions" aria-labelledby="g-actions" data-part="Actions">
-      <SectionHead id="g-actions" title="Actions" purpose="The asks on this goal: who, by when, and how each stands." />
-      {items.length > 0 ? <ActionRows goal={goal} items={items} /> : <p className="muted small">No next step yet.</p>}
-      {running && <AddNextStep goal={goal} />}
+      ) : <p className="muted ptg-none">{isOwner ? 'You haven’t said how it gets back on plan yet. Say so in your next check-in.' : `${ownerFirst} hasn’t said how it gets back on plan yet.`}</p>)}
     </section>
   );
 }
@@ -684,55 +742,15 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const STATE_WORD = { open: ASK_STATUS.open.label, done: ASK_STATUS.done.label, overdue: ASK_STATUS.overdue.label } as const;
 
-function ActionRows({ goal, items }: { goal: Goal; items: ActionItem[] }) {
-  const app = useApp();
-  const first = (id: string | null) => (id ? app.person(id)?.name.split(' ')[0] ?? 'someone' : 'anyone');
-  const askOf = (id: string) => asksOf(app.snapshot).find((x) => x.id === id);
-  // Whoever asked (or an admin) can withdraw an open ask; the owner of a goal waiting on another goal's request can stop waiting.
-  const withdraw = (r: Ask) => {
-    const linked = r.kind === 'decision' && r.goalIds[0] !== goal.id;
-    void app.withdrawRequest(r, goal).then(() => app.toast(linked ? 'No longer waiting on that request' : `${ASK_KIND_LABEL[r.kind]} withdrawn`)).catch(() => { /* the save already said what went wrong */ });
-  };
-  const done = (r: Ask) => { void app.markActionDone(r).then(() => app.toast('Marked done')).catch(() => { /* the save already said what went wrong */ }); };
-  const [changing, setChanging] = useState<Ask | null>(null);
-  // An action's words, who and when can be changed here by whoever agreed it, or an admin (actions.editCall).
-  const canChange = (r: Ask) => r.kind === 'action' && r.status === 'open' && (r.askedBy === app.viewer.id || app.viewer.admin);
-  return (
-    <>
-    {changing && <NextStepSheet goal={goal} existing={changing} onClose={() => setChanging(null)} />}
-    <ul className="action-list">
-      {items.map((x) => {
-        const r = x.kind !== 'path' ? askOf(x.id) : undefined;
-        const open = r?.status === 'open';
-        return (
-          <li key={x.id} className={'action-row state-' + x.state}>
-            <span className={'action-state state-' + x.state}>{x.state === 'done' ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> : x.state === 'overdue' ? <WarnMark /> : <span className="open-mark" aria-hidden="true" />}{STATE_WORD[x.state]}</span>
-            <span className="action-body">
-              <span className="action-what">{cap(x.what)}</span>
-              <span className="hint">{x.kind !== 'path' ? `${ASK_KIND_LABEL[x.kind]} · ` : ''}{first(x.who)}{x.due != null ? `, by week ${x.due} (${dayText(reviewDate(app.cycle, x.due))})` : ''} · {x.note}</span>
-              {r && open && (canMarkDone(r, app.viewer) || canWithdraw(r, app.viewer, goal) || canChange(r)) && (
-                <span className="row action-do" style={{ gap: 'var(--s3)' }}>
-                  {canMarkDone(r, app.viewer) && <button type="button" className="linkish small" onClick={() => done(r)}>Mark done</button>}
-                  {canChange(r) && <button type="button" className="linkish small" onClick={() => setChanging(r)}>Change</button>}
-                  {canWithdraw(r, app.viewer, goal) && <button type="button" className="linkish small action-withdraw" onClick={() => withdraw(r)}>{r.kind === 'decision' && r.goalIds[0] !== goal.id ? 'Not waiting on it any more' : 'Withdraw'}</button>}
-                </span>
-              )}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
-    </>
-  );
-}
-
 /* ---------------------------------------------------------------------------------------------------- last time we talked */
 
 const dayOf = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 function TalkedSection({ goal }: { goal: Goal }) {
   const app = useApp();
-  const t = lastTalked(goal, app.snapshot, app.cycle, app.week, app.today);
+  const talkedAll = lastTalked(goal, app.snapshot, app.cycle, app.week, app.today);
+  // A question or next step agreed in the review is a row in Next steps and asks: here, only what was noted.
+  const t = talkedAll.held ? { ...talkedAll, held: { ...talkedAll.held, said: talkedAll.held.said.filter((d) => d.kind !== 'ask' && d.kind !== 'action') } } : talkedAll;
   // A stopped goal isn't in any review now.
   const nextText = t.next && !goal.stoppedAt ? `${t.next.review}, ${t.next.date === app.today.toISOString().slice(0, 10) ? 'today' : `${t.next.weekday} ${dayOf(t.next.date).replace(/^\w+ /, '')}`}` : null;
   const owner = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
@@ -741,7 +759,7 @@ function TalkedSection({ goal }: { goal: Goal }) {
       <SectionHead id="g-talked" title="Last time we talked" purpose="What the last review said about it." />
       {t.held ? (
         <>
-          <p className="small"><span className="strong">{t.held.review}</span>, {dayOf(t.held.on)} (week {t.held.week}){t.held.said.length ? '' : ': reviewed, nothing added.'}</p>
+          <p className="small"><span className="strong">{t.held.review}</span>, {dayOf(t.held.on)} (week {t.held.week}){t.held.said.length || talkedAll.held!.said.length ? '' : ': reviewed, nothing added.'}</p>
           {t.held.said.length > 0 && (
             <ul className="talked-list">
               {t.held.said.map((d) => (
@@ -761,7 +779,7 @@ function TalkedSection({ goal }: { goal: Goal }) {
 
 /* ---------------------------------------------------------------------------------------------------- what feeds it */
 
-function FeedsSection({ feeding, feeds }: { feeding: Goal[]; feeds: ReturnType<typeof feedsLine> }) {
+function FeedsSection({ feeding, feeds, parent }: { feeding: Goal[]; feeds: ReturnType<typeof feedsLine>; parent?: Goal }) {
   const app = useApp();
   const [all, setAll] = useState(false);
   const onPath = criticalPath(app.snapshot.goals, (g) => app.statusOf(g).status);
@@ -769,7 +787,8 @@ function FeedsSection({ feeding, feeds }: { feeding: Goal[]; feeds: ReturnType<t
   const shown = all ? rest : rest.slice(0, pinned ? 2 : 3);
   return (
     <section className="block feeds goal-section" id="feeds" aria-labelledby="g-feeds" data-part="What feeds it">
-      <SectionHead id="g-feeds" title="What feeds it" purpose="The goals that move this number, worst first.">
+      <SectionHead id="g-feeds" title="What feeds it" purpose={feeding.length ? 'The goals that move this number, worst first.' : 'What this goal feeds into.'}>
+        {parent && <p className="feeds-into">Feeds into <Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link> <span className={'nowrap tone-' + app.statusOf(parent).status}><StatusShape k={app.statusOf(parent).status} />{LABEL[app.statusOf(parent).status]}</span></p>}
         {/* How they stand, said once: "Directly feeding it (four goals): 2 off track, 1 at risk". */}
         {feeds && (
           <p className="feeds-sum">
@@ -777,10 +796,10 @@ function FeedsSection({ feeding, feeds }: { feeding: Goal[]; feeds: ReturnType<t
           </p>
         )}
       </SectionHead>
-      <ul className="tree">
+      {feeding.length > 0 && <ul className="tree">
         {pinned && <li className="pinned"><GoalRow g={pinned.goal} /><span className="hint pinned-why"><span className="strong">Most likely to make it miss:</span> {pinned.why}</span></li>}
         {shown.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}
-      </ul>
+      </ul>}
       {rest.length > shown.length && <button type="button" className="linkish small show-all" onClick={() => setAll(true)}>Show the other {rest.length - shown.length}</button>}
     </section>
   );
@@ -866,27 +885,24 @@ function NoteComposer({ goal }: { goal: Goal }) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const isOwner = app.viewer.id === goal.ownerId;
-  const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
-  const post = async (as: 'comment' | 'question') => {
+  const post = async () => {
     if (text.trim().length < 2 || saving) return;
     setSaving(true);
     try {
-      if (as === 'question') { await app.askQuestion(goal, text); app.toast(`Asked ${ownerFirst}. It’s open on their Home until they answer.`); }
-      else { await app.addNote(goal, text); app.toast('Comment posted'); }
+      await app.addNote(goal, text); app.toast('Comment posted');
       setText('');
     } catch { /* the save already said what went wrong */ } finally {
       setSaving(false);
     }
   };
   return (
-    <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post('comment'); }}>
+    <form className="note-compose" onSubmit={(e) => { e.preventDefault(); void post(); }}>
       <label className="field"><span className="sr">Add a comment</span>
         <textarea id={'note-' + goal.id} className="input" rows={text ? 2 : 1} value={text} onChange={(e) => setText(e.target.value)} placeholder={isOwner ? 'Say why something changed' : 'Add a comment'} aria-label="Add a comment" />
       </label>
       {text.trim() && (
         <span className="row note-compose-actions" style={{ gap: 'var(--s2)' }}>
           <button className="btn" type="submit" disabled={saving}>{saving ? 'Posting…' : 'Post comment'}</button>
-          {!isOwner && <button className="btn ghost" type="button" disabled={saving} onClick={() => void post('question')} title={`Ask ${ownerFirst}: it stays open on their Home until they answer`}>Ask as a question</button>}
         </span>
       )}
     </form>
@@ -967,10 +983,10 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
   const history = goal.kind === 'metric' ? planHistoryOf(goal) : [];
   const own = app.checkInsOf(goal);
   return (
-    <details className="block about goal-section" data-part="About this goal" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
-      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">How it’s measured, its plan week by week, and who watches it.</span></span></summary>
+    <details className="block about goal-section" id="about" data-part="About this goal" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
+      <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">Its definition, its plan week by week, and who watches it.</span></span></summary>
       <dl className="details">
-        {goal.kind !== 'milestone' && <><dt>How it’s measured</dt><dd>{goal.definition || <span className="muted">Not described yet.</span>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
+        {goal.kind !== 'milestone' && <><dt>What it measures</dt><dd>{goal.definition || <><span className="muted">Not described yet.</span>{canEdit && !goal.stoppedAt && <> <Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Describe it</Link></>}</>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd></>}
         {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}{goal.source ? '' : ''}</dd></>}
         {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (week ${s.dueWeek})`).join(', ')}{goal.source ? <span className="muted">. Source: {goal.source}.</span> : null}</dd></>}
@@ -978,23 +994,13 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         <dt>Team</dt><dd>{team?.name ?? '—'}</dd>
         <dt>Feeds into</dt><dd>{parent ? <><Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link>{goal.whyHelps ? <span className="muted">. {goal.whyHelps}</span> : null}</> : fed ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
         {fed > 0 && <><dt>Fed by</dt><dd><Link className="linkish" to={`/goals?feeds=${goal.id}`}>{fed === 1 ? '1 goal' : `${fed} goals`}</Link></dd></>}
-        <dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}</dd>
+        <dt>Watched by</dt><dd>{watchers.length ? watchers.map((p) => p.name).join(', ') : 'Nobody yet'}{goal.ownerId === app.viewer.id && <span className="muted block-line">You own this goal, so it is always on your Home. Owners don’t need to watch their own goals.</span>}</dd>
         {goal.key && <><dt>Key</dt><dd><span className="gkey-plain">{goal.key}</span> <span className="muted">· it never changes, and /goals/{goal.key} opens it</span></dd></>}
         {history.length > 0 && goal.kind === 'metric' && <><dt>Plan changes</dt><dd><ul className="plan-history">{history.map((v, i) => <li key={i}>Until week {v.untilWeek}: {fmt(v.plan.start, goal)} → {fmt(v.plan.target, goal)}</li>)}<li>Since: {fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)}</li></ul></dd></>}
       </dl>
       {goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
       <p className="small">How the status is worked out: <Link className="linkish" to="/help/status">{WORD_OF.on}, {lower(STATUS.risk)} and {lower(STATUS.off)}, explained</Link>.</p>
-      {canEdit && (
-        <div className="about-change" id="change-goal">
-          <h3 className="field-label">Change this goal</h3>
-          <p className="hint">Each change asks why, and the reason goes in the activity for everyone watching.</p>
-          <ul className="change-list">
-            <li><Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Improve the definition</Link></li>
-            <li><Link className="linkish" to={`/goals/${goal.id}/edit?part=plan`}>Change the {goal.kind === 'metric' ? 'plan or target' : goal.kind === 'range' ? 'limit' : 'stages'}</Link></li>
-            <li><Link className="linkish" to={`/goals/${goal.id}/edit?part=owner`}>Change the owner or level</Link></li>
-          </ul>
-        </div>
-      )}
+      {canEdit && !goal.stoppedAt && <p className="about-change" id="change-goal"><Link className="linkish" to={`/goals/${goal.id}/edit`}>Change this goal</Link></p>}
     </details>
   );
 }

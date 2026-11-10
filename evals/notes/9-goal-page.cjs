@@ -5,8 +5,8 @@
    J5 an owner posts a check-in and sees it land;
    J6 drilling into the goal most likely to make it miss, and back to the parent by name;
    J8 a first-time viewer from a shared key link, then coming back.
-   And the page's promises: the goal's status once in the first screen, no reason repeated, the chart within the first
-   phone screen, nothing moving under reduced motion (and nothing over 250ms otherwise), Share producing an image and a
+   And the page's promises: the goal's status once in the first screen, no reason repeated, Next steps and asks within
+   the first phone screen and Why before the chart (GT1, Lane 10 Nov; it was the chart before), nothing moving under reduced motion (and nothing over 250ms otherwise), Share producing an image and a
    link.
    The scorecard (Lane, 5 Nov, on a phone: "the target four times, the trend three times"): under the status and the
    number, four labelled cells (vs plan, vs last week, to target, will it hit), the target said once in the first screen,
@@ -38,7 +38,7 @@ const firstScreen = (p) => p.evaluate(() => {
   const fold = bar ? bar.getBoundingClientRect().top : innerHeight;
   const label = document.querySelector('.goal-bar .bar-status')?.innerText.trim() ?? '';
   // The goal's own status: changes ("at risk → off track") and the goals feeding it are about something else.
-  const skip = (e) => e.closest('.context-line, #feeds, .asked, .stream, .talked, .action-list, .chart-read');
+  const skip = (e) => e.closest('.context-line, #feeds, .next-steps, .stream, .talked, .action-list, .chart-read');
   const words = [];
   const walker = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -72,7 +72,7 @@ const sayings = (p, sentence) => p.evaluate(([s]) => {
 module.exports = {
   id: 'N9',
   area: 'goal-page-flagship',
-  title: 'The flagship goal page: five journeys at 390 and 1280; status once, no repeats, the chart in the first screen, motion and Share',
+  title: 'The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share',
   reqs: ['GOAL-PAGE-BAR', 'GOAL-PAGE-ONCE', 'GOAL-PAGE-INTENT', 'GOAL-PAGE-ALIVE', 'GOAL-SHARE', 'PROJECTION-RANGE', 'CHART-READ', 'GOAL-PAGE-SCORECARD'],
   async run({ url, browser }) {
     const fails = [];
@@ -140,15 +140,17 @@ module.exports = {
         chk(/^Likely end projected from the last eight weeks, not the owner’s date\.$/.test(bar.under), `${at1}: the footnote under the chart “${bar.under}”`);
         // The chart marks the scorecard's numbers: the gap to plan at now, the likely end, and what's left to the target.
         chk(bar.band && /\d+ hours? (behind plan|ahead of plan)|On plan/.test(bar.marks.plan) && /likely \d+/.test(bar.marks.likely) && /(\d+ over|on course)/.test(bar.marks.target) && !/short/.test(bar.marks.target), `${at1}: chart marks ${JSON.stringify(bar.marks)}`);
-        // The reason is not in the bar: it opens Why, the section right under the chart. The feeds head What feeds it.
-        chk(!/Lead time is well above plan/.test(bar.barText) && /why-block/.test(bar.whyNext || '') && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar or does not open Why (next ${bar.whyNext}, “${bar.whyFirst.slice(0, 40)}”)`);
+        // The reason is not in the bar: it opens Why, which comes before the chart (GT1, Lane 10 Nov). The feeds head What feeds it.
+        const whyFirst = await p.evaluate(() => { const w = document.querySelector('.why-block'), c = document.querySelector('.goal-chart-block'); return !!w && !!c && !!(w.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING); });
+        chk(!/Lead time is well above plan/.test(bar.barText) && whyFirst && /^Lead time is well above plan/.test(bar.whyFirst), `${at1}: the reason is in the bar, or Why doesn't open with it before the chart (“${bar.whyFirst.slice(0, 40)}”)`);
         chk(/^Directly feeding it \(four goals\): .*2 off track/.test(bar.feeds) && !/Directly feeding it/.test(bar.barText), `${at1}: What feeds it opens with “${bar.feeds}”`);
         // Every section below the chart: a heading, one line on what it answers, and a rule above it.
         const bare = bar.sections.filter((x) => !x.title || x.purpose.length < 10 || !x.rule);
         chk(bar.sections.length >= 6 && !bare.length, `${at1}: sections without a heading, a purpose line or a rule: ${JSON.stringify(bare)} (of ${bar.sections.length})`);
         chk(s.status === 1, `${at1}: the goal's status “${s.label}” appears ${s.status} times in the first screen`);
-        chk(s.chartTop != null && s.chartTop < s.fold - 60, `${at1}: the chart starts at ${s.chartTop}px, fold ${Math.round(s.fold)}px`);
-        if (dev === 'laptop') chk(s.chartBottom != null && s.chartBottom <= s.fold + 120, `${at1}: the chart ends at ${s.chartBottom}px, fold ${Math.round(s.fold)}`);
+        // What to act on comes first now (GT1): Next steps and asks on a phone, and Why on a laptop, are in the first screen.
+        const headTop = await p.evaluate((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? null, dev === 'phone' ? '#g-next' : '#g-why');
+        chk(headTop != null && headTop < s.fold - 24, `${at1}: ${dev === 'phone' ? 'Next steps and asks' : 'Why'} starts at ${headTop}px, fold ${Math.round(s.fold)}px`);
         chk(s.primaries.length <= 1, `${at1}: ${s.primaries.length} primary actions in the first screen (${s.primaries.join(' | ')})`);
         // The reason is said once near the top; weeks that repeated it are one group in the activity.
         const said = await sayings(p, 'Lead time is well above plan and the gap grew again this week');
@@ -160,11 +162,13 @@ module.exports = {
         chk(!gone.length, `${at1}: removed parts still on the page: ${gone.join(', ')}`);
         const heads = await p.evaluate(() => [...document.querySelectorAll('.goal-page h2')].map((e) => e.innerText.trim()));
         chk(!heads.some((x) => /^(Signals|What the owner says|Most likely to make it miss)$/.test(x)), `${at1}: old sections ${heads.join(' / ')}`);
-        // Scrubbing reads a week in words: along the part of the chart in the first screen, without scrolling.
+        // Scrubbing reads a week in words, once the chart is in view.
         const svg = p.locator('.goal-chart svg.chart');
+        await svg.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+        await p.waitForTimeout(200);
         const box = await svg.boundingBox();
         if (box) {
-          const y = box.y + Math.max(8, Math.min(box.height * 0.5, (s.fold - box.y) / 2));
+          const y = box.y + box.height * 0.5;
           await p.mouse.move(box.x + box.width * 0.5, y);
           if (touch) { await p.mouse.down(); await p.mouse.move(box.x + box.width * 0.55, y); }
           await p.waitForTimeout(120);
@@ -199,15 +203,15 @@ module.exports = {
         await p.goto(url('/'));
         const need = p.locator('.need').filter({ hasText: 'Can the batching workaround land' });
         await need.getByRole('link', { name: 'Answer' }).click();
-        await p.locator('.asked').waitFor();
+        await p.locator('.next-steps .step-panel').waitFor();
         await p.waitForTimeout(400);
         const a = await p.evaluate(() => {
           const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
           const fold = bar ? bar.getBoundingClientRect().top : innerHeight;
           const box = document.activeElement;
-          const post = [...document.querySelectorAll('.asked button')].find((b) => /Record the answer/.test(b.textContent));
+          const post = [...document.querySelectorAll('.step-panel button')].find((b) => /Record the answer/.test(b.textContent));
           const r = (e) => e?.getBoundingClientRect();
-          return { url: location.search, focused: box?.tagName === 'TEXTAREA' && !!box.closest('.asked'), boxIn: box ? r(box).top >= 0 && r(box).bottom <= fold : false, postIn: post ? r(post).bottom <= fold && r(post).top >= 0 : false, scrolled: Math.round(scrollY) };
+          return { url: location.search, focused: box?.tagName === 'TEXTAREA' && !!box.closest('.step-panel'), boxIn: box ? r(box).top >= 0 && r(box).bottom <= fold : false, postIn: post ? r(post).bottom <= fold && r(post).top >= 0 : false, scrolled: Math.round(scrollY) };
         });
         const at3 = `J3 ${dev}`;
         chk(/respond=/.test(a.url), `${at3}: Answer opened ${a.url}`);
@@ -228,8 +232,8 @@ module.exports = {
         await p.waitForTimeout(400);
         await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'pavel'));
         await p.goto(url('/goals/lead-merge?tab=comments'));
-        await p.locator('.asked').waitFor(); await p.waitForTimeout(300);
-        chk(await p.evaluate(() => document.activeElement?.tagName === 'TEXTAREA' && !!document.activeElement.closest('.asked')), `${at3}: ?tab=comments does not open the question`);
+        await p.locator('.next-steps .step-panel').waitFor(); await p.waitForTimeout(300);
+        chk(await p.evaluate(() => document.activeElement?.tagName === 'TEXTAREA' && !!document.activeElement.closest('.step-panel')), `${at3}: ?tab=comments does not open the question`);
         await c.close();
       }
 
@@ -299,10 +303,14 @@ module.exports = {
         }));
         const at8 = `J8 ${dev}`;
         chk(f.about, `${at8}: About this goal is folded on a first visit`);
-        chk(/^What it measures: .+/.test(f.line), `${at8}: first-visit line “${f.line}”`);
-        chk(f.primary.length === 1 && /^Watch/.test(f.primary[0]), `${at8}: a viewer's main action is ${f.primary.join(', ') || 'missing'}`);
+        // What it measures is said once, in About (open on a first visit), not again in a line at the top (N15).
+        chk(!/^What it measures/.test(f.line) && /\w/.test(await p.evaluate(() => [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'What it measures')?.nextElementSibling?.textContent ?? '')), `${at8}: What it measures “${f.line}”, About`);
+        // Watch is the plain button beside the main one, never the main one (GT1, rule 1).
+        const watch = await p.locator('.goal-bar .bar-actions').getByRole('button', { name: /^Watch/ }).count();
+        chk(!f.primary.some((x) => /^Watch/.test(x)) && watch === 1, `${at8}: a viewer's buttons: main ${f.primary.join(', ') || 'none'}, Watch ${watch}`);
         chk(s.status === 1, `${at8}: the status appears ${s.status} times in the first screen`);
-        chk(s.chartTop != null && s.chartTop < s.fold - 60, `${at8}: the chart starts at ${s.chartTop}px, fold ${Math.round(s.fold)}px`);
+        const nextTop = await p.evaluate(() => document.querySelector('#g-next')?.getBoundingClientRect().top ?? null);
+        chk(dev !== 'phone' || (nextTop != null && nextTop < s.fold - 24), `${at8}: Next steps and asks starts at ${nextTop}px, fold ${Math.round(s.fold)}px`);
         // Share: an image and the link.
         const download = p.waitForEvent('download', { timeout: 4000 }).catch(() => null);
         await p.locator('.goal-bar summary[aria-label="More about this goal"]').click();

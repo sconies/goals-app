@@ -119,8 +119,8 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/goals/:goalId` (`GoalScreen`): Everything about one goal: how it’s doing, why, what’s being done, where it’s heading, and what has happened. Help: “A goal’s page” (`goal-page`).
 
-- **Named parts:** “Chart and recent check-ins”, “About this goal”, “Change this goal”, “First check-in (region)”, “For you (region)”, “Respond (region)”, “Chart (region)”
-- **Main action:** For its owner, check in; for anyone else, respond: ask, note or watch.
+- **Named parts:** “Chart and recent check-ins”, “For you”, “Done lately”, “About this goal”, “First check-in (region)”, “Next steps and asks (region)”, “On this page (region)”, “Respond (region)”, “Chart (region)”
+- **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
 - **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
 

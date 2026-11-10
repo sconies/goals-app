@@ -225,10 +225,12 @@ const viewAs = async (p, first, h) => {
   if (h) await h.click(pick); else await pick.click();
 };
 
-/** The goal page's "…" menu (the flagship page, 5 Nov): Share image, Copy link, Print, Check in again, Change this goal. */
+/** The goal page's "…" menu: Share image, Copy link, Print, Change this goal, Stop this goal; and the bar's Check in again. */
 const goalMenu = async (h, p, item) => {
+  // The owner's Check in again is a button on the bar beside the menu (goal spec, rule 1), not in the menu.
+  if (item === 'Check in again') return h.click(p.locator('.goal-bar .bar-actions').getByRole('link', { name: 'Check in again' }));
   await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
-  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole(item === 'Print or save as PDF' || /^Check in/.test(item) ? 'link' : 'button', { name: item }));
+  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole(item === 'Print or save as PDF' || /^Check in/.test(item) || item === 'Change this goal' ? 'link' : 'button', { name: item }));
 };
 
 const navTo = async (h, p, label) => {
@@ -307,7 +309,7 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await see(p, /You’re all set for week/, 'posted check-ins survive a reload, and home says the week is done');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/ci-docker'));
-  // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is in the "…" menu.
+  // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is beside it.
   await goalMenu(h, p, 'Check in again');
   await see(p, `You checked in for week ${NOW} already`, 'a second check-in says it is kept alongside the first');
   const reviewV2 = String(Number(reviewV) + 1);
@@ -486,13 +488,14 @@ journey('U3', ['REVIEW', 'INSPECT-ACT', 'OUTCOME-TREE', 'ATTENTION', 'CHANGE-LOG
   const q = (s.requests || []).find((r) => r.kind === 'question' && /back on plan before the next incident review/.test(r.ask));
   const qLog = s.changes.find((c) => !before.has(c.id) && c.entity === 'request' && c.action === 'asked' && c.entityId === (q && q.id));
   h.set('logged', calls.length === items + healthyN + 1 && !!q && q.status === 'open' && q.reviewId === 'reliability' && !!qLog, `expected ${items + healthyN} reviews and a note logged, and the question as an open ask, saw ${calls.length}${q ? '' : ', no question'}`);
-  // The owner sees the question under "Asked of you" on the goal, and on Home; everyone else in the goal's action list.
+  // The owner sees the question under "For you" in Next steps and asks on the goal, and on Home; everyone else in the same list.
   const goalId = q.goalIds[0];
   await p.goto(url('/goals/' + goalId));
   await see(p, 'Can this be back on plan', 'the question is not on the goal for everyone');
   await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), q.recipientId);
   await p.goto(url('/goals/' + goalId));
-  await see(p, 'Question from Marisol in Reliability weekly', 'the owner sees the question on the goal');
+  await see(p.locator('.step-row', { hasText: 'Can this be back on plan' }), 'by Marisol in Reliability weekly', 'the owner sees the question on the goal');
+  await see(p, 'For you', 'the question is not under For you for its owner');
   await p.goto(url('/'));
   await see(p, 'Questions for you', 'the owner’s Home groups the question with the other questions');
   await see(p, 'Can this be back on plan', 'the owner’s Home shows the question');
@@ -764,10 +767,11 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && ringSays === `1 of ${owned} check-ins done this week`, `after one early check-in the confirmation said “${said}” and Home’s ring “${ringSays}”`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
-  // A goal page asks for how it's measured while it isn't said.
+  // A goal page asks for what it measures while it isn't said: in About, open on a first visit, with Describe it.
   const build = s.goals.find((g) => g.title === 'Build time');
   await p.goto(sunday('/goals/' + build.id));
-  await see(p, 'How it’s measured isn’t described yet', 'the goal page doesn’t ask how it’s measured');
+  await see(p.locator('.about'), 'Not described yet.', 'the goal page doesn’t ask how it’s measured');
+  await see(p.locator('.about'), 'Describe it', 'the goal page doesn’t ask how it’s measured');
   // The Demo panel offers the walkthroughs (they open the example) and Start over, which removes the workspace and what the browser kept about it.
   await p.evaluate((w) => localStorage.setItem(`goals-app-draft:${w}:checkin:any:45`, '{"value":"7"}'), wsId);
   const panel = await demoPanel(p, h);
@@ -957,7 +961,6 @@ journey('U7', ['REASON-AHEAD', 'REBASELINE', 'CHANGE-LOG', 'PLAN-CHANGE', 'WATCH
   // A plan change once check-ins have started saves directly, but needs a reason.
   await p.goto(url('/goals/ns-ai'));
   await goalMenu(h, p, 'Change this goal');
-  await h.click(p.getByRole('link', { name: 'Change the plan or target' }));
   await h.fill(p.getByLabel(/^Target/), '85');
   await p.locator('.focus-foot button[type=submit]').click({ force: true });
   h.set('errors', await p.locator('textarea.invalid[aria-label="Why change it?"]').isVisible() && await p.getByRole('alert').filter({ hasText: 'Say why' }).isVisible(), 'a plan change without a reason is not explained');
@@ -1746,8 +1749,8 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   await threats.waitFor();
   h.set('attention', (await threats.locator('.trow, .gline').count()) > 0 && /Most likely to make it miss/.test(await threats.innerText()), 'the north star does not name what threatens it');
   await h.checkpoint('threats');
-  // The goal waiting on Amara's decision: Respond is beside the ask and opens the one Respond panel, ready to answer.
-  const request = p.getByRole('region', { name: /^Decision or help, from Rhea/ });
+  // The goal waiting on Amara's decision: Respond is on its row in Next steps and asks and opens the one Respond panel, ready to answer.
+  const request = p.locator('.step-row', { hasText: 'approve the extra CI runner budget' });
   await request.waitFor();
   await h.click(request.getByRole('button', { name: 'Respond' }));
   const respond = p.getByRole('region', { name: 'Respond' });
@@ -1965,7 +1968,7 @@ journey('U37', ['PATH-TO-GREEN', 'ATTENTION', 'CHANGE-LOG', 'ONE-ASK'], 'Several
   h.set('progress', (await p.locator('.need').filter({ hasText: 'approve the extra CI runner budget' }).count()) === 0, 'the answered request is still on Home');
   // Every goal shows the answer; the request is answered once, logged on each goal.
   await p.goto(url('/goals/lead-merge'));
-  await see(p, 'Answered by Amara Nwosu', 'the linked goal does not show the answer');
+  await see(p.locator('.step-row.is-settled'), 'Amara: Approved: the extra runner budget for Q4', 'the linked goal does not show the answer');
   const s = await h.snapshot();
   const r = (s.requests || []).find((x) => x.status === 'answered' && /from finance on the 12th/.test(x.answer || ''));
   h.set('logged', !!r && r.goalIds.includes('ns-lead') && r.goalIds.includes('lead-merge') && s.changes.filter((c) => c.entity === 'request' && c.action === 'answered' && c.entityId === r.id).length === 4, 'the answer is not one request, logged on every goal');
@@ -3414,6 +3417,83 @@ journey('U29', ['WALKTHROUGHS'], 'Every walkthrough starts as the right person a
 /* ---------------- platform checks ---------------- */
 const P5 = (errors) => ({ id: 'P5', reqs: ['NO-ERRORS'], title: 'No console or page errors across every journey', pass: errors.length === 0, error: errors.slice(0, 4).join(' | ') || undefined });
   // F1–F8: the per-area fit-and-finish reports (4 Nov). Each area keeps its own checks in evals/finish/*.cjs.
+/* ---------- act on a goal (goal spec, GT1) ---------- */
+
+/** Who's looking, changed in place: the next load of the page is theirs (the demo keeps its saves in this browser). */
+const lookAs = async (p, who, route) => {
+  await p.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
+  await p.goto(url(route));
+  await p.locator('.goal-bar').waitFor();
+};
+/** How many elements of the page (not a message) hold these words themselves. */
+const textCount = (p, words) => p.evaluate((w) => [...document.querySelectorAll('main *')].filter((e) => !e.closest('[role=status], .toast, .toasts') && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.includes(w))).length, words);
+
+journey('U77', ['GOAL-ACT'], 'The owner can act on a goal: Check in again always, and Add a next step when it is behind with none', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  // Rhea checked in this week: the owner's standing button is beside the bar's actions, on the first screen.
+  const again = p.locator('.goal-bar .bar-actions').getByRole('link', { name: 'Check in again' });
+  await h.inView(again, 'entry', 'Check in again');
+  await h.inView(p.getByRole('heading', { name: /^Next steps and asks/ }), 'attention', 'the heading Next steps and asks');
+  await h.checkpoint('goal page, owner');
+  await h.click(again);
+  await p.waitForURL(/\/check-in\/ns-lead/);
+  // Amara marks her next step done, in its row.
+  await lookAs(p, 'amara', '/goals/ns-lead');
+  const step = p.locator('.step-row', { hasText: 'Take the runner budget to the finance review' });
+  await h.click(step.getByRole('button', { name: 'Mark done' }));
+  await h.click(step.locator('.step-panel button[type=submit]'));
+  await see(p, 'Done lately');
+  // Back as Rhea: off track with no next step open. The section says so and the main button is Add a next step.
+  await lookAs(p, 'rhea', '/goals/ns-lead');
+  await see(p, 'No next step yet. Nobody has said what happens next', 'the gap is not said');
+  const add = p.locator('.goal-bar .bar-actions').getByRole('button', { name: 'Add a next step' });
+  await h.inView(add, 'finish', 'Add a next step');
+  await h.click(add);
+  const sheet = p.getByRole('dialog', { name: /^Add a next step/ });
+  await h.click(sheet.getByRole('button', { name: 'Add the next step' }));
+  h.set('errors', await sheet.getByRole('alert').filter({ hasText: 'Say what needs doing.' }).isVisible() && await sheet.getByRole('alert').filter({ hasText: 'Choose a week.' }).isVisible(), 'an empty next step is not explained');
+  await h.fill(sheet.getByLabel('What needs doing'), 'Book the finance review slot for the runner budget');
+  await sheet.locator('select').selectOption({ index: 2 });
+  await h.click(sheet.getByRole('button', { name: 'Add the next step' }));
+  await p.locator('.step-row', { hasText: 'Book the finance review slot' }).waitFor();
+  // The step is hers, so her main button is now to mark it done (rule 1), not to add another.
+  const main = await p.locator('.goal-bar .bar-actions .btn.primary').allInnerTexts();
+  h.set('finish', !(await p.getByText('No next step yet.').count()) && main.join() === 'Mark your next step done', `after adding a step the gap line stayed, or the main button is ${main.join() || 'none'}`);
+  const s = await h.snapshot();
+  h.set('logged', s.requests.some((r) => r.kind === 'action' && r.askedBy === 'rhea' && r.recipientId === 'rhea' && /finance review slot/.test(r.ask)) && s.changes.some((c) => c.actorId === 'rhea' && c.goalId === 'ns-lead' && c.entity === 'request'), 'the next step is not saved and logged');
+  await p.context().close();
+}, ['progress']);
+
+journey('U78', ['GOAL-ASK-ONCE', 'ONE-ASK'], 'An ask is said once on a goal, under Next steps and asks, with the one button each person may press', 6, async (h, device) => {
+  const ask = 'approve the extra CI runner budget for Q4';
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  // Rhea asked it: Withdraw, and no other button on its row.
+  const row = p.locator('.step-row', { hasText: ask });
+  const rheaButtons = await row.locator('.step-do button, .step-do a').allInnerTexts();
+  h.set('errors', rheaButtons.length === 1 && rheaButtons[0] === 'Withdraw', `as Rhea the row's buttons are ${rheaButtons.join(', ') || 'none'}`);
+  // Amara is asked: the words once, under For you; Why only points to it.
+  await lookAs(p, 'amara', '/goals/ns-lead');
+  await see(p, 'For you');
+  h.set('finish', (await textCount(p, ask)) === 1, `the ask's words appear ${await textCount(p, ask)} times`);
+  h.set('attention', await p.locator('.why-block').getByText('Waiting on a decision from Amara: see Next steps and asks').isVisible(), 'Why does not point to the list');
+  const primary = p.locator('.goal-bar .bar-actions .btn.primary');
+  await h.inView(primary, 'entry', 'Answer Rhea’s request');
+  await h.checkpoint('goal page, asked');
+  await h.click(primary);
+  const panel = p.locator('.step-row', { hasText: ask }).locator('.step-panel');
+  await h.fill(panel.getByRole('textbox').first(), 'Approved for Q4, from the platform reserve.');
+  await h.click(panel.locator('button[type=submit]'));
+  await p.locator('.step-row.is-settled', { hasText: 'Approved for Q4, from the platform reserve.' }).waitFor();
+  h.set('attention', !(await p.locator('.why-block .why-pointer').count()), 'Why still points to an answered ask');
+  const s = await h.snapshot();
+  h.set('logged', s.requests.some((r) => r.kind === 'decision' && r.answer === 'Approved for Q4, from the platform reserve.' && r.answeredBy === 'amara'), 'the answer is not saved');
+  await p.context().close();
+}, ['progress']);
+
 async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
