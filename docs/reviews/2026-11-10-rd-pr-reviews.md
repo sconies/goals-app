@@ -105,3 +105,36 @@ Read against `docs/design/workspace/spec.md` sections 1, 2.1 to 2.4, 3, rules 4,
 - Where: `src/screens/People.tsx:212`. `app.person` already gives a left person's name with "(left)" (`src/app/state.tsx:452`, `leftName`), and the heading adds it again.
 - Reproduce: in the demo as Amara, open Oskar Lindgren, "Mark as left…", then open `/people/oskar`: the heading reads "Oskar Lindgren (left) (left)". The browser's title is right.
 - Suggested fix: drop the heading's own suffix; have U43 check the heading's exact words.
+
+### #93 0c hardening: the fix for #89's finding 1 (reviewed before merge, at d392023, at the planning session's request)
+
+**Verdict: GO to merge.** Both ways out that I found in #89 are closed, and 0036 changes nothing outside Faro.
+
+How it was checked: the same local Postgres 16 shaped like Supabase, this time with a stand-in pg_cron holding 0035's nightly job and a job of the other app's, brought to today's production state by main's migrator (0001–0035); then this branch's `check-fence`, `migrate` (0036, twice) and role script (twice). The PR's tests pass (`src/data/fence.test.ts`, `src/data/markups.test.ts`: 23). The Storage probe was tried once against the live project's public address for a picture that doesn't exist, which is the request the code makes; nothing else live was touched.
+
+**What holds**
+
+| Claim | Result |
+|---|---|
+| The cron route is closed | Yes. 0036 removed `okr-telemetry-nightly` and left the other app's job alone. As `faro_owner`: no rights on `cron`; the nightly function replaced with one that copies the family table, run as CI now runs it, is refused ("permission denied for table family_members") |
+| The definer-function swap is closed | Yes. After the role script nothing in `faro` belongs to another role. The same swap of `okr_builders` for a view, then `faro.okr_is_builder()`: refused, because the function now runs as `faro_owner` |
+| 0036 | The four builder functions keep their signatures, grants and behaviour (a builder's email in `request.jwt.claims` is still recognised, through the old names too); `okr_markup_pictures_open` and its redirect are gone; a second run is a no-op; one transaction; the family table's checksum is unchanged |
+| The role script | Refuses before 0036; hands over every function; runs twice |
+| `check-fence` | As postgres it warns with counts (1 cron job, 1 definer function, in my set-up). As `faro_owner` it fails on a stand-in family `security definer` function that everyone may run. No names printed |
+| The Storage probe | Live Storage answers `NoSuchKey` for a missing picture in `markups` and `NoSuchBucket` for a bucket that isn't there, as `picturesOpen` expects |
+| `server.ts` | Reads `VITE_SUPABASE_KEY` only |
+| The nightly workflow | Runs `faro.okr_telemetry_nightly()` as whatever `DATABASE_URL` names; that is postgres until the secret changes, which is no worse than pg_cron was |
+
+**1. Medium, a follow-up (not blocking). One narrower way out remains: Storage's rules call Faro functions as whoever is using Storage.**
+
+- Where: `supabase/migrations/0024_markups_and_tokens.sql:163-175`. The rules "markups: upload" and "markups: builders read" on `storage.objects` call `faro.okr_markup_id_ok` and `faro.okr_is_builder`, which `faro_owner` now owns and can rewrite.
+- Reproduced: as `faro_owner`, make `okr_is_builder` a `security invoker` function that copies the family table into `faro`. A signed-in user of the other app then listed Storage without naming a bucket; the rule ran the function as that user for the row in `markups`, and the two family rows that user could read were copied where `faro_owner` reads them. A query that names another bucket as a constant doesn't trigger it.
+- It needs someone holding the Faro role's password and a signed-in user of the other app whose query reaches a `markups` row, and it yields only what that user can see. The fence check doesn't look at it.
+- Suggested fix: drop "markups: builders read" (pictures have been public-read since 0031) and have the upload rule call nothing in `faro` (the id's pattern, inline); add to `check-fence` a count of rules outside `faro` that depend on a function in it. It needs postgres, so it is a paste-in for Lane or a migration before the secret changes.
+
+**2. Medium, a decision for Lane before the secret changes.** The merge run prints, as a warning, how many `security definer` functions outside Faro everyone may run. If it isn't 0, the fence check will fail every migration once `DATABASE_URL` is `faro_owner`, and the only cure is changing the other app's grants. Read that number on the merge's CI run and decide then.
+
+**3. Low.**
+
+- `supabase/manual/faro-role.sql:70` unschedules any pg_cron job whose command contains `faro.` or `okr_`, whoever's it is: the one statement here that could change something that isn't Faro's. Naming the job (`okr-telemetry-nightly`) would be exact. The other app's job was untouched in my run.
+- Once the role owns `faro`, reading Faro's tables as postgres (the dashboard's table editor, the SQL editor) runs whatever `faro_owner` has put behind them, as postgres. `supabase/README.md` should say to `set role faro_owner` first.
