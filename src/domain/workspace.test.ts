@@ -7,7 +7,7 @@ import { NotAllowed, teamPeople, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { currentWeek } from './plan';
 import { cycleStanding, leaveWorkspace } from './removal';
-import { cycleWhen, workspaceNeeds } from './workspaceAttention';
+import { adminsLine, cycleWhen, workspaceName, workspaceNeeds, yearLine } from './workspaceAttention';
 import { MAX_WORKSPACE_NAME, nameLength, nameProblem } from './thresholds';
 import type { Snapshot } from './types';
 
@@ -82,21 +82,58 @@ describe('leaving a workspace yourself (backlog WS, Lane 9 Nov)', () => {
   });
 });
 
-describe('what needs attention in a workspace (backlog WS)', () => {
+describe('what an admin has to sort out (app redesign WR2, rule 3)', () => {
   const cycle = s.cycles[0]!;
-  it('tells admins what only they can fix, and everyone what anyone can', () => {
-    const bare = { ...s, people: s.people.slice(0, 2).map((p, i) => ({ ...p, email: undefined, teamId: i ? null : p.teamId })), goals: [], reviews: [], retros: [] };
-    const admin = workspaceNeeds(bare, cycle, 10, true, 3).map((x) => x.id);
-    expect(admin).toEqual(['no-goals', 'few-people', 'no-email', 'no-team', 'no-lead', 'no-review', 'feedback']);
-    const member = workspaceNeeds(bare, cycle, 10, false, 3);
-    expect(member.map((x) => x.id)).toEqual(['no-goals', 'feedback']);
-    expect(member[1]!.says).toBe('3 new markups and pieces of feedback were sent from this workspace.');
+  const live = scopeToCycle(s, cycle);
+  it('the example on 11 November: nothing, for an admin or a member', () => {
+    expect(workspaceNeeds(live, cycle, true)).toEqual([]);
+    expect(workspaceNeeds(live, cycle, false)).toEqual([]);
   });
-  it('says when the year is ending, then when its wrap-up is open', () => {
-    expect(workspaceNeeds(s, cycle, cycle.weeks - 4, true, 0).find((x) => x.id === 'cycle-ending')?.says).toBe(`${cycle.name} ends soon: the wrap-up opens in 3 weeks, in week ${cycle.weeks - 1}.`);
-    expect(workspaceNeeds(s, cycle, cycle.weeks - 1, false, 0).map((x) => x.id)).toContain('wrap-up');
-    expect(workspaceNeeds(s, cycle, 20, false, null)).toEqual([]);
+  it('a workspace just set up: two people, one team with no lead, goals and a review: nothing', () => {
+    const fresh = { people: [{ ...live.people[0]!, id: 'rosa', admin: true, teamId: 'field' }, { ...live.people[1]!, id: 'omar', admin: false, teamId: 'field' }], teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], goals: live.goals.slice(0, 4), reviews: live.reviews.slice(0, 1) };
+    expect(workspaceNeeds(fresh, cycle, true)).toEqual([]);
   });
+  it('a year on, 12 people, still one admin, three without an email: only-admin, then no-email', () => {
+    const people = live.people.slice(0, 12).map((p, i) => ({ ...p, admin: i === 0, email: i < 3 ? undefined : p.email, teamId: live.teams[0]!.id }));
+    const grown = { people, teams: [{ ...live.teams[0]!, leadId: people[0]!.id }], goals: live.goals, reviews: live.reviews };
+    const out = workspaceNeeds(grown, cycle, true);
+    expect(out.map((x) => x.id)).toEqual(['only-admin', 'no-email']);
+    expect(out[1]).toMatchObject({ says: '3 people have no email', action: 'Add them', to: '/people?emails=1' });
+    expect(workspaceNeeds({ ...grown, people: people.map((p, i) => ({ ...p, email: i ? p.email ?? 'x@y.z' : undefined })) }, cycle, true).find((x) => x.id === 'no-email')?.says).toBe('1 person has no email');
+  });
+  it('lists everything in order, for admins only', () => {
+    const bare = { people: live.people.slice(0, 6).map((p, i) => ({ ...p, admin: i === 0, email: undefined, teamId: i < 2 ? null : 'big' })), teams: [{ id: 'big', name: 'Big', leadId: '', objective: '' }], goals: [], reviews: [] };
+    expect(workspaceNeeds(bare, cycle, true).map((x) => x.id)).toEqual(['no-goals', 'no-review', 'only-admin', 'no-email', 'no-team', 'no-lead']);
+    expect(workspaceNeeds(bare, cycle, false)).toEqual([]);
+  });
+});
+
+describe('the workspace in words (rules 1, 2 and 6)', () => {
+  it('names a workspace without the example’s own prefix, with its kind', () => {
+    expect(workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo')).toEqual({ name: 'Platform Engineering', kind: 'example data' });
+    expect(workspaceName({ name: 'Field Operations', kind: 'own' }, 'demo')).toEqual({ name: 'Field Operations', kind: 'kept in this browser' });
+    expect(workspaceName({ name: 'Growth', kind: 'own' }, 'live')).toEqual({ name: 'Growth', kind: '' });
+    expect(workspaceName({ name: 'Example: Tests', kind: 'own' }, 'live').name).toBe('Example: Tests');
+  });
+  it('says the admins as a sentence, A to Z, with a count beyond three', () => {
+    const a = (names: string[]) => names.map((name) => ({ name, admin: true }));
+    expect(adminsLine(a(['Rosa Lind']))).toBe('Rosa Lind');
+    expect(adminsLine(a(['Grace Achterberg', 'Amara Nwosu']))).toBe('Amara Nwosu and Grace Achterberg');
+    expect(adminsLine(a(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg']))).toBe('Amara Nwosu, Grace Achterberg and Hamid Rezaei');
+    const forty = a(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${String(i).padStart(2, '0')}`)]);
+    expect(adminsLine(forty)).toBe('Aiko Suzuki, Akosua Owusu and 38 others');
+    expect(adminsLine([{ name: 'Not one', admin: false }])).toBe('');
+  });
+  it('says where the year stands, and when its wrap-up opens', () => {
+    const c = { name: '2026', startDate: '2025-12-22', weeks: 53 };
+    expect(yearLine(c, 47, new Date('2026-11-11T12:00:00Z'), 30)).toBe('2026, week 47 of 53. The wrap-up opens on 14 Dec 2026.');
+    expect(yearLine(c, 52, new Date('2026-12-15T12:00:00Z'), 31)).toBe('2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.');
+    expect(yearLine(c, 53, new Date('2026-12-22T12:00:00Z'), 0)).toBe('2026, week 53 of 53. The wrap-up is open: every goal is wrapped up.');
+    expect(yearLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, 1, new Date('2026-11-11T12:00:00Z'), 0)).toBe('2027 starts on 4 Jan 2027.');
+  });
+});
+
+describe('a cycle’s dates (backlog WS)', () => {
   it('gives a cycle’s dates and where it stands', () => {
     expect(cycleWhen({ startDate: '2025-12-22', weeks: 53 }, true, 45, today)).toEqual({ dates: '22 Dec 2025 to 27 Dec 2026, 53 weeks', now: 'Running: week 45 of 53' });
     expect(cycleWhen({ startDate: '2026-12-28', weeks: 52 }, false, 45, today).now).toBe('Starts 28 Dec 2026');

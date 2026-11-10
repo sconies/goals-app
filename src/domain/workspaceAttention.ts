@@ -1,59 +1,89 @@
-/* What needs attention in a workspace (backlog WS, outside review of 9 Nov: the overview restated Home instead of
-   answering "what needs attention here"). Workspace's overview lists these first, each with where to deal with it;
-   the sections follow. Pure: given the workspace as it is, who is asking, and how much new feedback is about it. */
+/* The workspace in words (backlog WS; app redesign WR2, docs/design/workspace/spec.md rules 1, 2, 3 and 6): what an
+   admin has to sort out, the workspace's name and its admins as people read them, where the year stands, and a
+   cycle's dates. Workspace's About reads these. Pure. */
 import { wrapUpOpen } from './cycle';
-import { periodWord } from './year';
-import type { Cycle, Snapshot } from './types';
+import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
   /** Stable, for tests and keys. */
-  id: 'no-goals' | 'few-people' | 'no-email' | 'no-team' | 'no-lead' | 'no-review' | 'wrap-up' | 'cycle-ending' | 'feedback';
-  /** What needs doing, in one plain line. */
+  id: 'no-goals' | 'no-review' | 'only-admin' | 'no-email' | 'no-team' | 'no-lead';
+  /** What needs sorting out, as a short sentence (shown in bold). */
   says: string;
-  /** Where it's dealt with. */
+  /** Why it matters, in a line under it. */
+  why: string;
+  /** The one plain button at the row's right. */
+  action: string;
+  /** Where the button leads. */
   to: string;
-  /** Only admins can deal with it, so only admins are told. */
-  admins: boolean;
-}
-
-/** How near a cycle's end it says so: four weeks before the wrap-up opens. */
-export const ENDING_WEEKS = 4;
-
-const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
-
-/**
- * What needs attention in the open workspace, most pressing first, for this person: admins see what only they can
- * fix; everyone sees what anyone can. `feedbackNew` is how many new markups and pieces of feedback came from this
- * workspace (null while they load). Empty when nothing does.
- */
-export function workspaceNeeds(s: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'reviews' | 'retros'>, cycle: Cycle, week: number, admin: boolean, feedbackNew: number | null): WorkspaceNeed[] {
-  const out: WorkspaceNeed[] = [];
-  const word = periodWord(cycle);
-  // The year closing: the wrap-up is open, or about to be.
-  if (wrapUpOpen(cycle, week)) {
-    const left = s.goals.filter((g) => !s.retros.some((r) => r.goalId === g.id)).length;
-    out.push({ id: 'wrap-up', says: `${cycle.name} is ending: ${left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up'}. The next ${word} starts from the wrap-up.`, to: '/retro', admins: false });
-  } else if (cycle.weeks - 1 - week <= ENDING_WEEKS) {
-    const weeks = cycle.weeks - 1 - week;
-    out.push({ id: 'cycle-ending', says: `${cycle.name} ends soon: the wrap-up opens in ${n(weeks, 'week', 'weeks')}, in week ${cycle.weeks - 1}.`, to: '/workspace/cycles', admins: false });
-  }
-  if (!s.goals.length) out.push({ id: 'no-goals', says: `No goals in ${cycle.name} yet. Each owner adds theirs from New goal.`, to: '/goals/new', admins: false });
-  if (admin) {
-    if (s.people.length < 3) out.push({ id: 'few-people', says: `Only ${n(s.people.length, 'person', 'people')} here. Goal owners need to be here to check in.`, to: '/people', admins: true });
-    const noEmail = s.people.filter((p) => !p.email).length;
-    if (noEmail) out.push({ id: 'no-email', says: `${n(noEmail, 'person has', 'people have')} no email yet, which is how two people with one name are told apart.`, to: '/people?emails=1', admins: true });
-    const noTeam = s.people.filter((p) => !p.teamId || !s.teams.some((t) => t.id === p.teamId)).length;
-    if (noTeam) out.push({ id: 'no-team', says: `${n(noTeam, 'person is', 'people are')} in no team.`, to: '/people?team=-', admins: true });
-    const noLead = s.teams.filter((t) => !t.leadId || !s.people.some((p) => p.id === t.leadId)).length;
-    if (noLead) out.push({ id: 'no-lead', says: `${n(noLead, 'team has', 'teams have')} no lead.`, to: '/teams', admins: true });
-    if (!s.reviews.some((r) => !r.removedAt && !r.endedAt)) out.push({ id: 'no-review', says: 'No review is set up. A weekly review is where the goals that need attention are talked about.', to: '/reviews/new', admins: true });
-  }
-  if (feedbackNew) out.push({ id: 'feedback', says: `${n(feedbackNew, 'new markup or piece of feedback was', 'new markups and pieces of feedback were')} sent from this workspace.`, to: '/feedback', admins: false });
-  return out;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const day = (d: Date) => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+
+/** "You're the only admin" is said from this many people on: a small team's one admin is no worry. */
+export const ONLY_ADMIN_FROM = 5;
+/** A team without a lead is said from this size: set-up never asks who leads a team, so a team of one or two isn't told off. */
+export const LEAD_FROM = 3;
+
+const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+
+/**
+ * What an admin has to sort out in the open workspace (app redesign WR2, docs/design/workspace/spec.md rule 3), in
+ * order: no goals in the running cycle; no review; the only admin of a workspace of five or more; people with no
+ * email; people in no team; teams of three or more with no lead. Members get nothing: these are an admin's to fix.
+ * The year ending is Home's and the Year fact's to say; feedback is the builders' business.
+ */
+export function workspaceNeeds(s: Pick<Snapshot, 'people' | 'teams' | 'goals' | 'reviews'>, cycle: Pick<Cycle, 'name'>, admin: boolean): WorkspaceNeed[] {
+  if (!admin) return [];
+  const out: WorkspaceNeed[] = [];
+  if (!s.goals.length) out.push({ id: 'no-goals', says: `No goals in ${cycle.name} yet`, why: 'Each owner adds theirs from New goal.', action: 'Add one', to: '/goals/new' });
+  if (!s.reviews.some((r) => !r.removedAt && !r.endedAt)) out.push({ id: 'no-review', says: 'No review is set up', why: 'A review is where the goals that need attention are talked about.', action: 'Set one up', to: '/reviews/new' });
+  if (s.people.filter((p) => p.admin).length === 1 && s.people.length >= ONLY_ADMIN_FROM) out.push({ id: 'only-admin', says: 'You’re the only admin', why: 'Make a second, so the workspace isn’t stuck when you’re away.', action: 'Choose someone', to: '/workspace/access' });
+  const noEmail = s.people.filter((p) => !p.email).length;
+  if (noEmail) out.push({ id: 'no-email', says: `${n(noEmail, 'person has', 'people have')} no email`, why: 'An email is how two people with one name are told apart.', action: 'Add them', to: '/people?emails=1' });
+  const noTeam = s.people.filter((p) => !p.teamId || !s.teams.some((t) => t.id === p.teamId)).length;
+  if (noTeam) out.push({ id: 'no-team', says: `${n(noTeam, 'person is', 'people are')} in no team`, why: 'Goals are grouped by team.', action: 'See them', to: '/people?team=-' });
+  const size = (t: { id: string; leadId: string }) => s.people.filter((p) => p.teamId === t.id).length;
+  const noLead = s.teams.filter((t) => (!t.leadId || !s.people.some((p) => p.id === t.leadId)) && size(t) >= LEAD_FROM).length;
+  if (noLead) out.push({ id: 'no-lead', says: `${n(noLead, 'team has', 'teams have')} no lead`, why: 'A lead is who people ask about the team’s goals.', action: 'See them', to: '/teams' });
+  return out;
+}
+
+/** About's "To sort out" shows this many rows; the rest open in place from "and {k} more". */
+export const NEEDS_SHOWN = 3;
+
+/**
+ * A workspace's name as people read it (rule 1): the stored name without the example's own "Example: ", and its kind
+ * as a quieter second line: "example data", "kept in this browser" (one made in the demo), or nothing (a real one).
+ */
+export function workspaceName(ws: { name: string; kind?: string }, mode: 'demo' | 'live'): { name: string; kind: string } {
+  if (ws.kind === 'example') return { name: ws.name.replace(/^Example:\s*/, ''), kind: 'example data' };
+  return { name: ws.name, kind: mode === 'demo' ? 'kept in this browser' : '' };
+}
+
+/** The admins as a sentence, A to Z (rule 2): beyond `max`, the first `max - 1` and how many others. */
+export function adminsLine(people: Pick<Person, 'name' | 'admin'>[], max = 3): string {
+  const names = people.filter((p) => p.admin).map((p) => p.name).sort((a, b) => a.localeCompare(b, 'en-GB', { sensitivity: 'base' }));
+  const shown = names.length > max ? [...names.slice(0, max - 1), `${names.length - (max - 1)} others`] : names;
+  return shown.length < 2 ? shown.join('') : `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`;
+}
+
+/**
+ * Where the year stands (rule 6), for About's Year fact and Cycles' running row: the week, and when the wrap-up opens
+ * (the first day of the first week `wrapUpOpen` allows), or how many goals are still to wrap up once it's open. A
+ * cycle not started yet says when it starts. `left` is how many of its goals have no wrap-up yet.
+ */
+export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, week: number, today: Date, left: number): string {
+  const start = new Date(cycle.startDate + 'T00:00:00Z');
+  if (cycle.startDate > today.toISOString().slice(0, 10)) return `${cycle.name} starts on ${day(start)}.`;
+  const w = Math.max(1, Math.min(week, cycle.weeks));
+  const at = `${cycle.name}, week ${w} of ${cycle.weeks}.`;
+  if (wrapUpOpen(cycle as Cycle, w)) return `${at} The wrap-up is open: ${left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up'}.`;
+  let first = w;
+  while (!wrapUpOpen(cycle as Cycle, first) && first < cycle.weeks) first++;
+  return `${at} The wrap-up opens on ${day(new Date(start.getTime() + (first - 1) * 7 * 86_400_000))}.`;
+}
+
 
 /**
  * A cycle as Workspace's Cycles lists it (backlog WS: "dates, what's current, and its actions"): its first and last

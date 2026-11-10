@@ -11,7 +11,7 @@ import type { Person, Snapshot } from '../domain/types';
 import { ARTICLES } from '../help/guide';
 import { TOOLS as ALL_TOOLS } from '../mcp/tools';
 import { findModules } from '../../vite.modules.ts';
-import { manifestProblems, placeSections, PLACES, resolveModules, type ModuleFacts } from './module';
+import { manifestProblems, placeSections, PLACES, resolveModules, sectionsFor, type ModuleFacts } from './module';
 import { isModuleOn, MODULES, modulesOn } from './registry';
 
 const root = path.join(__dirname, '..', '..');
@@ -155,5 +155,20 @@ describe('Workspace sections from modules (backlog W)', () => {
   });
   it('keeps two modules after the same section in their own order, and never adds an id twice', () => {
     expect(ids(placeSections(core, [{ id: 'a', after: 'people' }, { id: 'b', after: 'people' }, { id: 'teams' }]))).toEqual(['overview', 'people', 'a', 'b', 'teams', 'inbox']);
+  });
+});
+
+describe('which Workspace sections someone sees (rule 7, WR2)', () => {
+  const core: { id: string; admins?: boolean; after?: string }[] = [{ id: 'overview' }, { id: 'cycles' }, { id: 'access', admins: true }, { id: 'features', admins: true }, { id: 'privacy' }, { id: 'removed' }];
+  const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
+  it('an admin sees every section; a member not the admins’ ones', () => {
+    expect(ids(sectionsFor({ admin: true }, core, []))).toEqual(['overview', 'cycles', 'access', 'features', 'privacy', 'removed']);
+    expect(ids(sectionsFor({ admin: false }, core, []))).toEqual(['overview', 'cycles', 'privacy', 'removed']);
+  });
+  it('a module’s section follows the one it names, or comes last', () => {
+    const metrics = { id: 'metrics', after: 'access', admins: true };
+    expect(ids(sectionsFor({ admin: true }, core, [metrics]))).toEqual(['overview', 'cycles', 'access', 'metrics', 'features', 'privacy', 'removed']);
+    expect(ids(sectionsFor({ admin: false }, core, [metrics]))).toEqual(['overview', 'cycles', 'privacy', 'removed']);
+    expect(ids(sectionsFor({ admin: true }, core, [{ id: 'x', after: 'people' }])).pop()).toBe('x');
   });
 });

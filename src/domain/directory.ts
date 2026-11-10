@@ -88,7 +88,7 @@ export function teamSummary(x: DirectoryCtx, teamId: string) {
 
 /**
  * Where an address that moved now leads (rule 8), or null when it didn't move: People and Teams left Workspace for
- * places of their own. The query is kept (but for `team`, which became the team's own page), and so is any hash.
+ * places of their own, and Workspace's overview is Workspace itself (About). The query is kept (but for `team`, which became the team's own page), and so is any hash.
  */
 export function movedTo(path: string, search = '', hash = ''): string | null {
   const q = new URLSearchParams(search);
@@ -104,5 +104,7 @@ export function movedTo(path: string, search = '', hash = ''): string | null {
     return '/people' + rest() + hash;
   }
   if (path === '/workspace/teams') return '/teams' + rest() + hash;
+  // Workspace opens on About (WR2): the overview's own address is Workspace's.
+  if (path === '/workspace/overview') return '/workspace' + rest() + hash;
   return null;
 }

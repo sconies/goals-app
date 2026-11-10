@@ -7,7 +7,8 @@ import { Navigate, useLocation } from 'react-router';
 import APP from 'virtual:faro-modules/app';
 import { useApp } from '../app/state';
 import type { Cell } from '../domain/export';
-import type { Goal, GoalKind, Person, Team } from '../domain/types';
+import type { Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
+import type { WorkspaceNeed } from '../domain/workspaceAttention';
 import type { NavGroup } from '../domain/navigation';
 import type { Finder } from '../adapters/localSearch';
 import { MODULES, modulesOn } from './registry';
@@ -91,12 +92,11 @@ export interface ModuleFilter {
   pick: string;
 }
 
-/** Something a module raises on Workspace's overview to sort out, with where to do it. */
-export interface ModuleToSortOut { id: string; text: string; to: string }
+
 
 /**
  * A section of Workspace (backlog W): its own address, /workspace/<id>, an entry in Workspace's menu (a side menu on a
- * computer, a list on a phone) and one main action. The core's sections are Overview, People, Teams, Inbox, Cycles,
+ * computer, a list on a phone) and one main action. The core's sections are About (id `overview`), Cycles,
  * Access, Features, Privacy and Recently removed (src/screens/Workspace.tsx); a module adds its own here, the settings
  * extension point.
  */
@@ -113,6 +113,10 @@ export interface WorkspaceSection {
   element: ReactNode;
   /** The section it follows in the menu (the end, when not said). */
   after?: string;
+  /** Its fact on About, and its line in the phone's "More in Workspace" (WR2): one true sentence, from what's open. */
+  says?: (app: ReturnType<typeof useApp>) => string;
+  /** What an admin has to sort out about it, added to About's "To sort out" after the core's (WR2). */
+  needs?: (snapshot: Snapshot, viewer: Person) => WorkspaceNeed[];
 }
 
 /** A module's screens and where they go: its app.tsx's default export. */
@@ -127,8 +131,9 @@ export interface AppModule {
   finders?: ModuleFinder[];
   /** Filters it adds to core lists (module.json `filters`, by id). */
   filters?: ModuleFilter[];
-  /** What it raises to sort out (module.json `toSortOut`): given what it may read, things to do, or none. */
-  toSortOut?: (reads: PageReads & { admin: boolean }) => ModuleToSortOut[];
+  /** What it raises on About's "To sort out" without a Workspace section of its own (module.json `toSortOut`, AR2):
+      the same shape a section's `needs` gives. */
+  toSortOut?: (snapshot: Snapshot, viewer: Person) => WorkspaceNeed[];
 }
 
 /** The modules on in the open workspace: their facts and screens, and why the others are off. */
