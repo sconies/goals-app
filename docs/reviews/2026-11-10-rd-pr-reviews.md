@@ -226,6 +226,29 @@ Read against `docs/design/find/spec.md` 2.3, section 4 and rules 6 and 7, and `d
 
 **Carried over from #88.** Its two findings (a Goals link's search differing between the screen and `find_goals`; `status` and `level` with a link) are untouched by this PR and still on main.
 
+### #98 FS2, first part: one search rule, and the list bar on Activity and Help (track 1, merged 14:04 UTC)
+
+Read against `docs/design/find/spec.md` 2.1 and rules 1 to 5. **Both findings on #88 are fixed here and confirmed in the code**: `matches` in `query.ts` now calls `textMatches(goalWords(…))`, so a Goals link's search is the same on the screen and in `find_goals`, with a test that holds the two together; and `status` or `level` that don't overlap a link's now find nothing. The count line, filter line and none-found words are rules in `find.ts`; Activity's select of every goal is gone. What is held back (Data, Feedback, Goals' chips) is stated.
+
+**1. Medium. Activity and Help don't search by the one rule, though the app now says they do.**
+
+- Where: `src/domain/activity.ts:128-129` and `src/help/guide.ts:1136` still match a word anywhere inside a word (`includes`), each with its own list of the row's words. Activity's leaves out the goal's key.
+- What the app says: Help's "Searching a list" (`src/help/guide.ts:521`), "Goals, Activity and Help search the same way", after "every word you type must start a word of the row … “back” doesn't"; What's new: "Searching works the same on Goals, Activity and Help … each from its start … One letter off, it shows the nearest match"; and Activity's own placeholder, "Find by person, goal, key or what was said".
+- Reproduce in the demo (11 Nov):
+  - Activity, "back": 289 changes match, more than "roll" (232), because it finds "Rollback" and "feedback";
+  - Activity, "G-10": nothing, though changes to G-10 are listed;
+  - Activity, "rolback": nothing, with no nearest match offered;
+  - Help, "eck": 30 articles match (the same 30 as "check"); "chekc": nothing, no nearest match.
+- Suggested fix: Activity's and Help's filters call `textMatches` over their row's words (Activity's with the goal's key), and their none-found goes through `nearMiss`; or, if that waits for the second part, Help and What's new say only what is true today.
+
+**2. Medium. After a search on Activity, Back doesn't go back to the list as it was.**
+
+- Where: `src/ui/ListBar.tsx:27-31` with `src/screens/Activity.tsx:88`. Typing writes the search over the entry the page opened with (replace), and Enter or leaving the field then adds a second entry with the same address.
+- Reproduce: open Activity, type "kafka", press Enter, press Back: the address and list are unchanged. A second Back leaves Activity. The list without the search can't be reached by Back, which rule 4's example ends on ("Back: … as first opened").
+- Suggested fix: the first key of a search adds the entry and the rest replace it; settling adds nothing when the address hasn't changed. U64 should press Back.
+
+**3. Low.** The Goals screen works out the near miss itself (`src/screens/GoalsScreen.tsx`, `nearMiss` then `applyQuery` again), which `search` in `find.ts` already does behind the Search port. It moves with GL1 by the PR's own account; noted so the second copy goes then.
+
 ### #99 AR2: the module contract's additions, and navigation as rules (track 1, merged 14:16 UTC)
 
 Read against `docs/design/architecture.md` 1.2, section 2 (AR2) and 4.1 to 4.2. The seven additions are the seven the architecture lists and no more; the four it cut are not there. `src/domain/navigation.ts` is pure and takes names, not the workspace. `sideFor`, `tabsFor`, `isLit`, `pageName` and `placeName` are the shell's and the Back link's old code moved unchanged, and the shell and Back link now call them.
