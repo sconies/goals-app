@@ -492,6 +492,11 @@
       "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
     },
     {
+      "id": "FIND-AND-PICK",
+      "area": "Finding",
+      "text": "A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove."
+    },
+    {
       "id": "WORKSPACE-SECTIONS",
       "area": "Workspace",
       "text": "Workspace is in sections, each with its own address (/workspace/<section>) and one main action, in a side menu on a computer and, on a phone, as a list under About: About (/workspace: for admins what needs sorting out, then the facts about the workspace, and deleting it at the foot), Cycles, Access (admins and MCP tokens), Features, Privacy and Recently removed. People who aren’t admins see About, Cycles, Privacy and Recently removed; anyone else opening an admins’ section is told who the admins are and led back to Workspace. People and Teams are a place of their own (PEOPLE-DIRECTORY). Old addresses (/workspace/overview, /workspace?inbox=1&markup=…, /workspace/inbox, #people) lead to the page they meant; the inbox's go to Feedback. Sections are an extension point: a feature module adds its own (AppModule sections, module.json sections), with a fact on About (`says`) and its own things to sort out (`needs`)."
