@@ -201,3 +201,27 @@ Read against `docs/design/workspace/spec.md` 2.5, 2.12, rules 1, 2, 3, 6 and 7 a
 
 - `src/ui/AdminControls.tsx` is new here, says it is WR3's, and nothing imports it: WR3's code merged a step early, unused and without tests.
 - Rule 1 now exists (`workspaceName`), but `src/screens/People.tsx:32` keeps its own copy, and `GoalScreen.tsx:418` and `Print.tsx:89`, `:195` still strip "Example: " from any workspace's name, which rule 1 says not to do for a real workspace named that way. WR5 ("one name for the workspace") is where the spec puts this; noted so it isn't missed.
+
+### #91 FS1: find-and-pick (track 1, merged 13:44 UTC)
+
+Read against `docs/design/find/spec.md` 2.3, section 4 and rules 6 and 7, and `docs/design/architecture.md` 1.1. Tried in the demo as Oskar at 1440 and 390 px in the next-step sheet (where it meets #92's change): nobody chosen to start; "Suggested" gives him, then the goal's owner with "who owns this goal", then his team; typing counts the matches ("14 match"), ignores accents, says "None match"; Enter chooses and Escape leaves the sheet open; rows are 52 px high. The places held back until after the talk (the goal forms, Data's Owner cell, the demo's Switch person) are stated.
+
+**1. Medium. The pickers lint misses selects of everyone, so its "places still to move" list is short.**
+
+- Where: `scripts/check-pickers.mjs:11`. It only counts a `<select>` whose options are mapped from something literally named `people`, `teams`, `goals`, `metrics`, `workspaces` or `allGoals` inside the select. Options mapped from a local variable aren't seen.
+- Not counted, and not in `scripts/pickers-left.json`:
+  - `src/ui/RemoveSheets.tsx:107` and `:172`: who takes over when someone leaves, a select of everyone else in the workspace (`others`); the spec's place 13.
+  - `src/screens/DataTables.tsx:348`: Data's Owner cell (`opts`), which the PR says is in the list.
+  - `src/screens/GoalFilters.tsx:298`: "In the tree of" (`tops`); the spec's place 4.
+  - `src/screens/People.tsx:437`: "Move them to" a team (`others`); the list allows that file 3 and it has 4.
+- Why it matters: the list may only shrink, so it will reach nothing while these remain, and the lint will keep passing a new select written the same way. It is the check behind "no list of everything survives" (N12).
+- Reproduce: `node scripts/check-pickers.mjs` on main passes; `node scripts/check-pickers.mjs --left` doesn't name `RemoveSheets.tsx`, `DataTables.tsx` or `GoalFilters.tsx`.
+- Suggested fix: add these to `pickers-left.json` by hand with their counts, and make the lint stricter than a name match: fail any `<select>` whose options come from a `.map(` unless the file and line are listed, or the options are a named fixed list (weeks, levels, sort orders).
+
+**2. Low.**
+
+- The words of a chosen row are written a second time in the control (`src/ui/Pick.tsx:197`, `rowFor`: a person's, a team's and a goal's two lines), beside `goalRow`, `searchPeople` and `searchTeams` in `src/domain/find.ts`; and it reads them from the loaded workspace, where the architecture has pickers ask only the Search port. A way to ask the port for rows by id would remove both.
+- A person's suggestions list their team A to Z (`src/domain/find.ts:198`); rule 6 puts the team's lead first.
+- On a phone the open picker is a panel over the lower half of the screen (390 by 438 px at 390 by 844), where the spec and the PR say a full sheet titled by the field's label.
+
+**Carried over from #88.** Its two findings (a Goals link's search differing between the screen and `find_goals`; `status` and `level` with a link) are untouched by this PR and still on main.
