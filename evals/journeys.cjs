@@ -562,7 +562,7 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   const file = path.join(OUT, `template-${device}.xlsx`);
   await download.saveAs(file);
   await p.locator('input[type=file]').first().setInputFiles(file);
-  await see(p, '4 people, plus a goals sheet');
+  await see(p, 'added 2 people after the 2 you’d typed; 2 in the file were already there. It also has a goals sheet');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
   await h.checkpoint('starting point');
@@ -761,6 +761,93 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   const left = await p.evaluate((w) => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.includes(w)), wsId);
   const listed = await p.evaluate((w) => JSON.stringify(localStorage.getItem('goals-app-v2:workspaces') || '').includes(w), wsId);
   h.set('finish', tours && !left.length && !listed, `walkthroughs ${tours ? 'offered' : 'missing'}; left behind: ${left.join(', ') || 'nothing'}${listed ? '; still listed' : ''}`);
+  await p.context().close();
+}, ['budget']);
+
+journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the app’s own spreadsheet as the deep review did: people typed are kept, nothing is late on day one, the counts agree, no one is made a team lead, the invitation opens this workspace, and a refused decimal is fixed in one step', 22, async (h, device) => {
+  // Backlog SU (deep review U2–U7, 10 Nov). Thursday 5 November is week 45: the template's "Design@2" would be 43 weeks late.
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/'));
+  const sw = await openSwitcher(p, h);
+  await h.click(sw.getByRole('button', { name: /Try it with your own team/ }));
+  await p.locator('.steps').first().waitFor();
+  await h.progressShown('set up');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Field Operations');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await see(p, 'Who else is on it?');
+  // U5: someone typed first stays when the spreadsheet is uploaded; the file's people come after, and Undo takes them out.
+  await h.fill(p.getByLabel('Person 1: name'), 'Theo Brandt');
+  await h.fill(p.getByLabel('Person 1: email'), 'theo.brandt@example.com');
+  const [download] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: /Download the Excel template/ }).click()]);
+  const file = path.join(OUT, `template-u54-${device}.xlsx`);
+  await download.saveAs(file);
+  await p.locator('input[type=file]').first().setInputFiles(file);
+  await see(p, 'added 4 people after the 1 you’d typed', 'the upload doesn’t say it added to the people typed');
+  const kept = (await p.getByLabel('Person 1: name').inputValue()) === 'Theo Brandt' && (await p.getByLabel('Person 5: name').inputValue()) === 'Dev Patel';
+  await h.click(p.getByRole('status').getByRole('button', { name: 'Undo' }));
+  const undone = (await p.getByLabel('Person 1: name').inputValue()) === 'Theo Brandt' && !(await p.getByLabel('Person 3: name').count());
+  h.set('errors', kept && undone, `upload ${kept ? 'kept' : 'replaced'} the person typed; Undo ${undone ? 'put the rows back' : 'did not put the rows back'}`);
+  await p.locator('input[type=file]').first().setInputFiles(file);
+  await see(p, 'added 4 people after the 1 you’d typed');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Goals from your spreadsheet/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  // U4: stages due before the joining week are counted from it, said on Check, with the way to keep them as typed.
+  await see(p, '“Canary releases live” had stages due before it', 'Check doesn’t say the late stages were moved');
+  await h.click(p.getByRole('button', { name: 'Keep the weeks as typed' }));
+  await see(p, 'Kept as typed');
+  await h.click(p.getByRole('button', { name: 'Count them from this week' }));
+  await see(p, 'Counted from this week, week 45');
+  h.set('attention', await p.locator('.setup-stage-weeks').isVisible(), 'Check doesn’t show the stages it moved');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await see(p, 'Field Operations is ready');
+  await see(p, 'The first check-ins are due before', 'Ready doesn’t say when the first check-ins are due');
+  h.set('finish', await p.locator('.celebrate .btn.primary').isVisible(), 'no next step after setting up');
+  await h.checkpoint('ready');
+  const readyGoals = Number((/(\d+) goals/.exec(await p.locator('.celebrate').innerText()) || [])[1]);
+  const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
+  const s = await h.snapshot(wsId);
+  const canary = s.goals.find((g) => g.title === 'Canary releases live');
+  if (!canary || canary.stages.some((x) => x.dueWeek <= NOW)) fail('an uploaded goal starts with a stage already due: ' + JSON.stringify(canary?.stages.map((x) => x.dueWeek)));
+  // U7: set-up never asked who leads a team, so no team has a lead.
+  h.set('logged', readyGoals === s.goals.length && s.teams.every((t) => !t.leadId) && s.people.some((x) => x.name === 'Theo Brandt'), `Ready said ${readyGoals} goals for ${s.goals.length}; leads ${s.teams.filter((t) => t.leadId).length}`);
+  // U2: the invitation names this workspace.
+  await p.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await h.click(p.getByRole('button', { name: 'Copy the link to send' }));
+  const link = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  if (!link.endsWith('/demo?workspace=' + encodeURIComponent(wsId))) fail('the invitation link doesn’t name the workspace: ' + link);
+  // U6: on day one the first-check-in count agrees with Ready, and nothing is late.
+  await p.goto(url('/goals'));
+  const first = await p.locator('.first-reports').first().innerText().catch(() => '');
+  if (!first.includes(`0 of ${readyGoals} goals`)) fail(`Goals says “${first}” after Ready said ${readyGoals} goals`);
+  const late = await p.getByText(/\d+ weeks? late|up to \d+ weeks/).filter({ visible: true }).allInnerTexts();
+  if (late.length) fail('a goal from the spreadsheet is late on day one: ' + late.join(' | ').slice(0, 300));
+  await p.goto(url('/workspace/teams'));
+  await see(p, 'No lead', 'Teams names a lead set-up never asked for');
+  // A colleague opens the invitation in a browser that would open another workspace: it opens Field Operations.
+  const state = await p.context().storageState();
+  const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => x.name !== 'goals-app-workspace' && !x.name.startsWith('goals-app-viewer:')) })) } });
+  const q = await other.newPage();
+  await q.goto(link + '&today=' + TODAY);
+  await q.locator('.side:visible, .tabbar:visible').first().waitFor();
+  const remembered = await q.waitForFunction((id) => localStorage.getItem('goals-app-workspace') === id && id, wsId, { timeout: 8000 }).then((x) => x.jsonValue(), () => null);
+  const opened = (await q.locator('.ws-switch:visible, .ws-switch-top:visible').first().innerText().catch(() => '')).trim();
+  // The demo's person switcher stands in for "Who are you?" (U11 covers it in the real app): Ben, the goal's owner.
+  await q.evaluate(([w, id]) => localStorage.setItem('goals-app-viewer:' + w, id), [wsId, s.people.find((x) => x.name === 'Ben Ortiz').id]);
+  h.set('entry', opened.includes('Field Operations') && remembered === wsId && !q.url().includes('workspace='), `the invitation opened “${opened}”, remembered ${remembered}, address ${q.url()}`);
+  // U3: Ben's first check-in on a whole-number goal, 4.5 days, is refused with a one-step way to keep the decimal.
+  const lead = s.goals.find((g) => g.title === 'Deploy lead time');
+  await q.goto(url('/check-in/' + lead.id));
+  await q.getByLabel('This week’s value').fill('4.5');
+  await see(q, 'this goal keeps whole numbers', 'a decimal on a whole-number goal is not refused');
+  await q.getByRole('button', { name: 'Keep 1 decimal place for this goal' }).click();
+  await see(q, 'Deploy lead time now keeps 1 decimal place');
+  const after = await q.evaluate((w) => window.__goalsStore.load(w).catch(() => null), wsId);
+  const refusedNow = await q.getByRole('alert').filter({ hasText: 'keeps whole numbers' }).count();
+  h.set('errors', after?.goals.find((g) => g.id === lead.id)?.decimals === 1 && !refusedNow, `after Keep, the goal keeps ${after?.goals.find((g) => g.id === lead.id)?.decimals} decimals and the refusal ${refusedNow ? 'stays' : 'is gone'}`);
+  await other.close();
   await p.context().close();
 }, ['budget']);
 

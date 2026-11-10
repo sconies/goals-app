@@ -529,7 +529,7 @@ Unsaved answers survive leaving a flow and are offered back when the user return
 The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Running the workspace” (`workspace`), screens `Workspace`
-- **Journeys and checks:** U5, U17, U49
+- **Journeys and checks:** U5, U17, U49, U54
 
 ### BULK-EDIT
 
@@ -626,7 +626,7 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do.
 
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U5, U11, U49
+- **Journeys and checks:** U5, U11, U49, U54
 
 ### IDENTITY
 
@@ -788,7 +788,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
-- **Journeys and checks:** U30, U31, U34
+- **Journeys and checks:** U30, U31, U34, U54
 
 ## Layout
 
