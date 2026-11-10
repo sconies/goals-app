@@ -198,6 +198,9 @@ Dark mode; a screen-reader pass; the real shared database (the demo and a browse
 
 ## Decisions for Lane
 
+**Lane's answers (10 Nov):** every recommendation, (a) on all twelve; build after 0c in three tracks (backlog RD).
+
+
 One batch; the recommended answer is first. Each area's README has its own finer list, and its spec says what changes for each other answer; these twelve are the ones that shape the set (the last three are about the architecture: `architecture.md`). Workspace's eight (PR #81) stand as asked there, less its first (the warning mark), which PR #82 settled.
 
 1. **Find from anywhere** (find, 1).
