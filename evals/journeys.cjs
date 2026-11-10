@@ -3250,6 +3250,8 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');
   // Gone from the directory; on Recently removed (its own section), with Restore.
   await see(p, 'Left Platform Engineering on', 'his page does not say he left');
+  const title = (await p.getByRole('heading', { level: 1 }).first().innerText()).trim();
+  h.set('progress', title === 'Mateo Fernández (left)', `his page is titled “${title}”, not “Mateo Fernández (left)”`);
   await p.goto(url('/people?q=Mateo'));
   await see(p, 'No person matches “Mateo”.', 'Mateo is still in the directory');
   await p.goto(url('/workspace/removed'));
@@ -3267,7 +3269,6 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   // History keeps his name, as "Name (left)".
   await p.goto(url('/activity?who=mateo'));
   await see(p, 'Mateo Fernández (left)', 'Activity does not name him as having left');
-  h.set('progress', true);
   await p.context().close();
 }, ['entry']);
 
