@@ -31,13 +31,6 @@ a.dash-count:focus-visible, a.dash-all:focus-visible { outline: 2px solid var(--
 @media (hover: hover) {
   a.dash-count:hover, a.dash-all:hover { text-decoration: underline; text-underline-offset: 2px; }
 }
-/* On a touch screen the counts are taller targets, two to a line, so the strip stays slim (U2): 36px each, with the
-   label's target reaching into the cell's padding. */
-@media (pointer: coarse) {
-  a.dash-count { min-height: 36px; }
-  a.dash-all { min-height: 32px; display: inline-flex; align-items: center; margin-block: -8px -2px; }
-  .dash-counts { column-gap: 16px; }
-}
 /* A phone or a narrow tablet: two by two, and slimmer: a label and one line each, so the week's one action stays in
    the first screen. With three cells (someone who owns no goals), the goals by status take the first row. */
 @container page (max-width: 719px) {

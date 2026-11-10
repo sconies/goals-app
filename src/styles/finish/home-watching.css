@@ -216,13 +216,15 @@
 /* Stacked (a phone or narrow window): each ask is one compact row, the action beside it, so your own goals that need
    attention still start in the first screen (U2). */
 @container page (max-width: 959px) {
-  .needs-you .need { align-items: center; padding: 10px 12px 10px 16px; }
+  /* 6px above and below, and the lines 1px apart: room for the ask's second line (U27) without pushing your first goal
+     that needs attention out of the first screen (U2). */
+  .needs-you .need { align-items: center; padding: 6px 12px 6px 16px; }
   .needs-you .need > .avatar { margin-top: 0; }
-  .needs-you .need-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; }
+  .needs-you .need-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 1px; align-items: center; }
   .needs-you .need-what, .needs-you .need-quote, .needs-you .need-meta { grid-column: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .needs-you .need-action { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
   /* The ask itself is the one thing to read: it wraps to two lines at word breaks rather than being cut mid-word (U27). */
-  .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1875rem; }
 }
 /* The hero's list of what's due is one line on a phone; the check-in names each goal as you go. */
 @container app (max-width: 600px) {
