@@ -106,7 +106,7 @@ module.exports = {
         fail(sections.length >= 5 && (await p.locator('.help-row').count()) >= 20, `[HELP-GUIDE] ${w}: ${sections.length} sections, ${await p.locator('.help-row').count()} articles`);
         fail(/What’s new/.test(await p.locator('.help-news').innerText().catch(() => '')) && (await p.locator('.help-news').innerText()).includes(LATEST), `[HELP-GUIDE] ${w}: no What’s new link with the latest title`);
         // Search.
-        const box = p.getByRole('searchbox', { name: 'Search help' });
+        const box = p.getByRole('searchbox', { name: 'Find in Help' });
         await box.fill('dark mode'); await p.waitForTimeout(200);
         const firstHit = await p.locator('.help-row-title').first().innerText().catch(() => '');
         fail(firstHit === 'Settings', `[HELP-GUIDE] ${w}: “dark mode” finds “${firstHit}” first`);
@@ -114,7 +114,7 @@ module.exports = {
         await box.fill('plan change reason'); await p.waitForTimeout(200);
         fail((await p.locator('.help-row-title').allInnerTexts()).includes('Changing a goal or its plan'), `[HELP-GUIDE] ${w}: “plan change reason” misses Changing a goal or its plan`);
         await box.fill('xylophone'); await p.waitForTimeout(200);
-        fail(await p.getByText('No articles match').isVisible(), `[HELP-GUIDE] ${w}: no “No articles match” for a search that finds nothing`);
+        fail(await p.getByText('No article matches “xylophone”.').isVisible(), `[HELP-GUIDE] ${w}: no “No article matches” for a search that finds nothing`);
         await box.fill('');
         await p.locator('.help-row-link', { hasText: 'Checking in on a goal' }).click(); await p.waitForTimeout(300);
         fail(path(p) === '/help/check-in' && (await h1(p)) === 'Checking in on a goal', `[HELP-GUIDE] ${w}: the article opened at ${path(p)}`);

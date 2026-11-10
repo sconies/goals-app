@@ -33,7 +33,7 @@ module.exports = {
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
       // Backlog G (9 Nov) brought the first goal up from about 427px (backlog N's wrapped tabs and layout line) to about 235px.
       chk(m.first <= 240, `G: 360×740 first goal starts at ${r0(m.first)}px (≤240 expected)`);
-      chk(m.placeholder === 'Search goals', `L&T 31: search placeholder is “${m.placeholder}”`);
+      chk(m.placeholder === 'Find by name, owner, team or key', `L&T 31, find spec 2.1: search placeholder is “${m.placeholder}”`);
       chk(m.side <= 1, `360px Goals scrolls sideways by ${m.side}px`);
       // The first-check-in note is one line until Why? opens the rest.
       const why = p.getByRole('button', { name: 'Why?' });
@@ -379,9 +379,9 @@ module.exports = {
       await p.goto(url('/goals?show=attention&view=table&sort=title'));
       await box.click();
       await box.pressSequentially('zzzz no such goal', { delay: 0 });
-      await p.getByRole('button', { name: 'Clear search and filters' }).click({ timeout: 5000 }).catch(() => fails.push('OR 2: no Clear search and filters for a search matching nothing'));
+      await p.getByRole('button', { name: 'Clear the search' }).click({ timeout: 5000 }).catch(() => fails.push('OR 2: no Clear the search for a search matching nothing'));
       await p.waitForTimeout(250);
-      chk(q().get('show') === 'attention' && q().get('view') === 'table' && q().get('sort') === 'title' && !q().get('q') && (await box.inputValue()) === '', `OR 2: Clear search and filters leaves ${q().toString()} and “${await box.inputValue()}” in the box`);
+      chk(q().get('show') === 'attention' && q().get('view') === 'table' && q().get('sort') === 'title' && !q().get('q') && (await box.inputValue()) === '', `OR 2: Clear the search leaves ${q().toString()} and “${await box.inputValue()}” in the box`);
       await c.close();
     }
 

@@ -151,6 +151,21 @@ export function describeActivity(a: ActivityQuery, s: Snapshot, cycle: Cycle, we
 }
 
 /** The query without one setting. */
+/**
+ * The active filters as the filter line says them (find spec, rule 3): a label and its values. The search isn't one.
+ * Takes names, not the workspace (AR4), and the words for the dates, as describeActivity gives them.
+ */
+export function activityParts(a: ActivityQuery, names: { person: (id: string) => string; goal: (id: string) => string; team: (id: string) => string }, whenText: string): { key: string; label: string; values: string[] }[] {
+  const out: { key: string; label: string; values: string[] }[] = [];
+  if (a.who.length) out.push({ key: 'who', label: 'Who', values: a.who.map(names.person) });
+  if (a.goal) out.push({ key: 'goal', label: a.tree ? 'In the tree of' : 'Goal', values: [names.goal(a.goal)] });
+  if (a.team.length) out.push({ key: 'team', label: 'Team', values: a.team.map(names.team) });
+  if (a.level.length) out.push({ key: 'level', label: 'Level', values: a.level.map((l) => LEVEL_LABEL[l]) });
+  if (a.kind.length) out.push({ key: 'kind', label: 'Kind', values: a.kind.map((k) => ACTIVITY_KINDS.find(([x]) => x === k)![1]) });
+  if (a.when) out.push({ key: 'when', label: 'When', values: [whenText] });
+  return out;
+}
+
 export function withoutActivity(a: ActivityQuery, key: string): ActivityQuery {
   const map: Record<string, Partial<ActivityQuery>> = { q: { q: '' }, who: { who: [] }, goal: { goal: null, tree: false }, team: { team: [] }, level: { level: [] }, kind: { kind: [] }, when: { when: null, from: null, to: null } };
   return { ...a, ...(map[key] ?? {}) };

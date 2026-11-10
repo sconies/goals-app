@@ -1686,7 +1686,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
 journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout, save it as a view, come back to it, and share it as a link', 18, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));
-  const search = p.getByRole('searchbox', { name: 'Search goals' });
+  const search = p.getByRole('searchbox', { name: 'Find a goal' });
   await h.inView(search, 'entry', 'the search box');
   // Search finds goals by any word: a title, an owner, a reason.
   await h.fill(search, 'December date');
@@ -1890,7 +1890,7 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await h.click(p.getByRole('button', { name: 'Show the changes' }));
   await p.waitForURL(/who=grace/, { timeout: 3000 }).catch(() => {});
   h.set('finish', /kind=checkins/.test(p.url()) && /who=grace/.test(p.url()), 'the activity filters are not in the link');
-  await see(p, /\d+ of \d+ changes/, 'the filtered activity does not say how many it shows');
+  await see(p, /\d+ changes? match(es)?\./, 'the filtered activity does not say how many it shows');
   const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
   // On a phone, Save .csv is in the Filters sheet's footer rather than a row of the filter bar.
   if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filters/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
@@ -2527,6 +2527,56 @@ journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, peop
   await h.checkpoint('chosen');
   await p.context().close();
 }, ['logged']);
+
+journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/activity'));
+  const box = p.getByRole('searchbox', { name: 'Find a change' });
+  await box.waitFor();
+  await h.inView(box, 'entry', 'the search');
+  await h.fill(box, 'Rhea'); await box.press('Enter');
+  await see(p.locator('.count-line'), / changes? match(es)?\./, 'Activity does not count what the search matches');
+  h.set('attention', await p.locator('.count-line[role="status"]').isVisible(), 'the count line is not read out when it changes');
+  h.set('finish', /[?&]q=Rhea/.test(p.url()), `the search is not in the address (${p.url()})`);
+  await h.checkpoint('activity search');
+  await h.fill(box, 'zzzz'); await box.press('Enter');
+  await see(p, 'No change matches “zzzz”.', 'a search that finds nothing is not said in the list bar’s words');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  await h.click(p.getByRole('group', { name: 'Kind of change' }).getByRole('button', { name: /^Check-ins/ }));
+  const line = p.locator('.filter-line');
+  await see(line, 'Filtered by: Kind Check-ins', 'the filter is not said in words');
+  h.set('finish', /kind=checkins/.test(p.url()), 'the filter is not in the address');
+  await p.goBack();
+  h.set('errors', !/kind=checkins/.test(p.url()) && !(await line.count()), `Back did not take the filter off (${p.url()})`);
+  await p.goForward();
+  await h.click(line.getByRole('button', { name: /^Remove the filter Kind/ }));
+  await line.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', !(await line.count()) && !/kind=/.test(p.url()), `Remove did not take the filter off (${p.url()})`);
+  // Help says it the same way.
+  await p.goto(url('/help'));
+  const hb = p.getByRole('searchbox', { name: 'Find in Help' });
+  await h.fill(hb, 'xylophone'); await hb.press('Enter');
+  await see(p, 'No article matches “xylophone”.', 'Help does not say what found nothing in the list bar’s words');
+  h.set('progress', true);
+  await p.context().close();
+}, ['logged', 'one-action']);
+
+journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/goals'));
+  const box = p.getByRole('searchbox', { name: 'Find a goal' });
+  await h.inView(box, 'entry', 'the search');
+  await h.fill(box, 'rolback'); await box.press('Enter');
+  await see(p, 'No goal matches “rolback”. Showing goals that match “rollback”.', 'a near miss is not offered');
+  h.set('finish', await p.locator('.goal-row, .gtable tbody tr, .tree li').filter({ hasText: /rollback/i }).count() > 0, 'the goals matching “rollback” are not shown');
+  h.set('errors', (await box.inputValue()) === 'rolback', `the field says “${await box.inputValue()}”`);
+  await h.checkpoint('near miss');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  await p.waitForURL((u) => !/[?&]q=/.test(u.search), { timeout: 3000 }).catch(() => {});
+  for (let i = 0; i < 20 && (await box.inputValue()) !== ''; i++) await p.waitForTimeout(100);
+  h.set('progress', !/[?&]q=/.test(p.url()) && (await box.inputValue()) === '', `Clear the search left the search on (${p.url()}, “${await box.inputValue()}”)`);
+  await p.context().close();
+}, ['logged', 'one-action', 'attention', 'parity']);
 
 journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
   const SECTIONS = [['overview', 'About'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
