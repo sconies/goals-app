@@ -42,6 +42,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'admins-on-access',
+    date: '2026-11-10',
+    title: 'Admins are managed where they are listed',
+    points: [
+      'Add or remove an admin on Workspace, Access, or from a person’s page. Removing one asks first, and both say what they did, with Undo.',
+      'Settings is about you: who you are here and your page, your own choices, the MCP tokens that act as you, and leaving the workspace.',
+      'Admins make MCP tokens on Access, or from a person’s page; Settings shows your own.',
+    ],
+    articles: ['workspace-access', 'settings'],
+  },
+  {
+    id: 'one-list-bar',
+    date: '2026-11-10',
+    title: 'Searching works the same on Goals, Activity and Help',
+    points: [
+      'A search finds the words you can see on a row, each from its start, a goal’s key included: “roll” finds “Rollback”.',
+      'Each list says how many match in the same words, and when nothing does, says so with Clear the search. One letter off, it shows the nearest match and says so.',
+      'On Activity, choosing a person or a goal to filter by is a search, the filters on read as words with Remove, and the address keeps them, so Back and a shared link show the same list.',
+    ],
+    articles: ['finding', 'activity', 'help'],
+  },
+  {
     id: 'find-and-pick',
     date: '2026-11-10',
     title: 'Type to find a person, a team or a goal',

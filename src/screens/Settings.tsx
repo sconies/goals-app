@@ -8,22 +8,37 @@ import { ACCENTS, LANDINGS, SIDEBARS, THEMES, impactWords, openMotionLab, paceWo
 import { Avatar } from '../ui/bits';
 import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
-import { AiAssistants } from '../ui/AiAssistants';
+import { MyTokens } from '../ui/AiAssistants';
 import { LeaveWorkspaceSheet } from '../ui/RemoveSheets';
-import { workspaceName } from '../domain/workspaceAttention';
+import { adminsLine, workspaceName } from '../domain/workspaceAttention';
 
 export function Settings() {
   const app = useApp();
   const look = useAppearance();
   const [who, setWho] = useState(false);
   const team = app.team(app.viewer.teamId ?? '');
+  const ws = workspaceName(app.ws, app.mode).name;
   return (
     <div className="page narrow settings-page">
       <BackLink to="/" label="Home" />
       <div className="page-head">
         <h1 className="title-xl">Settings</h1>
-        <span className="hint">Your own choices. How the app looks and the sidebar are kept in this browser only: on another device or browser, choose again.</span>
+        <span className="hint">Your own choices. Nobody else sees them.</span>
       </div>
+
+      <section className="block settings-block" aria-labelledby="set-you">
+        <h2 className="block-title" id="set-you">You</h2>
+        <div className="row settings-you">
+          <Avatar p={app.viewer} />
+          <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
+            <span className="strong">{app.viewer.name}</span>
+            <span className="hint">{[app.viewer.role, team?.name, `${app.viewer.admin ? 'admin' : 'member'} of ${ws}`].filter(Boolean).join(' · ')}</span>
+          </span>
+          <Link className="btn" to={`/people/${encodeURIComponent(app.viewer.id)}`}>Your page</Link>
+          <button type="button" className="btn" onClick={() => setWho(true)}>{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</button>
+        </div>
+        {!app.viewer.admin && <p className="hint">An admin changes your name, job title or team: {adminsLine(app.snapshot.people)}.</p>}
+      </section>
 
       <section className="block settings-block" aria-labelledby="set-look">
         <h2 className="block-title" id="set-look">Appearance</h2>
@@ -46,6 +61,7 @@ export function Settings() {
           </div>
           <span className="hint">Faro’s teal is the default; the others are the earlier colours. The accent is for links and what’s selected. Status colours stay the same, so on track, at risk and off track always look alike.</span>
         </div>
+        <p className="hint">Kept in this browser: on another device or browser, choose again.</p>
       </section>
 
       <section className="block settings-block" aria-labelledby="set-nav">
@@ -59,22 +75,10 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="block settings-block" aria-labelledby="set-you">
-        <h2 className="block-title" id="set-you">You</h2>
-        <div className="row settings-you">
-          <Avatar p={app.viewer} />
-          <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
-            <span className="strong">{app.viewer.name}</span>
-            <span className="hint">{[app.viewer.role, team?.name, app.viewer.admin ? 'admin' : ''].filter(Boolean).join(' · ') || 'No team'}</span>
-          </span>
-          <button type="button" className="btn" onClick={() => setWho(true)}>{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</button>
-        </div>
-        <p className="hint">{app.viewer.admin ? <>Names, job titles and teams are changed on <Link to={`/people/${encodeURIComponent(app.viewer.id)}`}>your page in People</Link>.</> : 'An admin changes your name, job title or team.'} You’re in {app.ws.name}.</p>
-      </section>
+
+      <MyTokens />
 
       <WhatIsRecorded />
-
-      <AiAssistants mine />
       <ProfileSheet open={who} onClose={() => setWho(false)} />
 
       <section className="block settings-block motion-lab-entry" aria-labelledby="set-motion">
@@ -112,20 +116,11 @@ function LeaveWorkspace() {
     it's on here. The rules behind it are src/telemetry (the allow-list) and migration 0022 (90 days, then totals). */
 function WhatIsRecorded() {
   const app = useApp();
-  const on = app.ws.recording !== false;
+  const ws = workspaceName(app.ws, app.mode).name;
   return (
     <section className="block settings-block" aria-labelledby="set-rec">
-      <h2 className="block-title" id="set-rec">What the app records</h2>
-      <p className="small">{on
-        ? `The app records how it is used in ${app.ws.name}, so the people building it can see what is slow, broken or hard to use.`
-        : `Recording is off in ${app.ws.name}. Nothing about how you use the app is recorded or sent.`}</p>
-      <ul className="record-points small">
-        <li><strong>Recorded:</strong> the pages you open, the buttons you press and whether they worked, how far you get in a check-in or another task, errors, and how long pages take to load.</li>
-        <li><strong>Never recorded:</strong> anything you type. Not your notes, numbers, names, goal titles, comments or searches.</li>
-        <li><strong>How long:</strong> 90 days. After that only daily totals are kept, with nothing about any one visit.</li>
-        <li><strong>Who can see it:</strong> only the people who build and run the app, and the AI that helps them. No one in your workspace can.</li>
-      </ul>
-      <p className="hint">{app.viewer.admin ? <>As an admin, you can turn it off for everyone in {app.ws.name} on <Link to="/workspace/privacy">Workspace, Privacy</Link>.</> : 'An admin can turn it off for the whole workspace.'} <Link to="/help/recording">More about what’s recorded</Link></p>
+      <h2 className="block-title" id="set-rec">Recording</h2>
+      <p className="small" style={{ marginTop: 0 }}>{app.ws.recording !== false ? <>Recording is on in {ws}. <Link to="/workspace/privacy">What’s recorded</Link></> : <>Recording is off in {ws}. <Link to="/workspace/privacy">Privacy</Link></>}</p>
     </section>
   );
 }

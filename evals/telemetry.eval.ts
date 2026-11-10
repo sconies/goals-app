@@ -172,14 +172,17 @@ describe('Privacy: nothing anyone types', () => {
     expect(JSON.stringify(as.stored)).not.toContain('Zebra');
   });
 
-  it('[TELEMETRY-PRIVACY] the guide and Settings say what is and isn’t recorded, for how long and who can see it', () => {
+  it('[TELEMETRY-PRIVACY] the guide and Workspace, Privacy say what is and isn’t recorded, for how long and who can see it; Settings leads there', () => {
     const a = articleById('recording')!;
     const text = a.sections.flatMap((s) => s.list ?? s.text ?? []).join(' ');
     expect(text).toMatch(/Anything you type/);
     expect(text).toMatch(/90 days/);
     expect(text).toMatch(/Only the people who build and run the app/);
+    // Settings is about you (WR3): one line on recording, leading to Privacy, which says it all for everyone.
     const settings = readFileSync(join(__dirname, '../src/screens/Settings.tsx'), 'utf8');
-    for (const words of ['Recorded:', 'Never recorded:', 'How long:', 'Who can see it:']) expect(settings).toContain(words);
+    expect(settings).toContain('/workspace/privacy');
+    const privacy = readFileSync(join(__dirname, '../src/screens/Workspace.tsx'), 'utf8');
+    for (const words of ['Never anything anyone types', '90 days', 'only the people who build the app can read it']) expect(privacy).toContain(words);
   });
 });
 

@@ -229,7 +229,7 @@
     {
       "id": "ADMIN",
       "area": "People",
-      "text": "Whoever sets up a workspace is its admin. Admins add people, change their details and make others admins; the last admin cannot be removed."
+      "text": "Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try."
     },
     {
       "id": "RETRO",
@@ -489,7 +489,7 @@
     {
       "id": "SETTINGS",
       "area": "Interface",
-      "text": "A Settings page holds personal choices that are remembered: light, dark or system, an accent colour, a collapsed or full side navigation, and your AI assistant tokens. Detail pages have a Back link to where you came from."
+      "text": "Settings is about you (app redesign WR3): who you are here, with \"Your page\" leading to your person page (a member is told which admins change their name, job title or team); your remembered choices, kept in this browser (light, dark or system, an accent colour, a collapsed or full side navigation); your own MCP tokens with Revoke, and no way to make one there (an admin makes them on Access); one line on recording leading to Privacy; the Motion lab; and Leave, last. Detail pages have a Back link to where you came from."
     },
     {
       "id": "NAV-GOALS",
@@ -500,6 +500,11 @@
       "id": "WORKSPACE-ADMIN",
       "area": "Workspace",
       "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
+    },
+    {
+      "id": "LIST-BAR",
+      "area": "Finding",
+      "text": "Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says \u201c{n} {things} match.\u201d; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles."
     },
     {
       "id": "FIND-AND-PICK",
@@ -584,7 +589,7 @@
     {
       "id": "TELEMETRY-PRIVACY",
       "area": "Observability",
-      "text": "Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, in Settings and a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them."
+      "text": "Nothing a person types is ever recorded: attributes pass an allow-list, paths lose their query, error messages lose anything quoted or numeric, and the database caps their size. Everyone is told plainly, on Workspace, Privacy (which Settings leads to) and in a guide article, what is and isn't recorded, for how long and who can see it. The public key can add rows but never read them."
     },
     {
       "id": "TELEMETRY-FLOWS",

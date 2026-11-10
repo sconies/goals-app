@@ -222,10 +222,12 @@ const CORE_TOOLS: ToolDef[] = [
         ...query,
         q: '',
         status: status ? (query.status.length ? query.status.filter((x) => x === status) : [status]) : query.status,
-        level: a.level ? [a.level as Level] : query.level,
+        level: a.level ? (query.level.length ? query.level.filter((x) => x === a.level) : [a.level as Level]) : query.level,
         owner: owners ? (owners.length ? owners : ['nobody']) : [],
         attention: query.attention || !!a.needs_attention,
       };
+      // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
+      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: 'No goals match.' };
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });

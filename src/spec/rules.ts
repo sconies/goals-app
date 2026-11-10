@@ -29,7 +29,8 @@ import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } fro
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
-import { nearMiss, search, suggest, textMatches } from '../domain/find';
+import { litItem, menuFor, pageName, sideFor } from '../domain/navigation';
+import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -844,7 +845,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
     tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
     reqs: [],
     body: `
@@ -859,6 +860,8 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 **One search per kind.** \`search(rows, ask)\` with \`ask = { q, filters, sort, after, size }\` gives \`{ total, rows, next, near? }\`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (\`src/domain/query.ts\`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
+
+**The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; typing replaces it until Enter, leaving the field or a pause; clearing adds one.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -877,12 +880,36 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
         { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
+        { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
+        { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
         { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
       ];
     })(),
     unclear: ['Which of two rows that match equally comes first is the kind\'s order (goals worst first, then by name); a server may break ties another way within a status, as long as the order is stable from page to page.', 'A goal\'s words include its owner\'s latest reason, so a search for “off track” also finds a goal whose reason says both words: 13 goals in the demo, of which 11 are off track.'],
   },
 ];
+
+RULE_LIST.push({
+  id: 'navigation',
+  title: 'Navigation: the menu, the lit item and a page’s name',
+  summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'sideFor', 'tabsFor', 'menuFor', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  tests: ['src/domain/navigation.test.ts'],
+  reqs: [],
+  body: `
+**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, People, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+
+**The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+
+**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+
+**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
+  examples: [
+    { given: 'The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics).', then: 'home checkin goals reviews activity people data module:metrics new workspace / home goals reviews activity people data module:metrics new workspace', run: () => [true, false].map((o) => menuFor(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]).join(' ')).join(' / ') },
+    { given: 'The lit item at /goals/lead-mq, /goals/new and /settings.', then: 'goals, new, none', run: () => ['/goals/lead-mq', '/goals/new', '/settings'].map((p) => litItem(p, sideFor(true)) ?? 'none').join(', ') },
+    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => [pageName('/goals', 'watching', sideFor(true)), pageName('/reviews/weekly', null, sideFor(true)), pageName('/retro/x', null, sideFor(true)), pageName('/metrics/m1', null, sideFor(true), 'Lead time for changes')].join(', ') },
+  ],
+});
 
 /** The feature modules' rules: each is written in its module's section of the spec. */
 RULE_LIST.push({
