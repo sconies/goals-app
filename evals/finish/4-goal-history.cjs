@@ -120,18 +120,18 @@ module.exports = {
     const acc = await p.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
       const card = document.querySelector('.stagelist');
-      const w = [...document.querySelectorAll('.asked-item button')].map((b) => [b.textContent, Math.round(r(b).height)]);
-      const asked = document.querySelector('.asked'), bar = document.querySelector('.goal-bar');
-      const item = document.querySelector('.asked-item > section');
+      const w = [...document.querySelectorAll('.next-steps .step-do button, .next-steps .step-do a')].map((b) => [b.textContent, Math.round(r(b).height)]);
+      const asked = document.querySelector('.next-steps'), bar = document.querySelector('.goal-bar');
+      const item = null;
       return { sideways: document.documentElement.scrollWidth - innerWidth, out: [...card.querySelectorAll('.chip')].filter((x) => r(x).right > r(card).right + 1).length, dots: card.querySelectorAll('.dot').length, w,
         gap: asked && bar ? Math.round(r(asked).top - r(bar).bottom) : null, bg: item ? getComputedStyle(item).backgroundColor : null };
     });
     if (acc.sideways > 0) fails.push(`access 360: ${acc.sideways}px sideways`);
     if (acc.out) fails.push(`access 360: ${acc.out} stage tags run out of the card`);
     if (acc.dots) fails.push('access: colour-only dots beside the stages');
-    if (!acc.w.length || acc.w.some(([, h]) => h < 44)) fails.push(`access 360: Asked of you buttons ${acc.w.map((x) => x.join(' ')).join(', ') || 'missing'}px`);
-    if (acc.gap == null || acc.gap > 40) fails.push(`access 360: Asked of you ${acc.gap}px under the bar`);
-    if (acc.bg !== 'rgb(255, 255, 255)') fails.push(`access: the request card is filled ${acc.bg}`);
+    if (!acc.w.length || acc.w.some(([, h]) => h < 44)) fails.push(`access 360: Next steps and asks buttons ${acc.w.map((x) => x.join(' ')).join(', ') || 'missing'}px`);
+    // Under the bar, after the section links only (GT1: Next steps and asks comes first; F14 holds it in the first screen).
+    if (acc.gap == null || acc.gap > 200) fails.push(`access 360: Next steps and asks ${acc.gap}px under the bar`);
     await c.close();
 
     // [Goal 13, 18, 24] Every goal gets the same columns; quarter cards are white; this quarter is outlined.

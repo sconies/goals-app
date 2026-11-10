@@ -49,15 +49,16 @@ describe('the summary bar', () => {
 
   it(R('GOAL-PAGE-BAR', 'one main action by who is looking and what is waiting'), () => {
     const g = goal('env-search');
-    const p = (who: string, extra: Partial<Parameters<typeof primaryAction>[0]> = {}) => primaryAction({ goal: g, viewer: s.people.find((x) => x.id === who)!, owner: s.people.find((x) => x.id === g.ownerId), status: status('env-search'), due: true, week, asked: [], updateAsked: false, watching: false, ...extra });
+    const p = (who: string, extra: Partial<Parameters<typeof primaryAction>[0]> = {}) => primaryAction({ goal: g, viewer: s.people.find((x) => x.id === who)!, owner: s.people.find((x) => x.id === g.ownerId), status: status('env-search'), due: true, week, asked: [], updateAsked: false, ...extra });
     expect(p('amara').label).toBe('Ask Kojo for an update');
-    expect(p('amara', { updateAsked: true }).kind).toBe('watch');
+    // Watch is never the main action: it's the plain button beside it (standingAction).
+    expect(p('amara', { updateAsked: true }).kind).toBe(null);
     expect(p('kojo').label).toBe(`Check in for week ${week}`);
     expect(p('kojo', { asked: [{ id: 'd1', kind: 'question', fromId: 'amara', fromFirst: 'Amara', text: 'When?', at: '', where: null, due: null }] }).label).toBe('Answer Amara’s question');
     // An action of yours comes after a check-in that's due (ONE-ASK).
     const action = { id: 'a1', kind: 'action' as const, fromId: 'camille', fromFirst: 'Camille', text: 'Fix search ranking', at: '', where: null, due: week + 1 };
     expect(p('kojo', { asked: [action] }).kind).toBe('check-in');
-    expect(p('kojo', { asked: [action], due: false })).toMatchObject({ kind: 'done', label: 'Mark your action done', targetId: 'a1' });
+    expect(p('kojo', { asked: [action], due: false })).toMatchObject({ kind: 'done', label: 'Mark your next step done', targetId: 'a1' });
   });
 });
 

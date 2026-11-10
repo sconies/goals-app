@@ -38,6 +38,8 @@ export interface PickProps {
   invalid?: boolean;
   /** A chosen row that can't be removed (a review's creator, say). */
   keep?: (id: string) => boolean;
+  /** Offered first, before anything is typed, each with a note ("who owns this goal"), then the usual suggestions. */
+  first?: { id: string; note: string }[];
 }
 
 /** One person chosen, or none: Pick for the common case. */
@@ -45,7 +47,7 @@ export function PickOne({ value, onChange, ...p }: Omit<PickProps, 'value' | 'on
   return <Pick {...p} value={value ? [value] : []} onChange={(ids) => onChange(ids[0] ?? null)} />;
 }
 
-export function Pick({ kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep }: PickProps) {
+export function Pick({ kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, first = [] }: PickProps) {
   const app = useApp();
   const search = useSearch();
   const prefs = usePrefs();
@@ -72,7 +74,12 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
     const shown = (r: FoundRow[]) => r.filter((x) => !hide.includes(x.id));
     (typed
       ? ask(kind, { q, size: SHOWN }).then((a) => { if (a && live) { setRows(shown(a.rows)); setTotal(a.total - (a.rows.length - shown(a.rows).length)); } })
-      : search.suggest(kind, app.viewer.id, recentsOf(prefs, app.ws.id, app.viewer.id)).then((r) => { if (live) { setRows(shown(r)); setTotal(shown(r).length); } })
+      : search.suggest(kind, app.viewer.id, recentsOf(prefs, app.ws.id, app.viewer.id)).then((r) => {
+        if (!live) return;
+        const lead = first.map((f) => rowFor(app, kind, f.id)).filter((x): x is FoundRow => !!x);
+        const all = shown([...lead, ...r.filter((x) => !lead.some((l) => l.id === x.id))]).slice(0, 6);
+        setRows(all); setTotal(all.length);
+      })
     ).catch(() => { if (live) setFailed(true); });
     setAt(0);
     return () => { live = false; };
@@ -162,7 +169,7 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
                     <li key={'none' in o ? '_none' : o.id} id={optId(i)} role="option" aria-selected={on} aria-disabled={no ? true : undefined}
                       className={'pick-row option' + (i === at ? ' active' : '') + (no ? ' refused' : '')}
                       onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setAt(i)} onClick={() => choose(o)}>
-                      {'none' in o ? <span className="pick-text"><span className="pick-name">{none}</span></span> : <RowText row={o} you={o.id === app.viewer.id} why={no} />}
+                      {'none' in o ? <span className="pick-text"><span className="pick-name">{none}</span></span> : <RowText row={o} you={o.id === app.viewer.id} why={no} note={!typed ? first.find((f) => f.id === o.id && f.note !== 'you')?.note : undefined} />}
                       {several && on && <span className="pick-tick">Chosen</span>}
                     </li>
                   );
@@ -179,7 +186,7 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
 }
 
 /** A row's two lines: a goal's status (shape and word) and title; a person's avatar and name; then line 2. */
-function RowText({ row, you, why }: { row: FoundRow; you?: boolean; why?: string | null }) {
+function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean; why?: string | null; note?: string }) {
   const app = useApp();
   const p = row.kind === 'person' ? app.person(row.id) : undefined;
   return (
@@ -187,7 +194,7 @@ function RowText({ row, you, why }: { row: FoundRow; you?: boolean; why?: string
       <span className="pick-name">
         {row.status && <StatusWord k={row.status} className="pick-status" />}
         {p && <Avatar p={p} size="sm" />}
-        <span>{row.name}{you && row.kind === 'person' ? ' (you)' : ''}</span>
+        <span>{row.name}{you && row.kind === 'person' ? ' (you)' : ''}{note ? `, ${note}` : ''}</span>
       </span>
       <span className="pick-detail hint">{why ?? row.detail}</span>
     </span>

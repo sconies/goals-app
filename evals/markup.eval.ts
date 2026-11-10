@@ -81,7 +81,7 @@ describe('The open inbox (backlog O)', () => {
     await expect(as('anon', `update okr_markups set status = 'done'`)).rejects.toThrow();
     await expect(as('anon', `update okr_markups set line = 'Rewritten'`)).rejects.toThrow(/permission denied/);
     await expect(as('anon', 'delete from okr_markups')).rejects.toThrow(/permission denied/);
-    expect((await as<{ open: boolean }>('anon', 'select okr_markup_pictures_open() as open')).rows[0]!.open).toBe(true);
+    expect((await db.query<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`)).rows[0]!.public).toBe(true);
   });
 
   it(I('a status change and its undo go through the one rule, recorded as whoever made each'), async () => {
@@ -249,12 +249,20 @@ describe('Pictures for the assistant (backlog -2, opened by O)', () => {
         try {
           const rows = (await as<Record<string, unknown>>('anon', `select * from ${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')})`, keys.map((k) => (args[k] !== null && typeof args[k] === 'object' ? JSON.stringify(args[k]) : args[k])))).rows;
           // A function returning one value answers with the value, as PostgREST does.
-          return { data: fn === 'okr_markup_pictures_open' ? Object.values(rows[0]!)[0] : rows, error: null };
+          return { data: rows, error: null };
         } catch (e) { return { data: null, error: { message: (e as Error).message } }; }
       },
       storage: { from: () => ({ getPublicUrl: (path: string) => ({ data: { publicUrl: `https://db.example/storage/v1/object/public/markups/${path}` } }) }) },
     } as unknown as Parameters<typeof tokenMarkups>[0];
-    vi.stubGlobal('fetch', async (url: string) => new Response(`bytes of ${String(url).split('/markups/')[1]}`, { status: 200 }));
+    // Storage's public addresses, as Storage answers them: from a bucket that isn't open, NoSuchBucket; a picture that
+    // isn't there, NoSuchKey; otherwise its bytes.
+    vi.stubGlobal('fetch', async (url: string) => {
+      const open = (await db.query<{ public: boolean }>(`select public from storage.buckets where id = 'markups'`)).rows[0]?.public;
+      const path = String(url).split('/markups/')[1]!;
+      if (!open) return new Response(JSON.stringify({ statusCode: '404', error: 'Bucket not found', code: 'NoSuchBucket' }), { status: 400 });
+      if (path.startsWith('faro-open-check/')) return new Response(JSON.stringify({ statusCode: '404', error: 'not_found', code: 'NoSuchKey' }), { status: 400 });
+      return new Response(`bytes of ${path}`, { status: 200 });
+    });
     let data: Snapshot = buildPlatformOrg(new Date('2026-11-05T12:00:00Z'));
     const deps: Deps = {
       async findToken(hash) { const r = (await as<TokenRow>('anon', 'select * from okr_token_find($1)', [hash])).rows[0]; return r ? { token: { ...tokenFromRow({ ...r, person_id: 'amara' } as TokenRow) }, workspaceId: 'platform-org' } : null; },

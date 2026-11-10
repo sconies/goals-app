@@ -18,6 +18,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The directory: who People lists, what a search finds, and where old addresses lead](directory.md) | People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead. |
 | [The goal map](map.md) | The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key. |
+| [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 
 ## The numbers the rules turn on
