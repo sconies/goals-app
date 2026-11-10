@@ -100,9 +100,9 @@ export function Activity() {
             <button key={k} type="button" className="filter-chip" aria-pressed={a.kind.includes(k)} onClick={() => { setA((cur) => ({ ...cur, kind: cur.kind.includes(k) ? cur.kind.filter((x) => x !== k) : [...cur.kind, k] })); setLimit(40); }}>{l}<span className="tabcount">{counts.get(k)}</span></button>
           ))}
         </div>
-        {list.length > 0 && <CountLine things={CHANGES} n={list.length} narrowed={narrowed || !!a.q.trim()} order="newest first" />}
-        <FilterLine parts={parts} onRemove={(k) => setA((cur) => withoutActivity(cur, k))} onClear={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       </div>
+      {list.length > 0 && <CountLine things={CHANGES} n={list.length} narrowed={narrowed || !!a.q.trim()} order="newest first" />}
+      <FilterLine parts={parts} onRemove={(k) => setA((cur) => withoutActivity(cur, k))} onClear={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       {groups.length ? groups.map(([day, items]) => (
         <section key={day} className="block">
           <h2 className="label">{day}</h2>

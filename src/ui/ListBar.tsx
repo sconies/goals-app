@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { countLine, filterText, noneFound, type FilterPart, type Things } from '../domain/find';
 import { MenuButton } from './MenuButton';
+import { EmptyResult } from './bits';
 
 /** A search field that writes to the address a moment after typing stops (rule 4: typing replaces until it settles). */
 export function ListSearch({ value, onSearch, label, placeholder, autoFocus }: { value: string; onSearch: (text: string, settled: boolean) => void; label: string; placeholder: string; autoFocus?: boolean }) {
@@ -61,15 +62,17 @@ export function FilterLine({ parts, onRemove, onClear }: { parts: FilterPart[]; 
   );
 }
 
-/** What found nothing, where the list would be (2.1's table), with the links that undo it. */
+/**
+ * What found nothing, where the list would be (2.1's table), with the links that undo it: the empty-state card. A near
+ * miss is one plain line above the list it found instead.
+ */
 export function NoneFound({ things, q, filtered, near, onClearSearch, onClearFilters }: { things: Things; q: string; filtered: boolean; near?: string | null; onClearSearch: () => void; onClearFilters: () => void }) {
+  const said = noneFound(things, q, filtered, near);
+  if (near) return <p className="none-found small" role="status">{said} <button type="button" className="linkish" onClick={onClearSearch}>Clear the search</button></p>;
   return (
-    <div className="none-found">
-      <p>{noneFound(things, q, filtered, near)}</p>
-      <p className="row small">
-        {q.trim() && <button type="button" className="linkish" onClick={onClearSearch}>Clear the search</button>}
-        {filtered && !near && <button type="button" className="linkish" onClick={onClearFilters}>Clear filters</button>}
-      </p>
-    </div>
+    <EmptyResult title={said} action={<>
+      {q.trim() && <button type="button" className="btn" onClick={onClearSearch}>Clear the search</button>}
+      {filtered && <button type="button" className="btn" onClick={onClearFilters}>Clear filters</button>}
+    </>}>{q.trim() ? 'Try fewer or plainer words.' : 'Remove a filter to see more.'}</EmptyResult>
   );
 }

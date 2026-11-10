@@ -4,6 +4,8 @@ import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { asksOf } from '../domain/asks';
 import { currentWeek, planAt } from '../domain/plan';
+import { applyQuery, parseQuery } from '../domain/query';
+import { summariseAll } from '../domain/summary';
 import type { ApiToken, MetricGoal, Snapshot } from '../domain/types';
 import { hashToken, newToken } from './protocol';
 
@@ -70,6 +72,19 @@ describe('MCP server', () => {
     expect(card.map((c) => c.label).slice(0, 3)).toEqual(['Vs plan', 'Vs last week', 'To target']);
     expect(card[3]!.value).toMatch(/^(Likely|Possible|Unlikely|Very unlikely|Too early to say|Can’t say)$/);
     expect((await call('get_goal', { goal_id: 'nope' })).isError).toBe(true);
+  });
+
+  it('finds what the Goals screen finds for a link with a search, and an argument only narrows a link (outside review of #88)', async () => {
+    const { call, data } = await setup();
+    const ids = (r: Awaited<ReturnType<typeof call>>) => (r.structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();
+    const s = data() as Snapshot;
+    for (const link of ['q=flow', 'q=back', 'q=lin', 'q=off+track', 'q=G-48', 'status=off,risk&q=ci']) {
+      const want = applyQuery(summariseAll(s.goals.filter((g) => !g.stoppedAt && !g.removedAt), s, demo, today, NOW), parseQuery(new URLSearchParams(link)), { goals: s.goals, cycle: demo, week: NOW }).map((x) => x.goal.id).sort();
+      expect(ids(await call('find_goals', { query: link })), link).toEqual(want);
+    }
+    expect(ids(await call('find_goals', { query: 'status=on', status: 'off' }))).toEqual([]);
+    expect(ids(await call('find_goals', { query: 'level=team', level: 'svp' }))).toEqual([]);
+    expect(ids(await call('find_goals', { query: 'level=team,svp', level: 'svp' })).length).toBeGreaterThan(0);
   });
 
   it('finds goals with the Goals screen’s filters, by a link’s query or a saved view’s name', async () => {
