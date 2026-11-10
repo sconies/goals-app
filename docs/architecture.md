@@ -38,13 +38,17 @@ The core is everything outside `src/modules`. It offers these extension points, 
 
 | Extension point | How a module uses it | Where the core reads it |
 |---|---|---|
-| Routes | `routes` in `app.tsx` (path, element, `focus`, `title`); old addresses in module.json `redirects` | `src/App.tsx`, `src/ui/Shell.tsx` (title, focus mode) |
-| Navigation | `navigation` in `app.tsx`: sidebar items after the core's, before New goal; also in More on a phone | `src/ui/Shell.tsx` |
+| Routes | `routes` in `app.tsx` (path, element, `focus`, `title`, and `name(params, reads)`: the page's name from its thing, AR2); old addresses in module.json `redirects` | `src/App.tsx`, `src/ui/Shell.tsx` (title, focus mode) |
+| Navigation | `navigation` in `app.tsx`, each with a `group` (AR2): `work` after Reviews, `lookup` (the default) after Data; also in More on a phone. The menu, the lit item and a page's name are rules (`src/domain/navigation.ts`) | `src/ui/Shell.tsx` |
 | Home blocks | the `home.blocks` place | `src/screens/Home.tsx`, after Watching |
 | Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, before Activity |
 | Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |
 | Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' view bar, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
 | The goal forms' "Measured by" field | the `goal.measure` place (backlog 0b, 8 Nov): given the goal as saved (null while new), the form's kind, unit and team, and `onChange(pick)`. The form saves the pick after the goal (`app.linkGoalMetric`, or `app.unlinkGoalMetric` for null); with no module in it, nothing renders and nothing extra is saved | `src/screens/GoalWizard.tsx` (after “How it’s measured”), `src/screens/GoalEdit.tsx` (after the name) |
+| A goal's facts, a person's and a team's page | the `goal.facts` place (a line in a goal's summary), `people.person` and `people.team` (blocks on a person's and a team's page, which WR1 draws) (AR2) | `src/core/app.tsx` `PlaceProps` |
+| Finders | `finders` in `app.tsx` (kind, nouns, a search, where a row opens); module.json `finders`, by kind. The kind answers find-and-pick and Find through the `Search` port; with the module off it is gone (AR2) | `src/app/search.ts` |
+| Filters on a core list | `filters` in `app.tsx`, declared as data: `{ list: 'goals', id, label, param, column, pick }`, a column of the summary rows compared with what is picked, so a server can apply it (AR2; docs/design/architecture.md 4.2); module.json `filters`, by id | the Goals list (GL1) |
+| Things to sort out | `toSortOut` in `app.tsx`: given names and whether the viewer is an admin, things to do with where to do them, for a module with no Workspace section; module.json `toSortOut: true` (AR2) | Workspace's overview (WR2) |
 | Database tables | module.json `tables`: name, migration, purpose. Migrations still live in `supabase/migrations` | the manifest test checks the migration exists |
 | AI tools | `tools.ts` default-exports `ToolDef[]` | `src/mcp/tools.ts` adds them to `TOOLS`; `callTool` refuses one whose module is off in the workspace |
 | Help articles | `help.ts` default-exports `Article[]`, each with `after` (the article it follows) | `src/help/guide.ts` merges them into `ARTICLES`; Help hides a switched-off module's articles |

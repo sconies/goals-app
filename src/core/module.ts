@@ -13,8 +13,10 @@
    This file is plain TypeScript, with no screens: the server and the guide use it too. */
 
 /** Places on core screens a module can put something: Home's blocks, a goal page's sections, Data's tools, Goals'
-    tools and the goal forms' "Measured by" field. src/core/app.tsx says what each is given. (Workspace takes whole sections instead: `sections` below.) */
-export const PLACES = ['home.blocks', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure'] as const;
+    tools, the goal forms' "Measured by" field, a line in a goal's summary (goal.facts), and blocks on a person's and a
+    team's page (people.person, people.team; the pages arrive with WR1). src/core/app.tsx says what each is given.
+    (Workspace takes whole sections instead: `sections` below.) */
+export const PLACES = ['home.blocks', 'goal.sections', 'data.tools', 'goals.tools', 'goal.measure', 'goal.facts', 'people.person', 'people.team'] as const;
 export type PlaceName = (typeof PLACES)[number];
 
 /** A module's module.json: what it is, what it needs and what it adds, as data. */
@@ -35,6 +37,12 @@ export interface ModuleFacts {
   navigation: string[];
   /** The places on core screens it fills. */
   places: PlaceName[];
+  /** The kinds of thing its app.tsx makes findable (AR2): each answers find-and-pick and Find through the Search port. */
+  finders?: string[];
+  /** The filters its app.tsx adds to a core list, by id (AR2): declared as data, so a server can apply them. */
+  filters?: string[];
+  /** Whether its app.tsx raises things to sort out on Workspace's overview, with no Workspace section of its own (AR2). */
+  toSortOut?: boolean;
   /** The Workspace sections its app.tsx adds, by id: each is at /workspace/<id>, in Workspace's menu, with a Help
       article (backlog W). Optional: most modules add none. */
   sections?: string[];

@@ -1,0 +1,33 @@
+viewer,owns_goals,address,menu,tabs,lit,page
+rhea,yes,/,home checkin goals reviews activity data new workspace,home checkin goals reviews,home,Home
+rhea,yes,/check-in,home checkin goals reviews activity data new workspace,home checkin goals reviews,checkin,Check-in
+rhea,yes,/goals,home checkin goals reviews activity data new workspace,home checkin goals reviews,goals,Goals
+rhea,yes,/goals?show=mine,home checkin goals reviews activity data new workspace,home checkin goals reviews,goals,Mine
+rhea,yes,/watching,home checkin goals reviews activity data new workspace,home checkin goals reviews,,Watching
+rhea,yes,/goals/new,home checkin goals reviews activity data new workspace,home checkin goals reviews,new,New goal
+rhea,yes,/goals/lead-mq,home checkin goals reviews activity data new workspace,home checkin goals reviews,goals,Goals
+rhea,yes,/reviews/weekly,home checkin goals reviews activity data new workspace,home checkin goals reviews,reviews,Reviews
+rhea,yes,/activity,home checkin goals reviews activity data new workspace,home checkin goals reviews,activity,Activity
+rhea,yes,/data,home checkin goals reviews activity data new workspace,home checkin goals reviews,data,Data
+rhea,yes,/workspace/people,home checkin goals reviews activity data new workspace,home checkin goals reviews,workspace,Workspace
+rhea,yes,/settings,home checkin goals reviews activity data new workspace,home checkin goals reviews,,Settings
+rhea,yes,/help/check-in,home checkin goals reviews activity data new workspace,home checkin goals reviews,,Help
+rhea,yes,/whats-new,home checkin goals reviews activity data new workspace,home checkin goals reviews,,What’s new
+rhea,yes,/retro/x,home checkin goals reviews activity data new workspace,home checkin goals reviews,,Wrap up
+rhea,yes,/research,home checkin goals reviews activity data new workspace,home checkin goals reviews,,Research
+oskar,no,/,home goals reviews activity data new workspace,home goals watching reviews,home,Home
+oskar,no,/check-in,home goals reviews activity data new workspace,home goals watching reviews,,Check-in
+oskar,no,/goals,home goals reviews activity data new workspace,home goals watching reviews,goals,Goals
+oskar,no,/goals?show=mine,home goals reviews activity data new workspace,home goals watching reviews,goals,Mine
+oskar,no,/watching,home goals reviews activity data new workspace,home goals watching reviews,,Watching
+oskar,no,/goals/new,home goals reviews activity data new workspace,home goals watching reviews,new,New goal
+oskar,no,/goals/lead-mq,home goals reviews activity data new workspace,home goals watching reviews,goals,Goals
+oskar,no,/reviews/weekly,home goals reviews activity data new workspace,home goals watching reviews,reviews,Reviews
+oskar,no,/activity,home goals reviews activity data new workspace,home goals watching reviews,activity,Activity
+oskar,no,/data,home goals reviews activity data new workspace,home goals watching reviews,data,Data
+oskar,no,/workspace/people,home goals reviews activity data new workspace,home goals watching reviews,workspace,Workspace
+oskar,no,/settings,home goals reviews activity data new workspace,home goals watching reviews,,Settings
+oskar,no,/help/check-in,home goals reviews activity data new workspace,home goals watching reviews,,Help
+oskar,no,/whats-new,home goals reviews activity data new workspace,home goals watching reviews,,What’s new
+oskar,no,/retro/x,home goals reviews activity data new workspace,home goals watching reviews,,Wrap up
+oskar,no,/research,home goals reviews activity data new workspace,home goals watching reviews,,Research

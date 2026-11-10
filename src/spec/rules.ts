@@ -26,6 +26,7 @@ import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/t
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
+import { litItem, menuFor, pageName, sideFor } from '../domain/navigation';
 import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -735,6 +736,28 @@ For a range, better means further from the limit on its safe side.
     unclear: ['Which of two rows that match equally comes first is the kind\'s order (goals worst first, then by name); a server may break ties another way within a status, as long as the order is stable from page to page.', 'A goal\'s words include its owner\'s latest reason, so a search for “off track” also finds a goal whose reason says both words: 13 goals in the demo, of which 11 are off track.'],
   },
 ];
+
+RULE_LIST.push({
+  id: 'navigation',
+  title: 'Navigation: the menu, the lit item and a page’s name',
+  summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'sideFor', 'tabsFor', 'menuFor', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  tests: ['src/domain/navigation.test.ts'],
+  reqs: [],
+  body: `
+**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+
+**The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+
+**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+
+**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a Help article's title, a menu place by its label, else "the last page".`,
+  examples: [
+    { given: 'The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics).', then: 'home checkin goals reviews activity data module:metrics new workspace / home goals reviews activity data module:metrics new workspace', run: () => [true, false].map((o) => menuFor(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]).join(' ')).join(' / ') },
+    { given: 'The lit item at /goals/lead-mq, /goals/new and /settings.', then: 'goals, new, none', run: () => ['/goals/lead-mq', '/goals/new', '/settings'].map((p) => litItem(p, sideFor(true)) ?? 'none').join(', ') },
+    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => [pageName('/goals', 'watching', sideFor(true)), pageName('/reviews/weekly', null, sideFor(true)), pageName('/retro/x', null, sideFor(true)), pageName('/metrics/m1', null, sideFor(true), 'Lead time for changes')].join(', ') },
+  ],
+});
 
 /** The feature modules' rules: each is written in its module's section of the spec. */
 RULE_LIST.push({

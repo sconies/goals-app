@@ -6,6 +6,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
+import { CORE_NAV, isLit, pageName, sideFor, tabsFor, type GoalsAt, type NavId } from '../domain/navigation';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
@@ -27,31 +28,23 @@ const MarkupFlow = lazy(() => import('../markup/Markup'));
 const isMarkupKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm';
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
-type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'data' | 'new' | 'workspace' | 'settings';
-const NAV: Record<NavId, { to: string; label: string; icon: ReactNode }> = {
-  home: { to: '/', label: 'Home', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 7 8 2.5 13.5 7v6.5h-11z" /><path d="M6.5 13.5v-4h3v4" /></svg> },
-  checkin: { to: '/check-in', label: 'Check-in', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" /><path d="m5.5 8.2 1.8 1.8 3.3-3.6" /></svg> },
-  watching: { to: '/watching', label: 'Watching', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg> },
-  reviews: { to: '/reviews', label: 'Reviews', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10.5" rx="2" /><path d="M2.5 6.5h11M5.5 1.8v2.4M10.5 1.8v2.4" /></svg> },
-  goals: { to: '/goals', label: 'Goals', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2" /></svg> },
-  activity: { to: '/activity', label: 'Activity', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 8h3l2-4.5 3 9 2-4.5h3" /></svg> },
-  data: { to: '/data', label: 'Data', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" /><path d="M2.5 6.5h11M2.5 10h11M6.5 6.5v7" /></svg> },
-  new: { to: '/goals/new', label: 'New goal', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg> },
-  workspace: { to: '/workspace', label: 'Workspace', icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
-  settings: { to: '/settings', label: 'Settings', icon: <Icon name="settings" size={18} /> },
+/** The core's menu items as drawn: the rule's words and address (src/domain/navigation.ts) with an icon. */
+const ICONS: Record<NavId, { icon: ReactNode }> = {
+  home: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 7 8 2.5 13.5 7v6.5h-11z" /><path d="M6.5 13.5v-4h3v4" /></svg> },
+  checkin: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" /><path d="m5.5 8.2 1.8 1.8 3.3-3.6" /></svg> },
+  watching: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M2 8s2.2-4.5 6-4.5S14 8 14 8s-2.2 4.5-6 4.5S2 8 2 8z" /><circle cx="8" cy="8" r="1.8" /></svg> },
+  reviews: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10.5" rx="2" /><path d="M2.5 6.5h11M5.5 1.8v2.4M10.5 1.8v2.4" /></svg> },
+  goals: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2" /></svg> },
+  activity: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 8h3l2-4.5 3 9 2-4.5h3" /></svg> },
+  data: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" /><path d="M2.5 6.5h11M2.5 10h11M6.5 6.5v7" /></svg> },
+  new: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg> },
+  workspace: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
+  settings: { icon: <Icon name="settings" size={18} /> },
 };
 
-/** The sidebar: Goals is a section (Mine, Watching, All and saved views sit under it); check-in only for people who own goals. */
-function sideFor(ownsGoals: boolean): NavId[] {
-  return ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'reviews', 'activity', 'data', 'new', 'workspace'];
-}
-/** The phone's tabs. An owner gets Check-in; someone who owns nothing mostly follows goals, so gets Watching (part of Goals). */
-function tabsFor(ownsGoals: boolean): NavId[] {
-  return ownsGoals ? ['home', 'checkin', 'goals', 'reviews'] : ['home', 'goals', 'watching', 'reviews'];
-}
+const NAV = Object.fromEntries((Object.keys(ICONS) as NavId[]).map((id) => [id, { ...CORE_NAV[id], icon: ICONS[id].icon }])) as unknown as Record<NavId, { to: string; label: string; icon: ReactNode }>;
 
 /** Where you are under Goals: one of its sub-items, or none (a goal page, or not in Goals at all). */
-type GoalsAt = 'mine' | 'watching' | 'all' | `view:${string}` | null;
 function goalsAt(path: string, search: string, views: SavedView[]): GoalsAt {
   const q = new URLSearchParams(search);
   if (path === '/watching' || (path === '/goals' && q.get('show') === 'watching')) return 'watching';
@@ -61,13 +54,7 @@ function goalsAt(path: string, search: string, views: SavedView[]): GoalsAt {
   return q.get('show') === 'mine' ? 'mine' : 'all';
 }
 
-function isActive(id: NavId, path: string, tabs?: NavId[]) {
-  const to = NAV[id].to;
-  if (id === 'home') return path === '/';
-  // On a phone without a Watching tab, Watching is part of Goals.
-  if (id === 'goals') return (path.startsWith('/goals') && path !== '/goals/new') || (path === '/watching' && !!tabs && !tabs.includes('watching'));
-  return path === to || path.startsWith(to + '/');
-}
+const isActive = isLit;
 
 /** Views shown under Goals in the sidebar before "more" takes over. */
 const SIDE_VIEWS = 6;
@@ -180,6 +167,8 @@ function ShellBody({ children }: { children: ReactNode }) {
   const { screens } = useModules();
   const moduleNav = screens.flatMap((m) => m.navigation ?? []);
   const moduleRoute = screens.flatMap((m) => m.routes ?? []).find((r) => matchPath(r.path, pathname));
+  // A module's page names itself from its thing (AR2), else by its fixed title.
+  const moduleName = moduleRoute ? (moduleRoute.name?.(matchPath(moduleRoute.path, pathname)?.params ?? {}, { goal: app.goal, person: app.person, team: app.team }) ?? moduleRoute.title) : null;
   // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
   const unread = useUnreadNews().length > 0;
   // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
@@ -201,7 +190,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
-  const title = moduleRoute?.title ? moduleRoute.title : at === 'watching' ? 'Watching' : at === 'mine' ? 'Mine' : pathname === '/settings' ? 'Settings' : pathname === '/feedback' ? 'Feedback' : pathname === '/whats-new' ? 'What’s new' : pathname.startsWith('/help') ? 'Help' : [...side, ...tabs].filter((id) => isActive(id, pathname)).map((id) => NAV[id].label)[0] ?? (pathname.startsWith('/retro') ? 'Wrap up' : pathname.startsWith('/check-in') ? 'Check-in' : pathname.startsWith('/research') ? 'Research' : pathname.startsWith('/quick-check-in') ? 'Check-in' : 'Goals');
+  const title = pageName(pathname, at, [...side, ...tabs], moduleName);
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -265,12 +254,12 @@ function ShellBody({ children }: { children: ReactNode }) {
             ? <GoalsSection key={id} owns={ownsGoals} at={sideAt} navAt={navAt} />
             : (
               <Fragment key={id}>
-                {/* The modules' items come after the core's places, before New goal. */}
-                {id === 'new' && moduleNav.map((n) => <Link key={n.id} to={n.to} className="nav" title={n.label} aria-current={navAt === n.to || navAt.startsWith(n.to + '/') ? 'page' : undefined}>{n.icon}<span>{n.label}</span></Link>)}
                 <Link to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
                   {NAV[id].icon}<span>{NAV[id].label}</span>
                   {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
                 </Link>
+                {/* The modules' items, by their group (menuFor): your work after Reviews, things to look up after Data. */}
+                {(id === 'reviews' || id === 'data') && moduleNav.filter((n) => (n.group === 'work') === (id === 'reviews')).map((n) => <Link key={n.id} to={n.to} className="nav" title={n.label} aria-current={navAt === n.to || navAt.startsWith(n.to + '/') ? 'page' : undefined}>{n.icon}<span>{n.label}</span></Link>)}
               </Fragment>
             ))}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
