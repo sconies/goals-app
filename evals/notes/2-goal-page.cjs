@@ -161,9 +161,9 @@ module.exports = {
     // The same rows in the Activity stream, a number goal, dark.
     [c, p] = await open(1440, 900, 'amara', '/goals/vuln-containers');
     await p.emulateMedia({ colorScheme: 'dark' });
-    await p.locator('#activity').getByRole('button', { name: 'Check-ins', exact: true }).click();
-    await p.locator('#activity .ci-row').first().click();
-    const row = await p.evaluate(() => { const b = document.querySelector('#activity .ci-row'); const d = document.querySelector('#activity .ci-full'); return { exp: b?.getAttribute('aria-expanded'), text: d?.innerText.replace(/\s+/g, ' ') || '' }; });
+    await p.locator('#history .history-filters').getByRole('link', { name: /^Check-ins \d+$/ }).click();
+    await p.locator('#history .ci-row').first().click();
+    const row = await p.evaluate(() => { const b = document.querySelector('#history .ci-row'); const d = document.querySelector('#history .ci-full'); return { exp: b?.getAttribute('aria-expanded'), text: d?.innerText.replace(/\s+/g, ' ') || '' }; });
     chk(row.exp === 'true' && /Cause/.test(row.text) && /Path to green/.test(row.text) && /Checked in Yasmin El-Amin/.test(row.text), `vuln-containers activity: opened check-in ${JSON.stringify(row)}`);
     await c.close();
 

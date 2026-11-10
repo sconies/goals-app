@@ -5,7 +5,7 @@
 
 const GOALS = ['ns-lead', 'lead-flaky', 'ns-cfr', 'lead-mq', 'env-search', 'ns-ai', 'ci-docker', 'lead-rollback'];
 // The sections by data-part, in the spec's order (the summary and the scorecard come first, in the bar).
-const ORDER = ['Next steps and asks', 'Why', 'Chart', 'Review notes', 'What feeds it', 'Quarters', 'Activity', 'About this goal'];
+const ORDER = ['Next steps and asks', 'Why', 'Chart', 'Review notes', 'What feeds it', 'Quarters', 'History', 'About this goal'];
 
 const read = (p) => p.evaluate((order) => {
   const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);

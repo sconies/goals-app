@@ -34,6 +34,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
   },
   {
+    id: 'goal-history',
+    date: '2026-11-10',
+    title: 'A goal’s history shows the weeks it missed',
+    points: [
+      'Activity on a goal is now History: every week is listed, with “No check-in” where there was none.',
+      'Reviews and Changes are separate filters, with counts, and a filter can be linked to.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'admins-on-access',
     date: '2026-11-10',
     title: 'Admins are managed where they are listed',

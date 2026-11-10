@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-10 12:57 UTC.
+Run 2026-11-10 13:39 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -65,6 +65,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | 58 | Anyone finds a person and a team: as Oskar, People from the sidebar (More on a phone), search, open Rhea, see her goals; Teams, open CI/CD, whose counts are Goals’ By team, and see its goals; no button changes anything; every old address lands | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 6 (budget 12) |
 | 77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 7 · 7 (budget 10) |
 | 78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press | **10** | ✓ | ✓ | – | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 3 · 3 (budget 6) |
+| 79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 4 · 4 (budget 6) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -79,7 +80,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**147 of 147 pass**. Spec scenarios 273/273.
+**148 of 148 pass**. Spec scenarios 273/273.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -170,6 +171,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ✅ | **GOAL-PAGE-ONCE** Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart. | Goals | 4 | U57, N9 |
 | ✅ | **GOAL-ACT** A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so. | Goals | 0 | U77, F14 |
 | ✅ | **GOAL-ASK-ONCE** Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press. | Goals | 0 | U78, F14, N15 |
+| ✅ | **GOAL-HISTORY** A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to. | Goals | 0 | U79, N15 |
 | ✅ | **GOAL-PAGE-SCORECARD** Under a goal's status and number, a scorecard of labelled cells (two by two on a phone, in a row on a wider screen), each a value and one muted line: for a number goal vs plan, vs last week (the latest check-in against the one before, naming the week compared, worse or better by which way is good, with a drawn arrow), to target, and will it hit the target (Likely, Possible, Unlikely or Very unlikely, from where the target sits against the projected range, never a percentage); for a range vs the limit, vs last week, room to the limit and will it stay within; for dated stages stages done, stages late and when the next stage lands. The target is said once in the first screen; the chart marks the same numbers where they are (the gap to plan at now, the likely end, and what's left to the target) and nothing under it restates them, beyond one footnote on where the likely end comes from. Every section below the chart has a heading, one line on what it answers and a full-width rule above it; the owner's reason opens Why, and how the goals feeding it stand opens What feeds it. | Goals | 0 | N9 |
 | ✅ | **GOAL-PAGE-INTENT** A goal's page follows how you arrived: Home's Answer, Respond and Reply open it with that item expanded under Asked of you and its box focused (?respond=<id>; ?tab=comments still works); after a check-in it says what was posted and the on-time streak; a returning visitor sees what changed since they last looked; a first-time viewer sees what the number measures with About open; drilling down, Back names the goal you came from. | Goals | 2 | N9 |
 | ✅ | **GOAL-PAGE-ALIVE** A goal's page is readable the moment it opens: its chart and number show their final state at once (backlog T). With the story switched on in the Motion lab, it moves, briefly and never in the way: the chart draws itself in turn, the number counts up, a status changed since your last visit turns in once, a posted point lands on the chart, a reached target lights, and the quarter tiles fill in turn. It moves slowly enough to see and lands with an impact, both set in Settings: the pace (Quick, Steady or Slow; Steady, the default, is half the speed of Quick, the chart drawing over about two seconds and everything done within four) and how hard it lands (Gentle, Strong or Big: the number and the latest point thump, a ring spreads from the point, the bar and the chart jolt, and an off-track status shakes). None of it blocks a click, and none of it runs under reduced motion. Any week can be read by dragging along the chart or with the arrow keys. | Goals | 2 | N9 |
@@ -254,7 +256,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 - ✅ **N8** Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send
 - ✅ **N9** The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share
 - ✅ **N10** Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets
-- ✅ **N15** Said once: an ask’s words, and what a goal measures, each in one place on its page
+- ✅ **N15** Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page
 - ✅ **P1** Animation switches off under reduced motion
 - ✅ **P2** Loading shows a skeleton, and an unreachable database becomes a clear error with Try again
 - ✅ **P3** Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word

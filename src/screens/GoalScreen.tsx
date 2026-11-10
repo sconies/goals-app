@@ -22,9 +22,9 @@ import { ASK_KIND_LABEL, asksOf, canWithdraw, openUpdateAsk } from '../domain/as
 import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
 import {
-  activityStream, askedOf, asksOnGoal, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
-  primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, streamMatches, whyLine, whyPointer,
-  type AskedItem, type StepRow, type StepsAndAsks, type StreamFilter, type StreamItem,
+  askedOf, asksOnGoal, goalHistory, HISTORY_FILTERS, HISTORY_LABEL, barFigures, feedingOrder, feedsLine, lastTalked, pathCheck, planFor, postedLine,
+  primaryAction, sameReasonText, sinceLooked, standingAction, stepsAndAsks, updatedLine, whyLine, whyPointer,
+  type AskedItem, type HistoryEntry, type HistoryFilter, type StepRow, type StepsAndAsks, type StreamItem,
 } from '../domain/goalPage';
 import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
 import { Avatar, Chip, Empty, LevelTag, Sheet, StatusShape, timeAgo, WarnMark } from '../ui/bits';
@@ -169,6 +169,15 @@ function GoalView({ goal }: { goal: Goal }) {
   const [aboutOpen, setAboutOpen] = useState<boolean | null>(aboutWanted ? true : null);
   const aboutRef = useRef<HTMLDetailsElement>(null);
   useEffect(() => { const on = () => { if (window.location.hash === '#about') setAboutOpen(true); }; window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on); }, []);
+  // Opened at a section (/goals/G-1#history; an old #activity link lands on History): scrolled there once it's drawn.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!/^(now|next|why|chart|feeds|history|activity|about)$/.test(id)) return;
+    // Once drawn, and again after the shell has put a new page at its top (which can come later on a slow load).
+    const go = () => document.getElementById(id === 'activity' ? 'history' : id)?.scrollIntoView({ block: 'start' });
+    const t = [60, 400, 900].map((ms) => setTimeout(go, ms));
+    return () => t.forEach(clearTimeout);
+  }, []);
   const share = useShare(goal, figures.now, figures.against, why.text ?? '', status);
   const menu = (
     <MenuButton label="More about this goal" className="bar-menu" icon={<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>}
@@ -210,7 +219,7 @@ function GoalView({ goal }: { goal: Goal }) {
       {postedText ? <>
         {postedText.text.replace(/ · \d+ weeks on time$/, '')}
         {postedText.streak >= 2 && <> · <CountNumber value={postedText.streak} from={postedText.streak - 1} format={(n) => `${Math.round(n)} weeks on time`} className="streak-count" duration={600} /></>}
-      </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#activity">See them</a></>}</> : null}
+      </> : since ? <>{since.text}{(since.checkIns + since.comments + since.changes) > 0 && <> <a className="linkish" href="#history">See them</a></>}</> : null}
     </p>
   );
   const whyShown = !review && whyShows(goal, app);
@@ -225,7 +234,7 @@ function GoalView({ goal }: { goal: Goal }) {
   const talked = <TalkedSection key="talked" goal={goal} />;
   const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
-  const activity = !review && <ActivitySection key="activity" goal={goal} focusComposer={tabComments && !alias} />;
+  const activity = !review && <HistorySection key="history" goal={goal} focusComposer={tabComments && !alias} />;
   // Modules' sections (the goal.sections place), before Activity.
   const modules = !review && <Place key="modules" name="goal.sections" goal={goal} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
@@ -272,7 +281,7 @@ function GoalView({ goal }: { goal: Goal }) {
 function SectionLinks({ open, why, feeds }: { open: number; why: boolean; feeds: boolean }) {
   const items: [string, string][] = [
     ['now', 'Now'], ['next', `Next steps and asks${open ? ` · ${open}` : ''}`], ...(why ? [['why', 'Why'] as [string, string]] : []), ['chart', 'Chart'],
-    ...(feeds ? [['feeds', 'What feeds it'] as [string, string]] : []), ['activity', 'Activity'], ['about', 'About'],
+    ...(feeds ? [['feeds', 'What feeds it'] as [string, string]] : []), ['history', 'History'], ['about', 'About'],
   ];
   return (
     <nav className="goal-links" aria-label="On this page" data-part="Section links">
@@ -831,31 +840,75 @@ function QuarterStrip({ goal }: { goal: Goal }) {
 
 /* ---------------------------------------------------------------------------------------------------- activity */
 
-const FILTERS: [StreamFilter, string][] = [['all', 'All'], ['checkins', 'Check-ins'], ['comments', 'Comments'], ['changes', 'Changes']];
-
-function ActivitySection({ goal, focusComposer }: { goal: Goal; focusComposer: boolean }) {
+/**
+ * History (goal spec, 2.2; GT2): every week, checked in or not, what was said and what changed, newest first. Four
+ * filters with counts; the filter, Show all, a search and a week are in the address (?history=, ?all=1, ?hq=, ?week=).
+ */
+function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: boolean }) {
   const app = useApp();
-  const [filter, setFilter] = useState<StreamFilter>('all');
-  const [all, setAll] = useState(false);
-  const stream = activityStream(goal, app.snapshot).filter(streamMatches(filter));
-  const shown = all ? stream : stream.slice(0, 8);
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('history');
+  const filter: HistoryFilter = HISTORY_FILTERS.includes(raw as HistoryFilter) ? (raw as HistoryFilter) : 'all';
+  const all = params.get('all') === '1';
+  const q = params.get('hq') ?? '';
+  const weekWanted = Number(params.get('week')) || null;
+  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, reviews: app.snapshot.reviews };
+  const h = goalHistory(input, filter, q);
+  const whole = goalHistory(input);
+  const shown = all || q || weekWanted ? h.entries : h.entries.slice(0, 12);
+  // One history entry per choice (find spec, rule 4): a filter, a search or a week replaces nothing else in the address.
+  const set = (k: string, v: string | null) => setParams((p) => { if (v == null || v === '') p.delete(k); else p.set(k, v); p.delete('all'); return p; }, { replace: k === 'hq' });
+  const latest = app.checkInsOf(goal).at(-1) ?? null;
   const ref = useRef<HTMLElement>(null);
   useLayoutEffect(() => { if (focusComposer) { ref.current?.scrollIntoView({ block: 'start' }); document.getElementById('note-' + goal.id)?.focus({ preventScroll: true }); } }, [focusComposer, goal.id]);
+  // Opened at a week (?week=): scrolled to its entry.
+  useEffect(() => { if (weekWanted) document.getElementById(`hist-week-${weekWanted}`)?.scrollIntoView({ block: 'center' }); }, [weekWanted]);
+  const weeksWithEntries = [...new Set(whole.entries.flatMap((x) => (x.kind === 'checkin' ? [x.checkIn.week] : x.kind === 'checkins' ? x.checkIns.map((c) => c.week) : x.kind === 'missed' ? [x.to] : [])))].sort((a, b) => b - a);
+  const none: Record<HistoryFilter, string> = { all: 'Nothing here yet.', checkins: 'No check-ins yet.', comments: 'No comments yet.', reviews: 'Nothing was said in a review yet.', changes: 'Nothing has been changed since it was set up.' };
   return (
-    <section className="block activity goal-section" id="activity" aria-labelledby="g-activity" ref={ref} data-part="Activity">
-      <SectionHead id="g-activity" title="Activity" purpose="Check-ins, comments and changes, newest first." />
+    <section className="block activity history goal-section" id="history" aria-labelledby="g-history" ref={ref} data-part="History">
+      <span id="activity" className="anchor-alias" aria-hidden="true" />
+      <SectionHead id="g-history" title="History" purpose="Every week, what was said, and what changed, newest first." />
       <NoteComposer goal={goal} />
-      <div className="seg activity-filter" role="group" aria-label="Show">
-        {FILTERS.map(([k, l]) => <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setAll(false); }}>{l}</button>)}
-      </div>
+      <nav className="history-filters" aria-label="Show">
+        {HISTORY_FILTERS.map((k) => (
+          <a key={k} className="history-filter" href={`?history=${k}`} aria-current={filter === k ? 'true' : undefined}
+            onClick={(e) => { e.preventDefault(); set('history', k === 'all' ? null : k); }}>{HISTORY_LABEL[k]} <span className="history-count">{whole.counts[k]}</span></a>
+        ))}
+      </nav>
+      {whole.counts.all > 30 && (
+        <div className="row history-find">
+          <input className="input history-search" type="search" placeholder="Find in this goal’s history" aria-label="Find in this goal’s history" value={q} onChange={(e) => set('hq', e.target.value)} />
+          <select className="input history-week" aria-label="Go to week" value={weekWanted ?? ''} onChange={(e) => set('week', e.target.value || null)}>
+            <option value="">Go to week…</option>
+            {weeksWithEntries.map((w) => <option key={w} value={w}>Week {w}</option>)}
+          </select>
+        </div>
+      )}
       {shown.length ? (
         <ol className="stream">
-          {shown.map((x) => <StreamRow key={x.kind === 'checkin' ? x.checkIn.id : x.kind === 'checkins' ? 'g-' + x.checkIns[0]!.id : x.change.id} goal={goal} x={x} />)}
+          {shown.map((x) => <HistoryRow key={x.kind === 'checkin' ? x.checkIn.id : x.kind === 'checkins' ? 'g-' + x.checkIns[0]!.id : x.kind === 'missed' ? `m-${x.from}-${x.to}` : x.change.id} goal={goal} x={x} latestId={latest?.id ?? null} latestWeek={latest?.week} />)}
         </ol>
-      ) : <p className="small muted">Nothing here yet.</p>}
-      {stream.length > shown.length && <button type="button" className="linkish small show-all" onClick={() => setAll(true)}>Show all {stream.length}</button>}
+      ) : q ? <p className="small muted">Nothing in this goal’s history matches “{q}”. <button type="button" className="linkish" onClick={() => set('hq', null)}>Clear the search</button></p>
+        : <p className="small muted">{none[filter]}</p>}
+      {h.entries.length > shown.length && <a className="linkish small show-all" href="?all=1" onClick={(e) => { e.preventDefault(); setParams((p) => { p.set('all', '1'); return p; }); }}>Show all {h.entries.length}</a>}
     </section>
   );
+}
+
+/** One entry of History: a week (its check-in, or "No check-in"), a comment, what a review said, or a change. */
+function HistoryRow({ goal, x, latestId, latestWeek }: { goal: Goal; x: HistoryEntry; latestId: string | null; latestWeek?: number }) {
+  if (x.kind === 'missed') {
+    return (
+      <li className="stream-missed" id={`hist-week-${x.to}`}>
+        <span className="strong">{x.from === x.to ? `Week ${x.from}` : `Weeks ${x.from} to ${x.to}`}</span>
+        <span className="small muted"> · {x.yet ? STATUS.none.label : x.from === x.to ? 'No check-in' : `No check-ins (${x.weeks} weeks)`}</span>
+      </li>
+    );
+  }
+  // This week's reason, when it is the one Why shows, is pointed to rather than said twice.
+  if (x.kind === 'checkin') return <li className="stream-ci" id={`hist-week-${x.checkIn.week}`}><ol className="cilist ci-open"><CheckInRow goal={goal} c={x.checkIn} sameAs={x.sameAs} sameAsWhere={x.sameAsWhere} above={x.checkIn.id === latestId} latestWeek={latestWeek} /></ol></li>;
+  return <StreamRow goal={goal} x={x} />;
 }
 
 function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
@@ -911,7 +964,7 @@ function NoteComposer({ goal }: { goal: Goal }) {
 
 /** One check-in as a row (week, number, the call, the reason) that opens to the whole check-in. `quiet` leaves the
  *  reason out, inside a group that says it once; `sameAs` points to the newer week that already said it. */
-function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number; sameAsWhere?: 'above' | 'below' }) {
+function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number; sameAsWhere?: 'above' | 'below'; above?: boolean; latestWeek?: number }) {
   const [isOpen, setOpen] = useState(false);
   return (
     <li className={isOpen ? 'is-open' : undefined}>
@@ -919,7 +972,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere }: { goal: Goal; c: Ch
         <span className="strong ci-week"><span className="nowrap">Week {c.week}</span></span>
         <span className="ci-value num">{goal.kind === 'milestone' ? `${assessMilestone(goal, c.week, c.stages).doneCount} of ${goal.stages.length} stages` : c.value == null ? '—' : fmt(c.value, goal)}</span>
         <Chip k={c.status} />
-        <span className="ci-tail">{quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
+        <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>

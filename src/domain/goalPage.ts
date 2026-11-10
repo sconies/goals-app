@@ -16,6 +16,7 @@ import { countWord, summaryFacts, type Direction } from './summaryFacts';
 import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
 import { NO_REASON } from './checkin';
 import { ASK_KIND, ASK_STATUS, ATTENTION, DECIDED, stagesBehind } from './vocabulary';
+import { textMatches } from './find';
 
 const first = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
 const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== NO_REASON;
@@ -539,6 +540,81 @@ export const sameReasonText = (week: number, where: 'above' | 'below' = 'above')
 
 export const streamMatches = (f: StreamFilter) => (x: StreamItem) =>
   f === 'all' || (f === 'checkins' && (x.kind === 'checkin' || x.kind === 'checkins')) || (f === 'comments' && x.kind === 'comment') || (f === 'changes' && x.kind === 'change');
+
+/* ---------- 7a. the history: every week, and what each entry is (goal spec, rule 4; GT2) ---------- */
+
+export type HistoryFilter = 'all' | 'checkins' | 'comments' | 'reviews' | 'changes';
+export const HISTORY_FILTERS: readonly HistoryFilter[] = ['all', 'checkins', 'comments', 'reviews', 'changes'];
+export const HISTORY_LABEL: Record<HistoryFilter, string> = { all: 'All', checkins: 'Check-ins', comments: 'Comments', reviews: 'Reviews', changes: 'Changes' };
+
+/** A week, or a run of weeks, with no check-in: "Week 45 · No check-in", "Weeks 12 to 17 · No check-ins (6 weeks)". */
+export interface MissedEntry { kind: 'missed'; at: string; from: number; to: number; weeks: number; yet: boolean }
+export type HistoryEntry = StreamItem | MissedEntry;
+
+/** What the history reads: the goal, its own check-ins and change-log entries, the cycle, this week, the reviews' names. */
+export interface HistoryInput {
+  goal: Goal; checkIns: readonly CheckIn[]; changes: readonly Change[]; cycle: Cycle; week: number; reviews: readonly { name: string }[];
+}
+
+/** Which filter an entry is under: a week; a comment (or an ask raised outside a review); what a review said; an edit. */
+export function historyKind(x: HistoryEntry, reviews: readonly { name: string }[]): Exclude<HistoryFilter, 'all'> {
+  if (x.kind === 'checkin' || x.kind === 'checkins' || x.kind === 'missed') return 'checkins';
+  if (x.kind === 'comment') return 'comments';
+  const c = x.change;
+  if (c.entity === 'decision') return 'reviews';
+  if (c.entity === 'request') return reviews.some((r) => r.name && c.summary.includes(` in ${r.name}`)) ? 'reviews' : 'comments';
+  return 'changes';
+}
+
+/** How many entries an entry counts as: a week's, a run's weeks; one for anything else. */
+const weight = (x: HistoryEntry) => (x.kind === 'missed' ? x.weeks : x.kind === 'checkins' ? new Set(x.checkIns.map((c) => c.week)).size : 1);
+
+/** An entry's words, for searching it. */
+function historyWords(x: HistoryEntry): string {
+  if (x.kind === 'missed') return x.from === x.to ? `Week ${x.from} No check-in` : `Weeks ${x.from} to ${x.to} No check-ins`;
+  if (x.kind === 'checkin') return `Week ${x.checkIn.week} ${x.checkIn.why ?? ''} ${x.checkIn.pathToGreen?.what ?? ''} ${LABEL[x.checkIn.status]}`;
+  if (x.kind === 'checkins') return `${x.checkIns.map((c) => `Week ${c.week}`).join(' ')} ${x.why}`;
+  return `${x.change.summary} ${x.change.diffs.map((d) => `${d.field} ${d.from} ${d.to}`).join(' ')}`;
+}
+
+/** The end of a week, as an ISO time: where a week's entry sits among the others, newest first. */
+const weekEnd = (cycle: Cycle, w: number) => new Date(Date.parse(cycle.startDate + 'T00:00:00Z') + w * 7 * 86_400_000 - 1000).toISOString();
+
+/**
+ * A goal's history: one entry for every week from its first (the week it was created, or the first it was checked in,
+ * if earlier) to this week, its check-in or "No check-in" (four or more missed in a row are one entry); its comments;
+ * what reviews said; and its edits. Newest first, a week's entry at the end of its week. Counts by filter, a run counting
+ * its weeks; `q` keeps the entries whose words match (find rule 1).
+ */
+export function goalHistory(i: HistoryInput, filter: HistoryFilter = 'all', q = ''): { counts: Record<HistoryFilter, number>; entries: HistoryEntry[] } {
+  const stream = activityStream(i.goal, { checkIns: i.checkIns, changes: i.changes } as unknown as Snapshot);
+  const own = checkInsFor(i.goal, i.checkIns as CheckIn[]);
+  const checked = new Set(own.map((c) => c.week));
+  const created = i.goal.createdAt ? Math.max(1, currentWeek(i.cycle, new Date(i.goal.createdAt))) : 1;
+  const firstWeek = Math.max(1, Math.min(created, ...own.map((c) => c.week)));
+  const missed: MissedEntry[] = [];
+  const one = (w: number) => missed.push({ kind: 'missed', at: weekEnd(i.cycle, w), from: w, to: w, weeks: 1, yet: !own.length && w === i.week });
+  // Four or more missed in a row are one entry; fewer are a week each.
+  const run = (from: number, to: number) => { if (to < from) return; if (to - from + 1 >= 4) missed.push({ kind: 'missed', at: weekEnd(i.cycle, to), from, to, weeks: to - from + 1, yet: false }); else for (let k = from; k <= to; k++) one(k); };
+  const last = i.goal.stoppedAt ? Math.min(i.week, currentWeek(i.cycle, new Date(i.goal.stoppedAt))) : i.week;
+  for (let w = firstWeek; w <= last;) {
+    if (checked.has(w)) { w++; continue; }
+    let to = w;
+    while (to + 1 <= last && !checked.has(to + 1)) to++;
+    // This week is always its own entry, never folded into a run (U11).
+    if (to === i.week) { run(w, to - 1); one(to); } else run(w, to);
+    w = to + 1;
+  }
+  // A goal with no check-in yet has one week entry: this one.
+  const weeks = own.length ? missed : missed.filter((m) => m.to === i.week);
+  // A check-in sits at the end of its week too, so a week reads as one place in the list.
+  const placed: HistoryEntry[] = stream.map((x) => (x.kind === 'checkin' ? { ...x, at: weekEnd(i.cycle, x.checkIn.week) } : x.kind === 'checkins' ? { ...x, at: weekEnd(i.cycle, x.to) } : x));
+  const all = [...placed, ...weeks].sort((a, b) => b.at.localeCompare(a.at));
+  const counts: Record<HistoryFilter, number> = { all: 0, checkins: 0, comments: 0, reviews: 0, changes: 0 };
+  for (const x of all) { const n = weight(x); counts[historyKind(x, i.reviews)] += n; counts.all += n; }
+  const entries = all.filter((x) => (filter === 'all' || historyKind(x, i.reviews) === filter) && textMatches(historyWords(x), q));
+  return { counts, entries };
+}
 
 /* ---------- 8. what feeds it ---------- */
 
