@@ -5,8 +5,8 @@
      target, will it hit), marked on the chart (the scorecard, 5 Nov); the facts themselves are still worked out once in
      summaryFacts and scorecard (evals/goalSummary.eval.ts, src/domain/scorecard.test.ts);
    - the reason and whether it's being handled → the top of Why, under the chart;
-   - the path to green in the main column → What's being done, in the main column, with the owner's date labelled;
-   - the grouped side column → Asked of you, Actions and Last time we talked, under labelled headings;
+   - the path to green in the main column → Why, in the main column, with the owner's date labelled (GT1);
+   - the grouped side column → Next steps and asks and Last time we talked, under labelled headings (GT1);
    - the header that stays on screen → the summary bar itself shrinking to one line, under the review bar when there is one;
    - what it feeds and how it's measured under the title → About this goal (open on a first visit), and Back naming the
      goal it feeds when you arrive from outside;
@@ -20,7 +20,7 @@ async function bar(p) {
     const vis = (e) => !!e && e.getClientRects().length > 0;
     const txt = (e) => (e ? e.innerText.replace(/\s+/g, ' ').trim() : '');
     const b = document.querySelector('.goal-bar');
-    const ptg = document.querySelector('.doing .ptg');
+    const ptg = document.querySelector('.why-block .ptg');
     return {
       status: txt(b?.querySelector('.bar-status')),
       shape: !!b?.querySelector('.bar-status svg'),
@@ -61,11 +61,11 @@ module.exports = {
         chk(/^(\d+ pts? (behind plan|ahead of plan)|On plan)$/.test(cells['vs plan']?.value) && /^plan \d+%$/.test(cells['vs plan']?.sub) && /^target \d+%/.test(cells['to target']?.sub) && !!cells['vs last week'] && /^(Likely|Possible|Unlikely|Very unlikely)$/.test(Object.entries(cells).find(([k]) => /^will it hit/.test(k))?.[1].value), `${at}: scorecard ${JSON.stringify(cells)}`);
         chk(f.why.length > 20 && /^(Being handled|No response yet)/.test(f.handled), `${at}: Why opens with “${f.why}” “${f.handled}”`);
         chk(f.ptg && f.ptg.inMain && !f.ptg.inSide && /Path to green/.test(f.ptg.text) && /Owner’s date: back on plan by/.test(f.ptg.text), `${at}: path to green not in the main column (${JSON.stringify(f.ptg)})`);
-        if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => ['Asked of you', 'Actions', 'Last time we talked'].includes(x)), `${at}: side headings ${f.heads.join(' / ')}`);
+        if (w >= 1100) chk(f.heads.length >= 1 && f.heads.every((x) => /^Next steps and asks( · \d+ open)?$/.test(x) || x === 'Last time we talked'), `${at}: side headings ${f.heads.join(' / ')}`);
         chk(f.sideways <= 1, `${at}: ${f.sideways}px sideways`);
         // Words in the bar and the side column sit on the page (or the bar's off-track wash), never on a fill of their own.
         const filled = await p.evaluate(() => [...document.querySelectorAll('.goal-bar *, .goal-side *')]
-          .filter((e) => !e.closest('.asked-item, .btn, button, .view-menu-list, .bar-me, summary, .avatar') && /^(P|SPAN|STRONG|EM|DIV|DT|DD|H2|H1)$/.test(e.tagName))
+          .filter((e) => !e.closest('.asked-item, .step-panel, .btn, button, .view-menu-list, .bar-me, summary, .avatar') && /^(P|SPAN|STRONG|EM|DIV|DT|DD|H2|H1)$/.test(e.tagName))
           .filter((e) => { const b = getComputedStyle(e).backgroundColor; return b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent'; })
           .map((e) => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3));
         chk(!filled.length, `${at}: text with a fill behind it: ${filled.join(', ')}`);
@@ -87,7 +87,7 @@ module.exports = {
     await p.goto(p.url().replace('/goals/ns-cfr', '/goals/lead-mq')); await p.locator('.goal-bar').waitFor();
     f = await bar(p);
     chk(/^\d of \d stages done$/.test(f.now) && /^\d+$/.test(f.cells['stages behind']?.value) && /^Week \d+$/.test(f.cells['next stage']?.value), `lead-mq: bar says ${f.now} / ${JSON.stringify(f.cells)}`);
-    chk(f.heads[0] === 'Asked of you', `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”`);
+    chk(/^Next steps and asks/.test(f.heads[0] ?? '') && await p.locator('.goal-side .steps-label', { hasText: 'For you' }).count() === 1, `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”, with For you`);
     // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
     const back = (await p.locator('.goal-page > .backlink').innerText()).trim();
     chk(back === 'Back to Merge-to-deploy time (median)', `lead-mq from outside: “${back}”`);
@@ -98,8 +98,8 @@ module.exports = {
     // (e) How it's measured, in About (open on a first visit); only the owner (or an admin) is offered to change it.
     [c, p] = await open(390, 844, 'rhea', '/goals/ns-lead', true);
     await p.locator('details.about[open]').waitFor();
-    const about = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'How it’s measured'); return dt?.nextElementSibling?.innerText.replace(/\s+/g, ' ') || ''; });
-    chk(/Source: .+\.$/.test(about) && about.length > 20, `head: How it’s measured “${about}”`);
+    const about = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'What it measures'); return dt?.nextElementSibling?.innerText.replace(/\s+/g, ' ') || ''; });
+    chk(/Source: .+\.$/.test(about) && about.length > 20, `head: What it measures “${about}”`);
     await c.close();
     for (const [who, want] of [['yasmin', true], ['rhea', false]]) {
       [c, p] = await open(1280, 800, who, '/goals/vuln-containers');

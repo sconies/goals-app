@@ -315,11 +315,27 @@ A goal's summary bar reads in two seconds: title, owner, level and key; status a
 
 ### GOAL-PAGE-ONCE
 
-Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. The chart is within the first phone screen.
+Each fact on a goal's page has one home: the goal's status appears once in the first screen, the owner's reason is not repeated (a reason given several weeks running is grouped once in the activity), and the four-fact grid, Signals, What the owner says, the threats block, the separate sticky header, the breadcrumb and the tab counts are gone. What to act on (Next steps and asks) is within the first phone screen, and the reason comes before the chart.
 
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Tests:** `evals/goalPage.eval.ts` (4)
 - **Journeys and checks:** N9, U57
+
+### GOAL-ACT
+
+A goal's owner can always check in and say what happens next from its page, and a goal behind with no next step says so.
+
+- **Rule:** [Acting on a goal: its buttons, and next steps and asks](rules/goal-act.md)
+- **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Journeys and checks:** F14, U77
+
+### GOAL-ASK-ONCE
+
+Everything asked and agreed on a goal is in one list, shown once, with the one button each person may press.
+
+- **Rule:** [Acting on a goal: its buttons, and next steps and asks](rules/goal-act.md)
+- **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
+- **Journeys and checks:** F14, N15, U78
 
 ### GOAL-PAGE-SCORECARD
 
@@ -1008,7 +1024,7 @@ One ask model: a decision or help, an update, a question and an action are each 
 
 - **Help:** “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
 - **Tests:** `src/mcp/mcp.test.ts` (1), `evals/asks.eval.ts` (8), `evals/review-notes.eval.ts` (1)
-- **Journeys and checks:** U3, U8, U16, U33, U36, U37, U38
+- **Journeys and checks:** U3, U8, U16, U33, U36, U37, U38, U78
 
 ## Feedback
 

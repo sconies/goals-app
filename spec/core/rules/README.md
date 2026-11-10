@@ -17,6 +17,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Deciding in a review](review-decide.md) | A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The goal map](map.md) | The critical path, what the map shows when folded, what a parent says about the goals under it, which trees are in trouble, and finding a goal by name or key. |
+| [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
 
 ## The numbers the rules turn on
 

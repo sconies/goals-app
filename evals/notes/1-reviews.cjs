@@ -392,9 +392,9 @@ module.exports = {
     {
       const [c, p] = await open(390, 844, 'daniel', '/reviews', true);
       await p.goto(talk('/goals/lead-review-rota'));
-      const rowSel = p.locator('.action-row', { hasText: 'Name a review rota' });
+      const rowSel = p.locator('.step-row', { hasText: 'Name a review rota' });
       await rowSel.waitFor();
-      fail(/Tariq, by week \d+ \([A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\)/.test(await rowSel.innerText()), `P2: the goal page's action row has no owner and date: ${(await rowSel.innerText()).replace(/\s+/g, ' ')}`);
+      fail(/Tariq · by week \d+ \([A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\)/.test(await rowSel.innerText()), `P2: the goal page's action row has no owner and date: ${(await rowSel.innerText()).replace(/\s+/g, ' ')}`);
       // Changed on the goal page: the owner is found by searching.
       await rowSel.getByRole('button', { name: 'Change' }).click();
       const d = p.getByRole('dialog');
@@ -402,12 +402,12 @@ module.exports = {
       await d.getByRole('radio', { name: /Rhea Kapoor/ }).click();
       await d.getByRole('button', { name: 'Save the change' }).click();
       await p.waitForTimeout(500);
-      fail(/Rhea, by week/.test(await p.locator('.action-row', { hasText: 'Name a review rota' }).innerText()), 'P2: changing the owner on the goal page did not take');
+      fail(/Rhea · by week/.test(await p.locator('.step-row', { hasText: 'Name a review rota' }).innerText()), 'P2: changing the owner on the goal page did not take');
       // Anyone can add a next step; it asks who and by when.
       await p.getByRole('button', { name: 'Add a next step' }).first().click();
       await p.getByRole('dialog').locator('textarea').fill('Audit CODEOWNERS for the payments repositories');
       await p.getByRole('dialog').getByRole('button', { name: 'Add the next step' }).click();
-      fail(await p.getByRole('dialog').getByRole('alert').filter({ hasText: 'Choose the week' }).isVisible().catch(() => false), 'P2: a next step was added with no date');
+      fail(await p.getByRole('dialog').getByRole('alert').filter({ hasText: 'Choose a week.' }).isVisible().catch(() => false), 'P2: a next step was added with no date');
       await c.close();
     }
 

@@ -21,6 +21,27 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-next-steps-and-asks',
+    date: '2026-11-10',
+    title: 'Everything asked and agreed on a goal, in one list',
+    points: [
+      'Next steps and asks replaces Asked of you, What’s being done and Actions on a goal’s page, and an ask is no longer repeated around the page.',
+      'If a goal is behind and nobody has said what happens next, its page says so, and its owner’s main button is Add a next step.',
+      'Owners always have Check in again. Anyone else has Watch beside the main button.',
+    ],
+    articles: ['goal-page', 'requests'],
+  },
+  {
+    id: 'goal-order',
+    date: '2026-11-10',
+    title: 'The reason comes before the chart',
+    points: [
+      'A goal’s page reads in one order on a computer and a phone: how it is, what’s being done and asked, why, then the chart.',
+      'Links under the scorecard take you down the page.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'workspace-mark-size',
     date: '2026-11-10',
     title: 'Workspace’s overview mark back to its size',
