@@ -12,13 +12,14 @@ import type { Deps } from '../../../server/mcp';
 import { WHATS_NEW } from '../../help/whatsNew';
 import { MARKUP_REPO } from '../../markup/model';
 import { markupOps, PICTURES_UNREADABLE } from '../../markup/ops';
-import { tokenMarkups } from './markups';
+import { picturesOpen, tokenMarkups } from './markups';
 import { feedbackOps } from '../../markup/feedback';
 import { tokenFeedback } from './feedback';
 
 export function supabaseDeps(origin: string, env: Record<string, string | undefined> = process.env): Deps {
   const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
-  const key = env.SUPABASE_KEY ?? env.VITE_SUPABASE_KEY;
+  // The public key, by the one name the browser uses too, so no other key can be picked up by mistake.
+  const key = env.VITE_SUPABASE_KEY;
   if (!url || !key) throw new Error('The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).');
   const db = faroClient(url, key);
   const store = new SupabaseStore(url, key, db);
@@ -64,9 +65,8 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
       const { error } = await db.rpc('okr_token_find', { hash: '0'.repeat(64) });
       const database = !error;
       if (error) problems.push(`The server can’t reach the goals database: ${error.message}`);
-      // Pictures: the markups bucket is open to read (migration 0031); the database says so.
-      const { data: open, error: unknown } = await db.rpc('okr_markup_pictures_open');
-      const pictures = !unknown && open === true;
+      // Pictures: the markups bucket is open to read (migration 0031); Storage says so.
+      const pictures = await picturesOpen(db);
       if (!pictures) problems.push(PICTURES_UNREADABLE);
       return { ok: database && pictures, database, pictures, problems };
     },
