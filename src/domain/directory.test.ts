@@ -122,6 +122,7 @@ describe('old addresses (rule 8)', () => {
     ['/workspace/people', '?today=2026-11-11', '', '/people?today=2026-11-11'],
     ['/workspace/people', '?team=cicd&today=2026-11-11', '', '/teams/cicd?today=2026-11-11'],
     ['/workspace/teams', '', '', '/teams'],
+    ['/workspace/overview', '?today=2026-11-11', '', '/workspace?today=2026-11-11'],
     ['/workspace', '', '#people', '/people'],
     ['/workspace', '', '#teams', '/teams'],
     ['/workspace', '', '#cycles', null],

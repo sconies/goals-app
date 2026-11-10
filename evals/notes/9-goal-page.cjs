@@ -431,8 +431,9 @@ module.exports = {
     /* ---------- the Motion lab: the last thing in Settings, with a light line; the Konami code opens it too ---------- */
     {
       const [c, p] = await at(browser, url, { w: 390, h: 844, touch: true, who: 'maya', route: '/settings' });
-      const last = await p.evaluate(() => { const b = [...document.querySelectorAll('.settings-page .settings-block, .page .settings-block')]; return b.length ? b[b.length - 1].querySelector('h2')?.textContent : null; });
-      chk(last === 'Motion lab', `Motion lab: the last Settings section is “${last}”`);
+      // Leaving the workspace comes after it, last of all (WR2); the Motion lab is the last of your own choices.
+      const last = await p.evaluate(() => { const b = [...document.querySelectorAll('.settings-page .settings-block, .page .settings-block')].filter((x) => !x.classList.contains('leave-zone')); return b.length ? b[b.length - 1].querySelector('h2')?.textContent : null; });
+      chk(last === 'Motion lab', `Motion lab: the last of your choices in Settings is “${last}”`);
       await p.getByRole('button', { name: 'Open the Motion lab' }).click();
       const dlg = p.getByRole('dialog', { name: 'Motion lab' });
       chk(await dlg.isVisible().catch(() => false), 'Motion lab: Open the Motion lab shows no lab');

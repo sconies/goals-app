@@ -31,6 +31,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'workspace-about',
+    date: '2026-11-10',
+    title: 'Workspace opens on what matters',
+    points: [
+      'Workspace now opens on About: for admins, what needs sorting out, each with one button; then the facts about this workspace, each leading to its section.',
+      'One line under the title says whose workspace it is and whether you’re an admin or a member here.',
+      'Leaving a workspace moved to Settings. Setting up a new one is in the workspace switcher, and starting the example over is in Demo controls.',
+    ],
+    articles: ['workspace', 'settings'],
+  },
+  {
     id: 'goal-next-steps-and-asks',
     date: '2026-11-10',
     title: 'Everything asked and agreed on a goal, in one list',
