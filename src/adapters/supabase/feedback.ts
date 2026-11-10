@@ -26,7 +26,7 @@ export function openFeedback(db: SupabaseClient): FeedbackStore {
   };
 }
 
-/** The MCP server, with any token: through the database's functions for it (migration 0028), on whatever key it has. */
+/** The MCP server, with any token: through the database's functions for it (migration 0028), on the public key. */
 export function tokenFeedback(db: SupabaseClient, hash: string): FeedbackStore {
   const read = async (args: { ws?: string | null; st?: string | null; fid?: string | null; lim: number }) => {
     const { data, error } = await db.rpc('okr_feedback_for_token', { hash, ws: args.ws ?? null, st: args.st ?? null, fid: args.fid ?? null, lim: args.lim });

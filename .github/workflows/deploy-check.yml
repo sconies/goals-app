@@ -1,6 +1,6 @@
 # After each Vercel deploy (Vercel reports it to GitHub as a deployment status), ask the MCP server what it can do:
-# GET /api/mcp?check. It fails when the server can't reach the database or can't read markup pictures, which needs
-# SUPABASE_SERVICE_ROLE_KEY on Vercel (backlog -2). It never sees a secret: the answer says only what works and, if
+# GET /api/mcp?check. It fails when the server can't reach the database or can't read markup pictures (the markups
+# bucket must be public, migration 0031; no service role key is used, backlog 0c). It never sees a secret: the answer says only what works and, if
 # not, what to add where. Runs from the default branch's copy of this file.
 name: After deploy
 

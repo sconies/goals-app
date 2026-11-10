@@ -39582,6 +39582,57 @@ function shouldShowDeprecationWarning() {
 	return parseInt(versionMatch[1], 10) <= 20;
 }
 if (shouldShowDeprecationWarning()) console.warn("⚠️  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
+// src/adapters/supabase/schema.ts
+var FARO_SCHEMA = "faro";
+var PROFILES = ["accept-profile", "content-profile"];
+var fallback = false;
+function profiled(init, schema) {
+	const headers = new Headers(init?.headers);
+	let asked = false;
+	for (const h of PROFILES) if (headers.get(h) === "faro") {
+		asked = true;
+		headers.set(h, schema);
+	}
+	return {
+		init: {
+			...init,
+			headers
+		},
+		asked
+	};
+}
+/** Is this the Data API saying it doesn't offer the schema asked for? */
+async function notOffered(res) {
+	if (res.status !== 406) return false;
+	try {
+		return (await res.clone().json()).code === "PGRST106";
+	} catch {
+		return false;
+	}
+}
+/** A fetch for Supabase clients and raw Data API calls: asks for faro, and falls back to public while faro isn't offered. */
+function faroFetch(base = (...a) => fetch(...a)) {
+	return async (input, init) => {
+		if (fallback) return base(input, profiled(init, "public").init);
+		const { asked } = profiled(init, FARO_SCHEMA);
+		const res = await base(input, init);
+		if (!asked || !await notOffered(res)) return res;
+		fallback = true;
+		return base(input, profiled(init, "public").init);
+	};
+}
+// src/adapters/supabase/client.ts
+function faroClient(url, key, opts = {}) {
+	return createClient(url, key, {
+		db: { schema: FARO_SCHEMA },
+		auth: {
+			persistSession: false,
+			autoRefreshToken: false,
+			detectSessionInUrl: false
+		},
+		global: { fetch: faroFetch(opts.fetch) }
+	});
+}
 // src/data/rows.ts
 var set = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
 /** A removal timestamp read back: only when there is one, so records never removed read exactly as before. */
@@ -40223,20 +40274,14 @@ var timedFetch = (input, init) => {
 		signal: ctl.signal
 	}).finally(() => clearTimeout(timer));
 };
-/** Shared records in Supabase's okr_ tables, one workspace at a time. Seeds the example the first time it is empty. */
+/** Shared records in Supabase's okr_ tables (in Faro's own schema, faro, since migration 0035), one workspace at a time. Seeds the example the first time it is empty. */
 var SupabaseStore = class {
 	kind = "supabase";
 	/** The real app's data. The example lives in the demo, in each visitor's browser. */
 	hasExample = false;
 	db;
 	constructor(url, key, client) {
-		this.db = client ?? createClient(url, key, {
-			auth: {
-				persistSession: false,
-				detectSessionInUrl: false
-			},
-			global: { fetch: timedFetch }
-		});
+		this.db = client ?? faroClient(url, key, { fetch: timedFetch });
 	}
 	async all(table, ws) {
 		const out = [];
@@ -40588,7 +40633,7 @@ function feedbackOps(o) {
 	};
 }
 // src/adapters/supabase/feedback.ts
-/** The MCP server, with any token: through the database's functions for it (migration 0028), on whatever key it has. */
+/** The MCP server, with any token: through the database's functions for it (migration 0028), on the public key. */
 function tokenFeedback(db, hash) {
 	const read = async (args) => {
 		const { data, error } = await db.rpc("okr_feedback_for_token", {
@@ -40626,9 +40671,9 @@ function tokenFeedback(db, hash) {
 // src/adapters/supabase/server.ts
 function supabaseDeps(origin, env = process.env) {
 	const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
-	const key = env.SUPABASE_SERVICE_ROLE_KEY ?? env.VITE_SUPABASE_KEY;
-	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and a key).");
-	const db = createClient(url, key, { auth: { persistSession: false } });
+	const key = env.SUPABASE_KEY ?? env.VITE_SUPABASE_KEY;
+	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
+	const db = faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
 	let seen = null;
 	return {
