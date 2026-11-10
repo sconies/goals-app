@@ -85,7 +85,14 @@ describe('one message for letters in a number', () => {
     const d = { ...blankGoal('t', 'p', ''), title: 'Reduce latency', start: 'a12', target: 'b12', effect: 'x1' };
     expect(validateGoal(d, cycle)).toMatchObject({ start: msg, target: notNumberText('b12'), effect: notNumberText('x1') });
     const cs = planChanges(base({ checkIns: [rec({ 'Goal ID': whole.id, Week: String(week), Value: 'a12' })] }));
-    expect(cs.issues.find((i) => i.severity === 'error')?.message).toBe(`Week ${week}: ${msg}`);
+    // The import names the goal's own decimal places in its example, as the check-in does (deep review U10).
+    expect(cs.issues.find((i) => i.severity === 'error')?.message).toBe(`Week ${week}: ${notNumberText('a12', whole.decimals)}`);
+  });
+
+  it('gives an example at the goal’s decimal places: no decimal on a whole-number goal (deep review U10)', () => {
+    expect(notNumberText('a12', 0)).toBe('“a12” isn’t a number. Type digits only, like 29.');
+    expect(notNumberText('a12', 2)).toBe('“a12” isn’t a number. Type digits only, like 29.45.');
+    expect(valueProblem('a12', null, whole.unit, whole)?.text).toBe(notNumberText('a12', 0));
   });
 });
 

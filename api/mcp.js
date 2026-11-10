@@ -1826,7 +1826,7 @@ function setupProblem(unit, start, target) {
 	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
 	return null;
 }
-var PLACES, placesText, notNumberText, fixed, usuallyPositive;
+var PLACES, placesText, exampleNumber, notNumberText, fixed, usuallyPositive;
 var init_numbers = __esmMin((() => {
 	PLACES = [
 		"whole numbers",
@@ -1835,11 +1835,21 @@ var init_numbers = __esmMin((() => {
 		"3 decimal places"
 	];
 	placesText = (d) => PLACES[d] ?? `${d} decimal places`;
-	notNumberText = (raw) => `“${raw.trim()}” isn’t a number. Type digits only, like 29.4.`;
+	exampleNumber = (decimals = 1) => decimals > 0 ? "29." + "4567".slice(0, Math.min(decimals, 3)) : "29";
+	notNumberText = (raw, decimals) => `“${raw.trim()}” isn’t a number. Type digits only, like ${exampleNumber(decimals)}.`;
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
 }));
 // src/domain/checkin.ts
+/** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
+function unchangedStory(draft, reason, path) {
+	const c = draft.carried;
+	if (!c) return [];
+	const out = [];
+	if (reason && c.why.trim() && draft.cause === c.cause && draft.why.trim() === c.why.trim()) out.push("reason");
+	if (path && c.what.trim() && draft.ptgWhat.trim() === c.what.trim() && draft.ptgBy === c.by) out.push("path");
+	return out;
+}
 /**
 * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
 * Anything else (hex, exponents, words) is not a number.
@@ -1862,7 +1872,7 @@ function valueProblem(raw, last, unit, goal) {
 	const n = parseNumber(raw);
 	if (n == null) return {
 		block: true,
-		text: notNumberText(raw)
+		text: notNumberText(raw, goal && goal.kind !== "milestone" ? goal.decimals : void 0)
 	};
 	const precise = goal && goal.kind !== "milestone" ? precisionProblem(raw, n, goal.decimals) : null;
 	if (precise) return {
@@ -1872,6 +1882,10 @@ function valueProblem(raw, last, unit, goal) {
 	if (n < 0 && usuallyPositive(unit)) return {
 		block: true,
 		text: `It can’t be below zero${unit ? " " + unit : ""}.`
+	};
+	if (n < 0 && isCount(goal)) return {
+		block: true,
+		text: `It can’t be below zero${unit ? " " + unit : ""}: this goal counts things.`
 	};
 	if (unit === "%" && n > 100) return isShare(goal) ? {
 		block: true,
@@ -1887,6 +1901,10 @@ function valueProblem(raw, last, unit, goal) {
 			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
 		};
 	}
+	if (goal?.kind === "metric" && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) return {
+		block: false,
+		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`
+	};
 	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
 		block: false,
 		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
@@ -1922,6 +1940,8 @@ function evaluate(goal, cycle, week, draft, all) {
 	if (reason && (!draft.cause || draft.why.trim().length < 10)) codes.push(reason === "ahead" ? "reason-ahead" : "reason-behind");
 	const planned = (draft.ptgState ?? "plan") === "plan";
 	if (needsPath && (draft.ptgWhat.trim().length < 8 || planned && (draft.ptgBy == null || draft.ptgBy <= week || draft.ptgBy > cycle.weeks))) codes.push("path");
+	const unchanged = unchangedStory(draft, !!reason, needsPath);
+	if (unchanged.length && !draft.stillTrue) codes.push("story-unchanged");
 	if (asksTarget && draft.proposeTarget.trim()) {
 		const t = parseNumber(draft.proposeTarget);
 		if (!(goal.kind === "metric" && t != null && (goal.plan.target > goal.plan.start ? t > goal.plan.target : t < goal.plan.target))) codes.push("target");
@@ -1934,6 +1954,7 @@ function evaluate(goal, cycle, week, draft, all) {
 		reason,
 		asksTarget,
 		needsPath,
+		unchanged,
 		codes,
 		missing: codes.map((c) => MISSING_TEXT[c]),
 		canPost: codes.length === 0
@@ -1967,7 +1988,7 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 		dataFlagged: draft.dataFlagged
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT;
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
@@ -1999,8 +2020,15 @@ var init_checkin = __esmMin((() => {
 		"reason-behind": "why it’s behind",
 		"reason-ahead": "why it’s ahead",
 		path: "path to green",
+		"story-unchanged": "whether what you said last time is still true",
 		target: "a proposed target beyond the current one"
 	};
+	VALUE_CODES = [
+		"value",
+		"value-not-number",
+		"value-precision",
+		"value-impossible"
+	];
 }));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
@@ -7115,7 +7143,7 @@ function planChanges(input) {
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const tol = .5 * 10 ** -g.decimals;
 		const startTyped = val(r, "start") ? parseNumber(val(r, "start")) : null;
-		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"))}`);
+		if (val(r, "start") && startTyped == null) return err("Plan", row, g.title, `Start: ${notNumberText(val(r, "start"), g.decimals)}`);
 		const startPrecise = val(r, "start") ? precisionProblem(val(r, "start"), startTyped, g.decimals) : null;
 		if (startPrecise) return err("Plan", row, g.title, `Start: ${startPrecise}`);
 		const typed = /* @__PURE__ */ new Map();
@@ -7123,7 +7151,7 @@ function planChanges(input) {
 			const m = /^week (\d+)$/.exec(k);
 			if (!m || !String(v).trim()) continue;
 			const n = parseNumber(String(v));
-			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v))}`);
+			if (n == null) return err("Plan", row, g.title, `Week ${m[1]}: ${notNumberText(String(v), g.decimals)}`);
 			const precise = precisionProblem(String(v), n, g.decimals);
 			if (precise) return err("Plan", row, g.title, `Week ${m[1]}: ${precise}`);
 			const w = Number(m[1]);
@@ -7376,9 +7404,10 @@ function planChanges(input) {
 				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
 				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
 				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+				"story-unchanged": MISSING_TEXT["story-unchanged"],
 				target: MISSING_TEXT.target
 			};
-			const typedValue = g.kind === "milestone" ? null : e.codes[0] === "value-not-number" ? notNumberText(draft.value) : e.codes[0] === "value-precision" ? precisionProblem(draft.value, parseNumber(draft.value), g.decimals) : null;
+			const typedValue = g.kind !== "milestone" && e.codes[0] && e.codes[0] !== "value" && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
 			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
 			continue;
 		}
@@ -9897,7 +9926,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session.",
+					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
@@ -10173,17 +10202,20 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
+					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
 					`Causes when behind: ${causes(CAUSES_BEHIND)}. When ahead: ${causes(CAUSES_AHEAD)}. Something else lets you say it in your own words.`,
 					"At risk and off track need a path to green: what changes, the week it is back on plan by, and any decision or help needed, from whom. All of it is one short account on one screen.",
-					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. It’s changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"If last week’s reason and path to green still hold, Still true posts them again, with any request still open. Correcting a check-in in the same week asks about this week’s earlier check-in instead. Something changed opens them for editing, in boxes that grow to show all of what you wrote last week.",
+					"Behind needs a story, and Post alone never tells it: if what you opened with Something changed is still word for word what you said last time, the check-in asks you to change what’s different or tick Still true this week. The goal page then shows it as the same reason as last week.",
 					"Milestone goals ask where each stage stands: done, on schedule, or late with a new week.",
 					"What you type is kept as a draft until you post. Back returns to the step before, even in a draft you picked up later, so a wrong number can be corrected first; Discard draft throws it away and starts again.",
 					`The status is your call. Change it if the numbers don’t tell the whole story; a call ${lower(FLAG.greener)} needs a reason.`,
 					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
-					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, like 29.4. Every number Faro shows has its thousands grouped: 1,250."
+					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
+					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned."
 				]
 			},
 			{
@@ -10217,7 +10249,8 @@ var CORE_ARTICLES = [
 			"OTHER-CAUSE",
 			"NO-DOUBLE-POST",
 			"DRAFTS",
-			"FIRST-CHECKIN"
+			"FIRST-CHECKIN",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"update",
@@ -10258,8 +10291,9 @@ var CORE_ARTICLES = [
 				list: [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
-					"Post sends every row with a number. A row that still needs something says so under it, and nothing posts until it’s fixed.",
-					"Numbers you typed are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
+					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
+					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
+					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
 				]
 			},
 			{
@@ -10272,7 +10306,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"BULK-EDIT",
 			"DRAFTS",
-			"NO-DOUBLE-POST"
+			"NO-DOUBLE-POST",
+			"HONEST-CHECKIN"
 		],
 		keywords: [
 			"quick check-in",
@@ -10694,7 +10729,7 @@ var CORE_ARTICLES = [
 					"Add a next step, on any goal still running: what happens next, who does it (find them by name or team) and the week it’s due by. Whoever agreed a next step, or an admin, can change its words, who or when there with Change; the log keeps the before and after.",
 					"Last time we talked: the last review that discussed it and what was agreed; or when it’s next due to be.",
 					"What feeds it: how the goals directly feeding it stand (“Directly feeding it (four goals): 2 off track, 1 at risk”). Cards on Goals count everything under a goal instead, and say so (“Everything under it (16 goals)”), so the two never look contradictory. Then the goal most likely to make it miss, with why, then the rest worst first. Back from one of them names the goal you came from.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list.",
+					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top. A reason given several weeks running is said once, for those weeks; given again later, it says “The same reason as week 42, above” (or below), pointing where that week is in the list. The newest check-in is never folded in: it always shows on its own, with its number and status.",
 					"About this goal: how it’s measured, its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change. It’s open the first time you visit, and folded after."
 				]
 			},
@@ -11994,6 +12029,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "checkin-honest-edges",
+		date: "2026-11-10",
+		title: "A check-in that’s honest at its edges",
+		points: [
+			"The check-in says which week it’s for from the first screen (“Week 46 check-in · 1 of 2”), and keeps your place after a reload.",
+			"Behind needs a story, and Post alone no longer tells it: if last week’s reason and plan, opened with Something changed, are still word for word the same, you change what’s different or tick Still true this week.",
+			"One number check everywhere: the check-in, the one-table check-in and a spreadsheet refuse and question numbers the same way. A count can’t go below zero, a count past its target is questioned, and the example for letters in a number matches the goal’s decimal places.",
+			"On a goal’s page, the check-in you just posted always shows on its own, with its number and status.",
+			"The one-table check-in posts the rows that are ready (and says which aren’t), lands on the same confirmation as the one-by-one check-in, and shares its draft with it.",
+			"Home’s and a review’s rings now say what they count: check-ins, or reviewed."
+		],
+		articles: [
+			"check-in",
+			"check-in-table",
+			"goal-page",
+			"home"
+		]
+	},
 	{
 		id: "talk-path-polish",
 		date: "2026-11-10",

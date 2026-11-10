@@ -27,7 +27,8 @@ module.exports = {
       await input.fill('a12');
       await p.getByRole('button', { name: 'Continue' }).click();
       const letters = await text(p, '#value-msg');
-      if (!/“a12” isn’t a number\. Type digits only, like 29\.4\./.test(letters)) fail(`check-in: letters don’t get the one message (“${letters}”)`);
+      // The example is at the goal's decimal places: no decimal for whole hours (deep review U10).
+      if (!/“a12” isn’t a number\. Type digits only, like 29\./.test(letters)) fail(`check-in: letters don’t get the one message, with a whole-number example (“${letters}”)`);
       await c.close();
     }
 

@@ -1,6 +1,6 @@
 import { currentWeek, forecast, isCount, planAt, projection, projectionFor, shapeProgress, valueSeries } from './plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus, worst } from './status';
-import { emptyDraft, evaluate, MISSING_TEXT, REASON_CODES, toCheckIn, VALUE_CODES, type Draft } from './checkin';
+import { emptyDraft, evaluate, MISSING_TEXT, numberCheck, REASON_CODES, toCheckIn, valueProblem, VALUE_CODES, type Draft } from './checkin';
 import { blankGoal, buildGoal, validateGoal } from './goal';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
 
@@ -322,5 +322,39 @@ describe('what a check-in still needs, as stable codes', () => {
   });
   it('gives a milestone goal no value codes', () => {
     expect(codes({}, milestone).some((c) => VALUE_CODES.includes(c))).toBe(false);
+  });
+});
+
+describe('last check-in’s account, carried in by Something changed (deep review U9)', () => {
+  const g = metric(30, 75);
+  const carried = { cause: 'slower' as const, why: 'Rollout paused for a week', what: 'Restart the rollout', by: 7 };
+  const same: Partial<Draft> = { value: '40', cause: 'slower', why: 'Rollout paused for a week', ptgWhat: 'Restart the rollout', ptgBy: 7, carried };
+  const e = (d: Partial<Draft>) => evaluate(g, cycle, 4, { ...emptyDraft(g, null), ...d }, []);
+  it('is not met by pressing Post: word for word, it asks whether it is still true', () => {
+    expect(e(same).codes).toEqual(['story-unchanged']);
+    expect(e(same).unchanged).toEqual(['reason', 'path']);
+    expect(e(same).canPost).toBe(false);
+  });
+  it('posts once it is said to be still true, or once what changed is written', () => {
+    expect(e({ ...same, stillTrue: true }).canPost).toBe(true);
+    expect(e({ ...same, why: 'The rollout is paused while the fix is reviewed' }).unchanged).toEqual(['path']);
+    expect(e({ ...same, why: 'The rollout is paused while the fix is reviewed', ptgBy: 8 }).canPost).toBe(true);
+  });
+  it('asks nothing of a check-in that copied nothing: the import and the AI tools are judged as before', () => {
+    expect(e({ ...same, carried: null }).canPost).toBe(true);
+    expect(MISSING_TEXT['story-unchanged']).toMatch(/still true/);
+  });
+});
+
+describe('one number check for the form, the table and the import (deep review U10)', () => {
+  const pairs: MetricGoal = { ...metric(4, 40), unit: 'pairs', decimals: 0 };
+  it('refuses a count below zero, and questions one past its target', () => {
+    expect(valueProblem('-5', 10, 'pairs', pairs)).toMatchObject({ block: true });
+    expect(valueProblem('41', 38, 'pairs', pairs)).toMatchObject({ block: false, text: 'That’s past the target of 40 pairs. Is 41 right?' });
+    expect(valueProblem('39', 38, 'pairs', pairs)).toBeNull();
+  });
+  it('compares with the goal’s latest number, wherever it is typed', () => {
+    const last = { ...ci('m', 3, 30), goalId: pairs.id };
+    expect(numberCheck(pairs, '3', [last])?.text).toBe('Last week was 30. Is 3 right?');
   });
 });

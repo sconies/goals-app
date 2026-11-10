@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
-import { checkInDraftKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, parseNumber, REASON_CODES, saidWhen, VALUE_CODES, valueProblem, type Draft, type Evaluation } from '../domain/checkin';
+import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
@@ -26,15 +26,32 @@ export function CheckInFlow() {
   return <Flow key={goalId ?? 'week'} goalId={goalId} />;
 }
 
+/** Where the week's queue is kept for this tab, so a reload keeps "2 of 2" (deep review U8). */
+const queueKey = (ws: string, viewer: string, week: number) => `goals-app-checkin-queue:${ws}:${viewer}:${week}`;
+
+/** What the one-table check-in hands over when it lands here: the goals it posted, and how many rows it kept back. */
+export interface FromTable { posted: string[]; kept: number }
+
 function Flow({ goalId }: { goalId?: string }) {
   const app = useApp();
   const nav = useNavigate();
-  // The queue is fixed when the flow opens, so posting doesn't reshuffle it.
-  const [queue] = useState<string[]>(() => {
-    if (goalId) return [goalId];
-    return weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.map((g) => g.id);
+  const fromTable = (useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
+  // on where it was ("2 of 2"), not from a shorter queue of what's still due.
+  const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
+    if (goalId) return { queue: [goalId], start: 0 };
+    const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.map((g) => g.id);
+    const key = queueKey(app.ws.id, app.viewer.id, app.week);
+    let kept: unknown = null;
+    try { kept = JSON.parse(sessionStorage.getItem(key) ?? 'null'); } catch { /* storage blocked */ }
+    if (due.length && Array.isArray(kept) && due.every((id) => kept.includes(id))) {
+      const q = kept as string[];
+      return { queue: q, start: Math.max(0, q.findIndex((id) => due.includes(id))) };
+    }
+    try { if (due.length) sessionStorage.setItem(key, JSON.stringify(due)); } catch { /* storage blocked */ }
+    return { queue: due, start: 0 };
   });
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(start);
   const [justPosted, setJustPosted] = useState<CheckIn | null>(null);
   const [updated, setUpdated] = useState(false);
   const [noData, setNoData] = useState(false);
@@ -48,6 +65,8 @@ function Flow({ goalId }: { goalId?: string }) {
   if (app.week < 1) {
     return <div className="page narrow"><Empty title="Check-ins start in week 1"><span className="muted">The goals have just started. Your first check-in is due next week.</span></Empty></div>;
   }
+  // The one-table check-in lands on the same confirmation as this flow (deep review U12).
+  if (fromTable) return <AllDone fromTable={fromTable} />;
   if (!queue.length) return <AllDone first />;
   if (index >= queue.length) return <AllDone />;
   if (!goal) return <div className="page narrow"><Empty title="That goal doesn’t exist"><Link className="btn" to="/">Home</Link></Empty></div>;
@@ -70,7 +89,8 @@ function Flow({ goalId }: { goalId?: string }) {
     <div className="focus ci">
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
-        <span className="small strong">Check-in{queue.length > 1 ? ` ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
+        {/* Which week it's for, from the first screen: corrections and late check-ins are where weeks get mixed up (U8). */}
+        <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
           <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
@@ -112,7 +132,7 @@ function NoDataSheet({ goal, onClose, onDone }: { goal: Goal; onClose: () => voi
   );
 }
 
-function AllDone({ first }: { first?: boolean }) {
+function AllDone({ first, fromTable }: { first?: boolean; fromTable?: FromTable }) {
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const w = weekCompletion(p);
@@ -122,9 +142,10 @@ function AllDone({ first }: { first?: boolean }) {
   return (
     <div className="focus ci">
       <div className="celebrate" role="status">
-        <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} />
+        <ProgressRing done={p.done.length} total={Math.max(1, p.goals.length)} size={96} counts="check-ins" label={`${p.done.length} of ${p.goals.length} check-ins done this week`} />
         <h1 className="title-xl">{!p.goals.length || (first && !p.done.length) ? 'Nothing to check in' : w.complete ? `Week ${app.week} is done` : `${w.done} of ${w.total} checked in`}</h1>
         <p className="muted">{!p.goals.length ? `You don’t own any goals this ${periodWord(app.cycle)}.` : first && !p.done.length ? 'None of your goals is due this week.' : weekDoneText(p, app.week)}</p>
+        {fromTable && <TablePosted posted={fromTable.posted} kept={fromTable.kept} />}
         {streak >= 2 && w.complete && <p className="streak big">{streak} weeks in a row on time</p>}
         <div className="row done-actions">
           {p.due.length > 0 && <Link className="btn primary big-btn" to={`/check-in/${p.due[0]!.id}`}>Check in on {p.due[0]!.title}</Link>}
@@ -137,6 +158,27 @@ function AllDone({ first }: { first?: boolean }) {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/** What the one-table check-in just posted, each with its number and status, and the rows it kept back. */
+function TablePosted({ posted, kept }: FromTable) {
+  const app = useApp();
+  const rows = posted.map((id) => {
+    const goal = app.goal(id);
+    const c = goal ? [...app.checkInsOf(goal)].reverse().find((x) => x.week === app.week) : undefined;
+    return goal && c ? { goal, c } : null;
+  }).filter((x): x is { goal: Goal; c: CheckIn } => !!x);
+  return (
+    <div className="stack table-posted" style={{ gap: 'var(--s2)' }}>
+      {rows.length > 0 && <h2 className="small strong">Posted from the table</h2>}
+      {rows.length > 0 && (
+        <ul className="stack" style={{ gap: 'var(--s1)' }}>
+          {rows.map(({ goal, c }) => <li key={goal.id} className="small"><Link className="linkish" to={`/goals/${goal.id}?posted=1`}>{goal.title}</Link>{goal.kind !== 'milestone' && c.value != null ? `: ${fmt(c.value, goal)}` : ''} <span className="nobr"><Chip k={c.status} /></span></li>)}
+        </ul>
+      )}
+      {kept > 0 && <p className="small">{kept === 1 ? '1 row wasn’t ready, so it wasn’t posted.' : `${kept} rows weren’t ready, so they weren’t posted.`} <Link className="linkish" to="/quick-check-in">{kept === 1 ? 'It’s kept in the table' : 'They’re kept in the table'}</Link>.</p>}
     </div>
   );
 }
@@ -200,7 +242,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   // Who a help request goes to, when the owner says they need a decision or help.
   const [helpFrom, setHelpFrom] = useState(() => app.snapshot.people.find((p) => draft.needs.startsWith(p.name + ':'))?.id ?? '');
   // The step is saved with the draft, so "pick up where you left off" returns to it.
-  const stepKey = checkInDraftKey(app.ws.id, goal.id, week) + ':step';
+  const stepKey = checkInStepKey(app.ws.id, goal.id, week);
   const [step, setStepState] = useState<Step>(() => {
     if (!restored) return 'measure';
     try {
@@ -278,13 +320,15 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const targetOk = !e.codes.includes('target');
   const planned = (draft.ptgState ?? 'plan') === 'plan';
   const wayOk = !needsWay || (!e.codes.includes('path') && (draft.ptgState !== 'help' || !!helpFrom));
+  // Last time's words, copied in by "Something changed", are changed or said to be still true: never posted by Post alone.
+  const storyOk = !e.codes.includes('story-unchanged');
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
     } else if (step === 'account') {
-      if (!whyOk || !targetOk || !wayOk) { setTried(true); return; }
+      if (!whyOk || !targetOk || !wayOk || !storyOk) { setTried(true); return; }
       void post();
     }
   };
@@ -295,7 +339,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const stillTrue = () => {
     const last = fromLast();
     const dropped = priorAsk && !keepAsk;
-    const carried: Partial<Draft> = dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last;
+    // "Still true" is the explicit choice, so it counts as saying so for words carried in earlier (deep review U9).
+    const carried: Partial<Draft> = { ...(dropped ? { ...last, needs: '', ptgState: last.ptgState === 'help' ? (last.ptgBy ? 'plan' : 'investigating') : last.ptgState } : last), stillTrue: true };
     const d = { ...draft, ...carried };
     set(carried);
     const check = evaluate(goal, cycle, week, d, app.snapshot.checkIns);
@@ -318,8 +363,9 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   );
   const somethingChanged = () => {
     // Start from last week's words so they can be edited, the open request included: removing it there withdraws it.
+    // What was copied is remembered, so posting it untouched asks whether it's still true (deep review U9).
     const f = fromLast();
-    set(f);
+    set({ ...f, carried: { cause: f.cause ?? null, why: f.why ?? '', what: f.ptgWhat ?? '', by: f.ptgBy ?? null }, stillTrue: false });
     go('account');
   };
 
@@ -362,7 +408,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {
             // A problem with the number goes 8px under the field; last week's number and "Measured again" stay put.
-            const pr = valueProblem(draft.value, previous?.value ?? null, goal.unit, goal);
+            const pr = numberCheck(goal, draft.value, app.snapshot.checkIns);
             const shown = pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null)) ? pr : null;
             const empty = !shown && tried && !valueOk;
             const invalid = !!shown?.block || (tried && !valueOk);
@@ -495,6 +541,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
             </div>
           )}
           <NextStepField draft={draft} set={set} open={showNext} onOpen={() => setShowNext(true)} />
+          {e.unchanged.length > 0 && previous && <StillTrue parts={e.unchanged} when={saidWhen(previous.week, week)} on={!!draft.stillTrue} onChange={(on) => set({ stillTrue: on })} alert={tried && !storyOk} />}
         </section>
       )}
 
@@ -517,6 +564,23 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * The carried words, still untouched: one explicit choice that they're still true this week, or a change to them. Without
+ * one, Post doesn't post (deep review U9). Ticking it is recorded the way a carried reason always is: the goal page says
+ * "The same reason as week 45".
+ */
+function StillTrue({ parts, when, on, onChange, alert }: { parts: ('reason' | 'path')[]; when: string; on: boolean; onChange: (on: boolean) => void; alert: boolean }) {
+  const what = parts.length === 2 ? 'The reason and the plan are' : parts[0] === 'reason' ? 'The reason is' : 'The plan is';
+  return (
+    <div className={'still-true' + (alert ? ' invalid' : '')} role="group" aria-labelledby="still-true-q">
+      <span id="still-true-q" className="small strong">{what} word for word what you said {when}.</span>
+      <span className="hint">Change what’s different above, or say it’s still true.</span>
+      <label className="check"><input type="checkbox" checked={on} onChange={(ev) => onChange(ev.target.checked)} /> Still true this week</label>
+      {alert && <span className="hint tone-off" role="alert">Change what’s different, or tick Still true this week.</span>}
+    </div>
   );
 }
 
