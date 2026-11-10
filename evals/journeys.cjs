@@ -2527,8 +2527,10 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   await p.goto(url('/activity'));
   const box = p.getByRole('searchbox', { name: 'Find a change' });
   await box.waitFor();
+  await h.inView(box, 'entry', 'the search');
   await h.fill(box, 'Rhea'); await box.press('Enter');
   await see(p.locator('.count-line'), / changes? match(es)?\./, 'Activity does not count what the search matches');
+  h.set('attention', await p.locator('.count-line[role="status"]').isVisible(), 'the count line is not read out when it changes');
   h.set('finish', /[?&]q=Rhea/.test(p.url()), `the search is not in the address (${p.url()})`);
   await h.checkpoint('activity search');
   await h.fill(box, 'zzzz'); await box.press('Enter');
@@ -2542,12 +2544,13 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   h.set('errors', !/kind=checkins/.test(p.url()) && !(await line.count()), `Back did not take the filter off (${p.url()})`);
   await p.goForward();
   await h.click(line.getByRole('button', { name: /^Remove the filter Kind/ }));
-  h.set('errors', !(await line.count()) && !/kind=/.test(p.url()), 'Remove did not take the filter off');
+  await line.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', !(await line.count()) && !/kind=/.test(p.url()), `Remove did not take the filter off (${p.url()})`);
   // Help says it the same way.
   await p.goto(url('/help'));
   const hb = p.getByRole('searchbox', { name: 'Find in Help' });
-  await h.fill(hb, 'zzzz'); await hb.press('Enter');
-  await see(p, 'No article matches “zzzz”.', 'Help does not say what found nothing in the list bar’s words');
+  await h.fill(hb, 'xylophone'); await hb.press('Enter');
+  await see(p, 'No article matches “xylophone”.', 'Help does not say what found nothing in the list bar’s words');
   h.set('progress', true);
   await p.context().close();
 }, ['logged', 'one-action']);
@@ -2556,13 +2559,16 @@ journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals'));
   const box = p.getByRole('searchbox', { name: 'Find a goal' });
+  await h.inView(box, 'entry', 'the search');
   await h.fill(box, 'rolback'); await box.press('Enter');
   await see(p, 'No goal matches “rolback”. Showing goals that match “rollback”.', 'a near miss is not offered');
   h.set('finish', await p.locator('.goal-row, .gtable tbody tr, .tree li').filter({ hasText: /rollback/i }).count() > 0, 'the goals matching “rollback” are not shown');
   h.set('errors', (await box.inputValue()) === 'rolback', `the field says “${await box.inputValue()}”`);
   await h.checkpoint('near miss');
   await h.click(p.getByRole('button', { name: 'Clear the search' }));
-  h.set('progress', !/[?&]q=/.test(p.url()) && (await box.inputValue()) === '', 'Clear the search left the search on');
+  await p.waitForURL((u) => !/[?&]q=/.test(u.search), { timeout: 3000 }).catch(() => {});
+  for (let i = 0; i < 20 && (await box.inputValue()) !== ''; i++) await p.waitForTimeout(100);
+  h.set('progress', !/[?&]q=/.test(p.url()) && (await box.inputValue()) === '', `Clear the search left the search on (${p.url()}, “${await box.inputValue()}”)`);
   await p.context().close();
 }, ['logged', 'one-action', 'attention', 'parity']);
 
