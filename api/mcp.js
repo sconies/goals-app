@@ -12049,6 +12049,13 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "workspace-mark-size",
+		date: "2026-11-10",
+		title: "Workspace’s overview mark back to its size",
+		points: ["The small warning mark beside each thing to look at on Workspace’s overview had grown to fill the page; it is a small mark again, and the overview no longer scrolls sideways on a phone."],
+		articles: ["workspace"]
+	},
+	{
 		id: "small-batch-mcp-access",
 		date: "2026-11-10",
 		title: "MCP access, and Workspace for everyone",
