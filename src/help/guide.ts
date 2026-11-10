@@ -137,7 +137,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.',
         'In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.',
-        'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and for the AI assistant.',
+        'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.',
         'Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.',
         'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.',
         'Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.',
@@ -368,7 +368,7 @@ const CORE_ARTICLES: Article[] = [
         'Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.',
         'Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).',
         'On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.',
-        'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and the AI assistant all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
+        'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
       ] },
     ],
     routes: ['/goals?show=attention'],
@@ -487,7 +487,7 @@ const CORE_ARTICLES: Article[] = [
         'Keys are given in the order goals are created, per workspace, and are never reused. A goal carried into the next year keeps its key.',
         'You’ll see the key on the goal’s page, in the Goals table, in Data and in exports.',
         'Open a goal straight from its key: /goals/G-12. Or type the key in Goals’ search: G-12, g12 and 12 all find it.',
-        'Imports and AI assistants accept a key wherever a goal’s ID goes, and look for the key first: a file from last year still finds the goals carried over, which keep their keys but not their IDs. Check-ins, plans and people have IDs that never change, shown first in Data; people are also matched by their email.',
+        'Imports and MCP accept a key wherever a goal’s ID goes, and look for the key first: a file from last year still finds the goals carried over, which keep their keys but not their IDs. Check-ins, plans and people have IDs that never change, shown first in Data; people are also matched by their email.',
       ] },
     ],
     routes: [],
@@ -588,7 +588,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Every save is logged: goals, plans, check-ins, comments, review calls, people and the workspace. Drafts are not.',
-        'Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, reviews, comments, people, imports, AI assistant, wrap-ups) and when.',
+        'Filter by who, a goal or its whole tree, team, level, kind of change (check-ins, plans and targets, goal details, reviews, comments, people, imports, via MCP, wrap-ups) and when.',
         'Search finds names, reasons and numbers. Show the changes opens the before and after.',
         'The filters are in the link, so a filtered log can be shared. Save .csv exports what is shown.',
         'Every removal is here too: a goal stopped, a person marked as left, a check-in or comment deleted, a view deleted, a watch stopped, and each restore.',
@@ -675,7 +675,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Mistakes and changes of plan. A person leaves, a goal stops mattering mid-year, a check-in went to the wrong goal, a spreadsheet loaded the wrong numbers. Each can be put right without losing history.'] },
       { heading: 'What each removal does', list: [
-        'A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their AI assistant token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.',
+        'A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.',
         'A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.',
         'A check-in: Delete this check-in, under the latest one on the goal’s page, by whoever posted it or an admin. Once a newer one is posted it can only be corrected. The status goes back to the one before.',
         'A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.',
@@ -686,14 +686,14 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Undo, and Recently removed', list: [
         'Every removal shows a message with Undo for 10 seconds. Undo puts everything back as it was a moment before, including what was handed over or moved.',
-        'After that, admins can bring anything back from Recently removed on Workspace: it lists what was removed, stopped, ended or marked as left in the last 30 days, with who did it and when, and Restore. Whoever removed something can restore it too.',
+        'After that, Recently removed on Workspace brings things back: it lists what was removed, stopped, ended or marked as left in the last 30 days, with who did it and when, and Restore. An admin sees everything; anyone else sees what they removed themselves, and can restore it.',
         'Nothing is ever erased. After 30 days a removed record leaves the list, but it’s still kept, and every removal and restore is in Activity.',
       ] },
       { heading: 'Who can', list: [
-        'Admins mark people as left, delete people with no history, delete cycles and restore from Recently removed.',
+        'Admins mark people as left, delete people with no history, delete cycles and restore anything from Recently removed; anyone restores what they removed.',
         'A goal’s owner or an admin stops or deletes it. Whoever posted a check-in, or an admin, deletes it. Whoever set up a review, or an admin, ends it.',
         'Only a comment’s author edits it; its author or an admin removes it. Whoever made an import, or an admin, undoes it.',
-        'An AI assistant can do each of these with the same rules, as the person it acts for.',
+        'Through MCP, an AI tool can do each of these with the same rules, as the person whose MCP token it uses.',
       ] },
     ],
     routes: ['/workspace/removed'],
@@ -705,7 +705,7 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace',
     title: 'Running the workspace',
-    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins.',
+    summary: 'Workspace is in sections, each with its own page: Overview, People, Teams, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins.',
     group: 'you',
     sections: [
       { heading: 'Switching, and setting one up', list: [
@@ -726,16 +726,16 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Overview', list: [
         'The workspace’s name (admins can rename it; a name has at most 80 characters, and the field counts them as you near the limit), the other workspaces you can switch to, and New workspace (or, in the demo, Try setting up your own, and for admins Reset the example, which only touches this browser).',
         'First, what needs attention here, each line leading to where it’s dealt with: the year ending (the wrap-up open, or opening within four weeks), no goals yet, new markups and feedback sent from this workspace, and for admins too few people, people with no email or no team, teams with no lead, and no review set up. When nothing does, it says so.',
-        'Then every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and tokens, how many optional features are on, whether recording is on and what was removed lately.',
+        'Then every section you can open, each with one line about it: how many people (and, for admins, how many have no email yet), how many teams, what’s new in the inbox, the open cycle, the admins and MCP tokens, how many optional features are on, whether recording is on and what was removed lately.',
         'Delete the workspace is at the very end, for admins, after typing its name. It can’t be undone; an example can only be reset.',
       ] },
       { heading: 'The sections', list: [
         'People: the directory. See Workspace: People.',
         'Teams: find a team, with its lead and counts. See Workspace: Teams.',
-        'Privacy: what the app records, for everyone to read; only admins switch it. Cycles, Access, Features and Recently removed: for admins. Each has its own article.',
+        'Cycles: the goal years, for everyone to read; only admins delete one. Privacy: what the app records, for everyone to read; only admins switch it. Recently removed: an admin sees everything removed lately, anyone else what they removed. Access (the admins and MCP access) and Features: for admins. Each has its own article.',
       ] },
       { heading: 'Leaving', list: ['Anyone can leave a workspace: Leave this workspace, at the end of the overview. It asks who takes over your goals and open asks first, then you’re gone from its pickers, counts, reviews and Home; your history stays, under “Name (left)”, and an admin can bring you back from Recently removed for 30 days.', 'The only admin can’t leave until someone else is an admin.'] },
-      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams and Privacy. Someone who isn’t an admin and opens an admins’ section is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
+      { heading: 'Who can', list: ['Everyone sees Overview, People, Teams, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.', 'Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.', 'Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox.'] },
       { heading: 'For the people building Faro', list: ['Sections are an extension point: a feature module adds its own with `sections` in its app.tsx and module.json, and it appears in the menu, at /workspace/<id>, for as long as the module is on.'] },
     ],
     routes: ['/workspace', '/workspace/overview'],
@@ -787,16 +787,16 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace-cycles',
     title: 'Workspace: Cycles',
-    summary: 'For admins: the workspace’s goal years, newest first, with their dates, which one is running, the wrap-up, and deleting one nobody has checked in to yet.',
+    summary: 'The workspace’s goal years, newest first, with their dates, which one is running and the wrap-up; admins can delete one nobody has checked in to yet.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
         'Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.',
         'The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.',
-        'A cycle nobody has checked in to can be deleted, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays.',
+        'An admin can delete a cycle nobody has checked in to, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays. Anyone else reads the list, without Delete, and is told who the admins are.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
       ] },
-      { heading: 'Who can', text: ['Admins.'] },
+      { heading: 'Who can', text: ['Everyone reads Cycles and opens the wrap-up. Only admins delete a cycle or start the next one.'] },
     ],
     routes: ['/workspace/cycles'],
     screens: [],
@@ -807,15 +807,15 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'workspace-access',
     title: 'Workspace: Access',
-    summary: 'For admins: who the admins are, and the tokens AI assistants use to act as someone in this workspace.',
+    summary: 'For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
         'Admins lists everyone who is one. Make someone an admin, or stop them being one, from their entry in People. There is always at least one.',
-        'In the demo, tokens don’t work: its data stays in your browser, where an assistant can’t reach it. Access says so, and the overview’s line for Access counts only the admins.',
-        'AI assistants: Make a token for someone (it’s shown once), and revoke any token. The assistant then acts as that person, with their rights, and every change says it came through the assistant. See AI assistants.',
+        'In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so, and the overview’s line for Access counts only the admins.',
+        'MCP access: Make an MCP token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.',
       ] },
-      { heading: 'Who can', text: ['Admins. Everyone finds their own tokens in Settings.'] },
+      { heading: 'Who can', text: ['Admins. Everyone finds their own MCP tokens in Settings.'] },
     ],
     routes: ['/workspace/access'],
     screens: [],
@@ -826,7 +826,7 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'settings',
     title: 'Settings',
-    summary: 'Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records.',
+    summary: 'Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your MCP tokens. It also says what the app records.',
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
@@ -836,7 +836,7 @@ const CORE_ARTICLES: Article[] = [
         'Sidebar: full, or icons only. The toggle at the foot of the sidebar does the same; every icon is named on hover.',
         'You: your name, job title and team. An admin changes these.',
         'What the app records: what is and isn’t recorded about how you use the app, for how long, who can see it, and whether it’s on in this workspace.',
-        'Your AI assistants: the tokens that act as you, which you can revoke.',
+        'Your MCP access: the MCP tokens that act as you, which you can revoke.',
         'Detail pages have a Back link to where you came from.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
@@ -856,9 +856,9 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; the overview counts how many are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
-        'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its tools for AI assistants. Anything that needs it goes off with it, and Features says so.',
+        'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
-        'Each switch is logged in Activity, with who did it.',
+        'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
         'Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the blank template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
       ] },
       { heading: 'Who can', text: ['Admins switch features. Everyone sees what is on.'] },
@@ -902,7 +902,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Turning it off', list: [
         'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.',
-        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first. While it is off, nothing is recorded or sent from that workspace, by the app or by an AI assistant.',
+        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP.',
       ] },
     ],
     routes: ['/workspace/privacy'],
@@ -913,28 +913,28 @@ const CORE_ARTICLES: Article[] = [
   },
   {
     id: 'ai-assistants',
-    title: 'AI assistants (MCP)',
-    summary: 'Connect an AI assistant such as Claude with a personal token, so it can read and do everything you can in the app, as you.',
+    title: 'MCP access',
+    summary: 'Connect Claude or another AI tool to Faro through MCP with a personal MCP token, so it can read and do everything you can in the app, as you. Faro has no AI of its own: this is the door other AI tools use.',
     group: 'you',
     sections: [
       { heading: 'What it can do', list: [
         'Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.',
         'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.',
-        'It meets the same rules as you, with exactly your rights, and every change is logged as you, via the AI assistant.',
+        'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
       ] },
       { heading: 'How to connect', list: [
-        'An admin makes a personal token for you under Workspace, AI assistants. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',
-        'Add the server to your assistant with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header "Authorization: Bearer gk_…".',
-        'See and revoke your tokens in Settings. The full list of tools is in docs/mcp.md.',
+        'An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',
+        'Add the server to your AI tool with the address and token shown. For Claude Code: claude mcp add --transport http goals https://<app>/api/mcp --header "Authorization: Bearer gk_…".',
+        'See and revoke your MCP tokens in Settings. The full list of tools is in docs/mcp.md.',
       ] },
-      { heading: 'Who can', text: ['Only admins make tokens. An admin or the token’s own person can revoke one. Any token also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up).'] },
+      { heading: 'Who can', text: ['Only admins make MCP tokens. An admin or the token’s own person can revoke one. Any MCP token, a builder token made before included, also reads and triages the inbox’s markups and feedback, pictures included (Connect Claude, at the top of the inbox, has the set-up).'] },
     ],
     routes: [],
     screens: [],
     reqs: ['MCP-TOKENS', 'MCP-PARITY', 'TOKENS-SERVER-ONLY'],
-    keywords: ['ai', 'claude', 'mcp', 'assistant', 'token', 'api', 'automation', 'agent', 'metric', 'metric library', 'measured by'],
+    keywords: ['ai', 'claude', 'mcp', 'mcp access', 'mcp token', 'ai assistant', 'assistant', 'token', 'api', 'automation', 'agent', 'metric', 'metric library', 'measured by'],
     related: ['workspace', 'settings', 'export'],
   },
   {
@@ -1052,7 +1052,7 @@ const CORE_ARTICLES: Article[] = [
         'Open Help at the foot of the sidebar, in More on a phone, or the Help link at the bottom of any page, which opens the article for that page.',
         'Search finds articles by what they cover. Each article ends with related ones.',
         'What’s new lists each release with a few plain lines and links to the articles that explain it. A small dot beside Help means there is something you haven’t seen; opening What’s new clears it.',
-        'Your AI assistant can read this guide and What’s new too.',
+        'An AI tool connected through MCP can read this guide and What’s new too.',
       ] },
     ],
     routes: ['/help', '/help/:id', '/whats-new'],

@@ -1,7 +1,7 @@
 /* The rest of what a person can do, for their AI assistant: requests, asks for an update, reviews, watching, people,
    wrap-ups and the next cycle, saved views, tokens and feedback, plus what needs them and the activity log. Each write
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
-   change it makes is logged as that person, via the AI assistant. Check-ins, goals and plans are in tools.ts. */
+   change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
 import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
@@ -28,6 +28,7 @@ import { canUndoImport, importUndone } from '../domain/removal';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { MODULES, modulesOn } from '../core/registry';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
+import { VIA_MCP } from '../domain/changeset';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
@@ -36,7 +37,7 @@ const ids = (description: string) => ({ type: 'array', items: { type: 'string' }
 const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
-const VIA = { field: 'Via', from: '—', to: 'AI assistant (MCP)' };
+const VIA = VIA_MCP;
 
 const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
 
@@ -610,8 +611,8 @@ export const WORK_TOOLS: ToolDef[] = [
   /* ---------- Tokens and feedback ---------- */
   {
     name: 'create_token',
-    title: 'Make an AI assistant token',
-    description: 'Admins: make a personal token for an AI assistant to act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.',
+    title: 'Make an MCP token',
+    description: 'Admins: make a personal MCP token, so an AI tool can act as someone (with exactly their rights). The token is returned once; only its hash is kept. Give it to that person privately.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['person', 'name'], properties: { person: str('Who it acts as (name or ID).'), name: str('What it’s for, e.g. "Claude on Maya’s laptop".') } },
     annotations: WRITE,
     async run(a, ctx) {

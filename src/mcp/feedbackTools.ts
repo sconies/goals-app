@@ -77,7 +77,7 @@ export const FEEDBACK_TOOLS: ToolDef[] = [
     async run(a, ctx): Promise<ToolResult> {
       const ops = triage(ctx);
       const id = String(a.id ?? '');
-      const t = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via AI assistant (MCP)` });
+      const t = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP` });
       return { data: { feedback: { id, ...t } }, text: `${id} is ${outcome(t)}`.replace(/([^.])$/, '$1.') };
     },
   },

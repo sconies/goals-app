@@ -3,7 +3,7 @@
 
 # The change engine
 
-The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and the AI assistant.
+The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.
 
 ## The rule
 

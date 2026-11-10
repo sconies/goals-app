@@ -32,7 +32,11 @@ import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
 export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup';
-export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'AI assistant (MCP)', table: 'Data tables', setup: 'Set-up' };
+export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up' };
+/** What changes through MCP were marked before backlog 10a (9 Nov): still read as MCP, never written. */
+export const VIA_MCP_BEFORE = 'AI assistant (MCP)';
+/** The Via mark every change through MCP carries ("via MCP"), on top of its own diffs. */
+export const VIA_MCP = { field: 'Via', from: '—', to: VIA_LABEL.mcp } as const;
 
 export type Sheet = 'Goals' | 'Plan' | 'Check-ins' | 'People';
 /** A problem to fix (error), something to check (warning), or how a row was read (note: an owner matched by name). */
@@ -828,7 +832,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const requestsBefore = asksOf(s);
     const summary: Change = {
       id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes from an AI assistant' : via === 'table' ? 'Edited the data tables' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),

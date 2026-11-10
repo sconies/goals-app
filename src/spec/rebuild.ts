@@ -341,7 +341,7 @@ export const CONTRACT_MAP: [string, string][] = [
   ['keeps a new workspace whole, and lists it', 'The `createWorkspace` command, then the query port: `workspaces()` lists it to its members and to nobody else (R1, rule 3); paging through `goals()` 50 at a time gives every goal once and none twice; `people()` and `teams()` likewise.'],
   ['saves a change-log entry and gives it back', 'The `addNote` command, sent with no actor, time or id; `activity()` gives the entry back with the signed-in person as its actor and the server’s time. A caller that sends its own actor, time or change-log entry is refused.'],
   ['saves a goal one version on, and refuses a save based on the version before it as stale', 'The same, through any command that changes a goal, with the versions the person saw (`Expectations`). Extended to every record two people can edit at once: people, teams, asks, decisions and views, which `Store` saves last-write-wins today.'],
-  ['issues an AI assistant token once, never keeps its secret, and revokes it', 'The `createToken` command returns the secret once and is refused for someone who isn’t an admin; no query ever returns the secret or its hash; `revokeToken` stops the token at once (R1, rule 5).'],
+  ['issues an MCP token once, never keeps its secret, and revokes it', 'The `createToken` command returns the secret once and is refused for someone who isn’t an admin; no query ever returns the secret or its hash; `revokeToken` stops the token at once (R1, rule 5).'],
   ['deletes a workspace and everything in it', 'The `deleteWorkspace` command, admins only (`canDeleteWorkspace`); afterwards no query returns anything of it.'],
   ['resets the example only when it has one', 'Not carried across: the example, `hasExample` and `resetExample` are the demo’s plumbing. They stay with the demo’s own store.'],
 ];
@@ -407,7 +407,7 @@ const portsAtScale = () => GENERATED + [
   '',
   'On the server, for each command:',
   '',
-  '1. **Who:** the signed-in person, or the person an AI token belongs to (marked via MCP). Never a value from the caller.',
+  '1. **Who:** the signed-in person, or the person an MCP token belongs to (marked via MCP). Never a value from the caller.',
   '2. **What it reads:** only the records the action needs (the goal, its check-ins, its asks, the people named), not the workspace.',
   '3. **The context:** `now` from the server’s `Clock`, as a real instant ([R3](../requirements/internal/r3-time-zones.md)); ids made by the server.',
   '4. **The rule:** the same function from `src/domain`, unchanged. A refusal goes back with its words, the same words the app shows.',

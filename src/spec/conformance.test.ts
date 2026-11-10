@@ -21,3 +21,11 @@ describe('the conformance data', () => {
     });
   }
 });
+
+describe('pinned rows', () => {
+  const rows = fs.readFileSync(path.join(dir, 'scorecard.csv'), 'utf8').split('\n');
+  it('a unit of ms keeps its s after 1: G-58 in week 10 is “1 ms worse”, not “1 m worse” (backlog 0u)', () => {
+    expect(rows).toContain('10,G-58,since,1 ms worse,bad,,Vs last week,was 101 ms in week 9');
+    expect(rows.some((r) => / 1 m (worse|better|ahead|behind|to go|over)/.test(r))).toBe(false);
+  });
+});

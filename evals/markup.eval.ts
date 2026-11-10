@@ -182,7 +182,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await as<{ id: string }>('anon', `select id from okr_feedback_for_token($1, fid => 'fb_m1')`, [hash])).rows.map((r) => r.id)).toEqual(['fb_m1']);
     expect((await as('anon', `select id from okr_feedback_for_token($1, ws => 'elsewhere')`, [hash])).rows).toEqual([]);
     const triage = (patch: object) => as<{ status: string }>('anon', 'select * from okr_feedback_triage_for_token($1, $2, $3)', [hash, 'fb_m1', JSON.stringify(patch)]);
-    expect((await triage({ status: 'in-hand', status_by: 'Mateo via AI assistant (MCP)' })).rows[0]!.status).toBe('in-hand');
+    expect((await triage({ status: 'in-hand', status_by: 'Mateo via MCP' })).rows[0]!.status).toBe('in-hand');
     await expect(triage({ status: 'fixed' })).rejects.toThrow();
     await expect(triage({ status: 'wont-fix' })).rejects.toThrow();
     // The inbox's own triage still works, through the same change.
@@ -216,7 +216,7 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     expect((await call('get_feedback', { id: 'fb_m1' })).content[0]!.text).toContain('From Mateo in Acme');
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: WHATS_NEW[0]!.id })).content[0]!.text).toBe(`fb_m1 is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
-    expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via AI assistant/) });
+    expect((await db.query<{ status: string; fixed_in: string; status_by: string }>(`select status, fixed_in, status_by from okr_feedback where id = 'fb_m1'`)).rows[0]).toMatchObject({ status: 'fixed', fixed_in: WHATS_NEW[0]!.id, status_by: expect.stringMatching(/via MCP/) });
   });
 
   it(R('a sender sees “You raised this” on the entry that fixed their feedback: the database gives a person their own feedback’s statuses only, and What’s new matches by person and id'), async () => {

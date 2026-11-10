@@ -510,6 +510,9 @@ export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS):
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
+/** Who may bring something back, and so who sees it on Recently removed: an admin sees everything, anyone else what they removed (8 Nov). */
+export const canRestore = (actor: { id: string; admin?: boolean }, item: Pick<Removed, 'by'>): boolean => !!actor.admin || item.by === actor.id;
+
 /**
  * Bring back something removed: an admin, or whoever removed it. It comes back as it was; whatever was handed over or
  * moved when it went stays where it is now (Undo, straight after removing, puts that back too). A goal whose parent has
@@ -519,7 +522,7 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string):
   const full = fullOf(x);
   const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY).find((r) => r.kind === kind && r.id === id);
   if (!item) no('There’s nothing removed with that ID.');
-  if (!x.actor.admin && item!.by !== x.actor.id) no('Only an admin, or whoever removed it, can restore it.');
+  if (!canRestore(x.actor, item!)) no('Only an admin, or whoever removed it, can restore it.');
   const restored = (entity: Change['entity'], summary: string, goalId: string | null = null, diffs: Change['diffs'] = []) => log(x, { entity, entityId: id, goalId, action: 'restored', summary, diffs });
   const liveParent = (g: Goal) => (g.parentId && full.goals.some((v) => v.id === g.parentId && !v.removedAt && !v.stoppedAt) ? g.parentId : null);
   switch (kind) {

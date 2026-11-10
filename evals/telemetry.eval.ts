@@ -269,7 +269,7 @@ describe('The recording switch', () => {
     const r = await as.call('set_recording', { on: false });
     expect(r).toMatchObject({ error: false, data: { recording: false } });
     expect(as.recording()).toBe(false);
-    expect(as.data().changes.at(-1)).toMatchObject({ summary: 'Turned recording off', diffs: [{ field: 'Recording', from: 'On', to: 'Off' }, { field: 'Via', to: 'AI assistant (MCP)' }] });
+    expect(as.data().changes.at(-1)).toMatchObject({ summary: 'Turned recording off', diffs: [{ field: 'Recording', from: 'On', to: 'Off' }, { field: 'Via', to: 'MCP' }] });
     await as.call('get_goal', { goal_id: 'ns-lead' });
     expect(as.stored.length).toBe(before);
     expect((await as.call('set_recording', { on: false })).text).toMatch(/already off/);

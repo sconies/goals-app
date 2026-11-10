@@ -127,7 +127,7 @@ describe('Admins look after the workspace: its name and its teams', () => {
     expect(s.people.find((p) => p.id === 'farah')!.teamId).toBe(id);
     const last = s.changes.filter((c) => c.entity === 'workspace').at(-1)!;
     expect(last.actorId).toBe('amara');
-    expect(last.diffs.some((d) => d.field === 'Via' && d.to === 'AI assistant (MCP)')).toBe(true);
+    expect(last.diffs.some((d) => d.field === 'Via' && d.to === 'MCP')).toBe(true);
     const teams = (await amara.call('list_people')).data!.teams as { name: string; people: number }[];
     expect(teams.find((t) => t.name === 'Insights Platform')!.people).toBeGreaterThan(0);
   });

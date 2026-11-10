@@ -15,10 +15,10 @@ The rules about who may do what already exist, once, in the shared actions the a
 ## The rule
 
 1. **Everyone signs in** (through the company’s sign-in, [R2](r2-single-sign-on.md)). There is no “Who are you?” and no “View as someone else”: the signed-in person is the actor for every action, and nobody chooses who they act as.
-2. **Workspace membership is a person record.** A person belongs to a workspace when the workspace has a person record with their sign-in email (`Person.email`, lower case, one per workspace). Admins add people (Workspace or the People sheet); whoever creates a workspace is its first admin. Signing in with an email that matches no one: no workspace, and a message saying to ask an admin. Matching one: that workspace opens. Several: the person chooses. Marked as left (`leftAt`) or removed: no access to that workspace, and their AI tokens stop working.
-3. **Reading is open inside a workspace.** Every member reads every goal, check-in, plan, ask, review, comment, person, team and the Activity log of their workspace, as in Faro today: nothing in Faro hides a goal from a member. The exceptions, as Faro has them: the list of AI tokens (an admin sees all, anyone else their own), Recently removed (an admin sees all, anyone else what they removed), the workspace’s feedback (admins), and the builder inbox (builders, rule 6; Faro opens its own on purpose). Someone who isn’t a member reads nothing of a workspace, not even that it exists.
+2. **Workspace membership is a person record.** A person belongs to a workspace when the workspace has a person record with their sign-in email (`Person.email`, lower case, one per workspace). Admins add people (Workspace or the People sheet); whoever creates a workspace is its first admin. Signing in with an email that matches no one: no workspace, and a message saying to ask an admin. Matching one: that workspace opens. Several: the person chooses. Marked as left (`leftAt`) or removed: no access to that workspace, and their MCP tokens stop working.
+3. **Reading is open inside a workspace.** Every member reads every goal, check-in, plan, ask, review, comment, person, team and the Activity log of their workspace, as in Faro today: nothing in Faro hides a goal from a member. The exceptions, as Faro has them: the list of MCP tokens (an admin sees all, anyone else their own), Recently removed (an admin sees all, anyone else what they removed), the workspace’s feedback (admins), and the builder inbox (builders, rule 6; Faro opens its own on purpose). Someone who isn’t a member reads nothing of a workspace, not even that it exists.
 4. **Changing follows the access table below**, which is what Faro’s shared actions enforce today. The server enforces it: a write the rules refuse is refused by the server (the database or the API), whatever sends it, with the same words the app shows. The browser’s own checks are only there to explain early. No key a browser holds can write.
-5. **AI tokens are made on the server.** An admin makes one for a person; the secret is made by the server, shown once, and only its SHA-256 hash is kept. A token belongs to one person in one workspace and acts with exactly that person’s rights (the same access table); every change it makes is logged as that person, marked via MCP. The token’s person or an admin revokes it; it stops working when its person leaves. A token can’t create, switch or reset a workspace or choose who it acts as.
+5. **MCP tokens are made on the server.** An admin makes one for a person; the secret is made by the server, shown once, and only its SHA-256 hash is kept. A token belongs to one person in one workspace and acts with exactly that person’s rights (the same access table); every change it makes is logged as that person, marked via MCP. The token’s person or an admin revokes it; it stops working when its person leaves. A token can’t create, switch or reset a workspace or choose who it acts as.
 6. **Builder tokens and the builder inbox.** Builders are the people who look after the app itself (in the internal app, a group in the company directory). Only builders read the builder inbox: the markups and feedback people send about the app, from every workspace. A builder makes a builder token for themselves; it reaches the inbox as well as their workspace, and stops counting as one the moment they leave the builders. Someone who sent a markup or feedback sees its status (New, In hand, Fixed, Won’t fix), not other people’s. **Faro differs on purpose:** it never holds real data, so its inbox is open to anyone (Lane, 8 Nov, backlog O); the internal app must not copy that.
 7. **Who may read a sent markup** (a markup about a goal sent to someone, backlog 3a). Its sender, the people it was sent to, and, when it was sent into a review, the people in that review. An admin of the workspace may remove one. Nobody else, watchers included. A markup is a picture of the sender’s screen, so it is only sent to people who can read everything on it: in the internal app, members of the same workspace. Its picture is kept private and read through a short-lived address the server makes for someone allowed to read it ([R4](r4-scale-and-safety.md), the master key).
 
@@ -81,9 +81,9 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Add, rename, lead or remove a team | Admins | [`saveTeam`](../../../src/domain/actions.ts), [`removeTeam`](../../../src/domain/actions.ts) |
 | Start the next cycle; delete a cycle no one has checked in to | Admins | [`startNextCycle`](../../../src/domain/actions.ts), [`deleteCycle`](../../../src/domain/removal.ts) |
 | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`renameWorkspace`](../../../src/domain/actions.ts), [`setRecording`](../../../src/domain/actions.ts), [`setModule`](../../../src/domain/actions.ts), [`canDeleteWorkspace`](../../../src/domain/actions.ts) |
-| Restore something removed, stopped or marked as left (within 30 days) | An admin, or whoever removed it | [`restoreRemoved`](../../../src/domain/removal.ts) |
-| Make an AI token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
-| Revoke an AI token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
+| Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restoreRemoved`](../../../src/domain/removal.ts), [`canRestore`](../../../src/domain/removal.ts) |
+| Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
+| Revoke an MCP token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
 | Send feedback about the app | Anyone | [`sendFeedback`](../../../src/domain/actions.ts) |
 
 ## What Faro does today
@@ -101,7 +101,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 
 | Given | Then | Kind |
 |---|---|---|
-| Maya, not an admin, makes an AI token for herself. | refused: “Only admins can make tokens.” | **Faro today** |
+| Maya, not an admin, makes an MCP token for herself. | refused: “Only admins can make tokens.” | **Faro today** |
 | Maya, not an admin, changes Oskar’s job title. | refused: “Only admins can add people or change them.” | **Faro today** |
 | Oskar, not an admin, renames the workspace. | refused: “Only admins can rename the workspace.” | **Faro today** |
 | Oskar, not an admin, deletes the workspace, giving its name exactly. | refused: “Only admins can delete the workspace.” | **Faro today** |
@@ -132,5 +132,5 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 
 - Reading stays open to every member of a workspace, as in Faro; private goals would be a new product rule, not in Faro.
 - A sent markup is read by its sender, recipients and (in a review) the review’s people; not by watchers. Admins can remove one. This answers 3a’s open question on watchers for the internal app.
-- Only admins make AI tokens, as Faro’s code says today; anyone revokes their own.
+- Only admins make MCP tokens, as Faro’s code says today; anyone revokes their own.
 - Faro opens its inbox to anyone (Lane, 8 Nov): it holds no real data, and Lane needs to read markups on any device. The internal app keeps the inbox to builders (rule 6).

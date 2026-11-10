@@ -79,12 +79,13 @@ export interface Scorecard {
 }
 
 const round = (v: number, d: number) => Number(v.toFixed(d));
-/** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". */
+/** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". A unit of two letters is
+ *  left alone: "1 ms", never "1 m" (backlog 0u). */
 export function amount(v: number, g: Numeric): string {
   const n = fixed(Math.abs(v), g.decimals);
   if (g.unit === '%') return n + (Number(n) === 1 ? ' pt' : ' pts');
   if (!g.unit) return n;
-  return `${n} ${Number(n) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
+  return `${n} ${Number(n) === 1 && /^[a-z][a-z-]*[^s]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
 }
 /** The same, as short as the chart needs: "9", "0.4", "3 pts". */
 const bare = (v: number, g: Numeric) => (g.unit === '%' ? amount(v, g) : fixed(Math.abs(v), g.decimals));

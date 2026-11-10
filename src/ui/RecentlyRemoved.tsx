@@ -1,8 +1,9 @@
-/* Workspace's Recently removed, for admins: what was removed in the last 30 days, each with Restore. The rules are
+/* Workspace's Recently removed: what was removed in the last 30 days, each with Restore; for an admin everything, for anyone
+   else what they removed themselves. The rules are
    domain/removal's. (The cycles are Workspace's Cycles section.) */
 import { useState } from 'react';
 import { useApp } from '../app/state';
-import { REMOVED_LABEL, type Removed } from '../domain/removal';
+import { canRestore, REMOVED_LABEL, type Removed } from '../domain/removal';
 import { RESTORE_DAYS } from '../domain/vocabulary';
 import { whenText } from './ChangeItem';
 
@@ -12,7 +13,8 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
   const app = useApp();
   const [busy, setBusy] = useState<string | null>(null);
   const [limit, setLimit] = useState(8);
-  const list = app.recentlyRemoved();
+  // An admin sees everything removed; anyone else what they removed themselves, which they can restore (8 Nov).
+  const list = app.recentlyRemoved().filter((r) => canRestore(app.viewer, r));
   const who = (id: string | null) => app.person(id ?? '')?.name ?? app.full.people.find((p) => p.id === id)?.name ?? 'Someone';
   const restore = async (r: Removed) => {
     if (busy) return;
@@ -23,8 +25,8 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
   return (
     <section className="block removed-block" aria-labelledby={bare ? undefined : 'ws-removed'} aria-label={bare ? 'Recently removed' : undefined}>
       {!bare && <h2 className="block-title" id="ws-removed">Recently removed{list.length > 0 && <span className="hint count-after">· {list.length}</span>}</h2>}
-      <p className="hint">Anything removed, stopped, ended or marked as left in the last {RESTORE_DAYS} days. Restore brings it back as it was. After {RESTORE_DAYS} days it leaves this list, but it’s never erased.</p>
-      {!list.length ? <p className="hint">Nothing has been removed recently.</p> : (
+      <p className="hint">{app.viewer.admin ? 'Anything' : 'What you’ve'} removed, stopped, ended or marked as left in the last {RESTORE_DAYS} days. Restore brings it back as it was. After {RESTORE_DAYS} days it leaves this list, but it’s never erased.{app.viewer.admin ? '' : ' Admins see what everyone has removed.'}</p>
+      {!list.length ? <p className="hint">{app.viewer.admin ? 'Nothing has been removed recently.' : 'You haven’t removed anything recently.'}</p> : (
         <ul className="removed-list" aria-label="Recently removed">
           {list.slice(0, limit).map((r) => (
             <li key={r.kind + r.id} className="removed-row">

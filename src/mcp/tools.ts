@@ -4,7 +4,7 @@
 import { addNote, NotAllowed } from '../domain/actions';
 import { applyQuery, parseQuery } from '../domain/query';
 import type { Commit } from '../data/store';
-import { describe, planChanges, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, planChanges, VIA_MCP, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { summariseAll } from '../domain/summary';
@@ -306,7 +306,7 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const c = addNote({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId }, g, String(a.text ?? ''));
-      await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, { field: 'Via', from: '—', to: 'AI assistant (MCP)' }] })) });
+      await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
       return { text: `Comment added to ${g.title} as ${ctx.actor.name}.` };
     },
   },

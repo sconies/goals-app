@@ -16,7 +16,7 @@ export const RULE_PAGES: [string, string, string][] = [
   ['numbers-and-names', 'Numbers and names', 'a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart'],
   ['flags', 'Flags, the trend and needs attention', 'why a goal is flagged, and whether it needs attention'],
   ['scorecard', 'The scorecard', 'vs plan, since last week, to target, and how likely it is to hit'],
-  ['change-engine', 'The change engine', 'spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules'],
+  ['change-engine', 'The change engine', 'spreadsheets, bulk edits and changes through MCP, checked by the same rules'],
 ];
 
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
@@ -46,7 +46,7 @@ export function systemOverview(): string {
     `- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
     `- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(', ')}. Always shown as a shape and a word.`,
     '- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.',
-    '- One change engine takes many changes at once (spreadsheets, bulk edits, the AI assistant) and checks every row with the same rules as the app’s forms.',
+    '- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.',
     '',
     '## The spec',
     '',
@@ -82,7 +82,7 @@ export function systemOverview(): string {
     '',
     '- `src/domain`: the rules, pure functions with no database, screen or network code',
     '- `src/core`: the extension points modules register into; `src/modules/<id>`: one folder per module, with its `module.json`',
-    '- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the AI assistant’s tools',
+    '- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the MCP tools other AI tools use (MCP access)',
     '- `docs/architecture.md`: how the core and modules fit; `CLAUDE.md`: the rules for working here',
     '',
   ].join('\n');

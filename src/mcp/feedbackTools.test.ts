@@ -67,7 +67,7 @@ describe('the MCP server’s feedback tools', () => {
     expect(fixed.isError).toBe(false);
     expect(fixed.content[0]!.text).toBe(`fb_a is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
     expect(b.list.find((f) => f.id === 'fb_a')).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, statusAt: today.toISOString() });
-    expect(b.list.find((f) => f.id === 'fb_a')!.statusBy).toBe('Oskar Lindgren via AI assistant (MCP)');
+    expect(b.list.find((f) => f.id === 'fb_a')!.statusBy).toBe('Oskar Lindgren via MCP');
     const wont = await b.call('update_feedback', { id: 'fb_b', status: 'wont-fix', reason: 'Calm is the point.' });
     expect(wont.content[0]!.text).toBe('fb_b is Won’t fix: Calm is the point.');
   });

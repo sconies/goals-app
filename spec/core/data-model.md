@@ -551,6 +551,7 @@ A personal token an AI assistant uses to act as one person in one workspace. Onl
 | `createdAt` | `string` | yes |  |
 | `lastUsedAt` | `string \| null` | yes |  |
 | `revokedAt` | `string \| null` | yes |  |
+| `builder` | `boolean` | no | Made as a builder token, before Faro opened its inbox (migration 0031): it now works as an ordinary token, and is labelled apart (backlog 10a). Read from the database (okr_token_list, migration 0034); never saved by the app. |
 
 ### Feedback
 

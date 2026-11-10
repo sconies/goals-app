@@ -2,7 +2,7 @@
    and triage it. Any Faro token works (an ordinary one, made by an admin; there are no builder tokens any more): an
    admin makes one for themselves here, anyone else is told who can. Then the exact set-up for a Claude cloud session
    (the host, and where the token goes) or for Claude Code, and whether the server can send Claude the pictures. Tokens
-   are listed and revoked where they always are: Workspace, AI assistants (and Settings, for your own). */
+   are listed and revoked where they always are: Workspace, Access, MCP access (and Settings, for your own). */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -22,7 +22,7 @@ export function ConnectClaude({ local = false }: { local?: boolean }) {
   return (
     <section className="connect" aria-labelledby="connect-title">
       <h3 className="connect-title" id="connect-title">Connect Claude</h3>
-      <p className="hint">So Claude can read this inbox, pictures included, and triage it with the same rules, through Faro’s MCP server. Any Faro token works: the one an AI assistant already uses, or a new one.</p>
+      <p className="hint">So Claude can read this inbox, pictures included, and triage it with the same rules, through Faro’s MCP server. Any MCP token works: one you already use, or a new one.</p>
       {canMake && !made && <MakeToken onMade={setMade} />}
       {!local && app.mode === 'live' && !app.viewer.admin && <p className="hint">Only admins make tokens. Ask {admins.length ? admins.join(', ') : 'an admin'} to make you one on Workspace, under Access, or use one you have (<Link to="/settings">Settings</Link> lists yours).</p>}
       {!local && app.mode !== 'live' && <p className="hint">Tokens are made in the real app, not the demo: any token from it reads the demo’s markups too.</p>}
@@ -51,7 +51,7 @@ export function ConnectClaude({ local = false }: { local?: boolean }) {
   );
 }
 
-/** An admin makes an ordinary token for themselves, through the same action as Workspace's AI assistants. */
+/** An admin makes an ordinary token for themselves, through the same action as Workspace's MCP access. */
 function MakeToken({ onMade }: { onMade: (token: string) => void }) {
   const app = useApp();
   const [name, setName] = useState('');
@@ -65,7 +65,7 @@ function MakeToken({ onMade }: { onMade: (token: string) => void }) {
       setBusy(false);
     }}>
       <label className="field" style={{ flex: 1 }}><span className="field-label">What the token is for</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claude, reviewing markups" /></label>
-      <button type="submit" className="btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make a token'}</button>
+      <button type="submit" className="btn" disabled={name.trim().length < 2 || busy}>{busy ? 'Making…' : 'Make an MCP token'}</button>
     </form>
   );
 }

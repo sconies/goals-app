@@ -21,6 +21,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'small-batch-mcp-access',
+    date: '2026-11-10',
+    title: 'MCP access, and Workspace for everyone',
+    points: [
+      'AI assistants is now MCP access: Faro has no AI of its own, and this is how you connect Claude or another AI tool to it, through MCP. Tokens are MCP tokens, and a change made through one says “via MCP”. A token made as a builder token before the inbox opened is labelled “builder token”; it works like any other.',
+      'Everyone can read Cycles now (only admins delete one), and Recently removed lists what you removed yourself, so you can restore it. Admins still see everything.',
+      'Switching a feature or recording on or off says what it did, with Undo for 10 seconds.',
+      'A number in ms reads “1 ms worse”, no longer “1 m worse”. A stopped goal’s export has no forecast, as its page has none.',
+      'On a phone, the bars at the top and bottom are solid, not see-through, and Workspace’s switches (Admin, a feature, recording) are easier to tap.',
+    ],
+    articles: ['ai-assistants', 'workspace-access', 'workspace-cycles', 'removing', 'features'],
+  },
+  {
     id: 'map-at-scale',
     date: '2026-11-10',
     title: 'The map works at the size of a division',

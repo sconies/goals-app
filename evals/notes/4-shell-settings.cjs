@@ -35,7 +35,7 @@ module.exports = {
       await p.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 3000 });
       fail(/\/demo\/settings/.test(p.url()), `[SETTINGS] the sidebar's Settings goes to ${p.url()}`);
       fail(await p.getByText(/kept in this browser only/).isVisible(), '[SETTINGS] the page does not say its choices are kept in this browser');
-      for (const h of ['Appearance', 'Navigation', 'You', 'Your AI assistants']) fail(await p.getByRole('heading', { name: h, exact: true }).isVisible(), `[SETTINGS] no "${h}" section`);
+      for (const h of ['Appearance', 'Navigation', 'You', 'Your MCP access']) fail(await p.getByRole('heading', { name: h, exact: true }).isVisible(), `[SETTINGS] no "${h}" section`);
       // The person menu holds Settings too.
       await p.goto(url('/goals')); await p.waitForTimeout(300);
       await p.locator('.side .me').click();

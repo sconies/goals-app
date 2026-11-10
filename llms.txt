@@ -9,7 +9,7 @@ The core in a few lines:
 - The status is the owner’s call, beside what the numbers say. A number goal is on track at 95% of the planned progress or more, at risk from 80%, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to 2 weeks late is at risk, later is off track. With no check-in for 14 days a goal has no recent update.
 - Statuses, worst first: Off track, At risk, No recent update, No check-in yet, On track, Not started, Done. Always shown as a shape and a word.
 - Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.
-- One change engine takes many changes at once (spreadsheets, bulk edits, the AI assistant) and checks every row with the same rules as the app’s forms.
+- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.
 
 ## The spec
 
@@ -23,7 +23,7 @@ The core in a few lines:
 - [Numbers and names](spec/core/rules/numbers-and-names.md): a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart
 - [Flags, the trend and needs attention](spec/core/rules/flags.md): why a goal is flagged, and whether it needs attention
 - [The scorecard](spec/core/rules/scorecard.md): vs plan, since last week, to target, and how likely it is to hit
-- [The change engine](spec/core/rules/change-engine.md): spreadsheets, bulk edits and the AI assistant’s changes, checked by the same rules
+- [The change engine](spec/core/rules/change-engine.md): spreadsheets, bulk edits and changes through MCP, checked by the same rules
 - [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action
 - [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them
 - [The requirements](spec/core/requirements.md): each one, linked to its code and tests
@@ -60,5 +60,5 @@ The core in a few lines:
 
 - `src/domain`: the rules, pure functions with no database, screen or network code
 - `src/core`: the extension points modules register into; `src/modules/<id>`: one folder per module, with its `module.json`
-- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the AI assistant’s tools
+- `src/screens`, `src/ui`: the core screens; `src/data`: the stores and the demo workspace; `src/mcp`, `server`: the MCP tools other AI tools use (MCP access)
 - `docs/architecture.md`: how the core and modules fit; `CLAUDE.md`: the rules for working here

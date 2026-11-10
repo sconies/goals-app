@@ -1,10 +1,10 @@
-# Connecting an AI assistant (MCP)
+# MCP access: connecting Claude or another AI tool
 
-Faro has an MCP server at `/api/mcp` (it introduces itself as Faro; its id stays `goals`). An assistant such as Claude can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer asks, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
+Faro has no AI built in. It has an MCP server at `/api/mcp` (it introduces itself as Faro; its id stays `goals`): the door other AI tools use. In the app this is **MCP access** (it was called "AI assistants" until 9 Nov, backlog 10a). Claude or another AI tool can use it to do anything the person can do in the app: read every screen, check in, change goals and plans, answer asks, take part in reviews, watch goals, manage people, wrap up the cycle, and more.
 
 ## How it works
 
-- **Who it acts as.** An admin makes a personal token for one person under Workspace → AI assistants (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
+- **Who it acts as.** An admin makes a personal **MCP token** for one person under Workspace → Access → MCP access (each person sees and revokes their own under Settings). The assistant then acts as that person, with exactly their rights. For example:
   - owners change their own goals; admins can change any goal; anyone can comment;
   - only the person asked (or an admin) answers an ask, and only whoever does an action, whoever agreed it, or an admin marks it done;
   - only admins add people, mark them as left, change teams, pin views, make tokens, start the next cycle, restore what anyone removed, or rename or delete the workspace.
@@ -15,7 +15,7 @@ Faro has an MCP server at `/api/mcp` (it introduces itself as Faro; its id stays
   So a number behind plan still needs a cause and a reason, and a plan change after check-ins have started still needs a reason.
 - **Parity is checked.** `src/mcp/parity.ts` maps every action in the app, and every screen, to its tools. A test fails if a new action or screen has no tools, or no reason why an assistant doesn't need any.
 - **Not for assistants.** A token belongs to one workspace, so an assistant can't create, switch or reset a workspace, or choose who it is. Those stay in the app.
-- **Logged.** Each change is logged as that person, marked "via AI assistant (MCP)".
+- **Logged.** Each change is logged as that person, marked "via MCP" (`VIA_MCP` in `src/domain/changeset.ts`). Changes made before 9 Nov say "AI assistant (MCP)" and still count as made through MCP.
 - **Tokens.** A token is shown once. Only its SHA-256 hash is stored, and it can be revoked at any time.
 
 ## Connecting
@@ -48,7 +48,7 @@ Other assistants:
 | `get_activity` | The change log, filtered like the Activity page (for example `who=maya&kind=checkins&when=this-week`). An import or bulk edit carries its `importId`, and whether you can undo it |
 | `list_removed` | Everything removed, stopped, ended or marked as left in the last 30 days, newest first, with its kind and ID for `restore_removed`: all of it for an admin, otherwise what you removed |
 | `list_views` | Your saved views and the pinned ones |
-| `list_tokens` | AI assistant tokens: all for an admin, otherwise your own |
+| `list_tokens` | MCP tokens: all for an admin, otherwise your own |
 | `list_feedback` | Feedback about the app (Send feedback's mood and words) from every workspace, newest first, each with its status; see the inbox below |
 | `get_wrap_up` | At the end of a cycle: which goals are wrapped up, and how |
 | `export` | JSON, the brief, or CSV |
@@ -122,7 +122,7 @@ Nothing is erased: each of these keeps the record, marked with when and by whom,
 | `get_feedback` | One piece of feedback in full: its words and mood, the screen, who sent it from which workspace and when, and its status, with the What's new entry that fixed it or why it won't be fixed, and who said so |
 | `update_feedback` | Set a piece of feedback's `status`: `fixed` needs `fixed_in`, the What's new entry's id (its sender then sees "You raised this" there); `wont-fix` needs a `reason`. The same rules as the inbox (`statusPatch` in `src/markup/model.ts`) |
 
-These work with **any token** (Lane, 8 Nov: Faro never holds real data, so its inbox is open to anyone, in the app with no sign-in, and through MCP with any token; the internal app keeps its inbox to builders, spec R1 rule 6). There is no builder sign-in or builder token any more; a builder token made before works as an ordinary token. **Connect Claude**, at the top of the inbox, lets an admin make an ordinary token for themselves, shows the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, and says whether the server can send pictures. A change through MCP is recorded as the token's person, via the AI assistant. The tools reach markups through the database's functions for tokens (`okr_markups_for_token`, `okr_markup_for_token`, `okr_markup_triage_for_token`), and feedback the same way (`okr_feedback_for_token`, `okr_feedback_triage_for_token`); since migration 0031 they take any live token and refuse a revoked or unknown one, so they need no secret beyond the token. The inbox and the token change a feedback status through one function (`okr_feedback_patch`), which no key can call on its own. If the server has no inbox, an admin's `list_feedback` lists their own workspace's feedback, without statuses.
+These work with **any token** (Lane, 8 Nov: Faro never holds real data, so its inbox is open to anyone, in the app with no sign-in, and through MCP with any token; the internal app keeps its inbox to builders, spec R1 rule 6). There is no builder sign-in or builder token any more; a builder token made before works as an ordinary token. **Connect Claude**, at the top of the inbox, lets an admin make an ordinary token for themselves, shows the exact set-up for a Claude cloud session (the host, and where the token goes) and for Claude Code, and says whether the server can send pictures. A change through MCP is recorded as the token's person, via MCP. A builder token made before works as an ordinary one; MCP access labels it "builder token" so it can be told apart (`okr_token_list` says which, migration 0034). The tools reach markups through the database's functions for tokens (`okr_markups_for_token`, `okr_markup_for_token`, `okr_markup_triage_for_token`), and feedback the same way (`okr_feedback_for_token`, `okr_feedback_triage_for_token`); since migration 0031 they take any live token and refuse a revoked or unknown one, so they need no secret beyond the token. The inbox and the token change a feedback status through one function (`okr_feedback_patch`), which no key can call on its own. If the server has no inbox, an admin's `list_feedback` lists their own workspace's feedback, without statuses.
 
 Goal, plan and check-in tools take `dry_run: true` to check a change without saving it. Destructive tools are marked as such, so assistants ask before using them.
 

@@ -173,12 +173,12 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/Workspace.tsx](../../src/screens/Workspace.tsx)
 
-- `/workspace` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins. Help: “Running the workspace” (`workspace`).
-- `/workspace/overview` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams and Privacy for everyone, and Cycles, Access, Features and Recently removed for admins. Help: “Running the workspace” (`workspace`).
+- `/workspace` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. Help: “Running the workspace” (`workspace`).
+- `/workspace/overview` (`WorkspaceHome`): Workspace is in sections, each with its own page: Overview, People, Teams, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. Help: “Running the workspace” (`workspace`).
 - `/workspace/people` (`WorkspaceHome`): The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left. Help: “Workspace: People” (`workspace-people`).
 - `/workspace/teams` (`WorkspaceHome`): The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them. Help: “Workspace: Teams” (`workspace-teams`).
-- `/workspace/cycles` (`WorkspaceHome`): For admins: the workspace’s goal years, newest first, with their dates, which one is running, the wrap-up, and deleting one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
-- `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and the tokens AI assistants use to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
+- `/workspace/cycles` (`WorkspaceHome`): The workspace’s goal years, newest first, with their dates, which one is running and the wrap-up; admins can delete one nobody has checked in to yet. Help: “Workspace: Cycles” (`workspace-cycles`).
+- `/workspace/access` (`WorkspaceHome`): For admins: who the admins are, and MCP access: the MCP tokens Claude or another AI tool uses to act as someone in this workspace. Help: “Workspace: Access” (`workspace-access`).
 - `/workspace/features` (`WorkspaceHome`): Faro is a core (people, teams, goals, plans, check-ins and the status rules) plus features an admin can switch on or off for a workspace, such as Spreadsheets. Help: “Features: switching parts of Faro on or off” (`features`).
 - `/workspace/privacy` (`WorkspaceHome`): The app records how it is used, never what you type, so the people building it can see what is slow, broken or hard to use. Help: “What the app records” (`recording`).
 - `/workspace/removed` (`WorkspaceHome`): Anything you make can be taken away again: people leave, goals stop, check-ins, reviews, comments and views go, an import can be undone, and nothing is ever lost. Help: “Removing, stopping and undoing” (`removing`).
@@ -214,7 +214,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/Settings.tsx](../../src/screens/Settings.tsx)
 
-- `/settings` (`Settings`): Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your AI assistant tokens. It also says what the app records. Help: “Settings” (`settings`).
+- `/settings` (`Settings`): Your own choices: light or dark, an accent colour, how a goal’s page moves, the sidebar, and your MCP tokens. It also says what the app records. Help: “Settings” (`settings`).
 
 - **Named parts:** “Settings”, “Appearance”, “Navigation”, “You”, “Motion lab”, “What the app records”
 - **Main action:** Change your own settings.

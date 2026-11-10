@@ -48,7 +48,7 @@ and no flag is raised now (apart from `due`, left out of *now* only) that wasn't
 
 A behind goal is **looked at** (`lookedAtFor`) when, under the same timing, someone other than the owner marked it reviewed (a decision of kind `acknowledge`) or added a note (`note`) on it: the latest such, said "Looked at by *first name* in *review name*, week *n*" (without " in …" outside a review). It is a quiet line only: it doesn't change whether the goal needs attention.
 
-A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and the AI assistant all use this one rule.
+A goal **needs attention** when it has a flag other than `due` and isn't being handled. Home, Watching, the map, the Goals filter, reviews, the brief and MCP all use this one rule.
 
 ### The Needs attention list
 
