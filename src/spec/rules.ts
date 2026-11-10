@@ -5,6 +5,8 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { findPeople } from '../domain/people';
+import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
+import { scopeToCycle } from '../domain/cycle';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -27,6 +29,8 @@ import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } fro
 import { primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
+import { nearMiss, search, textMatches } from '../domain/find';
+import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
 
@@ -74,6 +78,12 @@ function workspace(checkIns: Snapshot['checkIns'], requests: Ask[] = [], decisio
 }
 const flagCodes = (s: Snapshot, today: string) => flagsFor(g3075, s, CYCLE, at(today)).flags.map((f) => f.kind).join(', ') || 'none';
 
+/* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
+const DIR_NOW = new Date('2026-11-11T12:00:00Z');
+let dir: Snapshot | null = null;
+const dirWs = (): Snapshot => dir!;
+const dirAsk = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(dirWs().people, dirWs().teams, a);
+
 /* ---------- the demo workspace, for the change engine's examples ---------- */
 let demo: Snapshot | null = null;
 async function demoWorkspace(): Promise<Snapshot> {
@@ -81,7 +91,10 @@ async function demoWorkspace(): Promise<Snapshot> {
   return demo;
 }
 /** Called once before the examples run: the change engine's examples read the demo workspace. */
-export async function prepareExamples() { await demoWorkspace(); }
+export async function prepareExamples() {
+  await demoWorkspace();
+  if (!dir) { const full = (await import('../data/platformOrg/generate')).buildPlatformOrg(DIR_NOW); dir = scopeToCycle(full, full.cycles[0]!); }
+}
 function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
   const s = demo!;
   const cycle = s.cycles[0]!;
@@ -649,6 +662,37 @@ For a range, better means further from the limit on its safe side.
     unclear: ['How many weeks before the wrap-up "ends soon" starts (four) is a choice, not a law; the rebuild may tune it.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },
 
+  /* ---------- the directory: People and Teams (app redesign WR1) ---------- */
+  {
+    id: 'directory',
+    title: 'The directory: who People lists, what a search finds, and where old addresses lead',
+    summary: 'People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead.',
+    code: [{ file: 'src/domain/directory.ts', names: ['findInDirectory', 'matchesWords', 'byName', 'findTeams', 'personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }],
+    tests: ['src/domain/directory.test.ts'],
+    reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'],
+    body: `
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
+
+**What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as \`teamPeople\` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
+
+**A person’s line**, beside them in a list: “Admin”; then “leads the team” (their own), “leads {team}” (another, the first A to Z) or “leads {n} teams”; then their goals in the running cycle that aren’t stopped (“{n} goals”, “1 goal”, “no goals”). The first part takes a capital.
+
+**A team’s summary**: its lead, its people (its lead among them) and its goals in the running cycle counted by status, worst first, from the same statuses Goals uses, so a team’s counts on People and under Goals’ By team are the same numbers.
+
+**Old addresses.** /workspace/people leads to /people, keeping its query; with ?team=<id> it leads to that team’s page; /workspace/teams leads to /teams; /workspace#people and #teams to People and Teams. Each is a replace, not a new history entry.`,
+    examples: [
+      { given: 'The demo workspace on Wednesday 11 November: People with nothing asked.', then: '97 people; 1 to 50 of page 1 of 2; first Adaeze Obi', run: () => { const r = dirAsk({}); return `${r.total} people; ${r.from} to ${r.to} of page ${r.page} of ${r.pages}; first ${r.rows[0]!.name}`; } },
+      { given: 'The same, page 9.', then: 'page 2: 51 to 97', run: () => { const r = dirAsk({ page: 9 }); return `page ${r.page}: ${r.from} to ${r.to}`; } },
+      { given: 'Searching for “rhea”, “lucia” and “Romero”.', then: 'Rhea Kapoor / Lucía Romero / Lucía Romero', run: () => ['rhea', 'lucia', 'Romero'].map((q) => dirAsk({ q }).rows.map((p) => p.name).join(', ')).join(' / ') },
+      { given: 'The CI/CD team’s people, and the admins.', then: '7 people / Amara Nwosu, Grace Achterberg, Hamid Rezaei', run: () => `${dirAsk({ teamId: 'cicd' }).total} people / ${dirAsk({ admins: true }).rows.map((p) => p.name).join(', ')}` },
+      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => findTeams(dirWs().teams, dirWs().people, 'rhea').map((t) => t.name).join(', ') },
+      { given: 'The lines beside Amara, Rhea and Oskar.', then: 'Admin · leads the team · no goals / Leads the team · 8 goals / No goals', run: () => ['amara', 'rhea', 'oskar'].map((id) => personLine({ snapshot: dirWs() }, id)).join(' / ') },
+      { given: 'CI/CD’s summary.', then: 'led by Rhea Kapoor; 7 people; 17 goals', run: () => { const t = teamSummary({ snapshot: dirWs(), statusOf: (g) => goalStatus(g, dirWs().cycles[0]!, dirWs().checkIns, DIR_NOW).status }, 'cicd'); return `led by ${t.lead?.name}; ${t.people.length} people; ${t.goals.length} goals`; } },
+      { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
+    ],
+    unclear: ['The page size (50) and the reading of “a word” (split at spaces and at & / ( ) , . -) are choices; a rebuild with a server search should keep the rule that every word typed starts a word.', 'Who leads a team is not a role: a lead is any person a team names, in any team.'],
+  },
+
   /* ---------- the goal map ---------- */
   {
     id: 'map',
@@ -731,6 +775,47 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
       ];
     })(),
     unclear: ['How many done rows show before “Show all” (three) is a choice about the page, not the rule.', '“3 weeks ago” counts weeks of the cycle between when it was asked and now, not days.'],
+  },
+
+  /* ---------- finding things (the app redesign, AR1) ---------- */
+  {
+    id: 'finding',
+    title: 'Finding things',
+    summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
+    reqs: [],
+    body: `
+**What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
+
+**A goal's key** finds it however it is typed: "G-48", "g48", "g-48" or a bare "48". A whole search that is one key finds only that goal ("G-48" isn't G-4); a bare number also matches as words.
+
+**A goal's words** are its title, key, owner, team, level, status word ("Off track"), the owner's latest reason and path to green and what they need, its definition and its source. **A person's** are their name, job title and team; someone marked as left is never found for a picker. **A team's** are its name and its lead's name.
+
+**A near miss.** Only when nothing matches: each word typed that starts none of the list's words, and has 4 letters or more, is corrected to the commonest of the list's words one edit away (one letter added, dropped or changed, or two next to each other swapped). If every such word has one, the corrected search is said and its rows shown; otherwise nothing. Never for a key. (The design said 5 letters; its own example, "qeue" for "queue", needs 4.)
+
+**One search per kind.** \`search(rows, ask)\` with \`ask = { q, filters, sort, after, size }\` gives \`{ total, rows, next, near? }\`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (\`src/domain/query.ts\`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
+
+**The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
+    examples: (() => {
+      const row = 'Rollback in under five minutes G-48 Tunde Bakare Build & Release Team Off track';
+      const cycle = () => demo!.cycles[0]!;
+      const find = (kind: 'goal' | 'person' | 'team', q: string) => {
+        const at = new Date(CHECK_IN_MOMENT), wk = currentWeek(cycle(), at);
+        const rows = kind === 'goal' ? goalRows(demo!, cycle(), at, wk) : kind === 'person' ? personRows(demo!) : teamRows(demo!);
+        const a = search(rows, { q, size: 200 });
+        return `${a.total}${a.near ? ` (near: ${a.near})` : ''}: ${a.rows.slice(0, 3).map((r) => r.name).join(', ')}`;
+      };
+      return [
+        { given: `The row “${row}”, searched for “rollback”, “roll min”, “back”, “off track”.`, then: 'yes, yes, no, yes', run: () => ['rollback', 'roll min', 'back', 'off track'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ') },
+        { given: 'The same row (key G-48), searched for “g-48”, “G48”, “48”; and “Canary halt G-4” (key G-4) for “G-48”.', then: 'yes, yes, yes; no', run: () => `${['g-48', 'G48', '48'].map((q) => (textMatches(row, q, 'G-48') ? 'yes' : 'no')).join(', ')}; ${textMatches('Canary halt G-4', 'G-48', 'G-4') ? 'yes' : 'no'}` },
+        { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
+        { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
+        { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
+        { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
+      ];
+    })(),
+    unclear: ['Which of two rows that match equally comes first is the kind\'s order (goals worst first, then by name); a server may break ties another way within a status, as long as the order is stable from page to page.', 'A goal\'s words include its owner\'s latest reason, so a search for “off track” also finds a goal whose reason says both words: 13 goals in the demo, of which 11 are off track.'],
   },
 ];
 

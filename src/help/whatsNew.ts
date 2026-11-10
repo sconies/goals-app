@@ -42,6 +42,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'people-place',
+    date: '2026-11-10',
+    title: 'People has its own place',
+    points: [
+      'People and Teams moved out of Workspace to People, in the sidebar (on a phone, under More), for everyone.',
+      'Find someone by any word of their name, job title or team; the list is A to Z, 50 at a time.',
+      'Open a person or a team to see who they are and how their goals stand, and go straight to their goals.',
+      'A team can say what it is here to do. Old links still work.',
+    ],
+    articles: ['people', 'teams'],
+  },
+  {
     id: 'workspace-mark-size',
     date: '2026-11-10',
     title: 'Workspace’s overview mark back to its size',
@@ -129,7 +141,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A check-in number with more decimal places than its goal keeps offers “Keep 1 decimal place for this goal”, one step instead of a dead end.',
       'Day one counts every new goal among the first check-ins, says nothing is due when there are no goals yet, and names no team lead set-up never asked about.',
     ],
-    articles: ['set-up', 'check-in', 'workspace-teams'],
+    articles: ['set-up', 'check-in', 'teams'],
   },
   {
     id: 'goals-page-decisions',
@@ -191,7 +203,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A team counts its lead among its people, and opening a team shows its people. The overview lists every section, Access and Privacy included.',
       'A workspace’s name shows how much of its 80 characters it uses as you near the limit, instead of being cut short, and Delete never cuts off its own label.',
     ],
-    articles: ['workspace', 'workspace-teams', 'workspace-cycles'],
+    articles: ['workspace', 'teams', 'workspace-cycles'],
   },
   {
     id: 'faro-mark',
@@ -301,7 +313,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A team’s goal count no longer includes goals that were removed. When the AI assistant is refused, it says who its token acts as.',
       'On a phone, the layout buttons have names and a line saying what each layout shows, tabs and filters wrap instead of being cut off, and What’s new sits near the top of Home instead of at its foot. Saved views keep their whole name.',
     ],
-    articles: ['check-in', 'new-goal', 'edit-goal', 'goals', 'workspace-people', 'home'],
+    articles: ['check-in', 'new-goal', 'edit-goal', 'goals', 'people', 'home'],
   },
   {
     id: 'workspace-sections',
@@ -315,7 +327,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'On a computer, the list and the open item sit side by side, with keys: J and K to move, I for in hand, F for fixed, W for won’t fix. On a phone, one at a time with Next.',
       'Tick rows to close a batch at once. Beside Inbox, the menu says how many are new.',
     ],
-    articles: ['workspace', 'inbox', 'workspace-people', 'workspace-teams'],
+    articles: ['workspace', 'inbox', 'people', 'teams'],
   },
   {
     id: 'setup-polish',

@@ -7,7 +7,7 @@ import { Navigate, useLocation } from 'react-router';
 import APP from 'virtual:faro-modules/app';
 import { useApp } from '../app/state';
 import type { Cell } from '../domain/export';
-import type { Goal, GoalKind } from '../domain/types';
+import type { Goal, GoalKind, Person, Team } from '../domain/types';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
 
@@ -30,6 +30,10 @@ export interface PlaceProps {
    * app.unlinkGoalMetric). Nothing renders here unless a module fills it.
    */
   'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined) => void };
+  /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
+  'people.person': { person: Person };
+  /** A team's page in People, after its people: what the module knows about the team. */
+  'people.team': { team: Team };
 }
 
 /** What a goal form saves after the goal, from the goal.measure place: a metric, for a team or the whole company (null). */

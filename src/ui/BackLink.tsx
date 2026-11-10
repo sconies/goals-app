@@ -47,7 +47,11 @@ function placeName(path: string, app: ReturnType<typeof useApp>): string {
   if (goal) return app.goal(goal[1]!)?.title ?? 'the goal';
   const rev = /^\/reviews\/([^/]+)$/.exec(p);
   if (rev) return app.snapshot.reviews.find((r) => r.id === rev[1])?.name ?? 'the review';
-  const names: Record<string, string> = { '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
+  const who = /^\/people\/([^/]+)$/.exec(p);
+  if (who) return app.person(decodeURIComponent(who[1]!))?.name ?? 'People';
+  const team = /^\/teams\/([^/]+)$/.exec(p);
+  if (team) return app.team(decodeURIComponent(team[1]!))?.name ?? 'Teams';
+  const names: Record<string, string> = { '/people': 'People', '/teams': 'Teams', '/feedback': 'Feedback', '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
   const help = /^\/help\/([^/]+)$/.exec(p);
   if (help) return articleById(help[1]!)?.title ?? 'Help';
   return names[p] ?? 'the last page';

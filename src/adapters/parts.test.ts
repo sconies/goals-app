@@ -10,7 +10,12 @@ import type { Feedback } from '../domain/types';
 import { clockContract, feedbackContract, filesContract, identityContract, markupContract, numberSourceContract } from '../ports/contracts/parts';
 import { contractWorkspace } from '../ports/contracts/store';
 import { DEMO_SOURCE, demoNumbers } from './demo/numbers';
-import { fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
+import { browserPrefs, fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
+import { localSearch } from './localSearch';
+import { prefsContract, searchContract, searchContractWorkspace } from '../ports/contracts/search';
+import { searchRows } from '../app/reads';
+import { currentWeek } from '../domain/plan';
+import { CHECK_IN_MOMENT } from '../spec/conformance';
 import { freshPostgres } from './postgres/testDb';
 import { openFeedback } from './supabase/feedback';
 import { SupabaseStore } from './supabase/goalsStore';
@@ -68,3 +73,12 @@ numberSourceContract('the demo’s CI analytics', async () => {
   const metric = (s.metrics ?? []).find((m) => m.source === DEMO_SOURCE)!;
   return { source: demoNumbers(() => s), metric, before: new Date('2025-01-01T00:00:00Z'), after: new Date('2026-11-05T12:00:00Z') };
 });
+
+searchContract('over the workspace in this browser', async () => {
+  const at = new Date(CHECK_IN_MOMENT);
+  const s = searchContractWorkspace(await buildExample(at));
+  const cycle = s.cycles[0]!;
+  return localSearch(searchRows(s, cycle, at, currentWeek(cycle, at)));
+});
+const prefsStorage = memory();
+prefsContract('in this browser', () => browserPrefs('faro-prefs:', () => prefsStorage));

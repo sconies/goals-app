@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
 import { Activity } from './screens/Activity';
@@ -13,6 +13,8 @@ import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from '
 import { Watching } from './screens/Watching';
 import { RetroGoal, WrapUp } from './screens/Retro';
 import { WorkspaceHome } from './screens/Workspace';
+import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
+import { movedTo } from './domain/directory';
 import { Feedback } from './screens/Feedback';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
@@ -67,8 +69,13 @@ export function Routed() {
         <Route path="/workspace/new" element={<Onboarding />} />
         {/* Workspace's sections (backlog W); a module's sections are added with its routes below. */}
         <Route path="/workspace/overview" element={<WorkspaceHome section="overview" />} />
-        <Route path="/workspace/people" element={<WorkspaceHome section="people" />} />
-        <Route path="/workspace/teams" element={<WorkspaceHome section="teams" />} />
+        {/* People and Teams have places of their own (app redesign WR1); their old addresses lead there (domain/directory movedTo). */}
+        <Route path="/workspace/people" element={<MovedFrom />} />
+        <Route path="/workspace/teams" element={<MovedFrom />} />
+        <Route path="/people" element={<PeopleList />} />
+        <Route path="/people/:personId" element={<PersonPage />} />
+        <Route path="/teams" element={<TeamsList />} />
+        <Route path="/teams/:teamId" element={<TeamPage />} />
         {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
         <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
         <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
@@ -101,6 +108,12 @@ export function App({ store, mode = 'demo', today }: { store: Store; mode?: Mode
       </AppProvider>
     </BrowserRouter>
   );
+}
+
+/** An address that moved (domain/directory movedTo): on to where it leads now, with no history entry. */
+function MovedFrom() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={movedTo(pathname, search, hash) ?? '/'} replace />;
 }
 
 /** An address that leads nowhere: say so, and offer the way home (re-review, 8 Nov, backlog T). */

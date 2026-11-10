@@ -3573,7 +3573,7 @@ function metricFields(m, s) {
 * nothing changed.
 */
 function saveMetric(x, input) {
-	const before = input.id ? live(x, input.id) : null;
+	const before = input.id ? live$1(x, input.id) : null;
 	if (before && !ownsOrAdmin$2(x, before)) no$2(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? "the metric’s owner"} or an admin can change this metric.`);
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
@@ -3602,7 +3602,7 @@ function saveMetric(x, input) {
 * it measured is unlinked by the same save (and Undo links them again); the goals themselves don't change.
 */
 function removeMetric(x, id) {
-	const m = live(x, id);
+	const m = live$1(x, id);
 	if (!ownsOrAdmin$2(x, m)) no$2(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? "the metric’s owner"} or an admin can remove this metric.`);
 	const links = (x.full ?? x.snapshot).metricLinks?.filter((l) => l.metricId === id && !l.removedAt) ?? [];
 	const n = links.length;
@@ -3667,7 +3667,7 @@ function linkProblems(goal, m) {
 */
 function linkGoalMetric(x, goal, metricId, teamId = null) {
 	if (!canLinkGoal(x.actor, goal)) no$2("Only the goal’s owner or an admin can choose what measures it.");
-	const m = live(x, metricId);
+	const m = live$1(x, metricId);
 	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no$2("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const { errors } = linkProblems(goal, m);
 	if (errors.length) no$2(errors.join(" "));
@@ -3731,7 +3731,7 @@ function unlinkGoalMetric(x, goal) {
 		})]
 	};
 }
-var no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log$1, live, ownsOrAdmin$2, canEditMetric, canLinkGoal;
+var no$2, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log$1, live$1, ownsOrAdmin$2, canEditMetric, canLinkGoal;
 var init_metrics = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -3779,7 +3779,7 @@ var init_metrics = __esmMin((() => {
 		diffs: [],
 		...v
 	});
-	live = (x, id) => {
+	live$1 = (x, id) => {
 		const m = (x.snapshot.metrics ?? []).find((v) => v.id === id);
 		if (!m || m.removedAt) no$2("There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.");
 		return m;
@@ -5388,22 +5388,32 @@ function saveTeam(x, t) {
 	if (same) no$1(`There’s already a team called ${same.name}.`);
 	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
 	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$1("The team lead isn’t in this workspace.");
+	const objective = t.objective === void 0 ? before?.objective ?? "" : t.objective.trim().replace(/\s+/g, " ");
+	if (objective.length > 280) no$1("Keep what the team is here to do to 280 characters or fewer.");
 	const team = {
 		id: before?.id ?? x.newId("team"),
 		name: clean,
 		leadId,
-		objective: before?.objective ?? ""
+		objective
 	};
 	const name = (id) => x.snapshot.people.find((p) => p.id === id)?.name ?? "—";
-	const diffs = before ? [...before.name !== team.name ? [{
-		field: "Team name",
-		from: before.name,
-		to: team.name
-	}] : [], ...(before.leadId || "") !== leadId ? [{
-		field: "Team lead",
-		from: name(before.leadId),
-		to: name(leadId)
-	}] : []] : [{
+	const diffs = before ? [
+		...before.name !== team.name ? [{
+			field: "Team name",
+			from: before.name,
+			to: team.name
+		}] : [],
+		...(before.leadId || "") !== leadId ? [{
+			field: "Team lead",
+			from: name(before.leadId),
+			to: name(leadId)
+		}] : [],
+		...(before.objective || "") !== objective ? [{
+			field: "What it is here to do",
+			from: before.objective || "—",
+			to: objective || "—"
+		}] : []
+	] : [{
 		field: "Team",
 		from: "—",
 		to: team.name
@@ -7883,6 +7893,24 @@ init_status();
 init_goalKey();
 init_vocabulary();
 init_year();
+var EMPTY_QUERY = {
+	q: "",
+	status: [],
+	level: [],
+	team: [],
+	owner: [],
+	kind: [],
+	attention: false,
+	needs: [],
+	due: null,
+	quiet: null,
+	quarter: null,
+	result: [],
+	feeds: null,
+	helps: false,
+	sort: null,
+	dir: 1
+};
 var STATUS_OPTIONS = [
 	"off",
 	"risk",
@@ -7961,6 +7989,26 @@ function needsOf(p) {
 		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
 		needs
 	};
+}
+/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
+function queryEntries(q) {
+	const out = [];
+	if (q.q.trim()) out.push(["q", q.q.trim()]);
+	if (q.status.length) out.push(["status", q.status.join(",")]);
+	if (q.level.length) out.push(["level", q.level.join(",")]);
+	if (q.team.length) out.push(["team", q.team.join(",")]);
+	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
+	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
+	if (q.attention || q.needs.length) out.push(["attention", "1"]);
+	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
+	if (q.due != null) out.push(["due", String(q.due)]);
+	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
+	if (q.quarter) out.push(["qtr", q.quarter]);
+	if (q.result.length) out.push(["result", q.result.join(",")]);
+	if (q.feeds) out.push(["feeds", q.feeds]);
+	if (q.helps) out.push(["helps", "1"]);
+	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
+	return out;
 }
 /** The goal and every goal that feeds it, all the way down. */
 function treeOf$1(id, goals) {
@@ -8057,7 +8105,6 @@ function applyQuery(sums, q, ctx) {
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
 // src/domain/story.ts
-init_changeset();
 init_checkin();
 init_format();
 init_plan();
@@ -8279,7 +8326,264 @@ function summarise(goal, s, cycle, today, week) {
 function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
+// src/app/reads.ts
+var live = (xs) => xs.filter((x) => !x.removedAt);
+/** Every goal's summary row, with what the Goals filters need beyond it. */
+function goalRows(s, cycle, today, week) {
+	const goals = live(s.goals).filter((g) => !g.stoppedAt);
+	return {
+		kind: "goal",
+		summaries: summariseAll(goals, s, cycle, today, week),
+		ctx: {
+			goals,
+			cycle,
+			week
+		}
+	};
+}
+function personRows(s) {
+	const teams = new Map(s.teams.map((t) => [t.id, t.name]));
+	return {
+		kind: "person",
+		people: live(s.people),
+		teamName: (id) => teams.get(id) ?? ""
+	};
+}
+function teamRows(s) {
+	return {
+		kind: "team",
+		teams: s.teams,
+		people: live(s.people)
+	};
+}
+/** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
+function searchRows(s, cycle, today, week) {
+	const once = (f) => {
+		let v;
+		return () => v ??= f();
+	};
+	return {
+		goal: once(() => goalRows(s, cycle, today, week)),
+		person: once(() => personRows(s)),
+		team: once(() => teamRows(s))
+	};
+}
+// src/domain/find.ts
+init_format();
+init_goalKey();
+init_vocabulary();
+/** Lower case, accents gone: "Lucía" reads as "lucia". */
+var fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+/** The words of a text: broken at spaces and at / - , . : ( ), folded. */
+var wordsOf = (s) => fold(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+/**
+* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
+* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
+*/
+function textMatches(words, q, key) {
+	const asked = wordsOf(q);
+	if (!asked.length) return true;
+	const typedKey = normalKey(q.trim());
+	if (typedKey) return !!key && typedKey === key;
+	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
+	if (bare && key && bare === key) return true;
+	const have = wordsOf(words);
+	return asked.every((w) => have.some((h) => h.startsWith(w)));
+}
+/** One letter added, dropped or changed, or two next to each other swapped. */
+function oneEditApart(a, b) {
+	if (a === b) return false;
+	if (Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		const diff = [];
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
+		if (diff.length === 1) return true;
+		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+	}
+	const [s, l] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < s.length && s[i] === l[i]) i++;
+	return s.slice(i) === l.slice(i + 1);
+}
+/**
+* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
+* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
+* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
+* with a short word that matches nothing.
+*/
+function nearMiss(q, vocabulary) {
+	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
+	const asked = wordsOf(q);
+	if (!asked.length) return null;
+	const count = /* @__PURE__ */ new Map();
+	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
+	let changed = false;
+	const out = [];
+	for (const w of asked) {
+		if ([...count.keys()].some((v) => v.startsWith(w))) {
+			out.push(w);
+			continue;
+		}
+		if (w.length < 4) return null;
+		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
+		if (!best) return null;
+		out.push(best[0]);
+		changed = true;
+	}
+	return changed ? out.join(" ") : null;
+}
+var MAX_PAGE = 200;
+/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
+function page(all, ask) {
+	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
+	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
+	const rows = all.slice(from, from + size);
+	return {
+		total: all.length,
+		rows,
+		next: from + size < all.length ? String(from + size) : null
+	};
+}
+/** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
+var goalWords = (s) => [
+	s.goal.title,
+	s.goal.key ?? "",
+	s.owner,
+	s.team,
+	LEVEL_LABEL[s.goal.level],
+	LABEL[s.status],
+	s.story.why ?? "",
+	s.story.doing ?? "",
+	s.story.needs ?? "",
+	s.goal.definition,
+	s.goal.source
+].join(" ");
+var goalRow = (s) => ({
+	kind: "goal",
+	id: s.goal.id,
+	name: s.goal.title,
+	detail: [
+		s.goal.key,
+		s.owner,
+		s.team
+	].filter(Boolean).join(" · "),
+	status: s.status,
+	key: s.goal.key ?? null
+});
+/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
+function searchGoals(r, ask) {
+	const query = {
+		...parseQuery(new URLSearchParams({
+			...ask.filters ?? {},
+			...ask.sort ? { sort: ask.sort } : {}
+		})),
+		q: ""
+	};
+	return applyQuery(r.summaries, {
+		...query,
+		sort: query.sort ?? "worst"
+	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
+}
+/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+function searchPeople(r, ask) {
+	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
+	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
+		kind: "person",
+		id: p.id,
+		name: p.name,
+		detail: [p.role, team(p)].filter(Boolean).join(" · ")
+	}));
+}
+/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? null;
+	const people = (t) => {
+		const n = here.filter((p) => p.teamId === t.id).length;
+		return `${n} ${n === 1 ? "person" : "people"}`;
+	};
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t) ?? ""}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({
+		kind: "team",
+		id: t.id,
+		name: t.name,
+		detail: `${lead(t) ? `Led by ${lead(t)}` : "No lead"} · ${people(t)}`
+	}));
+}
+function searchWorkspaces(r, ask) {
+	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
+		kind: "workspace",
+		id: w.id,
+		name: w.name,
+		detail: w.detail
+	}));
+}
+/** The words each kind's near miss may correct to. */
+function vocabulary(r) {
+	switch (r.kind) {
+		case "goal": return r.summaries.map(goalWords);
+		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
+		case "team": return r.teams.map((t) => t.name);
+		case "workspace": return r.workspaces.map((w) => w.name);
+	}
+}
+/**
+* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
+* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
+*/
+function search(rows, ask) {
+	const run = (a) => {
+		switch (rows.kind) {
+			case "goal": return searchGoals(rows, a);
+			case "person": return searchPeople(rows, a);
+			case "team": return searchTeams(rows, a);
+			case "workspace": return searchWorkspaces(rows, a);
+		}
+	};
+	const all = run(ask);
+	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
+	const near = nearMiss(ask.q, vocabulary(rows));
+	const again = near ? run({
+		...ask,
+		q: near
+	}) : [];
+	return near && again.length ? {
+		...page(again, ask),
+		near
+	} : page([], ask);
+}
+// src/ports/search.ts
+/** The core's kinds; a module adds its own (the metric library: 'metric'). */
+var CORE_KINDS = [
+	"goal",
+	"person",
+	"team",
+	"workspace"
+];
+/** A kind nobody registered. */
+var UnknownKind = class extends Error {
+	constructor(kind) {
+		super(`Nothing searches “${kind}” here.`);
+		this.name = "UnknownKind";
+	}
+};
+// src/adapters/localSearch.ts
+function localSearch(rows, finders = {}) {
+	const core = CORE_KINDS.filter((k) => rows[k]);
+	return {
+		kinds: () => [...core, ...Object.keys(finders).filter((k) => !core.includes(k))],
+		async search(kind, ask) {
+			const own = rows[kind];
+			if (own) return search(own(), ask);
+			const f = finders[kind];
+			if (f) return f(ask);
+			throw new UnknownKind(kind);
+		}
+	};
+}
 // src/domain/export.ts
+init_changeset();
 init_goal();
 init_asks();
 init_format();
@@ -9912,7 +10216,7 @@ var GROUPS = [
 	},
 	{
 		id: "you",
-		title: "Workspace, settings and assistants"
+		title: "People, workspace and settings"
 	}
 ];
 var pct$1 = (n) => `${Math.round(n * 100)}%`;
@@ -11296,7 +11600,7 @@ var CORE_ARTICLES = [
 	{
 		id: "workspace",
 		title: "Running the workspace",
-		summary: "Workspace is in sections, each with its own page: Overview, People, Teams, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins.",
+		summary: "Workspace is in sections, each with its own page: Overview, Cycles, Privacy and Recently removed for everyone, and Access and Features for admins. People and Teams have a place of their own, People.",
 		group: "you",
 		sections: [
 			{
@@ -11316,7 +11620,7 @@ var CORE_ARTICLES = [
 				heading: "Finding your way",
 				list: [
 					"On a computer, the sections are in a menu down the left; on a phone, Workspace opens as a list of them, and each section has Workspace at the top to go back.",
-					"Each section has its own address, so you can bookmark one or send a link to it: /workspace/people, /workspace/teams and so on.",
+					"Each section has its own address, so you can bookmark one or send a link to it: /workspace/cycles, /workspace/privacy and so on.",
 					"Older links to Workspace (from a GitHub issue, say) still open the section they meant."
 				]
 			},
@@ -11331,11 +11635,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "The sections",
-				list: [
-					"People: the directory. See Workspace: People.",
-					"Teams: find a team, with its lead and counts. See Workspace: Teams.",
-					"Cycles: the goal years, for everyone to read; only admins delete one. Privacy: what the app records, for everyone to read; only admins switch it. Recently removed: an admin sees everything removed lately, anyone else what they removed. Access (the admins and MCP access) and Features: for admins. Each has its own article."
-				]
+				list: ["People and Teams moved out of Workspace to People, in the sidebar, for everyone. See People: finding someone, and Teams.", "Cycles: the goal years, for everyone to read; only admins delete one. Privacy: what the app records, for everyone to read; only admins switch it. Recently removed: an admin sees everything removed lately, anyone else what they removed. Access (the admins and MCP access) and Features: for admins. Each has its own article."]
 			},
 			{
 				heading: "Leaving",
@@ -11344,7 +11644,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "Who can",
 				list: [
-					"Everyone sees Overview, People, Teams, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.",
+					"Everyone sees Overview, Cycles, Privacy and Recently removed (their own removals). Someone who isn’t an admin and opens Access or Features is told who the admins are.",
 					"Only admins add or change people and teams, mark people as left, restore what was removed, make tokens, turn recording or features on or off, rename, reset or delete the workspace. Whoever sets up a workspace is its first admin. In the demo, Start over (in Demo controls) is for everyone: it only touches this browser.",
 					"Feedback, the inbox of markups and feedback, is its own page beside Help, open to anyone. See The inbox."
 				]
@@ -11378,8 +11678,8 @@ var CORE_ARTICLES = [
 			"settings"
 		],
 		related: [
-			"workspace-people",
-			"workspace-teams",
+			"people",
+			"teams",
 			"inbox",
 			"workspace-access",
 			"set-up",
@@ -11387,26 +11687,52 @@ var CORE_ARTICLES = [
 		]
 	},
 	{
-		id: "workspace-people",
-		title: "Workspace: People",
-		summary: "The directory of everyone in the workspace: find someone by name, job title or team; admins add people, change their details, make admins and mark people as left.",
+		id: "people",
+		title: "People: finding someone",
+		summary: "Everyone in the workspace, A to Z: find someone by name, job title or team, open them to see their team, their goals and their reviews. Admins add and change people.",
 		group: "you",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Find a person by name, job title or team, or pick a team. Each shows their job title, team and whether they are an admin. A long list shows 60 at a time, with Show more.",
-				"Admins: Add a person is the main action. Open someone to change their name, email, job title, team, or whether they are an admin. There is always at least one admin. Everyone new needs an email, and no two people share one.",
-				"People without an email: people added before emails were needed are listed for admins, with a box for each. Type the emails you know and save them together.",
-				"Two people can have the same name: the email is who someone is. Adding one says so, and wherever both could be on screen (pickers, this list) each shows their team, or job title, beside the name. Their avatars differ in colour.",
-				"Someone who has left: open them and choose Mark as left. You’re asked who takes over their goals and their open asks first; they then leave every picker and count, and history keeps their name, as “Name (left)”. Someone with no history is deleted instead."
-			]
-		}, {
-			heading: "Who can",
-			text: ["Everyone sees the directory. Only admins add or change people."]
-		}],
-		routes: ["/workspace/people"],
-		screens: [],
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["People is in the sidebar (on a phone, under More), for everyone. It answers who someone is, what team they are in, and how their goals stand."]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Type in the search to find someone: each word you type starts a word of their name, job title or team, so “eng man” finds the Engineering Managers. Capitals and accents don’t matter: “lucia” finds Lucía.",
+					"Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.",
+					"The list is A to Z, 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.",
+					"Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.",
+					"Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them."
+				]
+			},
+			{
+				heading: "For admins",
+				list: [
+					"Add a person is the page’s main action; the new person’s page opens once they are added. Everyone new needs an email, and no two people share one.",
+					"When some people have no email yet, a line above the list says how many, with Add them: type the emails you know and save them together.",
+					"On a person’s page, under For admins: Change details (name, email, job title, team, and whether they are an admin; there is always at least one admin), and, apart, Mark as left. Marking someone as left asks who takes over their goals and open asks first; history keeps their name as “Name (left)”. Someone with no history is deleted instead.",
+					"Two people can have the same name: the email is who someone is, and wherever both could be on screen each shows their team or job title beside the name."
+				]
+			},
+			{
+				heading: "Who can",
+				text: ["Everyone sees People, Teams and every person’s and team’s page. Only admins see the buttons that change them."]
+			},
+			{
+				heading: "Moved",
+				text: ["People used to be a section of Workspace. Its old address, /workspace/people, still opens it."]
+			}
+		],
+		routes: [
+			"/people",
+			"/people/:personId",
+			"/workspace/people"
+		],
+		screens: ["People"],
 		reqs: [
+			"PEOPLE-DIRECTORY",
+			"OLD-ADDRESSES",
 			"PROFILES",
 			"PERSON-LEFT",
 			"PERSON-EMAIL",
@@ -11415,6 +11741,8 @@ var CORE_ARTICLES = [
 		keywords: [
 			"people",
 			"directory",
+			"person",
+			"find a person",
 			"add person",
 			"email",
 			"missing email",
@@ -11422,42 +11750,65 @@ var CORE_ARTICLES = [
 			"left",
 			"leaver",
 			"job title",
-			"find a person"
+			"who is"
 		],
 		related: [
+			"teams",
 			"workspace",
 			"removing",
 			"workspace-access"
 		]
 	},
 	{
-		id: "workspace-teams",
-		title: "Workspace: Teams",
-		summary: "The workspace’s teams, each with its lead and how many people and goals it has. Admins add, rename and remove them.",
+		id: "teams",
+		title: "Teams",
+		summary: "The workspace’s teams, A to Z, each with its lead, its people and its goals by status; a team’s page says what it is here to do. Admins add, change and remove teams.",
 		group: "you",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"Each team shows its lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another) and how many goals it owns. With more than a few teams, find one by its name or its lead’s.",
-				"Open a team to see its people in the directory, its lead among them.",
-				"Admins: Add a team is the main action. Rename changes its name and lead. Remove takes an empty team away at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."
-			]
-		}, {
-			heading: "Who can",
-			text: ["Everyone sees the teams. Only admins change them."]
-		}],
-		routes: ["/workspace/teams"],
+		sections: [
+			{
+				heading: "How to use it",
+				list: [
+					"Teams is the second tab of People. Find a team by its name or its lead’s.",
+					"Each row shows the team’s lead, or No lead (set-up doesn’t ask who leads a team), how many people are in it (its lead counts as one of them, even when their own team is another), and its goals this year counted by status, shape and word. The counts are the same numbers Goals shows by team.",
+					"Open a team to see what it is here to do, its goals by status (each count opens those goals), and its people, lead first. See its goals opens Goals for just that team; Show all lists all its people in People."
+				]
+			},
+			{
+				heading: "For admins",
+				list: ["Add a team is the main action. On a team’s page, Change its name, lead or purpose; and, apart, Remove this team. An empty team goes at once; a team with people or goals first moves them to another team, in the same save, and each goal’s history says so."]
+			},
+			{
+				heading: "Who can",
+				text: ["Everyone sees the teams. Only admins change them."]
+			},
+			{
+				heading: "Moved",
+				text: ["Teams used to be a section of Workspace. Its old address, /workspace/teams, still opens it, and an old link to one team’s people opens that team."]
+			}
+		],
+		routes: [
+			"/teams",
+			"/teams/:teamId",
+			"/workspace/teams"
+		],
 		screens: [],
-		reqs: ["WORKSPACE-ADMIN"],
+		reqs: ["PEOPLE-DIRECTORY", "WORKSPACE-ADMIN"],
 		keywords: [
 			"teams",
+			"team",
 			"team lead",
 			"add team",
 			"rename team",
 			"remove team",
-			"move goals"
+			"move goals",
+			"purpose",
+			"objective"
 		],
-		related: ["workspace", "workspace-people"]
+		related: [
+			"people",
+			"workspace",
+			"goals"
+		]
 	},
 	{
 		id: "workspace-cycles",
@@ -11517,7 +11868,7 @@ var CORE_ARTICLES = [
 		related: [
 			"workspace",
 			"ai-assistants",
-			"workspace-people"
+			"people"
 		]
 	},
 	{
@@ -12022,7 +12373,12 @@ var ARTICLES = (() => {
 	return out;
 })();
 var BY_ID = new Map(ARTICLES.map((a) => [a.id, a]));
-var articleById = (id) => BY_ID.get(id);
+/** Articles that were renamed: their old ids, from old links and earlier What's new entries, open the new one. */
+var MOVED_ARTICLES = {
+	"workspace-people": "people",
+	"workspace-teams": "teams"
+};
+var articleById = (id) => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? "");
 /** All the words of an article, for search. */
 function textOf(a) {
 	return [
@@ -12085,6 +12441,18 @@ var WHATS_NEW = [
 		title: "The reason comes before the chart",
 		points: ["A goal’s page reads in one order on a computer and a phone: how it is, what’s being done and asked, why, then the chart.", "Links under the scorecard take you down the page."],
 		articles: ["goal-page"]
+	},
+	{
+		id: "people-place",
+		date: "2026-11-10",
+		title: "People has its own place",
+		points: [
+			"People and Teams moved out of Workspace to People, in the sidebar (on a phone, under More), for everyone.",
+			"Find someone by any word of their name, job title or team; the list is A to Z, 50 at a time.",
+			"Open a person or a team to see who they are and how their goals stand, and go straight to their goals.",
+			"A team can say what it is here to do. Old links still work."
+		],
+		articles: ["people", "teams"]
 	},
 	{
 		id: "workspace-mark-size",
@@ -12190,7 +12558,7 @@ var WHATS_NEW = [
 		articles: [
 			"set-up",
 			"check-in",
-			"workspace-teams"
+			"teams"
 		]
 	},
 	{
@@ -12275,7 +12643,7 @@ var WHATS_NEW = [
 		],
 		articles: [
 			"workspace",
-			"workspace-teams",
+			"teams",
 			"workspace-cycles"
 		]
 	},
@@ -12410,7 +12778,7 @@ var WHATS_NEW = [
 			"new-goal",
 			"edit-goal",
 			"goals",
-			"workspace-people",
+			"people",
 			"home"
 		]
 	},
@@ -12429,8 +12797,8 @@ var WHATS_NEW = [
 		articles: [
 			"workspace",
 			"inbox",
-			"workspace-people",
-			"workspace-teams"
+			"people",
+			"teams"
 		]
 	},
 	{
@@ -14843,7 +15211,7 @@ var WORK_TOOLS = [
 	{
 		name: "save_team",
 		title: "Add or change a team",
-		description: "Admins: add a team, or rename one or change its lead. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
+		description: "Admins: add a team, or rename one, change its lead or say what it is here to do. Without team it adds a new team. Team names are unique. Use list_people for the teams and their IDs.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -14851,7 +15219,8 @@ var WORK_TOOLS = [
 			properties: {
 				team: str$6("The team to change (name or ID). Leave out to add a team."),
 				name: str$6("The team’s name."),
-				lead: str$6("The team lead (a person’s name or ID); empty string for none.")
+				lead: str$6("The team lead (a person’s name or ID); empty string for none."),
+				purpose: str$6("What the team is here to do, in a sentence or two; empty string to clear it. Leave out to keep it.")
 			}
 		},
 		annotations: WRITE$2,
@@ -14861,7 +15230,8 @@ var WORK_TOOLS = [
 			const out = saveTeam(ax$2(ctx), {
 				id,
 				name: String(a.name ?? ""),
-				...leadId !== void 0 ? { leadId } : {}
+				...leadId !== void 0 ? { leadId } : {},
+				...a.purpose !== void 0 && a.purpose !== null ? { objective: String(a.purpose) } : {}
 			});
 			return {
 				...await save$2(ctx, out.commit, id ? `Saved the team ${String(a.name ?? "").trim()}` : `Added the team ${String(a.name ?? "").trim()} (ID ${out.id})`, "Nothing to change: the team already says that."),
@@ -16612,6 +16982,22 @@ var goalRef = (ctx, id) => {
 	if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
+/** Every page of a search's answer, in order. A near miss isn't what was asked for, so it finds nothing here. */
+async function allPages(search, kind, ask) {
+	const out = [];
+	let after = null;
+	do {
+		const a = await search.search(kind, {
+			...ask,
+			size: 200,
+			after
+		});
+		if (a.near) return [];
+		out.push(...a.rows);
+		after = a.next;
+	} while (after);
+	return out;
+}
 var GOAL_FIELDS = {
 	title: str("The goal’s name."),
 	owner: str("The owner’s full name, as in the workspace (when only one person has it; owner_email is exact)."),
@@ -16700,7 +17086,7 @@ var CORE_TOOLS = [
 			type: "object",
 			additionalProperties: false,
 			properties: {
-				text: str("Words in the goal’s name, or its key (G-12)."),
+				text: str("Words on the goal’s row (its name, key, owner, team, level, status, reason or definition), each the start of a word; or its key (G-12)."),
 				owner: str("Part of the owner’s name."),
 				status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
 				needs_attention: bool(`Only the goals on the ${ATTENTION.needs.label} list: those that need attention first, then those ${ATTENTION.handled.label.toLowerCase()} (beingHandled says how), as the Goals screen lists them. ${ATTENTION.needs.long}`),
@@ -16715,22 +17101,40 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			const has = (s, q) => !q || s.toLowerCase().includes(String(q).toLowerCase());
-			const byKey = normalKey(a.text);
-			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : null;
+			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : EMPTY_QUERY;
 			if (a.view) {
 				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
 				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
 				query = parseQuery(new URLSearchParams(v.params));
 			}
 			const status = a.status ? statusIn(a.status) : null;
-			let list = summariseAll(ctx.snapshot.goals, ctx.snapshot, ctx.cycle, ctx.today, ctx.week).filter((s) => (byKey ? s.goal.key === byKey : has(s.goal.title, a.text)) && has(s.owner, a.owner) && (!status || s.status === status) && (!a.level || s.goal.level === a.level) && (!a.mine || s.goal.ownerId === ctx.actor.id) && (!a.needs_attention || attentionGroup(s.attention) !== null));
-			if (query) list = applyQuery(list, query, {
-				goals: ctx.snapshot.goals,
-				cycle: ctx.cycle,
-				week: ctx.week
+			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
+			const owners = [
+				query.owner.length ? query.owner : null,
+				named,
+				a.mine ? [ctx.actor.id] : null
+			].filter((x) => !!x).reduce((acc, x) => acc ? acc.filter((id) => x.includes(id)) : x, null);
+			const asked = {
+				...query,
+				q: "",
+				status: status ? query.status.length ? query.status.filter((x) => x === status) : [status] : query.status,
+				level: a.level ? [a.level] : query.level,
+				owner: owners ? owners.length ? owners : ["nobody"] : [],
+				attention: query.attention || !!a.needs_attention
+			};
+			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
+			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
+			const found = await allPages(localSearch(rows), "goal", {
+				q: words,
+				filters: Object.fromEntries(queryEntries({
+					...asked,
+					sort: null
+				})),
+				sort: asked.sort ? asked.sort + (asked.dir === -1 ? ".desc" : "") : null
 			});
-			if (a.needs_attention || query?.attention || query?.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
+			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
+			let list = found.map((r) => byId.get(r.id)).filter(Boolean);
+			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
 				id: s.goal.id,

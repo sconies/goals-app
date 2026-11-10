@@ -10,6 +10,8 @@
    | The time          | Clock            | the system clock, or one fixed for the demo and the evals               |
    | Files             | Files            | Supabase Storage (adapters/supabase/files.ts), memory (adapters/local)  |
    | Numbers           | NumberSource     | the demo's (adapters/demo/numbers.ts); real connectors are yours        |
+   | Finding things    | Search           | over the loaded workspace (adapters/localSearch.ts); a server's search  |
+   | Small preferences | Prefs            | this browser (adapters/local.ts); later, the server                      |
 
    Supabase is imported only by src/adapters/supabase/ (the layers lint, rule 4). */
 import type { Metric } from '../domain/types';
@@ -56,3 +58,6 @@ export interface NumberSource {
   /** The latest reading at or before `at`; null when it has none yet. */
   read(metric: Metric, at: Date): Promise<Reading | null>;
 }
+
+export type { Search, SearchKind, SearchAsk, SearchAnswer, FoundRow } from './search';
+export type { Prefs } from './prefs';

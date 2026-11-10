@@ -1,0 +1,24 @@
+kind,q,total,near,ids
+goal,G-48,1,,mttr-oncall
+goal,g48,1,,mttr-oncall
+goal,48,1,,mttr-oncall
+goal,G-4,1,,lead-review-rota
+goal,tunde,2,,cfr-contract lead-rollback
+goal,one click roll,1,,lead-rollback
+goal,off track,13,,cfr-halt lead-runners vuln-containers env-tpl-data ml-gpu fresh-kafka ns-lead lead-mq lead-merge lead-ci-time slo-multiregion laptops dep-gates
+goal,back,7,,vuln-containers ns-lead mttr-runbooks ns-cfr lead-flaky lead-review-rota mttr-traces
+goal,rollback,2,,ns-cfr lead-rollback
+goal,rolback,2,rollback,ns-cfr lead-rollback
+goal,kafak,2,kafka,fresh-kafka fresh-lakehouse
+goal,qeue wait,3,queue wait,ns-lead lead-merge lead-ci-time
+goal,piplin,0,,
+goal,zzzz,0,,
+goal,,126,,cfr-halt lead-runners vuln-containers env-tpl-data ml-gpu fresh-kafka ns-lead lead-mq lead-merge lead-ci-time slo-multiregion mttr-runbooks vuln-autofix ns-cfr cfr-contract ns-vuln slo-latency ns-devsat lead-flaky env-templates devsat-toil dep-jenkins fresh-lakehouse ml-eval cost-storage mttr-noise devsat-docs env-search lead-review-rota mttr-gamedays ns-env net-mtls fresh-streaming vuln-distroless iam-groups lead-review-bot ai-useful ci-docker cost-spot cfr-tests lead-arm ns-ci ns-cost slo-capacity cost-commit cost-rightsize ns-slo fresh-quality slo-failover devsat-onboard lead-batch devsat-devcontainers laptops ai-workshop devex-remote ai-assist env-tickets cfr-postmortem fresh-ml lead-quarantine cost-idle mttr-aiops net-ipv6 iam-sso ci-shard-js cost-requests cost-logs iam-keys dep-gates mttr-detect ns-mttr env-provision ml-registry ml-serving mttr-oncall lead-rollback dep-gates-perf dep-templates devsat-support mttr-pir iam-jit ns-deploy slo-edge lead-review-small ns-ai iam-review build-sign dep-freeze dep-flags lead-cache vuln-sca ai-default dep-gates-sec env-scorecards mttr-slo-alerts dep-selfserve ci-docker-slim vuln-sbom vuln-vault devsat-localdev slo-catalogue devsat-actions fresh-catalogue cost-showback env-portal ci-shard lead-testown cfr-progressive mttr-traces obs-dashboards slo-coverage lead-canary ns-fresh fresh-contracts lead-review vuln-secrets fresh-cdc ci-cost vuln-pentest slo-gtm env-gpu env-tpl-java ci-shard-java ci-docker-registry ai-approval ci-dedupe
+person,tunde,1,,tunde
+person,rhea,1,,rhea
+person,LUCIA,1,,lucia
+person,kapor,1,kapoor,rhea
+person,,97,,adaeze aiko akosua amara amelia amir anya arjun arnav astrid ayesha beatriz ben bjorn camille chen chioma claire connor daniel diego dmitri elif emma erik ethan farah felix femi freya gabriel grace grete hamid hannah hiroshi hyunwoo ingeborg ingrid isabel joao johanna jonah julia jun kaito katarina kenji kojo kwame laila leilani lena luca lucia malik marcus marisol mateo maximilian mei mohammed nadia ngoc nikolai nkechi noor obinna olivia omar oskar patrick pavel priyam rafael ravi rhea rosa sakura samir sana santiago siobhan sipho tariq thandiwe tobias tomasz tunde valentina vikram wen william yasmin yuki zainab zara
+team,ci,1,,cicd
+team,rhea,1,,cicd
+team,,14,,build cicd finops data devex portal iam infra ml net obs office sec sre
