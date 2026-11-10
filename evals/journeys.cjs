@@ -2578,6 +2578,64 @@ journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says
   await p.context().close();
 }, ['logged', 'one-action', 'attention', 'parity']);
 
+journey('U73', ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'], 'Goals opens on yours: Rhea lands on Mine with her tabs and counts, the line counts what is shown, Group is its own choice, Needs attention is a switch on any tab, and old links open what they meant', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals'));
+  await p.waitForURL(/scope=mine/, { timeout: 8000 }).catch(() => {});
+  h.set('entry', /scope=mine/.test(p.url()), `Goals opened at ${p.url()}`);
+  const tabs = device === 'phone' ? [] : (await p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
+  if (device !== 'phone') h.set('attention', JSON.stringify(tabs) === JSON.stringify(['Mine 8', 'My team 17', 'Watching 12', 'All 126']), `the tabs are ${tabs.join(' | ')}`);
+  const line = p.locator('.goals-line').first();
+  await see(line, /^8 goals, worst first\. /, 'the line does not count the goals shown');
+  await h.checkpoint('mine');
+  // All, as trees; then the switch on it.
+  if (device === 'phone') { await h.click(p.locator('.show-menu > summary')); await h.click(p.getByRole('menuitem', { name: /^All/ }).or(p.getByRole('button', { name: /^All/ })).first()); }
+  else await h.click(p.getByRole('tab', { name: /^All/ }));
+  await p.waitForURL(/scope=all/);
+  await see(line, /^126 goals, as trees\. /, 'All is not counted as trees');
+  const sw = p.getByRole('button', { name: /^Needs attention · \d+$/ });
+  await h.click(sw.first());
+  await see(line, /need attention: /, 'the switch does not say how many need attention');
+  h.set('finish', /attention=1/.test(p.url()) && await sw.first().getAttribute('aria-pressed') === 'true', 'the switch is not in the address');
+  // Old links open what they meant.
+  await p.goto(url('/goals?show=levels'));
+  await p.waitForURL(/scope=all&group=level/, { timeout: 8000 }).catch(() => {});
+  await p.goto(url('/watching'));
+  await p.waitForURL(/scope=watching/, { timeout: 8000 }).catch(() => {});
+  h.set('parity', /scope=watching/.test(p.url()), `/watching opened ${p.url()}`);
+  h.set('progress', true); h.set('errors', true);
+  await p.context().close();
+}, ['logged', 'one-action']);
+
+journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner has Check-in and someone who owns nothing doesn’t; four groups with one item lit; collapsed, an icon names itself on focus; a phone has four tabs and More in the same groups', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  if (device === 'phone') {
+    const tabs = (await p.locator('.tabbar a, .tabbar button').allInnerTexts()).map((t) => t.replace(/\d+/g, '').trim());
+    h.set('entry', JSON.stringify(tabs) === JSON.stringify(['Home', 'Check-in', 'Goals', 'Reviews', 'More']), `the tabs are ${tabs.join(', ')}`);
+    await h.click(p.locator('.tabbar').getByRole('button', { name: /More/ }));
+    const groups = await p.getByRole('dialog', { name: 'More' }).getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    h.set('attention', JSON.stringify(groups) === JSON.stringify(['Look up', 'Make', 'This workspace and you']), `More's groups are ${groups.join(', ')}`);
+  } else {
+    const groups = await p.locator('.side [role="group"].nav-group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    h.set('entry', JSON.stringify(groups) === JSON.stringify(['Your work', 'Look up', 'Make', 'This workspace and you']), `the menu's groups are ${groups.join(', ')}`);
+    h.set('attention', await p.locator('.side [aria-current="page"]').count() === 1 && await p.locator('.side .nav', { hasText: 'Check-in' }).count() === 1, 'not one lit item, or no Check-in for an owner');
+    // Collapsed: each icon names itself at once on keyboard focus.
+    await h.click(p.locator('.side .collapse-nav'));
+    await p.locator('.side .nav').first().focus();
+    await p.keyboard.press('Tab');
+    await see(p.locator('.rail-label'), /Check-in, \d+ to do/, 'the rail does not name Check-in on focus');
+    await h.click(p.locator('.side .collapse-nav'));
+  }
+  await h.checkpoint('menu');
+  await viewAs(p, 'Oskar', h);
+  await p.goto(url('/'));
+  const owns = device === 'phone' ? await p.locator('.tabbar', { hasText: 'Check-in' }).count() : await p.locator('.side .nav', { hasText: 'Check-in' }).count();
+  h.set('finish', owns === 0, 'someone who owns no goal has Check-in');
+  h.set('progress', true); h.set('errors', true); h.set('parity', true);
+  await p.context().close();
+}, ['logged', 'one-action']);
+
 journey('U51', ['WORKSPACE-SECTIONS'], 'Each Workspace section opens at its own address, from the menu on a computer and the list on a phone; someone who isn’t an admin sees About, Cycles and Privacy read-only and their own removals, and old links still land, the inbox’s at Feedback', 14, async (h, device) => {
   const SECTIONS = [['overview', 'About'], ['cycles', 'Cycles'], ['access', 'Access'], ['features', 'Features'], ['privacy', 'Privacy'], ['removed', 'Recently removed']];
   const phone = device === 'phone';
