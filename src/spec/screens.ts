@@ -12,7 +12,7 @@ export const MAIN_ACTION: Record<string, string> = {
   Retro: 'Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.',
   GoalsScreen: 'Find goals (search, filter, sort, lay them out) and open one.',
   GoalWizard: 'Publish the goal, one question a step.',
-  GoalScreen: 'For its owner, check in; for anyone else, respond: ask, note or watch.',
+  GoalScreen: 'The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.',
   GoalEdit: 'Save the change; a plan change after check-ins started needs a reason.',
   Print: 'Print the page.',
   Activity: 'Read what changed, filtered to what you need.',

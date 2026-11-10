@@ -8,14 +8,14 @@
 import type { GoalAttention } from './attention';
 import { fmt, NO_VALUE } from './format';
 import { currentWeek, daysSince, goalAsOf, planAt, planEnd, projectionFor, valueSeries } from './plan';
-import { onTimeStreak, WEEKDAY } from './progress';
-import { asksOf, canAnswer, canMarkDone, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
-import { goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
+import { onTimeStreak, reviewDate, WEEKDAY } from './progress';
+import { asksOf, canAnswer, canMarkDone, canWithdraw, isOverdue, isResolved, liveNotes, openAsksFor, writtenNotes } from './asks';
+import { dayText, goalsIn, saidIn, sessionDate, sessionWeek, type Said } from './review';
 import { assessPosted, checkInsFor, LABEL, RANK } from './status';
 import { countWord, summaryFacts, type Direction } from './summaryFacts';
 import type { Ask, AskKind, Change, CheckIn, Cycle, Decision, DisplayStatus, Goal, Person, Snapshot } from './types';
 import { NO_REASON } from './checkin';
-import { ATTENTION, stagesBehind } from './vocabulary';
+import { ASK_KIND, ASK_STATUS, ATTENTION, DECIDED, stagesBehind } from './vocabulary';
 
 const first = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
 const said = (why: string | null | undefined) => !!why && why.trim() !== '' && why !== NO_REASON;
@@ -122,27 +122,143 @@ export function feedsLine(children: Goal[], statusOf: (g: Goal) => DisplayStatus
   return { total, counts: worst, head, text: worst.length ? `${head}: ${worst.map((x) => `${x.n} ${lower(x.status)}`).join(', ')}` : `${head}, none behind` };
 }
 
-/** What goes on the bar's one main button, by who's looking and what's waiting (approved plan, "Final page" 1). */
-export type PrimaryKind = 'answer' | 'respond' | 'done' | 'check-in' | 'first-check-in' | 'ask-update' | 'watch' | null;
+/** What goes on the bar's one main button, by who's looking and what's waiting (goal spec, rule 1). */
+export type PrimaryKind = 'answer' | 'respond' | 'done' | 'check-in' | 'first-check-in' | 'add-step' | 'ask-update' | null;
 export interface Primary { kind: PrimaryKind; label: string; targetId: string | null }
 
+/**
+ * The bar's primary action, the first that applies: something asked of you here (a question, then a decision or help);
+ * the owner's first check-in, then this week's when it's due; your own open next step; for the owner of a goal behind
+ * with no open next step, adding one; for anyone else on a goal gone quiet, asking for an update. Watch is never it.
+ */
 export function primaryAction(o: {
   goal: Goal; viewer: Person; owner: Person | undefined; status: DisplayStatus; due: boolean; week: number;
-  asked: AskedItem[]; updateAsked: boolean; watching: boolean;
+  asked: AskedItem[]; updateAsked: boolean;
+  /** How many next steps are open on the goal (stepsAndAsks), and whether it has no check-in yet. */
+  openSteps?: number; firstDue?: boolean;
 }): Primary {
   const ownerFirst = o.owner?.name.split(' ')[0] ?? 'the owner';
   const isOwner = o.viewer.id === o.goal.ownerId;
+  const live = !o.goal.stoppedAt && o.status !== 'done';
   // Something waiting on you comes first: answering it is the one thing to do here.
   const question = o.asked.find((x) => x.kind === 'question');
   const request = o.asked.find((x) => x.kind === 'decision');
   const action = o.asked.find((x) => x.kind === 'action');
   if (question) return { kind: 'answer', label: `Answer ${question.fromFirst}’s question`, targetId: question.id };
   if (request) return { kind: 'respond', label: request.fromId === o.viewer.id ? 'Answer your own request' : `Answer ${request.fromFirst}’s request`, targetId: request.id };
-  if (isOwner && o.week > 0 && o.due) return { kind: 'check-in', label: `Check in for week ${o.week}`, targetId: null };
-  if (action) return { kind: 'done', label: 'Mark your action done', targetId: action.id };
+  if (isOwner && live && o.week > 0 && o.firstDue) return { kind: 'first-check-in', label: 'Post the first check-in', targetId: null };
+  if (isOwner && live && o.week > 0 && o.due) return { kind: 'check-in', label: `Check in for week ${o.week}`, targetId: null };
+  if (action) return { kind: 'done', label: 'Mark your next step done', targetId: action.id };
+  if (isOwner && live && (o.status === 'off' || o.status === 'risk') && (o.openSteps ?? 0) === 0) return { kind: 'add-step', label: 'Add a next step', targetId: null };
   if (!isOwner && o.status === 'stale' && !o.updateAsked) return { kind: 'ask-update', label: `Ask ${ownerFirst} for an update`, targetId: null };
-  if (!isOwner && !o.watching) return { kind: 'watch', label: 'Watch', targetId: null };
   return { kind: null, label: '', targetId: null };
+}
+
+/** The plain button beside the primary one: the owner's "Check in again", or anyone else's "Watch" / "Watching". */
+export type StandingKind = 'check-in-again' | 'watch' | 'watching' | null;
+export function standingAction(o: { goal: Goal; viewer: Person; primary: Primary; watching: boolean; status: DisplayStatus }): { kind: StandingKind; label: string } {
+  if (o.goal.stoppedAt) return { kind: null, label: '' };
+  if (o.viewer.id === o.goal.ownerId) {
+    if (o.status === 'done' || o.primary.kind === 'check-in' || o.primary.kind === 'first-check-in') return { kind: null, label: '' };
+    return { kind: 'check-in-again', label: 'Check in again' };
+  }
+  return o.watching ? { kind: 'watching', label: 'Watching' } : { kind: 'watch', label: 'Watch' };
+}
+
+/* ---------- 1a. next steps and asks: one list, shown once (goal spec, rule 2) ---------- */
+
+export type StepButton = 'Respond' | 'Answer' | 'Mark done' | 'Check in' | 'Withdraw';
+export interface StepRow {
+  id: string;
+  kind: AskKind;
+  /** Line 1: the kind as a word, then the text ("Decision or help: approve the extra CI runner budget"). */
+  text: string;
+  /** Line 2: who and when ("Asked of Amara by Rhea · 3 weeks ago"; "Amara · by week 47 (Thu 19 Nov) · agreed in …"). */
+  line: string;
+  /** "Open", "Overdue by 1 week", "Answered", "Done · week 44". */
+  state: string;
+  overdue: boolean;
+  /** Answered or done. */
+  settled: boolean;
+  /** An answered or done row's answer or note: "Amara: approved for Q4, from the platform reserve." */
+  answer: string | null;
+  /** The one button for the viewer, if any. */
+  button: StepButton | null;
+}
+export interface StepsAndAsks { forYou: StepRow[]; open: StepRow[]; done: StepRow[]; openCount: number; gap: boolean }
+
+/** What the list reads: the goal's asks and next steps, the people and reviews they name, and the viewer. */
+export interface StepsInput {
+  goal: Goal; viewer: Person; week: number; cycle: Cycle; status: DisplayStatus;
+  asks: readonly Ask[]; people: readonly Pick<Person, 'id' | 'name'>[]; reviews: readonly { id: string; name: string }[];
+}
+
+const KIND_WORD: Record<AskKind, string> = { decision: ASK_KIND.decision.label, question: ASK_KIND.question.label, action: DECIDED['next-step'].label, update: `${ASK_KIND.update.label} asked` };
+const ORDER: Record<AskKind, number> = { decision: 1, question: 2, action: 3, update: 4 };
+const weeksWord = (n: number) => `${n} ${n === 1 ? 'week' : 'weeks'}`;
+
+/** The goal's asks and next steps, from what `reads` gives: `asksOf` on the workspace, filtered to the goal. */
+export const asksOnGoal = (goalId: string, s: Pick<Snapshot, 'requests'> & Partial<Snapshot>): Ask[] => asksOf(s as Snapshot).filter((r) => r.goalIds.includes(goalId) && r.status !== 'withdrawn');
+
+/**
+ * One list of everything asked and agreed on a goal: open decisions or help, questions, asks for an update and next
+ * steps, then what was answered or done, newest first. Each row has at most one button for the viewer, by the asks'
+ * own rules (canAnswer, canMarkDone, canWithdraw). `gap`: behind, with no next step open.
+ */
+export function stepsAndAsks(i: StepsInput): StepsAndAsks {
+  const firstName = (id: string | null | undefined) => i.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'someone';
+  const isOwner = i.viewer.id === i.goal.ownerId;
+  const weekOf = (iso: string) => currentWeek(i.cycle, new Date(iso));
+  const ago = (iso: string) => { const n = i.week - weekOf(iso); return n <= 0 ? 'this week' : n === 1 ? 'last week' : `${n} weeks ago`; };
+  const by = (w: number) => `by week ${w} (${dayText(reviewDate(i.cycle, w))})`;
+  const reviewName = (id: string | null) => i.reviews.find((v) => v.id === id)?.name ?? null;
+  const rows: { r: Ask; row: StepRow; open: boolean; mine: boolean; overdueBy: number }[] = [];
+  for (const r of i.asks) {
+    if (!r.goalIds.includes(i.goal.id) || r.status === 'withdrawn') continue;
+    const open = r.status === 'open';
+    const overdueBy = isOverdue(r, i.week) ? i.week - r.dueWeek! : 0;
+    const where = reviewName(r.reviewId);
+    const many = r.goalIds.length > 1 ? ` · for ${r.goalIds.length} goals` : '';
+    const line = r.kind === 'action'
+      ? `${r.recipientId ? firstName(r.recipientId) : 'Anyone'}${r.dueWeek != null ? ` · ${by(r.dueWeek)}` : ''} · ${where ? `agreed in ${where}` : `agreed by ${firstName(r.askedBy)}`}`
+      : `${r.recipientId ? `Asked of ${firstName(r.recipientId)} by ${firstName(r.askedBy)}` : `Asked by ${firstName(r.askedBy)}`}${where ? ` in ${where}` : ''} · ${ago(r.createdAt)}${many}`;
+    const state = !open ? (r.status === 'done' ? `${ASK_STATUS.done.label} · week ${weekOf(r.answeredAt ?? r.updatedAt)}` : ASK_STATUS.answered.label)
+      : overdueBy > 0 ? `${ASK_STATUS.overdue.label} by ${weeksWord(overdueBy)}` : ASK_STATUS.open.label;
+    const answer = !open && r.answer?.trim() ? `${firstName(r.answeredBy)}: ${r.answer.trim()}` : null;
+    let button: StepButton | null = null;
+    if (open) {
+      if (r.kind === 'decision' && canAnswer(r, i.viewer as Person)) button = 'Respond';
+      else if (r.kind === 'question' && canAnswer(r, i.viewer as Person)) button = 'Answer';
+      else if (r.kind === 'action' && canMarkDone(r, i.viewer as Person)) button = 'Mark done';
+      else if (r.kind === 'update' && isOwner) button = 'Check in';
+      else if (canWithdraw(r, i.viewer as Person, i.goal)) button = 'Withdraw';
+    }
+    const mine = open && (r.kind === 'action' ? r.recipientId === i.viewer.id : r.recipientId === i.viewer.id || (r.kind === 'decision' && !r.recipientId));
+    const text = r.kind === 'update' ? KIND_WORD.update : `${KIND_WORD[r.kind]}: ${r.ask.trim()}`;
+    rows.push({ r, open, mine, overdueBy, row: { id: r.id, kind: r.kind, text, line, state, overdue: overdueBy > 0, settled: !open, answer, button } });
+  }
+  const openOrder = (a: (typeof rows)[number], b: (typeof rows)[number]) => {
+    const late = (x: typeof a) => (x.r.kind === 'action' && x.overdueBy > 0 ? 0 : 1);
+    return late(a) - late(b) || b.overdueBy - a.overdueBy || ORDER[a.r.kind] - ORDER[b.r.kind] || (a.r.dueWeek ?? 999) - (b.r.dueWeek ?? 999) || a.r.createdAt.localeCompare(b.r.createdAt);
+  };
+  const openRows = rows.filter((x) => x.open).sort(openOrder);
+  const forYou = openRows.filter((x) => x.mine).map((x) => x.row);
+  const open = openRows.filter((x) => !x.mine).map((x) => x.row);
+  const done = rows.filter((x) => !x.open).sort((a, b) => (b.r.answeredAt ?? b.r.updatedAt).localeCompare(a.r.answeredAt ?? a.r.updatedAt)).map((x) => x.row);
+  const stepsOpen = openRows.some((x) => x.r.kind === 'action');
+  return { forYou, open, done, openCount: forYou.length + open.length, gap: (i.status === 'off' || i.status === 'risk') && !stepsOpen };
+}
+
+/** What Why says about an open decision or help: a pointer to the list, never the ask's words (goal spec, rule 3). */
+export function whyPointer(goal: Goal, asks: readonly Ask[], people: readonly Pick<Person, 'id' | 'name'>[]): string | null {
+  const open = asks.filter((r) => r.kind === 'decision' && r.status === 'open' && r.goalIds.includes(goal.id));
+  if (!open.length) return null;
+  const names = [...new Set(open.map((r) => r.recipientId))];
+  if (names.includes(null)) return 'Waiting on a decision: see Next steps and asks';
+  const firstName = (id: string | null) => people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'someone';
+  const list = names.map(firstName);
+  const who = list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`;
+  return `Waiting on a decision from ${who}: see Next steps and asks`;
 }
 
 /* ---------- 2. asked of you ---------- */

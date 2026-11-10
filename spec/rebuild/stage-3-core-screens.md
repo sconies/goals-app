@@ -21,6 +21,7 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 
 - Each core screen at its route, with its named parts and one main action at a time.
 - Every core journey, within its step budget, on a phone (390px) and a desktop (1440px).
+- A goal’s page in one order at every width: the summary and its buttons, Next steps and asks, Why, the chart, then the rest. Its main button is a rule of who is looking ([acting on a goal](../core/rules/goal-act.md)), not a layout choice; Next steps and asks is one query over the goal’s asks and next steps; someone acting for the owner (R6b) presses the owner’s buttons for them.
 - One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.
 
 ## Exit criteria
