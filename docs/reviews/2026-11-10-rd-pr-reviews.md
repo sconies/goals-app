@@ -339,3 +339,28 @@ Read against `docs/design/onboarding/spec.md` 2.8, 2.9 and rules 6 and 7, and `d
 The fixes for #96's finding 1 and #87's finding 1, as suggested. Read in the code: `weekEnd` is now the second before `weekDate(cycle, w + 1)`, with a unit test and a line in U79 that a comment made this week sits under this week's entry; R1's row for marking reviewed and accepting a risk says "Anyone", matching the rule, and the spec is regenerated.
 
 **Nothing found.** Both earlier findings are closed.
+
+### #101 GL1 with NV1: Goals opens on yours; the menu in groups (track 1, merged 16:52 UTC)
+
+Read against `docs/design/goals/spec.md` sections 1, 2.1 and 4, and `docs/design/navigation/spec.md`'s menu, and opened in the demo as Rhea, Tunde, Amara and Oskar at 1440 px and as Amara at 390 px.
+
+**Closed by this PR, each confirmed:**
+
+- #98, finding 1: Activity and Help now match with `textMatches`. In the demo Activity finds 50 changes for "G-10", fewer for "back" (209) than "roll" (232), and offers "rollback" for "rolback"; Help finds nothing for "eck" and offers "check" for "chekc".
+- #98, finding 2: on Activity, type "kafka", Enter, Back returns to the list without the search.
+- #99, finding 1: the shell draws the sidebar from `menuGroups` and lights it with `litItem`.
+- #91, finding 1: the pickers lint now sees selects mapped from any list that isn't fixed, and `pickers-left.json` names `RemoveSheets.tsx` (2), `DataTables.tsx`, `GoalFilters.tsx` and set-up's owners.
+
+**What holds in the demo:** the tabs and their counts are rule 1's for each person (Rhea: Mine 8, My team 17, Watching 12, All 126; Amara opens on Watching with no Mine; Oskar asking for `scope=mine` gets Watching); the scope last used is remembered; every old address in the redirect table lands where it says, with the line for a tab or team that isn't there; the count line reads as rule 4 has it with the switch off and on ("41 need attention: 11 off track · 23 at risk · 5 no recent update · 2 on track, flagged for getting worse."); the switch adds a history entry that Back undoes; the address, the lit tab and the list always agreed; the sidebar is in groups with no Mine, Watching or All; nothing scrolls sideways on a phone. The new rules take narrow inputs.
+
+**1. Medium. With a search or a filter on, Goals says the count twice and still draws the old chips.**
+
+- Where: `src/screens/GoalFilters.tsx:110-118`. The old row ("3 of 17 goals", a bordered chip for each filter with a cross, "Clear filters") is still drawn above the new count line.
+- Reproduce: the demo as Rhea, `/goals?scope=team&q=queue`: "3 of 17 goals", a chip "“queue” ×", "Clear filters", and under them "3 goals match. 3 off track". The same with any filter (`?owner=rhea&status=off`: "2 of 126 goals" and "2 goals match. 2 off track").
+- What the specs ask: one count line (goals spec, rule 4; the PR's own summary says "one count line"); the filter line in plain words with "Remove" in place of the chips; and a search is never shown as a filter (find spec, rule 3). #98 left this to GL1 by name.
+- Suggested fix: draw `FilterLine` from `describeQuery`'s parts and drop the chips row and its count; keep Save view and Copy link where they are. The demo's "search G-48" step shows this.
+
+**2. Low.**
+
+- `find_goals` did not gain `scope`, which the goals spec's "Changed: `query.ts`" asks for along with the parity entry; the PR doesn't say it is held back.
+- The browser's title on Goals is the scope ("Mine · …"), where the spec's routes table gives "Goals".
