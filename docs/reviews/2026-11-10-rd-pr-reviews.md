@@ -232,7 +232,7 @@ Read against `docs/design/architecture.md` 1.2, section 2 (AR2) and 4.1 to 4.2. 
 
 **1. Medium. Two of the new navigation rules are not what the shell runs.**
 
-- Where: `menuFor` and `litItem` (`src/domain/navigation.ts:44` and `:65`) are called only by the spec's rule page and the conformance file (`src/spec/rules.ts`, `src/spec/conformance.ts`). The shell still places a module's menu item and lights it with its own inline code (`src/ui/Shell.tsx:264`: the group test, and `navAt === n.to || navAt.startsWith(n.to + '/')`).
+- Where: `menuFor` and `litItem` (`src/domain/navigation.ts:43` and `:64`) are called only by the spec's rule page and the conformance file (`src/spec/rules.ts`, `src/spec/conformance.ts`). The shell still places a module's menu item and lights it with its own inline code (`src/ui/Shell.tsx:265`: the group test, and `navAt === n.to || navAt.startsWith(n.to + '/')`).
 - Why it matters: the architecture asked for the menu and the lit item to be rules the shell draws. As merged, where a module's item goes and when it lights is written twice, and the copy that is tested and written into the rebuild kit is the one the app doesn't use. NV1's grouped menu and the Metrics row (ML1) are built on this next.
 - Confirm: `grep -rn "menuFor\|litItem" src` finds no caller outside `src/spec` and the rule's own test.
 - Suggested fix: have the shell draw the sidebar from `menuFor(ownsGoals, moduleNav)` and take the lit item from `litItem`; add a module item to one conformance row so the placement is pinned.
