@@ -10275,6 +10275,7 @@ var CORE_ARTICLES = [
 					"Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
 					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
+					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.",
 					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
 				]
 			},
@@ -10288,7 +10289,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"HOME-DASHBOARD",
 			"PROFILES",
-			"SHAPE-MATCHES-WORD"
+			"SHAPE-MATCHES-WORD",
+			"DAY-ONE"
 		],
 		keywords: [
 			"dashboard",
@@ -10440,7 +10442,8 @@ var CORE_ARTICLES = [
 					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
-					"Check each goal’s owner, where it starts and its target before you create the workspace.",
+					"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
+					"Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
@@ -10740,7 +10743,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team).",
+					"Watch a single goal from its page, a goal and everything feeding it, or a whole level (North star, SVP or Team). On a goal’s page, Watch first says what watching does: its check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email.",
 					"Watching is part of Goals (Goals, then the Watching tab; the sidebar’s Watching goes there too), with the same search, filters, sort, layouts and export. In the list it groups them: what needs attention (a goal with no recent update included), then what has nothing flagged, with what changed this week beside them. What is being handled is folded away. To see one level, use the Level filter.",
 					"For a goal with no recent update, ask its owner for an update. It’s an ask, open on their Home until they check in; whoever asked can withdraw it.",
 					"Stop watching from the same place you started."
@@ -10748,7 +10751,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can watch any goal."]
+				text: ["Anyone can watch any goal. A goal’s owner has no Watch: it is always on their Home."]
 			}
 		],
 		routes: ["/watching"],
@@ -10756,7 +10759,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"WATCHING",
 			"ASK-UNDO",
-			"ONE-WATCHING"
+			"ONE-WATCHING",
+			"GOAL-SAYS"
 		],
 		keywords: [
 			"follow",
@@ -11081,14 +11085,17 @@ var CORE_ARTICLES = [
 			{
 				heading: "In order, on a computer and a phone",
 				list: [
-					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, Activity and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
+					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
 					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
 					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
 					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
-					"This year by quarter, then Activity: check-ins, comments and changes in one stream, newest first, with a comment box at the top.",
+					"The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.",
+					"Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.",
+					"This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.",
+					"History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.",
 					"About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.",
 					"On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order."
 				]
@@ -11131,6 +11138,8 @@ var CORE_ARTICLES = [
 		reqs: [
 			"GOAL-ACT",
 			"GOAL-ASK-ONCE",
+			"GOAL-HISTORY",
+			"GOAL-SAYS",
 			"GOAL-PAGE",
 			"CHART-READ",
 			"GOAL-PAGE-BAR",
@@ -11171,6 +11180,12 @@ var CORE_ARTICLES = [
 			"next step",
 			"for you",
 			"check in again",
+			"history",
+			"missed weeks",
+			"no check-in",
+			"watch",
+			"comment",
+			"who sees it",
 			"about"
 		],
 		related: [
@@ -12514,6 +12529,17 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "getting-started",
+		date: "2026-11-10",
+		title: "A first week that tells you what to do",
+		points: [
+			"After setting up a workspace, Home lists what’s left: first check-ins, goals to give an owner, and the link to send your team.",
+			"Someone you add sees who set it up and what’s theirs to do.",
+			"Set-up lets you leave a goal’s owner for later, and its step counter counts the path you chose."
+		],
+		articles: ["home", "set-up"]
+	},
+	{
 		id: "cycles-plainer",
 		date: "2026-11-10",
 		title: "Cycles says where the year stands",
@@ -12531,6 +12557,28 @@ var WHATS_NEW = [
 			"removing",
 			"people"
 		]
+	},
+	{
+		id: "watch-and-comment-say",
+		date: "2026-11-10",
+		title: "Watch and comments say what they do",
+		points: [
+			"Watch tells you what you’ll see and where before you choose, and says what it did, with Undo.",
+			"A comment says who can read it and who sees it on Home, and has a Cancel.",
+			"A goal’s printed page says its kind in plain words: “North star · a number to move”."
+		],
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
+	},
+	{
+		id: "goal-history",
+		date: "2026-11-10",
+		title: "A goal’s history shows the weeks it missed",
+		points: ["Activity on a goal is now History: every week is listed, with “No check-in” where there was none.", "Reviews and Changes are separate filters, with counts, and a filter can be linked to."],
+		articles: ["goal-page"]
 	},
 	{
 		id: "admins-on-access",
@@ -13173,7 +13221,11 @@ var WHATS_NEW = [
 			"Scrolled down, the bar is one line on a solid panel that stands off the page: status, number, the gap to plan and the “…” menu. “Since you looked” only appears when something has changed.",
 			"On paper, a goal fits one A4 page again, and on a 360px phone nothing runs off the side."
 		],
-		articles: ["goal-page", "print"]
+		articles: [
+			"goal-page",
+			"watching",
+			"print"
+		]
 	},
 	{
 		id: "faro",

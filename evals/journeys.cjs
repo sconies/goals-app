@@ -922,15 +922,15 @@ journey('U6', ['NOTES', 'GOAL-PAGE', 'CHANGE-LOG', 'ATTENTION', 'REBASELINE'], '
   h.set('attention', await p.locator('.goal-bar[data-tone=off] .bar-status.off').isVisible() && /^[1-9]\d*$/.test((await p.locator('.goal-bar .sc-late .sc-value').innerText()).trim()) && (await p.locator('.why-block .why-text').innerText()).length > 10, 'off track and its reasons are not shown');
   await h.checkpoint('goal page');
   // Check-ins, comments and changes are one stream; Changes shows only the changes.
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Changes', exact: true }));
-  await h.click(p.locator('#activity').getByRole('button', { name: /Show .*change/ }).first());
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Changes \d+$/ }));
+  await h.click(p.locator('#history').getByRole('button', { name: /Show .*change/ }).first());
   h.set('logged', await p.locator('.diffs ins').first().isVisible(), 'a change does not show its before and after');
   h.set('finish', true);
   h.set('progress', await p.locator('.stagelist').isVisible(), 'the stages are not shown');
   // Anyone can comment; it goes straight into the goal's activity, logged like every other save.
-  await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
+  await p.getByRole('button', { name: 'Add a comment' }).click(); await h.fill(p.getByLabel('Add a comment'), 'The vendor confirmed their December date holds.');
   await h.click(p.getByRole('button', { name: 'Post comment' }));
-  await h.click(p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Comments', exact: true }));
+  await h.click(p.locator('#history .history-filters').getByRole('link', { name: /^Comments \d+$/ }));
   await see(p, 'The vendor confirmed their December date holds.', 'the comment shows in the activity');
   const s = await h.snapshot();
   h.set('logged', s.changes.some((c) => c.actorId === 'santiago' && c.goalId === 'fresh-kafka' && c.diffs.some((d) => /December date/.test(d.to))), 'the comment is not in the change log');
@@ -1032,8 +1032,11 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
-  await h.click(p.getByRole('button', { name: 'Watch', exact: true }));
-  await h.click(p.getByRole('button', { name: /Watch it and everything feeding it/ }));
+  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3).
+  await h.click(p.locator('.goal-bar').getByRole('button', { name: 'Watch', exact: true }));
+  const watchSheet = p.getByRole('dialog', { name: /^Watch / });
+  await h.click(watchSheet.getByRole('radio', { name: /^It and the \d+ goals? feeding it$/ }));
+  await h.click(watchSheet.getByRole('button', { name: 'Watch', exact: true }));
   await see(p, 'Watching all');
   // And a whole level from Watching.
   await navTo(h, p, 'Watching');
@@ -3728,6 +3731,108 @@ journey('U78', ['GOAL-ASK-ONCE', 'ONE-ASK'], 'An ask is said once on a goal, und
   await p.context().close();
 }, ['progress']);
 
+journey('U79', ['GOAL-HISTORY'], 'A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  // Portal search has had no check-in since week 39: History says so, week by week (a run of four or more is one entry).
+  await p.goto(url('/goals/env-search') + '#history');
+  const hist = p.locator('#history');
+  // The page scrolls there once it's drawn (and again after the shell puts a new page at its top).
+  await hist.waitFor();
+  await p.waitForFunction(() => { const e = document.getElementById('g-history'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom < innerHeight; }, null, { timeout: 3000 }).catch(() => {});
+  await h.inView(hist.getByRole('heading', { name: 'History' }), 'entry', 'History, opened by #history');
+  const first = (await hist.locator('.stream > li').first().innerText()).replace(/\s+/g, ' ').trim();
+  h.set('attention', first === `Week ${NOW} · No check-in`, `History starts with “${first}”`);
+  await see(hist, 'No check-ins (', 'a run of missed weeks is not said');
+  await h.checkpoint('history');
+  // Changes and Reviews are filters with counts, each count the rows it shows; the filter is in the address.
+  await p.goto(url('/goals/ns-lead'));
+  await hist.waitFor();
+  const filter = (name) => hist.locator('.history-filters').getByRole('link', { name: new RegExp(`^${name} \\d+$`) });
+  // The page can open scrolled to History, under the one-line bar: bring a filter to the middle before pressing it.
+  const press = async (loc) => { await loc.evaluate((e) => e.scrollIntoView({ block: 'center' })); await h.click(loc); };
+  // A filter has taken effect once it is the current one and its list is drawn.
+  const shown = async (name) => { await hist.locator('.history-filter[aria-current="true"]', { hasText: name }).waitFor(); await p.waitForTimeout(150); };
+  // Every row of the filter: Show all when there are more than 12.
+  const showEvery = async (n) => { if (n > 12) { await press(hist.getByRole('link', { name: /^Show all \d+$/ })); await p.waitForURL(/all=1/); await p.waitForTimeout(150); } };
+  const counted = async (name) => Number((await filter(name).innerText()).match(/\d+$/)[0]);
+  await press(filter('Changes'));
+  await p.waitForURL(/history=changes/);
+  await shown('Changes');
+  const changes = await counted('Changes');
+  await showEvery(changes);
+  const rows = await hist.locator('.stream > li').count();
+  const reviewWords = await hist.locator('.stream > li').filter({ hasText: /looked at it|added a note/ }).count();
+  h.set('finish', rows === changes && reviewWords === 0, `Changes says ${changes} and shows ${rows} rows, ${reviewWords} of them from a review`);
+  await p.reload();
+  await hist.waitFor();
+  h.set('progress', (await hist.locator('.history-filter[aria-current="true"]').innerText()).startsWith('Changes'), 'a reload lost the filter');
+  await press(filter('Reviews'));
+  await p.waitForURL(/history=reviews/);
+  await shown('Reviews');
+  const reviews = await counted('Reviews');
+  await showEvery(reviews);
+  const rrows = await hist.locator('.stream > li').count();
+  h.set('errors', rrows === reviews && reviews > 0, `Reviews says ${reviews} and shows ${rrows} rows`);
+  // This week's check-in is one entry, and points to Why for its reason rather than saying it again.
+  await press(filter('All'));
+  await shown('All');
+  await see(hist, 'The reason is above, under Why.', 'this week’s check-in repeats the reason Why gives');
+  const s = await h.snapshot();
+  h.set('logged', s.changes.some((c) => c.goalId === 'ns-lead'), 'nothing in the change log for the goal');
+  await p.context().close();
+}, []);
+
+journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do them; an owner has no Watch, and About says why', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/goals/ns-lead'));
+  await p.locator('.goal-bar').waitFor();
+  // Watch opens a sheet with what watching does; Watch in it, and the button says Watching, with Undo in the message.
+  const bar = p.locator('.goal-bar .bar-actions');
+  await h.inView(bar.getByRole('button', { name: 'Watch', exact: true }), 'entry', 'Watch');
+  await h.click(bar.getByRole('button', { name: 'Watch', exact: true }));
+  const sheet = p.getByRole('dialog', { name: 'Watch Lead time for changes' });
+  await see(sheet, 'show on your Home and under Watching in Goals', 'the Watch sheet does not say what watching does');
+  await see(sheet, 'Faro sends no email');
+  await h.checkpoint('watch sheet');
+  await h.click(sheet.getByRole('button', { name: 'Watch', exact: true }));
+  await see(p, 'Watching Lead time for changes');
+  h.set('finish', await bar.getByRole('button', { name: 'Watching' }).isVisible(), 'the button does not say Watching');
+  // Watching: the sheet has Done and Stop watching; stopping says so, with Undo.
+  await h.click(bar.getByRole('button', { name: 'Watching' }));
+  const again = p.getByRole('dialog', { name: 'You’re watching Lead time for changes' });
+  await h.click(again.getByRole('button', { name: 'Stop watching' }));
+  await see(p, 'Undo', 'stopping has no Undo');
+  // The comment box opens with who reads it and who sees it on Home; Cancel closes it.
+  await h.click(p.getByRole('button', { name: 'Add a comment' }));
+  await see(p, /Everyone in .+ can read this\. Rhea and the \d+ (people|person) watching see it on Home\./, 'the comment box does not say who sees it');
+  await h.click(p.locator('.note-compose').getByRole('button', { name: 'Cancel' }));
+  h.set('errors', !(await p.locator('.note-compose').count()) && await p.getByRole('button', { name: 'Add a comment' }).isVisible(), 'Cancel did not close the comment box');
+  // Ask Rhea a question: a row in Next steps and asks.
+  await h.click(p.getByRole('button', { name: 'Ask Rhea a question' }));
+  const ask = p.getByRole('dialog', { name: /^Ask Rhea a question about/ });
+  await h.fill(ask.getByLabel('Your question'), 'Is week 49 still the date for every monorepo?');
+  await h.click(ask.getByRole('button', { name: 'Ask', exact: true }));
+  await p.locator('.step-row', { hasText: 'Is week 49 still the date for every monorepo?' }).waitFor();
+  // Add a next step, as someone who doesn't own the goal: nobody chosen to start with.
+  await h.click(p.locator('.next-steps').getByRole('button', { name: 'Add a next step' }));
+  const step = p.getByRole('dialog', { name: /^Add a next step/ });
+  const empty = !(await step.locator('.pick-field').count());
+  await step.locator('.pick-open').click();
+  h.set('attention', empty && await step.getByRole('option', { name: /Oskar .*\(you\)/ }).isVisible() && await step.getByRole('option', { name: /Rhea .*who owns this goal/ }).isVisible(), 'Add a next step starts with someone chosen, or without the suggestions');
+  await p.keyboard.press('Escape');
+  await step.getByRole('button', { name: 'Cancel' }).click();
+  const s = await h.snapshot();
+  h.set('logged', s.requests.some((r) => r.kind === 'question' && r.askedBy === 'oskar' && /week 49 still/.test(r.ask)) && s.changes.some((c) => c.actorId === 'oskar' && c.entity === 'watch'), 'the question or the watch is not saved and logged');
+  // As Rhea, the owner: no Watch, and About says why.
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+  await p.goto(url('/'));
+  await p.goto(url('/goals/ns-lead') + '#about');
+  await p.locator('.goal-bar').waitFor();
+  h.set('progress', !(await bar.getByRole('button', { name: /^Watch/ }).count()), 'the owner is offered Watch');
+  await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
+  await p.context().close();
+}, []);
+
 async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
@@ -3792,7 +3897,7 @@ async function platformChecks() {
     await q.goto(url('/'));
     await q.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'oskar'));
     await q.goto(url('/goals/ns-lead'));
-    await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Kept after a reload, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     await q.getByText('Kept after a reload, P15').first().waitFor().catch(() => {});
     await q.reload();
@@ -3802,7 +3907,7 @@ async function platformChecks() {
     const note = await q.locator('.save-note').count();
     // A browser that refuses to store: the next change says it lasts only for this visit.
     await q.evaluate(() => { Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); }; });
-    await q.getByLabel('Add a comment').fill('Only for this visit, P15');
+    await q.getByRole('button', { name: 'Add a comment' }).click(); await q.getByLabel('Add a comment').fill('Only for this visit, P15');
     await q.getByRole('button', { name: 'Post comment' }).click();
     let said = false;
     try { await q.locator('.save-note').filter({ hasText: /last only until you reload/ }).waitFor({ timeout: 5000 }); said = true; } catch { /* not said */ }

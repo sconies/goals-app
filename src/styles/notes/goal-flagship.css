@@ -386,3 +386,20 @@
 .goal-page .sc-none { margin: var(--s2) 0 0; }
 .goal-page .about .block-line { display: block; margin-top: 2px; }
 @media (pointer: coarse) { .goal-page .goal-link, .goal-page .step-do .btn, .goal-page .step-line .linkish { min-height: 44px; } }
+
+/* ---------- history (goal spec, 2.2; GT2): filters as links with counts, and the weeks with no check-in ---------- */
+.goal-page .history-filters { display: flex; flex-wrap: wrap; gap: 0 var(--s4); margin: var(--s3) 0 var(--s2); font-size: 0.875rem; }
+.goal-page .history-filter { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; color: var(--fg-2); text-decoration: none; }
+.goal-page .history-filter[aria-current='true'] { color: var(--fg); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.goal-page .history-count { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.goal-page .history-find { gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s2); }
+.goal-page .history-find .history-search { flex: 1 1 220px; min-width: 0; }
+.goal-page .history-find .history-week { flex: 0 1 180px; }
+.goal-page .stream-missed { padding: 10px 0; border-top: 1px solid var(--line-2); }
+.goal-page .anchor-alias { display: block; height: 0; }
+@media (pointer: coarse) { .goal-page .history-filter { min-height: 44px; } }
+
+/* ---------- the comment box and the Watch sheet say what they do (goal spec, 2.2, 2.5; GT3) ---------- */
+.goal-page .note-open { align-self: flex-start; }
+.goal-page .note-reach { margin: var(--s1) 0 0; }
+.watch-says { margin: 0; }

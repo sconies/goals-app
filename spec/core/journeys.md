@@ -71,6 +71,8 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U66 | A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back |  | `LIST-BAR` | 4 | `evals/journeys.cjs` |
 | U77 | The owner can act on a goal: Check in again always, and Add a next step when it is behind with none |  | `GOAL-ACT` | 10 | `evals/journeys.cjs` |
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
+| U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
+| U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
 
 ## Platform checks
@@ -120,7 +122,7 @@ Checks that Lane’s review notes stay fixed.
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
-| N15 | Said once: an ask’s words, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` | `evals/notes/11-said-once.cjs` |
+| N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
 
 ## The ease test
 
