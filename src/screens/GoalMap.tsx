@@ -307,7 +307,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small"><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> <span className="map-long">Only what {ATTENTION.needs.label.toLowerCase()}</span><span className="map-short">{ATTENTION.needs.label}</span></label>
+          <label className="check small" title={`With the goals ${ATTENTION.handled.label.toLowerCase()}: nothing behind is hidden`}><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> <span className="map-long">Only what {ATTENTION.needs.label.toLowerCase()}</span><span className="map-short">{ATTENTION.needs.label}</span></label>
           <label className="check small map-troubled" title="Trees whose top goal or anything under it is off track, at risk or has no recent update"><input type="checkbox" checked={onlyTroubled} onChange={(e) => setOnlyTroubled(e.target.checked)} /> <span className="map-long">Troubled trees only</span><span className="map-short">Troubled trees</span></label>
           <button type="button" className="btn sm map-fold" onClick={fold}>{hiddenAny ? 'Unfold all' : 'Fold to the top'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}

@@ -153,16 +153,22 @@ export const ATTENTION = {
   needs: term('needs', {
     label: 'Needs attention', short: 'new, and nobody has picked it up',
     meaning: 'Flagged for something new that nobody has picked up yet.',
-    long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(', ').replace(/, ([^,]+)$/, ' or $1')}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant.`,
+    long: `A goal needs attention when it is ${ATTENTION_FLAGS.map((k) => FLAG[k].label.toLowerCase()).join(', ').replace(/, ([^,]+)$/, ' or $1')}, unless someone is already handling it. The same rule picks the goals on Home, in Watching, on the map, in the Goals filter, in reviews and for the AI assistant. Wherever they are listed, the goals being handled are listed below them, so nothing is hidden; a count of goals that need attention leaves those out.`,
     rule: 'attention#needsAttention',
   }),
   handled: term('handled', {
-    label: 'Being handled', short: 'behind, and someone has looked',
-    meaning: 'Behind, but someone has looked since the latest check-in and nothing new has happened.',
-    long: 'Off track or at risk, and since its latest check-in someone other than the owner marked it reviewed or noted it, an action was agreed (and isn’t overdue), or its request was answered. A new check-in or a new flag makes it need attention again.',
+    label: 'Being handled', short: 'an action agreed since its latest check-in',
+    meaning: 'An action with an owner and a date was agreed after its latest check-in. It comes back to Needs attention if anything new happens.',
+    long: 'Off track or at risk, and since its latest check-in an action was agreed with an owner and a due week (and isn’t overdue), or, when it is at risk, its request was answered. An off-track goal is handled only with an action. Marking it reviewed or noting it is not enough: that goal still needs attention, and says who looked at it. A new check-in or a new flag makes it need attention again.',
     rule: 'attention#handledFor',
   }),
 } as const;
+
+/**
+ * Being handled, said under the words wherever a group of them is shown (Lane, 9 Nov: "I don't even know what that
+ * means"): Home, Watching, the Needs attention list, the count's note and reviews all use this one line.
+ */
+export const HANDLED_LINE = 'These have an action with an owner and a date, or an answer to their request, agreed after their latest check-in. They come back under Needs attention if anything new happens.';
 
 /** What the numbers would otherwise hide, on a goal's story, besides the flags above. Not a reason to need attention on its own. */
 export type WarningKind = 'slipped' | 'same-cause' | 'missed-quarter';
