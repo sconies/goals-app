@@ -10,6 +10,34 @@ Only confirmed findings are listed: each was traced in the code and, where it sh
 | Medium | Wrong behaviour someone will meet, a rule restated, a missing eval for new behaviour, or an unexplained departure from the spec |
 | Low | Real, but small or rarely met |
 
+## Summary at the end of the day
+
+Written at 19:00 UTC, an hour after the last merge (#107, 17:58 UTC). Twenty pull requests were reviewed, #87 to #107 less this log's own (#86) and #103, which is held until Thursday and has not merged. Three were reviewed before merge at the planning session's request (#89, #93, #95).
+
+| | Count |
+|---|---|
+| Findings of high severity | 1 (#89: two ways out of the 0c fence), closed by #93 |
+| Blocking findings on a PR reviewed before merge | 1 (#95: 0037's guard), fixed before it merged |
+| Findings of medium severity | 17 |
+| Of those, fixed and confirmed on main | 15 |
+| Still open on main | 1 code finding (#104) and 1 decision for Lane (#93) |
+| PRs with nothing of medium severity or worse | #92, #100, #102, and the fix PRs #105, #106, #107 |
+
+**Still open**
+
+- **#104, medium.** `gettingStarted` takes the workspace's whole lists, and the AR4 lint only sees a parameter typed exactly `Snapshot`, so `Pick<Snapshot, …>` and a cast pass (`src/domain/dayOne.ts:70`, `scripts/check-layers.mjs:69`).
+- **#93, a decision for Lane before CI's `DATABASE_URL` becomes `faro_owner`.** If the migrate job's warning counts any `security definer` function outside Faro that everyone may run, the fence check will fail every migration after the switch, and the cure is a change to the other app's grants.
+- **Low, not fixed as far as main shows:** the R1-style restatements that remain (`findInDirectory`, `findTeams` and the picker's `findPeople` beside the Search port; `rowFor` in `Pick.tsx`; Recently removed's own matcher; the Goals screen's own near miss); `workspaceName` not used by People, the goal page's share image or Print; `find_goals` without `scope`; a comment's draft kept per goal, not per person; the phone picker as a half sheet; People's "No person matches" and the lost "Everyone is in a team."; History deciding "in a review" from a sentence; day one's `welcome` and `invite` rows; `faro-role.sql` and the README on reading Faro's tables as postgres. Each is in its PR's section.
+
+**What the day's findings had in common**
+
+- **Weeks counted from 1 where the app counts from 0** (#94's wrap-up date, #96's History order), each pinned by a test that fed the rule a week its date doesn't give. Worth one shared helper for "the day week n starts" and tests that take the week from the date.
+- **A rule written again beside the one it should call** (#88, #90, #98, #99), usually because two tracks landed the same idea within the hour. #98, #101 and #106 brought them back to one.
+- **A lint or list that passes while the thing it guards exists** (#91's pickers lint, #104's AR4 lint, #89's fence check counting tables only). Each matched on a spelling rather than on the thing.
+- **An Undo or a message that says more than happened** (#97).
+
+**How findings were confirmed.** Each was traced in the code. Those that show on screen were reproduced in the demo at `/demo?today=2026-11-11` with Playwright; the 0c findings on a local Postgres 16 shaped like Supabase, never the live project (one read of a public Storage address for a picture that doesn't exist aside, to check #93's probe). Fix PRs were checked in the code, and #101's and #107's in the demo.
+
 ## Pull requests
 
 ### #88 AR1 with AR4: the Search and Prefs ports (track 1, merged 12:19 UTC)
