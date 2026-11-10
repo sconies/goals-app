@@ -209,6 +209,8 @@ export function GoalsScreen() {
   return (
     <div className={frame} data-part={show === 'watching' ? 'Watching' : 'Goals'}>
       {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
+      {/* A phone draws no title (its top bar names the page); this one is for screen readers there. */}
+      <h1 className="sr goals-sr-title">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
       <div className="page-head row between goals-head" data-part="Views, search and filters">
         <span className="goals-title">
           <h1 className="title-xl">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
@@ -354,8 +356,8 @@ export function GoalsScreen() {
       {!alt && !refined && show === 'mine' && <ul className="tree">{[...mine].sort(worstFirst(app)).map((g) => <li key={g.id}><GoalRow g={g} showOwner={false} /></li>)}</ul>}
       {/* The key sits after the goals: every row already shows its status in words. */}
       {app.snapshot.goals.length > 0 && shown.length > 0 && layout !== 'map' && <StatusLegend />}
-      {/* A phone has no page title (its top bar says Goals), so New goal, and Wrap up when it's open, close the page. */}
-      <p className="row goals-phone-end">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm" to="/goals/new">New goal</Link></p>
+      {/* A phone has no page title (its top bar says Goals), so New goal closes the page. */}
+      <p className="row goals-phone-end"><Link className="btn ghost sm" to="/goals/new">New goal</Link></p>
     </div>
   );
 }
