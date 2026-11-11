@@ -25,11 +25,25 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #127 CY1: a year ends on its last day | 5 | 1 | 0 | 2 |
 | #131 AX8: the kit shows the database as it is | 4 | 0 | 1 | 2 |
 | #143 CI: fall back to Chromium alone when apt can't reach Ubuntu's mirror | planning | 0 | 0 | 1 |
+| #130 IM0, IM1: the round trip and the field table | 3 | 0 | 5 | 2 |
+| #112 GL2: the view menus | 1 | 0 | 6 | 5 |
+| #113 NV2: where you are | 1 | 1 | 5 | 4 |
+| #114 NV3: the check-in queue | 1 | 0 | 3 | 4 |
+| #111 FS1: pick everywhere | 1 | 0 | 5 | 3 |
+| #115 FS2: the list bar on Data and Feedback | 1 | 0 | 3 | 2 |
+| #117 FS4: company size (N12) | 1 | 0 | 3 | 2 |
+| #148 Track 1 handover | 1 | 0 | 0 | 0 |
+| #141 Undo brings a feature back | planning | 1 | 1 | 0 |
+| #116 find_goals takes a scope | 1 | 0 | 2 | 0 |
 
 **Open, of high severity:**
 
 - #110 finding 1: a goal's status in Find and in the picker is a word with no shape. Sent to track 1 at 13:55 UTC.
 - #127 finding 1: once the wrap-up has closed, no screen lets an admin start the next year. Sent to track 5 at 14:20 UTC.
+- #113 finding 1: on a computer, Settings can't be scrolled to its foot. Sent to track 1 at 19:15 UTC.
+- #141 finding 1: Undo pressed after switching workspace saves into the workspace now open. Sent to track 4 at 19:25 UTC.
+
+The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
 Medium and low findings were sent to each track in one batch: track 4 at 14:00 UTC (#122 to #128) and again after #131; tracks 1, 2 and 5 after #131.
 
@@ -159,3 +173,143 @@ Read against `docs/design/cycle-end/spec.md` rules 1 and 2, and opened as U117 d
 From about 14:13 UTC every CI job stopped at `playwright install --with-deps` because the runners could not resolve Ubuntu's mirror (this log's own PR, #134, was red for that reason). The fallback installs the browser without system packages only when the full install fails, and says so as a warning; "Screens that look different" builds both branches in the same job, so missing fonts affect both pictures alike.
 
 **1. Low. The privacy eval's new test for the typed number has a blind spot.** `evals/telemetry.eval.ts:167` now passes unless "7319" stands with no hex digit on either side, so that a random trace id holding those digits doesn't fail it. A leak inside an encoded address would also pass: in `%207319` or `%3D7319` the character before is a hex digit. Telemetry bodies are JSON today, so nothing leaks this way now. Safer: take the trace and span ids out of the text before looking, and keep the plain `not.toContain('7319')`.
+
+### #128, a late note
+
+#141's description records that main's full evals were red from #128 to #141: F7, P10 and N5 read Data a fixed time after opening it, and #128 made Data load when opened. This review judged the lazy routes safe on reading and did not run those three checks; it should have.
+
+### #130 IM0, IM1: the round trip and the field table (track 3, merged 17:28 UTC)
+
+Read against `docs/design/import/spec.md`. IM0's round trip held on every input tried (`sameAsWritten` against `planWeekValue`; the demo on four days). Example rows are skipped before any other rule. `src/domain` stays pure.
+
+**1. Medium (read). The field table says an empty Admin cell keeps what is there; the engine reads it as "no".** `src/domain/columns.ts:561` has no `clears` for Admin, and Help says "an empty cell keeps what is there, except where the table says empty clears it"; `src/domain/changeset.ts:245` and `:280` turn a present, empty Admin into not an admin. The first reader ran it: an existing admin's row with Admin blank previews as "Admin: Yes to No". The template carries the column, so this is an easy way to demote someone; the preview does show it. Fix: mark Admin as clearing, in the table's words, or make the engine keep.
+
+**2. Medium (read). The table says Takes over accepts "An email, or a name only one person has"; the engine takes an email only** (`columns.ts:563`; `changeset.ts:251`, `pickPerson(r, { email: 'takes over' }, …)`). A name gives "Takes over: “Tariq Haddad” isn't an email."
+
+**3. Medium (read). The field-table test cannot fail for the case it is there for.** `src/domain/fieldTable.test.ts:37-41` inspects only columns that already have a row in the table, so a new column with none passes; the first reader spliced one in and all three assertions held. Fix: assert every column that isn't worked out has a row, and every row names a real header.
+
+**4. Medium (read). The spreadsheets module's table sits in a core screen.** `src/screens/Help.tsx:27-72` and `:154` draw the module's field table and its "Download the template", switched on by the article's id. Architecture: "never by editing a core screen". The same download call is written three times (`Help.tsx:51`, `Import.tsx:55`, `DataMenu.tsx:30`).
+
+**5. Medium (re-run). Two journeys are both `U87`.** `evals/journeys.cjs:3408` (Goals' menus, from #112) and `:4512` (the field table, from #130). The spreadsheets module lists U87 as its own (`src/modules/spreadsheets/module.json:14`) and `evals/run.mjs:68` leaves a module's journeys out by id, so "Core journeys without spreadsheets" leaves out the core Goals journey too, and `ONLY=U87` runs both. Not run; read from the two files. Whichever track renumbers, both should know.
+
+**Low (first reader).** Example rows are counted but only the Import page says how many (`bulk_change` and the Data preview read as "nothing changed"). `sameAsWritten('', 0, d)` is true, harmless until a caller passes a raw cell. `/help/columns` is not in P6's routes.
+
+### #112 GL2: the view menus (track 1, merged 17:46 UTC)
+
+Read against `docs/design/goals/spec.md`, GL2. The head, tabs, bar, count line and Views menu sit in the same place in all five layouts; the menus' contents and order match the spec; nothing scrolls sideways from 360 to 1440.
+
+**1. Medium (read). Coming back to the Map jumps to the last goal found.** The Goals screen keeps the "go to this goal" request and never clears it (`src/screens/GoalsScreen.tsx:136`); the Map acts on it whenever it mounts (`src/screens/GoalMap.tsx:253`). First reader: find G-48 on the Map, Layout: List, Layout: Map: G-48 is outlined and panned to again.
+
+**2. Medium (read). Emptying the Map's search doesn't un-narrow it.** In Map mode the box writes to the address only on Enter (`src/screens/GoalFilters.tsx:210`), so clearing it leaves `q=` and six goals.
+
+**3. Medium (read). Sort is still offered on the Map on a phone.** Only the inline Sort takes `sortOff` (`GoalFilters.tsx:95-96`, `GoalsScreen.tsx:266`); the one in the Filters sheet doesn't.
+
+**4. Medium (first reader). P6 never opens the Layout, Group or Views menus or the phone's View sheet**, which the spec's section 6 asks for; closed, they have no box and are skipped.
+
+**5. Medium (first reader). New behaviour with no eval:** Pin for everyone, Rename, the "Current" mark, the "In the tree of" picker in Filters, the Map search's no-match line and keys.
+
+**6. Medium (read). The phone layout starts at 600px; the spec's 2.4 says under 700** (`src/styles/notes/goals-phone.css:72`). At 650 the page has the phone's frame and the computer's menus.
+
+**Low (first reader).** The phone's count line is cut to one line where 2.4 says two. At 1280 "Layout" wraps to a row of its own. Two saved views with one name give duplicate React keys. "Delete this view…" drops `?today=`. Saved-view rows in the View sheet are 40px high on a phone.
+
+**Seen, not from this PR (first reader, not re-run):** an address with no `view` draws the person's last layout, so a copied List link opens in the reader's last layout, against GOALS-ADDRESS. Worth a look by track 1.
+
+### #113 NV2: where you are (track 1, merged 17:46 UTC)
+
+Read against `docs/design/navigation/spec.md`, NV2. Titles and the lit item were right on about 40 addresses at both widths; the back link is right in a new tab for a goal, person, team, review and Help article.
+
+**1. High (re-run). On a computer, Settings can't be scrolled to its foot.** Sent to track 1 when confirmed.
+
+- Where: `src/screens/Settings.tsx:121` calls `scrollIntoView({ block: 'nearest' })` on the lit section link each time it changes. The link is in a sticky row at the top (from 761px), and `html { scroll-padding-top: 72px }` (`src/styles.css:1421`) makes the browser pull the whole window up to "show" it.
+- Reproduced at 1440 by 900: forty 60px wheel steps leave `scrollY` at 352 of 870, cycling 300, 344, 260, 304…; End lands at 678; "Leave this workspace…" stays at 948 to 988 in a 900px window. At 390 it reaches the foot.
+- No eval mentions the section links.
+- Fix: move only the row sideways, and only when it overflows.
+
+**2. Medium (first reader). A goal opened from a saved view says "Back to Goals", not the view's name** (rule 4.2). `src/ui/BackLink.tsx:37` compares the stored params raw; the menu's lookup (`GoalFilters.tsx:56-62`) converts old-form params first. One lookup, written twice, disagreeing.
+
+**3. Medium (read). "What is a form" is written twice and has drifted** (`FORM`, `src/domain/navigation.ts:209`; `focusMode`, `src/ui/Shell.tsx:225-227`). They differ on bare `/check-in`, `/import` and `/goals/new/<step>`. See #114 finding 2 for what it causes.
+
+**4. Medium (first reader). "One closing control, with the words" isn't built on three of the five forms** (2.5 item 3): goal edit and New goal have an icon only, the table check-in has none at the top. U72 accepts the icon and never opens the table check-in, so it can't fail; What's new says "A form has one way out, in words".
+
+**5. Medium (first reader). Page not found has no Find field** (2.6); `src/App.tsx:129-137` has "Go to Home" and "Help" only.
+
+**6. Medium. No eval for Settings' section links** (finding 1 would have failed a single scroll to the foot), or for the saved-view back link.
+
+**Low (first reader).** A malformed `%` in the address blanks the app (`navigation.ts:165`, an unguarded `decodeURIComponent`). A not-found address under a place is named and lit as that place. After a hand-typed address mid-session the back link can name one page and lead to another. Renaming a team in place jumps the page to the top.
+
+### #114 NV3: the check-in queue (track 1, merged 17:46 UTC)
+
+The list uses `weekProgress().due`, as the badge does; rows have a visible status shape and word; drafts behave; nothing here saves by itself.
+
+**1. Medium (read). "Start with …" can walk a goal already checked in, and its count disagrees with the list.** `src/screens/CheckInFlow.tsx:55-64` reuses the tab's kept queue whenever every due goal is in it, without dropping the ones done since. First reader: with 5 due, start and close the walk, check in on row 3 from the list (the list says 4), "Start with" opens "1 of 5" and reaches the goal just done.
+
+**2. Medium (read). The check-in list is still counted as a form, so Back skips it.** `FORM` matches bare `/check-in` (`navigation.ts:209`); NV3 made it a first page (`:206`) and changed the Shell's copy only. First reader: Home, Check-in, Help with this page: the link says "Back to Home".
+
+**3. Medium (first reader). U71's gaps:** it never presses "Correct it", doesn't check that "Start with" opens the first listed goal or that the walk's "n of m" is the list's count, and the day-one date line is logic in a screen with no unit test.
+
+**Low (first reader).** "Or type all your numbers in one table" is 22px high on a phone. After posting from a row the only ways on are "Back to home" and "View the goal". The due-by sentence is written twice, in different words (`CheckInQueue.tsx:28`, `Home.tsx:42-43`). Day one's "Start check-in" still opens the list (`src/domain/dayOne.ts:92`).
+
+### #111 FS1: pick everywhere (track 1, merged 17:46 UTC)
+
+Edit goal's owner, team, feeds and also-helps keep ids and refuse what they should; Escape closes only the picker; chosen values are plain text with Change or Remove. The status shape in a goal row is still missing (#110 finding 1).
+
+**1. Medium (first reader, with measurements). On a computer the open picker is cut off by a sheet or a table it sits in.** `.pick-panel` is positioned under its field (`src/styles.css:1450`) inside boxes that clip (`.sheet`, `.data-wrap`). In the Demo sheet, typing "tunde" puts the one row at y 899 to 951 in a 900px window, in a sheet that can't scroll; on Data with two rows the panel shows only its search field. Playwright scrolls to the option, so U91 passes. Fix: draw the panel in a portal, flipping up when there is no room, and check an option's box is on screen.
+
+**2. Medium (read). Set-up: with two people of one name, picking the second gives the goal to the first.** The picker works by id but the row is kept by name and read back by the first match (`src/screens/Onboarding.tsx:199-200`). The field then shows the other person.
+
+**3. Medium (first reader). Rule 6's order for "Feeds into" isn't built and nothing says why:** `suggest` takes no context (`src/domain/find.ts:311`), so a Team-level goal's picker offers your own goals first, not the level above in your team.
+
+**4. Medium (read). In the app, someone marked as left is never found, though the contract and the spec say they are.** The search is built from `app.snapshot` (`src/app/search.ts:21`), from which `scopeToCycle` has already dropped everyone who has left (`src/domain/cycle.ts:43`); the contract (`src/ports/contracts/search.ts:86`) builds it from the unscoped example. First reader: mark Oskar as left, Ctrl K, "oskar": "Nothing matches". This corrects this log's entry for #110, which took "(left)" as working on the strength of the unit test.
+
+**5. Medium (first reader). No test for:** `searchOver` and `searchNames`, Data's "No team" and "No email yet", New goal's Team and Owner saving, and a desktop panel being visible in a sheet or table.
+
+**Low (first reader).** A chosen value the search can't return reads as nothing chosen (`src/ui/Pick.tsx:119`, `:158`). "Also helps" refuses the parent with "It feeds this one already", which is the reverse. New goal on a phone: "Change" is 22px high.
+
+### #115 FS2: the list bar on Data and Feedback (track 1, merged 17:46 UTC)
+
+Search, filter and sort are in the address and survive a reload; Back steps through them; the filter line is plain text with Remove.
+
+**1. Medium (read). Data and Feedback don't search by rule 1.** `src/domain/tableFilter.ts:63` and `src/markup/inboxList.ts:66-68` match a substring of any cell; neither calls `textMatches`. The guide says they "search the same way": on Data "back" finds 34 rows (rule 1 says none by "back" alone) and "g48" finds none.
+
+**2. Medium (first reader). Data's search matches columns that aren't shown** (2.1: "every shown column's text"): `q=example.com` with Owner email hidden says "126 rows match."
+
+**3. Medium (first reader). Data's "Filters" opens the old one-filter dialog, not 2.2's sheet**, with no note of the departure; an existing filter can no longer be changed, only removed and added again.
+
+**Low (first reader).** Choosing a Data tab replaces the history entry (`src/screens/DataTables.tsx:80`), where rule 4 adds one. With a search on and a sort set, the count line offers "Remove the sort" without saying a sort is on.
+
+### #117 FS4: company size, N12 (track 1, merged 17:46 UTC)
+
+The fixture really is 15,000 people, 1,500 teams and 30,000 goals, and N12 passes.
+
+**1. Medium (read). N12 never opens the Goals list** (`evals/finish/11-company-size.cjs:97-101`; its comment calls it "another session's (GL2)", which has merged). First reader, same fixture: `/goals?scope=all` takes 6.6 s and draws all 30,000 goals; a search had not answered in two minutes. The spec's budget is 300 ms for every list bar.
+
+**2. Medium (read). N12 doesn't time Find, and says Find "isn't built yet"** (`:4-5`); it merged in #110. First reader: 174 ms to 3.3 s to first results.
+
+**3. Medium (first reader). The picker's timer can stop on the count of the suggestions**, shown as soon as a key is typed (`src/ui/Pick.tsx:159`, `:197`), so it doesn't prove the search answered.
+
+**Low (first reader).** The 25-option check sees only selects present when a page opens; Data's filter dialog has one with 43. The picker shows "6 match" for an instant on the first key.
+
+### #148 Track 1 handover (merged 17:54 UTC)
+
+One line of `docs/handover.md`. Nothing to review.
+
+### #141 Undo brings a feature back; main's Data checks wait for the screen (planning session, merged 17:58 UTC)
+
+The fix does what it says: switch Spreadsheets off, Undo, and it is on again after a reload; the same twice quickly. The evals' new waits time out and carry on, so they can't hide a failure or hang.
+
+**1. High, in a narrow window (re-run). Undo pressed after switching workspace saves into the workspace now open.** Sent to track 4 when confirmed.
+
+- Where: `src/app/state.tsx:507`: `rx()` builds the action from the workspace the toast was made in, and `commit` (`:397-404`) writes to whichever is open. Before this PR a late Undo found nothing to change and saved nothing.
+- Reproduced: in the example, switch Spreadsheets off; open the switcher, choose a second workspace, press Undo within the toast's ten seconds. The toast says "Spreadsheets is back on."; the example is still off; the second workspace's change log gains "Switched on Spreadsheets".
+- The Undo after a removal reaches the same `commit`; older, and not reproduced.
+- Fix: carry the workspace's id with the action and drop one that isn't the open workspace's; clear toasts on a switch; add it to U48.
+
+**2. Medium (read; first reader ran it). Undo overlapping another switch saves a stale list.** "The workspace as it is now" is as new as the last render (`state.tsx:294-295`; `setWorkspaces` runs after the save), `setModule` saves the whole list, and Undo isn't held by the page's `busy` guard. Undo and a second switch in the same tick left both features off.
+
+### #116 find_goals takes a scope (track 1, merged 18:04 UTC)
+
+The tool calls `scopesFor`; `api/mcp.js` is the built output; a wrong scope is refused with the list of right ones.
+
+**1. Medium (read). A Goals link's `scope=` is ignored by `query`.** `src/mcp/tools.ts:211` parses the link with `parseQuery`, which has no scope; only the `scope` argument is read (`:234-238`). First reader, as Tariq: `{ scope: 'mine' }` gives 3 goals, `{ query: 'scope=mine' }` gives 126. Every Goals address now carries `scope=`, and the description promises "the query of a shared Goals link".
+
+**2. Medium (first reader). The facts the scope rule reads are written twice** (`src/app/reads.ts:37-44`, and the same object inline at `src/screens/GoalsScreen.tsx:55-60`); the copies already differ on removed goals, with no visible effect today.
