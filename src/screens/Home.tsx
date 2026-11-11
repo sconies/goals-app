@@ -8,18 +8,16 @@ import { dayOneRows, homeFacts } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
-import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan } from '../domain/home';
+import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan, type Waiting } from '../domain/home';
 import { weekProgress, WEEKDAY } from '../domain/progress';
-import { dayText, nextSessionWeek, pastText, sessionDate, upcomingSessionWeek, watchedGoals } from '../domain/review';
-import { weekDates } from '../domain/plan';
+import { dayText, pastText, watchedGoals } from '../domain/review';
 import { placeLine } from '../domain/cycle';
-import { isOverdue, openForPerson } from '../domain/asks';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
 import { statusCounts } from '../domain/order';
 import { goalStatus } from '../domain/status';
-import type { AskKind, Review } from '../domain/types';
-import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
+import type { AskKind } from '../domain/types';
+import { AttentionCard, Avatar, ProgressRing, StatusShape, WarnMark } from '../ui/bits';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { HomeNews } from './Help';
@@ -114,65 +112,49 @@ const ASK_BUTTON: Record<AskKind, string> = { question: 'Answer', decision: 'Res
 const GROUP_ORDER: AskKind[] = ['decision', 'question', 'update', 'action'];
 
 /**
- * Needs your response: every open ask waiting on you (one way to ask), once each however many goals it covers, grouped
- * by kind. Each says what it's about, what was asked, who asked and by when, and has one action that opens it in the
- * goal's Respond panel. Asks stay until they're answered, done or withdrawn; comments ask nothing, so they aren't here.
+ * Needs your response (part 3): every open ask waiting on you but the one the lead says, in rule 3's order, grouped by
+ * kind. Each says what it's about, what was asked, who asked, where and when, and how long it has waited or when it is
+ * due (rule 3's line; a late one with the warning mark, first). Five, then "Show all {n}". One button each.
  */
-function NeedsYou() {
+function NeedsYou({ asks, also }: { asks: Waiting[]; also: boolean }) {
   const app = useApp();
-  const me = app.viewer;
-  const first = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
-  // A question raised in a review is due before that review's next session, not "the review" (deep review T4).
-  const questionDue = (rv: Review, raisedWeek: number | null) => {
-    const w = Math.max(upcomingSessionWeek(rv, app.cycle, app.week, app.today), raisedWeek != null ? nextSessionWeek(rv, raisedWeek) : 0);
-    return w <= app.cycle.weeks ? `Before its next session, ${dayText(sessionDate(rv, app.cycle, w))}` : 'Open until you answer';
+  const [all, setAll] = useState(false);
+  if (!asks.length) return null;
+  const shown = all ? asks : asks.slice(0, 5);
+  const groups = GROUP_ORDER.map((k) => [k, shown.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
+  const said = (w: Waiting) => {
+    const who = w.by ? `${w.by} ${w.kind === 'action' ? 'agreed it' : 'asked'}` : 'You agreed it';
+    const asked = `${who}${w.where ? ` in ${w.where}` : ''} on ${dayText(w.askedOn).replace(/^\w+ /, '')}`;
+    return w.late ? `${w.line} · ${asked}.` : `${asked} · ${w.line}.`;
   };
-  const items = openForPerson(me.id, app.snapshot).flatMap((r) => {
-    const goals = r.goalIds.map((id) => app.goal(id)).filter((g) => !!g);
-    if (!goals.length) return [];
-    const askedIn = app.snapshot.reviews.find((v) => v.id === r.reviewId);
-    const where = askedIn?.name;
-    const due = r.dueWeek != null
-      ? isOverdue(r, app.week) ? `Was due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})` : r.dueWeek === app.week ? `Due this week (${weekDates(app.cycle, r.dueWeek)})` : `Due week ${r.dueWeek} (${weekDates(app.cycle, r.dueWeek)})`
-      : r.kind === 'question' && askedIn ? questionDue(askedIn, r.week) : r.kind === 'action' ? 'No date set' : 'Open until you answer';
-    const who = r.askedBy === me.id ? 'You agreed it' : `${first(r.askedBy)} ${r.kind === 'action' ? 'agreed it' : 'asked'}`;
-    const goal = r.kind === 'update' ? goals[0]!.id : null;
-    return [{
-      key: r.id, kind: r.kind, who: r.askedBy, overdue: isOverdue(r, app.week),
-      what: goals.length > 1 ? `${goals[0]!.title}, and ${goals.length - 1} more ${goals.length === 2 ? 'goal' : 'goals'} waiting on it` : goals[0]!.title,
-      quote: r.ask, meta: `${who}${where ? ` in ${where}` : ''} ${timeAgo(r.createdAt, app.today)}. ${due}.`,
-      // An ask for an update is answered by checking in; everything else opens in the goal's Respond panel.
-      to: goal ? `/check-in/${goal}` : `/goals/${goals[0]!.id}?respond=${r.id}`, at: r.createdAt,
-    }];
-  });
-  if (!items.length) return null;
-  // Overdue first, then newest first, within each kind.
-  items.sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.at.localeCompare(a.at));
-  const groups = GROUP_ORDER.map((k) => [k, items.filter((x) => x.kind === k)] as const).filter(([, l]) => l.length);
   return (
     <section className="block needs-you" data-part="Needs your response">
-      <h2 className="block-title">Needs your response <span className="count-pill">{items.length}</span></h2>
+      <h2 className="block-title">{also ? 'Also needs your response' : 'Needs your response'} <span className="count-pill">· {asks.length}</span></h2>
       {groups.map(([k, list]) => (
         <div key={k} className="need-group">
           <h3 className="need-group-title">{ASK_GROUP[k]} <span className="count-pill">· {list.length}</span></h3>
           <ul className="needs-list">
-            {list.map((x) => (
-              <li key={x.key} className="need">
-                <Avatar p={app.person(x.who) ?? { name: '?', initials: '?' }} size="sm" />
-                <span className="need-body">
-                  <span className="need-what">{x.what}</span>
-                  {x.quote && <span className="need-quote">“{x.quote}”</span>}
-                  <span className="need-meta">{x.overdue && <WarnMark />}{x.meta}</span>
-                  <span className="need-action">
-                    {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
-                    <Link className="btn sm" to={x.to}>{ASK_BUTTON[x.kind]}</Link>
+            {list.map((w) => {
+              const askedBy = app.snapshot.requests?.find((r) => r.id === w.askId)?.askedBy ?? '';
+              return (
+                <li key={w.askId} className="need">
+                  <Avatar p={app.person(askedBy) ?? { name: '?', initials: '?' }} size="sm" />
+                  <span className="need-body">
+                    <span className="need-what">{w.goals.length > 1 ? `${w.goals[0]!.title}, and ${w.goals.length - 1} more ${w.goals.length === 2 ? 'goal' : 'goals'} waiting on it` : w.goals[0]!.title}</span>
+                    {w.said && <span className="need-quote">“{w.said}”</span>}
+                    <span className="need-meta">{w.warn && <WarnMark />}{said(w)}</span>
+                    <span className="need-action">
+                      {/* Each opens the goal with this ask open and its box ready (the flagship goal page, 5 Nov). */}
+                      <Link className="btn sm" to={w.to}>{ASK_BUTTON[w.kind]}</Link>
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}
+      {asks.length > shown.length && <button type="button" className="linkish small" onClick={() => setAll(true)}>Show all {asks.length}</button>}
     </section>
   );
 }
@@ -273,7 +255,7 @@ export function Home() {
       <ThisWeek d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou asks={plan.asks} also={plan.lead?.kind === 'ask'} /></aside>
         <div className="home-main split-b">
           <YourGoals />
           <WatchedGoals />

@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'asks-say-how-long',
+    date: '2026-11-11',
+    title: 'Asks say how long they have waited',
+    points: [
+      'Each ask on Home says how long it has waited, or when it is due, and a late one says so first with the warning mark.',
+      'A question raised in a review is due before the next session after the one it was raised in, and stays due then.',
+      'The oldest or most pressing ask can be Home’s one main action when nothing comes before it.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'home-asks-first',
     date: '2026-11-11',
     title: 'Home starts with what is asked of you today, and is quiet when nothing is',

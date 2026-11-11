@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { homeFor, homeLead, quietLine, type HomeFacts, type HomeSession } from './home';
+import { askLead, homeFor, homeLead, quietLine, waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession } from './home';
 
 /* Rule 2's worked examples (docs/design/home/spec.md): weekly, due Thursday 12 Nov, week 46 of 53. */
 const due = (n: number, number = true) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number }));
 const facts = (p: Partial<HomeFacts> & { today: string }, c: Partial<HomeFacts['checkIns']> = {}): HomeFacts => ({
   week: 46, lastWeek: 53, cycleName: '2026', workspace: 'Platform Engineering', starts: null, ended: false,
   rhythm: { dueDate: '2026-11-12', nextDueDate: '2026-11-19' },
-  wrap: null, sessions: [], owns: 2, watches: 1, asks: 0,
+  wrap: null, sessions: [], owns: 2, watches: 1, asks: [],
   ...p,
   checkIns: { total: 2, done: 0, due: [], draft: false, allInOnTimeToday: false, streak: 0, ...c },
 });
@@ -88,5 +88,57 @@ describe('Home rule 2: the lead', () => {
       const p = homeFor(facts({ today }, { done, due: due(2 - done), allInOnTimeToday: done === 2, streak: 0 }));
       expect(JSON.stringify(p)).not.toMatch(/all set|0 weeks/);
     }
+  });
+});
+
+/* Rule 3's worked examples: an ask that waits. */
+const ask = (p: Partial<AskFacts>): AskFacts => ({ id: 'a', kind: 'question', by: 'Daniel', goals: [{ id: 'g', title: 'Pipeline queue wait (p90)' }], said: 'Is the runner budget approved?', askedOn: '2026-11-03', dueWeek: null, session: null, where: null, ...p });
+const DP = { name: 'Developer Productivity fortnightly', date: '2026-11-10' };
+
+describe('Home rule 3: an ask that waits', () => {
+  it('Daniel’s question raised in the fortnightly, the day before its next session', () => {
+    const w = waiting(ask({ session: DP, where: DP.name }), '2026-11-09');
+    expect([w.due, w.late, w.dueThisWeek, w.line, w.warn]).toEqual([{ date: '2026-11-10', why: 'session' }, false, true, 'Due before tomorrow’s session', true]);
+  });
+  it('the same, unanswered after the session: late, and its date does not move to the next session', () => {
+    const w = waiting(ask({ session: DP }), '2026-11-11');
+    expect([w.late, w.line]).toEqual([true, 'Was due before Developer Productivity fortnightly’s session on Tue 10 Nov']);
+  });
+  it('Rhea’s decision for Amara, asked 4 Aug with no date: waited 99 days, 14 weeks', () => {
+    const w = waiting(ask({ kind: 'decision', by: 'Rhea', askedOn: '2026-08-04' }), '2026-11-11');
+    expect([w.late, w.waitedDays, w.line]).toEqual([false, 99, 'Waiting since 4 Aug, 14 weeks']);
+  });
+  it('a next step due week 47, then the same in week 48', () => {
+    const due = { week: 47, sunday: '2026-11-22', dates: '16–22 Nov' };
+    expect(waiting(ask({ kind: 'action', by: null, dueWeek: due }), '2026-11-11').line).toBe('Due week 47 (16–22 Nov)');
+    const late = waiting(ask({ kind: 'action', by: null, dueWeek: due }), '2026-11-25');
+    expect([late.late, late.line, late.warn]).toEqual([true, 'Was due week 47 (16–22 Nov)', true]);
+  });
+  it('with no session date (Reviews off), by its age', () => {
+    expect(waiting(ask({}), '2026-11-11').line).toBe('Waiting since 3 Nov, 8 days');
+    expect(waiting(ask({ askedOn: '2026-11-10' }), '2026-11-11').line).toBe('Asked yesterday');
+    expect(waiting(ask({ askedOn: '2026-11-09' }), '2026-11-11').line).toBe('Asked on Monday');
+  });
+  it('orders late, then due this week, then old undated oldest first, then the rest newest first; decisions first within each', () => {
+    const t = '2026-11-11';
+    const list = [
+      waiting(ask({ id: 'new', askedOn: '2026-11-10' }), t),
+      waiting(ask({ id: 'old-q', askedOn: '2026-10-01' }), t),
+      waiting(ask({ id: 'old-d', kind: 'decision', askedOn: '2026-10-20' }), t),
+      waiting(ask({ id: 'late', session: DP }), t),
+      waiting(ask({ id: 'week', kind: 'action', by: null, dueWeek: { week: 46, sunday: '2026-11-15', dates: '9–15 Nov' } }), t),
+    ].sort(waitingOrder);
+    expect(list.map((w) => w.askId)).toEqual(['late', 'week', 'old-d', 'old-q', 'new']);
+  });
+  it('leads when late, due this week or a week old; not when new', () => {
+    const l = askLead(waiting(ask({ kind: 'decision', by: 'Rhea', askedOn: '2026-08-04', goals: [{ id: 'a', title: 'Lead time' }, { id: 'b', title: 'B' }, { id: 'c', title: 'C' }] }), '2026-11-09'));
+    expect([l?.kind, l?.eyebrow, l?.title, l?.action.label, l?.line]).toEqual(['ask', 'Needs your response · waiting since 4 Aug, 13 weeks', 'Rhea needs a decision', 'Respond', '“Is the runner budget approved?”. 3 goals are waiting on it: Lead time, and 2 more.']);
+    expect(askLead(waiting(ask({ askedOn: '2026-11-10' }), '2026-11-11'))).toBeNull();
+  });
+  it('rank 60: an ask leads only when nothing before it does, and is then not listed again', () => {
+    const w = waiting(ask({ session: DP }), '2026-11-09');
+    const p = homeFor(facts({ today: '2026-11-09', asks: [w] }, { due: due(2) }));
+    expect([p.lead?.kind, p.asks.length]).toEqual(['ask', 0]);
+    expect(homeFor(facts({ today: '2026-11-11', asks: [w] }, { done: 1, due: due(1) })).lead?.kind).toBe('check-in');
   });
 });

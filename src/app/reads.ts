@@ -6,10 +6,10 @@ import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { agendaOf, nextSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
-import type { HomeFacts, HomeSession } from '../domain/home';
+import { agendaOf, nextSessionWeek, upcomingSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import { waiting, waitingOrder, type AskFacts, type HomeFacts, type HomeSession, type Waiting } from '../domain/home';
 import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
-import { hasEnded } from '../domain/plan';
+import { hasEnded, weekDate, weekDates } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
 import type { LocalRows } from '../adapters/localSearch';
@@ -98,6 +98,31 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     sessions,
     owns: mine.length,
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
-    asks: openForPerson(viewerId, s).length,
+    asks: homeAsks(viewerId, s, cycle, week, today),
   };
+}
+
+/**
+ * Rule 3's facts for each open ask waiting on the viewer, in its order. A question raised in a review is due before the
+ * first session after the one it was raised in, fixed when asked: it doesn't move on when that session passes.
+ */
+export function homeAsks(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): Waiting[] {
+  const day = today.toISOString().slice(0, 10);
+  const first = (id: string) => s.people.find((p) => p.id === id)?.name.split(' ')[0] ?? 'Someone';
+  return openForPerson(viewerId, s).flatMap((r) => {
+    const goals = r.goalIds.map((id) => s.goals.find((g) => g.id === id)).filter((g) => !!g).map((g) => ({ id: g!.id, title: g!.title }));
+    if (!goals.length) return [];
+    const rv = r.reviewId ? s.reviews.find((v) => v.id === r.reviewId) : undefined;
+    let session: AskFacts['session'] = null;
+    if (r.dueWeek == null && r.kind === 'question' && rv) {
+      const w = r.week != null ? nextSessionWeek(rv, r.week) : upcomingSessionWeek(rv, cycle, week, today);
+      if (w <= cycle.weeks) session = { name: rv.name, date: sessionDate(rv, cycle, w) };
+    }
+    const sunday = (w: number) => new Date(Date.parse(weekDate(cycle, w) + 'T00:00:00Z') + 6 * 86_400_000).toISOString().slice(0, 10);
+    const facts: AskFacts = {
+      id: r.id, kind: r.kind, by: r.askedBy === viewerId ? null : first(r.askedBy), goals, said: r.ask, askedOn: r.createdAt.slice(0, 10),
+      dueWeek: r.dueWeek != null ? { week: r.dueWeek, sunday: sunday(r.dueWeek), dates: weekDates(cycle, r.dueWeek) } : null, session, where: rv?.name ?? null,
+    };
+    return [waiting(facts, day)];
+  }).sort(waitingOrder);
 }
