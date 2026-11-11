@@ -8,7 +8,8 @@ Week numbers count from the cycle’s start: week 0 is the start date. A check-i
 
 ## Files
 
-- **Excel workbook (.xlsx)**, the default: every sheet below (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.
+- **Excel workbook (.xlsx)**, the default: a first sheet, Start here, that says where the file came from (the workspace’s and cycle’s ids, on its “File of” row) and, for every column, what a new row needs, its format, an example, what an empty cell does and what it means (the field table below); then every sheet below (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics). Worked-out columns are set in grey. A file’s README sheet, from before Start here, is skipped as Start here is.
+- **The template**: Start here, then Goals, Plan, Check-ins and People with only the columns a person fills in, the headers a new row must have in bold, and example rows whose Action says `Example`, which are never imported.
 - **CSV files (.zip)**: the same sheets, one CSV each with the same headers, named after the sheet (`Goals.csv`, `Check-ins.csv`…). UTF-8 with a byte-order mark, so Excel opens them correctly.
 - **One CSV**: any one sheet on its own.
 - **A table from Data** (CSV or .xlsx), exactly as its layout shows it: its columns in order and the rows that pass its search and filters. The columns that say which record a row is (below, “Matches the row”) are always written: any the layout leaves out are added at the end, in grey, so the file loads back. The AI assistant’s `export_table` does the same.
@@ -25,59 +26,62 @@ Import reads an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated fil
 - **Words are exact.** A word a column doesn’t know (a level of “vp”, a Must stay of “sometimes”) is a problem to fix, never a guess. A dash on its own (`—`) in Team, Owner or Feeds into means none.
 - **The formula guard.** In a CSV, a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage return is written with an apostrophe in front, so a spreadsheet won’t run it as a formula. Loading it back takes the apostrophe off again.
 - **Line breaks** inside a cell are kept, in a workbook and in a CSV (as a quoted cell, RFC 4180).
-- **The Action column** does what the app does, with the same rules and preview: on Goals, `Stop` stops a goal with check-ins (say why in Reason) and `Delete` deletes one with none; on People, `Left` marks someone as left, their goals and open asks going to Takes over (by email). Undoing the import puts them back.
+- **The Action column** does what the app does, with the same rules and preview: on Goals, `Stop` stops a goal with check-ins (say why in Reason) and `Delete` deletes one with none; on People, `Left` marks someone as left, their goals and open asks going to Takes over (by email). Undoing the import puts them back. On either, `Example` marks an example row, which is left out and counted.
+- **What a new row needs** (the field table): a column is Required; Required for a type of goal (Target for a number goal) or in a situation (Cause when a check-in is behind); Optional, with what an empty cell gives; Leave empty (Faro fills it in); or Worked out (never read). On a row already here no column is required: an empty cell keeps what the record says, except where the column says empty clears it.
 
 ## Goals
 
 One row per goal. Every goal: what it is, who owns it, its plan, and where it stands. Add a row with no Key or ID for a new goal.
 
-| Column | Kind | What it means | When loaded back |
-|---|---|---|---|
-| Key | Matches the row | The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal. | Matches the goal first, so a file from last cycle still finds its goals |
-| ID | Matches the row | The goal’s identity in this cycle. Leave it empty for a new goal. | Matches the goal when there’s no Key |
-| Goal | You can change it | The goal’s name. | Changed when loaded back |
-| Action | What to do with the row | Empty to add or change the goal. Stop stops a goal with check-ins (say why in Reason); Delete deletes one with none, set up by mistake. | Done when loaded back, with the same rules and preview as the app |
-| Level | You can change it | north star, svp or team: how important it is, for reporting. | Changed when loaded back |
-| Team | You can change it | The team it belongs to, by name. | Changed when loaded back |
-| Owner | You can change it | Who owns it, by name. A name works when only one person has it; Owner email is exact. | Changed when loaded back |
-| Owner email | You can change it | Who owns it, by email: what tells two people with the same name apart. | Changes the owner; when Owner and Owner email disagree, the one you changed counts |
-| Type | You can change it | metric, range or milestone: move a number, keep one in range, or hit dated stages. | Sets a new goal’s type; it can’t change on an existing goal |
-| Unit | You can change it | Number and range goals: what the number counts (%, days, ms). | Changed when loaded back |
-| Decimals | You can change it | Number and range goals: how many decimal places the number has (0 to 3). | Changed when loaded back |
-| Start | You can change it | Number goals: where the plan starts. | Changes the plan; needs a reason once check-ins have started |
-| Target | You can change it | Number goals: where the plan ends, by its due week. | Changes the plan; needs a reason once check-ins have started |
-| Plan | You can change it | Number goals: the plan’s shape, straight, back-loaded or stepped. | Changes the plan; needs a reason once check-ins have started |
-| Plan from week | You can change it | Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle). | Changes the plan; needs a reason once check-ins have started |
-| Due week | You can change it | Number goals: the week the target is due, counted from the cycle’s start. | Changes the plan; needs a reason once check-ins have started |
-| Limit | You can change it | Range goals: the number it must stay within. | Changed when loaded back |
-| Must stay | You can change it | Range goals: at most or at least the limit. | Changed when loaded back |
-| Margin | You can change it | Range goals: how close to the limit counts as at risk. | Changed when loaded back |
-| Stages | You can change it | Milestone goals: each stage as Name@week, separated by semicolons. | Changed when loaded back |
-| Feeds into | You can change it | The goal this one feeds, by name. | Changed when loaded back |
-| Feeds into key | You can change it | The goal this one feeds, by key. Exact where names repeat. | Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts |
-| Why it helps | You can change it | Why this goal should move the one it feeds: a hypothesis, not a proven cause. | Changed when loaded back |
-| Effect | You can change it | The effect expected on the goal it feeds, in that goal’s unit. | Changed when loaded back |
-| Source | You can change it | Where the number comes from, and who owns that source. | Changed when loaded back |
-| Definition | You can change it | Exactly what is counted. | Changed when loaded back |
-| Reason | You can change it | Why the plan is changing, or why the goal stops. Written by you; empty in an export. | Kept in the change log with the change |
-| Status | Worked out | Where the goal stands now, in the status words defined under Words below. | Worked out by the app; ignored when loaded back |
-| Since | Worked out | How long it has stood so. | Worked out by the app; ignored when loaded back |
-| Now | Worked out | The latest number, or stages done. | Worked out by the app; ignored when loaded back |
-| Plan this week | Worked out | Number goals: the plan’s number this week. | Worked out by the app; ignored when loaded back |
-| Gap | Worked out | How far it is from the plan, said the same whichever way is better. | Worked out by the app; ignored when loaded back |
-| Last check-in week | Worked out | The week of its latest check-in. | Worked out by the app; ignored when loaded back |
-| Forecast | Worked out | Where the recent trend takes it by its due week. | Worked out by the app; ignored when loaded back |
-| Why it’s off | Worked out | The owner’s latest reason, when it’s behind. | Worked out by the app; ignored when loaded back |
-| Recovery plan | Worked out | What the owner will do about it. | Worked out by the app; ignored when loaded back |
-| By when | Worked out | When it will be back on plan, or why there’s no date. | Worked out by the app; ignored when loaded back |
-| Needs | Worked out | The open asks for a decision or help. | Worked out by the app; ignored when loaded back |
-| Next step | Worked out | The owner’s next step. | Worked out by the app; ignored when loaded back |
-| Warnings | Worked out | What the numbers would hide; each warning starts with its word, defined under Words. | Worked out by the app; ignored when loaded back |
-| Result | Worked out | Set once the goal is due, in the result words defined under Words. | Worked out by the app; ignored when loaded back |
-| Q1 | Worked out | The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end. | Worked out by the app; ignored when loaded back |
-| Q2 | Worked out | The second quarter against the plan. | Worked out by the app; ignored when loaded back |
-| Q3 | Worked out | The third quarter against the plan. | Worked out by the app; ignored when loaded back |
-| Q4 | Worked out | The fourth quarter against the plan. | Worked out by the app; ignored when loaded back |
+A new row needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages.
+
+| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |
+|---|---|---|---|---|---|---|
+| Key | Leave empty | G- and a number | `G-12` | Faro gives a new goal the next key | The goal’s short key in this workspace (G-12). It never changes, and a goal carried into the next cycle keeps it. Leave it empty for a new goal. | Matches the goal first, so a file from last cycle still finds its goals |
+| ID | Leave empty | Faro’s own | `goal_hzde4g` | Faro gives a new goal its own | The goal’s identity in this cycle. Leave it empty for a new goal. | Matches the goal when there’s no Key |
+| Goal | Required | Text, 3 characters or more | `Deploy lead time` | Must fix: a new goal needs a name | The goal’s name. | Changed when loaded back |
+| Action | Optional | Stop, Delete or Example | `Stop` | The row adds or changes the goal | Empty to add or change the goal. Stop stops a goal with check-ins (say why in Reason); Delete deletes one with none, set up by mistake. | Done when loaded back, with the same rules and preview as the app |
+| Level | Optional | north star, svp or team | `team` | team | north star, svp or team: how important it is, for reporting. | Changed when loaded back |
+| Team | Optional | A team’s name | `Platform` | The owner’s team | The team it belongs to, by name. | Changed when loaded back |
+| Owner | Required (or Owner email) | A name only one person has | `Ben Ortiz` | Owner email says who; with neither, Must fix | Who owns it, by name. A name works when only one person has it; Owner email is exact. | Changed when loaded back |
+| Owner email | Required (or Owner) | An email | `ben.ortiz@example.com` | Owner says who; with neither, Must fix | Who owns it, by email: what tells two people with the same name apart. | Changes the owner; when Owner and Owner email disagree, the one you changed counts |
+| Type | Optional | metric, range or milestone | `metric` | A number goal (metric). A goal’s type can’t change later | metric, range or milestone: move a number, keep one in range, or hit dated stages. | Sets a new goal’s type; it can’t change on an existing goal |
+| Unit | Optional | Text | `days` | No unit. On a row already here, empty clears it | Number and range goals: what the number counts (%, days, ms). | Changed when loaded back |
+| Decimals | Optional | 0, 1, 2 or 3 | `1` | The most decimal places typed in Start, Target or Limit, up to 3 | Number and range goals: how many decimal places the number has (0 to 3). | Changed when loaded back |
+| Start | Required for a number goal | A number | `5` | Must fix for a number goal | Number goals: where the plan starts. | Changes the plan; needs a reason once check-ins have started |
+| Target | Required for a number goal | A number, different from Start | `1` | Must fix for a number goal | Number goals: where the plan ends, by its due week. | Changes the plan; needs a reason once check-ins have started |
+| Plan | Optional | straight, back-loaded or stepped | `back-loaded` | straight | Number goals: the plan’s shape, straight, back-loaded or stepped. | Changes the plan; needs a reason once check-ins have started |
+| Plan from week | Optional | A whole number, −104 to 104 | `46` | This week (0 when setting up a workspace) | Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle). | Changes the plan; needs a reason once check-ins have started |
+| Due week | Optional | A whole number, 1 to 104, after Plan from week | `53` | The cycle’s last week. On a row already here, empty clears it | Number goals: the week the target is due, counted from the cycle’s start. | Changes the plan; needs a reason once check-ins have started |
+| Limit | Required for a range goal | A number | `5` | Must fix for a range goal | Range goals: the number it must stay within. | Changed when loaded back |
+| Must stay | Optional | at most or at least | `at most` | at most | Range goals: at most or at least the limit. | Changed when loaded back |
+| Margin | Optional | A number, zero or more | `0.5` | 1 | Range goals: how close to the limit counts as at risk. | Changed when loaded back |
+| Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start) | `Design@48; Pilot@52` | Must fix for a stages goal | Milestone goals: each stage as Name@week, separated by semicolons. | Changed when loaded back |
+| Feeds into | Optional | A goal’s name | `Deploy lead time` | It feeds nothing. On a row already here, empty clears it | The goal this one feeds, by name. | Changed when loaded back |
+| Feeds into key | Optional | A goal’s key | `G-1` | It feeds nothing. On a row already here, empty clears it | The goal this one feeds, by key. Exact where names repeat. | Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts |
+| Why it helps | Optional | Text | `Fewer failed deploys mean fewer rollbacks` | Nothing said. On a row already here, empty clears it | Why this goal should move the one it feeds: a hypothesis, not a proven cause. | Changed when loaded back |
+| Effect | Optional | A number, in the fed goal’s unit | `1` | Nothing said. On a row already here, empty clears it | The effect expected on the goal it feeds, in that goal’s unit. | Changed when loaded back |
+| Source | Optional | Text | `CI dashboard` | Nothing said. On a row already here, empty clears it | Where the number comes from, and who owns that source. | Changed when loaded back |
+| Definition | Optional | Text | `Median hours from first commit to production` | Nothing said. On a row already here, empty clears it | Exactly what is counted. | Changed when loaded back |
+| Reason | Required with Stop, and when a plan changes after check-ins began | Text | `Agreed at the Q4 review` | The preview asks for one reason for every plan change | Why the plan is changing, or why the goal stops. Written by you; empty in an export. | Kept in the change log with the change |
+| Status | Worked out |  |  | Worked out by Faro: never read | Where the goal stands now, in the status words defined under Words below. | Worked out by the app; ignored when loaded back |
+| Since | Worked out |  |  | Worked out by Faro: never read | How long it has stood so. | Worked out by the app; ignored when loaded back |
+| Now | Worked out |  |  | Worked out by Faro: never read | The latest number, or stages done. | Worked out by the app; ignored when loaded back |
+| Plan this week | Worked out |  |  | Worked out by Faro: never read | Number goals: the plan’s number this week. | Worked out by the app; ignored when loaded back |
+| Gap | Worked out |  |  | Worked out by Faro: never read | How far it is from the plan, said the same whichever way is better. | Worked out by the app; ignored when loaded back |
+| Last check-in week | Worked out |  |  | Worked out by Faro: never read | The week of its latest check-in. | Worked out by the app; ignored when loaded back |
+| Forecast | Worked out |  |  | Worked out by Faro: never read | Where the recent trend takes it by its due week. | Worked out by the app; ignored when loaded back |
+| Why it’s off | Worked out |  |  | Worked out by Faro: never read | The owner’s latest reason, when it’s behind. | Worked out by the app; ignored when loaded back |
+| Recovery plan | Worked out |  |  | Worked out by Faro: never read | What the owner will do about it. | Worked out by the app; ignored when loaded back |
+| By when | Worked out |  |  | Worked out by Faro: never read | When it will be back on plan, or why there’s no date. | Worked out by the app; ignored when loaded back |
+| Needs | Worked out |  |  | Worked out by Faro: never read | The open asks for a decision or help. | Worked out by the app; ignored when loaded back |
+| Next step | Worked out |  |  | Worked out by Faro: never read | The owner’s next step. | Worked out by the app; ignored when loaded back |
+| Warnings | Worked out |  |  | Worked out by Faro: never read | What the numbers would hide; each warning starts with its word, defined under Words. | Worked out by the app; ignored when loaded back |
+| Result | Worked out |  |  | Worked out by Faro: never read | Set once the goal is due, in the result words defined under Words. | Worked out by the app; ignored when loaded back |
+| Q1 | Worked out |  |  | Worked out by Faro: never read | The first quarter against the owner’s plan: a quarter’s target is the plan’s number at its end. | Worked out by the app; ignored when loaded back |
+| Q2 | Worked out |  |  | Worked out by Faro: never read | The second quarter against the plan. | Worked out by the app; ignored when loaded back |
+| Q3 | Worked out |  |  | Worked out by Faro: never read | The third quarter against the plan. | Worked out by the app; ignored when loaded back |
+| Q4 | Worked out |  |  | Worked out by Faro: never read | The fourth quarter against the plan. | Worked out by the app; ignored when loaded back |
 
 Always written by a table from Data: Key, ID.
 
@@ -85,14 +89,14 @@ Always written by a table from Data: Key, ID.
 
 One row per number goal. The plan as numbers, one column per week. Type over any week to set the plan by hand.
 
-| Column | Kind | What it means | When loaded back |
-|---|---|---|---|
-| Key | Matches the row | The goal’s key. | Matches the goal first |
-| ID | Matches the row | The goal’s ID in this cycle. | Matches the goal when there’s no Key |
-| Goal | For reading | The goal’s name (change it on Goals). | For reading; not loaded back from this sheet |
-| Unit | For reading | What the number counts (change it on Goals). | For reading; not loaded back from this sheet |
-| Start | You can change it | Where the plan starts. | Changes the plan; needs a reason once check-ins have started |
-| Week N | You can change it | The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins). | Sets the plan numbers by hand; needs a reason once check-ins have started |
+| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |
+|---|---|---|---|---|---|---|
+| Key | Required (or ID) | G- and a number | `G-12` | ID says which goal; with neither, Must fix | The goal’s key. | Matches the goal first |
+| ID | Required (or Key) | Faro’s own | `goal_hzde4g` | Key says which goal; with neither, Must fix | The goal’s ID in this cycle. | Matches the goal when there’s no Key |
+| Goal | For reading | Text | `Deploy lead time` | Never read: change the name on Goals | The goal’s name (change it on Goals). | For reading; not loaded back from this sheet |
+| Unit | For reading | Text | `days` | Never read: change the unit on Goals | What the number counts (change it on Goals). | For reading; not loaded back from this sheet |
+| Start | Optional | A number | `5` | The plan keeps its start | Where the plan starts. | Changes the plan; needs a reason once check-ins have started |
+| Week N | Optional | A number, only for weeks inside the plan | `4.2` | The plan keeps its own number that week | The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins). | Sets the plan numbers by hand; needs a reason once check-ins have started |
 
 Always written by a table from Data: Key, ID.
 
@@ -100,31 +104,33 @@ Always written by a table from Data: Key, ID.
 
 One row per check-in. Every check-in: the number or stages reported each week, the owner’s call and their account of it. Add a row with no ID for a new check-in, a past week included.
 
-| Column | Kind | What it means | When loaded back |
-|---|---|---|---|
-| ID | Matches the row | The check-in’s own identity. Leave it empty to add one. | Matches the check-in; with none, a row corrects that goal’s latest check-in for the week |
-| Goal key | Matches the row | The goal’s key. | Matches the goal first |
-| Goal ID | Matches the row | The goal’s ID in this cycle. | Matches the goal when there’s no Goal key |
-| Goal | Matches the row | The goal’s name. | Matches the goal by name, only when there’s no Goal key or Goal ID |
-| Week | Matches the row | The week it reports on, counted from the cycle’s start (week 1 onwards). | Matches the week; a check-in’s week never changes |
-| Week starting | Worked out | The date that week starts. | Worked out by the app; ignored when loaded back |
-| Value | You can change it | Number and range goals: the number that week. | Changed when loaded back |
-| Stages | You can change it | Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons. | Changed when loaded back |
-| Call | You can change it | The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide. | Changed when loaded back |
-| Cause | You can change it | Why it’s ahead or behind: Plan too aggressive, Delivery slower, Blocked by a dependency, External factor, Data problem, Something else, Plan too cautious, Change landed early or One-off, won’t last. | Required when behind or well ahead, as in the app |
-| Why | You can change it | The owner’s reason, in their words. | Required when behind or well ahead, as in the app |
-| Why greener | You can change it | Why the owner’s call is greener than calculated. | Changed when loaded back |
-| Path to green | You can change it | What changes to get back on plan. | Changed when loaded back |
-| Recovery | You can change it | Where getting back stands: Plan, Still investigating, Needs a decision or help or Target should change. | Changed when loaded back |
-| Back on plan by week | You can change it | The week it’s back on plan by, when there’s a plan. | Changed when loaded back |
-| Needs | You can change it | A decision or help it needs, and from whom. | Changed when loaded back |
-| Next step | You can change it | The owner’s next step. | Changed when loaded back |
-| Calculated | Worked out | What the rules said that week, in the status words. | Worked out by the app; ignored when loaded back |
-| Plan that week | Worked out | Number goals: the plan’s number in that week, as it stood then. | Worked out by the app; ignored when loaded back |
-| Posted at | Worked out | When it was posted. | Worked out by the app; ignored when loaded back |
-| Posted by | Worked out | Who posted it. | Worked out by the app; ignored when loaded back |
-| Posted by email | Worked out | Who posted it, by email. | Worked out by the app; ignored when loaded back |
-| Backfilled | Worked out | “yes” for history loaded later rather than posted in its week. | Worked out by the app; ignored when loaded back |
+A new row needs Goal key (or Goal), Week, and Value or Stages.
+
+| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |
+|---|---|---|---|---|---|---|
+| ID | Leave empty | Faro’s own | `ci_4kd9` | A new check-in, or a correction of that goal’s check-in for the week | The check-in’s own identity. Leave it empty to add one. | Matches the check-in; with none, a row corrects that goal’s latest check-in for the week |
+| Goal key | Required (or Goal ID, or Goal) | G- and a number | `G-14` | Goal ID or Goal says which goal; with none of them, Must fix | The goal’s key. | Matches the goal first |
+| Goal ID | Required (or Goal key, or Goal) | Faro’s own | `goal_hzde4g` | Goal key or Goal says which goal | The goal’s ID in this cycle. | Matches the goal when there’s no Goal key |
+| Goal | Required (or Goal key, or Goal ID) | The goal’s exact name, when only one goal has it | `Pipeline queue wait (p90)` | Goal key or Goal ID says which goal | The goal’s name. | Matches the goal by name, only when there’s no Goal key or Goal ID |
+| Week | Required | A whole number from 1 to this week | `46` | Must fix | The week it reports on, counted from the cycle’s start (week 1 onwards). | Matches the week; a check-in’s week never changes |
+| Week starting | Worked out |  |  | Worked out by Faro: never read | The date that week starts. | Worked out by the app; ignored when loaded back |
+| Value | Required for a number or range goal | A number, at the goal’s decimal places | `6` | Must fix for a number or range goal | Number and range goals: the number that week. | Changed when loaded back |
+| Stages | Required for a stages goal | “Pilot: done week 6; Rollout: expected week 9” | `Pilot: done week 6` | Must fix for a stages goal | Milestone goals: each stage as “Pilot: done week 6”, “Pilot: expected week 8” or “Pilot: due week 7”, separated by semicolons. | Changed when loaded back |
+| Call | Optional | On track, At risk, Off track or Done | `At risk` | The rules decide | The owner’s status call: On track, At risk, Off track or Done. Empty: the rules decide. | Changed when loaded back |
+| Cause | Required when it’s behind, or well ahead | Plan too aggressive, Delivery slower, Blocked by a dependency, External factor, Data problem, Something else, Plan too cautious, Change landed early or One-off, won’t last | `Plan too aggressive` | Must fix when it’s behind or well ahead. On a row already here, empty clears it | Why it’s ahead or behind: Plan too aggressive, Delivery slower, Blocked by a dependency, External factor, Data problem, Something else, Plan too cautious, Change landed early or One-off, won’t last. | Required when behind or well ahead, as in the app |
+| Why | Required when it’s behind, or well ahead | Text, 10 characters or more | `Runner pool was halved for the migration` | Must fix when it’s behind or well ahead. On a row already here, empty clears it | The owner’s reason, in their words. | Required when behind or well ahead, as in the app |
+| Why greener | Required when Call is better than the rules say | Text, 10 characters or more | `The fix shipped after the number was taken` | Must fix when the call is greener than calculated. On a row already here, empty clears it | Why the owner’s call is greener than calculated. | Changed when loaded back |
+| Path to green | Required when it’s behind | Text, 8 characters or more | `Add 20 runners by week 48` | Must fix when it’s behind. On a row already here, empty clears it | What changes to get back on plan. | Changed when loaded back |
+| Recovery | Optional | Plan, Still investigating, Needs a decision or help or Target should change | `Plan` | Plan | Where getting back stands: Plan, Still investigating, Needs a decision or help or Target should change. | Changed when loaded back |
+| Back on plan by week | Required when Recovery is Plan and it’s behind | A week after this one | `48` | Must fix when it’s behind with a plan. On a row already here, empty clears it | The week it’s back on plan by, when there’s a plan. | Changed when loaded back |
+| Needs | Optional | Text | `A decision on runner budget from Amara` | Nothing needed. On a row already here, empty clears it | A decision or help it needs, and from whom. | Changed when loaded back |
+| Next step | Optional | Text | `Order runners` | Nothing said. On a row already here, empty clears it | The owner’s next step. | Changed when loaded back |
+| Calculated | Worked out |  |  | Worked out by Faro: never read | What the rules said that week, in the status words. | Worked out by the app; ignored when loaded back |
+| Plan that week | Worked out |  |  | Worked out by Faro: never read | Number goals: the plan’s number in that week, as it stood then. | Worked out by the app; ignored when loaded back |
+| Posted at | Worked out |  |  | Worked out by Faro: never read | When it was posted. | Worked out by the app; ignored when loaded back |
+| Posted by | Worked out |  |  | Worked out by Faro: never read | Who posted it. | Worked out by the app; ignored when loaded back |
+| Posted by email | Worked out |  |  | Worked out by Faro: never read | Who posted it, by email. | Worked out by the app; ignored when loaded back |
+| Backfilled | Worked out |  |  | Worked out by Faro: never read | “yes” for history loaded later rather than posted in its week. | Worked out by the app; ignored when loaded back |
 
 Always written by a table from Data: ID, Goal key, Goal ID, Week.
 
@@ -132,17 +138,19 @@ Always written by a table from Data: ID, Goal key, Goal ID, Week.
 
 One row per person. Everyone in the workspace. Add a row, with an email, for someone new.
 
-| Column | Kind | What it means | When loaded back |
-|---|---|---|---|
-| Email | Matches the row | Their email: what matches them, and tells two people with the same name apart. Required for someone new. | Matches the person; with their ID in the row, a new email replaces the old one |
-| ID | Matches the row | The person’s own identity. It never changes. | Matches the person first |
-| Name | You can change it | Their full name. | Changed when loaded back |
-| Action | What to do with the row | Empty to add or change the person. Left marks them as left; their goals and open asks go to Takes over. | Done when loaded back, with the same rules and preview as the app |
-| Job title | You can change it | Their job title. | Changed when loaded back |
-| Team | You can change it | Their team, by name. | Changed when loaded back |
-| Admin | You can change it | “yes” for an admin: they can add people, change settings and change any goal. | Changed when loaded back |
-| Team objective | You can change it | On the team lead’s row: what the team is for. | Changes the team’s objective (on the lead’s row; empty there clears it) |
-| Takes over | You can change it | With Left: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export. | Used with Left |
+A new row needs Name and Email.
+
+| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |
+|---|---|---|---|---|---|---|
+| Email | Required | An email | `ana.silva@example.com` | Must fix for someone new. An email can be changed, not taken away | Their email: what matches them, and tells two people with the same name apart. Required for someone new. | Matches the person; with their ID in the row, a new email replaces the old one |
+| ID | Leave empty | Faro’s own | `p_ana` | Faro gives someone new their own | The person’s own identity. It never changes. | Matches the person first |
+| Name | Required | Text | `Ana Silva` | Must fix for someone new | Their full name. | Changed when loaded back |
+| Action | Optional | Left or Example | `Left` | The row adds or changes the person | Empty to add or change the person. Left marks them as left; their goals and open asks go to Takes over. | Done when loaded back, with the same rules and preview as the app |
+| Job title | Optional | Text | `Platform lead` | No job title. On a row already here, empty clears it | Their job title. | Changed when loaded back |
+| Team | Optional | A team’s name | `Platform` | No team. On a row already here, empty clears it | Their team, by name. | Changed when loaded back |
+| Admin | Optional | yes or no | `yes` | Not an admin (when setting up, the first person is one) | “yes” for an admin: they can add people, change settings and change any goal. | Changed when loaded back |
+| Team objective | Optional | Text, on the team lead’s row | `Make every deploy safe and fast` | No objective. On a row already here, empty clears it | On the team lead’s row: what the team is for. | Changes the team’s objective (on the lead’s row; empty there clears it) |
+| Takes over | Required with Left, when they own goals, asks or teams | An email, or a name only one person has | `chloe.wu@example.com` | Must fix with Left when they own anything | With Left: who takes over their goals, open asks and teams, by email (or a name only one person has). Empty in an export. | Used with Left |
 
 Always written by a table from Data: Email, ID.
 
@@ -250,9 +258,9 @@ The words the import reads, as the export writes them (other ways people write t
 - Call: `On track`, `At risk`, `Off track`, `Done`
 - Cause: `Plan too aggressive`, `Delivery slower`, `Blocked by a dependency`, `External factor`, `Data problem`, `Something else`, `Plan too cautious`, `Change landed early`, `One-off, won’t last`
 - Recovery: `Plan`, `Still investigating`, `Needs a decision or help`, `Target should change`
-- Action: `Stop`, `Delete` (Goals), `Left` (People)
+- Action: `Stop`, `Delete`, `Example` (Goals), `Left`, `Example` (People)
 
-Worked-out columns use the status words defined in `src/domain/vocabulary.ts` (see `docs/glossary.md`); the README sheet lists every one with its meaning.
+Worked-out columns use the status words defined in `src/domain/vocabulary.ts` (see `docs/glossary.md`); the Start here sheet lists every one with its meaning.
 
 ## JSON
 

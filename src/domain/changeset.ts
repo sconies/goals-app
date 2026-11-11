@@ -18,7 +18,7 @@ import {
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, planQuestion, replanned, validateGoal, type GoalDraft } from './goal';
-import { notNumberText, precisionProblem, typedDecimals } from './numbers';
+import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
@@ -60,6 +60,8 @@ export interface Item {
 export interface ChangeSet {
   items: Item[];
   unchanged: number;
+  /** Rows whose Action says Example (the template's): left out, and said (C15). */
+  examples: number;
   issues: Issue[];
   /** Some plan changes need a reason and none was given. */
   needsReason: boolean;
@@ -143,6 +145,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const issues: Issue[] = [];
   const items: Item[] = [];
   let unchanged = 0;
+  let examples = 0;
   const err = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'error' });
   const warn = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'warning' });
   const note = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'note' });
@@ -211,6 +214,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const email = normalEmail(val(r, 'email'));
     const action = word(PERSON_ACTION_WORDS, val(r, 'action'));
     if (action.problem) return err('People', row, name || email, action.problem);
+    if (action.code === 'example') { examples++; return; }
     // Which person: their ID; else their email; else a name only one person has. In create mode, everyone is new.
     const id = create ? '' : val(r, 'id');
     let before: Person | undefined;
@@ -350,6 +354,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const title = val(r, 'goal');
     const action = word(GOAL_ACTION_WORDS, val(r, 'action'));
     if (action.problem) return err('Goals', row, title || keyRef || id, action.problem);
+    // A template's example row is never imported, only counted (C15).
+    if (action.code === 'example') { examples++; return; }
     if (keyRef && !isKey(keyRef)) return err('Goals', row, title || keyRef, `Key “${keyRef}” should look like G-12.`);
     let existing: Goal | null = null;
     if (create) {
@@ -533,7 +539,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // old numbers: only the weeks typed differently from the plan before count.
     const orig = (touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? g) as MetricGoal;
     const origEnd = planEnd(orig.plan, cycle.weeks);
-    const tol = 0.5 * 10 ** -g.decimals;
+    // A week counts as typed only when it differs from the plan's own number as the export writes it (rule 9, IM0):
+    // a tolerance of half a unit misread a number that falls on the half (0.405 written 0.41) as a change.
     const startTyped = val(r, 'start') ? parseNumber(val(r, 'start')) : null;
     if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: ${notNumberText(val(r, 'start'), g.decimals)}`);
     const startPrecise = val(r, 'start') ? precisionProblem(val(r, 'start'), startTyped, g.decimals) : null;
@@ -548,9 +555,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (precise) return err('Plan', row, g.title, `Week ${m[1]}: ${precise}`);
       const w = Number(m[1]);
       const was = w <= (orig.plan.fromWeek ?? 0) || w > origEnd ? null : w === origEnd ? orig.plan.target : planAt(orig.plan, w, cycle.weeks);
-      if (was == null || Math.abs(n - was) > tol) typed.set(w, n);
+      if (!sameAsWritten(n, was, g.decimals)) typed.set(w, n);
     }
-    const startChanged = startTyped != null && Math.abs(startTyped - orig.plan.start) > tol;
+    const startChanged = startTyped != null && !sameAsWritten(startTyped, orig.plan.start, g.decimals);
     if (!typed.size && !startChanged) { if (!touched.has(id)) unchanged++; return; }
     if (removals.some((x) => x.g.id === id)) return err('Plan', row, g.title, `This file also stops or deletes “${g.title}”, so its plan can’t change in it.`);
     if (!create && !canChange(g)) return err('Plan', row, g.title, notYours(g));
@@ -811,7 +818,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     left: items.filter((x) => x.kind === 'person left').length,
   };
   const ok = !issues.some((x) => x.severity === 'error') && !needsReason && !needsConfirm && items.length > 0;
-  const result: ChangeSet = { items, unchanged, issues, needsReason, needsConfirm, commit: null, counts };
+  const result: ChangeSet = { items, unchanged, examples, issues, needsReason, needsConfirm, commit: null, counts };
   // New goals before the goals that feed into them, so each link points at a goal that's already saved.
   const ordered: Goal[] = [];
   const pending = [...goalOut.values()];

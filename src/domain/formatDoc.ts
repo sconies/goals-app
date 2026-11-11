@@ -1,6 +1,9 @@
 /* docs/export-format.md, made from the one format (domain/columns.ts) so the document can't say a column differently from
    the app. `npm run export-format` writes it; evals/format.eval.ts fails when the file isn't current. */
-import { CALL_WORDS, CAUSE_WORDS, GOAL_ACTION_WORDS, KEY_COLUMNS, LEVEL_WORDS, PERSON_ACTION_WORDS, RECOVERY_WORDS, ROLE_WORD, roleLoaded, SHAPE_WORDS, SHEETS, TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type Words } from './columns';
+import {
+  CALL_WORDS, CAUSE_WORDS, emptyText, fieldTable, GOAL_ACTION_WORDS, KEY_COLUMNS, LEVEL_WORDS, PERSON_ACTION_WORDS, RECOVERY_WORDS, requiredLine, requiredText, ROLE_WORD, roleLoaded, SHAPE_WORDS, SHEETS, START_HERE,
+  TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type FillKind, type Words,
+} from './columns';
 import { STATUS, withCode } from './vocabulary';
 
 const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -19,7 +22,8 @@ export function exportFormatMarkdown(): string {
     '',
     '## Files',
     '',
-    `- **Excel workbook (.xlsx)**, the default: every sheet below (${SHEETS.map((x) => x.name).join(', ')}) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.`,
+    `- **Excel workbook (.xlsx)**, the default: a first sheet, ${START_HERE}, that says where the file came from (the workspace’s and cycle’s ids, on its “File of” row) and, for every column, what a new row needs, its format, an example, what an empty cell does and what it means (the field table below); then every sheet below (${SHEETS.map((x) => x.name).join(', ')}). Worked-out columns are set in grey. A file’s README sheet, from before ${START_HERE}, is skipped as ${START_HERE} is.`,
+    `- **The template**: ${START_HERE}, then Goals, Plan, Check-ins and People with only the columns a person fills in, the headers a new row must have in bold, and example rows whose Action says \`${GOAL_ACTION_WORDS.word.example}\`, which are never imported.`,
     '- **CSV files (.zip)**: the same sheets, one CSV each with the same headers, named after the sheet (`Goals.csv`, `Check-ins.csv`…). UTF-8 with a byte-order mark, so Excel opens them correctly.',
     '- **One CSV**: any one sheet on its own.',
     '- **A table from Data** (CSV or .xlsx), exactly as its layout shows it: its columns in order and the rows that pass its search and filters. The columns that say which record a row is (below, “Matches the row”) are always written: any the layout leaves out are added at the end, in grey, so the file loads back. The AI assistant’s `export_table` does the same.',
@@ -36,14 +40,26 @@ export function exportFormatMarkdown(): string {
     `- **Words are exact.** A word a column doesn’t know (a level of “vp”, a Must stay of “sometimes”) is a problem to fix, never a guess. A dash on its own (\`—\`) in Team, Owner or Feeds into means none.`,
     '- **The formula guard.** In a CSV, a text cell starting with `=`, `+`, `-`, `@`, a tab or a carriage return is written with an apostrophe in front, so a spreadsheet won’t run it as a formula. Loading it back takes the apostrophe off again.',
     '- **Line breaks** inside a cell are kept, in a workbook and in a CSV (as a quoted cell, RFC 4180).',
-    `- **The Action column** does what the app does, with the same rules and preview: on Goals, \`${GOAL_ACTION_WORDS.word.stop}\` stops a goal with check-ins (say why in Reason) and \`${GOAL_ACTION_WORDS.word.delete}\` deletes one with none; on People, \`${PERSON_ACTION_WORDS.word.left}\` marks someone as left, their goals and open asks going to Takes over (by email). Undoing the import puts them back.`,
+    `- **The Action column** does what the app does, with the same rules and preview: on Goals, \`${GOAL_ACTION_WORDS.word.stop}\` stops a goal with check-ins (say why in Reason) and \`${GOAL_ACTION_WORDS.word.delete}\` deletes one with none; on People, \`${PERSON_ACTION_WORDS.word.left}\` marks someone as left, their goals and open asks going to Takes over (by email). Undoing the import puts them back. On either, \`${GOAL_ACTION_WORDS.word.example}\` marks an example row, which is left out and counted.`,
+    '- **What a new row needs** (the field table): a column is Required; Required for a type of goal (Target for a number goal) or in a situation (Cause when a check-in is behind); Optional, with what an empty cell gives; Leave empty (Faro fills it in); or Worked out (never read). On a row already here no column is required: an empty cell keeps what the record says, except where the column says empty clears it.',
     '',
   ];
   for (const sheet of SHEETS) {
     out.push(`## ${sheet.name}`, '', `One row per ${sheet.rowIs}. ${sheet.about}${sheet.loaded ? '' : ' Not loaded back.'}`, '');
-    out.push('| Column | Kind | What it means | When loaded back |', '|---|---|---|---|');
-    for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | ${cell(sheet.loaded ? roleLoaded(c) : 'Not loaded back')} |`);
-    if (sheet.kind === 'plan') out.push(`| ${WEEK_COLUMN.header} | ${ROLE_WORD[WEEK_COLUMN.role]} | ${cell(WEEK_COLUMN.means)} | ${cell(WEEK_COLUMN.loaded)} |`);
+    if (sheet.loaded) {
+      // The field table: what a new row needs, the format, an example and what an empty cell does, then the meaning.
+      const kind = sheet.kind as FillKind;
+      const table = fieldTable(kind);
+      if (kind !== 'plan') out.push(`A new row needs ${requiredLine(kind)}`, '');
+      out.push('| Column | A new row | Format | Example | If it’s left empty | What it means | When loaded back |', '|---|---|---|---|---|---|---|');
+      for (const c of table) {
+        const col = sheet.columns.find((v) => v.header === c.header);
+        out.push(`| ${cell(c.header)} | ${cell(requiredText(c, table))} | ${cell(c.format)} | ${c.example ? `\`${cell(c.example)}\`` : ''} | ${cell(emptyText(c))} | ${cell(c.means)} | ${cell(col ? roleLoaded(col) : WEEK_COLUMN.loaded)} |`);
+      }
+    } else {
+      out.push('| Column | Kind | What it means | When loaded back |', '|---|---|---|---|');
+      for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | Not loaded back |`);
+    }
     out.push('', `Always written by a table from Data: ${KEY_COLUMNS[sheet.kind].join(', ')}.`, '');
   }
   out.push(
@@ -60,7 +76,7 @@ export function exportFormatMarkdown(): string {
     `- Recovery: ${words(RECOVERY_WORDS)}`,
     `- Action: ${words(GOAL_ACTION_WORDS)} (Goals), ${words(PERSON_ACTION_WORDS)} (People)`,
     '',
-    'Worked-out columns use the status words defined in `src/domain/vocabulary.ts` (see `docs/glossary.md`); the README sheet lists every one with its meaning.',
+    'Worked-out columns use the status words defined in `src/domain/vocabulary.ts` (see `docs/glossary.md`); the Start here sheet lists every one with its meaning.',
     '',
     '## JSON',
     '',
