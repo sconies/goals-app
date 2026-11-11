@@ -12,7 +12,7 @@ import { isModuleOn, MODULES } from '../src/core/registry';
 import { leftOut } from '../src/core/sources';
 import { buildPlatformOrg } from '../src/data/platformOrg';
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
-import { blankWorkbook, workbook } from '../src/domain/export';
+import { templateWorkbook, workbook } from '../src/domain/export';
 import { currentWeek } from '../src/domain/plan';
 import { callTool, type McpContext } from '../src/mcp/tools';
 // @ts-expect-error: a plain JavaScript script, run by CI with node, has no type declarations.
@@ -58,17 +58,23 @@ describe('Feature modules', () => {
     expect(on.text.split('\n')[0]).toMatch(/Key/);
   });
 
-  it('[SPREADSHEETS-ON-DATA] makes the blank template: every sheet of the workbook, headers and README, no rows', async () => {
+  it('[SPREADSHEETS-ON-DATA] [FIELD-TABLE] makes the template: Start here, then Goals, Plan, Check-ins and People with only the columns a person fills in, required headers in bold, and example rows', async () => {
     const x = await context();
     const input = { ws: x.ws, snapshot: x.snapshot, cycle: x.cycle, week: x.week, today };
     const full = workbook(input);
-    const blank = blankWorkbook(input);
-    expect(blank.map((t) => t.name)).toEqual(full.map((t) => t.name));
-    for (const t of blank.filter((b) => b.name !== 'README')) {
-      expect(t.rows, t.name).toHaveLength(1);
-      expect(t.rows[0], t.name).toEqual(full.find((f) => f.name === t.name)!.rows[0]);
+    const book = templateWorkbook(input);
+    expect(book.map((t) => t.name)).toEqual(['Start here', 'Goals', 'Plan', 'Check-ins', 'People']);
+    for (const t of book.slice(1)) {
+      const head = t.rows[0]!.map(String);
+      // The workbook's own headers, worked-out and for-reading columns left out.
+      expect(head.every((h) => full.find((f) => f.name === t.name)!.rows[0]!.includes(h)), t.name).toBe(true);
+      expect(head.some((h) => ['Status', 'Calculated', 'Posted at'].includes(h)), t.name).toBe(false);
     }
-    expect(blank.find((t) => t.name === 'README')!.rows.length).toBeGreaterThan(3);
+    expect(book.find((t) => t.name === 'Goals')!.bold).toEqual(['Goal', 'Owner', 'Owner email']);
+    expect(book.find((t) => t.name === 'People')!.bold).toEqual(['Email', 'Name']);
+    expect(book.find((t) => t.name === 'Goals')!.rows).toHaveLength(3);
+    expect(book.find((t) => t.name === 'People')!.rows).toHaveLength(2);
+    expect(book[0]!.rows.length).toBeGreaterThan(40);
   });
 
   it.skipIf(noSheets)('[SPREADSHEETS-ON-DATA] has the AI’s export tools in the spreadsheets module', () => {

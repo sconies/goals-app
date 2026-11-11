@@ -22,6 +22,7 @@ import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
+import { emptyText, fieldTable, FILL_SHEETS, requiredLine, requiredText, requiredWord, specOf } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
@@ -70,6 +71,20 @@ export interface Rule {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** The field table of every sheet that loads back, as the rule page shows it. */
+function fieldTableMarkdown(): string {
+  const cellOf = (v: string) => v.replace(/\|/g, '\\|');
+  return FILL_SHEETS.map((k) => {
+    const t = fieldTable(k);
+    const line = k === 'plan' ? '' : `. A new row needs: ${requiredLine(k)}`;
+    return [
+      `**${specOf(k).name}**${line}`, '',
+      '| Column | A new row | Format | Example | If it’s left empty |', '|---|---|---|---|---|',
+      ...t.filter((c) => c.required != null).map((c) => `| ${c.header} | ${cellOf(requiredText(c, t))} | ${cellOf(c.format)} | ${cellOf(c.example)} | ${cellOf(emptyText(c))} |`),
+      '', `Worked out: ${t.filter((c) => c.required == null).map((c) => c.header).join(', ') || 'none'}.`,
+    ].join('\n');
+  }).join('\n\n');
+}
 const g3075 = metric(30, 75);
 const ci = checkIn;
 const D = (d: Partial<Draft>): Draft => ({ ...emptyDraft(g3075, null), ...d });
@@ -601,6 +616,28 @@ For a range, better means further from the limit on its safe side.
       { given: 'Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins.', then: 'the first problem says: Week 4 needs a Cause and a Why', run: () => { const s = demo!; const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') }; const m = change('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }).issues[0]?.message ?? ''; return `the first problem says: ${/Week 4 needs a Cause and a Why/.exec(m)?.[0] ?? m}`; } },
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
+  },
+  /* ---------- the field table (backlog IM1) ---------- */
+  {
+    id: 'field-table',
+    title: 'The field table',
+    summary: 'For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import.',
+    code: [{ file: 'src/domain/columns.ts', names: ['fieldTable', 'requiredWord', 'requiredText', 'requiredLine', 'emptyText', 'EXAMPLE_ROWS'] }, { file: 'src/domain/export.ts', names: ['startHere', 'templateWorkbook'] }],
+    tests: ['src/domain/fieldTable.test.ts'],
+    reqs: ['FIELD-TABLE', 'ONE-FORMAT'],
+    body: `
+\`fieldTable(sheet)\` gives, for every column of a sheet that loads back (Goals, Plan, Check-ins, People), whether a **new row** must have it, its **format**, an **example**, what an **empty cell** does, and what it means. A column is one of: **Required**; **Required for** a type of goal (Target for a number goal), or **Required when** something holds (Cause when a check-in is behind); **Optional**, with what an empty cell gives; **Leave empty** (Faro fills it in, such as a new goal's Key); **For reading**; or **Worked out** (never read). Columns of which one is enough share a group (Owner or Owner email). On a row already here nothing is required: an empty cell keeps what the record says, except where a column says empty clears it.
+
+The workbook's first sheet, **Start here**, is this table (with a "File of" row giving the workspace's and cycle's ids); the **template** is Start here and the four sheets with only the columns a person fills in, the required headers in bold, and example rows whose Action says **Example**, which the change engine leaves out and counts. A sheet named README (the old first sheet) or Start here is skipped on the way back in.
+
+${fieldTableMarkdown()}`,
+    examples: [
+      { given: 'The Goals columns a new row must have, alone or as one of a pair.', then: 'Goal, Owner, Owner email', run: () => fieldTable('goals').filter((c) => c.required === 'required').map((c) => c.header).join(', ') },
+      { given: 'The words for “required for a number goal” and for an optional column.', then: 'Required for a number goal / Optional', run: () => `${requiredWord({ for: ['metric'] })} / ${requiredWord({ optional: 'team' })}` },
+      { given: 'What a new goal, check-in and person must have.', then: 'Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. | Goal key (or Goal), Week, and Value or Stages. | Name and Email.', run: () => (['goals', 'checkIns', 'people'] as const).map((k) => requiredLine(k)).join(' | ') },
+      { given: 'A Goals row whose Action says Example, with an owner nobody here has.', then: '0 changes, 1 example row left out, 0 problems', run: () => { const cs = change('amara', { goals: [rec({ Goal: 'X', Action: 'Example', Owner: 'Nobody here' })] }); return `${cs.items.length} changes, ${cs.examples} example row left out, ${cs.issues.length} problems`; } },
+    ],
+    unclear: ['It says what Faro does today. The import design (docs/design/import/spec.md, section 3) changes a few defaults in later items (a Type read from which columns are filled; no unit and no margin by default; a Check for many of today’s refusals): those rows change with the rule that changes.'],
   },
   /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
   {

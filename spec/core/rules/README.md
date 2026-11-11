@@ -14,6 +14,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Flags, the trend and needs attention](flags.md) | Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled. |
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP. |
+| [The field table](field-table.md) | For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import. |
 | [Deciding in a review](review-decide.md) | A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The directory: who People lists, what a search finds, and where old addresses lead](directory.md) | People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead. |

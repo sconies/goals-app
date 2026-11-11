@@ -60,6 +60,8 @@ export interface Item {
 export interface ChangeSet {
   items: Item[];
   unchanged: number;
+  /** Rows whose Action says Example (the template's): left out, and said (C15). */
+  examples: number;
   issues: Issue[];
   /** Some plan changes need a reason and none was given. */
   needsReason: boolean;
@@ -143,6 +145,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const issues: Issue[] = [];
   const items: Item[] = [];
   let unchanged = 0;
+  let examples = 0;
   const err = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'error' });
   const warn = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'warning' });
   const note = (sheet: Sheet, row: number, goal: string, message: string) => issues.push({ sheet, row, goal, message, severity: 'note' });
@@ -211,6 +214,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const email = normalEmail(val(r, 'email'));
     const action = word(PERSON_ACTION_WORDS, val(r, 'action'));
     if (action.problem) return err('People', row, name || email, action.problem);
+    if (action.code === 'example') { examples++; return; }
     // Which person: their ID; else their email; else a name only one person has. In create mode, everyone is new.
     const id = create ? '' : val(r, 'id');
     let before: Person | undefined;
@@ -350,6 +354,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const title = val(r, 'goal');
     const action = word(GOAL_ACTION_WORDS, val(r, 'action'));
     if (action.problem) return err('Goals', row, title || keyRef || id, action.problem);
+    // A template's example row is never imported, only counted (C15).
+    if (action.code === 'example') { examples++; return; }
     if (keyRef && !isKey(keyRef)) return err('Goals', row, title || keyRef, `Key “${keyRef}” should look like G-12.`);
     let existing: Goal | null = null;
     if (create) {
@@ -812,7 +818,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     left: items.filter((x) => x.kind === 'person left').length,
   };
   const ok = !issues.some((x) => x.severity === 'error') && !needsReason && !needsConfirm && items.length > 0;
-  const result: ChangeSet = { items, unchanged, issues, needsReason, needsConfirm, commit: null, counts };
+  const result: ChangeSet = { items, unchanged, examples, issues, needsReason, needsConfirm, commit: null, counts };
   // New goals before the goals that feed into them, so each link points at a goal that's already saved.
   const ordered: Goal[] = [];
   const pending = [...goalOut.values()];

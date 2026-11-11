@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'field-table',
+    date: '2026-11-11',
+    title: 'What every column needs, in one place',
+    points: [
+      'Help has a table of every column: required or not, its format, an example.',
+      'The template’s first sheet is the same table, and its example rows are never imported.',
+      'Import says what a new goal, check-in and person must have before you choose a file.',
+    ],
+    articles: ['columns', 'import', 'export'],
+  },
+  {
     id: 'round-trip-exact',
     date: '2026-11-11',
     title: 'An export loaded straight back changes nothing',
