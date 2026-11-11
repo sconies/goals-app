@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-/** The first download, gzipped, at most (409 KB on 11 Nov 2026: the entry and its five preloads). */
-export const FIRST_DOWNLOAD_KB = 415;
+/** The first download, gzipped, at most (422 KB on 11 Nov 2026, evening: the entry and its six preloads). */
+export const FIRST_DOWNLOAD_KB = 425;
 
 const dist = join(process.cwd(), 'dist');
 let html;

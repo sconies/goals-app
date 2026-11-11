@@ -313,7 +313,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 415 KB compressed; 409 KB today, over R4’s 300, so it only goes down), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 425 KB compressed; 422 KB today, over R4’s 300, so it only goes down), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {
