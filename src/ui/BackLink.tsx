@@ -11,7 +11,7 @@ import { Icon } from './Icon';
 import { viewParams } from '../screens/GoalFilters';
 import { articleById } from '../help/guide';
 import { backTo, FORM, type PlaceNames } from '../domain/navigation';
-import { useSectionNames } from '../screens/Workspace';
+import { useSectionNames } from '../screens/workspaceSections';
 
 const KEY = 'goals-trail';
 type Entry = { key: string; path: string };

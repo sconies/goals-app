@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -26,6 +26,7 @@ import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
 import { wrapUpOpenOn } from '../domain/cycle';
 import { useWidth } from '../ui/useWidth';
+import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
@@ -34,13 +35,13 @@ const NARROW = 720;
 /** The core's sections, in menu order. A module's sections follow the one they name in `after`, or come last. The
     landing section keeps the id `overview` (old links and modules name it); people read it as About (WR2). */
 const CORE: WorkspaceSection[] = [
-  { id: 'overview', label: 'About', summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
-  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
-  { id: 'access', label: 'Access', summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
-  { id: 'features', label: 'Features', summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
+  { id: 'overview', label: CORE_SECTION_LABELS.overview, summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
+  { id: 'cycles', label: CORE_SECTION_LABELS.cycles, summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
+  { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
-  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
-  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
+  { id: 'privacy', label: CORE_SECTION_LABELS.privacy, summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
+  { id: 'removed', label: CORE_SECTION_LABELS.removed, summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
@@ -54,10 +55,7 @@ export function useSections(): WorkspaceSection[] {
 }
 
 /** Every section's name, whoever is looking (a page's name, navigation rule 2): the core's, then the modules'. */
-export function useSectionNames(): Record<string, string> {
-  const { screens } = useModules();
-  return useMemo(() => Object.fromEntries([...CORE, ...screens.flatMap((m) => m.sections ?? [])].map((x) => [x.id, x.label])), [screens]);
-}
+export { useSectionNames } from './workspaceSections';
 
 interface Ctx { narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }
 const WsCtx = createContext<Ctx | null>(null);
