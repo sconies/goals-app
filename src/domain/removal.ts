@@ -8,7 +8,7 @@
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
 import type { Commit } from './commit';
-import { byRecarry } from './startYear';
+import { byRecarry } from './recarry';
 import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';

@@ -800,7 +800,7 @@ ${fieldTableMarkdown()}`,
     summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
     code: [
       { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
-      { file: 'src/domain/startYear.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
       { file: 'src/domain/actions.ts', names: ['saveRetro', 'mergeCommits'] },
     ],
     tests: ['src/domain/startYear.test.ts'],

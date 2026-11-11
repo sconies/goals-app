@@ -9,7 +9,7 @@ import type { Commit } from './commit';
 import type { Lookup } from './changes';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, nextCycleShape, RESULT_LABEL, wrapUpOpenOn } from './cycle';
 import { carryExtras, startReadBack } from './carry';
-import { copyUntouched, recarry } from './startYear';
+import { copyUntouched, recarry } from './recarry';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';

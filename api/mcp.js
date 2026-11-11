@@ -4008,128 +4008,7 @@ var init_cycle = __esmMin((() => {
 	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
-// src/domain/startYear.ts
-function startPage(s, cycle, today) {
-	const shape = nextCycleShape(cycle);
-	const next = {
-		...cycle,
-		...shape
-	};
-	const nd = cycleDates(next), d = cycleDates(cycle);
-	const state = cycleState(cycle, today);
-	const later = laterCycle(s.cycles, cycle);
-	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? "It opens for everyone as soon as you start it." : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
-	if (state === "before" || state === "running") return {
-		next: shape.name,
-		canStart: false,
-		whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`,
-		line,
-		counts: [],
-		startsWith: [],
-		readBack: null
-	};
-	const goals = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt);
-	const rb = startReadBack({
-		cycle,
-		next: {
-			name: shape.name,
-			firstDay: nd.firstDay,
-			weeks: shape.weeks
-		},
-		goals,
-		checkIns: s.checkIns,
-		retros: s.retros ?? []
-	});
-	const going = new Set(goals.filter((g) => carries(rb.kinds.get(g.id))).map((g) => g.id));
-	const openAsks = (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => goals.some((g) => g.id === id)));
-	const extras = {
-		asks: openAsks.filter((r) => r.goalIds.some((id) => going.has(id))).length,
-		staying: openAsks.filter((r) => !r.goalIds.some((id) => going.has(id))).length,
-		watches: (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === "goal" || w.kind === "tree") && going.has(w.ref)).length,
-		reviews: (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => going.has(id))).length
-	};
-	const counts = [
-		{
-			n: rb.carry,
-			says: "carry on",
-			sub: rb.keep ? `${rb.keep} keep their plan and dates` : ""
-		},
-		{
-			n: rb.finish,
-			says: "finish",
-			sub: "they met their target"
-		},
-		{
-			n: rb.stop,
-			says: "stop",
-			sub: "their owners said so"
-		},
-		{
-			n: rb.open,
-			says: "not wrapped up yet",
-			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
-		}
-	];
-	const startsWith = [
-		...rb.carried ? [{
-			bold: n(rb.carried, "goal", "goals"),
-			rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.`
-		}] : [],
-		...rb.stageGoals ? [{
-			bold: n(rb.stageGoals, "goal with stages", "goals with stages"),
-			rest: ` carry the ${n(rb.stagesLeft, "stage", "stages")} not done, spread evenly over ${shape.name}. Their owners are asked to check the dates.`
-		}] : [],
-		...rb.loseParent ? [{
-			bold: `${n(rb.loseParent, "goal loses its", "goals lose their")} “Feeds into”`,
-			rest: ", because the goal above finishes or stops."
-		}] : [],
-		...extras.asks ? [{
-			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
-			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
-		}] : [],
-		...extras.watches ? [{
-			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
-			rest: ", for the same people."
-		}] : [],
-		...rb.handSet ? [{
-			bold: `${n(rb.handSet, "goal sets its", "goals set their")} weekly plan numbers by hand.`,
-			rest: ` Those numbers were for ${cycle.name}; in ${shape.name} the plan is a straight line until the owner sets them again.`
-		}] : [],
-		...extras.reviews ? [{
-			bold: `${n(extras.reviews, "review carries", "reviews carry")} on`,
-			rest: ` with the same people and days, on ${shape.name}’s goals.`
-		}] : [],
-		{
-			bold: `Check-ins every week, due by ${WEEKDAYS[cycle.reviewDay]}`,
-			rest: `, as in ${cycle.name}. The first are due ${dayWithYear(reviewDate(next, 1))}.`
-		}
-	];
-	const whyNot = later ? `${later.name} has already been started.` : null;
-	return {
-		next: shape.name,
-		canStart: !later,
-		whyNot,
-		line,
-		counts: goals.length ? counts : [],
-		startsWith: goals.length ? startsWith : [{
-			bold: `${shape.name} starts empty.`,
-			rest: ""
-		}],
-		readBack: rb
-	};
-}
-/** The read-back as text, for the AI tools: the line, the counts, and what the next year starts with. */
-function startPageText(p) {
-	if (!p.readBack) return `${p.whyNot ?? ""} ${p.line}`.trim();
-	const counts = p.counts.map((c) => `${c.n} ${c.says} (${c.sub})`).join("; ");
-	return [
-		p.line,
-		counts ? `${counts}.` : "",
-		`What ${p.next} starts with: ${p.startsWith.map((x) => x.bold + x.rest).join(" ")}`,
-		p.whyNot ?? ""
-	].filter(Boolean).join("\n");
-}
+// src/domain/recarry.ts
 /**
 * Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle gets a
 * check-in or a wrap-up, its kind is worked out again and, **only while its copy is untouched** (no check-in in it, no
@@ -4229,21 +4108,10 @@ function copyUntouched(copy, full) {
 	if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
 	return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
 }
-var WEEKDAYS, n, byRecarry, sansVersion;
-var init_startYear = __esmMin((() => {
+var byRecarry, sansVersion;
+var init_recarry = __esmMin((() => {
 	init_carry();
 	init_cycle();
-	init_progress();
-	WEEKDAYS = [
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-		"Sunday"
-	];
-	n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
 	byRecarry = (summary) => /now starts from .*’s final number$|carries on into /.test(summary);
 	sansVersion = (g) => ({
 		...g,
@@ -6721,7 +6589,7 @@ var init_actions = __esmMin((() => {
 	init_thresholds();
 	init_cycle();
 	init_carry();
-	init_startYear();
+	init_recarry();
 	init_people();
 	init_goal();
 	init_changes();
@@ -7724,7 +7592,7 @@ function restoreRemoved(x, kind, id, records = []) {
 }
 var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
-	init_startYear();
+	init_recarry();
 	init_actions();
 	init_asks();
 	init_status();
@@ -9065,7 +8933,7 @@ function keepsTheRules(c) {
 var VIA_LABEL, VIA_MCP, norm$1, has, val, ref, rowOf, blankRow, plural$1, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
-	init_startYear();
+	init_recarry();
 	init_changes();
 	init_checkin();
 	init_columns();
@@ -15936,6 +15804,141 @@ function newsDate(date) {
 		"Dec"
 	][m - 1]} ${y}`;
 }
+// src/domain/startYear.ts
+init_carry();
+init_cycle();
+init_progress();
+var WEEKDAYS = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday"
+];
+var n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+function startPage(s, cycle, today) {
+	const shape = nextCycleShape(cycle);
+	const next = {
+		...cycle,
+		...shape
+	};
+	const nd = cycleDates(next), d = cycleDates(cycle);
+	const state = cycleState(cycle, today);
+	const later = laterCycle(s.cycles, cycle);
+	const ended = state === "ended" || state === "closed";
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? "It opens for everyone as soon as you start it." : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	if (state === "before" || state === "running") return {
+		next: shape.name,
+		canStart: false,
+		whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`,
+		line,
+		counts: [],
+		startsWith: [],
+		readBack: null
+	};
+	const goals = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt);
+	const rb = startReadBack({
+		cycle,
+		next: {
+			name: shape.name,
+			firstDay: nd.firstDay,
+			weeks: shape.weeks
+		},
+		goals,
+		checkIns: s.checkIns,
+		retros: s.retros ?? []
+	});
+	const going = new Set(goals.filter((g) => carries(rb.kinds.get(g.id))).map((g) => g.id));
+	const openAsks = (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => goals.some((g) => g.id === id)));
+	const extras = {
+		asks: openAsks.filter((r) => r.goalIds.some((id) => going.has(id))).length,
+		staying: openAsks.filter((r) => !r.goalIds.some((id) => going.has(id))).length,
+		watches: (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === "goal" || w.kind === "tree") && going.has(w.ref)).length,
+		reviews: (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => going.has(id))).length
+	};
+	const counts = [
+		{
+			n: rb.carry,
+			says: "carry on",
+			sub: rb.keep ? `${rb.keep} keep their plan and dates` : ""
+		},
+		{
+			n: rb.finish,
+			says: "finish",
+			sub: "they met their target"
+		},
+		{
+			n: rb.stop,
+			says: "stop",
+			sub: "their owners said so"
+		},
+		{
+			n: rb.open,
+			says: "not wrapped up yet",
+			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
+		}
+	];
+	const startsWith = [
+		...rb.carried ? [{
+			bold: n(rb.carried, "goal", "goals"),
+			rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.`
+		}] : [],
+		...rb.stageGoals ? [{
+			bold: n(rb.stageGoals, "goal with stages", "goals with stages"),
+			rest: ` carry the ${n(rb.stagesLeft, "stage", "stages")} not done, spread evenly over ${shape.name}. Their owners are asked to check the dates.`
+		}] : [],
+		...rb.loseParent ? [{
+			bold: `${n(rb.loseParent, "goal loses its", "goals lose their")} “Feeds into”`,
+			rest: ", because the goal above finishes or stops."
+		}] : [],
+		...extras.asks ? [{
+			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
+			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
+		}] : [],
+		...extras.watches ? [{
+			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
+			rest: ", for the same people."
+		}] : [],
+		...rb.handSet ? [{
+			bold: `${n(rb.handSet, "goal sets its", "goals set their")} weekly plan numbers by hand.`,
+			rest: ` Those numbers were for ${cycle.name}; in ${shape.name} the plan is a straight line until the owner sets them again.`
+		}] : [],
+		...extras.reviews ? [{
+			bold: `${n(extras.reviews, "review carries", "reviews carry")} on`,
+			rest: ` with the same people and days, on ${shape.name}’s goals.`
+		}] : [],
+		{
+			bold: `Check-ins every week, due by ${WEEKDAYS[cycle.reviewDay]}`,
+			rest: `, as in ${cycle.name}. The first are due ${dayWithYear(reviewDate(next, 1))}.`
+		}
+	];
+	const whyNot = later ? `${later.name} has already been started.` : null;
+	return {
+		next: shape.name,
+		canStart: !later,
+		whyNot,
+		line,
+		counts: goals.length ? counts : [],
+		startsWith: goals.length ? startsWith : [{
+			bold: `${shape.name} starts empty.`,
+			rest: ""
+		}],
+		readBack: rb
+	};
+}
+/** The read-back as text, for the AI tools: the line, the counts, and what the next year starts with. */
+function startPageText(p) {
+	if (!p.readBack) return `${p.whyNot ?? ""} ${p.line}`.trim();
+	const counts = p.counts.map((c) => `${c.n} ${c.says} (${c.sub})`).join("; ");
+	return [
+		p.line,
+		counts ? `${counts}.` : "",
+		`What ${p.next} starts with: ${p.startsWith.map((x) => x.bold + x.rest).join(" ")}`,
+		p.whyNot ?? ""
+	].filter(Boolean).join("\n");
+}
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
 	id: "metrics",
@@ -16286,7 +16289,6 @@ init_progress();
 init_tableLayout();
 init_goalKey();
 init_removal();
-init_startYear();
 init_changeset();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
