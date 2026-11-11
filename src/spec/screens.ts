@@ -4,7 +4,7 @@
    has one, and none is left for a screen that's gone. Keyed by the file in src/screens, without .tsx. */
 export const MAIN_ACTION: Record<string, string> = {
   Home: 'The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.',
-  CheckInFlow: 'Post this week’s check-in, one goal at a time.',
+  CheckInFlow: 'On the week’s list (/check-in), start with the first goal due, or pick any; then post each check-in, one goal at a time.',
   QuickCheckIn: 'Post every row of the table that is ready, at once, and land on the check-in’s confirmation.',
   Research: 'Start the research session.',
   Review: 'Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.',

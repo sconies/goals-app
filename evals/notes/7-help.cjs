@@ -120,7 +120,7 @@ module.exports = {
         fail(path(p) === '/help/check-in' && (await h1(p)) === 'Checking in on a goal', `[HELP-GUIDE] ${w}: the article opened at ${path(p)}`);
         fail((await p.locator('#help-related ~ .help-list .help-row').count()) >= 2, `[HELP-GUIDE] ${w}: the article has no Related links`);
         const back = p.locator('main .backlink');
-        fail(/Back to Help/.test(await back.innerText().catch(() => '')), `[HELP-GUIDE] ${w}: the article's Back link says “${await back.innerText().catch(() => '')}”`);
+        fail(/Back to Help/.test(await back.getAttribute('aria-label').catch(() => '') ?? ''), `[HELP-GUIDE] ${w}: the article's Back link says “${await back.getAttribute('aria-label').catch(() => '')}”`);
         await c.close();
       }
 

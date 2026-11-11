@@ -13,7 +13,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your first check-in is next week”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
+- **Named parts:** “Your first check-in is next week”, “Nothing is due”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
 - **Main action:** The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.
 - **Primary buttons in its markup:** “Start the wrap-up”, “Find goals to watch”, “Set up the first goal”
 - **AI tools:** `get_my_work`, `get_overview`
@@ -26,7 +26,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/check-in/:goalId` (`CheckInFlow`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next. Help: “Checking in on a goal” (`check-in`).
 
 - **Named parts:** “Posted from the table”, “Check-in saved”, “This week (region)”, “What changed, and what happens next (region)”
-- **Main action:** Post this week’s check-in, one goal at a time.
+- **Main action:** On the week’s list (/check-in), start with the first goal due, or pick any; then post each check-in, one goal at a time.
 - **Primary buttons in its markup:** “Open the goal”, “Save and skip”, “Back to home”
 - **AI tools:** `post_check_in`, `link_request`
 
@@ -63,7 +63,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/reviews/:reviewId/edit` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 - `/reviews/:reviewId/summary` (`ReviewSummary`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
+- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
@@ -99,7 +99,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - **Named parts:** “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
-- **Primary buttons in its markup:** “Set up the first goal”
+- **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
 
 ## GoalWizard
@@ -227,7 +227,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”
+- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
 - **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_tokens`, `revoke_token`, `get_help`

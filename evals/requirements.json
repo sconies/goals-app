@@ -117,6 +117,11 @@
       "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained."
     },
     {
+      "id": "NEW-GOAL-TRUTH",
+      "area": "Goals",
+      "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
+    },
+    {
       "id": "GOAL-PAGE",
       "area": "Goals",
       "text": "The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal."
@@ -287,6 +292,11 @@
       "text": "Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year."
     },
     {
+      "id": "RESULTS",
+      "area": "Cycles",
+      "text": "A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun."
+    },
+    {
       "id": "QUARTER-RESULTS",
       "area": "Leaders",
       "text": "History opens on quarter results: for every goal, each quarter's actual number at its end against the owner's plan, met or missed (shape plus word), with the current quarter in progress. The owners' weekly calls are a separate, clearly named option, so weekly confidence is never mistaken for a quarter's result."
@@ -369,7 +379,7 @@
     {
       "id": "GOAL-MAP",
       "area": "Views",
-      "text": "A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; a find box finds a goal by name or key (G-48), opens its tree, outlines it and moves to it; each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row."
+      "text": "A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, the list bar's Needs attention switch, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; the list bar's search, on the Map, lists the goals it finds by name or key (G-48), and choosing one opens its tree, outlines it and moves to it without narrowing the Map (Enter with nothing chosen narrows, as on every layout); each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row."
     },
     {
       "id": "WALKTHROUGHS",
@@ -522,6 +532,16 @@
       "text": "Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant."
     },
     {
+      "id": "CHECK-IN-QUEUE",
+      "area": "Check-ins",
+      "text": "The week's check-ins can be seen as a list and started from any of them: Check-in opens on what's due this week, in the order the walk takes them, each with its status and what it last said, a kept draft said on its row; Start with the first walks them all, as Home's Start check-in does; what's done this week can be corrected; the one-table check-in is a line away. Someone who owns no goal is told so."
+    },
+    {
+      "id": "GOALS-MENUS",
+      "area": "Goals",
+      "text": "Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees."
+    },
+    {
       "id": "NAV-PLACES",
       "area": "Navigation",
       "text": "The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups."
@@ -540,6 +560,26 @@
       "id": "FIND-AND-PICK",
       "area": "Finding",
       "text": "A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove."
+    },
+    {
+      "id": "NAV-WHERE",
+      "area": "Navigation",
+      "text": "Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit."
+    },
+    {
+      "id": "NAV-BACK",
+      "area": "Navigation",
+      "text": "One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews."
+    },
+    {
+      "id": "NAV-FORMS",
+      "area": "Navigation",
+      "text": "A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed."
+    },
+    {
+      "id": "FIND-ANYWHERE",
+      "area": "Finding",
+      "text": "Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace."
     },
     {
       "id": "WORKSPACE-SECTIONS",
@@ -649,7 +689,7 @@
     {
       "id": "ONE-ATTENTION-RULE",
       "area": "Attention",
-      "text": "Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's \"Only what needs attention\", the Goals filter (with an optional \"because\"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green."
+      "text": "Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the Goals switch and filter (the Map's included) (with an optional \"because\"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green."
     },
     {
       "id": "ONE-TREND",

@@ -6,12 +6,13 @@ import { Link } from 'react-router';
 import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
+import { resultWeek } from '../domain/plan';
 import { readTour, type TourState } from '../app/tours';
 import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
 import { FEEDER_SCOPE } from '../domain/goalPage';
-import { above, bounds, criticalPath, edges as mapEdges, findOnMap, layout, layoutIndented, NODE_H, NODE_W, pack, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { above, bounds, criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W, pack, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import { assessPosted, RANK } from '../domain/status';
-import { ATTENTION, LABEL, type ResultKind } from '../domain/vocabulary';
+import { LABEL, type ResultKind } from '../domain/vocabulary';
 import { goalResult, RESULT_TEXT } from '../domain/story';
 import { summarise } from '../domain/summary';
 import type { DisplayStatus, Goal } from '../domain/types';
@@ -84,15 +85,15 @@ const readTrouble = (ws: string) => { try { return localStorage.getItem(troubleK
 
 /**
  * The map draws `goals`. When the Goals screen is filtered, `matches` are the goals that match; the rest are the goals
- * they feed into, drawn greyed as context. "Only what needs attention" is the Goals screen's Needs attention filter
+ * they feed into, drawn greyed as context. What needs attention is the Goals list bar's Needs attention switch
  * itself (attention=1, the one rule in domain/attention.ts), so the count, the link and "what's shown now" in Export
  * always agree with what's drawn (round 3 review), and with Home, Watching and reviews.
  *
  * At scale (backlog MAP, 9 Nov): it opens folded to the top goals with the critical path still drawn beneath them,
- * the trees wrapped into rows so Fit all really fits, a find box that opens a goal's tree and moves to it, numbers and
+ * the trees wrapped into rows so Fit all really fits, the list bar's search that opens a goal's tree and moves to it (`goTo`), numbers and
  * a roll-up on every node, and a switch for the trees in trouble only.
  */
-export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goal[]; matches?: Set<string>; attention: boolean; onAttention: (on: boolean) => void }) {
+export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set<string>; goTo?: { id: string; n: number } | null }) {
   const app = useApp();
   const phone = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
   const [selected, setSelected] = useState<string | null>(null);
@@ -144,7 +145,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
       domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
       ariaLabel: `${g.key ? g.key + ' ' : ''}${g.title}: ${LABEL[st]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
       data: {
-        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, app.week)?.kind ?? null,
+        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today))?.kind ?? null,
         children: kids.length, hidden: kids.filter((c) => !shown.has(c.id)).length, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), found: found === n.id,
         nums: { now: nowText(g, a), target: g.kind === 'metric' ? fmt(g.plan.target, g) : null, gap: gap ? { short: gap.short, tone: gap.tone } : null },
         under: r ? { worst: r.worst, text: rollupText(r), total: r.total } : null,
@@ -248,6 +249,8 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
     pendingPan.current = g.id;
   };
   const pendingPan = useRef<string | null>(null);
+  // The list bar's search found a goal (goals spec, 2.3): go to it, each time it's asked, even for the same goal again.
+  useEffect(() => { const g = goTo && goals.find((x) => x.id === goTo.id); if (g) findGoal(g); }, [goTo?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const id = pendingPan.current, rf = flow.current, cv = canvas.current?.getBoundingClientRect();
     const n = placed.find((x) => x.id === id);
@@ -307,7 +310,6 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
           <KeyMore />
         </div>
         <div className="map-tools">
-          <label className="check small" title={`With the goals ${ATTENTION.handled.label.toLowerCase()}: nothing behind is hidden`}><input type="checkbox" checked={attention} onChange={(e) => onAttention(e.target.checked)} /> <span className="map-long">Only what {ATTENTION.needs.label.toLowerCase()}</span><span className="map-short">{ATTENTION.needs.label}</span></label>
           <label className="check small map-troubled" title="Trees whose top goal or anything under it is off track, at risk or has no recent update"><input type="checkbox" checked={onlyTroubled} onChange={(e) => setOnlyTroubled(e.target.checked)} /> <span className="map-long">Troubled trees only</span><span className="map-short">Troubled trees</span></label>
           <button type="button" className="btn sm map-fold" onClick={fold}>{hiddenAny ? 'Unfold all' : 'Fold to the top'}</button>
           {Object.keys(moved).length > 0 && <button type="button" className="btn ghost sm" onClick={() => setMoved({})}>Tidy up</button>}
@@ -329,8 +331,6 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
             fromKeys.current = node;
             setSelected(node.dataset.id ?? null);
           }}>
-          {/* Find a goal sits on the map, top left, as on a street map; the framing leaves room under it. */}
-          <MapFind goals={goals} onFind={findGoal} />
           <ReactFlow
             nodes={nodes} edges={links} nodeTypes={nodeTypes} edgeTypes={edgeTypes} minZoom={MIN_ZOOM} maxZoom={1.6}
             onInit={(rf) => { flow.current = rf; setReady(true); }}
@@ -356,43 +356,8 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
 
 /** The smallest the map goes: Fit all reaches it only with every goal unfolded on a small window. */
 const MIN_ZOOM = 0.1;
-/** Room at the top of the map for the find box over it. */
-const FIND_ROOM = 60;
-
-/**
- * Find a goal on the map by its key ("G-48") or its title: a search box with a short list of matches under it. Choosing
- * one (a click, or the arrows and Enter) opens its tree and moves the map to it.
- */
-function MapFind({ goals, onFind }: { goals: Goal[]; onFind: (g: Goal) => void }) {
-  const [text, setText] = useState('');
-  const [at, setAt] = useState(0);
-  const [openList, setOpenList] = useState(false);
-  const hits = useMemo(() => findOnMap(goals, text, 8), [goals, text]);
-  const choose = (g: Goal | undefined) => { if (!g) return; onFind(g); setOpenList(false); setText(g.key ? `${g.key} ${g.title}` : g.title); };
-  const listId = 'map-find-list';
-  return (
-    <div className="map-find" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node)) setOpenList(false); }}>
-      <input type="search" role="combobox" aria-label="Find a goal on the map, by name or key" placeholder="Find a goal or key (G-12)" value={text}
-        aria-expanded={openList && hits.length > 0} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={openList && hits[at] ? `map-find-${hits[at]!.id}` : undefined}
-        onChange={(e) => { setText(e.target.value); setAt(0); setOpenList(true); }} onFocus={() => setOpenList(true)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') { e.preventDefault(); setOpenList(true); setAt((i) => Math.min(hits.length - 1, i + 1)); }
-          else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((i) => Math.max(0, i - 1)); }
-          else if (e.key === 'Enter') { e.preventDefault(); choose(hits[at]); }
-          else if (e.key === 'Escape') setOpenList(false);
-        }} />
-      {openList && text.trim() !== '' && (
-        <ul className="map-find-list" id={listId} role="listbox" aria-label="Goals found">
-          {hits.length ? hits.map((g, i) => (
-            <li key={g.id} id={`map-find-${g.id}`} role="option" aria-selected={i === at} tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(g)}>
-              {g.key && <span className="map-find-key">{g.key}</span>}<span className="map-find-title">{g.title}</span>
-            </li>
-          )) : <li className="map-find-none" role="option" aria-selected={false} aria-disabled>No goal by that name or key</li>}
-        </ul>
-      )}
-    </div>
-  );
-}
+/** Room at the top of the map, above the goals, when it frames them or goes to one. */
+const FIND_ROOM = 24;
 
 /** The bottom of the phone's top bar, when it stays put as the page scrolls; 0 on a desktop. */
 function underHead() {

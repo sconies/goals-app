@@ -163,6 +163,25 @@ describe('database save functions, as the public user', () => {
     await expect(asAnon('select okr_commit($1, $2::jsonb)', [ws, JSON.stringify({ ...p, changes: [{ id: 'x', workspace_id: 'other', at: now.toISOString(), actor_id: 'a', goal_id: null, entity: 'note', entity_id: 'n', action: 'noted', summary: 's', diffs: [] }] })])).rejects.toThrow(/another workspace/);
   });
 
+  it('refuses a save that names another workspace’s record, and leaves that record as it was (0038)', async () => {
+    const other = 'ws_rpc_other';
+    const b = buildWorkspace({ name: 'Other', startDate: '2025-12-29', people: PEOPLE_TEMPLATE, goals: GOALS_TEMPLATE, now, idSuffix: 'rpc2' }).snapshot;
+    const bPayload = { ...commitPayload(other, { ...b, changes: [] }), teams: b.teams.map((t) => teamToRow(other, t)), expect: null };
+    await asAnon('select okr_create_workspace($1::jsonb, $2::jsonb)', [JSON.stringify(workspaceToRow({ id: other, name: 'Other', kind: 'own', createdAt: now.toISOString() })), JSON.stringify(bPayload)]);
+    // Another workspace's person, carried in a save to this one under this workspace's id.
+    const theirs = b.people[0]!;
+    await expect(commit({ people: [{ ...theirs, name: 'Moved across' }], changes: [] })).rejects.toThrow(/another workspace/);
+    const kept = (await db.query<{ workspace_id: string; name: string }>(`select workspace_id, name from okr_people where id = $1`, [theirs.id])).rows[0]!;
+    expect(kept).toEqual({ workspace_id: other, name: theirs.name });
+    // Another workspace's milestone, its stages emptied by a save to this one.
+    const milestone = b.goals.find((g) => g.kind === 'milestone')!;
+    const stages = await count('okr_stages', `goal_id = '${milestone.id}'`);
+    expect(stages).toBeGreaterThan(0);
+    const p = { ...commitPayload(ws, { changes: [] }), stages: [{ goal_id: milestone.id, keep: [], rows: [] }] };
+    await expect(asAnon('select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(p)])).rejects.toThrow(/another workspace/);
+    expect(await count('okr_stages', `goal_id = '${milestone.id}'`)).toBe(stages);
+  });
+
   it('won’t start the same year twice', async () => {
     const c = { ...snap.cycles[0]!, id: 'cycle_dup' };
     await expect(commit({ cycles: [c], changes: [] })).rejects.toThrow();

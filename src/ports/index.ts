@@ -1,12 +1,12 @@
 /* The outside parts (backlog 8c): every dependency on the world outside Faro's own code sits behind one of these
    interfaces, and each has a contract test any replacement must pass (src/ports/contracts/). To move Faro onto another
-   platform, write an adapter for each part you swap and run its contract on it (spec/rebuild/stage-6-adapters.md).
+   platform, write an adapter for each part you swap and run its contract on it (spec/rebuild/adapters.md).
 
    | Part              | Interface        | Adapters today                                                           |
    | The goals store   | Store            | browser (data/store.ts), Supabase, plain Postgres (src/adapters/)       |
    | Markups           | MarkupStore      | Supabase (adapters/supabase/markups.ts), this browser (markup/backend)  |
    | Feedback          | FeedbackStore    | Supabase (adapters/supabase/feedback.ts), this browser (markup/feedback)|
-   | Who is viewing    | Identity         | the "Who are you?" picker (adapters/local.ts); later, sign-in           |
+   | Who is viewing    | Identity         | the "Who are you?" picker (adapters/local.ts); your sign-in replaces it |
    | The time          | Clock            | the system clock, or one fixed for the demo and the evals               |
    | Files             | Files            | Supabase Storage (adapters/supabase/files.ts), memory (adapters/local)  |
    | Numbers           | NumberSource     | the demo's (adapters/demo/numbers.ts); real connectors are yours        |
@@ -20,14 +20,20 @@ export type { Store } from '../data/store';
 export type { MarkupStore } from '../markup/ops';
 export type { FeedbackStore } from '../markup/feedback';
 
-/** Who is using the app, per workspace. Today a picker ("Who are you?") remembered in this browser; on a company
-    platform, the person signed in (spec/requirements/internal R1, R2). */
+/** Who is using the app, per workspace. In the demo, a picker ("Who are you?") remembered in this browser; on a company
+    platform, the person signed in, matched to a person record by their email (spec/requirements/internal R1, rule 2;
+    R2). Passed to the app beside the store (src/main.tsx). Outside the demo, nobody means nothing can be saved: the app
+    never acts as a stand-in. */
 export interface Identity {
-  /** The person's id in this workspace; null when nobody has said (the app then asks, or picks a stand-in). */
-  who(workspaceId: string): string | null;
-  /** Says who is using it. A platform with real sign-in may refuse anyone but the signed-in person. */
-  choose(workspaceId: string, personId: string): void;
+  /** The person's id in this workspace; null when nobody is signed in (or, in the demo, nobody has been chosen), or the
+      person signed in matches no one in it. Asynchronous: a sign-in is asked, not remembered. */
+  current(workspaceId: string): Promise<string | null>;
+  /** Only on the demo's picker: says who is using it. A real sign-in has none, since who you are is not a choice. */
+  choose?(workspaceId: string, personId: string): void;
 }
+
+/** The demo's picker: an Identity that can be told who is using it. */
+export type Picker = Identity & { choose(workspaceId: string, personId: string): void };
 
 /** The time, as the app should see it: the system's, or a fixed one for the demo and the evals. */
 export type Clock = () => Date;

@@ -32,7 +32,8 @@ module.exports = {
     // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
     {
       const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
-      await p.locator('[aria-label="Map"]').first().click();
+      await p.locator('.layout-menu > summary').click();
+      await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: /^Map/ }).click();
       await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
       const blank = [];
       for (let t = 0; t < 6000; t += 100) {
@@ -198,16 +199,17 @@ module.exports = {
     const inMap = (p, sel) => p.evaluate((s) => {
       const cv = document.querySelector('.map-canvas').getBoundingClientRect(), e = document.querySelector(s);
       if (!e) return null;
-      const b = e.getBoundingClientRect(), find = document.querySelector('.map-find')?.getBoundingClientRect();
-      return { in: b.left >= cv.left - 1 && b.right <= cv.right + 1 && b.top >= cv.top - 1 && b.bottom <= cv.bottom + 1, underFind: !!find && b.top < find.bottom && b.left < find.right && b.right > find.left };
+      const b = e.getBoundingClientRect();
+      return { in: b.left >= cv.left - 1 && b.right <= cv.right + 1 && b.top >= cv.top - 1 && b.bottom <= cv.bottom + 1 };
     }, sel);
     for (const [w, h, touch] of [[1920, 1080, false], [390, 844, true]]) {
       const at = `at ${w}`;
       const [c, p] = await open(w, h, 'amara', '/goals?scope=all', touch);
       // MAP 6: no staged "Drawing the map" wait: the goals are drawn soon after Map is chosen, and nothing says it's drawing.
       const t0 = Date.now();
-      if (touch) await p.locator('.layout-menu > summary').click();
-      await p.getByRole('group', { name: 'Layout' }).filter({ visible: true }).getByRole('button', { name: /^Map/ }).first().click();
+      // The Layout menu, or on a phone the View sheet (GL2).
+      if (touch) { await p.locator('.goals-phone-switch .view-open').click(); await p.getByRole('dialog', { name: 'View' }).getByRole('radio', { name: /^Map/ }).click(); await p.getByRole('dialog', { name: 'View' }).getByRole('button', { name: 'Done' }).click(); }
+      else { await p.locator('.layout-menu > summary').click(); await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: /^Map/ }).click(); }
       await p.locator('.react-flow__node').first().waitFor({ timeout: 10000 }).catch(() => {});
       const ms = Date.now() - t0;
       fail(ms < 4000, `MAP 6: the map took ${ms}ms to show its goals ${at}`);
@@ -228,15 +230,19 @@ module.exports = {
       });
       fail(!!lead && /\d/.test(lead.nums) && /target/.test(lead.nums) && /behind|ahead|plan/.test(lead.nums), `MAP 3: ${at} Lead time's node has no value, target and gap ("${lead?.nums}")`);
       fail(!!lead && lead.under === 'off' && /Under it: \d+ off track/.test(lead.words), `MAP 4: ${at} Lead time's node does not show the worst status under it (${lead?.under}: "${lead?.words}")`);
-      // MAP 2: search finds the node by its key: it opens the tree, outlines the goal and moves the map to it.
+      // MAP 2: the list bar's search finds the node by its key (goals spec 2.3, GL2): it opens the tree, outlines the goal
+      // and moves the map to it, without narrowing the map (the address keeps no q).
       const box = p.getByRole('combobox', { name: /Find a goal/ });
+      fail(await box.getAttribute('placeholder') === 'Find a goal or key, and go to it', `MAP 2: ${at} the bar's search on the Map says “${await box.getAttribute('placeholder')}”`);
+      fail(!(await p.locator('.map-canvas input').count()), `MAP 2: ${at} the map still has a search field of its own`);
       await box.fill('G-48');
       await p.getByRole('option', { name: /G-48/ }).first().waitFor({ timeout: 3000 }).catch(() => {});
+      await p.keyboard.press('ArrowDown');
       await p.keyboard.press('Enter');
       await p.waitForTimeout(800);
       const g48 = await p.evaluate(() => { const n = document.querySelector('.map-node.found'); return n && n.closest('.react-flow__node').dataset.id; });
       const seen = g48 && await inMap(p, `.react-flow__node[data-id="${g48}"]`);
-      fail(g48 === 'mttr-oncall' && !!seen && seen.in && !seen.underFind, `MAP 2: ${at} finding G-48 found ${g48 ?? 'nothing'}, in view ${seen?.in}, under the find box ${seen?.underFind}`);
+      fail(g48 === 'mttr-oncall' && !!seen && seen.in && !/[?&]q=/.test(p.url()), `MAP 2: ${at} finding G-48 found ${g48 ?? 'nothing'}, in view ${seen?.in}, address ${p.url()}`);
       // ...and by its title.
       await box.fill('merge queue live');
       await p.waitForTimeout(200);

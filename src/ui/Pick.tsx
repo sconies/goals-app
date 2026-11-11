@@ -222,7 +222,7 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
 }
 
 /** A row's two lines: a goal's status (shape and word) and title; a person's avatar and name; then line 2. */
-function RowText({ row, you, why, note, person }: { row: FoundRow; you?: boolean; why?: string | null; note?: string; person?: (id: string) => Person | undefined }) {
+export function RowText({ row, you, why, note, person }: { row: FoundRow; you?: boolean; why?: string | null; note?: string; person?: (id: string) => Person | undefined }) {
   const p = row.kind === 'person' ? person?.(row.id) : undefined;
   return (
     <span className="pick-text">

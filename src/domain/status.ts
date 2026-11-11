@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, goalAsOf, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
+import { daysSince, currentWeek, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 import { RULES } from './thresholds';
 import { LABEL, STATUS_ORDER } from './vocabulary';
@@ -208,6 +208,8 @@ export function goalStatus(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today:
   let status: DisplayStatus;
   if (latest?.status === 'done') status = 'done';
   else if (week === 0) status = 'planned';
+  // Once the cycle's last day is past nothing in it is out of date: a goal keeps the last status given (cycle-end rule 2).
+  else if (hasEnded(cycle, today)) status = latest ? latest.status : 'none';
   else if (quiet < RULES.staleDays) status = latest ? latest.status : 'none';
   else status = 'stale';
   const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];

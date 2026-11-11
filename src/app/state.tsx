@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { pickerIdentity } from '../adapters/local';
+import { viewerPicker } from '../adapters/local';
+import type { Identity } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { checkInChange, goalChange, type Lookup } from '../domain/changes';
@@ -49,8 +50,11 @@ export interface ToastAction { label: string; run: () => void }
 export interface AppState {
   /** The real app, or the demo (example data, role switcher, reset). */
   mode: Mode;
-  /** In the real app, whether this person has said who they are in this workspace (sign-in comes with SSO). */
+  /** In the real app, whether we know who this person is in this workspace (signed in, or chosen with the picker).
+      Until then nothing can be saved: outside the demo there is no stand-in. */
   viewerChosen: boolean;
+  /** Whether the Identity is the picker, so the person may say who they are; a sign-in can't be chosen. */
+  canChooseViewer: boolean;
   ws: Workspace;
   workspaces: Workspace[];
   /** The workspace being opened while it loads (switching), else null: the screen says so rather than mixing the two (backlog WS). */
@@ -109,8 +113,9 @@ export interface AppState {
   linkRequest(r: Ask, goal: Goal): Promise<void>;
   /** Withdraw an ask; on a goal linked to another goal's request, stop waiting on it. */
   withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
-  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. */
-  saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
+  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. A new goal's stages said
+      to be already done (`stagesDone`, onboarding rule 3) are recorded done in the same save (actions.recordStagesDone). */
+  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[] }): Promise<void>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -269,15 +274,20 @@ const realNow = () => {
   return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
 };
 
+/** Said when a save is tried with nobody signed in (outside the demo). */
+export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
+
 const ToastCtx = createContext<Toast[]>([]);
 /** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
 export const useToasts = () => useContext(ToastCtx);
 
-export function AppProvider({ store, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+export function AppProvider({ store, identity: given, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
-  const K = mode === 'demo' ? { ws: 'goals-app-workspace', viewer: 'goals-app-viewer:' } : { ws: 'goals-live-workspace', viewer: 'goals-live-me:' };
-  // Who is viewing (src/ports Identity): today the "Who are you?" picker, remembered in this browser; later, sign-in.
-  const identity = useMemo(() => pickerIdentity(K.viewer), [K.viewer]);
+  const K = mode === 'demo' ? { ws: 'goals-app-workspace' } : { ws: 'goals-live-workspace' };
+  // Who is viewing (src/ports Identity), passed in beside the store: the "Who are you?" picker unless a sign-in is given.
+  const identity = useMemo(() => given ?? viewerPicker(mode), [given, mode]);
+  // Outside the demo, a save needs someone signed in (or chosen): set as the snapshot is worked out below.
+  const signedIn = useRef(mode === 'demo');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
@@ -332,10 +342,10 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         write(K.ws, id);
         try { const u = new URL(location.href); u.searchParams.delete('workspace'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* no history */ }
       }
-      const snap = await store.load(id);
+      const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
       if (!live) return;
       setLoaded({ ws: id, snap, at: Date.now() });
-      setViewerId(identity.who(id));
+      setViewerId(me);
     })().catch((e: unknown) => {
       if (!live) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -362,7 +372,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       }],
     };
     await store.createWorkspace(w, logged);
-    if (actor) identity.choose(w.id, actor.id);
+    if (actor) identity.choose?.(w.id, actor.id);
     write(K.ws, w.id);
     setWorkspaces((l) => [...l, w]);
     setEmpty(false);
@@ -384,6 +394,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     saving.current++;
     try {
       if (!cur) throw new Error('no workspace is open');
+      if (!signedIn.current) throw new Error(NOBODY);
       try {
         // Says what the save was based on, so it is refused rather than overwriting a newer change.
         await store.commit(cur.ws, withExpectations(c, cur.snap));
@@ -414,6 +425,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
   const issueToken = useCallback(async (c: Commit) => {
     const cur = loadedRef.current;
     if (!cur) throw new Error('no workspace is open');
+    if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
     saving.current++;
     try {
       const secret = await store.issueToken(cur.ws, c);
@@ -459,9 +471,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     const dupTitles = () => (dups ??= duplicateTitles(sc.goals));
     const hues = () => (hueMap ??= avatarHues([...people.values()]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
+    // The demo shows someone until a person is picked; outside it, nobody signed in can see the workspace (the picker
+    // asks) but can't save anything: the person below is only for drawing the screen, never an actor (AX3).
     const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
     const chosen = !!viewerId && sc.people.some((p) => p.id === viewerId);
     const viewer = (chosen && people.get(viewerId!)) || fallback;
+    signedIn.current = mode === 'demo' || chosen;
     const statuses = new Map<string, GoalStatus>();
     const attention = new Map<string, GoalAttention>();
     const lookup: Lookup = {
@@ -508,6 +523,8 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
     async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
       const before = snapshot;
+      // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
+      if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
       let out: ReturnType<typeof perform<N>>;
       try { out = perform(rx(), name, input); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
@@ -529,7 +546,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
 
     return traced({
       run: (name, input, opts) => telemetry.action(name, () => run(name, input, opts)),
-      mode, viewerChosen: mode === 'demo' || chosen,
+      mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose,
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
@@ -571,7 +588,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         const off = out.modulesOff;
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
       },
-      setViewer: (id) => { identity.choose(wsId, id); setViewerId(id); },
+      setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
       personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
@@ -612,7 +629,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       askQuestion: async (goal, text) => { await run('askQuestion', { goalId: goal.id, text }); },
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
-      saveGoal: async (after, before, why) => {
+      saveGoal: async (after, before, why, opts) => {
         if (makesLoop(after.id, after.parentId, sc.goals)) {
           toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
           throw new Error('loop');
@@ -621,7 +638,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (!before && !after.key) after = { ...after, key: nextKey(sc.goals, sc.keysIssued) };
         const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
-        await commit({ goals: [after], changes: change ? [change] : [] });
+        // Stages already done at set-up go in the same save as the goal, so it is never seen late in between.
+        let done: Commit | null = null;
+        if (!before && opts?.stagesDone?.length) {
+          try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        }
+        await commit({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
