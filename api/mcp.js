@@ -4919,7 +4919,7 @@ function applyTable(rows, head, q, filters, sort) {
 	const idx = (c) => head.indexOf(c);
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
 	const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
-	const si = sort ? idx(sort.col) : -1;
+	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
 		if (!x.trim() || !y.trim()) return (x.trim() ? 0 : 1) - (y.trim() ? 0 : 1);
@@ -4937,19 +4937,33 @@ function parseFilters(p) {
 		};
 	}).filter((f) => f.col && f.op in OP_LABEL);
 }
+/**
+* The sort, from a link: `sort=week` (A to Z, lowest first) or `sort=week.desc`, the column's name in lower case (the
+* list bar's address, find spec move 7). The older `s=Week~asc|desc` is still read, so old links and saved layouts open
+* as they were; `filterEntries` writes the new form. The column is as the link says it: `applyTable` and the screen
+* match it to a heading ignoring case.
+*/
 function parseSort(p) {
-	const v = p.get("s");
-	if (!v) return null;
-	const i = v.lastIndexOf("~");
+	const v = p.get("sort");
+	if (v) {
+		const desc = v.endsWith(".desc");
+		return {
+			col: desc ? v.slice(0, -5) : v,
+			dir: desc ? -1 : 1
+		};
+	}
+	const old = p.get("s");
+	if (!old) return null;
+	const i = old.lastIndexOf("~");
 	return i > 0 ? {
-		col: v.slice(0, i),
-		dir: v.slice(i + 1) === "desc" ? -1 : 1
+		col: old.slice(0, i).toLowerCase(),
+		dir: old.slice(i + 1) === "desc" ? -1 : 1
 	} : null;
 }
 function filterEntries(filters, sort) {
-	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["s", `${sort.col}~${sort.dir === 1 ? "asc" : "desc"}`]] : []];
+	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["sort", `${sort.col.toLowerCase()}${sort.dir === -1 ? ".desc" : ""}`]] : []];
 }
-var OP_LABEL, NO_VALUE, isNum;
+var OP_LABEL, NO_VALUE, isNum, sortIndex;
 var init_tableFilter = __esmMin((() => {
 	OP_LABEL = {
 		is: "is any of",
@@ -4967,6 +4981,7 @@ var init_tableFilter = __esmMin((() => {
 	};
 	NO_VALUE = ["empty", "notEmpty"];
 	isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
+	sortIndex = (head, sort) => sort ? head.findIndex((h) => h.toLowerCase() === sort.col.toLowerCase()) : -1;
 }));
 // src/domain/tableLayout.ts
 function minWidth(table, col) {
@@ -5008,13 +5023,22 @@ function parseLayout(params) {
 		const n = Number(w.slice(i + 1));
 		if (i > 0 && Number.isFinite(n)) widths[w.slice(0, i)] = clampWidth(table, w.slice(0, i), n);
 	}
+	const filters = parseFilters(p), linked = parseSort(p);
+	const named = linked ? [
+		...cols,
+		...Object.keys(widths),
+		...filters.map((f) => f.col)
+	].find((c) => c.toLowerCase() === linked.col.toLowerCase()) : void 0;
 	return {
 		table,
 		cols: cols.length ? cols : null,
 		widths,
 		q: p.get("q") ?? "",
-		filters: parseFilters(p),
-		sort: parseSort(p)
+		filters,
+		sort: linked ? {
+			...linked,
+			col: named ?? linked.col
+		} : null
 	};
 }
 /** What's wrong with a layout, in words: an unknown table, or (given the table's columns) a column it doesn't have. */
@@ -5027,7 +5051,7 @@ function layoutProblems(l, head) {
 			...Object.keys(l.widths),
 			...l.filters.map((f) => f.col),
 			...l.sort ? [l.sort.col] : []
-		].filter((c) => !head.includes(c));
+		].filter((c) => !head.some((h) => h.toLowerCase() === c.toLowerCase()));
 		if (unknown.length) out.push(`The ${TABLES[l.table].label} table has no ${unknown.length === 1 ? "column" : "columns"} called ${[...new Set(unknown)].map((c) => `“${c}”`).join(", ")}.`);
 	}
 	if ((l.cols ?? []).length > 400) out.push("That’s more columns than any table has.");
@@ -8594,15 +8618,23 @@ var personRow = (r, p) => ({
 	name: p.name,
 	detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
 });
+var collator = new Intl.Collator("en-GB", { sensitivity: "base" });
+/** By name A to Z, ignoring case and accents; two people with one name by email, then ID, so they keep their places. */
+var byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
 /**
 * People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
-* names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
+* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
+* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
 */
 function searchPeople(r, ask) {
 	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
 	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	const left = ask.filters?.left === "too";
-	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => p.leftAt ? {
+	const f = ask.filters ?? {};
+	const left = f.left === "too";
+	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
+	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
 		...personRow(r, p),
 		name: `${p.name} (left)`
 	} : personRow(r, p));
@@ -8619,11 +8651,11 @@ function teamRow(r, t) {
 		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
 	};
 }
-/** Teams: the name and its lead's name; A to Z. */
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
 function searchTeams(r, ask) {
 	const here = r.people.filter((p) => !p.leftAt);
 	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => teamRow(r, t));
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
 }
 function searchWorkspaces(r, ask) {
 	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
@@ -11999,9 +12031,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "Searching a list",
 				list: [
-					"Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).",
+					"Goals, Activity, Data, People, Teams, Help and Feedback search the same way. Under the search a line says how many match (“17 goals match.”). People and Teams find through the same search as every person and team picker, so they list people in the same order: those whose name starts with what you typed first, then A to Z.",
 					"When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”",
-					"On Activity, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.",
+					"On Activity, Data and Feedback, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.",
 					"The address keeps the search and the filters, so a link you share shows the same list, and Back undoes the last choice."
 				]
 			}
@@ -12301,7 +12333,7 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.",
+					"Pick a table. Search it, sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
@@ -12564,7 +12596,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Type in the search to find someone: each word you type starts a word of their name, job title or team, so “eng man” finds the Engineering Managers. Capitals and accents don’t matter: “lucia” finds Lucía.",
 					"Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.",
-					"The list is A to Z, 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.",
+					"The list is A to Z (with a search, those whose name starts with it first), 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.",
 					"Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.",
 					"Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them."
 				]
@@ -13107,7 +13139,7 @@ var CORE_ARTICLES = [
 					"Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.",
 					"Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.",
 					"Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.",
-					"Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person (type a name to find them). On a phone the filters are under Filters.",
+					"Find things with the search (what was said, the part, the page or who sent it). Kind (markups or feedback) sits beside it on a computer; Filters holds the page and who sent it (type a name to find them), and on a phone the kind too. The line under the search counts what matches and says the filters in words, each with Remove; the address keeps the search and the filters, so Back and a shared link show the same list.",
 					"On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.",
 					"On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.",
 					"Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.",
@@ -13360,6 +13392,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "one-list-bar-data-feedback",
+		date: "2026-11-11",
+		title: "Data and Feedback search and filter like every other list",
+		points: [
+			"Data and Feedback now have the same bar as Goals, Activity and People: the line under it counts what matches, filters read as words with Remove, and a search that finds nothing says so with Clear the search.",
+			"Their search, filters and sort are in the address, so Back steps through them and a shared link shows the same list. Old Data links still open sorted as they were.",
+			"People and Teams find through the same search as every picker, so a name you type comes first everywhere."
+		],
+		articles: [
+			"finding",
+			"data",
+			"inbox",
+			"people"
+		]
+	},
 	{
 		id: "find-and-pick-everywhere",
 		date: "2026-11-11",

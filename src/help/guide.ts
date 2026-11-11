@@ -545,9 +545,9 @@ const CORE_ARTICLES: Article[] = [
         'Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen.',
       ] },
       { heading: 'Searching a list', list: [
-        'Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).',
+        'Goals, Activity, Data, People, Teams, Help and Feedback search the same way. Under the search a line says how many match (“17 goals match.”). People and Teams find through the same search as every person and team picker, so they list people in the same order: those whose name starts with what you typed first, then A to Z.',
         'When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”',
-        'On Activity, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.',
+        'On Activity, Data and Feedback, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.',
         'The address keeps the search and the filters, so a link you share shows the same list, and Back undoes the last choice.',
       ] },
     ],
@@ -694,7 +694,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'data',
     sections: [
       { heading: 'How to use it', list: [
-        'Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.',
+        'Pick a table. Search it, sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.',
         'Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.',
         'Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.',
         'Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.',
@@ -811,7 +811,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Type in the search to find someone: each word you type starts a word of their name, job title or team, so “eng man” finds the Engineering Managers. Capitals and accents don’t matter: “lucia” finds Lucía.',
         'Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.',
-        'The list is A to Z, 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.',
+        'The list is A to Z (with a search, those whose name starts with it first), 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.',
         'Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.',
         'Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them.',
       ] },
@@ -1088,7 +1088,7 @@ const CORE_ARTICLES: Article[] = [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
         'Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.',
         'Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.',
-        'Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person (type a name to find them). On a phone the filters are under Filters.',
+        'Find things with the search (what was said, the part, the page or who sent it). Kind (markups or feedback) sits beside it on a computer; Filters holds the page and who sent it (type a name to find them), and on a phone the kind too. The line under the search counts what matches and says the filters in words, each with Remove; the address keeps the search and the filters, so Back and a shared link show the same list.',
         'On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.',
         'On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.',
         'Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.',

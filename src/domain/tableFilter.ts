@@ -57,7 +57,7 @@ export function applyTable<R extends { cells: string[] }>(rows: R[], head: strin
   const idx = (c: string) => head.indexOf(c);
   const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ''));
   const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
-  const si = sort ? idx(sort.col) : -1;
+  const si = sortIndex(head, sort);
   if (sort && si >= 0) {
     out.sort((a, b) => {
       const x = a.cells[si] ?? '', y = b.cells[si] ?? '';
@@ -79,7 +79,7 @@ export function describeFilter(f: PropFilter): string {
   return `${f.col} ${OP_LABEL[f.op]} ${f.op === 'contains' || f.op === 'notContains' ? `“${f.value}”` : f.value}`;
 }
 
-/* ---------- in the link: f=Column~op~value (repeated), s=Column~asc|desc ---------- */
+/* ---------- in the link: f=Column~op~value (repeated), sort=column[.desc] ---------- */
 
 export function parseFilters(p: URLSearchParams): PropFilter[] {
   return p.getAll('f').map((x) => {
@@ -87,12 +87,22 @@ export function parseFilters(p: URLSearchParams): PropFilter[] {
     return { col, op: op as Op, value: rest.join('~') };
   }).filter((f) => f.col && f.op in OP_LABEL);
 }
+/**
+ * The sort, from a link: `sort=week` (A to Z, lowest first) or `sort=week.desc`, the column's name in lower case (the
+ * list bar's address, find spec move 7). The older `s=Week~asc|desc` is still read, so old links and saved layouts open
+ * as they were; `filterEntries` writes the new form. The column is as the link says it: `applyTable` and the screen
+ * match it to a heading ignoring case.
+ */
 export function parseSort(p: URLSearchParams): TableSort | null {
-  const v = p.get('s');
-  if (!v) return null;
-  const i = v.lastIndexOf('~');
-  return i > 0 ? { col: v.slice(0, i), dir: v.slice(i + 1) === 'desc' ? -1 : 1 } : null;
+  const v = p.get('sort');
+  if (v) { const desc = v.endsWith('.desc'); return { col: desc ? v.slice(0, -5) : v, dir: desc ? -1 : 1 }; }
+  const old = p.get('s');
+  if (!old) return null;
+  const i = old.lastIndexOf('~');
+  return i > 0 ? { col: old.slice(0, i).toLowerCase(), dir: old.slice(i + 1) === 'desc' ? -1 : 1 } : null;
 }
+/** The heading a sort names, ignoring case; -1 when the table has none. */
+export const sortIndex = (head: string[], sort: TableSort | null) => (sort ? head.findIndex((h) => h.toLowerCase() === sort.col.toLowerCase()) : -1);
 export function filterEntries(filters: PropFilter[], sort: TableSort | null): [string, string][] {
-  return [...filters.map((f): [string, string] => ['f', `${f.col}~${f.op}~${f.value}`]), ...(sort ? [['s', `${sort.col}~${sort.dir === 1 ? 'asc' : 'desc'}`] as [string, string]] : [])];
+  return [...filters.map((f): [string, string] => ['f', `${f.col}~${f.op}~${f.value}`]), ...(sort ? [['sort', `${sort.col.toLowerCase()}${sort.dir === -1 ? '.desc' : ''}`] as [string, string]] : [])];
 }

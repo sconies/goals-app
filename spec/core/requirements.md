@@ -672,7 +672,7 @@ Every person, goal, check-in and plan is in a table anyone can read, search, sor
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
-- **Journeys and checks:** U35
+- **Journeys and checks:** U35, U92
 
 ### TABLE-LAYOUTS
 
@@ -1067,7 +1067,7 @@ A form has one way out, top right, in words: “Close and keep the draft” wher
 Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** U64, U66
+- **Journeys and checks:** U64, U66, U92
 
 ### FIND-AND-PICK
 
@@ -1227,7 +1227,7 @@ A markup's picture comes back inside get_markup as MCP image content (the screen
 Feedback sent with a mood and a few words joins the inbox (migration 0026): it is listed among the markups, newest first, each with its status as a shape plus a word (New, In hand, Fixed, Won’t fix), its words, its mood and page, who sent it, from which workspace and when. Anyone opens it and triages it with the markups’ rules: mark it in hand, fixed in a What’s new entry, won’t fix with a reason, or new again, each change recorded as the person using the app and undoable. Feedback always arrives New: the public key can only add feedback’s own columns, and reads every workspace’s feedback (okr_feedback_inbox) and changes its status (okr_feedback_triage) only through those functions (migration 0031). With no database, the inbox shows this workspace’s feedback, its statuses kept in the browser.
 
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U42, U52
+- **Journeys and checks:** U42, U52, U92
 
 ### INBOX-TRIAGE
 

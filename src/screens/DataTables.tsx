@@ -18,9 +18,9 @@ import type { DisplayStatus, SavedView } from '../domain/types';
 import { Preview } from '../ui/Preview';
 import { MenuButton } from '../ui/MenuButton';
 import { ColumnsSheet, readLocal, SaveLayoutSheet, useColumnMoves, writeLocal, type Local } from './DataLayout';
-import { FilterEditor, shortFilter } from './DataFilters';
+import { FilterEditor } from './DataFilters';
 import {
-  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort,
+  applyTable, columnKind, describeFilter, filterEntries, parseFilters, parseSort, sortIndex,
   type ColumnKind, type PropFilter, type TableSort,
 } from '../domain/tableFilter';
 import {
@@ -29,11 +29,14 @@ import {
 } from '../domain/tableLayout';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
+import { CountLine, FilterLine, ListSearch, NoneFound } from '../ui/ListBar';
+import { historyStep, type ListChange } from '../domain/find';
 import { LABEL as STATUS_WORD } from '../domain/vocabulary';
 
 type Tab = DataTable;
 const TABS: [Tab, string][] = TABLE_ORDER.map((t) => [t, TABLES[t].label]);
 const PAGE = 100;
+const ROWS = { thing: 'row', things: 'rows' };
 
 /** Columns people can change, as the one format says (domain/columns); everything else (keys, what the app works out)
     is shown but not editable. A goal's type is set when it's made. Asks are raised and answered in the app. */
@@ -77,13 +80,16 @@ export function DataTables() {
   const setTab = (t: Tab) => setParams(new URLSearchParams([['t', t]]), { replace: true });
   const q = params.get('q') ?? '';
   const filters = parseFilters(params);
-  const sort = parseSort(params);
-  const setView = (next: { q?: string; filters?: PropFilter[]; sort?: TableSort | null }) => setParams((cur) => {
+  const linkSort = parseSort(params);
+  /** The list's state is the address (find spec, rule 4): a choice adds a history entry, typing replaces it until it settles. */
+  const setView = (next: { q?: string; filters?: PropFilter[]; sort?: TableSort | null }, change: ListChange = 'choice') => setParams((cur) => {
     const nq = next.q ?? cur.get('q') ?? '';
     const nf = next.filters ?? parseFilters(cur);
     const ns = next.sort !== undefined ? next.sort : parseSort(cur);
     return new URLSearchParams([['t', cur.get('t') ?? 'goals'], ...(nq ? [['q', nq] as [string, string]] : []), ...filterEntries(nf, ns)]);
-  }, { replace: true });
+  }, { replace: historyStep(change) === 'replace' });
+  // An older link's sort (s=Team~asc) is read, and the address rewritten in the new form (sort=team), replacing.
+  useEffect(() => { if (params.has('s')) setView({}, 'remembered'); });
   const canEdit = app.viewer.admin;
   const book = useMemo(() => workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today }), [app.ws, app.snapshot, app.cycle, app.week, app.today]);
   const tables = useMemo(() => {
@@ -126,6 +132,9 @@ export function DataTables() {
   const [limit, setLimit] = useState(PAGE);
   const [editing, setEditing] = useState<{ index: number | null } | null>(null);
   const { head, rows } = tables[tab];
+  // The sort names its column in lower case in the address; here it is the heading itself.
+  const sortAt = sortIndex(head, linkSort);
+  const sort: TableSort | null = linkSort && sortAt >= 0 ? { col: head[sortAt]!, dir: linkSort.dir } : null;
 
   /* ---------- the layout: columns in order, and widths ---------- */
   const [local, setLocal] = useState<Record<Tab, Local>>(() => Object.fromEntries(TABS.map(([t]) => [t, readLocal(t)])) as Record<Tab, Local>);
@@ -153,7 +162,8 @@ export function DataTables() {
   /* ---------- saved layouts: named, kept with the person (or pinned for everyone) ---------- */
   const views = (app.snapshot.views ?? []).filter((v) => !v.deletedAt && isTableView(v) && (v.pinned || v.personId === app.viewer.id) && parseLayout(v.params)?.table === tab)
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.name.localeCompare(b.name));
-  const activeView = views.find((v) => v.params === layoutParams(current));
+  // A layout saved with the older sort (s=) is the same layout: compared as read, not as written.
+  const activeView = views.find((v) => { const l = parseLayout(v.params); return !!l && layoutParams(l) === layoutParams(current); });
   const [savingView, setSavingView] = useState(false);
   const openView = (v: SavedView) => {
     const l = parseLayout(v.params);
@@ -260,32 +270,16 @@ export function DataTables() {
         {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); setLimit(PAGE); }}>{l}<span className="tabcount">{tables[k].rows.length}</span>{editCount(k) > 0 && <><span className="tab-dot" aria-hidden="true" /><span className="sr">, {editCount(k)} changed</span></>}</button>)}
       </div>
       <div className="filterbar-row data-tools" ref={toolsRef}>
-        <label className="filter-search"><span className="sr">Search this table</span>
-          <input className="input" type="search" placeholder={`Search ${TABLES[tab].label.toLowerCase()}`} value={q} onChange={(e) => { setView({ q: e.target.value }); setLimit(PAGE); }} />
-        </label>
-        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}><Icon name="plus" />Filter</button>
+        <ListSearch value={q} label="Find a row" placeholder="Find in this table" onSearch={(v, change) => { setView({ q: v }, change); setLimit(PAGE); }} />
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setEditing({ index: null })}>{filters.length ? `Filters · ${filters.length}` : 'Filters'}</button>
         <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setChoosing(true)}>Columns · {cols.length} of {all.length + 1}</button>
         <MenuButton className="data-views" summary="" label={activeView ? `Saved layout: ${activeView.name}` : 'Saved layouts'} items={viewItems} />
         <Place name="data.tools" table={TABLES[tab].label} asShown={asShown} />
-        <span className="small muted data-count" role="status">{shown.length === rows.length ? `${rows.length} rows` : `${shown.length} of ${rows.length} rows`}</span>
       </div>
-      {(filters.length > 0 || sort) && (
-        <div className="filter-chips" aria-label="Filters and sort">
-          {filters.map((f, k) => (
-            <span key={k} className="prop-chip">
-              <button type="button" className="prop-chip-edit" aria-label={`Change filter: ${describeFilter(f)}`} title={describeFilter(f)} onClick={() => setEditing({ index: k })}><span className="prop-chip-text">{shortFilter(f)}</span></button>
-              <button type="button" className="prop-chip-x" aria-label={`Remove filter: ${describeFilter(f)}`} onClick={() => setView({ filters: filters.filter((_, j) => j !== k) })}><Icon name="close" /></button>
-            </span>
-          ))}
-          {sort && (
-            <span className="prop-chip">
-              <span className="prop-chip-edit"><span className="prop-chip-text">Sorted by {sort.col}, {kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}</span></span>
-              <button type="button" className="prop-chip-x" aria-label="Remove the sort" onClick={() => setView({ sort: null })}><Icon name="close" /></button>
-            </span>
-          )}
-          <button type="button" className="linkish small" onClick={() => setView({ q: '', filters: [], sort: null })}>Clear all</button>
-        </div>
-      )}
+      {/* The count line and the filter line (find spec, rules 2 and 3): the same words as every list. */}
+      <CountLine things={ROWS} n={shown.length} narrowed={narrowed} order={sort ? `sorted by ${sort.col}, ${kinds[sort.col] === 'number' ? (sort.dir === 1 ? 'lowest first' : 'highest first') : sort.dir === 1 ? 'A to Z' : 'Z to A'}` : tab === 'goals' ? 'in key order' : null}
+        after={sort ? <> <button type="button" className="linkish" onClick={() => setView({ sort: null })}>Remove the sort</button></> : null} />
+      <FilterLine parts={filters.map((f, k) => ({ key: String(k), label: f.col, values: [describeFilter(f).slice(f.col.length + 1)] }))} onRemove={(k) => setView({ filters: filters.filter((_, j) => String(j) !== k) })} onClear={() => setView({ filters: [] })} />
       {choosing && <ColumnsSheet tab={tab} order={order} always={always} all={all} onCols={(c) => setLay({ cols: c })} onClose={() => setChoosing(false)} />}
       {savingView && <SaveLayoutSheet tab={tab} layout={current} head={head} views={views} active={activeView} onClose={() => setSavingView(false)} />}
       {editing && <FilterEditor head={head.filter((c) => !TABLES[tab].hidden.includes(c))} kinds={kinds} values={(c) => [...new Set(rows.map((r) => r.cells[head.indexOf(c)] ?? '').filter((v) => v.trim()))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))}
@@ -295,10 +289,7 @@ export function DataTables() {
 
       <div className={'table-wrap data-wrap' + (dragging ? ' dragging' : '')} ref={wrapRef}>
         {empty ? (
-          <div className="data-empty" role="status">
-            <span>No rows match.</span>
-            <button type="button" className="linkish" onClick={() => setView({ q: '', filters: [] })}>Clear the search and filters</button>
-          </div>
+          <NoneFound things={ROWS} q={q} filtered={filters.length > 0} onClearSearch={() => setView({ q: '' })} onClearFilters={() => setView({ filters: [] })} />
         ) : (
         <table className="dtable">
           <thead>

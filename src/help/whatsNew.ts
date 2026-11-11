@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'one-list-bar-data-feedback',
+    date: '2026-11-11',
+    title: 'Data and Feedback search and filter like every other list',
+    points: [
+      'Data and Feedback now have the same bar as Goals, Activity and People: the line under it counts what matches, filters read as words with Remove, and a search that finds nothing says so with Clear the search.',
+      'Their search, filters and sort are in the address, so Back steps through them and a shared link shows the same list. Old Data links still open sorted as they were.',
+      'People and Teams find through the same search as every picker, so a name you type comes first everywhere.',
+    ],
+    articles: ['finding', 'data', 'inbox', 'people'],
+  },
+  {
     id: 'find-and-pick-everywhere',
     date: '2026-11-11',
     title: 'Every owner, team and goal is found by typing',
