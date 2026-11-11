@@ -32,6 +32,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['wrap-up', 'workspace-cycles'],
   },
   {
+    id: 'find-anywhere',
+    date: '2026-11-11',
+    title: 'Find, from anywhere',
+    points: [
+      'Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.',
+      'Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar.',
+    ],
+    articles: ['finding'],
+  },
+  {
     id: 'not-born-late',
     date: '2026-11-11',
     title: 'A new goal doesn’t start out late',

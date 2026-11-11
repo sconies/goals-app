@@ -36,7 +36,7 @@ import * as MET from '../domain/metrics';
 import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
-import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
+import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -948,9 +948,9 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
-    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
-    reqs: [],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
+    reqs: ['FIND-ANYWHERE'],
     body: `
 **What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
@@ -965,6 +965,8 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
+
+**Find, from anywhere.** One search across kinds: goals, people, teams, then a module's kinds (the metric library's metrics), never workspaces. Each kind is searched by its own rule above with 3 rows, and only the groups that found something are given, in that order, each with how many match in all ("Goals · 8", then "See all 8 goals"). People marked as left are found too, named "{name} (left)", after everyone here. A search that is one goal's key ("G-48", "g48", "48") puts that goal first and alone under Goals. When a kind finds nothing, its near miss is tried; when no kind finds anything, Find says "Nothing matches “{q}”." Before anything is typed it offers what was opened or chosen lately, up to 8, of any kind.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -985,6 +987,12 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
         { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
         { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
+        { given: 'In the demo workspace, Find for “rhea”, “48” and “zzzz”: each group with its total and first rows.', then: 'goal 8: Lead time for changes, Pipeline queue wait (p90), Flaky test rate in the main pipelines; person 1: Rhea Kapoor; team 1: CI/CD / goal 1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / nothing', run: () => {
+          const at = new Date(CHECK_IN_MOMENT), wk = currentWeek(cycle(), at);
+          const rows = { goal: goalRows(demo!, cycle(), at, wk), person: personRows(demo!), team: teamRows(demo!) } as const;
+          return ['rhea', '48', 'zzzz'].map((q) => findAll(q, ['goal', 'person', 'team'], (k, a) => search(rows[k as keyof typeof rows], a)).map((g) => `${g.kind} ${g.total}: ${g.rows.map((r) => r.name).join(', ')}`).join('; ') || 'nothing').join(' / ');
+        } },
+        { given: 'Whole keys: “G-48”, “g48”, “48”, “rollback”.', then: 'G-48, G-48, G-48, none', run: () => ['G-48', 'g48', '48', 'rollback'].map((q) => keyOf(q) ?? 'none').join(', ') },
         { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
       ];
     })(),

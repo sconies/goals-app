@@ -164,3 +164,30 @@
   .side .side-brand { flex-direction: column; }
   .side .nav.sub { display: none; }
 }
+
+/* ---------- Find from anywhere (find spec 2.4): the sidebar's row drawn as a field, the phone's button, the sheet ---------- */
+.side .find-nav { width: 100%; margin: 2px 0 6px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-weight: 500; text-align: left; cursor: text; }
+.side .find-nav:hover { border-color: var(--line-strong); color: var(--fg-2); }
+.side .find-nav .find-key { margin-left: auto; font: inherit; font-size: 0.75rem; color: var(--muted); }
+@container app (max-width: 1100px) and (min-width: 761px) { .side .find-nav { width: 48px; border-color: transparent; background: transparent; cursor: pointer; } .side .find-nav .find-key { display: none; } }
+@container app (min-width: 1101px) { .app.nav-icons .side .find-nav { width: 48px; border-color: transparent; background: transparent; cursor: pointer; } .app.nav-icons .side .find-nav .find-key { display: none; } }
+.find-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; }
+.mtop .find-btn, .goal-page .bar-me .find-btn { border: 0; background: transparent; padding: 0 6px; gap: 4px; }
+.sheet.find-sheet { width: min(640px, 100%); padding: 0; display: flex; flex-direction: column; }
+.find-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-2); background: var(--surface); color: var(--muted); }
+.find-input { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 1.0625rem; outline: none; }
+.find-input::-webkit-search-cancel-button { display: none; }
+.find-close { flex: none; min-height: 44px; }
+.find-body { padding: var(--s2) var(--s3) var(--s4); }
+.find-hint { margin: var(--s3) var(--s2); }
+.find-list, .find-group-list { list-style: none; margin: 0; padding: 0; }
+.find-group + .find-group { margin-top: var(--s3); }
+.find-group-head { display: block; padding: var(--s2) var(--s2) var(--s1); }
+.find-near { padding: 0 var(--s2) var(--s1); }
+.find-row { display: flex; color: inherit; text-decoration: none; }
+.find-row.find-all .pick-name { color: var(--accent-text); font-weight: 500; }
+.find-group-list > li:nth-child(2) > .find-row, .find-list > li:nth-child(2) > .find-row { border-top: 0; }
+@media (max-width: 760px) {
+  .find-wrap { padding: 0; align-items: stretch; }
+  .sheet.find-sheet { width: 100%; max-height: none; height: 100dvh; border-radius: 0; }
+}

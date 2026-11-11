@@ -526,6 +526,17 @@ const CORE_ARTICLES: Article[] = [
         'Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.',
         'A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source.',
       ] },
+      { heading: 'Find, from anywhere', list: [
+        'Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.',
+        'What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.',
+        'A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.',
+        'Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.',
+      ] },
+      { heading: 'Keys', list: [
+        'Ctrl K (Cmd K on a Mac): Find, from any page.',
+        'Escape closes Find, a picker or a sheet.',
+        'Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen.',
+      ] },
       { heading: 'Searching a list', list: [
         'Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).',
         'When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”',
@@ -535,8 +546,8 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: [],
     screens: [],
-    reqs: ['FIND-AND-PICK', 'LIST-BAR'],
-    keywords: ['find', 'search', 'pick', 'choose', 'owner', 'person', 'team', 'type to find', 'select'],
+    reqs: ['FIND-AND-PICK', 'LIST-BAR', 'FIND-ANYWHERE'],
+    keywords: ['find', 'search', 'pick', 'choose', 'owner', 'person', 'team', 'type to find', 'select', 'ctrl k', 'cmd k', 'shortcut', 'keyboard'],
     related: ['keys', 'reviews', 'goals-filters', 'activity'],
   },
   {
