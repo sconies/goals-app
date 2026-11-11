@@ -6,9 +6,11 @@ import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
+import { hasModuleRows, type ModuleRecords } from './records';
 import type { Lookup } from './changes';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, nextCycleShape, RESULT_LABEL, wrapUpOpenOn } from './cycle';
-import { startReadBack } from './carry';
+import { carryExtras, startReadBack } from './carry';
+import { copyUntouched, recarry } from './recarry';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
@@ -32,6 +34,8 @@ export interface ActionContext {
   allGoals?: Goal[];
   /** The whole workspace, unscoped: every cycle and every removed record, for restoring (domain/removal). */
   full?: Snapshot;
+  /** The feature modules' records in this build (core/records), for the rules that move a module's rows with a goal. */
+  records?: readonly ModuleRecords[];
 }
 
 /** A rule says no: the message says why, in words the person (or their assistant) can act on. */
@@ -304,7 +308,23 @@ export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['resu
     ...(!before || before.learned !== retro.learned ? [{ field: 'Learned', from: before?.learned ?? '—', to: retro.learned }] : []),
     ...(!before || before.next !== retro.next ? [{ field: 'Next cycle', from: before ? (before.next === 'carry' ? 'Carry on' : 'Stop') : '—', to: retro.next === 'carry' ? 'Carry on' : 'Stop' }] : []),
   ];
-  return { retros: [retro], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] };
+  const own: Commit = { retros: [retro], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] };
+  // Wrapped up after the next year was started: its copy there follows, while nobody has used it (cycle-end rule 6).
+  const full = x.full;
+  if (!full) return own;
+  const later = laterCycle(full.cycles, x.cycle);
+  const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : undefined;
+  if (copy && retro.next === 'stop' && !copyUntouched(copy, full)) no(`It already has check-ins in ${later!.name}. Stop it there instead.`);
+  return mergeCommits(own, recarry(goal, full, { retro }, { now: x.now, actorId: x.actor.id, newId: x.newId, records: x.records }));
+}
+
+/** Two commits as one save: their records and changes side by side. */
+export function mergeCommits(a: Commit, b: Commit | null): Commit {
+  if (!b) return a;
+  const out: Record<string, unknown> = { ...a };
+  const was = a as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...((was[k] as unknown[] | undefined) ?? []), ...v] : v;
+  return out as unknown as Commit;
 }
 
 /**
@@ -324,19 +344,24 @@ export function startNextCycle(x: ActionContext): { commit: Commit; name: string
     const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
     no(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made!.at.slice(0, 10))}` : ''}.`);
   }
-  const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: () => x.newId('goal') }, x.now);
+  const map = new Map<string, string>(); // old goal id → its copy's
+  const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: (g) => { const id = x.newId('goal'); map.set(g.id, id); return id; } }, x.now);
   const rb = startReadBack({ cycle: x.cycle, next: { name: next.cycle.name, firstDay: cycleDates(next.cycle).firstDay, weeks: next.cycle.weeks }, goals: x.snapshot.goals, checkIns: x.snapshot.checkIns, retros: x.snapshot.retros ?? [] });
   const finish = rb.finish + rb.openFinish;
   const parts = [`${rb.carried} ${rb.carried === 1 ? 'goal carries' : 'goals carry'} on`, ...(finish ? [`${finish} finish`] : []), ...(rb.stop ? [`${rb.stop} stop`] : [])];
+  // What comes with the goals that carry on (rule 6): what a module says follows a goal (a metric link), watches, open
+  // asks and reviews.
+  const extras = carryExtras(map, full, x.newId, x.records);
   return {
     name: next.cycle.name,
     commit: {
       cycles: [next.cycle], goals: next.goals,
+      ...(hasModuleRows(extras.modules) ? { modules: extras.modules } : {}), watches: extras.watches, requests: extras.requests, reviews: extras.reviews,
       changes: [{
         id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created',
         summary: `Started ${next.cycle.name}: ${parts.join(', ')}`, diffs: [{ field: 'Cycle', from: x.cycle.name, to: next.cycle.name }],
         // What the start added, so Undo can take it away again (removal undoStart).
-        undo: { goals: next.goals.map((g) => ({ id: g.id, before: null })), checkIns: [], people: [], requests: [] },
+        undo: { goals: next.goals.map((g) => ({ id: g.id, before: null })), checkIns: [], people: [], requests: extras.undo.requests.map((r) => ({ id: r.id, before: r })), reviews: extras.undo.reviews.map((r) => ({ id: r.id, before: r })), watches: extras.undo.watches, ...(extras.undo.modules.length ? { modules: extras.undo.modules } : {}) },
       }],
     },
   };

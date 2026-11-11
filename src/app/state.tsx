@@ -501,7 +501,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const stamp = () => new Date(clock().getTime() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
