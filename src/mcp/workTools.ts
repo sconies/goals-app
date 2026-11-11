@@ -25,6 +25,7 @@ import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
+import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { MODULES, modulesOn } from '../core/registry';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
@@ -552,11 +553,15 @@ export const WORK_TOOLS: ToolDef[] = [
   {
     name: 'start_next_cycle',
     title: 'Start the next cycle',
-    description: 'Admins, in the last two weeks of a cycle: start the next one with the goals that carry on (stopped goals stay in this cycle’s history). Ask the person first: everyone moves to the new cycle.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['confirm'], properties: { confirm: bool('True, once the person has said to start it.') } },
+    description: 'Admins, from the day the wrap-up opens: set up the next cycle with the goals that carry on. Nobody moves into it until the current cycle’s last day, and it can be undone (undo_start_cycle) until someone uses it. Without confirm (a dry run, the default) it changes nothing and returns what would carry on, finish and stop, in counts that add up to every goal. Ask the person first, then call again with confirm: true.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: { dry_run: bool('True (the default): only say what starting would do.'), confirm: bool('True, once the person has said to start it.') } },
     annotations: { ...WRITE, destructiveHint: true },
     async run(a, ctx) {
-      if (a.confirm !== true) return { isError: true, text: 'Ask the person first, then call again with confirm: true.' };
+      if (a.confirm !== true || a.dry_run === true) {
+        const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+        const rb = page.readBack;
+        return { text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`, data: { next: page.next, canStart: page.canStart, whyNot: page.whyNot, counts: page.counts, ...(rb ? { carried: rb.carried, total: rb.total } : {}) } };
+      }
       const out = A.startNextCycle(ax(ctx));
       const r = await save(ctx, out.commit, `Started ${out.name}`, '');
       return { ...r, data: { name: out.name } };
