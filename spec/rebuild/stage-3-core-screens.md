@@ -25,6 +25,7 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 - One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.
 - One list bar on every list (requirement `LIST-BAR`): the search, then the count line, the filter line and what found nothing in [finding things](../core/rules/finding.md)’ words; the list’s search and filters in the address, a choice adding a history entry. The server pages the list (R4).
 - The menu, the lit item and a page’s name as three rules of the viewer and the address ([navigation](../core/rules/navigation.md)), drawn by the shell: a module adds a menu item in a group, names its pages from their thing, and fills places on a goal’s, a person’s and a team’s page.
+- New goal and the first check-in keep day one honest ([a goal not born late](../core/rules/not-born-late.md)): a stage already past is asked about and, if done, recorded done in its own week; a first number off the plan may restart it. These are rules, with the status rules, not screen details.
 
 ## Exit criteria
 

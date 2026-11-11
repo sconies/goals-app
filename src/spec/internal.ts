@@ -63,6 +63,7 @@ export const ACCESS: Access[] = [
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'Whoever posted it, or an admin', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
   { area: 'Goals, plans and check-ins', what: 'Wrap up a goal at the end of the cycle', who: 'The goal’s owner, or an admin', code: [`${A}saveRetro`] },
+  { area: 'Goals, plans and check-ins', what: 'Say which stages were already done when a goal was set up (before its first check-in)', who: 'The goal’s owner, or an admin', code: [`${A}recordStagesDone`] },
   { area: 'Goals, plans and check-ins', what: 'Undo an import or bulk edit', who: 'Whoever made it, or an admin', code: [`${R}undoImport`, `${R}canUndoImport`] },
   { area: 'Comments and asks', what: 'Comment on a goal; agree an action on it', who: 'Anyone in the workspace', code: [`${A}addNote`, `${A}addAction`] },
   { area: 'Comments and asks', what: 'Edit a comment', who: 'Whoever wrote it, only', code: [`${R}editComment`] },

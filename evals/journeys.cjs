@@ -302,6 +302,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.getByRole('link', { name: /Pick up where you left off/ }).click();
   const restored = await p.getByLabel('This week’s value').inputValue();
   if (restored !== leadV) fail('the draft value was not restored');
+  // Its first check-in, off its plan: it offers to start the plan from this number (OB2, rule 4). Rhea keeps the plan and says why.
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
   await h.click(p.getByRole('button', { name: 'Continue' }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
@@ -3928,6 +3930,68 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
   await p.context().close();
 }, []);
+
+journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Kafka cut-over plan');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
+  await h.fill(p.getByLabel('Stage 1: due week'), '1');
+  await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Say whether this stage is done.' }).isVisible(), 'an unanswered past stage is not explained');
+  await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
+  await see(p, 'Done in week 1.');
+  await h.checkpoint('stages');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, '1 stage is already done.', 'Check does not say the stage is done');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p.locator('.goal-bar'), '1 of 1 stages', 'the published goal does not count its stage done');
+  let s = await h.snapshot();
+  const kafka = s.goals.find((g) => g.title === 'Kafka cut-over plan');
+  const rec = kafka && s.checkIns.find((c) => c.goalId === kafka.id);
+  h.set('logged', !!rec && rec.week === 1 && /already done when the goal was set up/.test(rec.why) && s.changes.some((c) => c.goalId === kafka.id && c.entity === 'check-in'), 'the stage done at set-up is not recorded in week 1 and logged');
+  // A number goal, 5 → 2 days: before its first check-in its page says so once; its first number, 7, offers to restart the plan.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Lead time for the payments API');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Unit'), 'days');
+  await h.fill(p.getByLabel(/^Today \(week/), '5');
+  await h.fill(p.getByLabel(/^Target \(week/), '2');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p, 'The scorecard starts with the first check-in.', 'a new goal shows an empty scorecard');
+  const id = p.url().match(/\/goals\/(goal_[^?#/]+)/)[1];
+  await p.goto(url('/check-in/' + id));
+  await h.fill(p.getByLabel('This week’s value'), '7');
+  await see(p, 'The plan starts at 5 days; you’ve typed 7 days. Start the plan from 7 days?', 'a first number off the plan is not offered a fresh start');
+  await h.checkpoint('first check-in');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  // Undo puts the plan back, and asks again; then take it.
+  await h.click(p.getByRole('button', { name: 'Undo' }));
+  await see(p, 'Start the plan from 7 days?', 'Undo did not put the plan back');
+  s = await h.snapshot();
+  h.set('attention', s.goals.find((g) => g.id === id)?.plan?.start === 5, 'Undo did not restore the start of 5');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  await h.click(p.locator('.focus-foot button[type=submit]'));
+  await see(p, 'Check-in saved');
+  s = await h.snapshot();
+  const g = s.goals.find((x) => x.id === id);
+  const first = s.checkIns.find((c) => c.goalId === id);
+  h.set('finish', g?.plan?.start === 7 && g?.plan?.target === 2 && first?.status === 'on', `after the fresh start the plan starts at ${g?.plan?.start} and the check-in is ${first?.status}`);
+  await p.context().close();
+}, ['progress']);
 
 async function finishChecks(add) {
   {

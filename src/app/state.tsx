@@ -109,8 +109,9 @@ export interface AppState {
   linkRequest(r: Ask, goal: Goal): Promise<void>;
   /** Withdraw an ask; on a goal linked to another goal's request, stop waiting on it. */
   withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
-  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. */
-  saveGoal(after: Goal, before: Goal | null, why?: string): Promise<void>;
+  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. A new goal's stages said
+      to be already done (`stagesDone`, onboarding rule 3) are recorded done in the same save (actions.recordStagesDone). */
+  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[] }): Promise<void>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -612,7 +613,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       askQuestion: async (goal, text) => { await run('askQuestion', { goalId: goal.id, text }); },
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
-      saveGoal: async (after, before, why) => {
+      saveGoal: async (after, before, why, opts) => {
         if (makesLoop(after.id, after.parentId, sc.goals)) {
           toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
           throw new Error('loop');
@@ -621,7 +622,12 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
         if (!before && !after.key) after = { ...after, key: nextKey(sc.goals, sc.keysIssued) };
         const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
         if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
-        await commit({ goals: [after], changes: change ? [change] : [] });
+        // Stages already done at set-up go in the same save as the goal, so it is never seen late in between.
+        let done: Commit | null = null;
+        if (!before && opts?.stagesDone?.length) {
+          try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        }
+        await commit({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },

@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'not-born-late',
+    date: '2026-11-11',
+    title: 'A new goal doesn’t start out late',
+    points: [
+      'A stage that’s already past asks whether it’s done, and a done one counts as on time.',
+      'If your first number isn’t where the plan starts, you can start the plan from it.',
+    ],
+    articles: ['new-goal', 'check-in'],
+  },
+  {
     id: 'goals-filters-in-words',
     date: '2026-11-10',
     title: 'Goals counts once, and says its filters in words',
