@@ -17,6 +17,7 @@ The core in a few lines:
 - [The data model](spec/core/data-model.md): every record and field, and the database tables
 - [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it
 - [Weeks and plans](spec/core/rules/weeks-and-plans.md): which week it is, and what the plan says a number should be
+- [A year’s end](spec/core/rules/year-end.md): a cycle’s real first and last days; after the last day results close and nothing is due or out of date
 - [A goal’s status](spec/core/rules/status.md): what the numbers say, and the official status (the owner’s call unless stale)
 - [The projection](spec/core/rules/projection.md): where a number lands by its due week, as a range
 - [What a check-in must say](spec/core/rules/check-in.md): what is needed before a check-in can be posted

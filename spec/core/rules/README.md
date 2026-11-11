@@ -15,6 +15,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The scorecard](scorecard.md) | The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target. |
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP. |
 | [Deciding in a review](review-decide.md) | A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed. |
+| [A year’s end](year-end.md) | A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The directory: who People lists, what a search finds, and where old addresses lead](directory.md) | People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead. |
 | [Day one: set-up’s steps and “Getting started”](day-one.md) | How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks. |
@@ -22,6 +23,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Acting on a goal: its buttons, and next steps and asks](goal-act.md) | Which main button a goal’s page offers whoever is looking, the plain button beside it, and the one list of everything asked and agreed on the goal, each row with at most one button. |
 | [A goal’s history](goal-history.md) | Every week of a goal, checked in or not, its comments, what reviews said and its changes, under four filters with counts. |
 | [Who a comment reaches](comment-reach.md) | The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home. |
+| [A goal not born late](not-born-late.md) | A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
 | [Navigation: the menu, the lit item and a page’s name](navigation.md) | Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says. |
 | [The Goals page: whose goals, how they are grouped, and the switch](goals-page.md) | Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open. |

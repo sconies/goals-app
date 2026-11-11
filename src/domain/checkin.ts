@@ -239,3 +239,34 @@ export function toCheckIn(goal: Goal, cycle: Cycle, week: number, draft: Draft, 
 /** When the note offered back was written (review F10): a correction in the same week asks about this week's earlier
     check-in, not "last week"; an older one names its week. */
 export const saidWhen = (said: number, week: number) => (said >= week ? 'in this week’s earlier check-in' : said === week - 1 ? 'last week' : `in week ${said}`);
+
+/* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */
+
+/** How many weeks back a goal's first number may restart its plan: a goal quiet longer than this is just behind. */
+export const REBASE_WEEKS = 4;
+
+/**
+ * Rule 4. Whether the first check-in offers to start the plan from the number typed: a number to move, with no check-in
+ * yet, set up at most four weeks ago, whose number is valid, would not be on plan, and hasn't reached the target.
+ */
+export function rebaseOffer(goal: Goal, cycle: Cycle, week: number, value: number | null, all: CheckIn[], createdWeek: number): { start: number; value: number } | null {
+  if (goal.kind !== 'metric' || value == null || !Number.isFinite(value)) return null;
+  if (checkInsFor(goal, all).length) return null;
+  if (week - createdWeek > REBASE_WEEKS) return null;
+  const dir = Math.sign(goal.plan.target - goal.plan.start) || 1;
+  if ((goal.plan.target - value) * dir <= 0) return null;
+  if (value === goal.plan.start) return null;
+  const e = evaluate(goal, cycle, week, { ...emptyDraft(goal, null), value: String(value) }, all);
+  if (e.calc === 'on' && !e.reason) return null;
+  return { start: goal.plan.start, value };
+}
+
+/** Rule 4. The goal with its plan started from `value` this week: the same target, due week and shape; hand-set points from this week on kept. */
+export function rebase(goal: Goal, value: number, week: number): Goal {
+  if (goal.kind !== 'metric') return goal;
+  const points = goal.plan.points?.filter((p) => p.week > week);
+  return { ...goal, plan: { ...goal.plan, start: value, fromWeek: week, ...(points ? { points } : {}) } };
+}
+
+/** The words logged with a re-based plan: it needs no reason, since no check-in had started. */
+export const rebaseWhy = (value: string, start: string) => `Started the plan from ${value} at the first check-in (was ${start})`;
