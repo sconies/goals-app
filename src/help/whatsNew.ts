@@ -23,12 +23,12 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'found-rows-show-status',
     date: '2026-11-11',
-    title: 'Find shows each goal’s status shape',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
     points: [
-      'A goal found in Find shows its status as a shape beside the word, as everywhere else.',
-      'The same in every list where you pick a goal, such as a review’s goals.',
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
     ],
-    articles: ['finding'],
+    articles: ['finding', 'settings'],
   },
   {
     id: 'mcp-goal-scopes',

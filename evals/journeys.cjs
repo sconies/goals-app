@@ -2871,6 +2871,16 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await p.goForward();
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('parity', /\/goals\/ns-lead(\?|$)/.test(p.url()), `after the back link, Forward went to ${p.url()}`);
+  // Settings scrolls to its foot on a computer: the section links never pull the page back up, and the last is lit.
+  if (device !== 'phone') {
+    await p.goto(url('/settings'));
+    await p.locator('.section-links').first().waitFor({ timeout: 5000 }).catch(() => {});
+    await p.mouse.move(700, 500);
+    for (let i = 0; i < 40; i++) { await p.mouse.wheel(0, 60); await p.waitForTimeout(30); }
+    await p.waitForTimeout(300);
+    const at = await p.evaluate(() => ({ y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight, lit: document.querySelector('.section-links [aria-current="true"]')?.textContent?.trim() ?? '' }));
+    h.set('progress', at.y >= at.max - 2 && at.lit === 'Leave', `Settings scrolled to ${at.y} of ${at.max}, with “${at.lit}” lit`);
+  }
   h.set('attention', true); h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
