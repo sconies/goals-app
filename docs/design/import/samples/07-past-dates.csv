@@ -1,0 +1,8 @@
+Goal,Level,Team,Owner,Type,Unit,Start,Target,Due week,Plan from week,Stages
+P1 stages in the past,team,CI/CD,Rhea Kapoor,milestone,,,,,,"Design@2; Pilot@6; All services@10"
+P2 due week past,team,CI/CD,Rhea Kapoor,metric,%,10,50,10,,
+P3 no plan from week,team,CI/CD,Rhea Kapoor,metric,%,10,50,,,
+P4 stage week 60,team,CI/CD,Rhea Kapoor,milestone,,,,,,Design@60
+P5 stage no week,team,CI/CD,Rhea Kapoor,milestone,,,,,,"Design; Pilot@50"
+P6 stage a date,team,CI/CD,Rhea Kapoor,milestone,,,,,,Design@2026-12-01
+P7 due week date,team,CI/CD,Rhea Kapoor,metric,%,10,50,2026-12-14,,
