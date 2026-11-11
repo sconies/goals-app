@@ -26,7 +26,7 @@ const tsvOf = (rows: (string | number | null)[][]) => rows.map((r) => r.map((c) 
 describe('bulk changes', () => {
   it('loads an unedited export back as no changes', () => {
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
-    const cs = planChanges(base('amara', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: records(tsvOf(wb[2]!.rows)) }));
+    const cs = planChanges(base('amara', { goals: records(tsvOf(wb[1]!.rows)), plan: records(tsvOf(wb[2]!.rows)), checkIns: records(tsvOf(wb[3]!.rows)) }));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
     expect(cs.items).toEqual([]);
     expect(cs.commit).toBeNull();
@@ -36,17 +36,17 @@ describe('bulk changes', () => {
     // Mateo isn't an admin. Rows for other people's goals that he didn't touch must not block his own changes.
     expect(person('mateo').admin).toBeFalsy();
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
-    const ci = records(tsvOf(wb[2]!.rows));
+    const ci = records(tsvOf(wb[3]!.rows));
     const weeks = ci.filter((r) => r['goal id'] === 'mttr-pir').map((r) => r['week']!).slice(20, 23);
     const own = ci.filter((r) => r['goal id'] === 'mttr-pir' && weeks.includes(r['week']!));
     expect(own.length).toBe(3);
     for (const r of own) r['value'] = String(Number(r['value']) + 1);
-    const cs = planChanges(base('mateo', { goals: records(tsvOf(wb[0]!.rows)), plan: records(tsvOf(wb[1]!.rows)), checkIns: ci }));
+    const cs = planChanges(base('mateo', { goals: records(tsvOf(wb[1]!.rows)), plan: records(tsvOf(wb[2]!.rows)), checkIns: ci }));
     expect(cs.issues.filter((i) => i.severity === 'error').map((i) => i.message)).toEqual([]);
     expect(cs.counts.checkIns).toBe(3);
     expect(cs.commit).not.toBeNull();
     // A change he did make to someone else's goal is still refused.
-    const goals = records(tsvOf(wb[0]!.rows));
+    const goals = records(tsvOf(wb[1]!.rows));
     goals.find((r) => r['id'] === 'ns-ai')!['target'] = '90';
     const refused = planChanges(base('mateo', { goals }));
     expect(refused.issues.map((i) => i.message)).toEqual([expect.stringMatching(/Only Tariq Haddad \(its owner\) or an admin/)]);
@@ -153,9 +153,9 @@ describe('bulk changes', () => {
 
   it('round-trips through CSV', () => {
     const wb = workbook({ ws: { id: 'ws', name: 'P' }, snapshot: s, cycle, week, today });
-    const rows = parseTable(toCsv(wb[0]!.rows));
+    const rows = parseTable(toCsv(wb[1]!.rows));
     expect(rows[0]!.slice(0, 2)).toEqual(['Key', 'ID']);
-    expect(rows.length).toBe(wb[0]!.rows.length);
+    expect(rows.length).toBe(wb[1]!.rows.length);
   });
 });
 

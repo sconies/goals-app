@@ -45,7 +45,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     f.Limit = (g.range.bound === 'atMost' ? 'At most ' : 'At least ') + fmt(g.range.limit, g);
     f['Warning margin'] = fmt(g.range.margin, g);
   }
-  if (g.kind === 'milestone') f.Stages = g.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ') || '—';
+  // By due week, the order a saved goal keeps them in (goal.buildGoal), so a stage moved later isn't read as a change of order.
+  if (g.kind === 'milestone') f.Stages = [...g.stages].sort((a, b) => a.dueWeek - b.dueWeek).map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ') || '—';
   return f;
 }
 
