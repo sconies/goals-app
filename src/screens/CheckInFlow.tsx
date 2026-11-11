@@ -4,7 +4,7 @@ import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
@@ -238,6 +238,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
   const existing = [...own].reverse().find((c) => c.week === week) ?? null;
   const previous = own[own.length - 1] ?? null;
+  // What the new number is compared with: last week's, never this week's earlier check-in (rule 5).
+  const lastNumber = previousFor(own, week).number;
   const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => emptyDraft(goal, previous));
   // Once something is typed it's a draft, and can be discarded.
   const [touched, setTouched] = useState(false);
@@ -463,10 +465,10 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
               })()}
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
               <span id="value-hint" className="valuehint hint">
-                <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
-                {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
+                <span>{lastNumber?.value != null ? `Week ${lastNumber.week}: ${fmt(lastNumber.value, goal)}` : 'First check-in'}</span>
+                {lastNumber?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(lastNumber.value) })}>Measured again: unchanged</button>}
               </span>
-              {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
+              {lastNumber?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === lastNumber.value && <span className="hint">Same as week {lastNumber.week}. Post it only if you measured it again this week.</span>}
               {!previous && <span className="hint">This sets where it stands today.</span>}
               {offer && goal.kind === 'metric' && (
                 <div className="rebase" role="status">
