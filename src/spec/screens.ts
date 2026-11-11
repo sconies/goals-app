@@ -10,6 +10,7 @@ export const MAIN_ACTION: Record<string, string> = {
   Review: 'Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.',
   Watching: 'Open a goal you watch that needs attention.',
   Retro: 'Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.',
+  StartNext: 'For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).',
   GoalsScreen: 'Find goals (search, filter, sort, lay them out) and open one.',
   GoalWizard: 'Publish the goal, one question a step.',
   GoalScreen: 'The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.',

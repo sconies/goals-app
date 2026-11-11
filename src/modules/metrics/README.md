@@ -57,7 +57,7 @@ The form saves the pick straight after the goal: `app.linkGoalMetric` for a pick
 
 The pickers use a plain search list for now (backlog 0a brings the shared find-and-pick control).
 
-**The metric on a goal's page.** The `goal.sections` place already exists (it's given `{ goal }`, after the page's own sections, before Activity). A module component there shows `measureOf(app.snapshot, goal)`: the metric's name, its meaning, the slice and the goal's target in it, and nothing when it's `null`. List `goal.sections` under `places` in `module.json`, and add the component (say `GoalMetric`) to `SCREENS` in `src/mcp/parity.ts` as `['get_goal', 'get_metric']`.
+**The metric on a goal's page.** The `goal.sections` place already exists (it's given `{ goal }`, inside About this goal, after its facts). A module component there shows `measureOf(app.snapshot, goal)`: the metric's name, its meaning, the slice and the goal's target in it, and nothing when it's `null`. List `goal.sections` under `places` in `module.json`, and add the component (say `GoalMetric`) to `SCREENS` in `src/mcp/parity.ts` as `['get_goal', 'get_metric']`.
 
 ## Data, tools and the demo
 

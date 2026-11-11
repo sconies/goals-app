@@ -1234,20 +1234,82 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   // Amara, an admin, starts the next cycle.
   await viewAs(p, 'Amara');
   await see(p, 'The year is ending', 'an admin is told the year is ending');
-  await p.goto(late('/retro'));
-  await h.click(p.getByRole('button', { name: 'Start it' }));
-  await h.click(p.getByRole('button', { name: 'Start next year' }));
-  await see(p, 'has started');
+  // Starting next year is its own page with a read-back (cycle-end 2.4); it prepares 2027 and moves nobody yet.
+  await p.goto(late('/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
   s = await h.snapshot('ws_wrap');
   const c2 = s.cycles.find((c) => c.id !== 'cycle');
   const carried = s.goals.filter((g) => g.cycleId === c2?.id);
-  h.set('finish', !!c2 && carried.length === s.goals.filter((g) => g.cycleId === 'cycle').length - 1 && !carried.some((g) => g.title === 'Post-incident actions closed within 30 days'), 'the next cycle does not carry the right goals');
+  const before = s.goals.filter((g) => g.cycleId === 'cycle' && !g.stoppedAt && !g.removedAt).length;
+  h.set('finish', !!c2 && carried.length > 0 && carried.length < before && !carried.some((g) => g.title === 'Post-incident actions closed within 30 days'), 'the next cycle does not carry the right goals');
   h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.actorId === 'amara'), 'starting the cycle is not logged');
-  await p.goto(late('/goals?scope=all'));
+  // On 4 January 2027 everyone is in 2027, with the goals that carried on.
+  const jan = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2027-01-04';
+  await p.goto(jan('/goals?scope=all'));
   await see(p, 'Lead time for changes', 'the new cycle shows the carried goals');
   if (await p.getByText('Post-incident actions closed within 30 days').count()) fail('a stopped goal came into the new cycle');
   await p.context().close();
 });
+
+journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 the read-back counts every goal once; afterwards everyone is still in 2026 and Cycles offers Undo, which puts 2026 back; started again, 2027 opens for everyone on 4 Jan 2027. A workspace whose only year is 2027 says when it starts and has nothing due', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  // The example copied into a workspace of Amara's own, so it keeps 2026 when the clock moves (as U10 does).
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_turn', name: 'Year turn', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_turn', JSON.stringify({ ...full }));
+    localStorage.setItem('goals-app-workspace', 'ws_turn');
+    localStorage.setItem('goals-app-viewer:ws_turn', 'amara');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const s0 = await h.snapshot('ws_turn');
+  const live = s0.goals.filter((g) => !g.stoppedAt && !g.removedAt).length;
+  await p.goto(on('2026-12-21', '/workspace/cycles'));
+  await h.inView(p.getByRole('link', { name: 'Start 2027' }), 'entry', 'Start 2027 on Cycles');
+  await h.click(p.getByRole('link', { name: 'Start 2027' }));
+  await see(p, 'Everyone stays in 2026 until Sun 3 Jan 2027');
+  const counts = await p.locator('.read-back-n').allInnerTexts();
+  h.set('attention', counts.length === 4 && counts.reduce((n, c) => n + Number(c), 0) === live, `the read-back's counts (${counts.join(', ')}) don't add up to the ${live} goals`);
+  await h.checkpoint('read-back');
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  // Nobody moves: Home is still 2026.
+  await p.goto(on('2026-12-21', '/'));
+  await p.locator('.hero').first().waitFor();
+  h.set('progress', /2026 · week 52/.test(await p.locator('body').innerText()), 'starting 2027 moved everyone into it early');
+  // Undo puts 2026 back as it was.
+  await p.goto(on('2026-12-22', '/workspace/cycles'));
+  await h.click(p.getByRole('region', { name: '2027 is ready' }).getByRole('button', { name: 'Undo' }));
+  await see(p, '2027 was undone');
+  let s = await h.snapshot('ws_turn');
+  const undone = s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 0;
+  h.set('errors', undone && s.changes.some((c) => c.summary === 'Undid the start of 2027'), 'Undo did not put 2026 back');
+  // Started again, then 4 January 2027: everyone is in 2027.
+  await p.goto(on('2026-12-23', '/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  await p.goto(on('2027-01-04', '/'));
+  await p.locator('.hero').first().waitFor();
+  const jan = await p.locator('body').innerText();
+  s = await h.snapshot('ws_turn');
+  h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
+  h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
+  // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
+  await p.evaluate((snap) => {
+    const c = snap.cycles[0];
+    const only = { ...snap, cycles: [{ ...c, name: '2027', startDate: '2026-12-28', weeks: 52 }], goals: snap.goals.filter((g) => g.cycleId === c.id).map((g) => ({ ...g, createdAt: '2026-11-01T00:00:00Z' })), checkIns: [], changes: [] };
+    localStorage.setItem('goals-app-v2:ws_turn', JSON.stringify(only));
+    localStorage.setItem('goals-app-viewer:ws_turn', 'rhea');
+  }, s0);
+  await p.goto(on('2026-11-11', '/'));
+  await p.locator('.hero').first().waitFor();
+  const before = await p.locator('main').innerText();
+  h.set('parity', /2027 starts on Mon 4 Jan 2027, in 7 weeks\. Nothing is due until then\./.test(before) && !/check-ins? to do|days late|No recent update/.test(before), `a year not begun: “${before.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await p.context().close();
+}, ['budget']);
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
@@ -1290,6 +1352,14 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await cycles.waitFor();
   const row = (await cycles.innerText()).replace(/\s+/g, ' ');
   h.set('parity', /2026 · ended 3 Jan 2027/.test(row) && /29 Dec 2025 to 3 Jan 2027/.test(row), `Cycles: “${row.slice(0, 200)}”`);
+  // After the wrap-up has closed (5 Feb 2027) an admin can still start 2027, from Cycles and from the wrap-up page (build review, 11 Nov).
+  await p.goto(on('2027-02-05', '/workspace/cycles'));
+  await cycles.waitFor();
+  const late = await p.getByRole('link', { name: 'Start 2027' }).count();
+  await p.goto(on('2027-02-05', '/retro'));
+  await see(p, 'The wrap-up closed on Sun 31 Jan 2027');
+  const fromRetro = await p.getByRole('link', { name: 'Start 2027' }).count();
+  h.set('finish', late > 0 && fromRetro > 0, `after the wrap-up closed, Start 2027 was on Cycles ${late} time(s) and on the wrap-up ${fromRetro}`);
   h.set('logged', true);
   await p.context().close();
 }, ['budget']);
