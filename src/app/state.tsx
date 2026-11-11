@@ -276,6 +276,14 @@ const wallClock = (clock: Clock) => () => {
   return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
 };
 
+/**
+ * Whole days to move a record's stamp so it falls on the app's today: only when today is pinned (the demo and the evals,
+ * `?today=`). Unpinned, today is the clock's own wall-clock time, whose gap from the clock is the time zone's offset,
+ * not a day: rounded, UTC+13 and UTC+14 would stamp every record a day ahead (build review of #154).
+ */
+export const stampSkewDays = (pinnedToday: Date | null, now: Date): number =>
+  pinnedToday ? Math.round((pinnedToday.getTime() - now.getTime()) / 86_400_000) || 0 : 0;
+
 /** Said when a save is tried with nobody signed in (outside the demo). */
 export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
 
@@ -503,8 +511,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       goal: (id) => sc.goals.find((g) => g.id === id) ?? archived(id),
       teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
-    // Records are stamped with the real time of day, moved to the app's today (the demo and the evals pin today to a date).
-    const skewDays = Math.round((now.getTime() - clock().getTime()) / 86_400_000);
+    // Records are stamped with the real time of day, moved to the app's today when the demo or the evals pin it.
+    const skewDays = stampSkewDays(pinned ? now : null, clock());
     const stamp = () => new Date(clock().getTime() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
@@ -714,7 +722,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
       startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
-  }, [loaded, wanted, viewerId, store, today, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 
