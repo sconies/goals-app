@@ -31,6 +31,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in'],
   },
   {
+    id: 'start-prepares',
+    date: '2026-11-11',
+    title: 'Starting next year doesn’t move anyone early',
+    points: [
+      'An admin can set next year up as soon as the wrap-up opens. Everyone stays in this year until its last day; next year opens on its first Monday.',
+      'Before starting, you see what will carry on, finish and stop, in counts that add up to every goal. Afterwards Cycles offers Undo, until someone uses the new year.',
+      'A goal that met its target finishes instead of carrying on.',
+      'Before a year’s first week, Home says when it starts and that nothing is due until then.',
+    ],
+    articles: ['start-next-year', 'workspace-cycles'],
+  },
+  {
     id: 'mcp-goal-scopes',
     date: '2026-11-11',
     title: 'Your AI assistant finds goals the way your Goals tabs do',

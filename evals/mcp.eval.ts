@@ -203,8 +203,8 @@ describe('AI assistants can do what the person can', () => {
     expect((await grace.call('list_people')).data!.people.length).toBe(grace.data().people.length);
   });
 
-  it(R('the end of the cycle: wrap-ups open in the last two weeks; owners wrap up; an admin starts the next cycle'), async () => {
-    expect((await (await as('mateo')).call('wrap_up_goal', { goal_id: 'mttr-pir', result: 'hit', learned: 'Reviews caught most late actions.', next: 'carry' })).text).toMatch(/Wrap-ups open in the last two weeks/);
+  it(R('the end of the cycle: wrap-ups open in the last two weeks, by the day; owners wrap up; an admin starts the next cycle'), async () => {
+    expect((await (await as('mateo')).call('wrap_up_goal', { goal_id: 'mttr-pir', result: 'hit', learned: 'Reviews caught most late actions.', next: 'carry' })).text).toMatch(/wrap-up opens on Mon 21 Dec 2026/);
     const mateo = await as('mateo', DEC);
     expect((await mateo.call('wrap_up_goal', { goal_id: 'ns-ai', result: 'hit', learned: 'Not mine to say anything about.', next: 'stop' })).text).toMatch(/Only the goal’s owner/);
     await mateo.call('wrap_up_goal', { goal_id: 'mttr-pir', result: 'hit', learned: 'Reviews caught most late actions.', next: 'carry' });

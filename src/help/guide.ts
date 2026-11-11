@@ -676,7 +676,7 @@ const CORE_ARTICLES: Article[] = [
         'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
-        'An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged.',
+        'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',
       ] },
       { heading: 'Who can', list: ['A goal’s owner, or an admin, wraps it up.', 'Only admins start the next year.'] },
     ],
@@ -684,7 +684,30 @@ const CORE_ARTICLES: Article[] = [
     screens: ['Retro'],
     reqs: ['RETRO', 'YEAR', 'RESULTS'],
     keywords: ['retro', 'retrospective', 'end of year', 'year end', 'year ended', 'last day', 'cycle', 'next year', 'carry on', 'stop', 'learned', 'close'],
-    related: ['history', 'workspace'],
+    related: ['history', 'workspace', 'start-next-year'],
+  },
+
+  {
+    id: 'start-next-year',
+    title: 'Starting the next year',
+    summary: 'An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it.',
+    group: 'leading',
+    sections: [
+      { heading: 'How to use it', list: [
+        'From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.',
+        'Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).',
+        'Then it says what next year starts with: the goals that carry on, the stages not done that come with them, any goal that loses its “Feeds into” because the goal above it finishes or stops, and when the first check-ins are due.',
+        'Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.',
+        'Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.',
+        'Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from.',
+      ] },
+      { heading: 'Who can', list: ['Everyone can read the page.', 'Only admins start the next year, or undo it.'] },
+    ],
+    routes: ['/workspace/cycles/next'],
+    screens: ['StartNext'],
+    reqs: ['CARRY-GOALS', 'RESULTS'],
+    keywords: ['next year', 'new year', 'start next year', 'carry on', 'finish', 'undo', 'read-back', 'cycle'],
+    related: ['wrap-up', 'workspace-cycles'],
   },
 
   /* ---------- Data in and out ---------- */

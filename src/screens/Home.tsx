@@ -12,7 +12,7 @@ import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
 import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionToDo, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
 import { hasEnded, weekDates } from '../domain/plan';
-import { cycleDates, cycleState, dayWithYear, placeLine, wrapUpOpenOn } from '../domain/cycle';
+import { beforeStartLine, cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { periodWord } from '../domain/year';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
@@ -131,6 +131,14 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
                   </>
                 );
               })()}
+            </>
+          ) : mine.length && beforeStartLine(app.cycle, app.today) ? (
+            <>
+              {/* Before the year's week 1 nothing is due, and it says when it starts (cycle-end 2.10). */}
+              <span className="eyebrow">{placeLine(app.cycle, app.today)}</span>
+              <h2 className="hero-title">Nothing is due yet</h2>
+              <span className="muted">{beforeStartLine(app.cycle, app.today, true)}</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
             </>
           ) : mine.length && (app.week < 1 || (p.upcoming.length && !p.done.length)) ? (
             <>
@@ -314,13 +322,23 @@ function WatchedGoals() {
 function AdminCard() {
   const app = useApp();
   if (!app.viewer.admin) return null;
-  if (wrapUpOpenOn(app.cycle, app.today)) {
-    const ended = cycleState(app.cycle, app.today) === 'ended';
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const over = hasEnded(app.cycle, app.today);
+  if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    const next = later?.name ?? nextCycleShape(app.cycle).name;
+    const lastDay = dayWithYear(cycleDates(app.cycle).lastDay);
+    // The next year is prepared, not moved into: it opens for everyone on its week 1's Monday (cycle-end 2.9).
+    const nextLine = later ? `${next} is ready. It opens for everyone on ${dayWithYear(cycleDates(later).firstDay)}.`
+      : over ? `Start ${next}: it opens for everyone as soon as you start it.`
+      : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{ended ? `${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
-        <Link className="btn" to="/retro">See the wrap-up</Link>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapUpOpenOn(app.cycle, app.today) ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}>
+          {wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">See the wrap-up</Link>}
+          <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
+        </span>
       </section>
     );
   }

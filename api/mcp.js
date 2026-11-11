@@ -1939,6 +1939,18 @@ function valueProblem(raw, last, unit, goal) {
 	};
 	return null;
 }
+/**
+* What a new number for `week` is compared with (check-in spec, rule 5): the newest check-in of the latest week before it,
+* and the newest number among the weeks before it. A check-in of the same week is never "last week", so a second
+* check-in this week is compared with last week, not with the first.
+*/
+function previousFor(own, week) {
+	const before = own.filter((c) => c.week < week);
+	return {
+		checkIn: before.at(-1) ?? null,
+		number: before.filter((c) => c.value != null).at(-1) ?? null
+	};
+}
 function evaluate(goal, cycle, week, draft, all) {
 	const before = checkInsFor(goal, all).filter((c) => c.week < week);
 	const value = parseNumber(draft.value);
@@ -3134,6 +3146,377 @@ var init_year = __esmMin((() => {
 		"Dec"
 	];
 }));
+// src/domain/chartStory.ts
+/** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
+in front and a k or m to suit the size; everything else keeps its unit. */
+function sayAmount(v, g) {
+	const m = CURRENCY.exec(g.unit ?? "");
+	if (m) {
+		const sym = SYMBOL[m[1].toUpperCase()] ?? m[1];
+		const scale = m[2]?.toLowerCase() === "k" ? 1e3 : m[2]?.toLowerCase() === "m" ? 1e6 : 1;
+		const x = Math.abs(v * scale), sign = v < 0 ? "−" : "";
+		const trim = (n, d) => String(Number(n.toFixed(d)));
+		const own = (display, d) => display === scale ? Math.max(d, g.decimals) : d;
+		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, own(1e6, x >= 1e7 ? 1 : 2))}m`;
+		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
+		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
+	}
+	const n = numberFormat(g.decimals).format(Number(v.toFixed(g.decimals)));
+	if (!g.unit) return n;
+	if (g.unit === "%") return n + "%";
+	return `${n} ${Math.abs(Number(v.toFixed(g.decimals))) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
+}
+/** The last day of the week a goal is due, said as a date: "by 3 Jan". */
+function byWhen(cycle, due) {
+	if (!cycle) return `by week ${due}`;
+	if (due >= cycle.weeks) return cycle.weeks >= 48 ? "by the end of the year" : "by the end of the cycle";
+	return "by " + weekDates(cycle, due).split("–").pop().trim();
+}
+/**
+* "On its recent trend it ends at about £3.56m by 3 Jan (somewhere between £3.41m and £3.71m), just missing the £3.6m
+* target. Projected by the app from the last eight weeks, not the owner's date."
+*/
+function headingSentence(goal, p, misses, when, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const likely = sayAmount(clamp(p.likely), goal), lo = sayAmount(clamp(p.low), goal), hi = sayAmount(clamp(p.high), goal);
+	const range = lo === hi ? "" : ` (somewhere between ${lo} and ${hi})`;
+	const target = sayAmount(goal.plan.target, goal);
+	const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
+	const off = Math.abs(p.likely - goal.plan.target) / span;
+	const close = off < .05 ? "just " : off > .25 ? "well " : "";
+	const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace("over of", "over");
+	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? wellMiss : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
+}
+var CURRENCY, SYMBOL, NUMBER_FORMATS, numberFormat;
+var init_chartStory = __esmMin((() => {
+	init_plan();
+	init_trend();
+	init_vocabulary();
+	CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
+	SYMBOL = {
+		USD: "$",
+		GBP: "£",
+		EUR: "€"
+	};
+	NUMBER_FORMATS = /* @__PURE__ */ new Map();
+	numberFormat = (decimals) => {
+		let f = NUMBER_FORMATS.get(decimals);
+		if (!f) NUMBER_FORMATS.set(decimals, f = new Intl.NumberFormat("en-GB", { maximumFractionDigits: decimals }));
+		return f;
+	};
+}));
+// src/domain/tree.ts
+/** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
+function makesLoop(goalId, parentId, goals) {
+	let p = parentId;
+	const seen = /* @__PURE__ */ new Set();
+	while (p && !seen.has(p)) {
+		if (p === goalId) return true;
+		seen.add(p);
+		p = goals.find((g) => g.id === p)?.parentId ?? null;
+	}
+	return false;
+}
+/**
+* Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
+* `warn` when the likeliest value falls short.
+*/
+function forecastText(goal, a, weeks, cycle) {
+	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null || !a.projection) return null;
+	const due = goal.plan.endWeek ?? weeks;
+	return {
+		text: headingSentence(goal, {
+			likely: a.forecast,
+			low: a.projection.low,
+			high: a.projection.high
+		}, a.forecastMisses, byWhen(cycle, due), isShare(goal)),
+		warn: a.forecastMisses
+	};
+}
+var init_tree = __esmMin((() => {
+	init_status();
+	init_checkin();
+	init_chartStory();
+}));
+// src/domain/story.ts
+/** The week a goal is due: its plan's end, its last stage, or the end of the cycle. */
+function dueWeekOf(g, cycle) {
+	if (g.kind === "metric") return planEnd(g.plan, cycle.weeks);
+	if (g.kind === "milestone") return Math.max(1, ...g.stages.map((s) => s.dueWeek));
+	return cycle.weeks;
+}
+/** Met, Met late or Not met (the vocabulary's RESULT); null while the goal isn't due yet and isn't complete. */
+function goalResult(g, cycle, checkIns, week) {
+	const own = checkInsFor(g, checkIns);
+	const due = dueWeekOf(g, cycle);
+	const make = (kind, at) => ({
+		kind,
+		dueWeek: due,
+		week: at,
+		text: kind === "completed" ? `${RESULT_TEXT.completed}${at != null ? ` in week ${at}` : ""}` : kind === "late" ? `${RESULT_TEXT.late}: week ${at}, due week ${due}` : `${RESULT_TEXT.missed}: due week ${due}`
+	});
+	let hit = null;
+	if (g.kind === "metric") {
+		const up = g.plan.target >= g.plan.start;
+		const reached = (c) => c.value != null && (up ? c.value >= g.plan.target : c.value <= g.plan.target);
+		const doneCall = own.find((c) => c.status === "done");
+		if (doneCall && doneCall.week <= due) hit = doneCall.week;
+		else if (week > due || own.some((c) => c.week >= due)) {
+			const atDue = own.filter((c) => c.week <= due && c.value != null).pop();
+			hit = atDue && atDue.week >= due - 1 && reached(atDue) ? atDue.week : own.find((c) => c.week > due && (reached(c) || c.status === "done"))?.week ?? null;
+			if (hit == null && doneCall) hit = doneCall.week;
+		}
+	} else if (g.kind === "milestone") {
+		const done = own.find((c) => c.status === "done" || c.stages && g.stages.every((s) => c.stages.some((u) => u.stageId === s.id && u.doneWeek != null)));
+		if (done) {
+			const weeks = (done.stages ?? []).filter((u) => u.doneWeek != null).map((u) => u.doneWeek);
+			hit = weeks.length ? Math.max(...weeks) : done.week;
+		}
+	} else {
+		const doneCall = own.find((c) => c.status === "done");
+		if (doneCall) hit = doneCall.week;
+		else {
+			const end = own.filter((c) => c.week >= due && c.value != null).pop();
+			if (!end) return week > due ? make("missed", null) : null;
+			return (g.range.bound === "atMost" ? end.value > g.range.limit : end.value < g.range.limit) ? make("missed", end.week) : make("completed", end.week);
+		}
+	}
+	if (hit != null) return make(hit <= due ? "completed" : "late", hit);
+	return week > due ? make("missed", null) : null;
+}
+function storyOf(g, s, cycle, week, today) {
+	const st = goalStatus(g, cycle, s.checkIns, today);
+	const own = checkInsFor(g, s.checkIns);
+	const last = own[own.length - 1] ?? null;
+	const a = assessPosted(g, cycle, s.checkIns, week);
+	const status = st.status;
+	const behind = BEHIND.includes(status);
+	const rw = Math.max(week, resultWeek(cycle, today));
+	const result = goalResult(g, cycle, s.checkIns, rw);
+	const warnings = [];
+	const flags = [];
+	const warn = (kind, text) => {
+		flags.push(kind);
+		warnings.push(text);
+	};
+	let since = null;
+	if (last && (behind || status === "on")) {
+		let k = own.length - 1;
+		while (k > 0 && own[k - 1].status === last.status) k--;
+		const from = own[k].week;
+		const n = own.length - k;
+		since = n >= 2 ? `Since week ${from}, ${n} check-ins running` : `Since week ${from}`;
+	}
+	if (status === "stale") since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : "No check-in this cycle";
+	const due = dueWeekOf(g, cycle);
+	let where = "";
+	if (g.kind === "metric" && a.kind === "metric") {
+		if (a.actual == null) where = `${NO_VALUE$1}. Target ${fmt(g.plan.target, g)} by week ${due}.`;
+		else {
+			const diff = Number((a.actual - a.plan).toFixed(g.decimals));
+			where = `${fmt(a.actual, g)} in week ${a.week}, against a plan of ${fmt(a.plan, g)}${diff ? ` (${fmtDiff(diff, g)} ${diff > 0 ? "above" : "below"})` : ""}. Target ${fmt(g.plan.target, g)} by week ${due} (${weekDates(cycle, due)}).`;
+			if (status === "stale") where += ` The plan for this week is ${fmt(planAt(g.plan, week, cycle.weeks), g)}.`;
+		}
+	} else if (g.kind === "range" && a.kind === "range") {
+		const lim = (g.range.bound === "atMost" ? "at most " : "at least ") + fmt(g.range.limit, g);
+		where = a.actual == null ? `${NO_VALUE$1}. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ", and it isn’t" : a.near ? ", and it’s close" : ""}.`;
+	} else if (g.kind === "milestone" && a.kind === "milestone") {
+		const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
+		where = `${a.doneCount} of ${a.stages.length} stages done.${late.length ? ` Late: ${late.join("; ")}.` : ""}`;
+	}
+	if (isYear(cycle) && g.kind === "metric" && week >= 1 && week <= due) {
+		const q = quarterOf(cycle, week);
+		const end = Math.min(q.to, due);
+		if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end), g)} by week ${end}.`;
+	}
+	const quarters = quarterResults(g, cycle, s.checkIns, rw);
+	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
+	const fc = forecastText(g, a, cycle.weeks, cycle);
+	const outlook = fc && projects(g, status) ? fc.text : null;
+	let why = null, doing = null, byWhen = null, needs = null;
+	const ptg = last?.pathToGreen ?? null;
+	if (behind && last) {
+		const reason = last.why && last.why !== "On plan." ? last.why : "";
+		why = [last.cause ? causeLabel(last.cause) : "", reason].filter(Boolean).join(". ") || null;
+		if (ptg) {
+			doing = ptg.what;
+			const state = ptg.state ?? "plan";
+			byWhen = ptg.byWeek != null ? `Owner’s date: back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
+		}
+		const open = openFor(g.id, s);
+		needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? "another goal"})` : "")).join("; ") || null;
+		if (ptg && (ptg.state ?? "plan") === "help" && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = "Answer given: the owner’s next check-in says what it changes";
+		let k = own.length - 1;
+		while (k > 0 && BEHIND.includes(own[k - 1].status)) k--;
+		const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
+		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn("slipped", `${WARNING.slipped.label}. First said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
+		const run = own.slice(k);
+		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn("same-cause", `${WARNING["same-cause"].label}. ${causeLabel(last.cause)}, three check-ins running.`);
+	}
+	for (const f of flagsFor(g, s, cycle, today).flags) {
+		if (!STORY_FLAGS.includes(f.kind)) continue;
+		const detail = f.kind === "stale" && last ? `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}, in week ${last.week}.` : f.detail;
+		warn(f.kind, `${FLAG[f.kind].label}. ${detail}`);
+	}
+	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `${WARNING["missed-quarter"].label}. ${lastEnded.text}.`);
+	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
+	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
+	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
+	const ans = answeredSince(g.id, last?.postedAt ?? null, s);
+	const answered = ans ? {
+		ask: askText(ans, s.people),
+		answer: ans.answer ?? "",
+		by: s.people.find((p) => p.id === ans.answeredBy)?.name ?? "someone",
+		at: ans.answeredAt ?? ""
+	} : null;
+	return {
+		status,
+		since,
+		where,
+		outlook,
+		why,
+		doing,
+		byWhen,
+		needs,
+		answered,
+		next: (behind || status === "on") && last?.next ? last.next : null,
+		warnings,
+		flags,
+		feeds,
+		result,
+		quarters,
+		label
+	};
+}
+var STORY_FLAGS, BEHIND;
+var init_story = __esmMin((() => {
+	init_checkin();
+	init_format();
+	init_plan();
+	init_status();
+	init_attention();
+	init_vocabulary();
+	init_asks();
+	init_tree();
+	init_year();
+	STORY_FLAGS = [
+		"stale",
+		"missed-path",
+		"no-path",
+		"trend",
+		"greener"
+	];
+	BEHIND = ["off", "risk"];
+}));
+// src/domain/carry.ts
+/** The goal's last number at or before the cycle's last week, or its starting number (`none`) when it has none. */
+function finalNumber(goal, checkIns, cycle) {
+	const own = checkInsFor(goal, checkIns).filter((c) => c.value != null && c.week <= cycle.weeks);
+	const last = own[own.length - 1];
+	if (last) return {
+		value: last.value,
+		week: last.week,
+		none: false
+	};
+	return {
+		value: goal.kind === "metric" ? goal.plan.start : null,
+		week: null,
+		none: true
+	};
+}
+/** Why a goal finishes, in words, or null when it doesn't. */
+function finishes(goal, ctx) {
+	const own = checkInsFor(goal, ctx.checkIns);
+	if (own.some((c) => c.status === "done")) return "its owner called it done";
+	if (goal.kind === "range") return null;
+	const r = goalResult(goal, ctx.cycle, ctx.checkIns, ctx.cycle.weeks + 1);
+	if (r && (r.kind === "completed" || r.kind === "late")) return r.kind === "completed" ? "it met its target" : "it met its target late";
+	if (goal.kind === "metric") {
+		const f = finalNumber(goal, ctx.checkIns, ctx.cycle);
+		const up = goal.plan.target >= goal.plan.start;
+		if (!f.none && f.value != null && (up ? f.value >= goal.plan.target : f.value <= goal.plan.target)) return "its last number has reached the target";
+	}
+	if (goal.kind === "milestone") {
+		const last = own.filter((c) => c.stages).pop();
+		const a = assessMilestone(goal, ctx.cycle.weeks, last?.stages ?? null);
+		if (goal.stages.length && a.stages.every((s) => s.kind === "done")) return "every stage is done";
+	}
+	return null;
+}
+/**
+* What happens to one goal (rule 5), in this order: it **stops** when its owner said so at the wrap-up (unless it
+* finished anyway); a number goal whose plan runs past the year **keeps** its plan; it **finishes** when it met its
+* target, its last number reached it, every stage is done, or its owner called it done; otherwise it **carries** on.
+* A goal with a limit never finishes: a limit is kept every year.
+*/
+function carryKind(goal, ctx) {
+	const fin = finishes(goal, ctx);
+	if (ctx.retro?.next === "stop" && !fin) return {
+		kind: "stop",
+		why: "its owner said to stop it at the wrap-up"
+	};
+	if (goal.kind === "metric" && (goal.plan.endWeek ?? 0) > ctx.cycle.weeks) return {
+		kind: "keep",
+		why: "its plan runs past the end of the year"
+	};
+	if (fin) return {
+		kind: "finish",
+		why: fin
+	};
+	return {
+		kind: "carry",
+		why: "it didn’t meet its target"
+	};
+}
+/**
+* The read-back before starting the next year (rule 7): every number from `carryKind` over the year's live goals, so
+* the page and the start agree by construction. The four counts (carry on, finish, stop, not wrapped up yet) always
+* add up to `total`.
+*/
+function startReadBack(ctx) {
+	const kinds = /* @__PURE__ */ new Map();
+	const done = new Set(ctx.retros.filter((r) => r.cycleId === ctx.cycle.id).map((r) => r.goalId));
+	for (const g of ctx.goals) {
+		const retro = ctx.retros.find((r) => r.goalId === g.id && r.cycleId === ctx.cycle.id) ?? null;
+		kinds.set(g.id, carryKind(g, {
+			cycle: ctx.cycle,
+			checkIns: ctx.checkIns,
+			retro
+		}).kind);
+	}
+	const of = (wrapped, ...ks) => ctx.goals.filter((g) => done.has(g.id) === wrapped && ks.includes(kinds.get(g.id))).length;
+	const going = ctx.goals.filter((g) => carries(kinds.get(g.id)));
+	const stageGoals = going.filter((g) => g.kind === "milestone");
+	const stagesLeft = stageGoals.reduce((n, g) => {
+		if (g.kind !== "milestone") return n;
+		const last = checkInsFor(g, ctx.checkIns).filter((c) => c.stages).pop();
+		const a = assessMilestone(g, ctx.cycle.weeks, last?.stages ?? null);
+		return n + g.stages.filter((_, i) => a.stages[i]?.kind !== "done").length;
+	}, 0);
+	const ids = new Set(ctx.goals.map((g) => g.id));
+	return {
+		kinds,
+		carry: of(true, "carry", "keep"),
+		keep: of(true, "keep"),
+		finish: of(true, "finish"),
+		stop: of(true, "stop"),
+		open: ctx.goals.filter((g) => !done.has(g.id)).length,
+		openCarry: of(false, "carry", "keep"),
+		openFinish: of(false, "finish"),
+		carried: going.length,
+		stageGoals: stageGoals.length,
+		stagesLeft,
+		loseParent: going.filter((g) => g.parentId && ids.has(g.parentId) && !carries(kinds.get(g.parentId))).length,
+		handSet: going.filter((g) => g.kind === "metric" && kinds.get(g.id) === "carry" && !!g.plan.points?.length).length,
+		total: ctx.goals.length
+	};
+}
+var carries;
+var init_carry = __esmMin((() => {
+	init_status();
+	init_story();
+	carries = (k) => k === "carry" || k === "keep";
+}));
 // src/domain/yearName.ts
 /** "2026" for a year starting in January, "Apr 2026–Mar 2027" otherwise. */
 function yearName(startDate, weeks) {
@@ -3149,14 +3532,16 @@ function yearName(startDate, weeks) {
 var init_yearName = __esmMin((() => {}));
 // src/domain/cycle.ts
 /**
-* The cycle the app shows: the latest one that has started, or starts within the week
-* (so a cycle set up at the end of the last one opens straight away, in its baseline week).
+* The cycle the app shows (cycle-end rule 3): of the cycles not removed, the latest whose week 1 has begun; if none has,
+* the earliest. So a next year set up during the wrap-up opens for everyone on its week 1's Monday, never earlier, and
+* a year nobody follows with another stays current after it ends. A new workspace's only cycle is current from day one,
+* in its week 0.
 */
 function currentCycle(cycles, today) {
-	const soon = new Date(today.getTime() + 7 * DAY).toISOString().slice(0, 10);
+	const day = today.toISOString().slice(0, 10);
 	const kept = cycles.filter((c) => !c.removedAt);
 	const sorted = [...kept.length ? kept : cycles].sort((a, b) => a.startDate.localeCompare(b.startDate));
-	return [...sorted].reverse().find((c) => c.startDate <= soon) ?? sorted[0];
+	return [...sorted].reverse().find((c) => addDays(c.startDate, 7) <= day) ?? sorted[0];
 }
 /**
 * Only what belongs to one cycle, and only what's live: the one place removed and archived records leave the lists,
@@ -3229,7 +3614,7 @@ function cycleState(c, today) {
 /** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
 function dayWithYear(iso) {
 	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
-	return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
@@ -3242,22 +3627,32 @@ function cycleName(startDate, weeks) {
 	const y = (d) => d.getUTCFullYear();
 	return y(a) === y(b) ? `${m(a)}–${m(b)} ${y(b)}` : `${m(a)} ${y(a)}–${m(b)} ${y(b)}`;
 }
+/** The next cycle's start, length and name: its week 0 is this one's last week; a goal year's length (52 or 53 weeks) follows the calendar. */
+function nextCycleShape(old) {
+	const startDate = addDays(old.startDate, old.weeks * 7);
+	const weeks = isYear(old) ? yearWeeks(startDate) : old.weeks;
+	return {
+		startDate,
+		weeks,
+		name: isYear(old) ? yearName(startDate, weeks) : cycleName(startDate, weeks)
+	};
+}
 /**
 * The next cycle, straight after this one, and copies of the goals that carry on. A carried metric
 * starts from its last number; a carried milestone keeps the stages not yet done, spread over the
 * new cycle. Links between carried goals are kept; a link to a goal that stops is dropped.
 */
 function nextCycle(old, goals, checkIns, retros, ids, now) {
-	const startDate = addDays(old.startDate, old.weeks * 7);
-	const weeks = isYear(old) ? yearWeeks(startDate) : old.weeks;
 	const cycle = {
 		...old,
 		id: ids.cycle,
-		startDate,
-		weeks,
-		name: isYear(old) ? yearName(startDate, weeks) : cycleName(startDate, weeks)
+		...nextCycleShape(old)
 	};
-	const carried = goals.filter((g) => g.cycleId === old.id && (retros.find((r) => r.goalId === g.id)?.next ?? "carry") === "carry");
+	const carried = goals.filter((g) => g.cycleId === old.id && carries(carryKind(g, {
+		cycle: old,
+		checkIns,
+		retro: retros.find((r) => r.goalId === g.id && r.cycleId === old.id) ?? null
+	}).kind));
 	const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
 	return {
 		cycle,
@@ -3324,21 +3719,22 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		})
 	};
 }
-var DAY, addDays, isoDay, wrapUpOpenOn, wrapUpOpen, WEEKDAYS, MONTHS, RESULT_LABEL;
+var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
 	init_year();
 	init_plan();
 	init_thresholds();
+	init_carry();
 	init_yearName();
 	init_status();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
+	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
-	wrapUpOpen = (cycle, week) => week >= cycle.weeks - RULES.wrapUpWeeksBefore + 1;
-	WEEKDAYS = [
+	WEEKDAYS$1 = [
 		"Sun",
 		"Mon",
 		"Tue",
@@ -5603,7 +5999,11 @@ function savePerson(x, p, before) {
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
 	if (!ownsOrAdmin$1(x, goal)) no$1("Only the goal’s owner or an admin can wrap it up.");
-	if (!wrapUpOpen(x.cycle, x.week)) no$1(`Wrap-ups open in the last two weeks of the cycle (from week ${x.cycle.weeks - 1}).`);
+	const today = new Date(x.now);
+	if (!wrapUpOpenOn(x.cycle, today)) {
+		const d = cycleDates(x.cycle);
+		no$1(cycleState(x.cycle, today) === "closed" ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+	}
 	if (v.learned.trim().length < 10) no$1("Say what was learned, in a sentence (10 characters or more).");
 	const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
 	const retro = {
@@ -5648,15 +6048,44 @@ function saveRetro(x, goal, v) {
 		}]
 	};
 }
-/** Admins: start the next cycle with the goals that carry on. */
+/**
+* Admins: set up the next cycle with the goals that carry on (cycle-end rule 6). It can be started from the day this
+* cycle's wrap-up opens, and only once; it opens for everyone on its own week 1's Monday (`currentCycle`), so starting
+* it early moves nobody. Its change keeps what it added, so it can be undone until someone uses it (removal undoStart).
+*/
 function startNextCycle(x) {
 	if (!x.actor.admin) no$1("Only admins can start the next cycle.");
-	if (!wrapUpOpen(x.cycle, x.week)) no$1(`The next cycle can start in the last two weeks of this one (from week ${x.cycle.weeks - 1}).`);
+	const today = new Date(x.now);
+	const full = x.full ?? x.snapshot;
+	const state = cycleState(x.cycle, today);
+	if (state === "before" || state === "running") no$1(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+	const later = laterCycle(full.cycles ?? [], x.cycle);
+	if (later) {
+		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
+		const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
+		no$1(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
+	}
 	const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], {
 		cycle: x.newId("cycle"),
 		goal: () => x.newId("goal")
 	}, x.now);
-	const stopped = x.snapshot.goals.length - next.goals.length;
+	const rb = startReadBack({
+		cycle: x.cycle,
+		next: {
+			name: next.cycle.name,
+			firstDay: cycleDates(next.cycle).firstDay,
+			weeks: next.cycle.weeks
+		},
+		goals: x.snapshot.goals,
+		checkIns: x.snapshot.checkIns,
+		retros: x.snapshot.retros ?? []
+	});
+	const finish = rb.finish + rb.openFinish;
+	const parts = [
+		`${rb.carried} ${rb.carried === 1 ? "goal carries" : "goals carry"} on`,
+		...finish ? [`${finish} finish`] : [],
+		...rb.stop ? [`${rb.stop} stop`] : []
+	];
 	return {
 		name: next.cycle.name,
 		commit: {
@@ -5670,12 +6099,21 @@ function startNextCycle(x) {
 				entity: "cycle",
 				entityId: next.cycle.id,
 				action: "created",
-				summary: `Started ${next.cycle.name}: ${next.goals.length} ${next.goals.length === 1 ? "goal carries" : "goals carry"} on${stopped ? `, ${stopped} stopped` : ""}`,
+				summary: `Started ${next.cycle.name}: ${parts.join(", ")}`,
 				diffs: [{
 					field: "Cycle",
 					from: x.cycle.name,
 					to: next.cycle.name
-				}]
+				}],
+				undo: {
+					goals: next.goals.map((g) => ({
+						id: g.id,
+						before: null
+					})),
+					checkIns: [],
+					people: [],
+					requests: []
+				}
 			}]
 		}
 	};
@@ -6129,6 +6567,7 @@ var init_actions = __esmMin((() => {
 	init_decide();
 	init_thresholds();
 	init_cycle();
+	init_carry();
 	init_people();
 	init_goal();
 	init_changes();
@@ -6158,98 +6597,6 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
-}));
-// src/domain/chartStory.ts
-/** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
-in front and a k or m to suit the size; everything else keeps its unit. */
-function sayAmount(v, g) {
-	const m = CURRENCY.exec(g.unit ?? "");
-	if (m) {
-		const sym = SYMBOL[m[1].toUpperCase()] ?? m[1];
-		const scale = m[2]?.toLowerCase() === "k" ? 1e3 : m[2]?.toLowerCase() === "m" ? 1e6 : 1;
-		const x = Math.abs(v * scale), sign = v < 0 ? "−" : "";
-		const trim = (n, d) => String(Number(n.toFixed(d)));
-		const own = (display, d) => display === scale ? Math.max(d, g.decimals) : d;
-		if (x >= 1e6) return `${sign}${sym}${trim(x / 1e6, own(1e6, x >= 1e7 ? 1 : 2))}m`;
-		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
-		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
-	}
-	const n = numberFormat(g.decimals).format(Number(v.toFixed(g.decimals)));
-	if (!g.unit) return n;
-	if (g.unit === "%") return n + "%";
-	return `${n} ${Math.abs(Number(v.toFixed(g.decimals))) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
-}
-/** The last day of the week a goal is due, said as a date: "by 3 Jan". */
-function byWhen(cycle, due) {
-	if (!cycle) return `by week ${due}`;
-	if (due >= cycle.weeks) return cycle.weeks >= 48 ? "by the end of the year" : "by the end of the cycle";
-	return "by " + weekDates(cycle, due).split("–").pop().trim();
-}
-/**
-* "On its recent trend it ends at about £3.56m by 3 Jan (somewhere between £3.41m and £3.71m), just missing the £3.6m
-* target. Projected by the app from the last eight weeks, not the owner's date."
-*/
-function headingSentence(goal, p, misses, when, share = false) {
-	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
-	const likely = sayAmount(clamp(p.likely), goal), lo = sayAmount(clamp(p.low), goal), hi = sayAmount(clamp(p.high), goal);
-	const range = lo === hi ? "" : ` (somewhere between ${lo} and ${hi})`;
-	const target = sayAmount(goal.plan.target, goal);
-	const span = Math.abs(goal.plan.target - goal.plan.start) || Math.abs(goal.plan.target) || 1;
-	const off = Math.abs(p.likely - goal.plan.target) / span;
-	const close = off < .05 ? "just " : off > .25 ? "well " : "";
-	const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace("over of", "over");
-	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? wellMiss : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
-}
-var CURRENCY, SYMBOL, NUMBER_FORMATS, numberFormat;
-var init_chartStory = __esmMin((() => {
-	init_plan();
-	init_trend();
-	init_vocabulary();
-	CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
-	SYMBOL = {
-		USD: "$",
-		GBP: "£",
-		EUR: "€"
-	};
-	NUMBER_FORMATS = /* @__PURE__ */ new Map();
-	numberFormat = (decimals) => {
-		let f = NUMBER_FORMATS.get(decimals);
-		if (!f) NUMBER_FORMATS.set(decimals, f = new Intl.NumberFormat("en-GB", { maximumFractionDigits: decimals }));
-		return f;
-	};
-}));
-// src/domain/tree.ts
-/** Whether making `goal` feed `parentId` would make a loop: the parent is the goal or feeds into it. */
-function makesLoop(goalId, parentId, goals) {
-	let p = parentId;
-	const seen = /* @__PURE__ */ new Set();
-	while (p && !seen.has(p)) {
-		if (p === goalId) return true;
-		seen.add(p);
-		p = goals.find((g) => g.id === p)?.parentId ?? null;
-	}
-	return false;
-}
-/**
-* Where the recent trend takes a number goal by its due week, as a range (plan.ts works it out), against the target.
-* `warn` when the likeliest value falls short.
-*/
-function forecastText(goal, a, weeks, cycle) {
-	if (a.kind !== "metric" || goal.kind !== "metric" || a.forecast == null || !a.projection) return null;
-	const due = goal.plan.endWeek ?? weeks;
-	return {
-		text: headingSentence(goal, {
-			likely: a.forecast,
-			low: a.projection.low,
-			high: a.projection.high
-		}, a.forecastMisses, byWhen(cycle, due), isShare(goal)),
-		warn: a.forecastMisses
-	};
-}
-var init_tree = __esmMin((() => {
-	init_status();
-	init_checkin();
-	init_chartStory();
 }));
 // src/domain/removal.ts
 /**
@@ -6779,6 +7126,7 @@ function deleteCycle(x, id) {
 	const c = full.cycles.find((v) => v.id === id && !v.removedAt);
 	if (!c) no("There’s no cycle with that ID.");
 	if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no("It’s the only cycle, so it stays.");
+	if (startOf(full, id)) no("Use Undo on Cycles: it also puts back what moved with the goals.");
 	if (!cycleDeletable(full, id)) no("Check-ins have been posted in it, so it stays.");
 	return {
 		cycles: [{
@@ -6791,6 +7139,72 @@ function deleteCycle(x, id) {
 			entityId: c.id,
 			action: "removed",
 			summary: `Deleted the cycle ${c.name}`,
+			diffs: [{
+				field: "Cycle",
+				from: c.name,
+				to: "—"
+			}]
+		})]
+	};
+}
+/** The change that started a cycle from the wrap-up (it keeps what it added), if this cycle was made that way and not undone. */
+function startOf(s, cycleId) {
+	if (s.changes.some((c) => c.entity === "cycle" && c.entityId === cycleId && c.action === "undone")) return void 0;
+	return s.changes.find((c) => c.entity === "cycle" && c.entityId === cycleId && c.action === "created" && !!c.undo);
+}
+/**
+* Whether starting a cycle can still be undone (cycle-end rule 9): it was started from the wrap-up, and nobody has used
+* it yet: no check-in in it, no goal in it changed or added by a person, and no later cycle.
+*/
+function canUndoStart(full, cycleId) {
+	const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+	const start = startOf(full, cycleId);
+	if (!c || !start) return {
+		ok: false,
+		why: "it wasn’t started from the wrap-up"
+	};
+	const ids = new Set(full.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+	const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
+	if (checkIns) return {
+		ok: false,
+		why: `${plural$2(checkIns, "check-in is", "check-ins are")} in it`
+	};
+	const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
+	const changed = new Set([...ids].filter((id) => !made.has(id)));
+	for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId)) changed.add(ch.goalId);
+	if (changed.size) return {
+		ok: false,
+		why: `${plural$2(changed.size, "goal in it has", "goals in it have")} been changed`
+	};
+	if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return {
+		ok: false,
+		why: "a later cycle has been started"
+	};
+	return { ok: true };
+}
+/**
+* Admins: undo starting a cycle (cycle-end rule 9). The cycle is removed as a deleted one is (listed in Recently
+* removed for 30 days); the year before is as it was. Starting again makes a new cycle, and then the removed one
+* can never come back (restore refuses a second cycle with the same start).
+*/
+function undoStart(x, cycleId) {
+	if (!x.actor.admin) no("Only admins can undo the start of a cycle.");
+	const full = fullOf(x);
+	const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+	if (!c) no("There’s no cycle with that ID.");
+	const can = canUndoStart(full, cycleId);
+	if (!can.ok) no(`${c.name} can’t be undone now: ${can.why}.`);
+	return {
+		cycles: [{
+			...c,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		}],
+		changes: [log(x, {
+			entity: "cycle",
+			entityId: c.id,
+			action: "undone",
+			summary: `Undid the start of ${c.name}`,
 			diffs: [{
 				field: "Cycle",
 				from: c.name,
@@ -7881,6 +8295,87 @@ function planChanges(input) {
 	const goalFor = (r) => val(r, "goal key") || val(r, "goal id") ? goalOf(val(r, "goal key"), val(r, "goal id")) : byTitle(val(r, "goal"));
 	const imported = /* @__PURE__ */ new Map();
 	rows.sort((a, b) => (goalFor(a.r)?.id ?? "").localeCompare(goalFor(b.r)?.id ?? "") || (parseNumber(val(a.r, "week")) ?? 0) - (parseNumber(val(b.r, "week")) ?? 0));
+	const judge = ({ g, w, row, existing, ctx, draft, post, again, reason = "" }) => {
+		if (existing && sameCheckIn(existing, draft, g)) {
+			if (post) {
+				err("Check-ins", row, g.title, `Nothing is different from what week ${w} already says.`);
+				return;
+			}
+			unchanged++;
+			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
+			return;
+		}
+		const removing = removals.find((x) => x.g.id === g.id);
+		if (removing) {
+			err("Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
+			return;
+		}
+		if (!create && !canChange(g)) {
+			err("Check-ins", row, g.title, notYours(g));
+			return;
+		}
+		const asOf = goalAsOf(g, w);
+		const e = evaluate(asOf, cycle, w, draft, ctx);
+		const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === "reason-behind" || c === "reason-ahead" || c === "target" || c === "path" || c === "greener-why") ? asWritten(asOf, w, draft, e, actor.id, now, "probe") : null;
+		const asRecorded = !!recorded && keepsTheRules(recorded);
+		if (asRecorded) note("Check-ins", row, g.title, `Week ${w} is taken as it was recorded.`);
+		if (!e.canPost && !asRecorded) {
+			const hint = {
+				value: "a Value",
+				"value-not-number": "a number in Value",
+				"value-precision": "a Value at the goal’s decimal places",
+				"value-impossible": "a possible Value",
+				"greener-why": `Why greener (the call is ${lower(FLAG.greener)})`,
+				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
+				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
+				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+				"story-unchanged": MISSING_TEXT["story-unchanged"],
+				target: MISSING_TEXT.target
+			};
+			const typedValue = g.kind !== "milestone" && e.codes[0] && e.codes[0] !== "value" && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
+			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
+			return;
+		}
+		const keeps = post?.mode === "correct" && existing;
+		const backfilled = keeps ? !!existing.backfilled : w < week;
+		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
+		const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
+		const c = {
+			...asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
+			...backfilled ? { backfilled: true } : {}
+		};
+		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
+		if (!ch) {
+			unchanged++;
+			return;
+		}
+		if (again) ch.summary = ch.summary.replace("Checked in for week", "Checked in again for week");
+		if (post?.mode === "correct") {
+			ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
+			ch.diffs.unshift({
+				field: "Why corrected",
+				from: "—",
+				to: reason
+			});
+		}
+		if (existing && existing.authorId !== actor.id && !post) warn("Check-ins", row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? "someone"}’s check-in for week ${w}.`);
+		ch.at = now;
+		if (backfilled && !post) ch.summary += " (loaded later)";
+		ciBefore.set(c.id, existing);
+		ciOut.push(c);
+		imported.set(g.id, [...imported.get(g.id) ?? [], c]);
+		changes.push(ch);
+		items.push({
+			sheet: "Check-ins",
+			row,
+			goalId: g.id,
+			goal: g.title,
+			kind: existing ? "replaces check-in" : "check-in",
+			summary: ch.summary,
+			diffs: ch.diffs,
+			backfilled
+		});
+	};
 	for (const { r, row } of rows) {
 		if (blankRow(r)) continue;
 		const g = goalFor(r);
@@ -7974,7 +8469,8 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, causeW.problem);
 			continue;
 		}
-		const recW = has(r, "recovery") ? word(RECOVERY_WORDS, val(r, "recovery")) : { code: existing?.pathToGreen?.state ?? null };
+		const givesWeek = has(r, "back on plan by week") && !!val(r, "back on plan by week");
+		const recW = has(r, "recovery") ? word(RECOVERY_WORDS, val(r, "recovery")) : { code: givesWeek ? null : existing?.pathToGreen?.state ?? null };
 		if (recW.problem) {
 			err("Check-ins", row, g.title, recW.problem);
 			continue;
@@ -7986,85 +8482,71 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, `Back on plan by week: “${byRaw}” isn’t a week.`);
 			continue;
 		}
-		const draft = {
-			value: g.kind === "milestone" ? "" : has(r, "value") ? val(r, "value") : existing?.value != null ? String(existing.value) : "",
-			stages,
-			status: call,
-			cause: causeW.code ?? null,
-			why: pick("why", existing?.why),
-			greenerWhy: pick("why greener", existing?.greenerWhy),
-			proposeTarget: "",
-			ptgWhat: pick("path to green", existing?.pathToGreen?.what),
-			ptgBy: by,
-			ptgState: recW.code ?? "plan",
-			needs: pick("needs", existing?.pathToGreen?.needs),
-			next: has(r, "next step") ? val(r, "next step") : has(r, "next") ? val(r, "next") : (existing?.next ?? "").trim(),
-			dataFlagged: false
-		};
-		if (existing && sameCheckIn(existing, draft, g)) {
-			unchanged++;
-			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
-			continue;
-		}
-		const removing = removals.find((x) => x.g.id === g.id);
-		if (removing) {
-			err("Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
-			continue;
-		}
-		if (!create && !canChange(g)) {
-			err("Check-ins", row, g.title, notYours(g));
-			continue;
-		}
-		const asOf = goalAsOf(g, w);
-		const e = evaluate(asOf, cycle, w, draft, ctx);
-		const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === "reason-behind" || c === "reason-ahead" || c === "target" || c === "path" || c === "greener-why") ? asWritten(asOf, w, draft, e, actor.id, now, "probe") : null;
-		const asRecorded = !!recorded && keepsTheRules(recorded);
-		if (asRecorded) note("Check-ins", row, g.title, `Week ${w} is taken as it was recorded.`);
-		if (!e.canPost && !asRecorded) {
-			const hint = {
-				value: "a Value",
-				"value-not-number": "a number in Value",
-				"value-precision": "a Value at the goal’s decimal places",
-				"value-impossible": "a possible Value",
-				"greener-why": `Why greener (the call is ${lower(FLAG.greener)})`,
-				"reason-behind": `a Cause and a Why of 10 characters or more (it’s behind plan)`,
-				"reason-ahead": `a Cause and a Why of 10 characters or more (it’s ahead of plan)`,
-				path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
-				"story-unchanged": MISSING_TEXT["story-unchanged"],
-				target: MISSING_TEXT.target
-			};
-			const typedValue = g.kind !== "milestone" && e.codes[0] && e.codes[0] !== "value" && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
-			err("Check-ins", row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join("; ")}.`);
-			continue;
-		}
-		const backfilled = w < week;
-		const due = new Date(Date.parse(weekDate(cycle, w) + "T09:00:00Z") + cycle.reviewDay * 864e5);
-		const at = backfilled && due.toISOString() < now ? due : new Date(now);
-		const c = {
-			...asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId("ci")) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId("ci")),
-			...backfilled ? { backfilled: true } : {}
-		};
-		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
-		if (!ch) {
-			unchanged++;
-			continue;
-		}
-		if (existing && existing.authorId !== actor.id) warn("Check-ins", row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? "someone"}’s check-in for week ${w}.`);
-		ch.at = now;
-		if (backfilled) ch.summary += " (loaded later)";
-		ciBefore.set(c.id, existing);
-		ciOut.push(c);
-		imported.set(g.id, [...imported.get(g.id) ?? [], c]);
-		changes.push(ch);
-		items.push({
-			sheet: "Check-ins",
+		judge({
+			g,
+			w,
 			row,
-			goalId: g.id,
-			goal: g.title,
-			kind: existing ? "replaces check-in" : "check-in",
-			summary: ch.summary,
-			diffs: ch.diffs,
-			backfilled
+			existing,
+			ctx,
+			draft: {
+				value: g.kind === "milestone" ? "" : has(r, "value") ? val(r, "value") : existing?.value != null ? String(existing.value) : "",
+				stages,
+				status: call,
+				cause: causeW.code ?? null,
+				why: pick("why", existing?.why),
+				greenerWhy: pick("why greener", existing?.greenerWhy),
+				proposeTarget: "",
+				ptgWhat: pick("path to green", existing?.pathToGreen?.what),
+				ptgBy: by,
+				ptgState: recW.code ?? "plan",
+				needs: pick("needs", existing?.pathToGreen?.needs),
+				next: has(r, "next step") ? val(r, "next step") : has(r, "next") ? val(r, "next") : (existing?.next ?? "").trim(),
+				dataFlagged: false
+			}
+		});
+	}
+	for (const [i, p] of (input.posts ?? []).entries()) {
+		const row = i + 1;
+		const g = work.get(p.goalId) ?? s.goals.find((x) => x.id === p.goalId);
+		if (!g) {
+			err("Check-ins", row, p.goalId, "That goal no longer exists. Reload to see the latest.");
+			continue;
+		}
+		const w = p.week;
+		if (!Number.isInteger(w) || w < 1) {
+			err("Check-ins", row, g.title, "Check-ins start in week 1; week 0 is the start of the year.");
+			continue;
+		}
+		if (w > week) {
+			err("Check-ins", row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`);
+			continue;
+		}
+		const own = checkInsFor(g, s.checkIns);
+		const newest = own.filter((c) => c.week === w).pop() ?? null;
+		if (p.mode !== "correct" && w < week) {
+			err("Check-ins", row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`);
+			continue;
+		}
+		if (p.mode === "new" && newest) {
+			err("Check-ins", row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`);
+			continue;
+		}
+		const reason = (p.reason ?? "").trim();
+		if (p.mode === "correct" && reason.length < 10) {
+			err("Check-ins", row, g.title, `Say why, in a sentence, so anyone reading week ${w} later knows.`);
+			continue;
+		}
+		const ctx = [...own.filter((c) => c.week !== w), ...imported.get(g.id) ?? []];
+		judge({
+			g,
+			w,
+			row,
+			existing: p.mode === "correct" ? newest : null,
+			ctx,
+			draft: p.draft,
+			post: p,
+			again: p.mode === "again" && !!newest,
+			reason
 		});
 	}
 	const reqOut = /* @__PURE__ */ new Map();
@@ -8224,11 +8706,12 @@ function planChanges(input) {
 			err("People", l.row, l.person.name, e.message.replace(/choose who takes (them|it) over/, "say who takes them over in Takes over"));
 		}
 	}
-	for (const ch of changes) ch.diffs.push({
+	if (via !== "form") for (const ch of changes) ch.diffs.push({
 		field: "Via",
 		from: "—",
 		to: VIA_LABEL[via]
 	});
+	const corrects = (input.posts ?? []).some((p) => p.mode === "correct");
 	const counts = {
 		newGoals: items.filter((x) => x.kind === "new goal").length,
 		goals: items.filter((x) => x.kind === "goal").length,
@@ -8271,7 +8754,13 @@ function planChanges(input) {
 		};
 		return result;
 	}
-	if (ok) {
+	if (ok && via === "form" && !corrects) result.commit = {
+		goals: ordered,
+		checkIns: ciOut,
+		...reqOut.size ? { requests: [...reqOut.values()] } : {},
+		changes
+	};
+	else if (ok) {
 		const sumId = newId("chg");
 		const importId = newId("imp");
 		for (const ch of changes) ch.importId = importId;
@@ -8285,8 +8774,8 @@ function planChanges(input) {
 			entityId: importId,
 			action: "imported",
 			importId,
-			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes via MCP" : via === "table" ? "Edited the data tables" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
-			diffs: [{
+			summary: `${via === "spreadsheet" ? "Loaded a spreadsheet" : via === "mcp" ? "Changes via MCP" : via === "table" ? "Edited the data tables" : via === "form" ? "Corrected a check-in" : "Bulk edit"}: ${describe(result).toLowerCase()}`,
+			diffs: via === "form" ? [] : [{
 				field: "Via",
 				from: "—",
 				to: VIA_LABEL[via]
@@ -8329,6 +8818,11 @@ function planChanges(input) {
 		};
 	}
 	return result;
+}
+/** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
+function headlineOf(c, g) {
+	if (g.kind === "milestone") return `${(c.stages ?? []).filter((u) => u.doneWeek != null).length} of ${g.stages.length} stages done`;
+	return c.value == null ? "no number" : fmt(c.value, g);
 }
 /** Whether a row says what a check-in already says, in every column that can be changed. */
 function sameCheckIn(c, d, g) {
@@ -8383,6 +8877,7 @@ var init_changeset = __esmMin((() => {
 	init_goal();
 	init_numbers();
 	init_goalKey();
+	init_format();
 	init_people();
 	init_plan();
 	init_status();
@@ -8396,7 +8891,8 @@ var init_changeset = __esmMin((() => {
 		bulk: "Bulk edit",
 		mcp: "MCP",
 		table: "Data tables",
-		setup: "Set-up"
+		setup: "Set-up",
+		form: "Check-in"
 	};
 	VIA_MCP = {
 		field: "Via",
@@ -8980,173 +9476,6 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-// src/domain/story.ts
-init_checkin();
-init_format();
-init_plan();
-init_status();
-init_attention();
-init_vocabulary();
-init_asks();
-init_tree();
-init_year();
-/** The week a goal is due: its plan's end, its last stage, or the end of the cycle. */
-function dueWeekOf(g, cycle) {
-	if (g.kind === "metric") return planEnd(g.plan, cycle.weeks);
-	if (g.kind === "milestone") return Math.max(1, ...g.stages.map((s) => s.dueWeek));
-	return cycle.weeks;
-}
-/** Met, Met late or Not met (the vocabulary's RESULT); null while the goal isn't due yet and isn't complete. */
-function goalResult(g, cycle, checkIns, week) {
-	const own = checkInsFor(g, checkIns);
-	const due = dueWeekOf(g, cycle);
-	const make = (kind, at) => ({
-		kind,
-		dueWeek: due,
-		week: at,
-		text: kind === "completed" ? `${RESULT_TEXT.completed}${at != null ? ` in week ${at}` : ""}` : kind === "late" ? `${RESULT_TEXT.late}: week ${at}, due week ${due}` : `${RESULT_TEXT.missed}: due week ${due}`
-	});
-	let hit = null;
-	if (g.kind === "metric") {
-		const up = g.plan.target >= g.plan.start;
-		const reached = (c) => c.value != null && (up ? c.value >= g.plan.target : c.value <= g.plan.target);
-		const doneCall = own.find((c) => c.status === "done");
-		if (doneCall && doneCall.week <= due) hit = doneCall.week;
-		else if (week > due || own.some((c) => c.week >= due)) {
-			const atDue = own.filter((c) => c.week <= due && c.value != null).pop();
-			hit = atDue && atDue.week >= due - 1 && reached(atDue) ? atDue.week : own.find((c) => c.week > due && (reached(c) || c.status === "done"))?.week ?? null;
-			if (hit == null && doneCall) hit = doneCall.week;
-		}
-	} else if (g.kind === "milestone") {
-		const done = own.find((c) => c.status === "done" || c.stages && g.stages.every((s) => c.stages.some((u) => u.stageId === s.id && u.doneWeek != null)));
-		if (done) {
-			const weeks = (done.stages ?? []).filter((u) => u.doneWeek != null).map((u) => u.doneWeek);
-			hit = weeks.length ? Math.max(...weeks) : done.week;
-		}
-	} else {
-		const doneCall = own.find((c) => c.status === "done");
-		if (doneCall) hit = doneCall.week;
-		else {
-			const end = own.filter((c) => c.week >= due && c.value != null).pop();
-			if (!end) return week > due ? make("missed", null) : null;
-			return (g.range.bound === "atMost" ? end.value > g.range.limit : end.value < g.range.limit) ? make("missed", end.week) : make("completed", end.week);
-		}
-	}
-	if (hit != null) return make(hit <= due ? "completed" : "late", hit);
-	return week > due ? make("missed", null) : null;
-}
-var STORY_FLAGS = [
-	"stale",
-	"missed-path",
-	"no-path",
-	"trend",
-	"greener"
-];
-var BEHIND = ["off", "risk"];
-function storyOf(g, s, cycle, week, today) {
-	const st = goalStatus(g, cycle, s.checkIns, today);
-	const own = checkInsFor(g, s.checkIns);
-	const last = own[own.length - 1] ?? null;
-	const a = assessPosted(g, cycle, s.checkIns, week);
-	const status = st.status;
-	const behind = BEHIND.includes(status);
-	const rw = Math.max(week, resultWeek(cycle, today));
-	const result = goalResult(g, cycle, s.checkIns, rw);
-	const warnings = [];
-	const flags = [];
-	const warn = (kind, text) => {
-		flags.push(kind);
-		warnings.push(text);
-	};
-	let since = null;
-	if (last && (behind || status === "on")) {
-		let k = own.length - 1;
-		while (k > 0 && own[k - 1].status === last.status) k--;
-		const from = own[k].week;
-		const n = own.length - k;
-		since = n >= 2 ? `Since week ${from}, ${n} check-ins running` : `Since week ${from}`;
-	}
-	if (status === "stale") since = last ? `No check-in for ${st.daysSinceCheckIn} days; last heard in week ${last.week}` : "No check-in this cycle";
-	const due = dueWeekOf(g, cycle);
-	let where = "";
-	if (g.kind === "metric" && a.kind === "metric") {
-		if (a.actual == null) where = `${NO_VALUE$1}. Target ${fmt(g.plan.target, g)} by week ${due}.`;
-		else {
-			const diff = Number((a.actual - a.plan).toFixed(g.decimals));
-			where = `${fmt(a.actual, g)} in week ${a.week}, against a plan of ${fmt(a.plan, g)}${diff ? ` (${fmtDiff(diff, g)} ${diff > 0 ? "above" : "below"})` : ""}. Target ${fmt(g.plan.target, g)} by week ${due} (${weekDates(cycle, due)}).`;
-			if (status === "stale") where += ` The plan for this week is ${fmt(planAt(g.plan, week, cycle.weeks), g)}.`;
-		}
-	} else if (g.kind === "range" && a.kind === "range") {
-		const lim = (g.range.bound === "atMost" ? "at most " : "at least ") + fmt(g.range.limit, g);
-		where = a.actual == null ? `${NO_VALUE$1}. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ", and it isn’t" : a.near ? ", and it’s close" : ""}.`;
-	} else if (g.kind === "milestone" && a.kind === "milestone") {
-		const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
-		where = `${a.doneCount} of ${a.stages.length} stages done.${late.length ? ` Late: ${late.join("; ")}.` : ""}`;
-	}
-	if (isYear(cycle) && g.kind === "metric" && week >= 1 && week <= due) {
-		const q = quarterOf(cycle, week);
-		const end = Math.min(q.to, due);
-		if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end), g)} by week ${end}.`;
-	}
-	const quarters = quarterResults(g, cycle, s.checkIns, rw);
-	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
-	const fc = forecastText(g, a, cycle.weeks, cycle);
-	const outlook = fc && projects(g, status) ? fc.text : null;
-	let why = null, doing = null, byWhen = null, needs = null;
-	const ptg = last?.pathToGreen ?? null;
-	if (behind && last) {
-		const reason = last.why && last.why !== "On plan." ? last.why : "";
-		why = [last.cause ? causeLabel(last.cause) : "", reason].filter(Boolean).join(". ") || null;
-		if (ptg) {
-			doing = ptg.what;
-			const state = ptg.state ?? "plan";
-			byWhen = ptg.byWeek != null ? `Owner’s date: back on plan by week ${ptg.byWeek} (${weekDates(cycle, ptg.byWeek)})${state === "help" ? ", once the decision or help arrives" : ""}` : state === "investigating" ? "No date yet: still working out what’s wrong" : state === "help" ? "No date until the decision or help arrives" : state === "target" ? "The owner says the target should change" : null;
-		}
-		const open = openFor(g.id, s);
-		needs = open.map((r) => askText(r, s.people) + (r.goalIds[0] !== g.id ? ` (the same request as ${s.goals.find((x) => x.id === r.goalIds[0])?.title ?? "another goal"})` : "")).join("; ") || null;
-		if (ptg && (ptg.state ?? "plan") === "help" && !open.length && answeredSince(g.id, last?.postedAt ?? null, s)) byWhen = "Answer given: the owner’s next check-in says what it changes";
-		let k = own.length - 1;
-		while (k > 0 && BEHIND.includes(own[k - 1].status)) k--;
-		const firstDate = own.slice(k).map((c) => c.pathToGreen?.byWeek).find((w) => w != null);
-		if (firstDate != null && ptg?.byWeek != null && ptg.byWeek > firstDate) warn("slipped", `${WARNING.slipped.label}. First said back on plan by week ${firstDate}, now week ${ptg.byWeek}.`);
-		const run = own.slice(k);
-		if (run.length >= 3 && last.cause && run.slice(-3).every((c) => c.cause === last.cause)) warn("same-cause", `${WARNING["same-cause"].label}. ${causeLabel(last.cause)}, three check-ins running.`);
-	}
-	for (const f of flagsFor(g, s, cycle, today).flags) {
-		if (!STORY_FLAGS.includes(f.kind)) continue;
-		const detail = f.kind === "stale" && last ? `Last word was ${LABEL[last.status].toLowerCase()}${last.value != null && g.kind !== "milestone" ? ` at ${fmt(last.value, g)}` : ""}, in week ${last.week}.` : f.detail;
-		warn(f.kind, `${FLAG[f.kind].label}. ${detail}`);
-	}
-	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `${WARNING["missed-quarter"].label}. ${lastEnded.text}.`);
-	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
-	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
-	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
-	const ans = answeredSince(g.id, last?.postedAt ?? null, s);
-	const answered = ans ? {
-		ask: askText(ans, s.people),
-		answer: ans.answer ?? "",
-		by: s.people.find((p) => p.id === ans.answeredBy)?.name ?? "someone",
-		at: ans.answeredAt ?? ""
-	} : null;
-	return {
-		status,
-		since,
-		where,
-		outlook,
-		why,
-		doing,
-		byWhen,
-		needs,
-		answered,
-		next: (behind || status === "on") && last?.next ? last.next : null,
-		warnings,
-		flags,
-		feeds,
-		result,
-		quarters,
-		label
-	};
-}
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -9155,6 +9484,7 @@ init_status();
 init_attention();
 init_vocabulary();
 init_tree();
+init_story();
 function summarise(goal, s, cycle, today, week) {
 	const st = goalStatus(goal, cycle, s.checkIns, today);
 	const a = assessPosted(goal, cycle, s.checkIns, week);
@@ -10117,10 +10447,11 @@ function metricFacts(goal, cycle, all, own, week, stale) {
 	}
 	return out;
 }
-/** What changed since the check-in before the latest: the number, and the call if it moved. */
+/** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
+is compared with last week, never with the first. The number, and the call if it moved. */
 function sinceFact(goal, own, better) {
 	const latest = own[own.length - 1];
-	const prev = [...own.slice(0, -1)].reverse().find((c) => c.value != null);
+	const prev = previousFor(own, latest.week).number;
 	const callMoved = (p) => p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : "";
 	if (latest.value == null) return {
 		key: "since",
@@ -10264,7 +10595,7 @@ function milestoneFacts(goal, own, week, stale) {
 			direction: DIRECTION[word]
 		});
 	}
-	const prev = own.length > 1 ? own[own.length - 2] : null;
+	const prev = previousFor(own, latest.week).checkIn;
 	if (!prev) out.push({
 		key: "since",
 		label: "Since last update",
@@ -11389,7 +11720,8 @@ var CORE_ARTICLES = [
 			{
 				heading: "Ad hoc check-ins and corrections",
 				list: [
-					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.",
+					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
+					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
 					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
@@ -12367,7 +12699,7 @@ var CORE_ARTICLES = [
 				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.",
 				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
 				"Wrap up shows everyone which goals are wrapped up, and how.",
-				"An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged."
+				"An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day."
 			]
 		}, {
 			heading: "Who can",
@@ -12394,7 +12726,45 @@ var CORE_ARTICLES = [
 			"learned",
 			"close"
 		],
-		related: ["history", "workspace"]
+		related: [
+			"history",
+			"workspace",
+			"start-next-year"
+		]
+	},
+	{
+		id: "start-next-year",
+		title: "Starting the next year",
+		summary: "An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it.",
+		group: "leading",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.",
+				"Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).",
+				"Then it says what next year starts with: the goals that carry on, the stages not done that come with them, any goal that loses its “Feeds into” because the goal above it finishes or stops, and when the first check-ins are due.",
+				"Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.",
+				"Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.",
+				"Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from."
+			]
+		}, {
+			heading: "Who can",
+			list: ["Everyone can read the page.", "Only admins start the next year, or undo it."]
+		}],
+		routes: ["/workspace/cycles/next"],
+		screens: ["StartNext"],
+		reqs: ["CARRY-GOALS", "RESULTS"],
+		keywords: [
+			"next year",
+			"new year",
+			"start next year",
+			"carry on",
+			"finish",
+			"undo",
+			"read-back",
+			"cycle"
+		],
+		related: ["wrap-up", "workspace-cycles"]
 	},
 	{
 		id: "data",
@@ -13465,6 +13835,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-in-one-way",
+		date: "2026-11-11",
+		title: "Checking in again, or correcting",
+		points: ["A second check-in in the same week is now compared with last week, not with your first one, and so is the goal’s “vs last week”.", "Checking in again adds a check-in beside the first; correcting one replaces it and keeps your reason with it."],
+		articles: ["check-in"]
+	},
+	{
+		id: "start-prepares",
+		date: "2026-11-11",
+		title: "Starting next year doesn’t move anyone early",
+		points: [
+			"An admin can set next year up as soon as the wrap-up opens. Everyone stays in this year until its last day; next year opens on its first Monday.",
+			"Before starting, you see what will carry on, finish and stop, in counts that add up to every goal. Afterwards Cycles offers Undo, until someone uses the new year.",
+			"A goal that met its target finishes instead of carrying on.",
+			"Before a year’s first week, Home says when it starts and that nothing is due until then."
+		],
+		articles: ["start-next-year", "workspace-cycles"]
+	},
 	{
 		id: "mcp-goal-scopes",
 		date: "2026-11-11",
@@ -14788,6 +15177,117 @@ function newsDate(date) {
 		"Nov",
 		"Dec"
 	][m - 1]} ${y}`;
+}
+// src/domain/startYear.ts
+init_carry();
+init_cycle();
+init_progress();
+var WEEKDAYS = [
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
+	"Sunday"
+];
+var n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+function startPage(s, cycle, today) {
+	const shape = nextCycleShape(cycle);
+	const next = {
+		...cycle,
+		...shape
+	};
+	const nd = cycleDates(next), d = cycleDates(cycle);
+	const state = cycleState(cycle, today);
+	const later = laterCycle(s.cycles, cycle);
+	const ended = state === "ended" || state === "closed";
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? "It opens for everyone as soon as you start it." : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	if (state === "before" || state === "running") return {
+		next: shape.name,
+		canStart: false,
+		whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`,
+		line,
+		counts: [],
+		startsWith: [],
+		readBack: null
+	};
+	const goals = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt);
+	const rb = startReadBack({
+		cycle,
+		next: {
+			name: shape.name,
+			firstDay: nd.firstDay,
+			weeks: shape.weeks
+		},
+		goals,
+		checkIns: s.checkIns,
+		retros: s.retros ?? []
+	});
+	const counts = [
+		{
+			n: rb.carry,
+			says: "carry on",
+			sub: rb.keep ? `${rb.keep} keep their plan and dates` : ""
+		},
+		{
+			n: rb.finish,
+			says: "finish",
+			sub: "they met their target"
+		},
+		{
+			n: rb.stop,
+			says: "stop",
+			sub: "their owners said so"
+		},
+		{
+			n: rb.open,
+			says: "not wrapped up yet",
+			sub: `${rb.openCarry} carry on as they are, ${rb.openFinish} finish`
+		}
+	];
+	const startsWith = [
+		...rb.carried ? [{
+			bold: n(rb.carried, "goal", "goals"),
+			rest: `, each with its key, owner, team and level. A number goal starts from its last number in ${cycle.name}, with the same target.`
+		}] : [],
+		...rb.stageGoals ? [{
+			bold: n(rb.stageGoals, "goal with stages", "goals with stages"),
+			rest: ` carry the ${n(rb.stagesLeft, "stage", "stages")} not done, spread evenly over ${shape.name}. Their owners are asked to check the dates.`
+		}] : [],
+		...rb.loseParent ? [{
+			bold: `${n(rb.loseParent, "goal loses its", "goals lose their")} “Feeds into”`,
+			rest: ", because the goal above finishes or stops."
+		}] : [],
+		{
+			bold: `Check-ins every week, due by ${WEEKDAYS[cycle.reviewDay]}`,
+			rest: `, as in ${cycle.name}. The first are due ${dayWithYear(reviewDate(next, 1))}.`
+		}
+	];
+	const whyNot = later ? `${later.name} has already been started.` : null;
+	return {
+		next: shape.name,
+		canStart: !later,
+		whyNot,
+		line,
+		counts: goals.length ? counts : [],
+		startsWith: goals.length ? startsWith : [{
+			bold: `${shape.name} starts empty.`,
+			rest: ""
+		}],
+		readBack: rb
+	};
+}
+/** The read-back as text, for the AI tools: the line, the counts, and what the next year starts with. */
+function startPageText(p) {
+	if (!p.readBack) return `${p.whyNot ?? ""} ${p.line}`.trim();
+	const counts = p.counts.map((c) => `${c.n} ${c.says} (${c.sub})`).join("; ");
+	return [
+		p.line,
+		counts ? `${counts}.` : "",
+		`What ${p.next} starts with: ${p.startsWith.map((x) => x.bold + x.rest).join(" ")}`,
+		p.whyNot ?? ""
+	].filter(Boolean).join("\n");
 }
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
@@ -16287,22 +16787,37 @@ var WORK_TOOLS = [
 	{
 		name: "start_next_cycle",
 		title: "Start the next cycle",
-		description: "Admins, in the last two weeks of a cycle: start the next one with the goals that carry on (stopped goals stay in this cycle’s history). Ask the person first: everyone moves to the new cycle.",
+		description: "Admins, from the day the wrap-up opens: set up the next cycle with the goals that carry on. Nobody moves into it until the current cycle’s last day, and it can be undone (undo_start_cycle) until someone uses it. Without confirm (a dry run, the default) it changes nothing and returns what would carry on, finish and stop, in counts that add up to every goal. Ask the person first, then call again with confirm: true.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
-			required: ["confirm"],
-			properties: { confirm: bool$1("True, once the person has said to start it.") }
+			properties: {
+				dry_run: bool$1("True (the default): only say what starting would do."),
+				confirm: bool$1("True, once the person has said to start it.")
+			}
 		},
 		annotations: {
 			...WRITE$2,
 			destructiveHint: true
 		},
 		async run(a, ctx) {
-			if (a.confirm !== true) return {
-				isError: true,
-				text: "Ask the person first, then call again with confirm: true."
-			};
+			if (a.confirm !== true || a.dry_run === true) {
+				const page = startPage(ctx.full ?? ctx.snapshot, ctx.cycle, ctx.today);
+				const rb = page.readBack;
+				return {
+					text: `${startPageText(page)}\n\nNothing has changed. Ask the person first, then call again with confirm: true.`,
+					data: {
+						next: page.next,
+						canStart: page.canStart,
+						whyNot: page.whyNot,
+						counts: page.counts,
+						...rb ? {
+							carried: rb.carried,
+							total: rb.total
+						} : {}
+					}
+				};
+			}
 			const out = startNextCycle(ax$2(ctx));
 			return {
 				...await save$2(ctx, out.commit, `Started ${out.name}`, ""),
@@ -17693,6 +18208,22 @@ var REMOVE_TOOLS = [
 		async run(a, ctx) {
 			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
 			return save$1(ctx, deleteCycle(ax$1(ctx), String(a.cycle_id ?? "")), `Deleted the cycle ${c?.name ?? ""}`);
+		}
+	},
+	{
+		name: "undo_start_cycle",
+		title: "Undo starting the next cycle",
+		description: "Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["cycle_id"],
+			properties: { cycle_id: str$3("The started cycle’s ID, from get_workspace.") }
+		},
+		annotations: REMOVE,
+		async run(a, ctx) {
+			const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+			return save$1(ctx, undoStart(ax$1(ctx), String(a.cycle_id ?? "")), `${c?.name ?? "The cycle"} was undone`);
 		}
 	},
 	{

@@ -5,7 +5,8 @@
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
-import { cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
+import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
+import { carryKind } from '../domain/carry';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
@@ -724,6 +725,41 @@ ${fieldTableMarkdown()}`,
       { given: 'The same goal with its last check-in in week 46 (posted 11 November 2026): its status, and whether its check-in is due, on Sunday 3 January 2027 and on Monday 11 January.', then: 'No recent update, due / On track, not due', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', ownerId: 'p', unit: 'pairs' }); const cis = [checkIn('g37', 46, 30, { postedAt: '2026-11-11T10:00:00Z' })]; return ['2027-01-03', '2027-01-11'].map((d) => { const t = at(d + 'T12:00:00Z'); return `${LABEL[goalStatus(g, y, cis, t).status]}, ${weekProgress('p', { goals: [g], checkIns: cis } as unknown as Snapshot, y, currentWeek(y, t), t).due.length ? 'due' : 'not due'}`; }).join(' / '); } },
     ],
     unclear: ['How long the wrap-up stays open after the year ends (four weeks) and how early it opens (two weeks) are choices, kept in RULES; the rebuild may tune them.'],
+  },
+
+  /* ---------- starting the next year (round 3, cycle end CY2) ---------- */
+  {
+    id: 'start-next-year',
+    title: 'Starting the next year',
+    summary: 'Which cycle everyone is in, what an admin’s start prepares and reads back first, and when it can be undone.',
+    code: [
+      { file: 'src/domain/cycle.ts', names: ['currentCycle', 'laterCycle', 'nextCycleShape', 'beforeStart', 'beforeStartLine', 'nextCycle'] },
+      { file: 'src/domain/carry.ts', names: ['carryKind', 'carries', 'finalNumber', 'startReadBack'] },
+      { file: 'src/domain/startYear.ts', names: ['startPage', 'startPageText'] },
+      { file: 'src/domain/actions.ts', names: ['startNextCycle'] },
+      { file: 'src/domain/removal.ts', names: ['startOf', 'canUndoStart', 'undoStart', 'deleteCycle'] },
+    ],
+    tests: ['src/domain/startYear.test.ts', 'src/domain/journeys.test.ts'],
+    reqs: ['CARRY-GOALS', 'RESULTS'],
+    body: `
+**Which cycle everyone is in** (\`currentCycle\`): of the cycles not removed, the latest whose week 1 has begun (its start + 7 days, on or before today); if none has, the earliest. So the next year, set up during the wrap-up, opens for everyone on its week 1's Monday and never earlier, and a year nobody follows stays current after it ends (it has ended: rule “A year’s end”). A new workspace's only cycle is current from day one, in its week 0.
+
+**Before a cycle's week 1** (\`beforeStart\`) nothing is due, and the screens say when it starts: "2027 starts on Mon 4 Jan 2027, in 2 weeks. Nothing is due until then." ("next week" from 7 days before, "on Monday" in the last week before), with the first check-ins' date (week 1's review day).
+
+**What happens to each goal** (\`carryKind\`), in this order: it **stops** when its owner said so at the wrap-up, unless it finished anyway; a number goal whose plan runs past the year **keeps** its plan; it **finishes** when its result is Met or Met late, its last number has reached the target, every stage is done, or its owner called it done; otherwise it **carries** on. A goal with a limit never finishes: a limit is kept every year. Goals that carry on or keep their plan go into the next year; the rest stay in this one.
+
+**The read-back** (\`startReadBack\`) counts every live goal once, from \`carryKind\`, so what it says is what the start makes: wrapped up and carrying on (of them, keeping their plan), finishing, stopping; and not wrapped up yet (of them, carrying on as they are, and finishing). The four add up to the year's live goals.
+
+**Starting** (\`startNextCycle\`): admins only; from the day the wrap-up opens (or once the year has ended); once (a second start says who started it and when). The next cycle's week 0 is this one's last week, its length follows the calendar, and its name is the year's. The change that starts it keeps the goals it added, so it can be undone.
+
+**Undo** (\`canUndoStart\`, \`undoStart\`): admins, while nobody has used the new cycle: no check-in in it, no goal in it changed or added by a person, and no later cycle. Undo removes it as a deleted cycle is (in Recently removed for 30 days); starting again makes a new one, and the removed one can then never come back. Delete refuses a started cycle and points to Undo.`,
+    examples: [
+      { given: '2026 (week 0 from 22 December 2025, 53 weeks) and 2027 (week 0 from 28 December 2026): the current cycle on Monday 21 December 2026, Sunday 3 January 2027 and Monday 4 January 2027; and with 2026 alone on Monday 11 January 2027.', then: '2026, 2026, 2027; 2026', run: () => { const a = { id: 'a', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }, b = { id: 'b', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }; return `${['2026-12-21', '2027-01-03', '2027-01-04'].map((d) => currentCycle([a, b], at(d + 'T12:00:00Z'))!.name).join(', ')}; ${currentCycle([a], at('2027-01-11T12:00:00Z'))!.name}`; } },
+      { given: '2027 seen on Monday 21 December 2026.', then: '2027 starts on Mon 4 Jan 2027, in 2 weeks. Nothing is due until then. Your first check-ins are due Thu 7 Jan 2027.', run: () => beforeStartLine({ id: 'b', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }, at('2026-12-21T12:00:00Z'), true) ?? 'nothing' },
+      { given: 'Four 2026 goals: 4 → 40 pairs ending on 33; 0 → 70% whose last number is 72%; one called done; and 4 → 40 pairs its owner stopped at the wrap-up.', then: 'carry, finish, finish, stop', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const k = (g: Goal, cis: ReturnType<typeof checkIn>[], stop = false) => carryKind(g, { cycle: y, checkIns: cis, retro: stop ? { id: 'r', goalId: g.id, cycleId: 'y', result: 'missed', learned: 'x', next: 'stop', byId: 'p', at: '' } : null }).kind; return [k(metric(4, 40, 'straight', { id: 'a' }), [checkIn('a', 53, 33)]), k(metric(0, 70, 'straight', { id: 'b' }), [checkIn('b', 46, 72)]), k(metric(0, 95, 'straight', { id: 'c' }), [checkIn('c', 38, 95, { status: 'done' })]), k(metric(4, 40, 'straight', { id: 'd' }), [checkIn('d', 53, 33)], true)].join(', '); } },
+      { given: 'A goal kept at most 12.0% that ended inside its limit, and a number goal whose plan runs to week 66 of a 53-week year.', then: 'carry, keep', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; return [carryKind(RANGE, { cycle: y, checkIns: [checkIn('r', 53, 11)], retro: null }).kind, carryKind(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { cycle: y, checkIns: [], retro: null }).kind].join(', '); } },
+    ],
+    unclear: ['A goal nobody wrapped up follows the rule (it carries on unless it met its target): the owner can still stop it during the wrap-up. Removing the copy of a goal stopped after the start is round 3’s CY4 (recarry).'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */

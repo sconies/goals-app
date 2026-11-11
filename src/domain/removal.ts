@@ -13,7 +13,7 @@ import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './ask
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
-import type { Ask, Change, CheckIn, Comment, Decision, Goal, Person, Review, Snapshot } from './types';
+import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -388,8 +388,49 @@ export function deleteCycle(x: ActionContext, id: string): Commit {
   const c = full.cycles.find((v) => v.id === id && !v.removedAt);
   if (!c) no('There’s no cycle with that ID.');
   if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no('It’s the only cycle, so it stays.');
+  if (startOf(full, id)) no('Use Undo on Cycles: it also puts back what moved with the goals.');
   if (!cycleDeletable(full, id)) no('Check-ins have been posted in it, so it stays.');
   return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'removed', summary: `Deleted the cycle ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
+}
+
+/** The change that started a cycle from the wrap-up (it keeps what it added), if this cycle was made that way and not undone. */
+export function startOf(s: { changes: Change[] }, cycleId: string): Change | undefined {
+  if (s.changes.some((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'undone')) return undefined;
+  return s.changes.find((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'created' && !!c.undo);
+}
+
+/**
+ * Whether starting a cycle can still be undone (cycle-end rule 9): it was started from the wrap-up, and nobody has used
+ * it yet: no check-in in it, no goal in it changed or added by a person, and no later cycle.
+ */
+export function canUndoStart(full: { cycles: Pick<Cycle, 'id' | 'startDate' | 'removedAt'>[]; goals: Pick<Goal, 'id' | 'cycleId' | 'removedAt'>[]; checkIns: Pick<CheckIn, 'goalId' | 'removedAt'>[]; changes: Change[] }, cycleId: string): { ok: true } | { ok: false; why: string } {
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  const start = startOf(full, cycleId);
+  if (!c || !start) return { ok: false, why: 'it wasn’t started from the wrap-up' };
+  const ids = new Set(full.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+  const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
+  if (checkIns) return { ok: false, why: `${plural(checkIns, 'check-in is', 'check-ins are')} in it` };
+  const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
+  const changed = new Set([...ids].filter((id) => !made.has(id)));
+  for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId)) changed.add(ch.goalId);
+  if (changed.size) return { ok: false, why: `${plural(changed.size, 'goal in it has', 'goals in it have')} been changed` };
+  if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return { ok: false, why: 'a later cycle has been started' };
+  return { ok: true };
+}
+
+/**
+ * Admins: undo starting a cycle (cycle-end rule 9). The cycle is removed as a deleted one is (listed in Recently
+ * removed for 30 days); the year before is as it was. Starting again makes a new cycle, and then the removed one
+ * can never come back (restore refuses a second cycle with the same start).
+ */
+export function undoStart(x: ActionContext, cycleId: string): Commit {
+  if (!x.actor.admin) no('Only admins can undo the start of a cycle.');
+  const full = fullOf(x);
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  if (!c) no('There’s no cycle with that ID.');
+  const can = canUndoStart(full, cycleId);
+  if (!can.ok) no(`${c!.name} can’t be undone now: ${can.why}.`);
+  return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
 }
 
 /* ---------- imports and bulk edits ---------- */
