@@ -15,7 +15,7 @@ import { gzipSync } from 'node:zlib';
     and the first download carries only their index, src/help/lookup.ts: the entry and its ten preloads). */
 export const FIRST_DOWNLOAD_KB = 370;
 /** The real app's, at most: the first download and what src/main.tsx awaits before the first render with Supabase
-    configured (426 KB on 11 Nov 2026, late evening: 368 and the store's 5 and the client's 54). */
+    configured (428 KB on 11 Nov 2026, late evening: 369 and the store's 5 and the client's 54). */
 export const LIVE_FIRST_DOWNLOAD_KB = 430;
 /** The modules src/main.tsx imports, and awaits, before the real app's first render. */
 const LIVE_BEFORE_RENDER = ['src/adapters/supabase/goalsStore.ts'];

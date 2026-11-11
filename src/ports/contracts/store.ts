@@ -1,10 +1,16 @@
 /* The goals store's contract (backlog 8c): what any Store must do, whatever it keeps records in. Every adapter's test
    calls storeContract with a way to make one: the browser store, Supabase (on a stand-in client over real Postgres)
    and plain Postgres all pass it. Write a store for your own database and call it the same way; it is done when this
-   passes. */
+   passes.
+
+   A feature module's records (AS part 2, domain/records) are part of the contract: make the store with CONTRACT_MODULE
+   among the records it keeps and, on a database, run CONTRACT_MODULE_SQL first (the migration a module would bring).
+   The store must keep that module's rows whole, save them with the rest of a commit, and remove and restore them
+   with the goal they point to, without knowing what they are. */
 import { createToken, revokeToken, type ActionContext } from '../../domain/actions';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
 import type { Snapshot } from '../../domain/types';
+import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
 import { isStale, withExpectations, type Commit, type Store } from '../../data/store';
 
 const NOW = new Date('2026-10-30T12:00:00Z');
@@ -23,6 +29,26 @@ const ctx = (s: Snapshot): ActionContext => ({ snapshot: s, full: s, allGoals: s
 const note = (s: Snapshot, text: string): Commit => ({
   changes: [{ id: ids('chg'), at: NOW.toISOString(), actorId: s.people[0]!.id, goalId: s.goals[0]!.id, entity: 'note', entityId: ids('note'), action: 'noted', summary: 'Commented', diffs: [{ field: 'Comment', from: '—', to: text }] }],
 });
+
+/* ---------- a small module with records of its own, for the contract ---------- */
+
+/** A mark someone puts on a goal: the contract module's one record. */
+export interface Mark { id: string; goalId: string; text: string; at: string; removedAt?: string | null; removedBy?: string | null }
+const mark: RecordDef<Mark> = {
+  name: 'mark', key: 'marks', table: 'okr_contract_marks', removable: true,
+  toRow: (ws, m): DbRow => ({ workspace_id: ws, id: m.id, goal_id: m.goalId, text: m.text, at: m.at, ...(m.removedAt !== undefined ? { removed_at: m.removedAt, removed_by: m.removedBy ?? null } : {}) }),
+  fromRow: (r) => ({ id: r.id, goalId: String(r.goal_id), text: String(r.text), at: new Date(String(r.at)).toISOString(), ...(r.removed_at ? { removedAt: new Date(String(r.removed_at)).toISOString(), removedBy: String(r.removed_by) } : {}) }),
+};
+/** The contract's module: one record, pointing to a goal. */
+export const CONTRACT_MODULE: ModuleRecords = { module: 'contract', records: [mark] };
+/** Its table, as its migration would make it, in Faro's schema, and on the allowed list okr_write takes (migration 0039). */
+export const CONTRACT_MODULE_SQL = `
+  create table if not exists faro.okr_contract_marks (id text primary key, workspace_id text not null references faro.okr_workspaces (id), goal_id text not null references faro.okr_goals (id), text text not null, at timestamptz not null, removed_at timestamptz, removed_by text);
+  grant select, insert, update on faro.okr_contract_marks to anon;
+  insert into faro.module_tables (table_name, module, position) values ('okr_contract_marks', 'contract', 100) on conflict (table_name) do nothing;
+  create or replace view public.okr_contract_marks with (security_invoker = on) as select * from faro.okr_contract_marks;
+`;
+const marksOf = (s: Snapshot) => moduleRows<Mark>(s, 'contract', 'marks');
 
 export function storeContract(name: string, make: () => Promise<Store>) {
   describe(`the goals store contract: ${name}`, () => {
@@ -87,6 +113,31 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       expect(g.title).toBe(milestone.title);
       expect(g.kind === 'milestone' && g.stages.map((s) => s.id)).toEqual(milestone.kind === 'milestone' && milestone.stages.map((s) => s.id));
       await store.deleteWorkspace(other);
+    });
+
+    it('keeps a module’s records whole, saves them with a commit, and removes and restores them with what they point to', async () => {
+      const before = await store.load(ws);
+      const g = before.goals.at(-1)!;
+      const m: Mark = { id: ids('mark'), goalId: g.id, text: 'Kept as it was given, line\nbreaks and “quotes” too', at: NOW.toISOString() };
+      // Saved with the rest of one commit: the mark and its change-log entry together.
+      await store.commit(ws, { modules: { contract: { marks: [m] } }, changes: note(before, 'Marked').changes });
+      const saved = await store.load(ws);
+      expect(marksOf(saved)).toEqual([m]);
+      expect(saved.changes.some((c) => c.diffs[0]?.to === 'Marked')).toBe(true);
+      // A save of anything else leaves it as it is.
+      await store.commit(ws, note(saved, 'Something else'));
+      expect(marksOf(await store.load(ws))).toEqual([m]);
+      // Removed with the goal it points to, in one save; restored with it.
+      const by = before.people[0]!.id, at = NOW.toISOString();
+      await store.commit(ws, { goals: [{ ...g, removedAt: at, removedBy: by }], modules: { contract: { marks: [{ ...m, removedAt: at, removedBy: by }] } }, changes: [] });
+      const gone = await store.load(ws);
+      expect(gone.goals.find((x) => x.id === g.id)?.removedAt).toBeTruthy();
+      expect(marksOf(gone)).toEqual([{ ...m, removedAt: at, removedBy: by }]);
+      const removed = gone.goals.find((x) => x.id === g.id)!;
+      await store.commit(ws, { goals: [{ ...removed, removedAt: null, removedBy: null }], modules: { contract: { marks: [{ ...m, removedAt: null, removedBy: null }] } }, changes: [] });
+      const back = await store.load(ws);
+      expect(back.goals.find((x) => x.id === g.id)?.removedAt ?? null).toBeNull();
+      expect(marksOf(back).map((x) => ({ ...x, removedAt: x.removedAt ?? null, removedBy: x.removedBy ?? null }))).toEqual([{ ...m, removedAt: null, removedBy: null }]);
     });
 
     it('issues an AI assistant token once, never keeps its secret, and revokes it', async () => {

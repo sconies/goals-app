@@ -18,15 +18,16 @@ import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
-import { Research } from './screens/Research';
-import { Settings } from './screens/Settings';
 import { MotionLayer } from './ui/Count';
-import { MotionLab } from './ui/MotionLab';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
 // Screens a first visit never needs load when first opened, to keep the first download small (AX4; the bundle budget
 // is scripts/check-bundle.mjs).
+// Screens a first visit doesn't open load when they are opened (the bundle budget, scripts/check-bundle.mjs).
+const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
+const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
+const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
@@ -49,7 +50,7 @@ export function Routed() {
   return (
     <Shell>
       <MotionLayer />
-      <MotionLab />
+      <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
       <Suspense fallback={null}>

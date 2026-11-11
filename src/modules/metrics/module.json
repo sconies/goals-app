@@ -19,6 +19,20 @@
       "purpose": "Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked."
     }
   ],
+  "records": [
+    {
+      "name": "metric",
+      "table": "okr_metrics",
+      "key": "metrics",
+      "removable": true
+    },
+    {
+      "name": "metric link",
+      "table": "okr_goal_metrics",
+      "key": "metricLinks",
+      "removable": false
+    }
+  ],
   "aiTools": [
     "list_metrics",
     "get_metric",
@@ -29,15 +43,12 @@
   "help": [],
   "requirements": [],
   "journeys": [],
-  "elsewhere": [
-    "src/domain/metrics.ts",
-    "src/data/platformOrg/metrics.ts"
-  ],
+  "elsewhere": [],
   "rebuild": {
     "status": "outline",
-    "builds": "The metric library: a metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) defined once per workspace, and a goal’s link to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules.",
+    "builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s.",
     "entry": [
-      "The change log and undo (stage 2) take a new kind of record: a removal saves the records as changed, and Undo puts each back as it was just before.",
+      "The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.",
       "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."
     ],
     "exit": [
@@ -45,11 +56,12 @@
       "Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
       "A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
       "Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
-      "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move)."
+      "The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
+      "Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there."
     ],
     "gaps": [
       "No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
-      "No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.",
+      "No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/modules/metrics/rules.test.ts.",
       "Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
     ]
   },

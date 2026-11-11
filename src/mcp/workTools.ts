@@ -2,6 +2,7 @@
    wrap-ups and the next cycle, saved views, tokens and feedback, plus what needs them and the activity log. Each write
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
    change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
+import { MODULE_RECORDS } from '../core/records';
 import { levelIds } from '../domain/levels';
 import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
@@ -41,7 +42,7 @@ const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
 
-const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
+const ax = (ctx: McpContext): A.ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
 
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save(ctx: McpContext, c: Commit | null, done: string, nothing: string): Promise<ToolResult> {

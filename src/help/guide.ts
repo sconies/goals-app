@@ -675,7 +675,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
-        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
         'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',
@@ -698,7 +698,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.',
         'Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).',
-        'Then it says what next year starts with: the goals that carry on, the stages not done that come with them, any goal that loses its “Feeds into” because the goal above it finishes or stops, and when the first check-ins are due.',
+        'Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.',
+        'A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.',
+        'A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.',
         'Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.',
         'Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.',
         'Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from.',
