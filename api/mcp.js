@@ -11978,6 +11978,58 @@ var CORE_ARTICLES = [
 		]
 	},
 	{
+		id: "getting-around",
+		title: "Getting around",
+		summary: "Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.",
+		group: "start",
+		sections: [
+			{
+				heading: "Where you are",
+				list: [
+					"The browser’s tab says the page’s own name: a goal’s title, a review’s or a person’s name, “Change {goal}” while you edit it. So two goals open in two tabs are easy to tell apart.",
+					"One place in the menu is lit: Goals for a goal and its pages, Reviews for a goal you reach while walking a review, People for a person or a team. On a phone, the tab that holds it is lit, or More.",
+					"Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on."
+				]
+			},
+			{
+				heading: "Going back",
+				list: [
+					"Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none.",
+					"It goes back to the page you came from, the same as your browser’s Back, so Forward still works. Forms you passed through (an edit you saved, a check-in) are stepped over, by the link and by the browser’s Back alike.",
+					"Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to the review for a goal in its walk; to People, Teams or Help."
+				]
+			},
+			{
+				heading: "Leaving a form",
+				list: ["A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.", "“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it."]
+			},
+			{
+				heading: "An address that leads nowhere",
+				list: ["An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words."]
+			}
+		],
+		routes: [],
+		screens: [],
+		reqs: [
+			"NAV-WHERE",
+			"NAV-BACK",
+			"NAV-FORMS"
+		],
+		keywords: [
+			"back",
+			"back link",
+			"title",
+			"tab",
+			"where am i",
+			"lit",
+			"close",
+			"draft",
+			"not found",
+			"navigation"
+		],
+		related: ["settings", "finding"]
+	},
+	{
 		id: "settings",
 		title: "Settings",
 		summary: "About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace.",
@@ -11993,7 +12045,8 @@ var CORE_ARTICLES = [
 					"You, first: your name, job title, team and whether you’re an admin or a member here, with Your page (your page in People). An admin changes your name, job title or team; Settings names the admins.",
 					"Recording: one line, whether it’s on here, leading to Workspace, Privacy for what is and isn’t recorded.",
 					"Your MCP tokens: the tokens that act as you, which you can revoke. An admin makes them, on Workspace, Access or from your page.",
-					"Detail pages have a Back link to where you came from.",
+					"Under the title, links to each part of Settings (You, Appearance, Navigation, Your MCP tokens, Leave) stay at the top as you scroll, with the part you’re in lit.",
+					"Settings is a place of its own, so it has no back link: the menu takes you anywhere from here.",
 					"Leave, at the very end: leave the workspace that’s open. Someone takes over your goals and open asks first, and your history stays; an admin can bring you back for 30 days. The only admin can’t leave until someone else is an admin, and is told so."
 				]
 			},
@@ -12543,6 +12596,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "pages-name-themselves",
+		date: "2026-11-11",
+		title: "Each page has its own name",
+		points: [
+			"A goal’s browser tab says the goal’s name. Goals is called Goals on every tab.",
+			"One back link on each page, which agrees with your browser’s Back button. A place’s first page, such as Settings, has none.",
+			"A form has one way out, in words: “Close and keep the draft”, or “Close without saving”, which asks first if you typed something.",
+			"Settings has links to its parts under the title, with the one you’re in lit."
+		],
+		articles: ["getting-around", "settings"]
+	},
 	{
 		id: "goals-filters-in-words",
 		date: "2026-11-10",

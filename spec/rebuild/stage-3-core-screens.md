@@ -25,6 +25,7 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 - One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.
 - One list bar on every list (requirement `LIST-BAR`): the search, then the count line, the filter line and what found nothing in [finding things](../core/rules/finding.md)’ words; the list’s search and filters in the address, a choice adding a history entry. The server pages the list (R4).
 - The menu, the lit item and a page’s name as three rules of the viewer and the address ([navigation](../core/rules/navigation.md)), drawn by the shell: a module adds a menu item in a group, names its pages from their thing, and fills places on a goal’s, a person’s and a team’s page.
+- Where you are (requirements `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`): the browser’s title is the page’s own name by rule 2; one back link per page by rule 4, which goes back in the tab’s history (stepping over forms) so it agrees with the browser’s Back, and up to the parent when there is no history; a form’s one closing control in words, asking first before throwing typed words away.
 
 ## Exit criteria
 

@@ -164,3 +164,19 @@
   .side .side-brand { flex-direction: column; }
   .side .nav.sub { display: none; }
 }
+
+/* ---------- Section links (navigation spec 2.5): under a page's title, sticking as it scrolls, the one in view lit ---------- */
+.section-links { position: sticky; top: 0; z-index: 5; display: flex; gap: var(--s1); margin: 0 calc(-1 * var(--s2)) var(--s4); padding: var(--s2); overflow-x: auto; scrollbar-width: none; background: var(--bg); border-bottom: 1px solid var(--line-2); }
+.section-links::-webkit-scrollbar { display: none; }
+.section-links a { flex: none; display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--s3); border-radius: 6px; color: var(--fg-2); font-size: 0.875rem; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.section-links a:hover { background: var(--surface-3); }
+.section-links a[aria-current="true"] { background: var(--accent-wash); color: var(--accent-text); }
+.settings-page .settings-block, .settings-page .ai-block { scroll-margin-top: 64px; }
+.settings-page h2[id] { scroll-margin-top: 64px; }
+@media (max-width: 760px) { .section-links { top: 69px; } .section-links a { min-height: 44px; } }
+
+/* ---------- Leaving a form (navigation spec 2.5): one control, top right, with words ---------- */
+.focus-top .form-close { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; white-space: nowrap; }
+.focus-top .ci-top-actions { margin-left: auto; }
+.focus-top .ci-top-actions .form-close { margin-left: 0; }
+@media (max-width: 420px) { .focus-top .form-close { padding: 0 8px; font-size: 0.8125rem; } }

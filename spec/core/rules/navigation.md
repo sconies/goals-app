@@ -9,11 +9,11 @@ Which places the menu lists for a viewer, where a module’s items go, which one
 
 **The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
-**The lit item** is the one whose address the page is at or under: Home only at `/`; Goals for every address under `/goals` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+**The lit item** (one at most): a goal opened in a review's walk (`?review=`) lights Reviews; Goals at a saved view's exact address lights that view instead of Goals; otherwise the item whose place the address is in: Home only at `/`; Check-in for a check-in and the table; Goals for every goal, its edit and print pages, and the wrap-up (`/retro`); New goal for New goal and its steps; People for People and Teams; Workspace for its sections but not set-up (`/workspace/new`); Help for Help and What's new; a module's item for its pages. `/ready`, `/research`, set-up and a page not found light nothing. **On a phone** the tab that holds the lit row is lit; a row in More lights More.
 
-**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address "Page not found". So six goals opened in turn give six titles.
 
-**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".
+**The back link** ("‹ {where}", above the title) is never on a place's first page: Home, Check-in, Goals, Reviews, People, Teams, Activity, Data, Workspace, Settings, Help, Feedback, and a module's own. Elsewhere it goes back to the last earlier page in the tab that isn't a form (check-in, the table, New goal, an edit, set-up, a wrap-up) and isn't this page (in a review's walk, the walk's other goals count as this page), named in the navigation's words: Home, Goals, "your goals" on Mine, a saved view's name, a goal's title, a review's name. Pressing it goes back that many entries, so the browser's Forward still works, and the browser's Back onto a form you left steps over it the same way. Arriving from outside, it goes to the page's parent: the goal a goal feeds (or Goals), the goal for its edit or print page, the review for a goal in its walk and for its summary, Reviews, People, Teams, Help (for an article and What's new), Check-in for the table, Workspace for a section, a module's first page for its other pages; otherwise Home.
 
 ## Worked examples
 
@@ -23,15 +23,18 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without. | `home checkin goals reviews \| people module:metrics activity data \| new \| workspace settings help feedback / home goals reviews \| people module:metrics activity data \| new \| workspace settings help feedback` |
 | The phone’s tabs for someone with a goal to check in on, and for someone without. | `home checkin goals reviews / home goals reviews people` |
-| The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research. | `goals, new, people, help, none` |
-| The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”. | `Watching, Reviews, Wrap up, Lead time for changes` |
+| The lit item at /goals/lead-mq, /goals/lead-mq?review=weekly, /goals/new, /retro, /teams/cicd, /whats-new and /research. | `goals, reviews, new, goals, people, help, none` |
+| The page’s name at /goals?scope=watching, /goals/G-1, its edit page, /goals/G-1?review=weekly, /check-in/G-1, /workspace/access, a module’s page for the metric “Lead time for changes”, and an unknown goal. | `Goals / Lead time for changes / Change Lead time for changes / Lead time for changes · Platform leadership weekly / Check in: Lead time for changes / Access · Workspace / Lead time for changes (metric) / Goal not found` |
+| The back link: Goals on Mine → Lead time for changes; Goals → a goal → Edit → Save → the goal; a new tab on Merge-to-deploy time (which feeds Lead time for changes); a new tab on Lead time for changes; Settings from a goal; Home → Rhea’s page; a new tab on Rhea’s page. | `‹ your goals (1 back) / ‹ Goals (3 back) / ‹ Lead time for changes (/goals/G-1) / ‹ Goals (/goals) / none / ‹ Home (1 back) / ‹ People (/people)` |
 
 ## Where it lives
 
-- [src/domain/navigation.ts](../../../src/domain/navigation.ts): `CORE_NAV`, `GROUP_NAMES`, `menuGroups`, `menuRows`, `phoneTabs`, `moreFor`, `menuViews`, `isLit`, `litItem`, `pageName`, `placeName`
+- [src/domain/navigation.ts](../../../src/domain/navigation.ts): `CORE_NAV`, `GROUP_NAMES`, `menuGroups`, `menuRows`, `phoneTabs`, `moreFor`, `menuViews`, `isLit`, `litItem`, `litTab`, `pageName`, `placeName`, `backTo`, `FIRST_PAGES`, `FORM`
 
 ## Requirements
 
+- `NAV-WHERE`: Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit.
+- `NAV-BACK`: One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews.
 
 ## Tests that check it
 
@@ -41,6 +44,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the menu, the lit item and a page’s name (AR2, NV1) › places a module’s items by their group, in the order they register
 - the menu, the lit item and a page’s name (AR2, NV1) › gives a phone four tabs and puts the rest in More, in its groups
 - the menu, the lit item and a page’s name (AR2, NV1) › lists up to four saved views: pinned A to Z, then yours, the latest opened first
-- the menu, the lit item and a page’s name (AR2, NV1) › lights one item for an address
-- the menu, the lit item and a page’s name (AR2, NV1) › names a page
-- the menu, the lit item and a page’s name (AR2, NV1) › says where a Back link leads
+- the menu, the lit item and a page’s name (AR2, NV1) › lights one item for an address (rule 3)
+- the menu, the lit item and a page’s name (AR2, NV1) › lights the tab that holds the lit row, or More
+- the menu, the lit item and a page’s name (AR2, NV1) › names a page (rule 2)
+- the menu, the lit item and a page’s name (AR2, NV1) › gives six goals six names
+- the menu, the lit item and a page’s name (AR2, NV1) › says where a Back link leads, in the navigation’s words
+- the menu, the lit item and a page’s name (AR2, NV1) › gives the back link (rule 4)

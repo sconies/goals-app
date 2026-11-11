@@ -72,53 +72,55 @@ export interface ModuleNavItem { id: string; to: string; label: string; group?: 
 /** Every row of the menu, in order (the groups flattened). */
 export const menuRows = (g: MenuGroups) => [...g.work, ...g.lookup, ...g.make, ...g.you];
 
-/** Whether a core item is the one lit for this address. On a phone without a Watching tab, Watching lights Goals. */
-export function isLit(id: NavId, path: string, tabs?: NavId[]): boolean {
+/** Whether a core item is the one lit for this address (rule 3), before a saved view or a review walk is considered. */
+export function isLit(id: NavId, path: string): boolean {
   const to = CORE_NAV[id].to;
   if (id === 'home') return path === '/';
-  if (id === 'goals') return (path.startsWith('/goals') && path !== '/goals/new') || (path === '/watching' && !!tabs && !tabs.includes('watching'));
+  if (id === 'new') return path === '/goals/new' || path.startsWith('/goals/new/');
+  if (id === 'goals') return (/^\/goals(\/|$)/.test(path) && !isLit('new', path)) || path === '/watching' || /^\/retro(\/|$)/.test(path);
   // People and Teams are one place (app redesign WR1).
   if (id === 'people') return /^\/(people|teams)(\/|$)/.test(path);
   if (id === 'help') return /^\/(help|whats-new)(\/|$)/.test(path);
   if (id === 'checkin') return /^\/(check-in|quick-check-in)(\/|$)/.test(path);
-  if (id === 'workspace') return /^\/workspace(\/|$)/.test(path) && !path.startsWith('/workspace/new');
+  if (id === 'workspace') return /^\/workspace(\/|$)/.test(path) && !/^\/workspace\/new(\/|$)/.test(path);
   return path === to || path.startsWith(to + '/');
 }
 
-/** The one item lit for an address, among these (core ids, or "module:<id>" with its address). Null when none is. */
-export function litItem(path: string, items: string[], modules: ModuleNavItem[] = [], tabs?: NavId[]): string | null {
+/** A saved view under Goals, as the menu matches it: its id and its address's parameters. */
+export interface LitView { id: string; params: string }
+
+/**
+ * Rule 3. The one row lit for an address, among these (core ids, or "module:<id>"), or null: a goal opened in a
+ * review's walk lights Reviews; Goals at a saved view's exact address lights that view ("view:<id>") instead of Goals;
+ * otherwise the row whose place the address is in. `viewKey` puts Goals' parameters in the order a view keeps them.
+ */
+export function litItem(path: string, search: string, items: string[], modules: ModuleNavItem[] = [], views: LitView[] = [], viewKey: (p: URLSearchParams) => string = (p) => p.toString()): string | null {
+  const sp = new URLSearchParams(search);
+  if (sp.get('review') && /^\/goals\/[^/]+$/.test(path) && items.includes('reviews')) return 'reviews';
+  if (path === '/goals' && items.includes('goals')) {
+    const v = views.find((x) => x.params === viewKey(sp));
+    if (v) return `view:${v.id}`;
+  }
   for (const id of items) {
     if (id.startsWith('module:')) {
       const m = modules.find((x) => `module:${x.id}` === id);
       if (m && (path === m.to || path.startsWith(m.to + '/'))) return id;
-    } else if (isLit(id as NavId, path, tabs)) return id;
+    } else if (isLit(id as NavId, path)) return id;
   }
   return null;
+}
+
+/** On a phone: the tab that holds the lit row, or "more" when More does. */
+export function litTab(lit: string | null, tabs: string[]): string | null {
+  if (!lit) return null;
+  if (lit.startsWith('view:')) return tabs.includes('goals') ? 'goals' : 'more';
+  return tabs.includes(lit) ? lit : 'more';
 }
 
 /** Where you are under Goals, as the menu says it: Mine, Watching, or none. */
 export type GoalsAt = 'mine' | 'watching' | 'all' | `view:${string}` | null;
 
-/**
- * A page's name, for the phone's top bar and the browser's title: a module's page names itself; Watching and Mine
- * under Goals; the places without a menu item; then the menu item that is lit; then what a focused task is.
- */
-export function pageName(path: string, at: GoalsAt, items: NavId[], moduleName?: string | null): string {
-  if (moduleName) return moduleName;
-  if (at === 'watching') return 'Watching';
-  if (at === 'mine') return 'Mine';
-  const fixed: Record<string, string> = { '/settings': 'Settings', '/feedback': 'Feedback', '/whats-new': 'What’s new' };
-  if (fixed[path]) return fixed[path]!;
-  if (path.startsWith('/help')) return 'Help';
-  const lit = items.find((id) => isLit(id, path));
-  if (lit) return CORE_NAV[lit].label;
-  if (path.startsWith('/retro')) return 'Wrap up';
-  if (path.startsWith('/check-in') || path.startsWith('/quick-check-in')) return 'Check-in';
-  if (path.startsWith('/research')) return 'Research';
-  return 'Goals';
-}
-
-/** Names looked up by id, for a Back link's words. */
+/** Names looked up by id, for a page's name and a Back link's words. Each gives null for something that isn't there. */
 export interface PlaceNames {
   goal(id: string): string | null;
   review(id: string): string | null;
@@ -127,27 +129,126 @@ export interface PlaceNames {
   article(id: string): string | null;
   person(id: string): string | null;
   team(id: string): string | null;
+  /** A Workspace section's name (Access, Cycles…). */
+  section?(id: string): string | null;
+  /** The running year or quarter's name, for Wrap up. */
+  cycle?(): string | null;
+  /** A module's page names itself (its fixed title, or from its thing: "Lead time for changes (metric)"). */
+  module?(path: string): string | null;
+  /** The goal a goal feeds, for a Back link up the tree. */
+  parent?(goalId: string): string | null;
 }
 
-/** Where a Back link leads, said the way the menu says it: "Back to Reviews", "Back to Lead time for changes". */
+/** New goal's steps, as their address names them (the onboarding spec). */
+const NEW_GOAL_STEPS: Record<string, string> = { measure: 'how it’s measured' };
+
+/** The places named the same wherever they are. */
+const FIXED: Record<string, string> = {
+  '/': 'Home', '/goals': 'Goals', '/watching': 'Goals', '/goals/new': 'New goal', '/check-in': 'Check-in', '/quick-check-in': 'Check-in, all in one table',
+  '/reviews': 'Reviews', '/reviews/new': 'New review', '/people': 'People', '/teams': 'Teams', '/activity': 'Activity', '/data': 'Data',
+  '/workspace': 'Workspace', '/workspace/new': 'Set up a workspace', '/settings': 'Settings', '/help': 'Help', '/whats-new': 'What’s new',
+  '/feedback': 'Feedback', '/research': 'Research', '/ready': 'Ready to start',
+};
+
+/**
+ * Rule 2. A page's name, for the browser's title ("{name} · {workspace} · Faro"), the phone's top bar and Find's
+ * "Opened lately": a module's page names itself; the fixed places by name (Goals is "Goals" on every tab); a goal, a
+ * review, a person, a team and a Help article by their own name, with what the page does to it ("Change {goal}",
+ * "Check in: {goal}", "{goal}, to print", "{goal} · {review}" in a review's walk); a Workspace section as
+ * "{section} · Workspace"; something that isn't there as "Goal not found" (and so on); any other address "Page not found".
+ */
+export function pageName(path: string, search: string, names: PlaceNames): string {
+  const sp = new URLSearchParams(search);
+  const mod = names.module?.(path);
+  if (mod) return mod;
+  if (FIXED[path]) return FIXED[path]!;
+  const m = (re: RegExp) => re.exec(path)?.slice(1).map((x) => decodeURIComponent(x));
+  let x: string[] | undefined;
+  if ((x = m(/^\/goals\/new\/([^/]+)$/))) return NEW_GOAL_STEPS[x[0]!] ? `New goal: ${NEW_GOAL_STEPS[x[0]!]}` : 'New goal';
+  if ((x = m(/^\/goals\/([^/]+)(\/edit|\/print)?$/))) {
+    const t = names.goal(x[0]!);
+    if (!t) return 'Goal not found';
+    if (x[1] === '/edit') return `Change ${t}`;
+    if (x[1] === '/print') return `${t}, to print`;
+    const r = sp.get('review');
+    const rn = r ? names.review(r) : null;
+    return rn ? `${t} · ${rn}` : t;
+  }
+  if ((x = m(/^\/check-in\/([^/]+)(?:\/[^/]+)?$/))) { const t = names.goal(x[0]!); return t ? `Check in: ${t}` : 'Goal not found'; }
+  if ((x = m(/^\/retro\/([^/]+)$/))) { const t = names.goal(x[0]!); return t ? `Wrap up: ${t}` : 'Goal not found'; }
+  if (path === '/retro') { const c = names.cycle?.(); return c ? `Wrap up ${c}` : 'Wrap up'; }
+  if ((x = m(/^\/reviews\/([^/]+)(\/edit|\/summary|\/print)?$/))) {
+    const r = names.review(x[0]!);
+    if (!r) return 'Review not found';
+    return x[1] === '/edit' ? `Change ${r}` : x[1] === '/summary' ? `${r}: summary` : x[1] === '/print' ? `${r}, to print` : r;
+  }
+  if ((x = m(/^\/people\/([^/]+)$/))) return names.person(x[0]!) ?? 'Person not found';
+  if ((x = m(/^\/teams\/([^/]+)$/))) return names.team(x[0]!) ?? 'Team not found';
+  if ((x = m(/^\/help\/([^/]+)$/))) return names.article(x[0]!) ?? 'Help';
+  if ((x = m(/^\/workspace\/([^/]+)$/))) { const s = names.section?.(x[0]!); return s ? `${s} · Workspace` : 'Workspace'; }
+  return 'Page not found';
+}
+
+/** Where a Back link leads, said the way the menu says it: "Reviews", "Lead time for changes", "your goals". */
 export function placeName(path: string, names: PlaceNames): string {
   const [p = '/', q = ''] = path.split('?');
   const sp = new URLSearchParams(q);
   const review = sp.get('review');
   if (review && p.startsWith('/goals/')) return names.review(review) ?? 'the review';
-  if (p === '/') return 'Home';
   const scope = sp.get('scope') ?? sp.get('show');
   if (p === '/goals') return names.view(sp) ?? (scope === 'mine' ? 'your goals' : scope === 'watching' ? 'Watching' : 'Goals');
-  const goal = /^\/goals\/([^/]+)$/.exec(p);
-  if (goal) return names.goal(goal[1]!) ?? 'the goal';
-  const rev = /^\/reviews\/([^/]+)$/.exec(p);
-  if (rev) return names.review(rev[1]!) ?? 'the review';
-  const who = /^\/people\/([^/]+)$/.exec(p);
-  if (who) return names.person(decodeURIComponent(who[1]!)) ?? 'People';
-  const team = /^\/teams\/([^/]+)$/.exec(p);
-  if (team) return names.team(decodeURIComponent(team[1]!)) ?? 'Teams';
-  const help = /^\/help\/([^/]+)$/.exec(p);
-  if (help) return names.article(help[1]!) ?? 'Help';
-  const known: Record<string, string> = { '/people': 'People', '/teams': 'Teams', '/feedback': 'Feedback', '/watching': 'Watching', '/reviews': 'Reviews', '/activity': 'Activity', '/data': 'Data', '/workspace': 'Workspace', '/settings': 'Settings', '/retro': 'Wrap up', '/research': 'Research', '/help': 'Help', '/whats-new': 'What’s new' };
-  return known[p] ?? 'the last page';
+  if (p === '/watching') return 'Watching';
+  const name = pageName(p, q, names);
+  return /not found$/.test(name) ? 'the last page' : name;
+}
+
+/** A place's first page: no Back link there (navigation spec, 2.5). */
+export const FIRST_PAGES = ['/', '/check-in', '/goals', '/watching', '/reviews', '/people', '/teams', '/activity', '/data', '/workspace', '/settings', '/help', '/feedback'];
+
+/** Forms: passed through on the way, never gone back to (each has its one closing control instead). */
+export const FORM = /^\/(check-in|quick-check-in|import|workspace\/new)(\/|$)|^\/goals\/new(\/|$)|^\/goals\/[^/]+\/edit$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/;
+
+/** What a Back link says and does: go back `steps` entries in the tab (0: open `to` instead). */
+export interface BackTo { label: string; to: string; steps: number }
+
+/** Earlier pages of this tab, oldest first, up to and including this one. */
+export type Trail = { path: string }[];
+
+/**
+ * Rule 4. The back link: none on a place's first page (or a module's); else the last earlier page in this tab that isn't
+ * a form and isn't this page (a goal walked in a review counts as the review's walk, so its other goals are stepped
+ * over), named by rule 2 in the navigation's words, `steps` back; else the page's parent: the goal it feeds or Goals for
+ * a goal, the goal for its edit or print page, the review for a goal in its walk and for its summary, Reviews for a
+ * review, People or Teams, Help for an article and What's new, Check-in for the table, Workspace for a section.
+ */
+export function backTo(path: string, search: string, trail: Trail, names: PlaceNames, firsts: string[] = []): BackTo | null {
+  if (FIRST_PAGES.includes(path) || firsts.includes(path)) return null;
+  const review = new URLSearchParams(search).get('review');
+  const goal = /^\/goals\/([^/]+)$/.exec(path)?.[1];
+  const same = (p: string) => {
+    const [pp = '', q = ''] = p.split('?');
+    if (pp === path) return true;
+    return !!review && /^\/goals\/[^/]+$/.test(pp) && new URLSearchParams(q).get('review') === review;
+  };
+  const now = trail.length - 1;
+  let j = now - 1;
+  while (j >= 0 && (FORM.test(trail[j]!.path.split('?')[0]!) || same(trail[j]!.path))) j--;
+  if (j >= 0) return { label: placeName(trail[j]!.path, names), to: trail[j]!.path, steps: now - j };
+  const up = (to: string, label: string | null, fallback: string): BackTo => ({ label: label ?? fallback, to, steps: 0 });
+  if (goal && review) return up(`/reviews/${review}`, names.review(review), 'the review');
+  if (goal) { const parent = names.parent?.(decodeURIComponent(goal)); return parent ? up(`/goals/${parent}`, names.goal(parent), 'Goals') : up('/goals', 'Goals', 'Goals'); }
+  let x: RegExpExecArray | null;
+  if ((x = /^\/goals\/([^/]+)\/(edit|print)$/.exec(path))) return up(`/goals/${x[1]}`, names.goal(decodeURIComponent(x[1]!)), 'the goal');
+  if ((x = /^\/reviews\/([^/]+)\/(summary|print|edit)$/.exec(path))) return up(`/reviews/${x[1]}`, names.review(decodeURIComponent(x[1]!)), 'the review');
+  if (/^\/reviews\/[^/]+$/.test(path)) return up('/reviews', 'Reviews', 'Reviews');
+  if (/^\/people\/[^/]+$/.test(path)) return up('/people', 'People', 'People');
+  if (/^\/teams\/[^/]+$/.test(path)) return up('/teams', 'Teams', 'Teams');
+  if (/^\/help\/[^/]+$/.test(path) || path === '/whats-new') return up('/help', 'Help', 'Help');
+  if (path === '/quick-check-in') return up('/check-in', 'Check-in', 'Check-in');
+  if (/^\/retro\/[^/]+$/.test(path)) return up('/retro', names.cycle?.() ? `Wrap up ${names.cycle!()}` : 'Wrap up', 'Wrap up');
+  if (/^\/workspace\/[^/]+$/.test(path)) return up('/workspace', 'Workspace', 'Workspace');
+  // A module's page under its first page (a metric under Metrics).
+  const first = firsts.find((f) => path.startsWith(f + '/'));
+  if (first) return up(first, pageName(first, '', names), 'the last page');
+  return up('/', 'Home', 'Home');
 }

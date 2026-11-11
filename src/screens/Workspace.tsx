@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -51,6 +51,12 @@ export function useSections(): WorkspaceSection[] {
   const app = useApp();
   const { screens } = useModules();
   return sectionsFor(app.viewer, CORE, screens.flatMap((m) => m.sections ?? []));
+}
+
+/** Every section's name, whoever is looking (a page's name, navigation rule 2): the core's, then the modules'. */
+export function useSectionNames(): Record<string, string> {
+  const { screens } = useModules();
+  return useMemo(() => Object.fromEntries([...CORE, ...screens.flatMap((m) => m.sections ?? [])].map((x) => [x.id, x.label])), [screens]);
 }
 
 interface Ctx { narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }

@@ -1633,6 +1633,8 @@ journey('U30', ['HONEST-NUMBERS', 'GOAL-MAP', 'DRAFTS'], 'Numbers you can trust,
   await see(p, 'Picked up where you left off', 'a refreshed review set-up does not say it kept the draft');
   h.set('progress', (await name().inputValue()) === 'Research draft review', 'the review name was lost on refresh');
   await p.getByRole('button', { name: 'Close without saving' }).click();
+  // Something was typed, so it asks first (navigation spec 2.5).
+  await p.getByRole('dialog', { name: 'Close without saving?' }).getByRole('button', { name: 'Close without saving' }).click();
   await p.goto(url('/reviews/new'));
   h.set('progress', (await name().inputValue()) === '', 'closing without saving kept the draft');
   await p.context().close();
@@ -2588,6 +2590,136 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   h.set('progress', true);
   await p.context().close();
 }, ['logged', 'one-action']);
+
+journey('U69', ['NAV-WHERE'], 'A page says where it is: each address has its own name in the browser’s title and lights one place (Goals is “Goals” on every tab; a goal in a review lights Reviews); six goals opened in turn give six titles', 1, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'rhea'));
+  const ws = ' · Example: Platform Engineering · Faro';
+  // [address, the title's name, the lit item: its label in the sidebar, or the phone's tab (More for a row in More)]
+  const PAGES = [
+    ['/', 'Home', 'Home', 'Home'],
+    ['/goals?scope=all', 'Goals', 'Goals', 'Goals'],
+    ['/goals?scope=watching', 'Goals', 'Goals', 'Goals'],
+    ['/goals/ns-lead', 'Lead time for changes', 'Goals', 'Goals'],
+    ['/goals/ns-lead/print', 'Lead time for changes, to print', null, null],
+    ['/goals/ns-lead?review=weekly', 'Lead time for changes · Platform leadership weekly', 'Reviews', 'Reviews'],
+    ['/check-in/ns-lead', 'Check in: Lead time for changes', null, null],
+    ['/reviews/weekly', 'Platform leadership weekly', 'Reviews', 'Reviews'],
+    ['/people/rhea', 'Rhea Kapoor', 'People', 'More'],
+    ['/teams/cicd', 'CI/CD', 'People', 'More'],
+    ['/workspace/cycles', 'Cycles · Workspace', 'Workspace', 'More'],
+    ['/activity', 'Activity', 'Activity', 'More'],
+    ['/settings', 'Settings', 'Settings', 'More'],
+    ['/whats-new', 'What’s new', 'Help', 'More'],
+    ['/goals/no-such-goal', 'Goal not found', 'Goals', 'Goals'],
+    ['/no-such-page', 'Page not found', '', ''],
+  ];
+  const wrong = [];
+  for (const [addr, name, side, tab] of PAGES) {
+    await p.goto(url(addr));
+    await p.waitForFunction((t) => document.title.startsWith(t + ' · '), name, { timeout: 5000 }).catch(() => {});
+    const title = await p.title();
+    if (title !== name + ws) wrong.push(`${addr}: title “${title}”`);
+    const want = phone ? tab : side;
+    if (want === null) continue; // a focused task: no menu
+    const lit = phone ? await p.locator('.tabbar [aria-current="page"]').allInnerTexts() : await p.locator('.side [aria-current="page"]').allInnerTexts();
+    const got = lit.map((t) => t.replace(/\d+/g, '').trim().split('\n')[0].trim()).join(',');
+    if (got !== want) wrong.push(`${addr}: lit “${got}”, want “${want}”`);
+  }
+  h.set('entry', !wrong.length, wrong.join('; '));
+  h.set('attention', !wrong.length, wrong.join('; '));
+  await h.checkpoint('titles');
+  // Six goals, six titles.
+  const titles = new Set();
+  for (const g of ['ns-lead', 'lead-mq', 'cost-rightsize', 'mttr-oncall', 'ci-docker', 'rel-cfr']) { await p.goto(url('/goals/' + g)); await p.waitForFunction(() => !document.title.startsWith('Goals'), null, { timeout: 5000 }).catch(() => {}); titles.add(await p.title()); }
+  h.set('finish', titles.size === 6, `six goals gave ${titles.size} titles: ${[...titles].join(' | ')}`);
+  h.set('progress', true); h.set('errors', true); h.set('parity', true); h.set('one-action', true);
+  await p.context().close();
+}, ['logged']);
+
+journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page', 7, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const back = p.locator('main .backlink').first();
+  const says = async () => ((await back.getAttribute('aria-label', { timeout: 5000 }).catch(() => '')) || '').trim();
+  const wrong = [];
+  // A new tab on a goal that feeds another: up the tree; on one that feeds nothing: Goals; on a person: People.
+  for (const [addr, want] of [['/goals/lead-mq', 'Back to Merge-to-deploy time (median)'], ['/goals/ns-lead', 'Back to Goals'], ['/people/rhea', 'Back to People'], ['/help/goals', 'Back to Help'], ['/reviews/weekly', 'Back to Reviews']]) {
+    await p.goto(url(addr));
+    await back.waitFor({ timeout: 5000 }).catch(() => {});
+    if ((await says()) !== want) wrong.push(`${addr} in a new tab: “${await says()}”, want “${want}”`);
+  }
+  for (const addr of ['/', '/goals?scope=all', '/settings', '/reviews', '/activity']) {
+    await p.goto(url(addr));
+    await p.locator('main h1, main .goals-sr-title').first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+    if (await p.locator('main .backlink').count()) wrong.push(`${addr} is a first page but has “${await says()}”`);
+  }
+  h.set('entry', !wrong.length, wrong.join('; '));
+  await h.checkpoint('new tabs');
+  // Goals → a goal → Change → Save: the link says Goals, and the browser's Back goes there too.
+  await p.goto(url('/goals?scope=all'));
+  await navTo(h, p, 'Home');
+  await navTo(h, p, 'Goals');
+  await p.waitForURL(/\/goals(\?|$)/);
+  const link = p.locator('main a[href*="/goals/ns-lead"]').first();
+  await link.waitFor({ timeout: 8000 });
+  await h.click(link);
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
+  h.set('finish', /^Back to (Goals|your goals)$/.test(await says()), `a goal opened from Goals says “${await says()}”`);
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole('link', { name: 'Change this goal' }));
+  await p.waitForURL(/\/edit/);
+  await p.getByRole('button', { name: 'Save changes' }).click();
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
+  await p.locator('.goal-bar').first().waitFor();
+  await p.waitForTimeout(300);
+  const after = await says();
+  await p.goBack();
+  await p.waitForURL(/\/goals(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('errors', /^Back to (Goals|your goals)$/.test(after) && new URL(p.url()).pathname === '/demo/goals', `after saving, the link said “${after}” and the browser’s Back went to ${p.url()}`);
+  // The browser's Forward returns to the goal; the link goes back the same way.
+  await p.goForward();
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('progress', /\/goals\/ns-lead(\?|$)/.test(p.url()), `Forward went to ${p.url()}`);
+  await h.click(back);
+  await p.waitForURL(/\/goals(\?|$)/, { timeout: 5000 }).catch(() => {});
+  await p.goForward();
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('parity', /\/goals\/ns-lead(\?|$)/.test(p.url()), `after the back link, Forward went to ${p.url()}`);
+  h.set('attention', true); h.set('one-action', true);
+  await p.context().close();
+}, ['logged']);
+
+journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has one closing control with words (“Close and keep the draft” or “Close without saving”); closing a review’s set-up with something typed asks first, and Keep editing keeps it', 3, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const wrong = [];
+  const closers = () => p.locator('.focus-top').first().locator('button, a').filter({ hasText: /^Close|^Cancel/ }).or(p.locator('.focus-top').first().locator('.iconbtn[aria-label^="Close"]'));
+  for (const [addr, want] of [['/check-in/ci-docker', 'Close and keep the draft'], ['/reviews/new', 'Close without saving'], ['/reviews/weekly/edit', 'Close without saving'], ['/workspace/new', 'Close and keep the draft'], ['/goals/new', null], ['/goals/ns-lead/edit', null]]) {
+    await p.goto(url(addr));
+    await p.locator('.focus-top').first().waitFor({ timeout: 8000 }).catch(() => {});
+    const n = await closers().count();
+    const words = n ? (await closers().first().innerText()).trim() || (await closers().first().getAttribute('aria-label')) : '';
+    if (n !== 1) wrong.push(`${addr}: ${n} closing controls`);
+    else if (want && words !== want) wrong.push(`${addr}: “${words}”, want “${want}”`);
+  }
+  h.set('entry', !wrong.length, wrong.join('; '));
+  h.set('one-action', true);
+  await h.checkpoint('closers');
+  // Something typed in a review's set-up: closing asks first; Keep editing keeps it; Close without saving leaves.
+  await p.goto(url('/reviews/new'));
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Thursday walk-through');
+  await h.click(p.getByRole('button', { name: 'Close without saving' }));
+  const ask = p.getByRole('dialog', { name: 'Close without saving?' });
+  await ask.waitFor({ timeout: 3000 }).catch(() => {});
+  h.set('errors', await ask.isVisible() && /What you typed here will be lost\./.test(await ask.innerText()), 'closing with something typed does not ask first');
+  await ask.getByRole('button', { name: 'Keep editing' }).click();
+  h.set('progress', (await p.getByLabel('Name', { exact: true }).inputValue()) === 'Thursday walk-through', 'Keep editing lost what was typed');
+  await h.click(p.getByRole('button', { name: 'Close without saving' }));
+  await ask.getByRole('button', { name: 'Close without saving' }).click();
+  await p.waitForURL(/\/reviews(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('finish', /\/reviews(\?|$)/.test(p.url()), `Close without saving went to ${p.url()}`);
+  h.set('attention', true); h.set('parity', true);
+  await p.context().close();
+}, ['logged']);
 
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));

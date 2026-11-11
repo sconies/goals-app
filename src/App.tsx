@@ -18,7 +18,6 @@ import { movedTo } from './domain/directory';
 import { Feedback } from './screens/Feedback';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
-import { Empty } from './ui/bits';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
@@ -122,10 +121,8 @@ function NotFound() {
   return (
     <div className="page narrow not-found">
       <h1 className="title-xl">Page not found</h1>
-      <Empty title="There’s nothing at this address">
-        <span className="muted">The link may be old, or mistyped. Everything is still reachable from Home and the sidebar.</span>
-        <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn" to="/help">Help</Link></div>
-      </Empty>
+      <p className="muted">There’s nothing at this address. The link may be old, or mistyped.</p>
+      <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn ghost" to="/help">Help</Link></div>
     </div>
   );
 }
