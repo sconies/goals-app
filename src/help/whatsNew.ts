@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-levels',
+    date: '2026-11-11',
+    title: 'Imports ask instead of refusing',
+    points: [
+      'A name one letter out is a question: “Did you mean Platform?”',
+      'The same problem on 14 rows is said once, and one answer covers them all.',
+      'Numbers that look wrong are asked about before saving.',
+    ],
+    articles: ['import', 'columns'],
+  },
+  {
     id: 'field-table',
     date: '2026-11-11',
     title: 'What every column needs, in one place',

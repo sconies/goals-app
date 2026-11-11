@@ -6,7 +6,7 @@
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
 import * as M from '../domain/metrics';
-import { planChanges, type Via } from '../domain/changeset';
+import { planChanges, type Answers, type Via } from '../domain/changeset';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
@@ -37,8 +37,8 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
  */
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
-  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; apply?: boolean }) =>
-    planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, full: x.full }),
+  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean }) =>
+    planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full }),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),

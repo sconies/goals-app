@@ -141,7 +141,9 @@ describe('bulk changes', () => {
     const v = String(Math.ceil(planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks)));
     const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track', Why: 'Recounted from the review tool.' })] }));
     expect(cs.counts.replaced).toBe(1);
-    expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Tariq Haddad’s check-in for week 6/);
+    // Fine, and said on the change (C18): one row replacing someone else's check-in isn't a question.
+    expect(cs.issues.find((i) => i.kind === 'replaces')).toMatchObject({ level: 'note', message: expect.stringMatching(/Replaces Tariq Haddad’s check-in for week 6/) });
+    expect(cs.commit).not.toBeNull();
   });
 
   it('reads milestone stages in words', () => {

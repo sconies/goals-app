@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { readChanges } from '../../app/spreadsheet';
 import { saveAndSay } from '../../app/files';
-import { describe, type Tables } from '../../domain/changeset';
+import { describe, type Answers, type Tables } from '../../domain/changeset';
 import { andList, requiredLine } from '../../domain/columns';
 import { templateWorkbook, workbook } from '../../domain/export';
 import type { ReadTables } from '../../domain/sheets';
@@ -24,9 +24,11 @@ export function Import() {
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  // Answers to the questions the preview asks, by group: kept when a corrected file is chosen, so they still apply.
+  const [answers, setAnswers] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
-  const cs = useMemo(() => (tables ? app.previewChanges(tables, 'spreadsheet', reason, confirmed) : null), [tables, reason, confirmed, app]);
+  const cs = useMemo(() => (tables ? app.previewChanges(tables, 'spreadsheet', reason, confirmed, answers) : null), [tables, reason, confirmed, answers, app]);
   // A file read and its changes shown: the import flow's middle step (src/help/flows.ts).
   useMark(tables ? 'import.read' : null);
 
@@ -97,7 +99,7 @@ export function Import() {
         </>
       )}
 
-      {cs && <Preview cs={cs} name={`${name} · ${sheetsLine}`} reason={reason} setReason={setReason} onConfirm={() => setConfirmed(true)} busy={busy} onApply={() => void apply()} onAgain={() => { setRead(null); setReason(''); setConfirmed(false); if (file.current) file.current.value = ''; setTimeout(() => file.current?.click(), 0); }} />}
+      {cs && <Preview cs={cs} name={`${name} · ${sheetsLine}`} reason={reason} setReason={setReason} onConfirm={() => setConfirmed(true)} answers={answers} onAnswer={(id, a) => setAnswers((x) => { const next = { ...x }; if (a) next[id] = a; else delete next[id]; return next; })} busy={busy} onApply={() => void apply()} onAgain={() => { setRead(null); setReason(''); setConfirmed(false); if (file.current) file.current.value = ''; setTimeout(() => file.current?.click(), 0); }} />}
     </div>
   );
 }

@@ -54,25 +54,34 @@ describe('people with the same name', () => {
   });
 
   it('can be added by spreadsheet, with a note', () => {
-    const cs = planChanges(base({ people: [rec({ Name: admin.name, Email: 'another.one@example.com', Team: teamName(admin.teamId!) })] }));
+    // Someone here already has the name: asked, once (C9). "Someone new" adds them; "the same person" gives them the email.
+    const t = { people: [rec({ Name: admin.name, Email: 'another.one@example.com', Team: teamName(admin.teamId!) })] };
+    const cs = planChanges(base(t));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(cs.issues.find((i) => i.severity === 'note')?.message).toMatch(/is already here. That’s fine: their email tells you apart/);
-    expect(cs.counts.newPeople).toBe(1);
+    expect(cs.groups).toEqual([expect.objectContaining({ kind: 'same-person', level: 'check', title: expect.stringMatching(/looks like .*who is already here/) })]);
+    expect(cs.commit).toBeNull();
+    const added = planChanges({ ...base(t), answers: { [cs.groups[0]!.id]: { choice: 'new' } } });
+    expect(added.counts.newPeople).toBe(1);
+    expect(added.commit).not.toBeNull();
+    const same = planChanges({ ...base(t), answers: { [cs.groups[0]!.id]: { choice: 'same' } } });
+    expect(same.counts).toMatchObject({ newPeople: 0, people: 1 });
   });
 });
 
 describe('goals with the same title', () => {
   const g = s.goals.find((x) => x.cycleId === cycle.id && !x.removedAt && x.key)!;
 
-  it('are allowed with a warning on create', () => {
+  it('are allowed with a note when the team differs, and asked about when it is the same (C10)', () => {
     expect(sameTitleNote(g.title.toUpperCase() + ' ', null, s.goals, teamName)).toBe(`Another goal is called “${g.title}” (${g.key}, ${teamName(g.teamId)}). That’s allowed; Faro shows each one’s key beside the title so people can tell them apart.`);
     expect(sameTitleNote(g.title, g.id, [g], teamName)).toBeNull();
     const owner = s.people.find((p) => p.id === g.ownerId)!;
     const other = s.teams.find((t) => t.id !== g.teamId)!;
-    expect(planChanges({ ...base({ goals: [rec({ Goal: g.title, 'Owner email': owner.email ?? '', Start: '1', Target: '2' })] }), actor: admin }).issues[0]!.message).toMatch(/already exists\. Put its key in the Key column/);
-    const cs = planChanges({ ...base({ goals: [rec({ Goal: g.title, 'Owner email': owner.email ?? '', Team: other.name, Start: '1', Target: '2' })] }), actor: admin });
+    const asked = planChanges({ ...base({ goals: [rec({ Goal: g.title, 'Owner email': owner.email ?? '', Unit: 'days', Start: '1', Target: '2' })] }), actor: admin });
+    expect(asked.issues.find((i) => i.kind === 'same-goal')).toMatchObject({ level: 'check', message: expect.stringMatching(/is already here .*Is this a new goal, or the same one\?/) });
+    expect(asked.commit).toBeNull();
+    const cs = planChanges({ ...base({ goals: [rec({ Goal: g.title, 'Owner email': owner.email ?? '', Team: other.name, Unit: 'days', Start: '1', Target: '2' })] }), actor: admin });
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(cs.issues.find((i) => i.severity === 'note')?.message).toMatch(/Another goal is called/);
+    expect(cs.issues.find((i) => i.kind === 'same-name')?.message).toMatch(/Another goal is called/);
   });
 
   it('show their key (or team) beside the title, and only when another goal has it', () => {
