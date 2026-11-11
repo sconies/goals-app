@@ -21,6 +21,58 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'check-in-asks',
+    date: '2026-11-11',
+    title: 'Faro asks about a number that looks wrong',
+    points: [
+      'Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.',
+      'The same number as last week asks whether you measured it again.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'cant-open-yet',
+    date: '2026-11-11',
+    title: 'Plainer words when you can’t open a workspace',
+    points: [
+      'If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.',
+      'Nothing of the workspace shows until you can open it; ask an admin there to add you.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
+    points: [
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
+    ],
+    articles: ['finding', 'settings'],
+  },
+  {
+    id: 'check-in-one-way',
+    date: '2026-11-11',
+    title: 'Checking in again, or correcting',
+    points: [
+      'A second check-in in the same week is now compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+      'Checking in again adds a check-in beside the first; correcting one replaces it and keeps your reason with it.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'start-prepares',
+    date: '2026-11-11',
+    title: 'Starting next year doesn’t move anyone early',
+    points: [
+      'An admin can set next year up as soon as the wrap-up opens. Everyone stays in this year until its last day; next year opens on its first Monday.',
+      'Before starting, you see what will carry on, finish and stop, in counts that add up to every goal. Afterwards Cycles offers Undo, until someone uses the new year.',
+      'A goal that met its target finishes instead of carrying on.',
+      'Before a year’s first week, Home says when it starts and that nothing is due until then.',
+    ],
+    articles: ['start-next-year', 'workspace-cycles'],
+  },
+  {
     id: 'mcp-goal-scopes',
     date: '2026-11-11',
     title: 'Your AI assistant finds goals the way your Goals tabs do',

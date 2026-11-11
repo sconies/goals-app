@@ -22,7 +22,8 @@ module.exports = {
       if (await p.getByRole('button', { name: 'Something changed' }).isVisible().catch(() => false)) fail('check-in: 12.5 moved on past the number');
       await input.fill('1500');
       await p.waitForTimeout(200);
-      const far = await text(p, '#value-msg');
+      // An unlikely number is a Check (CK2): its question is in the block, not a hint.
+      const far = await text(p, '.level-check');
       if (!/far outside this goal’s plan \(52 to 24 hours\)\. Is 1,500 right\?/.test(far)) fail(`check-in: 1500 hours isn’t asked about, with its thousands grouped (“${far}”)`);
       await input.fill('a12');
       await p.getByRole('button', { name: 'Continue' }).click();

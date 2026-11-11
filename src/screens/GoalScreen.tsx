@@ -236,16 +236,14 @@ function GoalView({ goal }: { goal: Goal }) {
   const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <HistorySection key="history" goal={goal} focusComposer={tabComments && !alias} />;
-  // Modules' sections (the goal.sections place), before Activity.
-  const modules = !review && <Place key="modules" name="goal.sections" goal={goal} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
   const evidence = review && (
     <section key="evidence" className="block review-evidence" aria-labelledby="g-chart" data-part="Chart and recent check-ins"><h2 className="block-title" id="g-chart">Chart and recent check-ins</h2>{chart}<CheckInRows goal={goal} limit={4} /></section>
   );
 
-  const main = review ? [evidence] : [whySection, chart, feeding, quarters, modules, activity, about];
+  const main = review ? [evidence] : [whySection, chart, feeding, quarters, activity, about];
   const side = review ? [talked] : [contextLine, nextSteps, talked];
-  const phone = review ? [evidence, talked] : [contextLine, nextSteps, whySection, chart, talked, feeding, quarters, modules, activity, about];
+  const phone = review ? [evidence, talked] : [contextLine, nextSteps, whySection, chart, talked, feeding, quarters, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">
@@ -1058,6 +1056,8 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         {goal.key && <><dt>Key</dt><dd><span className="gkey-plain">{goal.key}</span> <span className="muted">· it never changes, and /goals/{goal.key} opens it</span></dd></>}
         {history.length > 0 && goal.kind === 'metric' && <><dt>Plan changes</dt><dd><ul className="plan-history">{history.map((v, i) => <li key={i}>Until week {v.untilWeek}: {fmt(v.plan.start, goal)} → {fmt(v.plan.target, goal)}</li>)}<li>Since: {fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)}</li></ul></dd></>}
       </dl>
+      {/* Modules' sections (the goal.sections place: what measures it, say) are part of About, after its facts (goal spec, 5). */}
+      <Place name="goal.sections" goal={goal} />
       {goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
       <p className="small">How the status is worked out: <Link className="linkish" to="/help/status">{WORD_OF.on}, {lower(STATUS.risk)} and {lower(STATUS.off)}, explained</Link>.</p>
       {canEdit && !goal.stoppedAt && <p className="about-change" id="change-goal"><Link className="linkish" to={`/goals/${goal.id}/edit`}>Change this goal</Link></p>}

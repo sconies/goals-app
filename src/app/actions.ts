@@ -6,7 +6,8 @@
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
 import * as M from '../domain/metrics';
-import { planChanges, type Via } from '../domain/changeset';
+import { planChanges, postCheckIn, type PostMode, type Via } from '../domain/changeset';
+import type { Draft } from '../domain/checkin';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
@@ -39,6 +40,9 @@ export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; apply?: boolean }) =>
     planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, full: x.full }),
+  /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
+  postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) =>
+    postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),
@@ -90,6 +94,7 @@ export const ACTIONS = {
   removeTeam: (x: RunContext, i: { teamId: string; moveTo?: string | null }) => A.removeTeam(x, i.teamId, i.moveTo),
   startNextCycle: (x: RunContext, _i: Record<string, never>) => A.startNextCycle(x),
   deleteCycle: (x: RunContext, i: { cycleId: string }) => R.deleteCycle(x, i.cycleId),
+  undoStart: (x: RunContext, i: { cycleId: string }) => R.undoStart(x, i.cycleId),
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),

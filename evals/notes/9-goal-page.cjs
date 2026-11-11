@@ -243,6 +243,9 @@ module.exports = {
         const before = await p.locator('.goal-bar .bar-status').innerText();
         await p.locator('.goal-bar').getByRole('link', { name: /^Check in for week \d+$/ }).click();
         await p.getByLabel('This week’s value').fill('10');
+        // 10 may be far from last week's number, which the check-in asks about (CK2): it is meant.
+        const meant = p.locator('.level-check .level-actions button').first();
+        if (await meant.isVisible().catch(() => false)) await meant.click();
         const cont = p.getByRole('button', { name: 'Continue' });
         if (await cont.isVisible().catch(() => false)) await cont.click();
         const still = p.getByRole('button', { name: /^Still true/ });

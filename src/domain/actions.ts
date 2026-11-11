@@ -6,7 +6,8 @@ import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
 import type { Lookup } from './changes';
-import { nextCycle, RESULT_LABEL, wrapUpOpen } from './cycle';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, nextCycleShape, RESULT_LABEL, wrapUpOpenOn } from './cycle';
+import { startReadBack } from './carry';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
@@ -288,7 +289,12 @@ export const MIN_LEARNED = 10;
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['result']; learned: string; next: Retro['next'] }): Commit {
   if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can wrap it up.');
-  if (!wrapUpOpen(x.cycle, x.week)) no(`Wrap-ups open in the last two weeks of the cycle (from week ${x.cycle.weeks - 1}).`);
+  // One test for when a wrap-up can be saved, the page's too: from the day it opens until the day it closes (cycle-end rule 1).
+  const today = new Date(x.now);
+  if (!wrapUpOpenOn(x.cycle, today)) {
+    const d = cycleDates(x.cycle);
+    no(cycleState(x.cycle, today) === 'closed' ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+  }
   if (v.learned.trim().length < MIN_LEARNED) no('Say what was learned, in a sentence (10 characters or more).');
   const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
   const retro: Retro = { id: before?.id ?? x.newId('retro'), goalId: goal.id, cycleId: x.cycle.id, result: v.result, learned: v.learned.trim(), next: v.next, byId: x.actor.id, at: x.now };
@@ -300,15 +306,38 @@ export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['resu
   return { retros: [retro], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] };
 }
 
-/** Admins: start the next cycle with the goals that carry on. */
+/**
+ * Admins: set up the next cycle with the goals that carry on (cycle-end rule 6). It can be started from the day this
+ * cycle's wrap-up opens, and only once; it opens for everyone on its own week 1's Monday (`currentCycle`), so starting
+ * it early moves nobody. Its change keeps what it added, so it can be undone until someone uses it (removal undoStart).
+ */
 export function startNextCycle(x: ActionContext): { commit: Commit; name: string } {
   if (!x.actor.admin) no('Only admins can start the next cycle.');
-  if (!wrapUpOpen(x.cycle, x.week)) no(`The next cycle can start in the last two weeks of this one (from week ${x.cycle.weeks - 1}).`);
+  const today = new Date(x.now);
+  const full = x.full ?? x.snapshot;
+  const state = cycleState(x.cycle, today);
+  if (state === 'before' || state === 'running') no(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+  const later = laterCycle(full.cycles ?? [], x.cycle);
+  if (later) {
+    const made = full.changes.find((c) => c.entity === 'cycle' && c.entityId === later.id && c.action === 'created');
+    const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
+    no(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made!.at.slice(0, 10))}` : ''}.`);
+  }
   const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: () => x.newId('goal') }, x.now);
-  const stopped = x.snapshot.goals.length - next.goals.length;
+  const rb = startReadBack({ cycle: x.cycle, next: { name: next.cycle.name, firstDay: cycleDates(next.cycle).firstDay, weeks: next.cycle.weeks }, goals: x.snapshot.goals, checkIns: x.snapshot.checkIns, retros: x.snapshot.retros ?? [] });
+  const finish = rb.finish + rb.openFinish;
+  const parts = [`${rb.carried} ${rb.carried === 1 ? 'goal carries' : 'goals carry'} on`, ...(finish ? [`${finish} finish`] : []), ...(rb.stop ? [`${rb.stop} stop`] : [])];
   return {
     name: next.cycle.name,
-    commit: { cycles: [next.cycle], goals: next.goals, changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created', summary: `Started ${next.cycle.name}: ${next.goals.length} ${next.goals.length === 1 ? 'goal carries' : 'goals carry'} on${stopped ? `, ${stopped} stopped` : ''}`, diffs: [{ field: 'Cycle', from: x.cycle.name, to: next.cycle.name }] }] },
+    commit: {
+      cycles: [next.cycle], goals: next.goals,
+      changes: [{
+        id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created',
+        summary: `Started ${next.cycle.name}: ${parts.join(', ')}`, diffs: [{ field: 'Cycle', from: x.cycle.name, to: next.cycle.name }],
+        // What the start added, so Undo can take it away again (removal undoStart).
+        undo: { goals: next.goals.map((g) => ({ id: g.id, before: null })), checkIns: [], people: [], requests: [] },
+      }],
+    },
   };
 }
 

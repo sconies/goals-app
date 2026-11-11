@@ -118,7 +118,16 @@ function SectionLinks() {
     work?.addEventListener('scroll', pick, { passive: true });
     return () => { window.removeEventListener('scroll', pick); work?.removeEventListener('scroll', pick); };
   }, []);
-  useEffect(() => { document.querySelector<HTMLElement>(`.section-links a[href="#${lit}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }, [lit]);
+  // Keep the lit link in view by moving the row sideways only, when it overflows. Never scrollIntoView: the row is sticky,
+  // and the page's scroll-padding would pull the whole window back up on every change (build review of #113).
+  useEffect(() => {
+    const row = document.querySelector<HTMLElement>('.section-links');
+    const a = row?.querySelector<HTMLElement>(`a[href="#${lit}"]`);
+    if (!row || !a || row.scrollWidth <= row.clientWidth) return;
+    const left = a.offsetLeft - row.offsetLeft, right = left + a.offsetWidth;
+    if (left < row.scrollLeft) row.scrollTo?.({ left });
+    else if (right > row.scrollLeft + row.clientWidth) row.scrollTo?.({ left: right - row.clientWidth });
+  }, [lit]);
   return (
     <nav className="section-links" aria-label="On this page">
       {SECTIONS.map(([id, label]) => (

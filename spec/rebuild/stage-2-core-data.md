@@ -33,6 +33,7 @@ Every core record stored and changed safely, and the one way many changes come i
 
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
+- References across workspaces: a rebuild refuses a save to one workspace whose rows point at another’s records (an owner, team, cycle or parent goal, a check-in’s goal). Faro’s database checks only each row’s own workspace (migration 0038), so Faro can’t show it; R1’s membership is how the server knows.
 - The spreadsheet columns the engine reads are listed in `docs/export-format.md`, which is not in the kit.
 - The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so).
 - No conformance rows for change sets yet, so there is nothing for a harness to score.

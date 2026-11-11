@@ -12,7 +12,7 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, YES_WORDS,
   type Words,
@@ -20,6 +20,7 @@ import {
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, planQuestion, replanned, validateGoal, type GoalDraft } from './goal';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
+import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
 import { checkInsFor } from './status';
@@ -31,8 +32,19 @@ import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, P
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
-export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup';
-export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up' };
+export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup' | 'form';
+/** `form` is the check-in screens' own post (CK1): it is no import, so its changes carry no Via mark. */
+export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up', form: 'Check-in' };
+
+/**
+ * How a check-in posted from a screen meets the week's (check-in spec, rule 13): `new` is refused when the week already
+ * has one; `again` adds a second beside it; `correct` replaces the week's newest, with a reason, for any week.
+ */
+export type PostMode = 'new' | 'again' | 'correct';
+/** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
+export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
+/** Why a check-in is corrected or added later, in a sentence (rule 13). */
+export const MIN_CORRECT_REASON = 10;
 /** What changes through MCP were marked before backlog 10a (9 Nov): still read as MCP, never written. */
 export const VIA_MCP_BEFORE = 'AI assistant (MCP)';
 /** The Via mark every change through MCP carries ("via MCP"), on top of its own diffs. */
@@ -94,6 +106,8 @@ export interface ChangeInput {
   mode?: 'update' | 'create';
   /** The whole workspace, for what a row's Action reaches past this cycle (domain/removal). */
   full?: Snapshot;
+  /** Check-ins posted from a screen, judged by the same loop as a sheet's rows (rule 13). */
+  posts?: CheckInPost[];
 }
 
 /* ---------- reading files ---------- */
@@ -615,6 +629,74 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const imported = new Map<string, CheckIn[]>();
   // Oldest first, so each week is judged with the weeks before it.
   rows.sort((a, b) => (goalFor(a.r)?.id ?? '').localeCompare(goalFor(b.r)?.id ?? '') || (parseNumber(val(a.r, 'week')) ?? 0) - (parseNumber(val(b.r, 'week')) ?? 0));
+  // How one check-in is judged and written, whether a sheet's row or a screen's post (rule 13): one way to save.
+  type Judged = { g: Goal; w: number; row: number; existing: CheckIn | null; ctx: CheckIn[]; draft: Draft; post?: CheckInPost; again?: boolean; reason?: string };
+  const judge = ({ g, w, row, existing, ctx, draft, post, again, reason = '' }: Judged): void => {
+    // A row that says what's already there is left alone: history that hasn't changed isn't judged again. Every column
+    // that can be changed is compared, so a change to any of them counts.
+    if (existing && sameCheckIn(existing, draft, g)) {
+      if (post) { err('Check-ins', row, g.title, `Nothing is different from what week ${w} already says.`); return; }
+      unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
+    }
+    // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
+    const removing = removals.find((x) => x.g.id === g.id);
+    if (removing) { err('Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
+    if (!create && !canChange(g)) { err('Check-ins', row, g.title, notYours(g)); return; }
+    // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
+    const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
+    const open = unanswered(asked, draft.answers);
+    if (open.length) { err('Check-ins', row, g.title, `${open[0]!.question} Answer it first.`); return; }
+    // A week before the plan was changed is judged against the plan that applied then.
+    const asOf: Goal = goalAsOf(g, w);
+    const e = evaluate(asOf, cycle, w, draft, ctx);
+    // Setting up from another workspace's export, its history is a record: a past week whose account the new plan would
+    // ask more of (a cause and a why) is taken as it was written, as long as it says what every check-in must (a path
+    // back when the call is behind, a reason when the call is better than the numbers). Its number has to be a number.
+    const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === 'reason-behind' || c === 'reason-ahead' || c === 'target' || c === 'path' || c === 'greener-why')
+      ? asWritten(asOf, w, draft, e, actor.id, now, 'probe') : null;
+    const asRecorded = !!recorded && keepsTheRules(recorded);
+    if (asRecorded) note('Check-ins', row, g.title, `Week ${w} is taken as it was recorded.`);
+    if (!e.canPost && !asRecorded) {
+      // The same codes the check-in screens read, said in the spreadsheet's own column names.
+      const hint: Record<Missing, string> = {
+        value: 'a Value', 'value-not-number': 'a number in Value', 'value-precision': 'a Value at the goal’s decimal places', 'value-impossible': 'a possible Value',
+        'greener-why': `Why greener (the call is ${lower(FLAG.greener)})`,
+        'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
+        path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
+        'story-unchanged': MISSING_TEXT['story-unchanged'],
+        target: MISSING_TEXT.target,
+      };
+      // A number that isn't one, or has more decimal places than the goal keeps, gets the same words as on screen.
+      // A number that can't be used gets the same words as on screen: the one number check (deep review U10).
+      const typedValue = g.kind !== 'milestone' && e.codes[0] && e.codes[0] !== 'value' && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
+      err('Check-ins', row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
+      return;
+    }
+    // A correction from a screen keeps the time and the lateness of what it replaces: it is never an on-time check-in of
+    // its own, and never takes one away (rule 12).
+    const keeps = post?.mode === 'correct' && existing;
+    const backfilled = keeps ? !!existing.backfilled : w < week;
+    const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
+    const at = keeps ? new Date(existing.postedAt) : backfilled && due.toISOString() < now ? due : new Date(now);
+    const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
+    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}) };
+    const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
+    if (!ch) { unchanged++; return; }
+    if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
+    ch.diffs.push(...answeredDiffs(asked, draft.answers));
+    if (post?.mode === 'correct') {
+      ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
+      ch.diffs.unshift({ field: 'Why corrected', from: '—', to: reason });
+    }
+    if (existing && existing.authorId !== actor.id && !post) warn('Check-ins', row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? 'someone'}’s check-in for week ${w}.`);
+    ch.at = now;
+    if (backfilled && !post) ch.summary += ' (loaded later)';
+    ciBefore.set(c.id, existing);
+    ciOut.push(c);
+    imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
+    changes.push(ch);
+    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
+  };
   for (const { r, row } of rows) {
     if (blankRow(r)) continue;
     const g = goalFor(r);
@@ -663,7 +745,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const call: Status | null = callW.code;
     const causeW = has(r, 'cause') ? word(CAUSE_WORDS, val(r, 'cause')) : { code: existing?.cause ?? null };
     if (causeW.problem) { err('Check-ins', row, g.title, causeW.problem); continue; }
-    const recW = has(r, 'recovery') ? word(RECOVERY_WORDS, val(r, 'recovery')) : { code: existing?.pathToGreen?.state ?? null };
+    // Where the owner is with recovery: the row's word, else the old record's, but only when the row gives no week either.
+    // A row that gives "Back on plan by week" is a plan, so the week is kept (K6: a correction took the old state and lost it).
+    const givesWeek = has(r, 'back on plan by week') && !!val(r, 'back on plan by week');
+    const recW = has(r, 'recovery') ? word(RECOVERY_WORDS, val(r, 'recovery')) : { code: givesWeek ? null : existing?.pathToGreen?.state ?? null };
     if (recW.problem) { err('Check-ins', row, g.title, recW.problem); continue; }
     const pick = (col: string, was: string | null | undefined) => (has(r, col) ? val(r, col) : (was ?? '').trim());
     const byRaw = has(r, 'back on plan by week') ? val(r, 'back on plan by week') : '';
@@ -677,54 +762,24 @@ export function planChanges(input: ChangeInput): ChangeSet {
       ptgWhat: pick('path to green', existing?.pathToGreen?.what), ptgBy: by, ptgState: recW.code ?? 'plan', needs: pick('needs', existing?.pathToGreen?.needs),
       next: has(r, 'next step') ? val(r, 'next step') : has(r, 'next') ? val(r, 'next') : (existing?.next ?? '').trim(), dataFlagged: false,
     };
-    // A row that says what's already there is left alone: history that hasn't changed isn't judged again. Every column
-    // that can be changed is compared, so a change to any of them counts.
-    if (existing && sameCheckIn(existing, draft, g)) { unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); continue; }
-    // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
-    const removing = removals.find((x) => x.g.id === g.id);
-    if (removing) { err('Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); continue; }
-    if (!create && !canChange(g)) { err('Check-ins', row, g.title, notYours(g)); continue; }
-    // A week before the plan was changed is judged against the plan that applied then.
-    const asOf: Goal = goalAsOf(g, w);
-    const e = evaluate(asOf, cycle, w, draft, ctx);
-    // Setting up from another workspace's export, its history is a record: a past week whose account the new plan would
-    // ask more of (a cause and a why) is taken as it was written, as long as it says what every check-in must (a path
-    // back when the call is behind, a reason when the call is better than the numbers). Its number has to be a number.
-    const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === 'reason-behind' || c === 'reason-ahead' || c === 'target' || c === 'path' || c === 'greener-why')
-      ? asWritten(asOf, w, draft, e, actor.id, now, 'probe') : null;
-    const asRecorded = !!recorded && keepsTheRules(recorded);
-    if (asRecorded) note('Check-ins', row, g.title, `Week ${w} is taken as it was recorded.`);
-    if (!e.canPost && !asRecorded) {
-      // The same codes the check-in screens read, said in the spreadsheet's own column names.
-      const hint: Record<Missing, string> = {
-        value: 'a Value', 'value-not-number': 'a number in Value', 'value-precision': 'a Value at the goal’s decimal places', 'value-impossible': 'a possible Value',
-        'greener-why': `Why greener (the call is ${lower(FLAG.greener)})`,
-        'reason-behind': `a Cause and a Why of ${MIN_REASON} characters or more (it’s behind plan)`, 'reason-ahead': `a Cause and a Why of ${MIN_REASON} characters or more (it’s ahead of plan)`,
-        path: `a Path to green and, if it’s a plan, Back on plan by week (after week ${w}, by week ${cycle.weeks})`,
-        'story-unchanged': MISSING_TEXT['story-unchanged'],
-        target: MISSING_TEXT.target,
-      };
-      // A number that isn't one, or has more decimal places than the goal keeps, gets the same words as on screen.
-      // A number that can't be used gets the same words as on screen: the one number check (deep review U10).
-      const typedValue = g.kind !== 'milestone' && e.codes[0] && e.codes[0] !== 'value' && VALUE_CODES.includes(e.codes[0]) ? valueProblem(draft.value, null, g.unit, g)?.text ?? null : null;
-      err('Check-ins', row, g.title, typedValue ? `Week ${w}: ${typedValue}` : `Week ${w} needs ${e.codes.map((c) => hint[c]).join('; ')}.`);
-      continue;
-    }
-    const backfilled = w < week;
-    const due = new Date(Date.parse(weekDate(cycle, w) + 'T09:00:00Z') + cycle.reviewDay * 86_400_000);
-    const at = backfilled && due.toISOString() < now ? due : new Date(now);
-    const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
-    const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}) };
-    const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
-    if (!ch) { unchanged++; continue; }
-    if (existing && existing.authorId !== actor.id) warn('Check-ins', row, g.title, `Replaces ${people.get(existing.authorId)?.name ?? 'someone'}’s check-in for week ${w}.`);
-    ch.at = now;
-    if (backfilled) ch.summary += ' (loaded later)';
-    ciBefore.set(c.id, existing);
-    ciOut.push(c);
-    imported.set(g.id, [...(imported.get(g.id) ?? []), c]);
-    changes.push(ch);
-    items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
+    judge({ g, w, row, existing, ctx, draft });
+  }
+  // Check-ins posted from a screen (rule 13): the same judgement, with the mode saying how each meets its week's.
+  for (const [i, p] of (input.posts ?? []).entries()) {
+    const row = i + 1;
+    const g = work.get(p.goalId) ?? s.goals.find((x) => x.id === p.goalId);
+    if (!g) { err('Check-ins', row, p.goalId, 'That goal no longer exists. Reload to see the latest.'); continue; }
+    const w = p.week;
+    if (!Number.isInteger(w) || w < 1) { err('Check-ins', row, g.title, 'Check-ins start in week 1; week 0 is the start of the year.'); continue; }
+    if (w > week) { err('Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
+    const own = checkInsFor(g, s.checkIns);
+    const newest = own.filter((c) => c.week === w).pop() ?? null;
+    if (p.mode !== 'correct' && w < week) { err('Check-ins', row, g.title, `Week ${w} has passed. Correct it, or add it, with a reason.`); continue; }
+    if (p.mode === 'new' && newest) { err('Check-ins', row, g.title, `Week ${w} already has a check-in. Check in again, or correct it.`); continue; }
+    const reason = (p.reason ?? '').trim();
+    if (p.mode === 'correct' && reason.length < MIN_CORRECT_REASON) { err('Check-ins', row, g.title, `Say why, in a sentence, so anyone reading week ${w} later knows.`); continue; }
+    const ctx = [...own.filter((c) => c.week !== w), ...(imported.get(g.id) ?? [])];
+    judge({ g, w, row, existing: p.mode === 'correct' ? newest : null, ctx, draft: p.draft, post: p, again: p.mode === 'again' && !!newest, reason });
   }
 
   /* ---------- asks: a goal's latest check-in raises, continues or withdraws its ask, as in the app (domain/asks) ---------- */
@@ -802,7 +857,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
   }
 
-  for (const ch of changes) ch.diffs.push({ field: 'Via', from: '—', to: VIA_LABEL[via] });
+  // A check-in posted from its own screen is no import: no Via mark, and no import to undo unless it corrects a week (rule 8).
+  if (via !== 'form') for (const ch of changes) ch.diffs.push({ field: 'Via', from: '—', to: VIA_LABEL[via] });
+  const corrects = (input.posts ?? []).some((p) => p.mode === 'correct');
   const counts = {
     newGoals: items.filter((x) => x.kind === 'new goal').length,
     goals: items.filter((x) => x.kind === 'goal').length,
@@ -830,7 +887,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     result.created = { people: [...people.values()], teams: [...teams.values()], goals: ordered, checkIns: ciOut, requests: [...reqOut.values()], keysIssued: lastKeyGiven };
     return result;
   }
-  if (ok) {
+  if (ok && via === 'form' && !corrects) {
+    result.commit = { goals: ordered, checkIns: ciOut, ...(reqOut.size ? { requests: [...reqOut.values()] } : {}), changes };
+  } else if (ok) {
     const sumId = newId('chg');
     const importId = newId('imp');
     // Every row's change carries the import's id, and the summary keeps what each record was before, so "Undo this
@@ -839,7 +898,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const requestsBefore = asksOf(s);
     const summary: Change = {
       id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),
@@ -859,6 +918,23 @@ export function planChanges(input: ChangeInput): ChangeSet {
     };
   }
   return result;
+}
+
+/**
+ * Post one check-in from a screen (check-in spec, rule 13): through the same engine as the table, the import and the AI
+ * tools, so a check-in is judged and written one way. Refuses, in the engine's words, what the engine refuses.
+ */
+export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week' | 'actor' | 'now' | 'newId' | 'full'>, post: CheckInPost): { commit: Commit; checkIn: CheckIn } {
+  const set = planChanges({ tables: {}, posts: [post], snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: 'form', ...(x.full ? { full: x.full } : {}) });
+  const problem = set.issues.find((i) => i.severity === 'error');
+  if (problem || !set.commit) throw new NotAllowed(problem?.message ?? 'That check-in can’t be saved yet.');
+  return { commit: set.commit, checkIn: set.commit.checkIns!.find((c) => c.goalId === post.goalId)! };
+}
+
+/** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
+function headlineOf(c: CheckIn, g: Goal): string {
+  if (g.kind === 'milestone') return `${(c.stages ?? []).filter((u) => u.doneWeek != null).length} of ${g.stages.length} stages done`;
+  return c.value == null ? 'no number' : fmt(c.value, g);
 }
 
 /** Whether a row says what a check-in already says, in every column that can be changed. */
