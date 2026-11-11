@@ -835,7 +835,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     body: `
 **Every week.** One entry for each week from the goal's first (the week it was created, or the first week it was checked in, if earlier) to this week, or to the week it stopped: its check-in, or "No check-in". Four or more weeks in a row with none are one entry ("Weeks 12 to 17 · No check-ins (6 weeks)"); fewer are a week each. This week is always its own entry. A goal with no check-in yet has one week entry, this week, "No check-in yet". Check-ins in a row that gave the same reason are one group, as before; every week is in it.
 
-**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
+**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). Whether an ask was raised in a review is the ask's own record of the review (its \`reviewId\`), never the review's name in its sentence, so renaming a review moves none of its past asks. *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
 
 **Counts.** Per kind and for All, which is their sum; a run of missed weeks counts as its weeks, a group as its weeks.
 
@@ -844,7 +844,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 **Searching** keeps the entries whose words match ([finding things](finding.md), rule 1).`,
     examples: (() => {
       const g = { ...g3075, createdAt: '2026-09-07T09:00:00Z' };
-      const run = (weeks: number[], now: number, filter: 'all' | 'checkins' = 'checkins') => goalHistory({ goal: g, checkIns: weeks.map((w) => ci(g.id, w, 40, { why: `Reason ${w}` })), changes: [], cycle: CYCLE, week: now, reviews: [] }, filter);
+      const run = (weeks: number[], now: number, filter: 'all' | 'checkins' = 'checkins') => goalHistory({ goal: g, checkIns: weeks.map((w) => ci(g.id, w, 40, { why: `Reason ${w}` })), changes: [], cycle: CYCLE, week: now, asks: [] }, filter);
       const say = (h: ReturnType<typeof run>) => h.entries.map((x) => (x.kind === 'missed' ? (x.from === x.to ? `${x.from}: ${x.yet ? 'none yet' : 'none'}` : `${x.from}–${x.to}: none (${x.weeks})`) : x.kind === 'checkin' ? `${x.checkIn.week}` : x.kind)).join(', ');
       return [
         { given: 'Created in week 1, checked in weeks 1 to 3; now week 5.', then: '5: none, 4: none, 3, 2, 1', run: () => say(run([1, 2, 3], 5)) },
