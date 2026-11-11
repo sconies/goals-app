@@ -885,7 +885,7 @@ const CORE_ARTICLES: Article[] = [
         'Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on.',
       ] },
       { heading: 'Going back', list: [
-        'Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none.',
+        'Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead.',
         'It goes back to the page you came from, the same as your browser’s Back, so Forward still works. Forms you passed through (an edit you saved, a check-in) are stepped over, by the link and by the browser’s Back alike.',
         'Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to the review for a goal in its walk; to People, Teams or Help.',
       ] },

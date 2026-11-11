@@ -166,7 +166,8 @@ module.exports = {
       fail(items.length <= 4 && !items.some((x) => ['Mine', 'Watching', 'All'].includes(x)) && items.includes('North star'), `[NAV-GOALS] under Goals: ${items.join(', ')}`);
       fail(!items.includes('Off track') || items.indexOf('North star') < items.indexOf('Off track'), '[NAV-GOALS] the pinned view is not listed before your own');
       const current = () => p.evaluate(() => [...document.querySelectorAll('.side [aria-current="page"]')].map((e) => e.textContent.trim()));
-      await sub.getByRole('link', { name: 'North star' }).click(); await p.waitForTimeout(250);
+      await sub.getByRole('link', { name: 'North star' }).click();
+      for (let i = 0; i < 20 && (await current()).join() !== 'North star'; i++) await p.waitForTimeout(100);
       fail(/level=north-star/.test(p.url()) && (await current()).join() === 'North star', `[NAV-GOALS] a saved view: ${p.url()}, current ${await current()}`);
       await p.locator('.side').getByRole('link', { name: /^Goals/ }).click(); await p.waitForTimeout(250);
       fail(/\/demo\/goals\?(.*&)?scope=/.test(p.url()) && (await current()).join() === 'Goals', `[NAV-GOALS] Goals: ${p.url()}, current ${await current()}`);
@@ -261,7 +262,8 @@ module.exports = {
       // Edit is "Change this goal" in the bar's "…" menu: one link to the goal's form (GT1).
       await p.locator('.goal-bar summary[aria-label="More about this goal"]').click();
       await p.getByRole('group', { name: 'More about this goal' }).getByRole('link', { name: 'Change this goal' }).click(); await p.waitForTimeout(300);
-      fail((await back().getAttribute('aria-label')).includes(`Back to ${title}`), `[SETTINGS] Edit goal: "${await back().getAttribute('aria-label')}" (want Back to ${title})`);
+      // A form's one way out is its closing control: no back link as well (navigation spec 2.5).
+      fail(await p.locator('.backlink').count() === 0, `[SETTINGS] Edit goal has a back link as well as its closing control: "${await back().getAttribute('aria-label').catch(() => '')}"`);
       await p.getByRole('button', { name: 'Save changes' }).click(); await p.waitForTimeout(400);
       fail(/Back to Home/.test(await back().getAttribute('aria-label')), `[SETTINGS] after saving an edit, the goal's Back says "${await back().getAttribute('aria-label')}" (want Home, not the form)`);
       await back().click(); await p.waitForTimeout(300);

@@ -215,14 +215,15 @@ export interface BackTo { label: string; to: string; steps: number }
 export type Trail = { path: string }[];
 
 /**
- * Rule 4. The back link: none on a place's first page (or a module's); else the last earlier page in this tab that isn't
+ * Rule 4. The back link: none on a place's first page (or a module's) nor on a form, which has its closing control; else the last earlier page in this tab that isn't
  * a form and isn't this page (a goal walked in a review counts as the review's walk, so its other goals are stepped
  * over), named by rule 2 in the navigation's words, `steps` back; else the page's parent: the goal it feeds or Goals for
- * a goal, the goal for its edit or print page, the review for a goal in its walk and for its summary, Reviews for a
- * review, People or Teams, Help for an article and What's new, Check-in for the table, Workspace for a section.
+ * a goal, the goal for its print page, the review for a goal in its walk and for its summary, Reviews for a
+ * review, People or Teams, Help for an article and What's new, Workspace for a section.
  */
 export function backTo(path: string, search: string, trail: Trail, names: PlaceNames, firsts: string[] = []): BackTo | null {
-  if (FIRST_PAGES.includes(path) || firsts.includes(path)) return null;
+  // A form has its one closing control instead (navigation spec 2.5: goal edit's second exit is removed).
+  if (FIRST_PAGES.includes(path) || firsts.includes(path) || FORM.test(path)) return null;
   const review = new URLSearchParams(search).get('review');
   const goal = /^\/goals\/([^/]+)$/.exec(path)?.[1];
   const same = (p: string) => {
@@ -238,13 +239,12 @@ export function backTo(path: string, search: string, trail: Trail, names: PlaceN
   if (goal && review) return up(`/reviews/${review}`, names.review(review), 'the review');
   if (goal) { const parent = names.parent?.(decodeURIComponent(goal)); return parent ? up(`/goals/${parent}`, names.goal(parent), 'Goals') : up('/goals', 'Goals', 'Goals'); }
   let x: RegExpExecArray | null;
-  if ((x = /^\/goals\/([^/]+)\/(edit|print)$/.exec(path))) return up(`/goals/${x[1]}`, names.goal(decodeURIComponent(x[1]!)), 'the goal');
-  if ((x = /^\/reviews\/([^/]+)\/(summary|print|edit)$/.exec(path))) return up(`/reviews/${x[1]}`, names.review(decodeURIComponent(x[1]!)), 'the review');
+  if ((x = /^\/goals\/([^/]+)\/print$/.exec(path))) return up(`/goals/${x[1]}`, names.goal(decodeURIComponent(x[1]!)), 'the goal');
+  if ((x = /^\/reviews\/([^/]+)\/(summary|print)$/.exec(path))) return up(`/reviews/${x[1]}`, names.review(decodeURIComponent(x[1]!)), 'the review');
   if (/^\/reviews\/[^/]+$/.test(path)) return up('/reviews', 'Reviews', 'Reviews');
   if (/^\/people\/[^/]+$/.test(path)) return up('/people', 'People', 'People');
   if (/^\/teams\/[^/]+$/.test(path)) return up('/teams', 'Teams', 'Teams');
   if (/^\/help\/[^/]+$/.test(path) || path === '/whats-new') return up('/help', 'Help', 'Help');
-  if (path === '/quick-check-in') return up('/check-in', 'Check-in', 'Check-in');
   if (/^\/retro\/[^/]+$/.test(path)) return up('/retro', names.cycle?.() ? `Wrap up ${names.cycle!()}` : 'Wrap up', 'Wrap up');
   if (/^\/workspace\/[^/]+$/.test(path)) return up('/workspace', 'Workspace', 'Workspace');
   // A module's page under its first page (a metric under Metrics).

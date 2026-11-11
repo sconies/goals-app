@@ -69,13 +69,14 @@ describe('the menu, the lit item and a page’s name (AR2, NV1)', () => {
       b('/people/rhea', []),
       b('/goals/G-4?review=weekly', ['/reviews/weekly', '/goals/G-1?review=weekly']),
       b('/goals/G-4?review=weekly', []),
-      b('/goals/G-1/edit', []),
+      b('/goals/G-1/edit', ['/goals/G-1']),
+      b('/goals/G-1/print', []),
       b('/reviews/weekly/summary', []),
       b('/help/goals', []),
       b('/quick-check-in', []),
       b('/metrics/lead-time', []),
       b('/metrics', ['/']),
       b('/workspace/access', []),
-    ]).toEqual(['your goals -1', 'Goals -3', 'Lead time for changes /goals/G-1', 'Goals /goals', 'none', 'Home -1', 'People /people', 'Platform leadership weekly -2', 'Platform leadership weekly /reviews/weekly', 'Lead time for changes /goals/G-1', 'Platform leadership weekly /reviews/weekly', 'Help /help', 'Check-in /check-in', 'Metrics /metrics', 'none', 'Workspace /workspace']);
+    ]).toEqual(['your goals -1', 'Goals -3', 'Lead time for changes /goals/G-1', 'Goals /goals', 'none', 'Home -1', 'People /people', 'Platform leadership weekly -2', 'Platform leadership weekly /reviews/weekly', 'none', 'Lead time for changes /goals/G-1', 'Platform leadership weekly /reviews/weekly', 'Help /help', 'none', 'Metrics /metrics', 'none', 'Workspace /workspace']);
   });
 });
