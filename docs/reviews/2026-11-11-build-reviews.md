@@ -24,6 +24,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #128 AX4: a scale fixture and two budgets in CI | 4 | 0 | 1 | 0 |
 | #127 CY1: a year ends on its last day | 5 | 1 | 0 | 2 |
 | #131 AX8: the kit shows the database as it is | 4 | 0 | 1 | 2 |
+| #143 CI: fall back to Chromium alone when apt can't reach Ubuntu's mirror | planning | 0 | 0 | 1 |
 
 **Open, of high severity:**
 
@@ -152,3 +153,9 @@ Read against `docs/design/cycle-end/spec.md` rules 1 and 2, and opened as U117 d
 **2. Low. `postgresDeps` keeps the last token's hash in one variable** (`src/adapters/postgres/server.ts:14`), so a server that makes one `Deps` and serves two requests at once stamps the wrong token as used. Supabase's does the same but is made per request (`server/vercel.ts`). The file is "the one to copy": say "make one per request", or key `touch` by the token id it is given.
 
 **3. Low. The contract's "notes a token as used" asserts only that nothing throws** (`src/ports/contracts/deps.ts`), so a `touch` that does nothing passes. Reading `lastUsedAt` back from `load` would make it a test.
+
+### #143 CI: fall back to Chromium alone when apt can't reach Ubuntu's mirror (planning session, merged 17:27 UTC)
+
+From about 14:13 UTC every CI job stopped at `playwright install --with-deps` because the runners could not resolve Ubuntu's mirror (this log's own PR, #134, was red for that reason). The fallback installs the browser without system packages only when the full install fails, and says so as a warning; "Screens that look different" builds both branches in the same job, so missing fonts affect both pictures alike.
+
+**1. Low. The privacy eval's new test for the typed number has a blind spot.** `evals/telemetry.eval.ts:167` now passes unless "7319" stands with no hex digit on either side, so that a random trace id holding those digits doesn't fail it. A leak inside an encoded address would also pass: in `%207319` or `%3D7319` the character before is a hex digit. Telemetry bodies are JSON today, so nothing leaks this way now. Safer: take the trace and span ids out of the text before looking, and keep the plain `not.toContain('7319')`.
