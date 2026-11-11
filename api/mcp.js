@@ -13401,6 +13401,13 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "feature-undo",
+		date: "2026-11-11",
+		title: "Undo brings a feature back",
+		points: ["Switching a feature off and pressing Undo straight away now switches it back on, everywhere it was. Before, the message said it was back on while it stayed off.", "Undo after turning recording on or off works the same way."],
+		articles: ["features"]
+	},
+	{
 		id: "one-list-bar-data-feedback",
 		date: "2026-11-11",
 		title: "Data and Feedback search and filter like every other list",

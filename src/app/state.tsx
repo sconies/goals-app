@@ -289,6 +289,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   // Outside the demo, a save needs someone signed in (or chosen): set as the snapshot is worked out below.
   const signedIn = useRef(mode === 'demo');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  // The workspaces as they are now, for an action run later from an older render (a toast's Undo): switching a feature
+  // off and pressing Undo must see it off, or the switch back reads as nothing to change.
+  const workspacesNow = useRef(workspaces);
+  workspacesNow.current = workspaces;
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
   const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
@@ -500,7 +504,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
-    const rx = (): RunContext => ({ ...ax(), workspace: ws, modules: MODULES });
+    const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }

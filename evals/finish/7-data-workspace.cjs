@@ -144,7 +144,7 @@ module.exports = {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: 'dark' });
       const p = await ctx.newPage();
       await p.goto(url('/')); await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'grace'));
-      await p.goto(url('/data')); await p.waitForTimeout(400);
+      await p.goto(url('/data')); await p.locator('.dtable td.dcell').first().waitFor({ timeout: 15000 }); await p.waitForTimeout(400);
       const dk = await p.evaluate(() => ({ ro: getComputedStyle(document.querySelector('.dtable td.dcell.ro:not(.dname)')).backgroundColor, rw: getComputedStyle(document.querySelector('.dtable td.dcell:not(.ro):not(.dname)')).backgroundColor, body: getComputedStyle(document.querySelector('.data-wrap')).backgroundColor }));
       const rw = /rgba\(0, 0, 0, 0\)/.test(dk.rw) ? dk.body : dk.rw;
       if (contrast(dk.ro, rw) < 1.3) fails.push(`[D20] dark: read-only ${dk.ro} vs editable ${rw} is ${contrast(dk.ro, rw).toFixed(2)}:1`);
