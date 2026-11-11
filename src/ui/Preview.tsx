@@ -25,6 +25,9 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
   // Questions answered here: shown closed, with Change, until the file is chosen again.
   const answered = cs.groups.length ? Object.keys(answers).filter((id) => !cs.groups.some((g) => g.id === id)) : [];
   const fixable = cs.groups.filter((g) => g.level === 'must' && usable(g).length);
+  // What each answer was to, so its closed line says "{what was asked}: {answer}".
+  const [said, setSaid] = useState<Record<string, { title: string; label: string }>>({});
+  const answer = onAnswer && ((g: IssueGroup, a: Answer, label: string) => { setSaid((x) => ({ ...x, [g.id]: { title: g.title, label } })); onAnswer(g.id, a); });
   // How rows were read: an owner found by their name rather than their email, say.
   const notes = cs.issues.filter((i) => i.severity === 'note');
   const groups = new Map<string, Item[]>();
@@ -45,7 +48,7 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
           <h2 className="block-title tone-off">{errors.length} {errors.length === 1 ? 'row needs' : 'rows need'} fixing first</h2>
           <p className="hint">Nothing is saved until every row is right. {fixHint}</p>
           <ul className="issue-list">{errors.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.name ? ` · ${x.name}` : ''}</span><span>{x.message}</span></li>)}</ul>
-          {onAnswer && fixable.length > 0 && <ul className="issue-list group-answers" aria-label="Or settle here">{fixable.map((g) => <GroupQuestion key={g.id} g={g} onAnswer={onAnswer} />)}</ul>}
+          {onAnswer && fixable.length > 0 && <ul className="issue-list group-answers" aria-label="Or settle here">{fixable.map((g) => <GroupQuestion key={g.id} g={g} onAnswer={answer!} />)}</ul>}
         </section>
       )}
 
@@ -53,12 +56,12 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
         <section className="block" aria-label="Check">
           <h2 className="block-title"><WarnMark /> Check</h2>
           <p className="hint">{checks.length} {checks.length === 1 ? 'question covers' : 'questions cover'} {checks.reduce((n, g) => n + g.count, 0)} {checks.reduce((n, g) => n + g.count, 0) === 1 ? 'row' : 'rows'}. One answer covers every row it names.</p>
-          <ul className="issue-list">{checks.map((g) => (onAnswer ? <GroupQuestion key={g.id} g={g} onAnswer={onAnswer} /> : <li key={g.id}><span className="label">{g.where}</span><span>{g.title}</span></li>))}</ul>
+          <ul className="issue-list">{checks.map((g) => (onAnswer ? <GroupQuestion key={g.id} g={g} onAnswer={answer!} /> : <li key={g.id}><span className="label">{g.where}</span><span>{g.title}</span></li>))}</ul>
         </section>
       )}
       {onAnswer && answered.length > 0 && (
         <section className="block" aria-label="Your answers">
-          <ul className="issue-list">{answered.map((id) => <li key={id} className="answer-line"><span>{answerText(answers[id]!)}</span><button type="button" className="btn ghost sm" onClick={() => onAnswer(id, null)}>Change</button></li>)}</ul>
+          <ul className="issue-list">{answered.map((id) => <li key={id} className="answer-line"><span>{said[id] ? <>{said[id]!.title}: <span className="strong">{said[id]!.label}</span></> : answerText(answers[id]!)}</span><button type="button" className="btn ghost sm" onClick={() => onAnswer(id, null)}>Change</button></li>)}</ul>
         </section>
       )}
 
@@ -127,7 +130,7 @@ function usable(g: IssueGroup): { choice: string; label: string; value?: string 
 const answerText = (a: Answer) => (a.value ? `Answered: use “${a.value}”` : `Answered: ${a.choice.replace(/-/g, ' ')}`);
 
 /** One group: its title, where its rows are, and its answers as a row of buttons; one press answers every row in it. */
-function GroupQuestion({ g, onAnswer }: { g: IssueGroup; onAnswer: (group: string, answer: Answer | null) => void }) {
+function GroupQuestion({ g, onAnswer }: { g: IssueGroup; onAnswer: (g: IssueGroup, answer: Answer, label: string) => void }) {
   const list = usable(g);
   return (
     <li className="group-question">
@@ -135,7 +138,7 @@ function GroupQuestion({ g, onAnswer }: { g: IssueGroup; onAnswer: (group: strin
       <span>{g.title}</span>
       {list.length > 0 && (
         <span className="answer-row" role="group" aria-label={g.title}>
-          {list.map((a) => <button key={a.choice + (a.value ?? '')} type="button" className="btn sm" onClick={() => onAnswer(g.id, { choice: a.choice, ...(a.value ? { value: a.value } : {}) })}>{a.label}</button>)}
+          {list.map((a) => <button key={a.choice + (a.value ?? '')} type="button" className="btn sm" onClick={() => onAnswer(g, { choice: a.choice, ...(a.value ? { value: a.value } : {}) }, a.label)}>{a.label}</button>)}
         </span>
       )}
     </li>
