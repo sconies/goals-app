@@ -4913,12 +4913,11 @@ function passes(cell, f) {
 		}
 	}
 }
-/** Rows (as header → value) that pass every filter and contain every search word, sorted. */
 function applyTable(rows, head, q, filters, sort) {
 	const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
 	const idx = (c) => head.indexOf(c);
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
-	const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const out = rows.filter((r) => (!words.length || words.every((w) => lowered(r).some((c) => c.includes(w)))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
 	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
@@ -4963,7 +4962,7 @@ function parseSort(p) {
 function filterEntries(filters, sort) {
 	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["sort", `${sort.col.toLowerCase()}${sort.dir === -1 ? ".desc" : ""}`]] : []];
 }
-var OP_LABEL, NO_VALUE, isNum, sortIndex;
+var OP_LABEL, NO_VALUE, isNum, lowerCells, lowered, sortIndex;
 var init_tableFilter = __esmMin((() => {
 	OP_LABEL = {
 		is: "is any of",
@@ -4981,6 +4980,15 @@ var init_tableFilter = __esmMin((() => {
 	};
 	NO_VALUE = ["empty", "notEmpty"];
 	isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
+	lowerCells = /* @__PURE__ */ new WeakMap();
+	lowered = (r) => {
+		let l = lowerCells.get(r);
+		if (!l) {
+			l = r.cells.map((c) => c.toLowerCase());
+			lowerCells.set(r, l);
+		}
+		return l;
+	};
 	sortIndex = (head, sort) => sort ? head.findIndex((h) => h.toLowerCase() === sort.col.toLowerCase()) : -1;
 }));
 // src/domain/tableLayout.ts

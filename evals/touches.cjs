@@ -30,6 +30,8 @@ const RULES = [
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U86', 'U5', 'U49']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'N10', 'P6']],
+  // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
+  [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
