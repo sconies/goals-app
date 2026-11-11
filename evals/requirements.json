@@ -557,6 +557,21 @@
       "text": "A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove."
     },
     {
+      "id": "NAV-WHERE",
+      "area": "Navigation",
+      "text": "Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit."
+    },
+    {
+      "id": "NAV-BACK",
+      "area": "Navigation",
+      "text": "One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews."
+    },
+    {
+      "id": "NAV-FORMS",
+      "area": "Navigation",
+      "text": "A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed."
+    },
+    {
       "id": "FIND-ANYWHERE",
       "area": "Finding",
       "text": "Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace."

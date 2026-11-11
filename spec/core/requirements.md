@@ -1030,6 +1030,29 @@ Collapsed to a rail (and always between 761 and 1100 px), each icon names itself
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U67
 
+### NAV-WHERE
+
+Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit.
+
+- **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U69
+
+### NAV-BACK
+
+One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews.
+
+- **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U70
+
+### NAV-FORMS
+
+A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
+
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U72
+
 ## Finding
 
 ### LIST-BAR

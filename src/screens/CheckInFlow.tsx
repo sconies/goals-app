@@ -15,6 +15,7 @@ import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
@@ -94,7 +95,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+          <FormClose keeps onClose={() => nav('/')} />
         </span>
       </div>
       {justPosted ? (

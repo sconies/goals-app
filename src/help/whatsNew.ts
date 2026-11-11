@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'pages-name-themselves',
+    date: '2026-11-11',
+    title: 'Each page has its own name',
+    points: [
+      'A goal’s browser tab says the goal’s name. Goals is called Goals on every tab.',
+      'One back link on each page, which agrees with your browser’s Back button. A place’s first page, such as Settings, has none.',
+      'A form has one way out, in words: “Close and keep the draft”, or “Close without saving”, which asks first if you typed something.',
+      'Settings has links to its parts under the title, with the one you’re in lit.',
+    ],
+    articles: ['getting-around', 'settings'],
+  },
+  {
     id: 'goals-view-menus',
     date: '2026-11-11',
     title: 'Layouts have names',

@@ -63,7 +63,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/reviews/:reviewId/edit` (`ReviewEdit`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 - `/reviews/:reviewId/summary` (`ReviewSummary`): A review walks a set of goals together on a cadence, worst and stalest first, and keeps what was said. Help: “Reviews” (`reviews`).
 
-- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”, “Breadcrumb (region)”
+- **Named parts:** “Reviews”, “You’re in”, “Other reviews”, “People”, “Decided”, “When”, “Which goals”, “Who takes part”
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
@@ -227,7 +227,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/settings` (`Settings`): About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace. Help: “Settings” (`settings`).
 
-- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”
+- **Named parts:** “Settings”, “You”, “Appearance”, “Navigation”, “Motion lab”, “Recording”, “On this page (region)”
 - **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_tokens`, `revoke_token`, `get_help`

@@ -6,13 +6,13 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, GROUP_NAMES, isLit, litItem, menuGroups, menuViews, moreFor, pageName, phoneTabs, type GoalsAt, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
 import { setAppearance, useAppearance } from '../app/appearance';
-import { useTrail } from './BackLink';
+import { usePlaceNames, useTrail } from './BackLink';
 import { useViews, viewParams } from '../screens/GoalFilters';
 import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
@@ -49,19 +49,6 @@ const ICONS: Record<NavId, { icon: ReactNode }> = {
 };
 
 const NAV = Object.fromEntries((Object.keys(ICONS) as NavId[]).map((id) => [id, { ...CORE_NAV[id], icon: ICONS[id].icon }])) as unknown as Record<NavId, { to: string; label: string; icon: ReactNode }>;
-
-/** Where you are under Goals: one of its sub-items, or none (a goal page, or not in Goals at all). */
-function goalsAt(path: string, search: string, views: SavedView[]): GoalsAt {
-  const q = new URLSearchParams(search);
-  const scope = q.get('scope') ?? q.get('show');
-  if (path === '/watching' || (path === '/goals' && scope === 'watching')) return 'watching';
-  if (path !== '/goals') return null;
-  const v = views.find((x) => x.params === viewParams(q));
-  if (v) return `view:${v.id}`;
-  return scope === 'mine' ? 'mine' : 'all';
-}
-
-const isActive = isLit;
 
 /** Views shown under Goals in the sidebar before "more" takes over. */
 
@@ -118,12 +105,12 @@ function FeedbackSheet({ onClose, onMarkup, path, fromPage }: { onClose: () => v
 }
 
 /** Goals in the sidebar, and under it up to four saved views (navigation rule 1): no Mine, Watching or All. */
-function GoalsSection({ at, navAt, views, label }: { at: GoalsAt; navAt: string; views: SavedView[]; label: (text: string) => { 'data-label': string } }) {
-  const cur = (k: GoalsAt) => (at === k ? 'page' as const : undefined);
-  // Goals is lit unless one of its views is the page you're on.
-  const here = !(at && at.startsWith('view:')) && isActive('goals', navAt);
+function GoalsSection({ lit, views, label }: { lit: string | null; views: SavedView[]; label: (text: string) => { 'data-label': string } }) {
+  const cur = (k: string) => (lit === k ? 'page' as const : undefined);
+  // Goals is lit unless one of its views is the page you're on (navigation rule 3).
+  const here = lit === 'goals';
   return (
-    <div className={'nav-section' + (at || here ? ' in-section' : '')}>
+    <div className={'nav-section' + (here || lit?.startsWith('view:') ? ' in-section' : '')}>
       <Link to="/goals" className="nav" {...label('Goals')} aria-current={here ? 'page' : undefined}>{NAV.goals.icon}<span>Goals</span></Link>
       {views.length > 0 && (
         <div className="subnav" role="group" aria-label="Saved views">
@@ -186,7 +173,6 @@ function ShellBody({ children }: { children: ReactNode }) {
   const { screens } = useModules();
   const moduleNav = screens.flatMap((m) => m.navigation ?? []);
   const groups = menuGroups(ownsGoals, moduleNav);
-  const side = [...groups.work, ...groups.lookup, ...groups.make].filter((x): x is NavId => !x.startsWith('module:'));
   const tabs = phoneTabs(ownsGoals);
   const more = moreFor(groups, tabs);
   const shownViews = menuViews(views.map((v) => ({ id: v.id, name: v.name, pinned: v.pinned, mine: v.personId === app.viewer.id, createdAt: v.createdAt })), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'view').map((r) => r.id)).map((m) => views.find((v) => v.id === m.id)!);
@@ -194,8 +180,6 @@ function ShellBody({ children }: { children: ReactNode }) {
   const label = (text: string) => ({ 'data-label': text });
   // Feature modules (src/core/app.tsx): their navigation items, and the page you're on if it's one of theirs.
   const moduleRoute = screens.flatMap((m) => m.routes ?? []).find((r) => matchPath(r.path, pathname));
-  // A module's page names itself from its thing (AR2), else by its fixed title.
-  const moduleName = moduleRoute ? (moduleRoute.name?.(matchPath(moduleRoute.path, pathname)?.params ?? {}, { goal: app.goal, person: app.person, team: app.team }) ?? moduleRoute.title) : null;
   // A release this person hasn't seen: a quiet dot beside Help (and on More, on a phone) until they open What's new.
   const unread = useUnreadNews().length > 0;
   // Presenting: the demo without its "Viewing as" bar or Demo tag. Start it with /demo?present (and ?present=0 to stop).
@@ -213,10 +197,9 @@ function ShellBody({ children }: { children: ReactNode }) {
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
   const team = app.viewer.teamId ? app.team(app.viewer.teamId)?.name ?? '' : '';
   const work = useRef<HTMLElement>(null);
-  const at = goalsAt(pathname, search, views);
-  // A person's or a team's page is named by them (the redesign's rule: a page's name is the thing's own name).
-  const named = /^\/people\/([^/]+)$/.exec(pathname) ? app.person(decodeURIComponent(pathname.split('/')[2]!))?.name : /^\/teams\/([^/]+)$/.exec(pathname) ? app.team(decodeURIComponent(pathname.split('/')[2]!))?.name : undefined;
-  const title = pageName(pathname, at, [...side, ...tabs], named ?? moduleName);
+  // The page's name (navigation rule 2): the browser's title and the phone's top bar. Goals is "Goals" on every tab.
+  const names = usePlaceNames();
+  const title = pageName(pathname, search, names);
   // With an on-screen keyboard open (iOS overlays the page instead of resizing it), lift fixed footers and sheets above it.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -239,9 +222,6 @@ function ShellBody({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
-  // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
-  const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : at === 'watching' ? '/watching' : pathname;
-  const sideAt = /[?&]review=/.test(search) ? null : at;
   const focusMode = !!moduleRoute?.focus || /^\/check-in(\/|$)|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
   // The rail: chosen, or always between 761 and 1100 px. Its rows name themselves with the app's label.
@@ -262,10 +242,11 @@ function ShellBody({ children }: { children: ReactNode }) {
     </>
   );
 
-  // The one lit item, by the navigation rules (rule 2): core items and modules' alike.
-  const lit = litItem(navAt, [...groups.work, ...groups.lookup, ...groups.make, ...groups.you], moduleNav);
+  // The one lit item (navigation rule 3): core items, modules' and saved views alike; a goal in a review's walk lights Reviews.
+  const lit = litItem(pathname, search, [...groups.work, ...groups.lookup, ...groups.make, ...groups.you], moduleNav, shownViews.map((v) => ({ id: v.id, params: v.params })), viewParams);
+  const tabLit = litTab(lit, tabs);
   const row = (id: string) => {
-    if (id === 'goals') return <GoalsSection key={id} at={sideAt} navAt={navAt} views={shownViews} label={label} />;
+    if (id === 'goals') return <GoalsSection key={id} lit={lit} views={shownViews} label={label} />;
     const m = id.startsWith('module:') ? moduleNav.find((n) => `module:${n.id}` === id) : null;
     if (m) return <Link key={id} to={m.to} className="nav" {...label(m.label)} aria-current={lit === id ? 'page' : undefined}>{m.icon}<span>{m.label}</span></Link>;
     const n = id as NavId;
@@ -285,7 +266,7 @@ function ShellBody({ children }: { children: ReactNode }) {
         {/* Faro's F, not the workspace's initial (Lane, 9 Nov): the workspace is named beside it. */}
         <FaroMark size={30} />
         <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1 }}>
-          <strong className="ellipsis">{title}</strong>
+          <strong className="ellipsis">{title.split(' · ')[0]}</strong>
           <WorkspaceSwitcher variant="top" />
         </span>
         {!goalTop && topControls}
@@ -334,12 +315,12 @@ function ShellBody({ children }: { children: ReactNode }) {
       </div>
       <nav className="tabbar" aria-label="Main" data-part="Tab bar">
         {tabs.map((id) => (
-          <Link key={id} to={NAV[id].to} aria-current={isActive(id, navAt, tabs) ? 'page' : undefined}>
+          <Link key={id} to={NAV[id].to} aria-current={tabLit === id ? 'page' : undefined}>
             <span className="tabicon">{NAV[id].icon}{count(id) > 0 && <span className="badge">{count(id)}</span>}</span>
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={[...more.lookup, ...more.make, ...more.you].some((id) => !id.startsWith('module:') && isActive(id as NavId, navAt)) ? 'page' : undefined}>
+        <button onClick={() => setSheet('more')} aria-current={tabLit === 'more' ? 'page' : undefined}>
           <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>{unread && <i className="help-dot" aria-hidden="true" />}</span>
           <span>More</span>
         </button>
