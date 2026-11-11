@@ -39,19 +39,14 @@ module.exports = {
           const b = document.querySelector('.home-hero .btn.primary')?.getBoundingClientRect();
           const n = [...document.querySelectorAll('.home-news')].find((e) => e.getClientRects().length);
           const news = n?.getBoundingClientRect();
-          const grid = document.querySelector('.home-grid')?.getBoundingClientRect();
-          return { bottom: b ? Math.round(b.bottom) : null, limit: Math.round(limit), newsH: news ? Math.round(news.height) : 0, afterGrid: !!(news && grid && news.top >= grid.bottom - 1) };
+          const grid = document.querySelector('.home-grid');
+          return { bottom: b ? Math.round(b.bottom) : null, limit: Math.round(limit), newsH: news ? Math.round(news.height) : 0, atFoot: !!(n && grid && !n.nextElementSibling && news.top >= (document.querySelector('.home-mine')?.getBoundingClientRect().bottom ?? 0) - 1) };
         });
         fail(fold.bottom !== null && fold.bottom <= fold.limit, `[WHATS-NEW] ${w}: Start check-in ends at ${fold.bottom}px, below the fold (${fold.limit})`);
         fail(fold.newsH > 0 && fold.newsH <= (w < 400 ? 56 : 28), `[WHATS-NEW] ${w}: the Home line is ${fold.newsH}px tall`);
-        // Never at the foot of Home (backlog N, 8 Nov): under the greeting from a tablet up, and on a phone just after the
-        // goals that need you, so the first screen stays the week's work (U2).
-        fail(!fold.afterGrid, `[WHATS-NEW] ${w}: the Home line is at the foot of Home`);
-        if (w < 761) {
-          // Right after the goals that need attention: before the rest of your goals and everything below them.
-          const order = await p.evaluate(() => { const n = [...document.querySelectorAll('.home-news')].find((e) => e.getClientRects().length); const rest = document.querySelector('.home-mine .glist'); return !n ? 'none' : !rest || (n.compareDocumentPosition(rest) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'ok' : 'after'; });
-          fail(order === 'ok', `[WHATS-NEW] ${w}: the Home line isn’t just after the goals that need attention (${order})`);
-        }
+        // At the foot of Home on every width (Home's spec, part 11, 11 Nov; it replaced backlog N's place under the greeting):
+        // the first screen is what is asked of you today.
+        fail(fold.atFoot, `[WHATS-NEW] ${w}: the Home line is not at the foot of Home`);
         await line.scrollIntoViewIfNeeded();
         await line.getByRole('link', { name: /See what’s new/ }).click();
         await p.waitForTimeout(300);

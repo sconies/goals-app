@@ -6,7 +6,7 @@ What the real core rules give for every goal in every week of the demo workspace
 
 ## The input: workspace.json
 
-The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week goal year starting 2025-12-22), built for 2026-11-05T12:00:00.000Z (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under `requests` (the stored table’s name).
+The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week goal year starting 2025-12-22), built for 2026-11-05T12:00:00.000Z (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under `requests` (the stored table’s name).
 
 ## How each week is judged
 
@@ -38,6 +38,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [checkin.csv](checkin.csv) | 5249 | check-in in the workspace | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing` |
 | [find.csv](find.csv) (not stage 1) | 23 | search | `kind`, `q`, `total`, `near`, `ids` |
 | [navigation.csv](navigation.csv) (not stage 1) | 54 | viewer and address | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
+| [home.csv](home.csv) (not stage 1) | 56 | viewer and day | `viewer`, `day`, `lead`, `title`, `quiet` |
 
 What each column is, and the rule that gives it:
 
@@ -50,6 +51,8 @@ What each column is, and the rule that gives it:
 - **find.csv** ([finding things](../core/rules/finding.md)): not part of stage 1, and scored by the drill only when asked (`"also": ["find"]` in `drill.json`, or `--files find`). One row per search in a fixed list (the find rules’ worked examples), made on the workspace as it stood at `builtFor` (the same `asOf`; people have no job title in workspace.json, so a person is found by name and team only): `kind` (`goal`, `person` or `team`) and `q` the search; `total` how many match; `near` the near miss offered when nothing matched, else empty; `ids` the ids of every row found (the near miss’s when there is one), in the kind’s order, separated by spaces. Goals are the live goals not stopped by then, worst first then by title; people are those not marked as left, those whose name starts with the search first, then A to Z; teams A to Z.
 
 - **navigation.csv** ([navigation](../core/rules/navigation.md)): not part of stage 1, scored like find.csv when asked (`"also": ["navigation"]`). For two viewers (`rhea`, who owns goals; `oskar`, who owns none: `owns_goals`) at each address: `menu` the sidebar’s items in order, its groups (your work, look up, make, this workspace and you) separated by ` | `, and `tabs` the phone’s four (More holds the rest), as ids separated by spaces; `owns_goals` is whether they have a goal to check in on (one of theirs, not stopped or done); `lit` the menu item lit there, or empty; `page` the page’s name in the top bar and the browser’s title (rule 2: a goal, review, person or team by its own name from the workspace; Help’s articles aren’t in the workspace, so an article’s page is named “Help”). The addresses with `example` are a module’s item and pages (named “Example”); everywhere else no module adds an item.
+
+- **home.csv** ([Home](../core/rules/home.md)): not part of stage 1, scored like find.csv when asked (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead. No check-in draft is kept. Watches carry no date, so they are taken as they are now.
 
 Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.
 

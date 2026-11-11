@@ -87,6 +87,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U111 | A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week |  | `HONEST-CHECKIN` `ONE-PER-WEEK` | 6 | `evals/journeys.cjs` |
 | U115 | Start 2027 only prepares it: on 21 Dec 2026 the read-back counts every goal once; afterwards everyone is still in 2026 and Cycles offers Undo, which puts 2026 back; started again, 2027 opens for everyone on 4 Jan 2027. A workspace whose only year is 2027 says when it starts and has nothing due |  | `CARRY-GOALS` | 8 | `evals/journeys.cjs` |
 | U117 | The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days |  | `RESULTS` `YEAR` | 6 | `evals/journeys.cjs` |
+| U122 | The owner’s week on Home: on Monday nothing is asked and there is no primary button; the day before the deadline the check-in is the one primary; a completed week is one sentence with the next date; a passed deadline is never said to someone who met it; each count opens exactly its goals |  | `HOME-OWNER` | 6 | `evals/journeys.cjs` |
 | U135 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet |  | `GOALS-MENUS` `GOAL-MAP` `SAVED-VIEWS` | 14 | `evals/journeys.cjs` |
 
 ## Platform checks
@@ -130,14 +131,15 @@ Checks that Lane’s review notes stay fixed.
 |---|---|---|---|
 | N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` `REVIEW-DECIDE` | `evals/notes/1-reviews.cjs` |
 | N2 | Review notes, goal-page (the flagship page) | `GOAL-SUMMARY` `GOAL-PAGE-BAR` `GOAL-PAGE` | `evals/notes/2-goal-page.cjs` |
-| N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-DASHBOARD` | `evals/notes/3-attention-home.cjs` |
+| N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-OWNER` | `evals/notes/3-attention-home.cjs` |
 | N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
 | N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
-| N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
+| N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-OWNER` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
 | N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
+| N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 
 ## The ease test
 

@@ -16,7 +16,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, NAV_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, NAV_HEADER, HOME_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -307,7 +307,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '## The input: workspace.json',
     '',
-    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
+    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
     '',
     '## How each week is judged',
     '',
@@ -338,6 +338,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[checkin.csv](checkin.csv)', String(rows('checkin.csv')), 'check-in in the workspace', HEADERS.checkin.map((x) => `\`${x}\``).join(', ')],
       ['[find.csv](find.csv) (not stage 1)', String(rows('find.csv')), 'search', FIND_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[navigation.csv](navigation.csv) (not stage 1)', String(rows('navigation.csv')), 'viewer and address', NAV_HEADER.map((x) => `\`${x}\``).join(', ')],
+      ['[home.csv](home.csv) (not stage 1)', String(rows('home.csv')), 'viewer and day', HOME_HEADER.map((x) => `\`${x}\``).join(', ')],
     ]),
     '',
     'What each column is, and the rule that gives it:',
@@ -351,6 +352,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '- **find.csv** ([finding things](../core/rules/finding.md)): not part of stage 1, and scored by the drill only when asked (`"also": ["find"]` in `drill.json`, or `--files find`). One row per search in a fixed list (the find rules’ worked examples), made on the workspace as it stood at `builtFor` (the same `asOf`; people have no job title in workspace.json, so a person is found by name and team only): `kind` (`goal`, `person` or `team`) and `q` the search; `total` how many match; `near` the near miss offered when nothing matched, else empty; `ids` the ids of every row found (the near miss’s when there is one), in the kind’s order, separated by spaces. Goals are the live goals not stopped by then, worst first then by title; people are those not marked as left, those whose name starts with the search first, then A to Z; teams A to Z.',
     '',
     '- **navigation.csv** ([navigation](../core/rules/navigation.md)): not part of stage 1, scored like find.csv when asked (`"also": ["navigation"]`). For two viewers (`rhea`, who owns goals; `oskar`, who owns none: `owns_goals`) at each address: `menu` the sidebar’s items in order, its groups (your work, look up, make, this workspace and you) separated by ` | `, and `tabs` the phone’s four (More holds the rest), as ids separated by spaces; `owns_goals` is whether they have a goal to check in on (one of theirs, not stopped or done); `lit` the menu item lit there, or empty; `page` the page’s name in the top bar and the browser’s title (rule 2: a goal, review, person or team by its own name from the workspace; Help’s articles aren’t in the workspace, so an article’s page is named “Help”). The addresses with `example` are a module’s item and pages (named “Example”); everywhere else no module adds an item.',
+    '',
+    '- **home.csv** ([Home](../core/rules/home.md)): not part of stage 1, scored like find.csv when asked (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead. No check-in draft is kept. Watches carry no date, so they are taken as they are now.',
     '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
@@ -408,7 +411,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
   // Stage 1's files only: find.csv belongs to the find rules, scored when asked.
-  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'find.csv' && f !== 'navigation.csv').map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'find.csv' && f !== 'navigation.csv' && f !== 'home.csv').map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
   Object.assign(out, internalFiles());
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files));
   Object.assign(out, await databaseFiles(root));

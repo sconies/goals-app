@@ -6,7 +6,12 @@ import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
-import { watchedGoals } from '../domain/review';
+import { agendaOf, nextSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
+import type { HomeFacts, HomeSession } from '../domain/home';
+import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
+import { hasEnded } from '../domain/plan';
+import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
+import { openForPerson } from '../domain/asks';
 import type { LocalRows } from '../adapters/localSearch';
 
 const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x) => !x.removedAt);
@@ -52,5 +57,47 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
     goals: s.goals,
     checkedIn: new Set(live(s.checkIns).map((c) => c.goalId)),
     watchers: new Set(live(s.watches ?? []).map((w) => w.personId)),
+  };
+}
+
+/**
+ * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
+ * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
+ */
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean }): HomeFacts {
+  const day = today.toISOString().slice(0, 10);
+  const p = weekProgress(viewerId, s, cycle, week, today);
+  const mine = s.goals.filter((g) => g.ownerId === viewerId);
+  const ended = hasEnded(cycle, today);
+  const start = beforeStart(cycle, today);
+  const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
+  const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
+  const dueDate = reviewDate(cycle, Math.max(1, week));
+  const sessions: HomeSession[] = s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
+    .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
+      const { discuss, healthy } = agendaOf(x);
+      const order = walkOrder(sessionPlan(x, s, cycle, today));
+      const nextId = order.find((id) => !x.covered.has(id));
+      const next = x.items.find((a) => a.goal.id === nextId) ?? discuss[0] ?? healthy[0];
+      const nw = nextSessionWeek(x.review, x.week);
+      return { id: x.review.id, name: x.review.name, date: x.date, held: sessionState(x).kind === 'held', discuss: discuss.length, healthy: healthy.length, done: x.done, total: x.total,
+        started: x.done > 0 && discuss.length > 0, nextGoal: next ? { id: next.goal.id, title: next.goal.title } : null, nextDate: nw <= cycle.weeks ? sessionDate(x.review, cycle, nw) : null };
+    });
+  const wrapOpen = wrapUpOpenOn(cycle, today);
+  return {
+    today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
+    starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
+    rhythm: { dueDate, nextDueDate: week < cycle.weeks ? reviewDate(cycle, Math.max(1, week) + 1) : null },
+    checkIns: {
+      total: p.goals.length, done: p.done.length,
+      due: p.due.map((g) => ({ id: g.id, title: g.title, number: g.kind !== 'milestone' })), draft: opts.draft,
+      allInOnTimeToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day) && thisWeek.every((c) => c.postedAt.slice(0, 10) <= dueDate),
+      streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
+    },
+    wrap: wrapOpen ? { ends: cycleDates(cycle).lastDay, ended, left: mine.filter((g) => !s.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: mine.length } : null,
+    sessions,
+    owns: mine.length,
+    watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
+    asks: openForPerson(viewerId, s).length,
   };
 }

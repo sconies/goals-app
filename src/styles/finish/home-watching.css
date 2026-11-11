@@ -238,3 +238,11 @@
   .page.home .split, .page.home .split > div { gap: var(--s4); }
   .page.home .home-hero .hero-body > .linkish { margin-top: 0; }
 }
+
+/* HM1 (docs/design/home/spec.md): your goals' counts, once, in "Your goals"; the quiet line; New in Faro at the foot. */
+.home-counts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0 8px; font-size: var(--t-sm); }
+.home-counts .dash-count { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; color: var(--fg); text-decoration: none; }
+.home-counts .dash-count:hover { text-decoration: underline; text-underline-offset: 2px; }
+.home-mine .home-sub > .need-group-title.linkish { display: inline-block; margin-bottom: 4px; }
+.home-news-foot { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
+@media (pointer: coarse) { .home-counts .dash-count { min-height: 44px; } }

@@ -231,13 +231,13 @@ export function PageHelp() {
  * tablet up; on a phone just after your goals that need attention, so the first screen is still the week's work and the
  * first goal needing you (backlog N, 8 Nov: at the foot of Home it went unseen).
  */
-export function HomeNews({ at }: { at: 'head' | 'phone' }) {
+export function HomeNews({ at }: { at: 'head' | 'phone' | 'foot' }) {
   const unread = useUnreadNews();
   const top = unread[0];
   if (!top) return null;
   return (
     <p className={'home-news home-news-' + at}>
-      <span className="home-news-text"><span className="strong">New:</span> {top.title} · <Link to="/whats-new">See what’s new</Link></span>
+      <span className="home-news-text"><span className="strong">New in Faro:</span> {top.title}{/[.?!]$/.test(top.title) ? '' : '.'} <Link to="/whats-new">See what’s new</Link></span>
       <button type="button" className="home-news-close" aria-label="Dismiss what’s new" title="Dismiss" onClick={markWhatsNewSeen}><Icon name="close" size={14} /></button>
     </p>
   );

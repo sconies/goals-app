@@ -1,7 +1,8 @@
 /* N3: Lane's review notes (5 Nov), attention-home. run({ open, url, browser }) returns a list of failures.
    [ATTENTION-HANDLED] "Needs attention" means new since someone looked; a goal behind but looked at since its latest
-   check-in is "Being handled", with what's in hand, everywhere. [HOME-DASHBOARD] Home opens with a slim strip (your goals
-   by status, on-time streak, watched goals needing attention, next review) and shows what you own and what you watch. */
+   check-in is "Being handled", with what's in hand, everywhere. [HOME-OWNER] Home opens on what is asked of you today, or
+   one quiet line; your goals are counted once, in "Your goals", each count opening exactly those goals; and it shows what
+   you own and what you watch. */
 const box = (p, sel, i = 0) => p.evaluate(([s, i]) => { const e = document.querySelectorAll(s)[i]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, b: r.bottom, r: r.right }; }, [sel, i]);
 const noSideways = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 const STATUS_WORD = /on track|at risk|off track|no recent update|done|not started|no check-in/i;
@@ -13,7 +14,7 @@ module.exports = {
   id: 'N3',
   area: 'attention-home',
   title: 'Review notes, attention-home',
-  reqs: ['ATTENTION-HANDLED', 'HOME-DASHBOARD'],
+  reqs: ['ATTENTION-HANDLED', 'HOME-OWNER'],
   async run({ open, url }) {
     const fails = [];
     const check = (ok, msg) => { if (!ok) fails.push(msg); };
@@ -49,54 +50,53 @@ module.exports = {
       await c.close();
     }
 
-    // [HOME-DASHBOARD] The strip and the two lists, for owners and a leader, at a phone, a tablet and a desktop.
+    // [HOME-OWNER] The lead, the counts in Your goals and the two lists, for owners and a leader, at a phone, a tablet and a desktop.
     // (Diego owns two goals, watches nothing and is in the Developer Productivity fortnightly.)
     for (const who of ['diego', 'daniel', 'amara']) {
       for (const w of [390, 768, 1280]) {
         const [c, p] = await open(w, 900, who, '/', w < 800);
         const at = `${who} at ${w}`;
         const head = await box(p, '.page.home > .page-head'), dash = await box(p, '.page.home > .dash'), grid = await box(p, '.page.home > .home-grid');
-        check(dash && head && grid && dash.y >= head.b && dash.b <= grid.y, `[HOME-DASHBOARD] ${at}: the strip is not between the heading and the rest of Home`);
-        check(dash && grid && Math.abs(dash.x - grid.x) <= 1 && Math.abs(dash.w - grid.w) <= 1, `[HOME-DASHBOARD] ${at}: the strip is not on the page's one left edge and width`);
-        const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { x: Math.round(r.x), y: Math.round(r.y), h: r.height, bg: cs.backgroundColor, text: e.innerText, href: e.getAttribute('href') || e.querySelector('a.dash-all')?.getAttribute('href') || '' }; }));
+        // This week's cell (a review you're in), when there is one: between the heading and the rest, on the page's one edge.
+        if (dash) {
+          check(head && grid && dash.y >= head.b && dash.b <= grid.y, `[HOME-OWNER] ${at}: This week is not between the heading and the rest of Home`);
+          check(grid && Math.abs(dash.x - grid.x) <= 1 && Math.abs(dash.w - grid.w) <= 1, `[HOME-OWNER] ${at}: This week is not on the page's one left edge and width`);
+          const cells = await p.$$eval('.dash .dash-cell', (els) => els.map((e) => ({ h: e.getBoundingClientRect().height, bg: getComputedStyle(e).backgroundColor, text: e.innerText })));
+          check(cells.every((x) => x.h >= 44), `[HOME-OWNER] ${at}: a cell is under 44px`);
+          // No tinted tiles: every cell is the plain card surface.
+          const surface = await p.evaluate(() => { const e = document.createElement('i'); e.style.background = 'var(--surface)'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; });
+          check(cells.every((x) => x.bg === surface), `[HOME-OWNER] ${at}: a cell is tinted`);
+          check(!cells.some((x) => /Your goals|All goals|streak|None you’re in/.test(x.text)), `[HOME-OWNER] ${at}: This week still counts goals or the streak`);
+        }
         const owner = who !== 'amara';
-        // (One Watching: the strip no longer has a Watching cell; what you watch is the “Goals you watch” block under it.)
-        check(cells.length === (owner ? 3 : 2), `[HOME-DASHBOARD] ${at}: ${cells.length} cells`);
-        const rows = new Set(cells.map((x) => x.y)).size, cols = new Set(cells.map((x) => x.x)).size;
-        if (w === 1280) check(rows === 1 && dash.h <= 140, `[HOME-DASHBOARD] ${at}: not one slim row (${rows} rows, ${dash && Math.round(dash.h)}px)`);
-        // (Three cells for an owner make a two by two; a leader has two now that Watching has no cell, so one row of two.)
-        if (w === 390) check(cols === 2 && rows === (owner ? 2 : 1) && dash.h <= 140, `[HOME-DASHBOARD] ${at}: not a slim ${owner ? 'two by two' : 'row of two'} (${cols} columns, ${rows} rows, ${dash && Math.round(dash.h)}px)`);
-        // On a phone the strip leaves the week's one action in the first screen.
-        if (w === 390) { const hero = await box(p, '.home-hero .btn.primary'); check(!hero || hero.b <= 900 - 90, `[HOME-DASHBOARD] ${at}: the week's main action is pushed below the first screen`); }
-        check(cells.every((x) => x.h >= 44), `[HOME-DASHBOARD] ${at}: a cell is under 44px`);
-        // No tinted tiles: every cell is the plain card surface, the same for all of them.
-        const surface = await p.evaluate(() => { const e = document.createElement('i'); e.style.background = 'var(--surface)'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return c; });
-        check(cells.every((x) => x.bg === surface), `[HOME-DASHBOARD] ${at}: a cell is tinted (${cells.map((x) => x.bg).join(', ')}, surface ${surface})`);
-        // Your goals (or all goals for a leader) by status: each count is a shape and a word, and they add up.
-        const counts = await p.$$eval('.dash-count', (els) => els.map((e) => ({ shape: !!e.querySelector('svg.status-shape'), text: e.innerText.trim() })));
-        check(counts.length > 0 && counts.every((x) => x.shape && /^\d+ /.test(x.text)), `[HOME-DASHBOARD] ${at}: a status count lacks its shape or number`);
-        check(counts.every((x) => STATUS_WORD.test(x.text)), `[HOME-DASHBOARD] ${at}: a status count lacks its word`);
-        const total = Number(((cells[0]?.text || '').match(/· (\d+)/) || [])[1]);
-        check(counts.reduce((n, x) => n + parseInt(x.text, 10), 0) === total, `[HOME-DASHBOARD] ${at}: the counts don't add up to ${total}`);
-        check(owner ? /Your goals/.test(cells[0].text) && /\/goals\?show=mine$/.test(cells[0].href) : /All goals/.test(cells[0].text), `[HOME-DASHBOARD] ${at}: the first cell is not ${owner ? 'your goals, linking to them' : 'all goals'}`);
-        check(owner === cells.some((x) => /On-time streak\s+\d+ weeks?/.test(x.text)), `[HOME-DASHBOARD] ${at}: the on-time streak is ${owner ? 'missing' : 'shown to someone with no goals'}`);
-        check(!cells.some((x) => /^Watching/.test(x.text)), `[HOME-DASHBOARD] ${at}: the strip still has a Watching cell`);
-        if (who === 'diego') check(!(await p.getByRole('heading', { name: /^Goals you watch/ }).count()), `[HOME-DASHBOARD] ${at}: Diego watches nothing but Home shows Goals you watch`);
+        // On a phone the week's one action, when there is one, is in the first screen.
+        if (w === 390) { const hero = await box(p, '.home-hero .btn.primary'); check(!hero || hero.b <= 900 - 90, `[HOME-OWNER] ${at}: the week's main action is pushed below the first screen`); }
+        // Your goals by status, once, in Your goals: each count is a shape and a word, they add up, and each opens exactly those.
+        const counts = await p.$$eval('.home-mine .home-counts a', (els) => els.map((e) => ({ shape: !!e.querySelector('svg.status-shape'), text: e.innerText.trim(), href: e.getAttribute('href') || '' })));
+        if (owner) {
+          const total = Number(((await section(p, 'Your goals').locator('h2').innerText()).match(/(\d+)/) || [])[1]);
+          check(counts.length > 0 && counts.every((x) => x.shape && /^\d+ /.test(x.text) && STATUS_WORD.test(x.text)), `[HOME-OWNER] ${at}: a status count lacks its shape, number or word`);
+          check(counts.reduce((n, x) => n + parseInt(x.text, 10), 0) === total, `[HOME-OWNER] ${at}: the counts don't add up to ${total}`);
+          check(counts.every((x) => /^\/goals\?scope=mine&status=\w+$/.test(x.href)), `[HOME-OWNER] ${at}: a count doesn't open exactly those goals (${counts.map((x) => x.href).join(' ')})`);
+        } else check(!counts.length, `[HOME-OWNER] ${at}: someone who owns no goal is shown counts of goals`);
+        // Never a bare /goals link or an old show= address, and none of the words Home no longer says.
+        const hrefs = await p.$$eval('.page.home a[href]', (as) => as.map((a) => a.getAttribute('href')));
+        check(!hrefs.some((h) => h === '/goals' || /show=/.test(h)), `[HOME-OWNER] ${at}: a link opens a bare /goals or an old address (${hrefs.filter((h) => h === '/goals' || /show=/.test(h)).join(' ')})`);
+        const text = await p.locator('.page.home').innerText();
+        check(!/You’re all set|None you’re in|\b0 weeks\b/.test(text), `[HOME-OWNER] ${at}: Home says something it no longer says`);
+        if (who === 'diego') check(!(await p.getByRole('heading', { name: /^Goals you watch/ }).count()), `[HOME-OWNER] ${at}: Diego watches nothing but Home shows Goals you watch`);
         else {
           const block = await section(p, 'Goals you watch').innerText();
-          check(new RegExp(`${watchNeeds[who]} need attention`).test(block) && /\/goals\?show=watching/.test((await section(p, 'Goals you watch').locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')).join(' ')))), `[HOME-DASHBOARD] ${at}: Goals you watch does not match Watching (${watchNeeds[who]} need attention): "${block.replace(/\n/g, ' ').slice(0, 160)}"`);
+          check(new RegExp(`${watchNeeds[who]} need attention`).test(block) && /\/goals\?scope=watching/.test((await section(p, 'Goals you watch').locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')).join(' ')))), `[HOME-OWNER] ${at}: Goals you watch does not match Watching (${watchNeeds[who]} need attention): "${block.replace(/\n/g, ' ').slice(0, 160)}"`);
         }
-        const rev = cells.find((x) => /Next review/.test(x.text));
-        const [revName, revDay, revId] = who === 'diego' ? ['Developer Productivity fortnightly', 'Tuesday', 'devprod'] : ['Platform leadership weekly', 'Thursday', 'weekly'];
-        check(rev && rev.text.includes(revName) && rev.text.includes(revDay) && rev.href.endsWith('/reviews/' + revId), `[HOME-DASHBOARD] ${at}: the next review is not ${revName}, ${revDay}`);
         // One primary action on the screen, and no sideways scroll.
         const primaries = await p.$$eval('.btn.primary', (els) => els.filter((e) => { const r = e.getBoundingClientRect(); return r.width && r.bottom > 0 && r.top < innerHeight; }).length);
-        check(primaries <= 1, `[HOME-DASHBOARD] ${at}: ${primaries} primary actions in view`);
-        check(await noSideways(p), `[HOME-DASHBOARD] ${at}: sideways scroll`);
+        check(primaries <= 1, `[HOME-OWNER] ${at}: ${primaries} primary actions in view`);
+        check(await noSideways(p), `[HOME-OWNER] ${at}: sideways scroll`);
         // What you own and what you watch.
-        const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*\d+$/, '').trim());
-        check(owner === h2.includes('Your goals'), `[HOME-DASHBOARD] ${at}: "Your goals" is ${owner ? 'missing' : 'shown with no goals'}`);
-        check((who !== 'diego') === h2.includes('Goals you watch'), `[HOME-DASHBOARD] ${at}: "Goals you watch" is ${who === 'diego' ? 'shown with nothing watched' : 'missing'}`);
+        const h2 = (await p.locator('.page.home h2').allInnerTexts()).map((t) => t.replace(/\s*·?\s*\d+$/, '').trim());
+        check(owner === h2.includes('Your goals'), `[HOME-OWNER] ${at}: "Your goals" is ${owner ? 'missing' : 'shown with no goals'}`);
+        check((who !== 'diego') === h2.includes('Goals you watch'), `[HOME-OWNER] ${at}: "Goals you watch" is ${who === 'diego' ? 'shown with nothing watched' : 'missing'}`);
         if (who === 'daniel') check(!(await p.locator('details.handled-fold').count()), `[ATTENTION-HANDLED] ${at}: Daniel has nothing being handled, but Home shows the fold`);
         if (who === 'amara') {
           // Exceptions first, being handled folded away under them.
@@ -106,7 +106,7 @@ module.exports = {
           check(/Being handled · 1/.test(summary), `[ATTENTION-HANDLED] ${at}: the fold says "${summary}"`);
           const watched = section(p, 'Goals you watch');
           const first = await watched.locator('.tree .trow').first().getAttribute('data-tone').catch(() => null);
-          check(['off', 'risk', 'stale'].includes(first), `[HOME-DASHBOARD] ${at}: Goals you watch does not lead with an exception (${first})`);
+          check(['off', 'risk', 'stale'].includes(first), `[HOME-OWNER] ${at}: Goals you watch does not lead with an exception (${first})`);
           if (w === 1280) {
             await fold.locator('summary').click();
             const row = await fold.locator('.trow').first().innerText().catch(() => '');

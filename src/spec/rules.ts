@@ -3,6 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { homeFor, type HomeFacts } from '../domain/home';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -1189,6 +1190,48 @@ A **metric** is one number defined once per workspace, so every goal about it me
     { given: 'Rhea removes Lead time for changes, which measures one goal.', then: 'Removed the metric “Lead time for changes”, unlinking 1 goal / No longer measured by “Lead time for changes”, as the metric was removed', run: () => summaryOf(asPerson('rhea', (x) => MET.removeMetric(x, 'metric_lead-time'))) },
   ],
   unclear: ['Two people changing the same metric at once: the later save wins (metrics carry no version yet, unlike goals and reviews).', 'The words for a slice are the team’s name, or “The whole company”; the change log says “for the whole company” or “for <team>”.'],
+});
+
+/** Home's facts for the examples: weekly, due Thursday 12 Nov 2026, week 46 of 53. */
+const HOME_F = (p: Partial<HomeFacts> & { today: string }, c: Partial<HomeFacts['checkIns']> = {}): HomeFacts => ({
+  week: 46, lastWeek: 53, cycleName: '2026', workspace: 'Platform Engineering', starts: null, ended: false, rhythm: { dueDate: '2026-11-12', nextDueDate: '2026-11-19' },
+  wrap: null, sessions: [], owns: 2, watches: 1, asks: 0, ...p, checkIns: { total: 2, done: 0, due: [], draft: false, allInOnTimeToday: false, streak: 0, ...c },
+});
+const HOME_DUE = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number: true }));
+const HOME_REVIEW = { id: 'dp', name: 'Developer Productivity fortnightly', date: '2026-11-10', held: false, discuss: 14, healthy: 21, done: 0, total: 35, started: false, nextGoal: null, nextDate: '2026-11-24' };
+const homeSays = (f: HomeFacts) => { const p = homeFor(f); return p.lead ? `${p.lead.kind}: ${p.lead.eyebrow} · ${p.lead.title} · ${p.lead.action.label}` : `${p.quiet!.sentence}${p.quiet!.line ? ` ${p.quiet!.line}` : ''}${p.quiet!.buttons.length ? ` [${p.quiet!.buttons.map((b) => b.label).join('] [')}]` : ''}`; };
+
+RULE_LIST.push({
+  id: 'home',
+  title: 'Home: what is asked of you today',
+  summary: 'Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is.',
+  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay'] }],
+  tests: ['src/domain/home.test.ts'],
+  reqs: ['HOME-OWNER'],
+  body: `
+**The lead** is the first of these that holds, and Home's one primary action; with none, Home has no primary button at all:
+
+1. *Late check-ins*: a rhythm is set, a check-in is still to do this week, and its due date has passed. "Check-ins were due on {Thursday 12 Nov}" · "{n} check-ins still to do" · "{titles}. They count for week {w} until Sunday." · **Start check-in**.
+2. *Check-ins*: a rhythm is set, a check-in is still to do, and it is due within \`LEAD_DAYS\` (1) day, or a draft is kept (**Pick up where you left off**), or a review the viewer is in is today and isn't held ("{Review} is today" · "{n} check-ins to do before it").
+3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
+4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
+
+With two or more number goals to check in on, the check-in leads add the quiet link "Or type all your numbers in one table". A ring counts what the lead counts (check-ins, reviewed, wrapped).
+
+**The quiet line** (no lead), the first that holds: before the cycle starts, "Nothing is asked of you today." and when it starts; after it ends, "{cycle} has ended."; check-ins to do but not yet asked, "Check-ins for week {w} are due by {date}. You have {n} to do." with a plain **Check in early**; all of the viewer's check-ins in, "{Both check-ins are | All {n} check-ins are} in for week {w}." and when the next are due, with "That is {k} weeks in a row on time." first only on the day the last went in on time and from a streak of 2; someone who owns, watches and is asked nothing, "You don’t own or watch a goal in {workspace} yet." with **See the goals** and **Set up a goal**; otherwise just "Nothing is asked of you today."
+
+Never said: "You’re all set", a deadline that has passed for someone who met it, "0 weeks". Your goals are counted once, in "Your goals", and each count opens exactly those goals (\`/goals?scope=mine&status=…\`); no link on Home is a bare \`/goals\`.`,
+  examples: [
+    { given: 'Tunde, Monday 9 Nov, 2 check-ins to do.', then: 'Nothing is asked of you today. Check-ins for week 46 are due by Thursday 12 Nov. You have 2 to do. [Check in early]', run: () => homeSays(HOME_F({ today: '2026-11-09' }, { due: HOME_DUE(2) })) },
+    { given: 'Tunde, Wednesday 11 Nov, 1 to do.', then: 'check-in: Check-ins are due by Thursday 12 Nov, tomorrow · 1 check-in to do · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-11' }, { done: 1, due: HOME_DUE(1) })) },
+    { given: 'Tunde, Thursday 12 Nov, posts his last one today, 5 weeks in a row on time.', then: 'Both check-ins are in for week 46. That is 5 weeks in a row on time. The next are due by Thursday 19 Nov.', run: () => homeSays(HOME_F({ today: '2026-11-12' }, { done: 2, allInOnTimeToday: true, streak: 5 })) },
+    { given: 'Tunde, Friday 13 Nov, 1 not posted.', then: 'check-in-late: Check-ins were due on Thursday 12 Nov · 1 check-in still to do · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-13' }, { done: 1, due: HOME_DUE(1) })) },
+    { given: 'Rhea, Tuesday 10 Nov, 6 to do, her Developer Productivity fortnightly today.', then: 'check-in: Developer Productivity fortnightly is today · 6 check-ins to do before it · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 1, due: HOME_DUE(6) })) },
+    { given: 'Rhea, Tuesday 10 Nov, all 7 in.', then: 'review: Developer Productivity fortnightly is today · your 7 check-ins are in · 14 goals to discuss · Open the review', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 7 })) },
+    { given: 'Someone who owns, watches and is asked nothing.', then: 'Nothing is asked of you today. You don’t own or watch a goal in Platform Engineering yet. [See the goals] [Set up a goal]', run: () => homeSays(HOME_F({ today: '2026-11-11', owns: 0, watches: 0 }, { total: 0 })) },
+    { given: 'Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open.', then: 'wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up', run: () => homeSays(HOME_F({ today: '2026-12-23', week: 52, rhythm: { dueDate: '2026-12-24', nextDueDate: '2026-12-31' }, wrap: { ends: '2027-01-03', ended: false, left: [{ id: 'g1', title: 'Goal 1' }, { id: 'g2', title: 'Goal 2' }], total: 2 } }, { done: 2 })) },
+  ],
+  unclear: ['The ring and its words are drawn by the screen from the lead’s counts; the conformance rows (home.csv) give the lead’s kind and the quiet sentence for each demo person on each day of two weeks.'],
 });
 
 /** Runs every example: the ones that don't give what they say. */

@@ -379,8 +379,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   h.set('logged', posts.length === 2 && posts.every((c) => c.diffs.some((d) => d.field === 'Value')), `expected two logged week-${NOW} posts by Rhea, saw ${posts.length}`);
   await p.goto(url('/'));
   await p.reload();
-  // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done rather than moving on to a review.
-  await see(p, /You’re all set for week/, 'posted check-ins survive a reload, and home says the week is done');
+  // Rhea is in no review this week (hers is on Tuesday), so Home says the week is done in one sentence (HM1).
+  await see(p, /(Your check-in is|Both check-ins are|All \d+ check-ins are) in for week/, 'posted check-ins survive a reload, and home says the week is done');
   // An ad hoc check-in, any time, from the goal page: kept alongside the first, and the latest is the week's status.
   await p.goto(url('/goals/ci-docker'));
   // Checked in already: the owner's check-in is no longer the page's main action; "Check in again" is beside it.
@@ -818,7 +818,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   h.set('logged', !!review && review.people.length === 3 && review.scope.levels.length === 3 && review.weekday === 3 && s.changes.some((c) => c.entity === 'review' && c.action === 'created') && s.views.filter((v) => v.pinned).length === 3 && s.goals.find((g) => g.level === 'north-star')?.definition === 'People who used it at least once in the week', 'set-up didn’t save the weekly review, the pinned views and the outcome’s definition');
   // Born on time: nothing due or late on Home, the first review is next Thursday, and the pinned views are in the sidebar.
   await p.goto(sunday('/'));
-  await see(p, 'Your first check-in is next week', 'Home doesn’t say the first check-in is next week');
+  await see(p, /Your first check-ins? (is|are) due by Thursday 12 Nov/, 'Home doesn’t say when the first check-ins are due');
   if (await p.getByText(/days? late/).count()) fail('a new workspace starts with something late');
   await see(p, 'Weekly review', 'Home has no next review');
   // Checking in early on one goal says 1 of them, as Home's ring does, never that all are in (re-review, 8 Nov, backlog T).
@@ -837,8 +837,9 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   const owned = s.goals.filter((g) => g.ownerId === early.ownerId).length;
   await p.goto(sunday('/'));
   await p.locator('.home-hero').first().waitFor();
-  const ringSays = await p.locator('.home-hero .ring').first().getAttribute('aria-label').catch(() => '');
-  h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && ringSays === `1 of ${owned} check-ins done this week`, `after one early check-in the confirmation said “${said}” and Home’s ring “${ringSays}”`);
+  // Nothing is asked yet (the rest are due next week), and Home never says they are all in (HM1).
+  const homeSays = await p.locator('.home-hero').first().innerText().catch(() => '');
+  h.set('progress', said.startsWith(`1 of ${owned} checked in for week 45`) && !/^(All|Both)/.test(said) && /Nothing is asked of you today/.test(homeSays) && !/in for week/.test(homeSays), `after one early check-in the confirmation said “${said}” and Home “${homeSays.replace(/\n/g, ' ')}”`);
   await p.goto(sunday('/reviews'));
   await see(p, 'Session Thu 12 Nov', 'the first review session is not next Thursday');
   // A goal page asks for what it measures while it isn't said: in About, open on a first visit, with Describe it.
@@ -1359,6 +1360,55 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
   h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
   await h.checkpoint('posted');
+});
+
+journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing is asked and there is no primary button; the day before the deadline the check-in is the one primary; a completed week is one sentence with the next date; a passed deadline is never said to someone who met it; each count opens exactly its goals', 6, async (h, device) => {
+  const day = (d) => BASE + '/demo/?today=' + d;
+  const p = h.use(await newPage(device, 'tunde'));
+  // Monday 9 Nov: Tunde's two check-ins are due Thursday. Nothing is asked of him yet: one sentence, no primary button.
+  await p.goto(day('2026-11-09'));
+  const hero = p.locator('.home-hero').first();
+  await hero.waitFor();
+  const monday = await hero.innerText();
+  h.set('attention', /Nothing is asked of you today\./.test(monday) && /due by Thursday 12 Nov\. You have 2 to do\./.test(monday), `Monday’s Home said “${monday.replace(/\s+/g, ' ')}”`);
+  h.set('entry', await p.locator('.page.home .btn.primary').count() === 0, 'Monday’s Home has a primary button with nothing asked');
+  // Your goals are counted once, and each count opens exactly those goals.
+  const heads = await p.locator('.page.home h2').allInnerTexts();
+  h.set('progress', heads.filter((t) => /^Your goals/.test(t.trim())).length === 1 && /Your goals\s*·?\s*2\b/.test(heads.join(' ')), `Home’s headings: ${heads.join(' | ').replace(/\s+/g, ' ')}`);
+  const counts = await p.locator('.home-mine .home-counts a').allInnerTexts();
+  for (const text of counts) {
+    const n = Number(text.trim().match(/^\d+/)?.[0]);
+    await h.click(p.locator('.home-mine .home-counts a', { hasText: text.trim() }).first());
+    await p.waitForURL(/\/goals\?scope=mine&status=/);
+    await p.locator('.goals-line').first().waitFor();
+    const line = await p.locator('.goals-line').first().innerText();
+    if (!new RegExp(`^${n} goals? match`).test(line)) fail(`“${text.trim()}” opened “${line}”`);
+    await p.goBack();
+    await p.locator('.home-mine .home-counts').waitFor();
+  }
+  await h.checkpoint('monday');
+  // Wednesday 11 Nov: both are in (the example posts them). One sentence with the next date, and no button.
+  await p.goto(day('2026-11-11'));
+  await hero.waitFor();
+  const done = await hero.innerText();
+  h.set('finish', /Both check-ins are in for week 46\./.test(done) && /The next are due by Thursday 19 Nov\./.test(done) && await p.locator('.page.home .btn.primary').count() === 0, `Wednesday’s Home said “${done.replace(/\s+/g, ' ')}”`);
+  // Friday 13 Nov: the deadline he met is not said.
+  await p.goto(day('2026-11-13'));
+  await hero.waitFor();
+  const friday = await p.locator('.page.home').innerText();
+  if (/were due|due on Thursday 12 Nov|late/.test(friday)) fail(`Friday’s Home tells Tunde, who met it, about Thursday’s deadline: “${(friday.match(/[^\n]*(were due|Thursday 12 Nov|late)[^\n]*/) || [''])[0]}”`);
+  await h.checkpoint('friday');
+  // The day before the deadline, a check-in still to do is the one primary (Rhea, five to do on Wednesday 11 Nov).
+  await viewAs(p, 'Rhea');
+  await p.goto(day('2026-11-11'));
+  await hero.waitFor();
+  const lead = await hero.innerText();
+  const start = hero.getByRole('link', { name: /Start check-in|Pick up where you left off/ });
+  h.set('errors', /Check-ins are due by Thursday 12 Nov, tomorrow/.test(lead) && /\d+ check-ins? to do/.test(lead) && await p.locator('.page.home .btn.primary').count() === 1 && await start.count() === 1, `Rhea’s Wednesday lead: “${lead.replace(/\s+/g, ' ')}”`);
+  await h.click(start);
+  await p.waitForURL(/\/check-in/);
+  h.set('logged', true);
+  await p.context().close();
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {

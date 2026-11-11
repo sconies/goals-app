@@ -21,7 +21,7 @@ const DEFAULT = 30;
 const WEIGHTS = {
   P1: 1, P2: 13, P3: 64, P4: 63, P6: 28, P7: 15, P8: 5, P9: 50, P10: 6, P15: 2,
   F1: 32, F2: 18, F3: 25, F4: 29, F5: 17, F6: 36, F7: 29, F8: 34, F9: 20, F10: 12, F11: 10, F14: 45,
-  N1: 21, N2: 98, N3: 18, N4: 62, N5: 19, N6: 32, N7: 256, N8: 34, N9: 43, N10: 40, N12: 120, N15: 40,
+  N1: 21, N2: 98, N3: 18, N4: 62, N5: 19, N6: 32, N7: 256, N8: 34, N9: 43, N10: 40, N12: 120, N15: 40, N26: 150,
 };
 
 /** Ids of the per-area modules (evals/finish, evals/notes), in the order journeys.cjs runs them. */
