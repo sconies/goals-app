@@ -48,7 +48,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 - **0c is done:** Faro lives in the `faro` schema (0035–0037), owned by `faro_owner`, which can't read or write the family tables; CI's `DATABASE_URL` is `faro_owner` (tested by the Nightly workflow, 17:38 UTC). Exposed schemas include `faro`; `SUPABASE_SERVICE_ROLE_KEY` is gone from Vercel. Next: 0c2 (drop the public redirects) about a week on. Read `supabase/README.md` before any migration.
 - **The redesign (backlog RD, `docs/design/`) is being built in three tracks, each merging its own green PRs:** merged so far AR1/AR4, FS1, FS2 (part), AR2, GL1+NV1, AR3, GT1, GT2, GT3, WR1–WR4, OB3, plus fixes (#87–#107). **Held until Thursday 12 Nov** (after the live build): track 1 FS3, GL2, FS4 and FS2's GoalWizard/GoalEdit/Data pickers and list bars; track 2 OB2 (#103, green), OB1, GT3's edit page, goal sections into About; track 3 AS part 2, ML1–ML3, AS part 3, and #104's day-one rule taking only what it reads plus the AR4 lint gap. Track sessions: 1 session_012kbr8zbTuEu8jJZWUD4ENu, 2 session_012kbr8xYENVqYZuZ5Znt5Sq, 3 session_012kbr8z72rbVyFgvmF6P4e3.
 - **Track 1, Wednesday 11 November, night (session past half, handing over):** CK2 (#160) merged. Open, with the local gate passed:
-  - **#168**, the Back fix for U20/U58: Goals rewrites its address only while still on `/goals`. A four-shard run is proving it; merge it first.
+  - **#168**, the Back fix for U20/U58: Goals rewrites its address only while still on `/goals`. Proven by a four-shard run: U20 and U58 pass, 167 of 168 requirements; P9 timed out under load and passes alone. Merge it first.
   - **#169**, HM1. It has the full suite plus reruns of every failure; U9's step budget and U111's "logged" fail the same way on main. CI has been queued on GitHub since about 20:21 UTC.
 
   Drafted and pushed, not yet gated (rebase each on main after #169):
@@ -56,7 +56,10 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
   - `hm2-asks-wait` (HM2, stacked on HM1): `waiting`/`waitingOrder`/`askLead` and `homeAsks` in `reads.ts`; NeedsYou on rule 3; N26 gains Amara's Respond lead and Rhea's late question. Still to do: the same gate.
 
   **Next, in the planning session's order:**
-  1. The build reviewer's mediums on #111–#117 and #116, grouped by screen (the planning session's message of 11 Nov, 21:36; the log is on `build-reviews`, draft #134).
+  1. The build reviewer's mediums on #111–#117 and #116, grouped by screen (the planning session's message of 11 Nov, 21:36; the log is on `build-reviews`, draft #134). Add CK2's (#160) three:
+     - an answer given in the check-in table isn't kept in History;
+     - the Check's words use a second number formatter ("1 hours"): use the one formatter;
+     - `checkInLevels` returns only the number's Must fix, and the table draws Must fix as a hint.
   2. Then RV7 and HM2.
   3. Then N12's timing of Find and the Goals list, with #110's lows (listed in the next line).
 
