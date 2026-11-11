@@ -17,6 +17,15 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
+// server/log.ts
+/** Writes the failure to standard error and returns its reference. Never throws. */
+function logFailure(where, e) {
+	const reference = `err_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+	try {
+		console.error(`[faro mcp] ${where} failed (${reference}):`, e instanceof Error ? e.stack ?? e.message : e);
+	} catch {}
+	return reference;
+}
 // src/domain/plan.ts
 /** Days between two ISO dates or timestamps, by calendar date in UTC. */
 function daysBetween(fromIso, to) {
@@ -2744,7 +2753,7 @@ function draftOf(g) {
 	}));
 	return d;
 }
-function validateGoal(d, cycle, existing) {
+function validateGoal(d, cycle, existing, week) {
 	const e = {};
 	const named = nameProblem(d.title, "goal");
 	if (named) e.title = named;
@@ -2788,6 +2797,7 @@ function validateGoal(d, cycle, existing) {
 			const w = parseNumber(s.dueWeek);
 			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
 		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
+		else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek), week) && !s.done)) e.stages = "Say whether this stage is done.";
 	}
 	return e;
 }
@@ -2961,11 +2971,14 @@ function overHundredHint(unit, start, target) {
 	if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
 	return "Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.";
 }
+var pastStage;
 var init_goal = __esmMin((() => {
 	init_checkin();
 	init_thresholds();
 	init_numbers();
 	init_plan();
+	init_status();
+	pastStage = (dueWeek, week) => dueWeek < week;
 }));
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
@@ -5599,6 +5612,8 @@ var init_actions = __esmMin((() => {
 	init_thresholds();
 	init_cycle();
 	init_people();
+	init_goal();
+	init_changes();
 	init_asks();
 	init_review();
 	init_status();
@@ -10642,7 +10657,8 @@ var CORE_ARTICLES = [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.",
 					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
-					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one."
+					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
+					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
 				]
 			},
 			{
@@ -11366,6 +11382,7 @@ var CORE_ARTICLES = [
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
+				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
 				"Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.",
 				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
@@ -11379,6 +11396,7 @@ var CORE_ARTICLES = [
 		screens: ["GoalWizard"],
 		reqs: [
 			"GOAL-CREATE",
+			"NEW-GOAL-TRUTH",
 			"PLAN-SHAPE",
 			"LEVELS",
 			"FIRST-CHECKIN",
@@ -12633,6 +12651,13 @@ var WHATS_NEW = [
 			"The place line at the top says “2026 · week 53, the last week”, then “2026 has ended”."
 		],
 		articles: ["wrap-up", "workspace-cycles"]
+	},
+	{
+		id: "not-born-late",
+		date: "2026-11-11",
+		title: "A new goal doesn’t start out late",
+		points: ["A stage that’s already past asks whether it’s done, and a done one counts as on time.", "If your first number isn’t where the plan starts, you can start the plan from it."],
+		articles: ["new-goal", "check-in"]
 	},
 	{
 		id: "goals-filters-in-words",
@@ -18485,12 +18510,14 @@ async function serve(req, deps) {
 			headers: CORS
 		});
 	} catch (e) {
+		const reference = logFailure("A request", e);
 		res = json({
 			jsonrpc: "2.0",
 			id: body?.id ?? null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}, 500);
 	}
@@ -41174,12 +41201,14 @@ var handler = async (req) => {
 	try {
 		return await serve(req, supabaseDeps(new URL(req.url).origin));
 	} catch (e) {
+		const reference = logFailure("The MCP endpoint", e);
 		return new Response(JSON.stringify({
 			jsonrpc: "2.0",
 			id: null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}), {
 			status: 500,

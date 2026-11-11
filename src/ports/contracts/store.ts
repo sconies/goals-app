@@ -66,6 +66,29 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       expect((await store.load(ws)).goals.find((x) => x.id === g.id)!.title).toBe('Renamed once');
     });
 
+    it('never lets a save to one workspace change another’s records', async () => {
+      // A store that keeps every workspace's records in one table (a database) refuses such a save outright; one that
+      // keeps each workspace apart (the browser) may keep the copy as this workspace's own. Neither touches the other.
+      const other = ids('ws');
+      const theirs = contractWorkspace(`o${n}`);
+      await store.createWorkspace({ id: other, name: 'Neighbour', kind: 'own', createdAt: NOW.toISOString() }, theirs);
+      const person = theirs.people[0]!;
+      const milestone = theirs.goals.find((g) => g.kind === 'milestone')!;
+      expect(milestone.kind === 'milestone' && milestone.stages.length).toBeGreaterThan(0);
+      for (const c of [
+        { people: [{ ...person, name: 'Moved across' }], changes: [] },
+        { goals: [{ ...milestone, title: 'Taken over', stages: [] }], changes: [] },
+      ] as Commit[]) {
+        await store.commit(ws, c).catch(() => undefined);
+      }
+      const after = await store.load(other);
+      expect(after.people.find((p) => p.id === person.id)?.name).toBe(person.name);
+      const g = after.goals.find((x) => x.id === milestone.id)!;
+      expect(g.title).toBe(milestone.title);
+      expect(g.kind === 'milestone' && g.stages.map((s) => s.id)).toEqual(milestone.kind === 'milestone' && milestone.stages.map((s) => s.id));
+      await store.deleteWorkspace(other);
+    });
+
     it('issues an AI assistant token once, never keeps its secret, and revokes it', async () => {
       const s = await store.load(ws);
       const c = createToken(ctx(s), s.people[1]!.id, 'Claude on a laptop');

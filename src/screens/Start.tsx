@@ -12,6 +12,18 @@ import { Avatar } from '../ui/bits';
 export function WhoAreYou() {
   const app = useApp();
   const [q, setQ] = useState('');
+  // Signed in, but nobody here has that sign-in's email (R1, rule 2): only an admin can add them.
+  if (!app.canChooseViewer) return (
+    <div className="focus">
+      <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
+        <div className="stack" style={{ gap: 'var(--s2)' }}>
+          <span className="eyebrow">{app.ws.name}</span>
+          <h1 className="title-xl">You’re not in {app.ws.name} yet</h1>
+          <span className="hint">No one here has the email you signed in with. Ask whoever set up {app.ws.name} to add you.</span>
+        </div>
+      </div>
+    </div>
+  );
   const found = app.snapshot.people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()));
   const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id)] as const), ['No team', found.filter((x) => !x.teamId || !app.team(x.teamId))] as const].filter(([, l]) => l.length);
   return (

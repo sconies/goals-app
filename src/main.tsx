@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
-import { fixedClock } from './adapters/local';
-import type { Clock } from './ports';
+import { fixedClock, viewerPicker } from './adapters/local';
+import type { Clock, Identity } from './ports';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { BrowserStore, LIVE_KEY, pickExampleFromUrl, type Mode, type Store } from './data/store';
@@ -85,11 +85,14 @@ function inspectable(s: BrowserStore): BrowserStore {
 (window as unknown as { __shapeAgrees?: typeof shapeAgrees }).__shapeAgrees = shapeAgrees;
 
 const today = clock();
+/** Who is using the app (src/ports Identity), beside the store: Faro's "Who are you?" picker. A company's sign-in
+    replaces it here, as an Identity with no `choose` (src/adapters/signIn.ts is the shape to copy). */
+const identity: Identity = viewerPicker(mode);
 const root = createRoot(document.getElementById('root')!);
 void store(today).then(
   (s) => root.render(
     <StrictMode>
-      <App store={tracedStore(s, telemetry)} mode={mode} today={today} />
+      <App store={tracedStore(s, telemetry)} identity={identity} mode={mode} today={today} />
     </StrictMode>,
   ),
   (e: unknown) => {

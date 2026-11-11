@@ -35,6 +35,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
 | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`saveRetro`](../../../src/domain/actions.ts) |
+| Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner, or an admin | [`recordStagesDone`](../../../src/domain/actions.ts) |
 | Undo an import or bulk edit | Whoever made it, or an admin | [`undoImport`](../../../src/domain/removal.ts), [`canUndoImport`](../../../src/domain/removal.ts) |
 
 ### Comments and asks

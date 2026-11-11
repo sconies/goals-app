@@ -117,6 +117,11 @@
       "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained."
     },
     {
+      "id": "NEW-GOAL-TRUTH",
+      "area": "Goals",
+      "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
+    },
+    {
       "id": "GOAL-PAGE",
       "area": "Goals",
       "text": "The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal."
