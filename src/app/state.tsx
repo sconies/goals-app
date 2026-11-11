@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { systemClock, viewerPicker } from '../adapters/local';
-import type { Clock, Identity } from '../ports';
+import type { Clock, Identity, NoEntry } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { goalChange, type Lookup } from '../domain/changes';
@@ -54,6 +54,8 @@ export interface AppState {
   viewerChosen: boolean;
   /** Whether the Identity is the picker, so the person may say who they are; a sign-in can't be chosen. */
   canChooseViewer: boolean;
+  /** Why the sign-in opens no one in this workspace, when it can tell (Identity.why); null otherwise. */
+  noEntry: NoEntry | null;
   ws: Workspace;
   workspaces: Workspace[];
   /** The workspace being opened while it loads (switching), else null: the screen says so rather than mixing the two (backlog WS). */
@@ -331,6 +333,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [noEntry, setNoEntry] = useState<NoEntry | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -369,9 +372,11 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         try { const u = new URL(location.href); u.searchParams.delete('workspace'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* no history */ }
       }
       const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
+      const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
       setLoaded({ ws: id, snap, at: loadMark() });
       setViewerId(me);
+      setNoEntry(why);
     })().catch((e: unknown) => {
       if (!live) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -582,7 +587,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
 
     return traced({
       run: (name, input, opts) => telemetry.action(name, () => run(name, input, opts)),
-      mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose,
+      mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose, noEntry,
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
@@ -731,7 +736,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
       startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
-  }, [loaded, wanted, viewerId, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, noEntry, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

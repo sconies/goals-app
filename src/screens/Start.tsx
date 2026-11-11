@@ -8,6 +8,7 @@ import { dayText } from '../domain/review';
 import { WEEKLY_REVIEW } from '../domain/importer';
 import { PickOne } from '../ui/Pick';
 import { useSearch } from '../app/search';
+import type { NoEntry } from '../ports';
 
 /** Until sign-in comes with SSO, people say who they are once per workspace on this device. */
 export function WhoAreYou() {
@@ -16,19 +17,9 @@ export function WhoAreYou() {
   // "you" yet, so nothing is suggested before typing.
   const search = useSearch();
   const source = { search, viewerId: '', ws: app.ws.id, person: app.person };
-  // Nobody is signed in, or nobody here has that sign-in's email (R1, rule 2): nothing of the workspace is shown, and
-  // only an admin can add them.
-  if (!app.canChooseViewer) return (
-    <div className="focus">
-      <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
-        <div className="stack" style={{ gap: 'var(--s2)' }}>
-          <span className="eyebrow">{app.ws.name}</span>
-          <h1 className="title-xl">You can’t open {app.ws.name} yet</h1>
-          <span className="hint">You aren’t signed in, or no one here has the email you signed in with. Ask whoever set up {app.ws.name} to add you.</span>
-        </div>
-      </div>
-    </div>
-  );
+  // A sign-in that opens no one here (R1, rule 2): nothing of the workspace is shown; the page says why, when the sign-in
+  // can tell, and how to get in.
+  if (!app.canChooseViewer) return <CantOpenYet />;
   return (
     <div className="focus">
       <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
@@ -39,6 +30,45 @@ export function WhoAreYou() {
         </div>
         <PickOne kind="person" label="Your name" source={source} value={null} onChange={(id) => id && app.setViewer(id)} />
         <p className="hint">Not listed? Ask whoever set up {app.ws.name} to add you.</p>
+      </div>
+    </div>
+  );
+}
+
+/** What the page says for each reason a sign-in opens no one (Identity.why), and the message to send whoever set the
+    workspace up. No reason known: the plain words that cover them all. */
+export function cantOpenWords(ws: string, why: NoEntry | null): { line: string; message: string | null } {
+  const as = why?.email ? ` I sign in as ${why.email}.` : '';
+  switch (why?.reason) {
+    case 'signed-out': return { line: 'You aren’t signed in. Sign in with your company account, then try again.', message: null };
+    case 'no-one': return { line: `No one in ${ws} has the email ${why.email}. Ask whoever set up ${ws} to add you with that email.`, message: `Please add me to ${ws} in Faro.${as}` };
+    case 'shared': return { line: `More than one person in ${ws} has the email ${why.email}, so Faro can’t tell which one is you. Ask whoever set up ${ws} to give each of them their own email.`, message: `More than one person in ${ws} in Faro has my email, so I can’t open it. Please give each of us our own.${as}` };
+    case 'left': return { line: `${ws} has you down as having left. Ask whoever set up ${ws} to bring you back.`, message: `Please bring me back in ${ws} in Faro: it has me down as having left.${as}` };
+    default: return { line: `You aren’t signed in, or no one here has the email you signed in with. Ask whoever set up ${ws} to add you.`, message: `Please add me to ${ws} in Faro.` };
+  }
+}
+
+/** The page a sign-in that opens no one sees: why, and the way forward (a message to send, and trying again). */
+function CantOpenYet() {
+  const app = useApp();
+  const { line, message } = cantOpenWords(app.ws.name, app.noEntry);
+  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(message!); setCopied('yes'); } catch { setCopied('no'); }
+  };
+  return (
+    <div className="focus">
+      <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
+        <div className="stack" style={{ gap: 'var(--s2)' }}>
+          <span className="eyebrow">{app.ws.name}</span>
+          <h1 className="title-xl">You can’t open {app.ws.name} yet</h1>
+          <span className="hint">{line}</span>
+        </div>
+        {message && copied === 'no' && <p className="hint">Copy this and send it to them: <span className="strong">{message}</span></p>}
+        <div className="row">
+          {message && <button type="button" className="btn primary" onClick={() => void copy()}>{copied === 'yes' ? 'Copied: send it to them' : 'Copy a message for them'}</button>}
+          <button type="button" className={message ? 'btn ghost' : 'btn primary'} onClick={() => location.reload()}>Try again</button>
+        </div>
       </div>
     </div>
   );
