@@ -19,6 +19,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [Deciding in a review](review-decide.md) | A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed. |
 | [A year’s end](year-end.md) | A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year. |
 | [Starting the next year](start-next-year.md) | Which cycle everyone is in, what an admin’s start prepares and reads back first, and when it can be undone. |
+| [Levels](levels.md) | Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place. |
 | [The workspace: cycles, teams, names, leaving and what needs attention](workspace.md) | What Workspace says about each cycle and team, the longest name a workspace may have, who may leave, and what its overview lists as needing attention. |
 | [The directory: who People lists, what a search finds, and where old addresses lead](directory.md) | People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead. |
 | [Day one: set-up’s steps and “Getting started”](day-one.md) | How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks. |

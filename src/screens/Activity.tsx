@@ -7,7 +7,7 @@ import {
   type ActivityQuery, type When,
 } from '../domain/activity';
 import { toCsv } from '../domain/export';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import { watchedGoals } from '../domain/review';
 import type { Change, Level } from '../domain/types';
 import { Avatar, Sheet } from '../ui/bits';
@@ -67,7 +67,7 @@ export function Activity() {
   }
   const chips = describeActivity(a, app.snapshot, app.cycle, app.week);
   const parts = activityParts(a, { person: (id) => app.person(id)?.name ?? id, goal: (id) => app.goal(id)?.title ?? 'a goal', team: (id) => app.team(id)?.name ?? id }, chips.find((c) => c.key === 'when')?.text ?? '');
-  const scopeText = a.watching != null ? `Goals you watch${level ? ` (${LEVEL_LABEL[level]})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
+  const scopeText = a.watching != null ? `Goals you watch${level ? ` (${levelName(app.cycle, level)})` : ''}${a.since ? ` · since ${new Date(a.since + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}` : '';
   const counts = new Map(ACTIVITY_KINDS.map(([k]) => [k, inScope.filter((c) => kindOf(c) === k).length]));
   const narrowed = chips.length > 0 || a.watching != null;
   const saveCsv = () => {
@@ -147,7 +147,7 @@ function ActivityFilters({ onClose, onSave }: { onClose: () => void; onSave: (()
           <span className="filter-options">{app.snapshot.teams.map((t) => <label key={t.id} className="check"><input type="checkbox" checked={a.team.includes(t.id)} onChange={() => setA((cur) => ({ ...cur, team: toggle(cur.team, t.id) }))} /> {t.name}</label>)}</span>
         </fieldset>
         <fieldset className="filter-group"><legend className="field-label">Level</legend>
-          <span className="filter-options">{(['north-star', 'svp', 'team'] as Level[]).map((l) => <label key={l} className="check"><input type="checkbox" checked={a.level.includes(l)} onChange={() => setA((cur) => ({ ...cur, level: toggle(cur.level, l) }))} /> {LEVEL_LABEL[l]}</label>)}</span>
+          <span className="filter-options">{levelIds(app.cycle).map((l) => <label key={l} className="check"><input type="checkbox" checked={a.level.includes(l)} onChange={() => setA((cur) => ({ ...cur, level: toggle(cur.level, l) }))} /> {levelName(app.cycle, l)}</label>)}</span>
         </fieldset>
         <fieldset className="filter-group filter-dates"><legend className="field-label">Between two dates</legend>
           <label className="field"><span className="date-label">From</span><input className="input" type="date" value={a.from ?? ''} onChange={(e) => setA((cur) => ({ ...cur, when: 'custom', from: e.target.value || null }))} /></label>

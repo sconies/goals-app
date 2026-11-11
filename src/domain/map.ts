@@ -1,6 +1,7 @@
 /* The goal map: every goal as a node, laid out as trees (north stars at the top, the goals that feed them below),
    solid lines for "feeds into", dotted lines for "also helps", and the critical path: from each top goal, the chain
    of inputs most likely to make it miss. Pure functions; the screen draws them. */
+import { isTop } from './levels';
 import type { GoalAttention } from './attention';
 import { keyNumber } from './goalKey';
 import { LABEL, RANK, worst } from './status';
@@ -83,7 +84,7 @@ export function layout(goals: Goal[], opts: { collapsed?: Set<string>; only?: Se
   const kids = new Map<string, Goal[]>();
   for (const g of shown) if (g.parentId && ids.has(g.parentId)) kids.set(g.parentId, [...(kids.get(g.parentId) ?? []), g]);
   if (opts.order) for (const l of kids.values()) l.sort(opts.order);
-  const roots = shown.filter((g) => !g.parentId || !ids.has(g.parentId)).sort((a, b) => (a.level === 'north-star' ? 0 : 1) - (b.level === 'north-star' ? 0 : 1) || (opts.order?.(a, b) ?? 0));
+  const roots = shown.filter((g) => !g.parentId || !ids.has(g.parentId)).sort((a, b) => (isTop(null, a.level) ? 0 : 1) - (isTop(null, b.level) ? 0 : 1) || (opts.order?.(a, b) ?? 0));
   const out: MapNode[] = [];
   let slot = 0, tree = '';
   const seen = new Set<string>();
@@ -138,7 +139,7 @@ export function layoutIndented(goals: Goal[], opts: { collapsed?: Set<string>; o
   const kids = new Map<string, Goal[]>();
   for (const g of shown) if (g.parentId && ids.has(g.parentId)) kids.set(g.parentId, [...(kids.get(g.parentId) ?? []), g]);
   if (opts.order) for (const l of kids.values()) l.sort(opts.order);
-  const roots = shown.filter((g) => !g.parentId || !ids.has(g.parentId)).sort((a, b) => (a.level === 'north-star' ? 0 : 1) - (b.level === 'north-star' ? 0 : 1) || (opts.order?.(a, b) ?? 0));
+  const roots = shown.filter((g) => !g.parentId || !ids.has(g.parentId)).sort((a, b) => (isTop(null, a.level) ? 0 : 1) - (isTop(null, b.level) ? 0 : 1) || (opts.order?.(a, b) ?? 0));
   const out: MapNode[] = [];
   const seen = new Set<string>();
   let tree = '';

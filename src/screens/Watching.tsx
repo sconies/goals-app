@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { isEveryday, isTop, levelIds, levelName } from '../domain/levels';
 import { groupWatched } from '../domain/home';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { weekDate, weekDates } from '../domain/plan';
@@ -15,7 +15,6 @@ import { ChangeItem } from '../ui/ChangeItem';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** /watching: the Watching scope of Goals, keeping anything else the link carried (a pinned day, say). */
 export function Watching() {
@@ -106,7 +105,7 @@ function Group({ title, hint, goals, collapsed }: { title: string; hint?: string
 
 function WatchList({ watches, managing }: { watches: Watch[]; managing: boolean }) {
   const app = useApp();
-  const label = (w: Watch) => w.kind === 'level' ? `Every ${LEVEL_LABEL[w.ref as Level]} goal` : w.kind === 'tree' ? `${app.goal(w.ref)?.title ?? 'A goal'} and everything feeding it` : app.goal(w.ref)?.title ?? 'A goal that was removed';
+  const label = (w: Watch) => w.kind === 'level' ? `Every ${levelName(app.cycle, w.ref)} goal` : w.kind === 'tree' ? `${app.goal(w.ref)?.title ?? 'A goal'} and everything feeding it` : app.goal(w.ref)?.title ?? 'A goal that was removed';
   const order = { level: 0, tree: 1, goal: 2 } as const;
   return (
     <div className="optlist">
@@ -125,14 +124,14 @@ function WatchList({ watches, managing }: { watches: Watch[]; managing: boolean 
 function LevelPills() {
   const app = useApp();
   const watching = (l: Level) => app.snapshot.watches.some((w) => w.personId === app.viewer.id && w.kind === 'level' && w.ref === l);
-  const avail = LEVELS.filter((l) => !watching(l) && app.snapshot.goals.some((g) => g.level === l));
+  const avail = levelIds(app.cycle).filter((l) => !watching(l) && app.snapshot.goals.some((g) => g.level === l));
   if (!avail.length) return null;
   return (
     <div className="field" style={{ marginTop: 'var(--s3)' }}><span className="field-label">Watch a whole level</span>
       {/* The same chip as Activity's filters: a plus, the level and how many goals it holds. */}
       <div className="level-chips">{avail.map((l) => (
-        <button key={l} type="button" className="filter-chip" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); }}>
-          <Icon name="plus" size={12} />Watch {LEVEL_LABEL[l]}<span className="tabcount">{app.snapshot.goals.filter((g) => g.level === l).length}</span>
+        <button key={l} type="button" className="filter-chip" onClick={async () => { await app.watch('level', l); app.toast(`Watching every ${levelName(app.cycle, l)} goal`); }}>
+          <Icon name="plus" size={12} />Watch {levelName(app.cycle, l)}<span className="tabcount">{app.snapshot.goals.filter((g) => g.level === l).length}</span>
         </button>
       ))}</div>
     </div>
@@ -142,16 +141,17 @@ function LevelPills() {
 /** Nothing watched yet: the quickest ways in. One primary choice (the SVP goals, where there are any), the rest beside it. */
 function StartWatching() {
   const app = useApp();
-  const counts = LEVELS.map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n && l !== 'team');
-  const main = counts.find(([l]) => l === 'svp')?.[0] ?? counts[0]?.[0];
-  const watchLevel = async (l: Level) => { await app.watch('level', l); app.toast(`Watching every ${LEVEL_LABEL[l]} goal`); };
+  const counts = levelIds(app.cycle).map((l) => [l, app.snapshot.goals.filter((g) => g.level === l).length] as const).filter(([l, n]) => n && !isEveryday(app.cycle, l));
+  // The first level after the top that has goals; with two levels, the top.
+  const main = counts.find(([l]) => !isTop(app.cycle, l))?.[0] ?? counts[0]?.[0];
+  const watchLevel = async (l: Level) => { await app.watch('level', l); app.toast(`Watching every ${levelName(app.cycle, l)} goal`); };
   return (
     <section className="card watch-empty">
       <h2 className="h3">You’re not watching anything yet</h2>
       <p className="muted">Watching puts the goals you care about in one place: what’s slipping, what has had no recent update, what changed.</p>
       <div className="watch-empty-actions">
         {counts.map(([l, n]) => (
-          <button key={l} type="button" className={'btn' + (l === main ? ' primary' : '')} onClick={() => watchLevel(l)}>Watch every {LEVEL_LABEL[l]} goal ({n})</button>
+          <button key={l} type="button" className={'btn' + (l === main ? ' primary' : '')} onClick={() => watchLevel(l)}>Watch every {levelName(app.cycle, l)} goal ({n})</button>
         ))}
         <Link className={'btn' + (main ? '' : ' primary')} to="/goals">Pick goals from the list</Link>
       </div>

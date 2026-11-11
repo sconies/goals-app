@@ -37,6 +37,8 @@ jobs:
       - run: npm run typecheck
       - name: "Layers: src/domain has no database, screen or network code, and the core imports no module"
         run: npm run lint:layers
+      - name: "Settings: a level is read from src/domain/levels.ts only"
+        run: npm run lint:settings
       - run: npm test
       - name: "The spec matches the code (spec/ and llms.txt: npm run spec)"
         run: npm run spec -- --check

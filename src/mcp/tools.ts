@@ -1,6 +1,7 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
 import { scopeFacts, searchRows } from '../app/reads';
@@ -85,7 +86,7 @@ function statusIn(v: unknown, only: readonly DisplayStatus[] = STATUSES): Displa
   if (!k || !only.includes(k)) throw new Error(`“${String(v)}” isn’t a status here. Use one of: ${choices(STATUS, only)}.`);
   return k;
 }
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
+const LEVELS: Level[] = levelIds(null);
 const DRY = bool('Check the change without saving it. Use it to see what would change, or what is missing.');
 
 /** Tool arguments → a spreadsheet-style row (the same column names as the export). */
@@ -173,7 +174,7 @@ const GOAL_FIELDS = {
   owner: str('The owner’s full name, as in the workspace (when only one person has it; owner_email is exact).'),
   owner_email: str('The owner’s email: exact, even where two people share a name.'),
   team: str('The team’s name.'),
-  level: str('How important it is for reporting.', { enum: ['north star', 'svp', 'team'] }),
+  level: str('How important it is for reporting.', { enum: LEVELS.map((l) => LEVEL_WORDS.word[l] ?? l) }),
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
   decimals: int('Number goals: decimal places, 0 to 3.'),
   start: num('Move-a-number goals: where it starts.'),

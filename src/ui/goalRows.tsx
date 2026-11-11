@@ -4,7 +4,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
+import { fmt, gapBeside, nowText } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { daysSince, resultWeek } from '../domain/plan';
 import { coveringWatches, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
@@ -12,7 +13,7 @@ import { goalResult, RESULT_TEXT } from '../domain/story';
 import { descendants, forecastText, statusChange, type TreeNode } from '../domain/tree';
 import { feederHead } from '../domain/goalPage';
 import { rollup } from '../domain/map';
-import type { Goal, Level, Watch } from '../domain/types';
+import type { Goal, Watch } from '../domain/types';
 import { Spark, StageSpark } from './charts';
 import { Chip, LevelTag, Sheet, StatusWord, TitleTell } from './bits';
 import { Icon } from './Icon';
@@ -112,7 +113,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
         {stale ? (asOf ? <span className="trow-asof">{asOf}</span> : null) : gap && <span className={'tone-' + gap.tone}>{gap.short}</span>}
         {result && <span className={'result-tag result-' + result.kind}>{RESULT_TEXT[result.kind]}</span>}
       </span>
-      {g.level !== 'team' && <span className="sr">{LEVEL_LABEL[g.level]} level</span>}
+      {!isEveryday(app.cycle, g.level) && <span className="sr">{levelName(app.cycle, g.level)} level</span>}
     </Link>
   );
 }
@@ -178,7 +179,7 @@ export function WatchButton({ goal, primary }: { goal: Goal; primary?: boolean }
   const [scope, setScope] = useState<'goal' | 'tree'>('goal');
   const w = watchOf(app.viewer.id, goal, app.snapshot);
   const covers = coveringWatches(app.viewer.id, goal, app.snapshot);
-  const coverText = (x: Watch) => x.kind === 'level' ? `every ${LEVEL_LABEL[x.ref as Level]} goal` : `${app.goal(x.ref)?.title ?? 'a goal'} and what feeds it`;
+  const coverText = (x: Watch) => x.kind === 'level' ? `every ${levelName(app.cycle, x.ref)} goal` : `${app.goal(x.ref)?.title ?? 'a goal'} and what feeds it`;
   const feeding = descendantsOf(goal, app).length;
   const label = w === null ? 'Watch' : w !== 'via' && w.kind === 'tree' ? 'Watching all' : 'Watching';
   const doWatch = async (kind: 'goal' | 'tree') => {

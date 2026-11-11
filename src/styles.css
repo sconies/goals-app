@@ -630,8 +630,6 @@ svg.chart { display: block; overflow: visible; }
 
 /* Goal levels: a quiet tag; north star a touch stronger. */
 .level { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2); border-radius: 6px; font-size: var(--t-xs); font-weight: 650; line-height: 1.25rem; white-space: nowrap; border: 1px solid var(--line-strong); color: var(--fg-2); }
-.level-north-star { border-color: transparent; background: var(--accent-soft); color: var(--accent-text); }
-.level-north-star::before { content: none; }
 .btn.watching { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-text); }
 .trow-title .level, .outcome-title .level { margin-left: var(--s2); vertical-align: 2px; }
 .tree li.covered > .trow { opacity: .6; }
@@ -1153,8 +1151,7 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .filter-more > .filter-sheet { margin-top: var(--s3); }
 .sheet-foot { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s4) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--surface); border-top: 1px solid var(--line); }
 /* Levels are quiet words, not filled labels: the status, the number and the action carry the emphasis (visual review 2). */
-.level, .level-north-star { padding: 0; border: 0; border-radius: 0; background: none; font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.level-north-star { color: var(--accent-text); }
+.level { padding: 0; border: 0; border-radius: 0; background: none; font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .map-key-more { display: inline-block; position: relative; }
 .map-key-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .map-key-more > summary::-webkit-details-marker { display: none; }
