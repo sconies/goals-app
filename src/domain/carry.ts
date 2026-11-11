@@ -3,7 +3,7 @@
    start page's read-back, by `nextCycle` and by the AI tools, so what the read-back says is what the start makes. */
 import { assessMilestone, checkInsFor } from './status';
 import { goalResult } from './story';
-import type { CheckIn, Cycle, Goal, Retro } from './types';
+import type { Ask, CheckIn, Cycle, Goal, MetricLink, Retro, Review, Watch } from './types';
 
 /** What happens to one goal at the turn of the year. */
 export type CarryKind = 'carry' | 'keep' | 'finish' | 'stop';
@@ -134,4 +134,71 @@ export function startReadBack(ctx: ReadBackCtx): ReadBack {
     handSet: going.filter((g) => g.kind === 'metric' && kinds.get(g.id) === 'carry' && !!g.plan.points?.length).length,
     total: ctx.goals.length,
   };
+}
+
+export interface CopyCtx {
+  old: Pick<Cycle, 'weeks'>;
+  next: Pick<Cycle, 'id' | 'weeks'>;
+  checkIns: CheckIn[];
+  /** The copy's id. */
+  id: string;
+  /** The parent's copy, when the parent carries too; otherwise null (and the copy loses its effect). */
+  parentId: string | null;
+  now: string;
+}
+
+/**
+ * A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
+ * was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
+ * and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+ * plan keeps its dates, counted from the new year's start. Stages not done are spread evenly over the new year
+ * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
+ */
+export function carryCopy(g: Goal, ctx: CopyCtx): Goal {
+  const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, createdAt: ctx.now, pending: null } as Goal;
+  if (!base.parentId) base.effect = null;
+  if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
+    const shift = (w: number) => w - ctx.old.weeks;
+    const plan = { ...g.plan, fromWeek: shift(g.plan.fromWeek ?? 0), endWeek: shift(g.plan.endWeek!), ...(g.plan.points ? { points: g.plan.points.map((p) => ({ ...p, week: shift(p.week) })) } : {}) };
+    return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null, planHistory: undefined } as Goal;
+  }
+  if (g.kind === 'metric') {
+    const f = finalNumber(g, ctx.checkIns, ctx.old);
+    const plan = { start: f.value ?? g.plan.start, target: g.plan.target, shape: g.plan.shape, fromWeek: 0 };
+    return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null, planHistory: undefined } as Goal;
+  }
+  if (g.kind === 'milestone') {
+    const last = checkInsFor(g, ctx.checkIns).filter((c) => c.stages).pop();
+    const a = assessMilestone(g, ctx.old.weeks, last?.stages ?? null);
+    const left = g.stages.filter((_, i) => a.stages[i]?.kind !== 'done');
+    const stages = (left.length ? left : g.stages).map((st, i, arr) => ({ ...st, id: st.id + '-' + ctx.next.id, dueWeek: Math.max(1, Math.round(((i + 1) * ctx.next.weeks) / arr.length)) }));
+    return { ...base, kind: 'milestone', stages } as Goal;
+  }
+  return base;
+}
+
+/** What a start added and changed beside the goals, so Undo can put it back (removal undoStart). */
+export interface CarryUndo {
+  /** Watches and metric links the start added. */
+  watches: string[];
+  metricLinks: string[];
+  /** Open asks and reviews as they were before the copies were added to them. */
+  requests: Ask[];
+  reviews: Review[];
+}
+
+/**
+ * What comes with the goals that carry on (rule 6): one metric link per carried goal that had one (same metric and
+ * team, linked by the same person); a watch per watch of a carried goal or tree (same person); each open ask or next
+ * step on a carried goal, with the copy added to it (so it shows in both years); and each review that names a carried
+ * goal or tree, with the copies added. `map` is old goal id → copy id.
+ */
+export function carryExtras(map: Map<string, string>, s: { watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; metricLinks?: MetricLink[] }, newId: (prefix: string) => string): { metricLinks: MetricLink[]; watches: Watch[]; requests: Ask[]; reviews: Review[]; undo: CarryUndo } {
+  const metricLinks = (s.metricLinks ?? []).filter((l) => !l.removedAt && map.has(l.goalId)).map((l): MetricLink => ({ ...l, id: map.get(l.goalId)!, goalId: map.get(l.goalId)!, removedAt: null, removedBy: null }));
+  const watches = (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === 'goal' || w.kind === 'tree') && map.has(w.ref)).map((w): Watch => ({ ...w, id: newId('watch'), ref: map.get(w.ref)! }));
+  const add = (ids: string[]) => [...ids, ...ids.filter((id) => map.has(id)).map((id) => map.get(id)!)];
+  const before = { requests: [] as Ask[], reviews: [] as Review[] };
+  const requests = (s.requests ?? []).filter((r) => r.status === 'open' && r.goalIds.some((id) => map.has(id))).map((r): Ask => { before.requests.push(r); return { ...r, goalIds: add(r.goalIds) }; });
+  const reviews = (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => map.has(id))).map((r): Review => { before.reviews.push(r); return { ...r, scope: { ...r.scope, goals: add(r.scope.goals), trees: add(r.scope.trees) } }; });
+  return { metricLinks, watches, requests, reviews, undo: { watches: watches.map((w) => w.id), metricLinks: metricLinks.map((l) => l.id), ...before } };
 }

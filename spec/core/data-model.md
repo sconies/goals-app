@@ -326,6 +326,8 @@ What an import or bulk edit replaced, so "Undo this import" can put every row ba
 | `requests` | `{ id: Id; before: Ask \| null }[]` | yes |  |
 | `reviews` | `{ id: Id; before: Review \| null }[]` | no | Reviews and teams a row's Action changed (someone marked as left leaves their reviews and hands over their teams). |
 | `teams` | `{ id: Id; before: Team \| null }[]` | no |  |
+| `watches` | `Id[]` | no | Starting a year (domain/carry carryExtras): the watches and metric links it added for the carried goals. |
+| `metricLinks` | `Id[]` | no |  |
 
 ### Comment
 

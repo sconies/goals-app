@@ -1310,6 +1310,12 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   s = await h.snapshot('ws_turn');
   h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
   h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
+  // What came with the goals (CY4): watches, metric links and open asks follow; no stage is due after week 52; no number plan starts late.
+  const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
+  const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
+  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id))) && (s.metricLinks || []).some((l) => !l.removedAt && ids27.has(l.goalId));
+  const planned = s.goals.filter((g) => ids27.has(g.id)).every((g) => g.kind === 'milestone' ? g.stages.every((x) => x.dueWeek <= 52) : g.kind !== 'metric' || (g.plan.fromWeek || 0) <= 0);
+  h.set('attention', came && planned, `carried goals came without their watches, asks or metric links, or with a plan past week 52 (${came}, ${planned})`);
   // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
   await p.evaluate((snap) => {
     const c = snap.cycles[0];

@@ -10,7 +10,8 @@
    empty workspace, and every row is new. */
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
-import { NotAllowed } from './actions';
+import { mergeCommits, NotAllowed } from './actions';
+import { recarry } from './startYear';
 import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
@@ -916,6 +917,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
       ...(reviewsOut.size ? { reviews: [...reviewsOut.values()] } : {}),
       changes: [...changes, summary],
     };
+  }
+  // A final number given after next year was started, from a form, a table or a spreadsheet: its untouched copy there
+  // starts from it, or leaves when the goal now finishes (cycle-end rule 6, startYear recarry).
+  if (result.commit && input.full) {
+    const full = input.full;
+    for (const g of new Set(ciOut.map((c) => goalOut.get(c.goalId) ?? s.goals.find((x) => x.id === c.goalId)).filter((g): g is Goal => !!g))) {
+      result.commit = mergeCommits(result.commit, recarry(g, full, { checkIns: ciOut }, { now, actorId: actor.id, newId }));
+    }
   }
   return result;
 }

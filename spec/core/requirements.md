@@ -810,9 +810,9 @@ A cycle ends on its last day (its last week's Sunday) whether or not the next is
 
 ### CARRY-GOALS
 
-An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on.
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
 
-- **Rule:** [Starting the next year](rules/start-next-year.md)
+- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
 - **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
 - **Journeys and checks:** U115
 
