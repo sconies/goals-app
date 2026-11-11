@@ -86,3 +86,12 @@ describe('The pickers lint (find spec, N12)', () => {
     expect(find('<select>{weeks.map((w) => <option key={w}>{w}</option>)}</select>')).toEqual([]);
   });
 });
+
+// @ts-expect-error: a plain JavaScript script, run by CI with node, has no type declarations.
+import { checkSettings } from '../../scripts/check-settings.mjs';
+
+describe('The settings lint (workspace settings, CF1)', () => {
+  it('holds in this repository: a level is read from src/domain/levels.ts only', () => {
+    expect((checkSettings as (r: string) => string[])(root)).toEqual([]);
+  });
+});

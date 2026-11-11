@@ -4,7 +4,7 @@
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
 import { planHistoryOf } from './goal';
 import { asksOf, isOverdue } from './asks';
-import { LEVEL_LABEL } from './format';
+import { isEveryday, levelName } from './levels';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { answerOf, saidIn } from './review';
@@ -346,7 +346,7 @@ export function aiBrief(x: ExportInput): string {
 
   out.push('## Every goal, by what it feeds');
   const line = (s: GoalSummary, depth: number) => {
-    const lvl = s.goal.level !== 'team' ? ` [${LEVEL_LABEL[s.goal.level]}]` : '';
+    const lvl = !isEveryday(null, s.goal.level) ? ` [${levelName(null, s.goal.level)}]` : '';
     out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ''}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
   };
   const seen = new Set<string>();

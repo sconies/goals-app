@@ -1,5 +1,5 @@
 import type { Assessment } from './status';
-import type { Goal, Level, MetricGoal, RangeGoal } from './types';
+import type { Goal, MetricGoal, RangeGoal } from './types';
 import { fixed } from './numbers';
 import { GAP, gapPhrase, LABEL, STAGE } from './vocabulary';
 
@@ -115,4 +115,3 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   return { short: '', long: '', tone: 'stale' };
 }
 
-export const LEVEL_LABEL: Record<Level, string> = { 'north-star': 'North star', svp: 'SVP', team: 'Team' };

@@ -1,7 +1,7 @@
 /* The change log, filtered: by who, which goal (or its whole tree), team, level, kind of change, dates and words.
    Every setting lives in the link, so a filtered log can be shared or kept. */
 import type { Cell } from './export';
-import { LEVEL_LABEL } from './format';
+import { isLevel, levelName } from './levels';
 import { weekDate } from './plan';
 import { quarterOf } from './year';
 import type { Change, Cycle, Level, Snapshot } from './types';
@@ -43,7 +43,7 @@ export function parseActivity(p: URLSearchParams): ActivityQuery {
   const when = p.get('when') as When | null;
   return {
     q: p.get('q') ?? '', who: list(p.get('who')), goal: p.get('goal'), tree: p.get('tree') === '1',
-    team: list(p.get('team')), level: list(p.get('level')).filter((l): l is Level => l in LEVEL_LABEL),
+    team: list(p.get('team')), level: list(p.get('level')).filter((l) => isLevel(null, l)),
     kind: list(p.get('kind')).filter((k): k is ActivityKind => (kinds as string[]).includes(k)),
     when: WHEN_OPTIONS.some(([k]) => k === when) ? when : null, from: date(p.get('from')), to: date(p.get('to')),
     watching: p.get('watching'), since: date(p.get('since')),
@@ -144,7 +144,7 @@ export function describeActivity(a: ActivityQuery, s: Snapshot, cycle: Cycle, we
   if (a.who.length) out.push({ key: 'who', text: `By ${a.who.map(name).join(' or ')}` });
   if (a.goal) out.push({ key: 'goal', text: `${a.tree ? 'In the tree of' : 'On'} ${s.goals.find((g) => g.id === a.goal)?.title ?? 'a goal'}` });
   if (a.team.length) out.push({ key: 'team', text: a.team.map((t) => s.teams.find((x) => x.id === t)?.name ?? t).join(' or ') });
-  if (a.level.length) out.push({ key: 'level', text: a.level.map((l) => LEVEL_LABEL[l]).join(' or ') });
+  if (a.level.length) out.push({ key: 'level', text: a.level.map((l) => levelName(null, l)).join(' or ') });
   if (a.kind.length) out.push({ key: 'kind', text: a.kind.map((k) => ACTIVITY_KINDS.find(([x]) => x === k)![1]).join(' or ') });
   if (a.when) {
     const r = whenRange(a, cycle, week);
@@ -164,7 +164,7 @@ export function activityParts(a: ActivityQuery, names: { person: (id: string) =>
   if (a.who.length) out.push({ key: 'who', label: 'Who', values: a.who.map(names.person) });
   if (a.goal) out.push({ key: 'goal', label: a.tree ? 'In the tree of' : 'Goal', values: [names.goal(a.goal)] });
   if (a.team.length) out.push({ key: 'team', label: 'Team', values: a.team.map(names.team) });
-  if (a.level.length) out.push({ key: 'level', label: 'Level', values: a.level.map((l) => LEVEL_LABEL[l]) });
+  if (a.level.length) out.push({ key: 'level', label: 'Level', values: a.level.map((l) => levelName(null, l)) });
   if (a.kind.length) out.push({ key: 'kind', label: 'Kind', values: a.kind.map((k) => ACTIVITY_KINDS.find(([x]) => x === k)![1]) });
   if (a.when) out.push({ key: 'when', label: 'When', values: [whenText] });
   return out;

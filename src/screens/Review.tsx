@@ -5,12 +5,12 @@ import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
 import { answerOf, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
-import type { Goal, Level, Review as ReviewT } from '../domain/types';
+import type { Goal, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
 import { byDay, CarriedState, saveReviewOrder } from './Inspect';
@@ -331,7 +331,6 @@ export function ReviewSummary() {
 }
 
 const WEEKS = [1, 2, 4] as const;
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** Set up or change a review, on one screen: name, when, which goals, who. */
 export function ReviewEdit() {
@@ -391,7 +390,7 @@ export function ReviewEdit() {
             <span className="hint">{goalsN(covered.length)} so far. Mix levels, whole trees and single goals.</span>
           </div>
           <div className="field"><span className="field-label" id="lv-l">Every goal at a level</span>
-            <div className="row" role="group" aria-labelledby="lv-l">{LEVELS.map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{r.scope.levels.includes(l) && <Icon name="check" />}{LEVEL_LABEL[l]}</button>)}</div>
+            <div className="row" role="group" aria-labelledby="lv-l">{levelIds(app.cycle).map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{r.scope.levels.includes(l) && <Icon name="check" />}{levelName(app.cycle, l)}</button>)}</div>
           </div>
           {tops.length > 0 && (
             <div className="field"><span className="field-label" id="tr-l">A goal and everything feeding it</span>
