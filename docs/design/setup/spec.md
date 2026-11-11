@@ -2,6 +2,8 @@
 
 11 November 2026. For a build session to follow without asking. The reasons are in `README.md` beside this file (findings W1 to W23). It assumes Lane takes the recommended answer to each decision there; section 10, "If Lane decides otherwise", says what changes. Nothing here is built, and main is locked until after the talk.
 
+**Revised 11 November, after Lane's decision that set-up no longer offers example goals:** the Goals step has three doors, nothing made up is written into a workspace, and what hung off the examples (owners chosen later, "example numbers") is gone.
+
 **Standing rules** (`CLAUDE.md`): each item adds its section of `spec/` and conformance rows, runs `npm run spec`, adds a What's new entry and updates the guide, comes with its evals, and passes `npm run typecheck`, `npm test` and `npm run evals:changed` (the full suite for ST2 and ST8, which touch shared layout and Home). Set-up, Welcome and Home are core (`src/screens/Onboarding.tsx`, `Start.tsx`, `Home.tsx`).
 
 **What this spec does not own.** It refers to, and never restates:
@@ -12,7 +14,7 @@
 | The goal form: its fields, order, errors and read-back | `docs/design/goal-entry/spec.md` (GE) |
 | The two switches: where the rhythm setting is stored and changed; Reviews as a module; what "off" removes | `docs/design/feature-toggles/spec.md` (FT) |
 | Find-and-pick; the back link; "Close and keep the draft" | Round 1: `docs/design/find`, `docs/design/navigation/spec.md` 2.5 |
-| "Getting started" as built; owners per example goal | Round 1: `docs/design/onboarding/spec.md` 2.8, 2.9, rule 7 (OB3, merged) |
+| "Getting started" as built; the day-one facts | Round 1: `docs/design/onboarding/spec.md` 2.8, 2.9, rule 7 (OB3, merged) |
 | About, "To sort out", the switcher | Round 1: `docs/design/workspace/spec.md` (WR2, merged) |
 
 **Words used throughout.** `{ws}` is the workspace's name; `{admin}` the full name of whoever set it up; `{day}` a weekday ("Thursday"); `{date}` a weekday and date ("Thursday 19 Nov"). Wording in quotation marks is exact; wording not mentioned stays as it is today. The worked examples use Wednesday 11 November 2026, week 46 of the January year 2026, and Ana Silva setting up "Field Operations" with Ben Carter and Cara Diaz.
@@ -62,7 +64,7 @@ Wireframe 1. One column, 620 px.
 3. Two lines: "Faro keeps each outcome and the goals that move it in one place, each with an owner, a measure and a plan." / "Owners keep them current. What’s slipping comes to you, with why and what’s being done about it."
 4. Primary **"Set up a workspace"** → `/workspace/new`; under it, "About 5 minutes. Nothing is saved until the last step."
 5. Two rows, hairline-divided, each a link:
-   - "Open the example" · "A division of about 100 people with a year of goals. It’s kept in this browser, so change anything." → `/demo`.
+   - "Look around the demo" · "A made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace." → `/demo`. (The returning person's row: "Example data, about 100 people and a year of goals. None of it can be kept.")
    - "Join a workspace you were invited to" · "Open the link you were sent, or paste it here." Pressing it opens, in place, one field "The link you were sent" and the button "Open it". A link that isn't one of this site's `/join/…` or `/?workspace=…`: "That isn’t a Faro invitation. It looks like {origin}/join/…".
 6. The prototype line (`PROTOTYPE_LINE`), unchanged.
 
@@ -79,7 +81,7 @@ Wireframe 1. One column, 620 px.
 | When | Says |
 |---|---|
 | The store can't be reached | Today's "Couldn’t reach the goals data" card, unchanged |
-| The demo (`/demo/welcome`) | Row 1 of item 5 reads "Back to the example"; a workspace made here is "kept in this browser only" (2.6) |
+| The demo (`/demo/welcome`) | Row 1 of item 5 reads "Back to the demo"; a workspace made here is "kept in this browser only" (2.6) |
 
 ### 2.2 Set-up: what applies to every step
 
@@ -196,22 +198,27 @@ Wireframe 3. Heading "Who’s on it?" Under it: "Type them, paste rows from a sp
 
 Wireframes 4 and 5.
 
-**With no goals yet: the doors.** Heading "What are you working towards?" Under it: "Pick how to start. You can mix them: begin from an example, then add your own." A radio group, label "How to start"; one must be chosen ("Pick how to start."):
+Set-up offers no example goals (Lane, 11 Nov: "It doesn't make sense to just start a random platform engineering data set."). A workspace begins with real goals or none; nothing made up is ever written into one.
+
+**With no goals yet: the doors.** Heading "What are you working towards?" Under it: "Add one now, bring them in a spreadsheet, or leave it to each owner. You can do more than one." A radio group, label "How to start"; "Add your own" is chosen to begin with (it needs nothing prepared and leaves something true in the workspace; "Later" as the default would steer to an empty one):
 
 | Choice | Its line | On "Continue" |
 |---|---|---|
-| "Start from an example" (chosen to begin with) | "An outcome and three goals that usually feed it, with example numbers to change." and a select of the examples (`TEMPLATES`: "Engineering platform", "Product team", "Customer support", "Sales") | The example's goals are put in the list; the screen becomes "goals so far" |
-| "Add your own" | "One goal at a time, with the same form as New goal. About two minutes each." | `/workspace/new/goals/add` |
-| "Import a spreadsheet" | "Goals, and the people who own them, from Faro’s template or a workbook exported from another workspace. You see every row before it’s kept." and the link "Download the template" | The file chooser, then `/workspace/new/goals/import`. With a file already read on step 3: "Use the {g} goals in {file}" stands in for the chooser |
+| "Add your own" (chosen to begin with) | "One goal at a time, with the same form as New goal. Each field shows an example of what goes in it. About two minutes each." | `/workspace/new/goals/add` |
+| "Import a spreadsheet" | "Goals, and the people who own them, from Faro’s template or a workbook exported from another workspace. You see every row before it’s kept." · the link "Download the template" · "Its two example rows show what a good row looks like, and are never imported." (the import spec, C15) | The file chooser, then `/workspace/new/goals/import`. With a file already read on step 3: "Use the {g} goals in {file}" stands in for the chooser |
 | "Later" | "Finish with no goals. Each owner adds theirs from New goal, and nothing is due until they do." | Check |
 
 With "No set rhythm" chosen on step 2, "Later"'s line ends "…from New goal."
 
+Under the group, one line: "Not sure what a good goal looks like?" and the link "See the goals in the demo" (`/demo/goals?scope=all`, in a new tab), then "It opens beside this, and your set-up is kept."
+
+**What stands in for the examples.** Their job was to show a good goal before a team had one. It is done by: the goal form's own hints (each type's card keeps its one example; every field's hint is the field table's example for it; goal entry: "No template gallery: field-table examples as hints"); the template's Example rows, which are recognised, counted and never imported (import spec, C15); and the demo, which is a place to look and is never copied into a workspace. Set-up adds only the two sentences and the link above.
+
 **With goals: "{n} goals so far".** Heading "{n} goals so far" ("1 goal so far").
 
-1. From an example, until every number has been changed or the line is dismissed: "Example numbers. Change them to yours, or leave them and correct them at the first check-in."
-2. With any unowned, `role="status"`: "{k} have no owner yet. Give a teammate one, so they have something to check in on." (Just you in the workspace: this line is left out and every goal is yours.)
-3. The list, hairline rows. Each: the title; a line "{North star | Feeds the north star | Feeds “{parent}” | Feeds nothing} · {5 → 2 days | at most 5% | 3 stages, the last due week 53} · {owner | the link “Choose an owner”}"; and "Change" (→ `/workspace/new/goals/<n>`, the goal-entry form filled in) and "Remove" (with "Removed “{goal}”. Undo", as today).
+1. On return from the form, `role="status"`: "Added “{goal}”." and the link "Add another".
+2. When every goal is yours and the workspace has anyone else, once, `role="status"`: "All {n} are yours. A teammate with a goal of their own has something to check in on." (Not a Check: nothing needs answering.)
+3. The list, hairline rows. Each: the title; a line "{North star | Feeds the north star | Feeds “{parent}” | Feeds nothing} · {82 → 90% by week 53 | at most 8% | 3 stages, the last due week 53} · {owner}"; and "Change" (→ `/workspace/new/goals/<n>`, the goal-entry form filled in) and "Remove" (with "Removed “{goal}”. Undo", as today).
    - "Choose an owner" is find-and-pick over the people of step 3, each shown with team and email; the choice is kept by email.
    - Goals from a file are grouped under "{g} goals from {file}" with "Remove these".
 4. "Add another" (plain button → `/workspace/new/goals/add`) and the link "Import a spreadsheet".
@@ -221,9 +228,9 @@ With "No set rhythm" chosen on step 2, "Later"'s line ends "…from New goal."
 
 - the head "Set up a workspace" · "Step 4 of 5 · Goal {n}", and "Close and keep the draft";
 - the people and teams of step 3 as its choices (nothing is in the store yet), and the goals so far as what it may feed;
-- the owner starting empty when there is anyone but you, with OB3's hint; "Feeds into" starting as the list's north star when there is one;
+- the owner starting as you (the form's rule; an owner is required, so no goal leaves the form or an import without one); "Feeds into" starting as the list's north star when there is one;
 - its last button as **"Add this goal"** ("Save changes" for `/<n>`), and "Back to the goals" in place of Back on its first step;
-- on return, `role="status"`: "Added “{goal}”." and the link "Add another".
+- on return, the list's item 1.
 
 A goal left unfinished in the form is kept in the draft and offered once on the list: "A goal you didn’t finish: “{name}”. Carry on · Discard".
 
@@ -243,7 +250,7 @@ A goal left unfinished in the form is kept in the draft and offered once on the 
 
 | When | Says |
 |---|---|
-| An example chosen with goals already in the list | They are added after them; a title already there is a Check in the list: "Two goals are called “{title}”." → "Keep both" / "Remove the new one" |
+| A goal added or imported whose title is already in the list | A Check in the list: "Two goals are called “{title}”." → "Keep both" / "Remove the new one" |
 | The last goal is removed | The doors return, with what was chosen before still chosen |
 | A file with no Goals sheet | IM's words; set-up adds the link "Download the template" |
 | A file that can't be read | IM's words. Never the library's ("Doesn't look like an `.xlsx` file", W22) |
@@ -257,7 +264,7 @@ Wireframe 6. Heading "Create {ws}?" Under it: "Nothing is saved yet. This is wha
 | Row | Bold line | Lines under it |
 |---|---|---|
 | People | "{n} people in {t} teams" / "Just you, in {team}" | "{you} (you), {names}." (six at most, then "and {k} more") "{team} {k}, …" · "You’re the only admin. No team has a lead." / "{k} admins: {names}. No team has a lead." |
-| Goals | "{g} goals" / "No goals yet" | "1 north star and {k} that feed it, from the {example} example." / "{g} from {file}{, with {c} past check-ins}." / "{k} you added." (each that applies) · "You own {a} and {name} {b}. {k} have no owner yet: they start as yours, and Home will ask you to choose." · none: "Each owner adds theirs from New goal." |
+| Goals | "{g} goals" / "No goals yet" | "1 north star and {k} that feed it, all added here." / "{k} added here." / "{g} from {file}{, with {c} past check-ins}." (each that applies) · "You own {a} and {name} {b}. {name} owns none yet." (names of people who own none: three at most, then "{k} people own none yet") · none: "Each owner adds theirs from New goal." |
 | Check-ins | Rule S3's check-in line | "The first are due {date}." · no goals: "Nothing is due until there are goals." · no rhythm: no second line |
 | Reviews | Rule S3's review line | "For everyone, every goal. The first is {date}." · none: "Reviews stays out of the menu." |
 | The year | "The goal year {name}" | "{January} to {December}. You join it in week {w} of {weeks}; it ends on {date}." / "…It starts on {date}." |
@@ -272,7 +279,7 @@ Under the list, for a workspace made in the demo or with `store=browser`, one li
 
 **The foot:** "Back" and the primary **"Create workspace"** ("Creating…" while it saves).
 
-**After "Create workspace":** the workspace is made in one save, as today (`buildWorkspace`, then `createWorkspace`), with rule S3's settings; the goals with no owner chosen are remembered (OB3); the draft is **kept**, marked as created, for rule S6; then `/ready` (replace).
+**After "Create workspace":** the workspace is made in one save, as today (`buildWorkspace`, then `createWorkspace`), with rule S3's settings; the draft is **kept**, marked as created, for rule S6; then `/ready` (replace).
 
 **Empty and error states**
 
@@ -322,7 +329,7 @@ Wireframes 9, 10 and 11. Round 1's block (onboarding spec 2.9), with these chang
 - **Heading:** "Your first week".
 - **The first row that has a button carries the primary style**, and while the block shows Home has no other primary button.
 - **While the block shows, Home leaves out:** its own "Start check-in" block and "Or type all your numbers in one table" (the link moves under the first row as "Or type them in one table"); "On-time streak"; the "Next review" tile; the paragraph "Across the whole workspace, {k} of {n} goals have had their first check-in…" (the `progress` row says it); for someone who owns nothing, the review block ("Open the review").
-- **Under the block:** "Your goals" (or "Your goal"), each a row with its status, title and one line ("starts at 5 days"; "No owner chosen yet · starts at 18%" for a goal remembered as unowned). Owning none: "No goals yet. They’ll show here once you own or watch one."
+- **Under the block:** "Your goals" (or "Your goal"), each a row with its status, title and one line ("starts at 82%"; "at most 8%"). Owning none: "No goals yet. They’ll show here once you own or watch one."
 - **"Hide this"** as built. Hidden, Home is its usual self, except that nothing is called late or "to review" before rule S2's dates.
 
 ### 2.10 Workspace → About, after set-up
@@ -330,7 +337,7 @@ Wireframes 9, 10 and 11. Round 1's block (onboarding spec 2.9), with these chang
 Wireframe 12. Round 1's About (workspace spec 2.5), with:
 
 - two facts, in this place in the list:
-  - after Name: **"Set up"** · "By {admin} on {date}{, from the {example} example | , from {file} | }." (A workspace older than this build: left out.)
+  - after Name: **"Set up"** · "By {admin} on {date}{, with {g} goals added at set-up | , with {g} goals from {file} | , with no goals yet}." (A workspace older than this build: left out.)
   - after Year: **"How you work"** · rule S3's two lines · for admins the link "Change" (to where FT puts the rhythm's setting; the review's own day and cadence are changed in Reviews).
 - **People** gains, while anyone hasn't arrived and the workspace is under 28 days old: "{k} haven’t opened it yet: {names}." and, for admins, "Copy the invitation".
 - **Features** names Reviews among the modules, by FT.
@@ -345,7 +352,7 @@ Consistent with R1 (`spec/requirements/internal/r1-sign-in-and-access.md`); each
 | Welcome; set up a workspace | Anyone (they become its first admin) | — | Rule 2; `createWorkspace` |
 | The arrival screen; choosing a name | Anyone with the link | — | Faro today (no sign-in); a requirement in section 9 |
 | "Your first week": their own rows | Yes | Yes | — |
-| Rows `assign`, `invite`, `add-people`, `first-goal`, `progress` | Not shown | Whoever set it up (`progress` also for any admin and anyone who owns a goal others feed) | `planChanges`, `addPerson` |
+| Rows `invite`, `add-people`, `first-goal`, `progress` | Not shown | Whoever set it up (`progress` also for any admin and anyone who owns a goal others feed) | `planChanges`, `addPerson` |
 | Undo set-up | No | Whoever set it up, while rule S6 holds | `canDeleteWorkspace` and S6 |
 | About: "Set up", "How you work" | Reads | Reads; "Change" | Rule 3; FT's action for the rhythm; `setModule` |
 | About: "{k} haven’t opened it yet", "Copy the invitation" | The sentence | Both | Rule 3 |
@@ -355,6 +362,21 @@ Consistent with R1 (`spec/requirements/internal/r1-sign-in-and-access.md`); each
 ## 4. Rules for `src/domain`
 
 Pure, each with tests from its worked examples, a section in `src/spec/rules.ts` and conformance rows. In `src/domain/dayOne.ts` unless said. Each takes only what it reads (round 1's AR4): the types below are the whole of each input. They restate nothing: weeks from `year.ts` and `plan.ts`, people's checks from `people.ts`, the levels from the import's engine (`changeset.ts`).
+
+### What the build removes
+
+With no example goals, these go. None changes a stored record.
+
+| File | Goes | Stays |
+|---|---|---|
+| `src/domain/templates.ts` | `TEMPLATES`, `Template`, `TemplateGoal` | `stagesFromNow` and `stagesFromJoining` (the import's stage Check uses them); the file may be renamed `stages.ts` |
+| `src/screens/Onboarding.tsx` | `pickTemplate`; the "Starting point", "Outcome" and "Goals" steps and `SetupGoalFields`, `StageRows`; `MAX_GOALS`; `blankGoal`; `goalsTsv` and its "no owner means you" branch; `unownedTitles` and the `prefs.set(…, { unowned })` write; "Example numbers. Change them to yours." | The draft; `peopleTsv`; `buildWorkspace`'s call, fed by the form's goals and the import's tables |
+| `src/domain/dayOne.ts` | `setupSteps(choice)` and `stepCounter(step, choice)` (rule S1 has no choice to take); the `assign` row for new workspaces | `DayOneFacts.unowned` is still read, never written (below) |
+| `src/domain/workspaceAttention.ts` | Nothing (the `unowned` need of this spec's first draft is not built) | — |
+| Tests | `dayOne.test.ts`'s template cases become form cases; round 1's N17 ("for every template…") becomes "for a goal added in the form or imported" | `setupTruth.test.ts`'s upload cases |
+| Help | `setup`'s paragraphs on templates and example numbers | — |
+
+**A workspace already made from a template is not touched.** Its goals are ordinary goals, with their owners, plans and check-ins; nothing marks them and nothing is migrated. If its creator's facts still hold `unowned` ids, the built `assign` row keeps showing until done or retired; that branch can be deleted once no such workspace is under 14 days old.
 
 ### Rule S1. Set-up's steps: `SETUP_STEPS` (replaces round 1's rule 6)
 
@@ -424,7 +446,7 @@ On About they are joined: "Check-ins every week, by Thursday. A weekly review on
 | Reviews | FT's Reviews switch, on or off (as `setModule` would). On: one review, as `buildWorkspace` makes today, with `everyWeeks = reviewEvery`, `weekday = reviewDay`, everyone, every level; named "Weekly review" / "Fortnightly review" / "Four-weekly review". Off: no review is made | About's "How you work" and Features; Reviews |
 | Recording | As today (`createWorkspace`'s `recording`) | About's Recording; Privacy |
 | — | The log, as today, plus one entry by whoever set up: "Set how {ws} works: {check-ins line}; {reviews line}." | Activity |
-| — | Where the goals came from, in the "Created …" entry's summary: "…from the Engineering platform example" / "…from {file}" | About's "Set up" |
+| — | Where the goals came from, in the "Created …" entry's summary: "…and {g} goals added at set-up" / "…and {g} goals from {file}" | About's "Set up" |
 
 ### Rule S4. Your first week: `firstWeek(viewer, snapshot, ws, facts, now, how)` (extends round 1's rule 7, `gettingStarted`)
 
@@ -447,7 +469,6 @@ Rows, in this order; a row is left out when its "done" holds.
 |---|---|---|---|---|
 | `welcome` | Someone who didn't set it up | "{admin} set up {ws} on {11 Nov}{ and gave you {n} goals \| and gave you 1 goal \| }." | — | Never (it stays while the block does) |
 | `first-check-in` | Anyone with a goal with no check-in | Weekly, before the day: "Post your first check-in{s: {k} goals}. {It’s \| They’re} due by {date}." · on the day: "…due today." · after it: "…{It was \| They were} due on {date}." · no rhythm: "Post a first check-in on {it \| your {k} goals}, so everyone can see where {it starts \| they start}. There’s no date to meet." | "Start check-in" ("Check in" with no rhythm) → `/check-in` | None left |
-| `assign` | Whoever set it up | "Give {n} goals an owner. They’re yours until you do." | "Choose owners" → `/goals?show=mine&view=table` | As built |
 | `add-people` | Whoever set it up, alone | "Add the people who own goals." | "Add people" → `/people` | A second person |
 | `invite` | Whoever set it up, not alone, `ws.shared` | "{Ben and Cara} haven’t opened {ws} yet." (first names, three at most, then "{k} people haven’t opened {ws} yet.") | "Copy the invitation" (rule S9) | Everyone has arrived. Copied already (`facts.inviteCopied`, from here or from `/ready`): the row stays, with the plain button "Copy it again", and is never the primary |
 | `first-goal` | Whoever set it up, no goals in the workspace | "Set up the first goal." | "New goal" → `/goals/new` | A goal exists |
@@ -455,16 +476,16 @@ Rows, in this order; a row is left out when its "done" holds.
 | `progress` | Whoever set it up; any admin; anyone who owns a goal another feeds. Only when the workspace has 2 or more goals and at least one first check-in is in or the first due date has come | "{k} of {n} first check-ins are in. Waiting on {names \| you \| you and {names}}." · all in: left out | — | All in |
 | `first-review` | Anyone in the first review, `how.reviews` | Before the day: "The first review is on {date}{, and you’re in it}." (the clause for someone who didn't set it up) · on the day: "The first review is today. It walks the goals that need attention." | On the day only: "Open the review" → `/reviews/<id>` | The review has been held, or its day has passed |
 
-Worked examples (Ana set up Field Operations on Wed 11 Nov from an example; Ben has 1 goal; 2 are unowned; defaults unless said):
+Worked examples (Ana set up Field Operations on Wed 11 Nov and added three goals: "Jobs done right first time" and "Repeat visits" are hers, "Time to reach site" is Ben's; defaults unless said):
 
 | Given | Rows |
 |---|---|
-| Ana, 11 Nov | `first-check-in` ("Post your first check-ins: 3 goals. They’re due by Thursday 19 Nov."), `assign`, `invite` ("Ben and Cara haven’t opened Field Operations yet."), `first-review` ("The first review is on Thursday 19 Nov.") |
+| Ana, 11 Nov | `first-check-in` ("Post your first check-ins: 2 goals. They’re due by Thursday 19 Nov."), `invite` ("Ben and Cara haven’t opened Field Operations yet."), `first-review` ("The first review is on Thursday 19 Nov.") |
 | Ana, 11 Nov, after copying the invitation on `/ready` | The same; `invite`'s button is "Copy it again" |
 | Ben, first visit 12 Nov | `welcome` ("Ana Silva set up Field Operations on 11 Nov and gave you 1 goal."), `first-check-in` ("…due by Thursday 19 Nov."), `first-review` ("…on Thursday 19 Nov, and you’re in it.") |
 | Cara (owns none), 12 Nov | `welcome`, `see-goals`, `watch`, `own-goal`, `first-review` |
 | Ana, 13 Nov, Ben arrived, Cara not | `invite`: "Cara hasn’t opened Field Operations yet." |
-| Ana, Thu 19 Nov, 1 goal of hers left, Ben's in | `first-check-in` ("Post your first check-in: 1 goal. It’s due today."), `assign`, `progress` ("3 of 4 first check-ins are in. Waiting on you."), `first-review` ("The first review is today…", "Open the review") |
+| Ana, Thu 19 Nov, 1 goal of hers left, Ben's in | `first-check-in` ("Post your first check-in: 1 goal. It’s due today."), `progress` ("2 of 3 first check-ins are in. Waiting on you."), `first-review` ("The first review is today…", "Open the review") |
 | Ben, Fri 20 Nov, not checked in | `welcome`, `first-check-in` ("Post your first check-in. It was due on Thursday 19 Nov.") |
 | Ben, `rhythm: 'none'`, `reviews: false` | `welcome`, `first-check-in` ("Post a first check-in on it, so everyone can see where it starts. There’s no date to meet.") |
 | Ana, goals "later", not alone | `invite`, `first-goal` |
@@ -472,24 +493,24 @@ Worked examples (Ana set up Field Operations on Wed 11 Nov from an example; Ben 
 | Ana, a copy kept in this browser | No `invite` |
 | Ana, an upload in which Ben owns everything | `invite`, `progress` once it applies; under the block "No goals yet…" |
 | Anyone, 15 days after their first visit | Nothing (and rule S5 takes over what is undone) |
-| The example workspace | Nothing |
+| The example workspace (the demo) | Nothing |
+| A workspace made from a template before this build, whose facts still hold `unowned` ids | As built: its `assign` row shows until it is done or the block retires. Set-up no longer writes those ids, so no new workspace has the row |
 
 ### Rule S5. What set-up left to sort out: `workspaceNeeds` (changes round 1's workspace rule 3)
 
-In `src/domain/workspaceAttention.ts`. Inputs gain `ws: { createdAt }`, `now`, `unowned: string[]` (the creator's remembered ids, passed only to them) and `notArrived: string[]` (names).
+In `src/domain/workspaceAttention.ts`. Inputs gain `ws: { createdAt }`, `now` and `notArrived: string[]` (names).
 
-- New, first in the order: `unowned`: "{n} goals from set-up have no owner chosen" · "They’re yours until you choose. {titles}." · "Choose owners" → `/goals?show=mine&view=table`. Shown to whoever set it up, from the first day (it is on About as well as Home, so it outlives the block).
-- New, last: `not-arrived`: "{k} people haven’t opened {ws}" · "{names}." · "Copy the invitation". From day 8 to day 28.
+- No `unowned` need: with no example goals, set-up makes no goal without a chosen owner.
+- New: `not-arrived`: "{k} people haven’t opened {ws}" · "{names}." · "Copy the invitation". From day 8 to day 28.
 - `only-admin` and `no-lead` are not returned while the workspace is under 7 days old.
 - `no-goals` is not returned while the creator's "Your first week" shows `first-goal` (one place says it).
 - `no-review` is not returned when Reviews is off (FT).
 
 | Given | To sort out |
 |---|---|
-| Ana, day one, 2 unowned, 3 people | "2 goals from set-up have no owner chosen" |
+| Ana, day one, 3 people | Nothing |
 | Ana, day one, 12 people in teams of 4, one admin | Nothing about admins or leads |
 | The same, day 8 | "You’re the only admin"; "3 teams have no lead" |
-| Day 26, Ana never chose owners; her block retired on day 15 | "2 goals from set-up have no owner chosen", still |
 | Day 9, Cara has not arrived | "1 person hasn’t opened Field Operations" |
 | Ben (a member) | Nothing |
 
@@ -552,17 +573,17 @@ In `src/domain/dayOne.ts` (the link moves from `Start.tsx:48`).
 
 ## 5. The first week, by day and role
 
-Field Operations, set up on Wed 11 Nov from an example; check-ins by Thursday; a weekly review on Thursdays. "Block" is "Your first week". The primary action is in bold.
+Field Operations, set up on Wed 11 Nov with three goals added at set-up (two Ana's, one Ben's); check-ins by Thursday; a weekly review on Thursdays. "Block" is "Your first week". The primary action is in bold.
 
 | Day | Whoever set it up (Ana, admin) | A teammate with a goal (Ben) | A teammate with none (Cara) | A leader who didn't set it up (an admin, or owns a goal others feed) |
 |---|---|---|---|---|
-| **Day one**, Wed 11 Nov | `/ready`: **Copy the invitation**. Home, block: **Start check-in** ("3 goals … due by Thursday 19 Nov"); "Give 2 goals an owner"; "Ben and Cara haven’t opened…"; "The first review is on Thursday 19 Nov." About: "To sort out · 1" (owners) | Hasn't been told until Ana sends the link | The same | The same |
-| **Day two**, Thu 12 Nov (their first visit) | As day one; the invitation row names whoever hasn't arrived. Nothing is due, nothing is late | Arrival: "Welcome to Field Operations…", picks his name. Block: "Ana Silva set up … and gave you 1 goal."; **Start check-in** ("due by Thursday 19 Nov"); the first review line | Arrival. Block: "Ana Silva set up … on 11 Nov."; **See the goals**; watch; set up a goal; the first review line. No "Open the review", no "Reviews 1 to do" | A teammate's rows, and from the first check-in "{k} of 4 first check-ins are in…" |
-| Fri 13 Nov to Wed 18 Nov | The same rows as they get done. No "late", no streak | The same; a first check-in can re-base the plan (round 1's rule 4) | The same | The same |
-| **The first check-in day and first review day**, Thu 19 Nov | "…due today."; "{k} of 4 first check-ins are in. Waiting on …"; "The first review is today…" with "Open the review" | "Post your first check-in. It’s due today." | "The first review is today…" with **Open the review** if nothing else is left | As Ana, without the owner and invitation rows |
+| **Day one**, Wed 11 Nov | `/ready`: **Copy the invitation**. Home, block: **Start check-in** ("2 goals … due by Thursday 19 Nov"); "Ben and Cara haven’t opened…"; "The first review is on Thursday 19 Nov." About: no "To sort out" | Hasn't been told until Ana sends the link | The same | The same |
+| **Day two**, Thu 12 Nov (their first visit) | As day one; the invitation row names whoever hasn't arrived. Nothing is due, nothing is late | Arrival: "Welcome to Field Operations…", picks his name. Block: "Ana Silva set up … and gave you 1 goal."; **Start check-in** ("due by Thursday 19 Nov"); the first review line | Arrival. Block: "Ana Silva set up … on 11 Nov."; **See the goals**; watch; set up a goal; the first review line. No "Open the review", no "Reviews 1 to do" | A teammate's rows, and from the first check-in "{k} of 3 first check-ins are in…" |
+| Fri 13 Nov to Wed 18 Nov | The same rows as they get done. No "late", no streak | The same | The same | The same |
+| **The first check-in day and first review day**, Thu 19 Nov | "…due today."; "{k} of 3 first check-ins are in. Waiting on …"; "The first review is today…" with "Open the review" | "Post your first check-in. It’s due today." | "The first review is today…" with **Open the review** if nothing else is left | As Ana, without the invitation row |
 | Fri 20 Nov | Anything left reads "It was due on Thursday 19 Nov." The review, once held, leaves the block | The same | — | — |
 | **Week two**, from Mon 23 Nov | Home's usual blocks return as the block empties: check-ins due by Thursday 26 Nov, the streak after the second on-time week | The second check-in is an ordinary one | Home as usual for someone who owns none | — |
-| **The block retires** | When every row is done, on "Hide this", or 14 days after the first visit (Wed 25 Nov). Owners still to choose stay on About | The same (14 days from 12 Nov) | The same | The same |
+| **The block retires** | When every row is done, on "Hide this", or 14 days after the first visit (Wed 25 Nov). Who hasn't arrived is on About from day 8 | The same (14 days from 12 Nov) | The same | The same |
 
 **With the rhythm off:** every "due" above is gone; `first-check-in` reads "Post a first check-in on it, so everyone can see where it starts. There’s no date to meet."; nothing is ever "was due"; the invitation has no third line; Home has no streak and no count on Check-in (FT). **With reviews off:** no review line, no review on any day, no Reviews in the menu (FT). **With goals "later":** Ana's rows are the invitation (or "Add the people who own goals" alone) and "Set up the first goal"; nothing is due and no review date is said until a goal exists; a teammate's rows are see, watch and set up a goal.
 
@@ -578,8 +599,8 @@ None is added. `home.blocks` is unchanged ("Your first week" is core and sits ab
 |---|---|---|
 | U97 | SETUP-FIRST-SCREEN | The first screen and the way in: a browser with nothing, opening `/` (with `store=browser`), lands on `/welcome` with one primary button, "Set up a workspace", and two rows. `/workspace/new` opens step 1, not Welcome. Set a workspace up with one teammate; `/ready`'s primary is "Copy the invitation" and the copied text holds the workspace's name, a `/join/` link and a date. In a second browser context with the same store, the link opens "Welcome to {ws}" naming who set it up; "Not on the list?" is there with three people; choosing the teammate opens Home with "Your first week". `/join/ws_nope` says "This invitation doesn’t open a workspace" and opens nothing else. Back at `/welcome`, "Welcome back" lists the workspace with "Open" |
 | U98 | SETUP-HOW-YOU-WORK, FIRST-WEEK | How you'll work, said once and kept: at set-up on Wed 11 Nov the step shows "The first are due Thursday 19 Nov." and "The first is Thursday 19 Nov"; changing the day to Friday changes both dates on the spot. Each step is an address; the browser's Back from People returns to the step with the choices kept; a reload stays. Check repeats the two lines; "Change" beside Check-ins opens the step and "Back to Check" returns. After creating, About's "How you work" has the same words. A second set-up with "No set rhythm" and "No reviews": Check says "No check-in rhythm…" and "No reviews"; Home has no "due", "late" or "review" anywhere and no Reviews in the menu; About agrees |
-| U99 | SETUP-UPLOAD | A spreadsheet at set-up can't go wrong quietly: on Goals choose "Import a spreadsheet" and give the app's template with one team mistyped, one owner nobody has and one stage dated week 2. The preview says how many goals and people it would add, one Must fix with its row and two answers, and two Checks; "Use these goals" is not available until they are answered. Answer them ("Give it to someone here", "Use Platform for all", "Count their stages from this week"); the list says "3 goals from …"; Check counts 3 and the file's people. Nothing was saved before "Create workspace". After it, no goal is late. On People, paste five lines of which two share an email: the count line says "1 must be fixed" and the second person is still there. The template uploaded unchanged needs no answer but the stages question |
-| U100 | FIRST-WEEK | The first week tells each person the truth: with the workspace of U97 (creator with 3 goals of which 2 unowned; a teammate with 1; a teammate with none), on day one the creator's block has four rows, the first the only primary button on Home, and Home shows no streak and no second "Start check-in". On `today=2026-11-13` nothing says late. On `2026-11-19` the rows say "due today" and "The first review is today". On `2026-11-20` an unposted one says "It was due on Thursday 19 Nov." The teammate with none is never offered a review to open before the 19th. On `2026-11-26` the block is gone and About's "To sort out" still has "2 goals from set-up have no owner chosen". Undo on `/ready` returns to Check with the answers, and is refused after the teammate has arrived |
+| U99 | SETUP-UPLOAD | A spreadsheet at set-up can't go wrong quietly: on Goals choose "Import a spreadsheet" and give the app's template with one team mistyped, one owner nobody has and one stage dated week 2. The preview says how many goals and people it would add, one Must fix with its row and two answers, and two Checks; "Use these goals" is not available until they are answered. Answer them ("Give it to someone here", "Use Platform for all"; the template's two Example rows are counted as skipped and never become goals, "Count their stages from this week"); the list says "3 goals from …"; Check counts 3 and the file's people. Nothing was saved before "Create workspace". After it, no goal is late. On People, paste five lines of which two share an email: the count line says "1 must be fixed" and the second person is still there. The template uploaded unchanged needs no answer but the stages question |
+| U100 | FIRST-WEEK | The first week tells each person the truth: with the workspace of U97 (creator with 2 goals added at set-up; a teammate with 1; a teammate with none; no goal in it that nobody typed or imported), on day one the creator's block has three rows, the first the only primary button on Home, and Home shows no streak and no second "Start check-in". On `today=2026-11-13` nothing says late. On `2026-11-19` the rows say "due today" and "The first review is today". On `2026-11-20` an unposted one says "It was due on Thursday 19 Nov." The teammate with none is never offered a review to open before the 19th. On `2026-11-26` the block is gone, and About's "To sort out" names anyone who still hasn't arrived. Undo on `/ready` returns to Check with the answers, and is refused after the teammate has arrived |
 
 **Changed:** U5, U17 (set-up's steps and words), U61 (About on day one: the two new facts; "To sort out"), U86 (round 1's day-one journey: the block's name, dated rows, the invitation row), U53 (the switcher's set-up in focus mode), U14's phone pass over set-up.
 
@@ -588,7 +609,7 @@ None is added. `home.blocks` is unchanged ("Your first week" is core and sits ab
 | # | Check |
 |---|---|
 | F19 | Phone, 390 × 844 and 360 × 800, over Welcome, the five steps (with 12 people and 5 goals), the paste sheet, `/ready`, the arrival and Home in the first week: the first field or choice and the primary button are on the first screen with the keyboard closed; no step is taller than two screens; with 60 people and "Show only those", People is no taller than two screens; every control is at least 44 px high ("Change", "Remove", "Hide this", the answers to a Check); nothing scrolls sideways; "Your first week" starts within 220 px of the top of Home |
-| N20 | Never due tomorrow, never late in the first week: for every weekday a workspace can be set up on, every check-in day and every example, with a weekly rhythm, no first check-in is due within two days of set-up, no goal is late, at risk or off track and no review is "to do" before the first due date, and Home, Goals, Reviews and About contain no "late" before the second check-in day. With no rhythm, the same screens never contain "due" or "late" at all. With reviews off, no screen contains "review" outside Help |
+| N20 | Never due tomorrow, never late in the first week: for every weekday a workspace can be set up on, every check-in day and each kind of goal (added in the form or imported), with a weekly rhythm, no first check-in is due within two days of set-up, no goal is late, at risk or off track and no review is "to do" before the first due date, and Home, Goals, Reviews and About contain no "late" before the second check-in day. With no rhythm, the same screens never contain "due" or "late" at all. With reviews off, no screen contains "review" outside Help |
 | P3, P4, P6 | Extended to the new screens: Must fix and Check use the warning mark, never a status shape; a Must fix row's wash covers the whole row; no capsule, stripe or quote bar on Welcome, the steps, `/ready`, the arrival or the block |
 
 ### Unit tests
@@ -612,7 +633,7 @@ Reworded: `ONBOARDING` (five steps; the goals step's doors), `DAY-ONE` (now poin
 
 | Article | Change |
 |---|---|
-| `welcome` (new; route `/welcome`) · "Welcome: starting, the example, or an invitation" | The three ways in; what this device remembers; carrying on a set-up |
+| `welcome` (new; route `/welcome`) · "Welcome: starting, the demo, or an invitation" | The three ways in; what this device remembers; carrying on a set-up |
 | `setup` (routes `/workspace/new`, its five steps, `/ready`) | Rewritten around the five steps: what each asks; "How you'll work" and where each answer is changed later; the three ways to add people and what Must fix and Check mean there; the four ways to start with goals; that nothing is saved before "Create workspace"; the invitation; Undo |
 | `joining` (new; route `/join/:workspaceId`) · "Joining a workspace you were invited to" | What the link opens; choosing your name; not on the list; that sign-in replaces this in the internal app. Takes over "Saying who you are" from `setup` |
 | `home` | "Your first week": who sees which rows, the dates, when it goes, "Hide this" |
@@ -623,11 +644,11 @@ Reworded: `ONBOARDING` (five steps; the goals step's doors), `DAY-ONE` (now poin
 
 | Item | id | Title | Lines |
 |---|---|---|---|
-| ST1 | `welcome-page` | "A proper front door" | "Welcome has its own page: set up a workspace, open the example, or join one you were invited to." "An invitation opens the right workspace and says who set it up." |
+| ST1 | `welcome-page` | "A proper front door" | "Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to." "An invitation opens the right workspace and says who set it up." |
 | ST2 | `setup-five-steps` | "Set-up in five steps you can go back through" | "Each step has its own address, so your browser's Back works and a reload stays put." "Change on the last step brings you straight back." |
 | ST3 | `how-you-work` | "Say how your team works" | "Set-up asks whether check-ins are weekly and whether you hold reviews, and shows the first dates." "Workspace, About says the same, and an admin can change it." "A first check-in is never due the day after a goal is set up." |
 | ST4 | `setup-people` | "Adding people is harder to get wrong" | "A count of people and teams as you go." "Paste a list, even from an email's To line." "Two people can't share an email; a second team by typo is asked about." |
-| ST5, ST6 | `setup-goals` | "Four ways to start with goals" | "An example, your own, a spreadsheet, or later: all end in one list you can change." "A spreadsheet's mistakes are shown with their row and a fix before anything is made." |
+| ST5, ST6 | `setup-goals` | "Set-up starts with your goals, not ours" | "Set-up no longer offers example goals: add your own, import a spreadsheet, or leave it for later." "Each field of the goal form shows an example of what goes in it, and the demo is still there to look around." "A spreadsheet's mistakes are shown with their row and a fix before anything is made." |
 | ST7 | `setup-invite` | "An invitation to send, and an undo" | "After set-up, copy a message for your team with the link and the first date." "Made a workspace by mistake? Undo takes you back to the last step." |
 | ST8 | `first-week` | "Your first week, with dates" | "Home says what's yours to do first and by which date." "Nothing is late in a workspace's first week." "Owners you haven't chosen stay on Workspace, About until you do." |
 
@@ -659,6 +680,8 @@ Per `CLAUDE.md`: what the internal platform provides is written as a requirement
 | 7 | No undo | Rule S6 and 2.8's item 5 are dropped; the draft is cleared on create, as today |
 | 8 | Recording stays on step 1 | 2.3 keeps today's tick box; 2.4 has three sections |
 | 9 | "Getting started" | Only the heading; the requirement keeps its id |
+| 11 | No door chosen to begin with | 2.6's group starts empty; "Continue" with none says "Pick how to start." |
+| Settled 11 Nov (no example goals) | Keep an example as a fourth door | 2.6 gains "Start from an example" (last but one, never the default) with a select of `TEMPLATES`; its goals land in "goals so far" as rows under "Example numbers. Change them to yours, or leave them and correct them at the first check-in."; the outcome is yours and the rest say "Choose an owner"; unchosen ones become yours and are remembered, which brings back rule S4's `assign` row, rule S5's `unowned` need, Check's "{k} have no owner yet" and About's "from the {example} example"; `templates.ts` stays whole; ST5 and ST8 are M again |
 | 10 | A named group only | SR4's default flips; nothing in Faro changes |
 
 If the toggles area lands differently from the shared decisions (for example the rhythm with more than two values, or reviews not a module), step 2 offers exactly the values FT's settings have, in FT's words, and rule S3's table is regenerated from them; nothing else in this spec depends on their storage.
@@ -676,19 +699,21 @@ If FT's rhythm setting needs a column, that migration is FT's (and follows `supa
 | # | Item | What | Effort | Depends on |
 |---|---|---|---|---|
 | ST1 | **Welcome and the arrival** | 2.1, 2.8's arrival; the routes and redirects of section 1 (`/welcome`, `/join/<id>`, the root no longer opening `list[0]`); rule S9's link; rule S4's `arrived` entry; U97; Help `welcome`, `joining`; SR1 to SR3 into R1 | S–M | Nothing. (Round 1: none) |
-| ST2 | **Set-up in five steps, each an address** | 2.2, 2.3; the shell of 2.5 to 2.7 with today's content moved into the new steps (People as built; Goals as the doors with today's example cards behind "Start from an example"); focus mode; "Close and keep the draft"; "Back to Check"; rule S1; F19's set-up part | M | Round 1's NV2 (one way out of a form) if it has landed, else it builds the button itself. Replaces OB3's unbuilt "steps are addresses" |
+| ST2 | **Set-up in five steps, each an address** | 2.2, 2.3; the shell of 2.5 to 2.7 with today's content moved into the new steps (People as built; Goals as the three doors, with today's "Start blank" cards behind "Add your own" until ST5; the four templates and their two steps removed here); focus mode; "Close and keep the draft"; "Back to Check"; rule S1; F19's set-up part | M | Round 1's NV2 (one way out of a form) if it has landed, else it builds the button itself. Replaces OB3's unbuilt "steps are addresses" |
 | ST3 | **How you'll work** | 2.4; rules S2 and S3; what set-up writes; About's "Set up" and "How you work" (2.10); U98; N20 | M | **FT: both switches must exist first** (the rhythm setting with its day and an admin action to change it; Reviews as a module that can be off). ST2. Rule S2 alone (the two clear days) can go ahead of FT as an S |
 | ST4 | **People, with the three levels** | 2.5; rule S7; the count line; "Paste people"; closed rows above 12; people matched by email wherever set-up chooses one | S–M | **IM: the levels' marks and wording pattern**, and the import's preview for "Upload a file" (until then the button keeps today's upload, with rule S7 applied to what it reads). FS1's find-and-pick for Team (held; until then today's field). ST2 |
-| ST5 | **Goals: one list, and the goal form inside set-up** | 2.6's doors, "goals so far" and the form's framing; an example lands as rows; owners on the row; no cap | M | **GE: the goal form usable outside `/goals/new`** with people, teams and goals passed in and its last button named by the caller. Round 1's OB1 (the form's order and pickers) and OB2 (a past stage asked about). ST2 |
+| ST5 | **Goals: one list, and the goal form inside set-up** | 2.6's three doors, "goals so far" and the form's framing; no cap; the removals of section 4's "What the build removes" that ST2 left | **S–M** (was M: no example rows, no owner chosen on a row, no remembered unowned goals) | **GE: the goal form usable outside `/goals/new`** with people, teams and goals passed in and its last button named by the caller (GE1, and GE5's "add a goal from where you are"). Round 1's OB1 and OB2 through GE. ST2. No longer leans on OB3's owner-per-template-goal |
 | ST6 | **The import inside set-up** | 2.6's import; the People sheet merged first; the two answers for an owner nobody has; the team and stage Checks; "Remove these"; U99 | S–M | **IM: the preview in "every row is new" mode, with answers and its count line**; IM's field table for the template. ST4, ST5 |
 | ST7 | **The read-back, the invitation and Undo** | 2.7; `/ready` (2.8); rules S6 and S9; the draft kept after create; SR6 into R4 | S–M | ST2, ST3 (its lines), ST1 (the link) |
-| ST8 | **Your first week** | 2.9; rule S4; rule S5 and About's "To sort out"; what Home leaves out while the block shows; section 5 as conformance rows; U100; Help `home` | M | Round 1's OB3 and WR2 (both merged); ST1 (`arrived`); ST3 (the dates and `how`); FT (what "off" removes from Home and the menu) |
+| ST8 | **Your first week** | 2.9; rule S4; rule S5 and About's "To sort out"; what Home leaves out while the block shows; section 5 as conformance rows; U100; Help `home` | **S–M** (was M: no `assign` row, no `unowned` need) | Round 1's OB3 and WR2 (both merged); ST1 (`arrived`); ST3 (the dates and `how`); FT (what "off" removes from Home and the menu) |
 | ST9 | **A second workspace, and a browser copy** | 2.3's "you are known" line and the name Check; "Bring people from {ws}"; no invitation in a browser copy (2.7, 2.8) | S | ST2, ST4, ST7 |
 | ST10 | **Starting late in the year** | Rule S8; 2.4's Check block; "Start with {next}"; a spike first on how the app reads before a cycle's week 1 | S–M | ST3. Decision 5 |
 
 **Order.** ST1 and ST2 can start at once, side by side (different files but for `App.tsx`: one build at a time there). Then ST4 and ST7; ST3 as soon as FT's switches exist; ST5 after GE's form; ST6 after IM's preview; ST8 after ST3; ST9 and ST10 last. About five releases of work: ST1 with ST2; ST3 with ST7; ST4 with ST6; ST5; ST8 with ST9 and ST10.
 
-**This replaces** OB3's unbuilt parts (steps in the address; the find-and-pick owners on set-up's cards, which become rows), what is left of the deep review's U1 and U6, and the setup review's item 3 ("consider offering a year that starts now").
+**This removes** the four templates and OB3's owner-per-template-goal (Lane, 11 Nov).
+
+**This replaces** OB3's unbuilt parts (steps in the address; the find-and-pick owners on set-up's cards, which go with the templates rather than become rows), what is left of the deep review's U1 and U6, and the setup review's item 3 ("consider offering a year that starts now").
 
 **Also found, outside this area** (for the backlog, not built here): W23, Cycles gives a year's dates one week short of its own week numbers (`cycleWhen`, `src/domain/workspaceAttention.ts:93`).
 

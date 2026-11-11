@@ -92,7 +92,7 @@ SCREENS['01-welcome'] = bare('Welcome', `
 <p class="lead">Faro keeps each outcome and the goals that move it in one place, each with an owner, a measure and a plan.</p>
 <p class="lead" style="margin-bottom:24px">Owners keep them current. What’s slipping comes to you, with why and what’s being done about it.</p>
 <div class="stack" style="gap:8px;margin-bottom:28px"><div><span class="btn primary" style="min-height:48px;padding:0 20px">Set up a workspace</span></div><span class="hint">About 5 minutes. Nothing is saved until the last step.</span></div>
-${doors([['Open the example', 'A division of about 100 people with a year of goals. It’s kept in this browser, so change anything.'], ['Join a workspace you were invited to', 'Open the link you were sent, or paste it here.']])}
+${doors([['Look around the demo', 'A made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.'], ['Join a workspace you were invited to', 'Open the link you were sent, or paste it here.']])}
 <p class="hint" style="margin-top:22px">Faro is a prototype: a working model of a goals app, built to be copied and rebuilt inside a company. It isn’t a product, and nothing here is for sale.</p>
 </div></div>
 <div class="state"><span class="label">(b) Someone who has been here before, with a set-up they didn’t finish</span>
@@ -104,9 +104,9 @@ ${doors([['Open the example', 'A division of about 100 people with a year of goa
 <div class="door"><span class="t"><b>Field Operations</b><span>You’re Ana Silva here · week 46</span></span><span class="btn primary">Open</span></div>
 <div class="door"><span class="t"><b>“Depot North”, a set-up you didn’t finish</b><span>Stopped at step 3 of 5, People, on 9 Nov. Nothing is saved yet.</span></span><span class="row nowrap" style="gap:14px"><a>Discard</a><span class="btn">Carry on</span></span></div>
 </div>
-${doors([['Set up another workspace', 'About 5 minutes.'], ['Open the example', 'About 100 people and a year of goals, kept in this browser.'], ['Join a workspace you were invited to', 'Open the link you were sent, or paste it here.']])}
+${doors([['Set up another workspace', 'About 5 minutes.'], ['Look around the demo', 'Example data, about 100 people and a year of goals. None of it can be kept.'], ['Join a workspace you were invited to', 'Open the link you were sent, or paste it here.']])}
 </div></div>
-${note('Wireframe 1. Welcome, at its own address. One primary action for someone with nothing: set up a workspace; the example and an invitation are the two doors under it. Today the root shows this page only while the shared database holds no workspace at all, the primary button is “Try the demo”, and there is no door for an invited person (W1, W2). A returning person sees what this device remembers first, a draft included.')}`);
+${note('Wireframe 1. Welcome, at its own address. One primary action for someone with nothing: set up a workspace; the demo and an invitation are the two doors under it, and the demo says plainly that it is example data that can’t be kept. Today the root shows this page only while the shared database holds no workspace at all, the primary button is “Try the demo”, and there is no door for an invited person (W1, W2). A returning person sees what this device remembers first, a draft included.')}`);
 
 /* 2. How you'll work */
 SCREENS['02-how-you-work'] = bare('Set up: how you’ll work', `
@@ -157,31 +157,30 @@ ${note('Wireframe 3. People, with round 2’s three levels. A count line says ho
 
 /* 4. Goals: the four doors, and the list they come back to */
 SCREENS['04-goals-doors'] = bare('Set up: goals', `
-<div class="state"><span class="label">(a) No goals yet: four ways to start</span>
+<div class="state"><span class="label">(a) No goals yet: three ways to start</span>
 <div class="frame">${head(4, 'Goals')}
 <h1 style="margin-bottom:8px">What are you working towards?</h1>
-<p class="hint" style="margin-bottom:18px">Pick how to start. You can mix them: begin from an example, then add your own.</p>
+<p class="hint" style="margin-bottom:18px">Add one now, bring them in a spreadsheet, or leave it to each owner. You can do more than one.</p>
 <div class="pl">
-${rad('Start from an example', true, 'An outcome and three goals that usually feed it, with example numbers to change.', `<span class="inl">${sel('Engineering platform')}</span>`)}
-${rad('Add your own', false, 'One goal at a time, with the same form as New goal. About two minutes each.')}
-${rad('Import a spreadsheet', false, 'Goals, and the people who own them, from Faro’s template or a workbook exported from another workspace. You see every row before it’s kept.', `<span class="inl"><a>Download the template</a></span>`)}
+${rad('Add your own', true, 'One goal at a time, with the same form as New goal. Each field shows an example of what goes in it. About two minutes each.')}
+${rad('Import a spreadsheet', false, 'Goals, and the people who own them, from Faro’s template or a workbook exported from another workspace. You see every row before it’s kept.', `<span class="inl"><a>Download the template</a></span><span class="hint">Its two example rows show what a good row looks like, and are never imported.</span>`)}
 ${rad('Later', false, 'Finish with no goals. Each owner adds theirs from New goal, and nothing is due until they do.')}
-</div>${foot()}</div></div>
-<div class="state"><span class="label">(b) Back from a door: the goals so far</span>
+</div>
+<p class="hint" style="margin-top:14px">Not sure what a good goal looks like? <a>See the goals in the demo</a>. It opens beside this, and your set-up is kept.</p>
+${foot()}</div></div>
+<div class="state"><span class="label">(b) Back from adding or importing: the goals so far</span>
 <div class="frame">${head(4, 'Goals')}
-<h1 style="margin-bottom:8px">4 goals so far</h1>
-<p class="hint" style="margin-bottom:6px">Example numbers. Change them to yours, or leave them and correct them at the first check-in.</p>
-<p class="hint" style="margin-bottom:14px" role="status">2 have no owner yet. Give a teammate one, so they have something to check in on.</p>
+<h1 style="margin-bottom:8px">3 goals so far</h1>
+<p class="hint" style="margin-bottom:14px" role="status">Added “Repeat visits”. <a>Add another</a></p>
 <div class="panel" style="gap:0;padding:4px 16px">
-<div class="gl"><span class="t"><b>Lead time from commit to production</b><span>North star · 5 → 2 days · Ana Silva</span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
-<div class="gl"><span class="t"><b>Deploys per week</b><span>Feeds the north star · 12 → 30 deploys · Ben Carter</span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
-<div class="gl"><span class="t"><b>Change failure rate</b><span>Feeds the north star · 18 → 10% · <a>Choose an owner</a></span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
-<div class="gl"><span class="t"><b>Self-service environments live</b><span>Feeds the north star · 3 stages, the last due week 53 · <a>Choose an owner</a></span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
+<div class="gl"><span class="t"><b>Jobs done right first time</b><span>North star · 82 → 90% by week 53 · Ana Silva</span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
+<div class="gl"><span class="t"><b>Time to reach site</b><span>Feeds “Jobs done right first time” · 54 → 40 min · Ben Carter</span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
+<div class="gl"><span class="t"><b>Repeat visits</b><span>Feeds “Jobs done right first time” · at most 8% · Ana Silva</span></span><span class="a"><a>Change</a><a>Remove</a></span></div>
 </div>
 <div class="row" style="margin-top:14px"><span class="btn">Add another</span><a>Import a spreadsheet</a></div>
-<p class="hint" style="margin-top:12px">Three to five is plenty for a first week. Anyone can add more from New goal afterwards.</p>
+<p class="hint" style="margin-top:12px">One is enough to start, and three to five is plenty for a first week. Anyone can add more from New goal afterwards.</p>
 ${foot()}</div></div>
-${note('Wireframe 4. The Goals step. Four doors in one group, with Continue as the one primary action; whichever is used, set-up comes back to one list of the goals so far, where each can be changed in the goal-entry form or removed, and “Add another” is always there. Today the choice is a step of its own, the spreadsheet door appears on it only after a file was uploaded two steps earlier on the people step, and an example’s four goals are two steps of 21 fields, 2,165 px tall on a phone (W8, W12).')}`);
+${note('Wireframe 4. The Goals step. Three doors in one group, “Add your own” chosen to begin with, and Continue as the one primary action; whichever is used, set-up comes back to one list of the goals so far, where each can be changed in the goal-entry form or removed. No door puts example goals into the workspace: the form’s hints, the template’s example rows and the demo show what a good goal looks like instead. Today four templates fill a new workspace with someone else’s goals and numbers under the creator’s name, and the spreadsheet door appears only after a file was uploaded two steps earlier (W24, W8).')}`);
 
 /* 5. The import, as set-up frames it */
 SCREENS['05-import-in-setup'] = bare('Set up: import', `
@@ -189,9 +188,9 @@ SCREENS['05-import-in-setup'] = bare('Set up: import', `
 <h1 style="margin-bottom:8px">goals-2026.xlsx</h1>
 <p class="countline" role="status">Would add <b>14 goals</b> and <b>9 people</b> in <b>2 new teams</b>. <b>1 must be fixed</b>, <b>2 to check</b>. Nothing is saved until the last step of set-up.</p>
 <div class="panel" style="gap:0;padding:4px 16px">
-<div class="crow offwash" style="margin:0 -16px;padding:12px 16px"><span class="t"><b>${mf('Goals sheet, row 4: “Deploys rolled back”')}</b><span style="color:var(--fg)">Owner email says “zed.nobody@example.com”. Nobody here or on the People sheet has it.</span><span class="inl" style="margin-top:6px"><a>Give it to someone here</a><a>Add Zed Nobody as a person</a></span></span></div>
-<div class="crow"><span class="t"><b>${ck('“Platfrom” isn’t a team yet')}</b><span style="color:var(--fg)">It’s one letter from Platform. 3 goals use it: rows 3, 4 and 9.</span><span class="inl" style="margin-top:6px"><a>Use Platform for all 3</a><a>Add Platfrom as a team</a></span></span></div>
-<div class="crow"><span class="t"><b>${ck('2 goals have stages dated before this week')}</b><span style="color:var(--fg)">“Canary releases live” and “Runbooks rewritten” would start out late: Design was due in week 2, and this is week 46.</span><span class="inl" style="margin-top:6px"><a>Count their stages from this week</a><a>Keep the weeks as typed</a></span></span></div>
+<div class="crow offwash" style="margin:0 -16px;padding:12px 16px"><span class="t"><b>${mf('Goals sheet, row 4: “Repeat visits”')}</b><span style="color:var(--fg)">Owner email says “zed.nobody@example.com”. Nobody here or on the People sheet has it.</span><span class="inl" style="margin-top:6px"><a>Give it to someone here</a><a>Add Zed Nobody as a person</a></span></span></div>
+<div class="crow"><span class="t"><b>${ck('“Dispach” isn’t a team yet')}</b><span style="color:var(--fg)">It’s one letter from Dispatch. 3 goals use it: rows 3, 4 and 9.</span><span class="inl" style="margin-top:6px"><a>Use Dispatch for all 3</a><a>Add Dispach as a team</a></span></span></div>
+<div class="crow"><span class="t"><b>${ck('2 goals have stages dated before this week')}</b><span style="color:var(--fg)">“Handhelds in every van” and “Route planner live” would start out late: Pilot was due in week 20, and this is week 46.</span><span class="inl" style="margin-top:6px"><a>Count their stages from this week</a><a>Keep the weeks as typed</a></span></span></div>
 </div>
 <div class="sect" style="border-top:0;padding-bottom:0"><h2>What set-up adds to an import</h2>
 <p class="hint">Every row is new, so there is nothing to change or stop. The 9 people on the People sheet join the 3 you typed; 1 was already there and isn’t added twice. The rest of this screen is the import’s own preview (docs/design/import).</p></div>
@@ -207,7 +206,7 @@ SCREENS['06-check'] = bare('Set up: check', `
 <span class="label">What will exist</span>
 <div class="panel" style="gap:0;padding:4px 16px;margin:8px 0 20px">
 ${cr('3 people in 2 teams', ['Ana Silva (you), Ben Carter and Cara Diaz. Field Ops 2, Dispatch 1.', 'You’re the only admin. No team has a lead.'])}
-${cr('4 goals', ['1 north star and 3 that feed it, from the Engineering platform example.', 'You own 1 and Ben Carter 1. 2 have no owner yet: they start as yours, and Home will ask you to choose.'])}
+${cr('3 goals', ['1 north star and 2 that feed it, all added here.', 'You own 2 and Ben Carter 1. Cara Diaz owns none yet.'])}
 ${cr('Check-ins every week, by Thursday', ['The first are due Thursday 19 Nov.'])}
 ${cr('A weekly review on Thursdays', ['For everyone, every goal. The first is Thursday 19 Nov.'])}
 ${cr('The goal year 2026', ['January to December. You join it in week 46 of 53; it ends on 3 January.'])}
@@ -222,7 +221,7 @@ ${note('Wireframe 6. The read-back: what will exist, in counts and sentences, th
 SCREENS['07-ready-invite'] = bare('Ready', `
 <div class="state"><span class="label">(a) /ready, with teammates to tell</span>
 <div class="frame">
-<div class="stack" style="gap:6px;margin-bottom:20px"><h1>Field Operations is set up</h1><p class="hint">3 people, 4 goals. Week 46 of 2026.</p></div>
+<div class="stack" style="gap:6px;margin-bottom:20px"><h1>Field Operations is set up</h1><p class="hint">3 people, 3 goals. Week 46 of 2026.</p></div>
 <h2 style="margin-bottom:6px">Now tell Ben and Cara</h2>
 <p class="hint" style="margin-bottom:10px">Faro doesn’t send email. Copy this and send it yourself; change the words if you like.</p>
 <div class="msgbox">I’ve set up Field Operations in Faro, where we’ll keep our goals.
@@ -248,7 +247,7 @@ SCREENS['08-arrival'] = bare('Welcome to Field Operations', `
 <div class="frame">
 <div class="brandbig" style="font-size:22px;margin-bottom:16px">Faro</div>
 <h1 style="margin-bottom:10px">Welcome to Field Operations</h1>
-<p class="lead" style="margin-bottom:6px">Ana Silva set this up on 11 Nov to keep the team’s goals in one place: 3 people, 4 goals.</p>
+<p class="lead" style="margin-bottom:6px">Ana Silva set this up on 11 Nov to keep the team’s goals in one place: 3 people, 3 goals.</p>
 <p class="hint" style="margin-bottom:22px">Each goal has an owner who keeps it current. You’ll see yours, and what’s due, as soon as you’re in.</p>
 <h2 style="margin-bottom:8px">Which one are you?</h2>
 <ul class="list"><li class="grp">Field Ops</li>${who('AS', 'Ana Silva', 'Set this up · admin')}${who('BC', 'Ben Carter', 'Owns 1 goal')}<li class="grp">Dispatch</li>${who('CD', 'Cara Diaz', 'No goals yet')}</ul>
@@ -267,23 +266,23 @@ ${note('Wireframe 8. What an invited person meets: whose workspace this is, what
 /* 9. Home on day one, the creator */
 const fw = (rows, hide = true) => `<div class="panel" style="gap:0"><h2 style="margin-bottom:6px">Your first week</h2>${rows.map(([p, b, pri]) => `<div class="hrow"><p>${p}</p>${b ? `<span class="btn ${pri ? 'primary' : ''}">${b}</span>` : ''}</div>`).join('')}${hide ? '<div style="padding-top:10px"><a class="hint">Hide this</a></div>' : ''}</div>`;
 const mine = (rows, t = 'Your goals') => `<h2 style="margin:26px 0 8px">${t}</h2><ul class="list">${rows.map(([k, a, b, v]) => `<li class="goal"><span class="s">${st(k)}</span><span class="t"><b>${a}</b><span>${b}</span></span><span class="v">${v}</span></li>`).join('')}</ul>`;
-SCREENS['09-home-day-one-creator'] = app({ title: 'Home', cur: 'Home', who: ['AS', 'Ana Silva', 'Admin · Field Ops'], counts: { 'Check-in': 3 }, body: `
+SCREENS['09-home-day-one-creator'] = app({ title: 'Home', cur: 'Home', who: ['AS', 'Ana Silva', 'Admin · Field Ops'], counts: { 'Check-in': 2 }, body: `
 <div class="state"><span class="label">(a) Ana, who set it up, on Wednesday 11 Nov (day one)</span>
 <h1 style="margin-bottom:4px">Good afternoon, Ana</h1><p class="hint" style="margin-bottom:18px">Field Operations · week 46</p>
-${fw([['Post your first check-ins: 3 goals. They’re due by Thursday 19 Nov.', 'Start check-in', true], ['Give 2 goals an owner. They’re yours until you do.', 'Choose owners'], ['Ben and Cara haven’t opened Field Operations yet.', 'Copy the invitation'], ['The first review is on Thursday 19 Nov.', '']])}
-${mine([['none', 'Lead time from commit to production', 'North star · starts at 5 days', ''], ['none', 'Change failure rate', 'No owner chosen yet · starts at 18%', ''], ['none', 'Self-service environments live', 'No owner chosen yet · 3 stages', '']])}
+${fw([['Post your first check-ins: 2 goals. They’re due by Thursday 19 Nov.', 'Start check-in', true], ['Ben and Cara haven’t opened Field Operations yet.', 'Copy the invitation'], ['The first review is on Thursday 19 Nov.', '']])}
+${mine([['none', 'Jobs done right first time', 'North star · starts at 82%', ''], ['none', 'Repeat visits', 'Feeds Jobs done right first time · at most 8%', '']])}
 </div>
 <div class="state"><span class="label">(b) The same block on Thursday 19 Nov, the first check-in and review day</span>
-${fw([['Post your first check-in: 1 goal. It’s due today.', 'Start check-in', true], ['3 of 4 first check-ins are in. Waiting on you.', ''], ['The first review is today. It walks the goals that need attention.', 'Open the review']])}
+${fw([['Post your first check-in: 1 goal. It’s due today.', 'Start check-in', true], ['2 of 3 first check-ins are in. Waiting on you.', ''], ['The first review is today. It walks the goals that need attention.', 'Open the review']])}
 </div>
-${note('Wireframe 9. Home on day one for whoever set the workspace up, and the same block on the first check-in day. The block is headed “Your first week”; its first row is the page’s one primary action; dates are said in full, so “due by Thursday” is never read on a Friday; the invitation row follows who has actually arrived. Today the block’s buttons are all plain and “Start check-in” appears again below as the primary, an on-time streak of “0 weeks” shows on day one, a 45-word paragraph explains a count, and after 14 days “Give 2 goals an owner” disappears undone (W15, W16).')}` });
+${note('Wireframe 9. Home on day one for whoever set the workspace up, and the same block on the first check-in day. The block is headed “Your first week”; its first row is the page’s one primary action; dates are said in full, so “due by Thursday” is never read on a Friday; the invitation row follows who has actually arrived. Today the block’s buttons are all plain and “Start check-in” appears again below as the primary, an on-time streak of “0 weeks” shows on day one, and a 45-word paragraph explains a count (W15, W16).')}` });
 
 /* 10. Home on day one, a teammate */
 SCREENS['10-home-day-one-teammate'] = app({ title: 'Home', cur: 'Home', who: ['BC', 'Ben Carter', 'Field Ops'], counts: { 'Check-in': 1 }, body: `
 <div class="state"><span class="label">(a) Ben, who owns a goal, on his first visit (Thursday 12 Nov)</span>
 <h1 style="margin-bottom:4px">Good afternoon, Ben</h1><p class="hint" style="margin-bottom:18px">Field Operations · week 46</p>
 ${fw([['Ana Silva set up Field Operations on 11 Nov and gave you 1 goal.', ''], ['Post your first check-in. It’s due by Thursday 19 Nov.', 'Start check-in', true], ['The first review is on Thursday 19 Nov, and you’re in it.', '']])}
-${mine([['none', 'Deploys per week', 'Feeds Lead time from commit to production · starts at 12 deploys', '']], 'Your goal')}
+${mine([['none', 'Time to reach site', 'Feeds Jobs done right first time · starts at 54 min', '']], 'Your goal')}
 </div>
 <div class="state"><span class="label">(b) Cara, who owns none</span>
 ${fw([['Ana Silva set up Field Operations on 11 Nov.', ''], ['See what Field Operations is working towards.', 'See the goals', true], ['Watch the goals you care about, and they’ll show here.', 'Find goals to watch'], ['Set up a goal of your own, in about 3 minutes.', 'New goal'], ['The first review is on Thursday 19 Nov, and you’re in it.', '']])}
@@ -295,7 +294,7 @@ SCREENS['11-home-no-rhythm'] = app({ title: 'Home', cur: 'Home', who: ['BC', 'Be
 <div class="state"><span class="label">(a) Ben’s first visit, in a workspace with no rhythm and no reviews</span>
 <h1 style="margin-bottom:4px">Good afternoon, Ben</h1><p class="hint" style="margin-bottom:18px">Field Operations · week 46</p>
 ${fw([['Ana Silva set up Field Operations on 11 Nov and gave you 1 goal.', ''], ['Post a first check-in on it, so everyone can see where it starts. There’s no date to meet.', 'Check in', true]])}
-${mine([['none', 'Deploys per week', 'Feeds Lead time from commit to production · starts at 12 deploys', '']], 'Your goal')}
+${mine([['none', 'Time to reach site', 'Feeds Jobs done right first time · starts at 54 min', '']], 'Your goal')}
 </div>
 <div class="state"><span class="label">(b) Ana, who set it up with goals “later”</span>
 ${fw([['Ben and Cara haven’t opened Field Operations yet.', 'Copy the invitation', true], ['Set up the first goal.', 'New goal']])}
@@ -304,16 +303,14 @@ ${fw([['Ben and Cara haven’t opened Field Operations yet.', 'Copy the invitati
 ${note('Wireframe 11. With the rhythm off and reviews off, nothing says “due”, “late” or “review”, Check-in carries no count, and the menu has no Reviews: off means absent. An empty workspace gives its creator two things to do and one line about why Home is empty, in place of today’s “Set up the first goal” twice and a “Next review: Thursday, tomorrow” for a workspace with nothing to review (W18).')}` });
 
 /* 12. About, straight after set-up */
-SCREENS['12-about-after-setup'] = app({ title: 'Workspace', cur: 'Workspace', who: ['AS', 'Ana Silva', 'Admin · Field Ops'], counts: { 'Check-in': 3 }, width: '', body: `
+SCREENS['12-about-after-setup'] = app({ title: 'Workspace', cur: 'Workspace', who: ['AS', 'Ana Silva', 'Admin · Field Ops'], counts: { 'Check-in': 2 }, width: '', body: `
 <h1 style="margin-bottom:4px">Workspace</h1><p class="hint" style="margin-bottom:18px">Field Operations · you’re an admin here</p>
 <div class="layout"><div class="menu"><span class="cur">About</span><span>Cycles</span><span>Access</span><span>Features</span><span>Privacy</span><span>Recently removed</span></div>
 <div class="body">
-<div><span class="label">To sort out · 1</span>
-<ul class="list" style="margin-top:8px"><li><span class="t"><b>2 goals from set-up have no owner chosen</b><span>They’re yours until you choose. Change failure rate, Self-service environments live.</span></span><span class="btn">Choose owners</span></li></ul></div>
 <div><h2 style="margin-bottom:12px">About this workspace</h2>
 <dl class="facts">
 <dt>Name</dt><dd>Field Operations · <a>Rename</a></dd>
-<dt>Set up</dt><dd>By Ana Silva on 11 Nov 2026, from the Engineering platform example.</dd>
+<dt>Set up</dt><dd>By Ana Silva on 11 Nov 2026, with 3 goals added at set-up.</dd>
 <dt>People</dt><dd>3 people in 2 teams. 1 hasn’t opened it yet: Cara Diaz. <a>Copy the invitation</a></dd>
 <dt>Year</dt><dd>2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. <a>Cycles</a></dd>
 <dt>How you work</dt><dd>Check-ins every week, by Thursday. A weekly review on Thursdays. <a>Change</a></dd>
@@ -322,6 +319,6 @@ SCREENS['12-about-after-setup'] = app({ title: 'Workspace', cur: 'Workspace', wh
 <dt>Recording</dt><dd>Nothing about how the app is used here is recorded. <a>Privacy</a></dd>
 </dl></div>
 </div></div>
-${note('Wireframe 12. Workspace, About, straight after set-up. It agrees with what set-up asked: a “How you work” fact repeats the two answers in the same words, “Set up” says who and when, and People says who has yet to arrive. “To sort out” carries what set-up left open, so it does not vanish when “Your first week” retires; nothing here tells an admin off for a choice set-up never offered. Today About has no line for the review day or the rhythm, and nowhere lets an admin change the day (W6).')}` });
+${note('Wireframe 12. Workspace, About, straight after set-up. It agrees with what set-up asked: a “How you work” fact repeats the two answers in the same words, “Set up” says who and when, and People says who has yet to arrive. There is no “To sort out” on day one: nothing here tells an admin off for a choice set-up never offered, and who has yet to arrive moves there only after the first week. Today About has no line for the review day or the rhythm, and nowhere lets an admin change the day (W6).')}` });
 
 kit.render(__dirname, SCREENS);

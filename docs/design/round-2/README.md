@@ -109,7 +109,7 @@ The same shape as round 1: `README.md` (jobs by role and frequency; findings wit
 
 ## Part 2. What came back, reconciled
 
-Each area was walked, written and drawn by its own agent against Part 1, then reviewed here: every report read against the shared decisions, the wireframes looked at on both widths, and the places where two areas disagreed settled below. During the day Lane added three things, which are in: the metrics area; **dates in goal entry** (baseline, from and to, picked by year and week: goal-entry wireframe 8, GE9); and **every choice of a person, team, goal or metric is search-to-find** (goal-entry spec 2.14 and wireframe 9, on round 1's find-and-pick).
+Each area was walked, written and drawn by its own agent against Part 1, then reviewed here: every report read against the shared decisions, the wireframes looked at on both widths, and the places where two areas disagreed settled below. During the day Lane added these, which are in: **set-up no longer offers example goals** (the Goals step has three doors: your own, a spreadsheet, later; the demo stays a separate place to look, never copied into a workspace); **a goal can be proposed before it is active** (goal entry, GE10); the metrics area; **dates in goal entry** (baseline, from and to, picked by year and week: goal-entry wireframe 8, GE9); and **every choice of a person, team, goal or metric is search-to-find** (goal-entry spec 2.14 and wireframe 9, on round 1's find-and-pick).
 
 ### The answer on switches
 
@@ -176,10 +176,10 @@ Backlog-sized items in order. Effort as in round 1: **S** (under a day), **M** (
 | 15 | **IM4** Imported, Undo and past imports | One Undo per import; `/data/imports` from the change log | S–M | AR3 (merged); FS2 on Data *held* | import |
 | 16 | **IM5** The way in, with paste | The Import page's one action; paste from a spreadsheet; the header row found | S–M | IM1, IM3 | import |
 | 17 | **ST4** People, with the three levels | Count line, paste, duplicate emails, near names | S–M | IM2, IM3, FS1, ST2 | set-up |
-| 18 | **ST5** Goals in set-up: four doors, one list | An example, your own (the goal form), a spreadsheet, later | M | GE1 (the form usable outside `/goals/new`), OB1, OB2 *held*, ST2 | set-up |
+| 18 | **ST5** Goals in set-up: three doors, one list | Your own (the goal form), a spreadsheet, or later. No example goals (Lane, 11 Nov): the templates are removed | S–M | GE1 (the form usable outside `/goals/new`), OB1, OB2 *held*, ST2 | set-up |
 | 19 | **IM8** with **ST6** The import inside set-up | The preview in "every row is new" mode; people the file doesn't add | S–M + S–M | IM3, ST4, ST5 | import, set-up |
 | 20 | **ST7** The read-back, the invitation and Undo | Check in counts and sentences; "Copy the invitation"; undo a set-up nobody has joined | S–M | ST1, ST2, ST3 | set-up |
-| 21 | **ST8** Your first week | Dated rows for each person; nothing late in week one; unfinished work moves to About | M | OB3, WR2 (merged); ST1, ST3; FT1, FT2 | set-up |
+| 21 | **ST8** Your first week | Dated rows for each person; nothing late in week one; unfinished work moves to About | S–M | OB3, WR2 (merged); ST1, ST3; FT1, FT2 | set-up |
 | 22 | **IM6** Large files | Reading off the page's thread, progress, Stop, 50 rows at a time, the 5,000-row limit said first; the server job written as a platform requirement | M | IM3 | import |
 | 23 | **GE5** Add a goal from where you are | Under a goal, on a team's page, as a copy; "Adding several?" to the paste door | S–M | OB1 *held*, GE1, IM5 | goal entry |
 | 24 | **GE6** Agree a goal in a review; ask someone to set one up | A next step "Set up a goal: {name}" that opens the form filled in | S–M | GE5, FS1, FT2 | goal entry |
@@ -219,7 +219,7 @@ Two items cross tracks and set the pace: **IM2** (the levels) holds GE2, ST4 and
 
 - **Adds:** one entry, "RD2: redesign round 2", pointing here, after RD.
 - **Replaces:** SU's leftover ("No value yet" at set-up), the backlog's N leftovers on import questions, and round 1's "set-up's spreadsheet path, not covered".
-- **Changes in round 1, said in each area's "What this changes in round 1":** OB1's Check step becomes the read-back and its unit starts empty; OB3's seven steps become five and "Getting started" becomes "Your first week"; GT3's edit page gains "What will change"; ML2 loses "Use different ones" and gains "Which part"; ML3's Remove becomes Retire; ML1's "Lowest now / Highest" line becomes a spread that names no team. FS1 is unchanged, and four more items now wait on its held part.
+- **Changes in round 1, said in each area's "What this changes in round 1":** OB1's Check step becomes the read-back and its unit starts empty; OB3's seven steps become five, its owner-per-example-goal step goes with the examples, and "Getting started" becomes "Your first week"; GT3's edit page gains "What will change"; ML2 loses "Use different ones" and gains "Which part"; ML3's Remove becomes Retire; ML1's "Lowest now / Highest" line becomes a spread that names no team. FS1 is unchanged, and four more items now wait on its held part.
 - **Migrations:** import, goal entry and set-up need none. Toggles needs two columns on `okr_cycles` (FT1). Metrics needs seven columns and no table (MT2, MT3, MT4). The SQL is in each spec, written for the `faro` schema with its grants.
 - **For the internal platform, written as requirements, not built:** a server-side import job above 5,000 rows; invitations and sign-in; who may create a workspace; real connectors behind the number source; a log of exports.
 
