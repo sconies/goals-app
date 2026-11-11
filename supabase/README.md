@@ -17,5 +17,6 @@ Supabase's table editor and SQL editor run as postgres. Once `faro_owner` owns `
 ## What's here
 
 - `migrations/0001`–`0034`: written for `public`, with Supabase's default grants; 0035 moved everything to `faro`; 0036 removed the last things that ran as postgres; 0037 took Faro's functions out of Storage's rules.
+- `migrations/0039`: a save takes every feature module's rows under `modules`, by table, from the allowed list `faro.module_tables` (AS part 2). A module with tables of its own adds them to that list in its migration (`insert … on conflict do nothing`); the core's tables stay as they are.
 - `manual/faro-role.sql`: makes `faro_owner` and hands it `faro`. Run it after 0035, 0036 and 0037, and again after CI's `DATABASE_URL` becomes `faro_owner`.
 - `manual/apply-*.sql`: old paste-ins, from before CI applied migrations.

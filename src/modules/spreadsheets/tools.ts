@@ -2,7 +2,8 @@
    server offers them with the core's (src/mcp/tools.ts); in a workspace that has switched spreadsheets off, they say
    so instead of running. */
 import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../../domain/export';
-import { SHEET_NAMES } from '../../domain/columns';
+import { sheetNamesWith } from '../../domain/columns';
+import { MODULE_SHEETS } from '../../core/records';
 import { exportedTable, TABLE_ORDER, TABLES } from '../../domain/tableLayout';
 import type { ToolDef } from '../../mcp/tools';
 import { layoutFrom, sheetOf } from '../../mcp/workTools';
@@ -11,7 +12,7 @@ const str = (description: string, extra: object = {}) => ({ type: 'string', desc
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-const CSV_FORMATS = SHEET_NAMES.filter((n) => n !== 'README').map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
+const CSV_FORMATS = sheetNamesWith(MODULE_SHEETS).filter((n) => n !== 'README').map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
 
 const tools: ToolDef[] = [
   {
@@ -21,7 +22,7 @@ const tools: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['format'], properties: { format: str('Which export.', { enum: ['json', 'brief', ...CSV_FORMATS.map(([f]) => f)] }) } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today };
+      const x = { ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, sheets: MODULE_SHEETS };
       if (a.format === 'json') { const j = toJson(x); return { data: j, text: JSON.stringify(j) }; }
       if (a.format === 'brief') return { text: aiBrief(x) };
       const sheet = CSV_FORMATS.find(([f]) => f === a.format)?.[1];

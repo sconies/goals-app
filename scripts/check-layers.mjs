@@ -2,6 +2,9 @@
 
    1. The rules layer, src/domain, is plain TypeScript: it imports only other files in src/domain, and uses no browser,
       network or storage (fetch, window, document, localStorage…). Tests in it may use fixtures from elsewhere.
+   1b. A module's rules (its rules*.ts, AS part 2) are as pure as src/domain: they import only src/domain and their own
+      module's folder, and use no browser, network or storage either. A module's records, screens and tools may import
+      anything the core offers; its rules may not.
    2. The core never depends on a module: nothing outside src/modules imports a file in it. Modules join the app only
       through the registry the build makes (vite.modules.ts, `virtual:faro-modules…`).
    3. A module imports another module only if its module.json lists it under `needs`.
@@ -105,10 +108,13 @@ export function checkLayers(root) {
     const imports = importsOf(raw);
     const inDomain = file.startsWith('src/domain/');
     const mine = moduleOf(file);
+    const moduleRules = isRules(file) && !inDomain;
     for (const { spec, line } of imports) {
       const to = target(file, spec);
       // 1. The rules layer imports only itself (its tests may use fixtures).
       if (inDomain && !isTest(file) && (!to || !to.startsWith('src/domain/'))) problems.push(`${file}:${line}: the rules layer (src/domain) imports ${spec}; it may import only other files in src/domain`);
+      // 1b. A module's rules import only src/domain and their own folder.
+      if (moduleRules && (!to || !(to.startsWith('src/domain/') || to.startsWith(`src/modules/${mine}/`)))) problems.push(`${file}:${line}: a module’s rules (${mine}) import ${spec}; they may import only src/domain and their own folder, src/modules/${mine}/`);
       const theirs = to ? moduleOf(to + '/') ?? moduleOf(to) : null;
       // 2. The core never depends on a module.
       if (theirs && !mine && !isTest(file)) problems.push(`${file}:${line}: imports ${spec} from the ${theirs} module; the core never depends on a module (it joins through the registry, vite.modules.ts)`);
@@ -117,10 +123,10 @@ export function checkLayers(root) {
       // 4. Only Supabase's adapters import Supabase.
       if (spec.startsWith('@supabase/') && !isTest(file) && !file.startsWith('src/adapters/supabase/')) problems.push(`${file}:${line}: imports ${spec}; only src/adapters/supabase/ may import Supabase (use the interfaces in src/ports)`);
     }
-    if (inDomain && !isTest(file)) {
+    if ((inDomain && !isTest(file)) || moduleRules) {
       codeOnly(raw).split('\n').forEach((l, i) => {
         const m = OUTSIDE.exec(l);
-        if (m) problems.push(`${file}:${i + 1}: the rules layer (src/domain) uses ${m[0].replace(/\s*[.(]$/, '')}; browser, network and storage code belongs in src/app or src/data`);
+        if (m) problems.push(`${file}:${i + 1}: the rules layer (${inDomain ? 'src/domain' : 'a module’s rules'}) uses ${m[0].replace(/\s*[.(]$/, '')}; browser, network and storage code belongs in src/app or src/data`);
       });
     }
     // 5. The rules don't read the clock.
@@ -148,5 +154,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     console.error(`The layers lint found ${problems.length} problem(s) (docs/architecture.md):\n${problems.map((p) => `  ${p}`).join('\n')}`);
     process.exit(1);
   }
-  console.log('Layers: the rules layer imports only itself and reads no clock, new rules take only what they read, the core depends on no module, and only Supabase’s adapters import Supabase.');
+  console.log('Layers: the rules layer imports only itself and a module’s rules only it and their own folder, they read no clock, new rules take only what they read, the core depends on no module, and only Supabase’s adapters import Supabase.');
 }

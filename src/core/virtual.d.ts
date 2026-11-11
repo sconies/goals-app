@@ -16,3 +16,15 @@ declare module 'virtual:faro-modules/app' {
   const app: { id: string; part: import('./app').AppModule }[];
   export default app;
 }
+declare module 'virtual:faro-modules/records' {
+  const records: { id: string; part: Omit<import('../domain/records').ModuleRecords, 'module'> }[];
+  export default records;
+}
+declare module 'virtual:faro-modules/actions' {
+  const actions: { id: string; part: import('../app/actions').ModuleActions }[];
+  export default actions;
+}
+declare module 'virtual:faro-modules/spec' {
+  const spec: { id: string; part: import('../spec/rules').Rule[] }[];
+  export default spec;
+}

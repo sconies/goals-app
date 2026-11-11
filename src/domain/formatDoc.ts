@@ -2,12 +2,14 @@
    the app. `npm run export-format` writes it; evals/format.eval.ts fails when the file isn't current. */
 import { CALL_WORDS, CAUSE_WORDS, GOAL_ACTION_WORDS, KEY_COLUMNS, LEVEL_WORDS, PERSON_ACTION_WORDS, RECOVERY_WORDS, ROLE_WORD, roleLoaded, SHAPE_WORDS, SHEETS, TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type Words } from './columns';
 import { STATUS, withCode } from './vocabulary';
+import type { ModuleSheet } from './records';
 
 const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const words = (w: Words<string>) => Object.values(w.word).map((x) => `\`${x}\``).join(', ');
 
-/** The whole of docs/export-format.md. */
-export function exportFormatMarkdown(): string {
+/** The whole of docs/export-format.md, with the sheets of the feature modules in this build (domain/records) after the core's. */
+export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): string {
+  const sheets = [...SHEETS.map((x) => ({ x: x as (typeof SHEETS)[number] | ModuleSheet['spec'], keys: KEY_COLUMNS[x.kind] })), ...modules.map((m) => ({ x: m.spec, keys: m.keys }))];
   const out: string[] = [
     '<!-- Generated from src/domain/columns.ts by `npm run export-format`. Edit the columns there, not this file. -->',
     '',
@@ -19,7 +21,7 @@ export function exportFormatMarkdown(): string {
     '',
     '## Files',
     '',
-    `- **Excel workbook (.xlsx)**, the default: every sheet below (${SHEETS.map((x) => x.name).join(', ')}) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.`,
+    `- **Excel workbook (.xlsx)**, the default: every sheet below (${sheets.map((v) => v.x.name).join(', ')}) and a README sheet that explains each column, made from the same definitions. Worked-out columns are set in grey.`,
     '- **CSV files (.zip)**: the same sheets, one CSV each with the same headers, named after the sheet (`Goals.csv`, `Check-ins.csv`…). UTF-8 with a byte-order mark, so Excel opens them correctly.',
     '- **One CSV**: any one sheet on its own.',
     '- **A table from Data** (CSV or .xlsx), exactly as its layout shows it: its columns in order and the rows that pass its search and filters. The columns that say which record a row is (below, “Matches the row”) are always written: any the layout leaves out are added at the end, in grey, so the file loads back. The AI assistant’s `export_table` does the same.',
@@ -39,12 +41,12 @@ export function exportFormatMarkdown(): string {
     `- **The Action column** does what the app does, with the same rules and preview: on Goals, \`${GOAL_ACTION_WORDS.word.stop}\` stops a goal with check-ins (say why in Reason) and \`${GOAL_ACTION_WORDS.word.delete}\` deletes one with none; on People, \`${PERSON_ACTION_WORDS.word.left}\` marks someone as left, their goals and open asks going to Takes over (by email). Undoing the import puts them back.`,
     '',
   ];
-  for (const sheet of SHEETS) {
+  for (const { x: sheet, keys } of sheets) {
     out.push(`## ${sheet.name}`, '', `One row per ${sheet.rowIs}. ${sheet.about}${sheet.loaded ? '' : ' Not loaded back.'}`, '');
     out.push('| Column | Kind | What it means | When loaded back |', '|---|---|---|---|');
     for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | ${cell(sheet.loaded ? roleLoaded(c) : 'Not loaded back')} |`);
     if (sheet.kind === 'plan') out.push(`| ${WEEK_COLUMN.header} | ${ROLE_WORD[WEEK_COLUMN.role]} | ${cell(WEEK_COLUMN.means)} | ${cell(WEEK_COLUMN.loaded)} |`);
-    out.push('', `Always written by a table from Data: ${KEY_COLUMNS[sheet.kind].join(', ')}.`, '');
+    out.push('', `Always written by a table from Data: ${keys.join(', ')}.`, '');
   }
   out.push(
     '## Words',

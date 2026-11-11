@@ -77,7 +77,7 @@ The browser may still run an action first to explain early (“Only admins can �
 
 ## How each contract test carries across
 
-`storeContract` (`src/ports/contracts/store.ts`) has 7 tests. Each becomes a test of the two ports:
+`storeContract` (`src/ports/contracts/store.ts`) has 8 tests. Each becomes a test of the two ports:
 
 | `storeContract` test | On the query and command ports |
 |---|---|
@@ -85,6 +85,7 @@ The browser may still run an action first to explain early (“Only admins can �
 | saves a change-log entry and gives it back | The `addNote` command, sent with no actor, time or id; `activity()` gives the entry back with the signed-in person as its actor and the server’s time. A caller that sends its own actor, time or change-log entry is refused. |
 | saves a goal one version on, and refuses a save based on the version before it as stale | The same, through any command that changes a goal, with the versions the person saw (`Expectations`). Extended to every record two people can edit at once: people, teams, asks, decisions and views, which `Store` saves last-write-wins today. |
 | never lets a save to one workspace change another’s records | Every command, for a workspace the caller is a member of: a command that names a record stored under another workspace is refused and changes nothing (R1, rule 3). The database checks it as well as the server: what each row says, where a row already stored is kept, and a milestone’s stages through their goal (Faro’s migration 0038). |
+| keeps a module’s records whole, saves them with a commit, and removes and restores them with what they point to | Each module’s records are its own ports’ business: a module that owns records adds its own queries and commands (the metric library’s `metrics()` and `saveMetric`), and its rows are saved in the same transaction as the core command that names them. The core’s ports stay closed; nothing a module keeps widens them. |
 | issues an AI assistant token once, never keeps its secret, and revokes it | The `createToken` command returns the secret once and is refused for someone who isn’t an admin; no query ever returns the secret or its hash; `revokeToken` stops the token at once (R1, rule 5). |
 | deletes a workspace and everything in it | The `deleteWorkspace` command, admins only (`canDeleteWorkspace`); afterwards no query returns anything of it. |
 | resets the example only when it has one | Not carried across: the example, `hasExample` and `resetExample` are the demo’s plumbing. They stay with the demo’s own store. |

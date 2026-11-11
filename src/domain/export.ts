@@ -14,10 +14,11 @@ import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
 import {
-  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, METRICS, metricsFor, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
+  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type SheetKind,
 } from './columns';
 import type { Goal, Snapshot } from './types';
+import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
 
 export type { Cell, ExportInput } from './columns';
@@ -57,14 +58,14 @@ export function definitions(): Cell[][] {
 }
 
 /** The README: every sheet and every column, what it means and what loading it back does, made from domain/columns. */
-export function readme(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'>): Cell[][] {
+export function readme(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>): Cell[][] {
   const rows: Cell[][] = [
     [`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
     ['Change any column marked “You can change it”, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are.'],
     [],
     ['Sheet', 'Column', 'Kind', 'What it means', 'When loaded back'],
   ];
-  for (const sheet of SHEETS) {
+  for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)]) {
     rows.push([sheet.name, null, null, `One row per ${sheet.rowIs}. ${sheet.about}`, sheet.loaded ? 'Loaded back' : 'Not loaded back']);
     for (const col of sheet.columns) rows.push([sheet.name, col.header, ROLE_WORD[col.role], col.means, sheet.loaded ? roleLoaded(col) : 'Not loaded back']);
     if (sheet.kind === 'plan') rows.push([sheet.name, WEEK_COLUMN.header, ROLE_WORD[WEEK_COLUMN.role], WEEK_COLUMN.means, WEEK_COLUMN.loaded]);
@@ -83,7 +84,8 @@ function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
   return [[...head!, ...weeks.map((w) => `Week ${w}`)], ...body.map((r, i) => [...r, ...weeks.map((w) => planWeekValue({ c, g: metric[i]! }, w))])];
 }
 
-/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and the README. */
+/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
+    metric library's Metrics) and the README. */
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
@@ -99,10 +101,11 @@ export function workbook(x: ExportInput): Table[] {
     ['results', rowsOf(RESULTS, goalRows)],
     ['asks', rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
     ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
-    ['metrics', rowsOf(METRICS, metricsFor(x.snapshot, ids).map((v) => ({ c, ...v })))],
   ];
   return [
     ...book.map(([kind, rows]) => ({ name: SHEETS.find((v) => v.kind === kind)!.name, rows, muted: muted(kind, rows[0] ?? []) })),
+    // Each feature module's sheets (domain/records), for reading: their worked-out and shown columns in grey.
+    ...(x.sheets ?? []).map((m) => ({ name: m.spec.name, rows: moduleSheetRows(m, x, c, ids), muted: m.spec.columns.filter((col) => col.role === 'worked' || col.role === 'shown').map((col) => col.header) })),
     { name: 'README', rows: readme(x) },
   ];
 }
@@ -112,7 +115,7 @@ export function workbook(x: ExportInput): Table[] {
  * no rows. Filled in and loaded back, it adds what it says, as any workbook would.
  */
 export function blankWorkbook(x: ExportInput): Table[] {
-  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [], metrics: [], metricLinks: [] };
+  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [], modules: {} };
   return workbook({ ...x, snapshot: none, goals: undefined });
 }
 

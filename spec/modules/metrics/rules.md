@@ -43,15 +43,16 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/metrics.ts](../../../src/domain/metrics.ts): `metricProblems`, `saveMetric`, `removeMetric`, `linkProblems`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
+- [src/modules/metrics/rules.ts](../../../src/modules/metrics/rules.ts): `metricProblems`, `saveMetric`, `removeMetric`, `linkProblems`, `linkGoalMetric`, `unlinkGoalMetric`, `measureOf`, `goalTarget`
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `undoRemoval`, `restoreRemoved`
+- [src/modules/metrics/records.ts](../../../src/modules/metrics/records.ts): `metricToRow`, `metricFromRow`
 
 ## Requirements
 
 
 ## Tests that check it
 
-### [src/domain/metrics.test.ts](../../../src/domain/metrics.test.ts)
+### [src/modules/metrics/rules.test.ts](../../../src/modules/metrics/rules.test.ts)
 
 - the demo’s library › has 13 metrics, 12 of them measuring a goal, and every link passes the rules
 - the demo’s library › says what a goal is measured by, for which slice, with the goal’s own target

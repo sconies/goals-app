@@ -17,6 +17,7 @@ import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from './importer';
 import { currentWeek } from './plan';
 import { parseDelimited, readTables, type NamedGrid } from './sheets';
 import type { Cycle, MetricGoal, Snapshot } from './types';
+import { MODULE_SHEETS } from '../core/records';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -47,7 +48,7 @@ const load = (d: ReturnType<typeof demos>[number], tables: Tables, actor = 'amar
   return planChanges({ tables, snapshot: s, cycle: d.cycle, week: d.week, actor: who, now: today.toISOString(), newId, via: 'spreadsheet', full: d.full });
 };
 const errors = (cs: ChangeSet) => cs.issues.filter((i) => i.severity === 'error').map((i) => `${i.sheet} ${i.row}: ${i.message}`);
-const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today });
+const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today, sheets: MODULE_SHEETS });
 
 describe('one format: export, load back, no change', () => {
   for (const d of demos()) {

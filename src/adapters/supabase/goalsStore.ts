@@ -6,9 +6,10 @@ import type { Snapshot, Workspace } from '../../domain/types';
 import {
   changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
   personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload,
-  type MetricRow, type GoalMetricRow, metricFromRow, metricLinkFromRow, metricToRow, metricLinkToRow } from '../../data/rows';
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload, loadModules } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
+import { hasModuleRows, moduleRows, type DbRow, type ModuleRecords } from '../../domain/records';
+import { MODULE_RECORDS } from '../../core/records';
 
 /** A database function that isn't there yet: its migration hasn't been applied. */
 const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
@@ -33,7 +34,8 @@ export class SupabaseStore implements Store {
   readonly hasExample = false;
   private readonly db: SupabaseClient;
 
-  constructor(url: string, key: string, client?: SupabaseClient) {
+  /** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
+  constructor(url: string, key: string, client?: SupabaseClient, private readonly records: readonly ModuleRecords[] = MODULE_RECORDS) {
     this.db = client ?? faroClient(url, key, { fetch: timedFetch });
   }
 
@@ -66,7 +68,7 @@ export class SupabaseStore implements Store {
   }
 
   async load(ws: string): Promise<Snapshot> {
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, metrics, metricLinks] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, modules] = await Promise.all([
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
@@ -79,9 +81,8 @@ export class SupabaseStore implements Store {
       this.all<ViewRow>('okr_views', ws).catch(() => [] as ViewRow[]),
       // Requests arrive with migration 0017; until then they're read from each goal's latest check-in.
       this.all<RequestRow>('okr_requests', ws).catch(() => null),
-      // The metric library arrives with migration 0033; until then there is none.
-      this.all<MetricRow>('okr_metrics', ws).catch(() => null),
-      this.all<GoalMetricRow>('okr_goal_metrics', ws).catch(() => null),
+      // Each feature module's own tables, as it declares them (domain/records); a table its migration hasn't made yet has none.
+      loadModules(this.records, (table) => this.all<DbRow>(table, ws).catch(() => null)),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.
@@ -101,8 +102,7 @@ export class SupabaseStore implements Store {
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
       ...(requests ? { requests: requests.map(requestFromRow) } : {}),
-      ...(metrics?.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {}),
-      ...(metricLinks?.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}),
+      ...(modules ? { modules } : {}),
     });
   }
 
@@ -139,9 +139,9 @@ export class SupabaseStore implements Store {
         if (change) c = { ...c, changes: c.changes.filter((x) => x !== change) };
       }
       if (done.length) c = { ...c, tokens: c.tokens!.filter((t) => !done.includes(t.id)) };
-      if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === 'expect' || k === 'tokens' || (Array.isArray(v) ? !v.length : v === undefined))) return;
+      if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === 'expect' || k === 'tokens' || (k === 'modules' ? !hasModuleRows(c.modules) : Array.isArray(v) ? !v.length : v === undefined))) return;
     }
-    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving')) !== 'missing') {
+    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c, this.records) }, 'Saving')) !== 'missing') {
       // Before migration 0020, okr_commit saves teams but can't remove one or rename the workspace: finish those here.
       // Afterwards they've already happened, and doing them again changes nothing.
       await this.teamsAndName(ws, c);
@@ -195,11 +195,18 @@ export class SupabaseStore implements Store {
     if (c.tokens?.length) await this.must(this.db.from('okr_api_tokens').upsert(c.tokens.map((x) => tokenToRow(ws, x))), 'Saving the token');
     if (c.views?.length) await this.must(this.db.from('okr_views').upsert(c.views.map((x) => viewToRow(ws, x))), 'Saving the view');
     if (c.requests?.length) await this.must(this.db.from('okr_requests').upsert(c.requests.map((x) => requestToRow(ws, x))), 'Saving the request');
-    if (c.metrics?.length) await this.must(this.db.from('okr_metrics').upsert(c.metrics.map((x) => metricToRow(ws, x))), 'Saving the metric');
-    if (c.metricLinks?.length) await this.must(this.db.from('okr_goal_metrics').upsert(c.metricLinks.map((x) => metricLinkToRow(ws, x))), 'Saving what measures the goal');
+    await this.eachModuleTable(ws, c, (table, rows) => this.must(this.db.from(table).upsert(rows), 'Saving'));
     for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
     await this.teamsAndName(ws, c);
     if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
+  }
+
+  /** Each declared module record's rows in a save or a workspace, by table, in the order the modules declare them. */
+  private async eachModuleTable(ws: string, c: Pick<Commit, 'modules'>, write: (table: string, rows: DbRow[]) => Promise<void>) {
+    for (const m of this.records) for (const def of m.records) {
+      const rows = moduleRows<never>(c, m.module, def.key);
+      if (rows.length) await write(def.table, rows.map((r) => def.toRow(ws, r)));
+    }
   }
 
   private async insertAll(ws: string, s: Snapshot) {
@@ -221,13 +228,12 @@ export class SupabaseStore implements Store {
     await chunk('okr_watches', s.watches.map((w) => watchToRow(ws, w)), 'Adding watches');
     await chunk('okr_retros', (s.retros ?? []).map((r) => retroToRow(ws, r)), 'Adding retros');
     if (s.requests?.length) await chunk('okr_requests', s.requests.map((r) => requestToRow(ws, r)), 'Adding requests');
-    if (s.metrics?.length) await chunk('okr_metrics', s.metrics.map((m) => metricToRow(ws, m)), 'Adding metrics');
-    if (s.metricLinks?.length) await chunk('okr_goal_metrics', s.metricLinks.map((l) => metricLinkToRow(ws, l)), 'Adding what measures each goal');
+    await this.eachModuleTable(ws, s, (table, rows) => chunk(table, rows, 'Adding'));
     await chunk('okr_changes', s.changes.map((c) => changeToRow(ws, c)), 'Adding the change log');
   }
 
   async createWorkspace(w: Workspace, data: Snapshot) {
-    const payload = { ...commitPayload(w.id, { ...data, changes: data.changes }), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
+    const payload = { ...commitPayload(w.id, { ...data, changes: data.changes }, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     if ((await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace')) !== 'missing') return;
     await this.must(this.db.from('okr_workspaces').insert(workspaceToRow(w)), 'Creating the workspace');
     await this.insertAll(w.id, data);
