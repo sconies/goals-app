@@ -90,6 +90,6 @@ describe('rules 2 to 4: the count line, the filter line, none found and history'
     expect(noneFound(goals, 'rolback', false, 'rollback')).toBe('No goal matches “rolback”. Showing goals that match “rollback”.');
   });
   it('adds a history entry for a choice, replaces while typing', () => {
-    expect(['choice', 'typing', 'settled', 'clear', 'remembered', 'dropped'].map((c) => historyStep(c as never))).toEqual(['push', 'replace', 'push', 'push', 'replace', 'replace']);
+    expect(['choice', 'started', 'typing', 'settled', 'clear', 'remembered', 'dropped'].map((c) => historyStep(c as never))).toEqual(['push', 'push', 'replace', 'replace', 'push', 'replace', 'replace']);
   });
 });

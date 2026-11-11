@@ -37,7 +37,7 @@ module.exports = {
       fail(await p.getByText(/Kept in this browser/).isVisible(), '[SETTINGS] the page does not say its choices are kept in this browser');
       for (const h of ['Appearance', 'Navigation', 'You', /^Your MCP tokens/]) fail(await p.getByRole('heading', typeof h === 'string' ? { name: h, exact: true } : { name: h }).isVisible(), `[SETTINGS] no "${h}" section`);
       // The person menu holds Settings too.
-      await p.goto(url('/goals')); await p.waitForTimeout(300);
+      await p.goto(url('/goals?scope=all')); await p.waitForTimeout(300);
       await p.locator('.side .me').click();
       const menu = p.getByRole('dialog', { name: 'Switch person' });
       await menu.waitFor();
@@ -126,14 +126,14 @@ module.exports = {
         const [c, p] = await open(w, h, 'rhea', '/');
         const width = () => p.evaluate(() => Math.round(document.querySelector('.side').getBoundingClientRect().width));
         const full = await width();
-        await p.locator('.side').getByRole('button', { name: /Collapse sidebar/ }).click();
+        await p.locator('.side').getByRole('button', { name: /Collapse the sidebar/ }).click();
         const rail = await width();
         fail(full >= 220 && rail <= 72, `[SETTINGS] ${w}: the sidebar is ${full}px, collapsed ${rail}px (want about 236 and 68)`);
         await p.reload(); await p.waitForTimeout(300);
         const after = await width();
         const m = await p.evaluate(() => {
           const shown = [...document.querySelectorAll('.side .nav')].filter((n) => n.getClientRects().length);
-          return { untitled: shown.filter((n) => !n.getAttribute('title')).map((n) => n.textContent.trim()), wide: shown.filter((n) => n.getBoundingClientRect().width > 52).length, words: shown.filter((n) => [...n.querySelectorAll('span:not(.count)')].some((s) => s.getBoundingClientRect().width > 2)).length, main: Math.round(document.querySelector('main.work').getBoundingClientRect().left) };
+          return { untitled: shown.filter((n) => !n.getAttribute('data-label')).map((n) => n.textContent.trim()), wide: shown.filter((n) => n.getBoundingClientRect().width > 52).length, words: shown.filter((n) => [...n.querySelectorAll('span:not(.count)')].some((s) => s.getBoundingClientRect().width > 2)).length, main: Math.round(document.querySelector('main.work').getBoundingClientRect().left) };
         });
         fail(after <= 72, `[SETTINGS] ${w}: collapsed is not remembered (${after}px after a reload)`);
         fail(!m.untitled.length && !m.wide && !m.words, `[SETTINGS] ${w} rail: ${m.untitled.length} icons unnamed on hover, ${m.wide} wider than the rail, ${m.words} still showing words`);
@@ -145,8 +145,8 @@ module.exports = {
     }
     await step('tablet rail', async () => {
       const [c, p] = await open(1024, 768, 'rhea', '/', true);
-      const m = await p.evaluate(() => ({ w: Math.round(document.querySelector('.side').getBoundingClientRect().width), toggle: !!document.querySelector('.side .collapse-nav')?.getClientRects().length, untitled: [...document.querySelectorAll('.side .nav')].filter((n) => n.getClientRects().length && !n.getAttribute('title')).length, watching: !!document.querySelector('.side a.nav.sub[href$="/watching"]')?.getClientRects().length }));
-      fail(m.w <= 72 && !m.toggle && !m.untitled && m.watching, `[SETTINGS, NAV-GOALS] 1024: rail ${m.w}px, toggle shown ${m.toggle}, ${m.untitled} unnamed, Watching in the rail ${m.watching}`);
+      const m = await p.evaluate(() => ({ w: Math.round(document.querySelector('.side').getBoundingClientRect().width), toggle: !!document.querySelector('.side .collapse-nav')?.getClientRects().length, untitled: [...document.querySelectorAll('.side .nav')].filter((n) => n.getClientRects().length && !n.getAttribute('data-label')).length, watching: !!document.querySelector('.side a.nav[href*="watching"]')?.getClientRects().length }));
+      fail(m.w <= 72 && !m.toggle && !m.untitled && !m.watching, `[SETTINGS, NAV-GOALS] 1024: rail ${m.w}px, toggle shown ${m.toggle}, ${m.untitled} unnamed, Watching in the rail ${m.watching}`);
       await c.close();
     });
 
@@ -162,18 +162,15 @@ module.exports = {
       await p.reload(); await p.waitForTimeout(300);
       const sub = p.locator('.side .subnav');
       const items = (await sub.getByRole('link').allInnerTexts()).map((x) => x.trim());
-      fail(items.slice(0, 3).join(',') === 'Mine,Watching,All' && items.includes('Off track') && items.includes('North star'), `[NAV-GOALS] under Goals: ${items.join(', ')}`);
-      fail(items.indexOf('North star') < items.indexOf('Off track'), '[NAV-GOALS] the pinned view is not listed first');
+      // Navigation rule 1 (NV1): under Goals only saved views, pinned first, at most four; Mine, Watching and All are tabs.
+      fail(items.length <= 4 && !items.some((x) => ['Mine', 'Watching', 'All'].includes(x)) && items.includes('North star'), `[NAV-GOALS] under Goals: ${items.join(', ')}`);
+      fail(!items.includes('Off track') || items.indexOf('North star') < items.indexOf('Off track'), '[NAV-GOALS] the pinned view is not listed before your own');
       const current = () => p.evaluate(() => [...document.querySelectorAll('.side [aria-current="page"]')].map((e) => e.textContent.trim()));
-      await sub.getByRole('link', { name: 'Mine' }).click(); await p.waitForTimeout(250);
-      fail(/show=mine/.test(p.url()) && (await current()).join() === 'Mine', `[NAV-GOALS] Mine: ${p.url()}, current ${await current()}`);
-      await sub.getByRole('link', { name: 'Off track' }).click(); await p.waitForTimeout(250);
-      fail(/status=off/.test(p.url()) && (await current()).join() === 'Off track', `[NAV-GOALS] a saved view: ${p.url()}, current ${await current()}`);
-      await sub.getByRole('link', { name: 'Watching' }).click(); await p.waitForTimeout(250);
-      fail(/\/demo\/goals\?(.*&)?show=watching/.test(p.url()) && (await current()).join() === 'Watching', `[NAV-GOALS] Watching: ${p.url()}, current ${await current()}`);
-      fail(!(await p.locator('.side > a.nav[href$="/watching"]').count()), '[NAV-GOALS] Watching is still a top-level item');
-      await sub.getByRole('link', { name: 'All' }).click(); await p.waitForTimeout(250);
-      fail((await current()).join() === 'All', `[NAV-GOALS] All: current ${await current()}`);
+      await sub.getByRole('link', { name: 'North star' }).click(); await p.waitForTimeout(250);
+      fail(/level=north-star/.test(p.url()) && (await current()).join() === 'North star', `[NAV-GOALS] a saved view: ${p.url()}, current ${await current()}`);
+      await p.locator('.side').getByRole('link', { name: /^Goals/ }).click(); await p.waitForTimeout(250);
+      fail(/\/demo\/goals\?(.*&)?scope=/.test(p.url()) && (await current()).join() === 'Goals', `[NAV-GOALS] Goals: ${p.url()}, current ${await current()}`);
+      fail(!(await p.locator('.side a.nav[href$="/watching"]').count()), '[NAV-GOALS] Watching is still a menu item');
       await p.goto(url('/goals/ns-lead')); await p.waitForTimeout(300);
       fail((await current()).join() === 'Goals', `[NAV-GOALS] a goal's page: current ${await current()}`);
       await c.close();
@@ -184,14 +181,15 @@ module.exports = {
       fail(tabs.join() === 'Home,Check-in,Goals,Reviews', `[NAV-GOALS] 390 owner's tabs: ${tabs.join(', ')}`);
       await p.locator('.tabbar').getByRole('button', { name: 'More' }).tap();
       const more = p.getByRole('dialog', { name: 'More' });
-      fail(await more.getByRole('group', { name: 'Goals' }).getByRole('link', { name: /^Watching/ }).isVisible() && await more.getByRole('group', { name: 'Goals' }).getByRole('link', { name: /^Mine/ }).isVisible(), '[NAV-GOALS] 390 More has no Goals group with Mine and Watching');
-      await more.getByRole('link', { name: /^Watching/ }).tap(); await p.waitForTimeout(300);
+      // Mine and Watching are Goals' tabs now (NV1), not rows in More.
+      fail(!(await more.getByRole('link', { name: /^(Mine|Watching)\b/ }).count()), '[NAV-GOALS] 390 More still lists Mine or Watching');
+      await p.goto(url('/watching')); await p.waitForTimeout(300);
       const cur = await p.evaluate(() => [...document.querySelectorAll('.tabbar [aria-current="page"]')].map((e) => e.textContent.replace(/\d+/g, '').trim()));
-      fail(cur.join() === 'Goals', `[NAV-GOALS] 390 on Watching, the tab bar marks ${cur.join() || 'nothing'} (want Goals)`);
+      fail(/scope=watching/.test(p.url()) && cur.join() === 'Goals', `[NAV-GOALS] 390 on Watching (${p.url()}), the tab bar marks ${cur.join() || 'nothing'} (want Goals)`);
       await c.close();
       const [c2, q] = await open(390, 844, 'oskar', '/', true);
       const t2 = (await q.locator('.tabbar').getByRole('link').allInnerTexts()).map((x) => x.replace(/\d+/g, '').trim());
-      fail(t2.join() === 'Home,Goals,Watching,Reviews', `[NAV-GOALS] 390 tabs for someone who owns no goal: ${t2.join(', ')}`);
+      fail(t2.join() === 'Home,Goals,Reviews,People', `[NAV-GOALS] 390 tabs for someone who owns no goal: ${t2.join(', ')}`);
       await c2.close();
     });
 
@@ -432,7 +430,7 @@ module.exports = {
         fail(m.body >= 7 && m.link >= 4.5 && m.button >= 4.5, `[BRAND] ${theme}: body text ${round(m.body)}:1 (want 7), links ${round(m.link)}:1, primary button ${round(m.button)}:1 (want 4.5)`);
         fail(m.ink >= 3, `[BRAND] ${theme}: the logo's ink is ${round(m.ink)}:1 on the sidebar (want 3)`);
         if (theme === 'light') {
-          await q.locator('.side').getByRole('button', { name: /Collapse sidebar/ }).click();
+          await q.locator('.side').getByRole('button', { name: /Collapse the sidebar/ }).click();
           const rail = await q.evaluate(() => ({ mark: !!document.querySelector('.side .side-brand .faro-mark')?.getClientRects().length, logo: !!document.querySelector('.side .side-brand .faro-logo')?.getClientRects().length }));
           fail(rail.mark && !rail.logo, `[BRAND] icon rail: mark shown ${rail.mark}, wordmark shown ${rail.logo} (want the mark alone)`);
           await q.locator('.side').getByRole('button', { name: /full sidebar/ }).click();

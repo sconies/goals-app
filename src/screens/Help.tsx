@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { historyStep } from '../domain/find';
 import { CountLine, ListSearch, NoneFound } from '../ui/ListBar';
-import { ARTICLES, GROUPS, articleById as anyArticle, articleForPath, searchGuide, type Article } from '../help/guide';
+import { ARTICLES, GROUPS, articleById as anyArticle, articleForPath, articleWords, searchGuide, type Article } from '../help/guide';
+import { nearMiss } from '../domain/find';
 import { useModules } from '../core/app';
 
 /** A module's articles show only while it's on here (src/core/app.tsx); the core's always do. */
@@ -39,7 +40,10 @@ export function HelpHome() {
   const [params, setParams] = useSearchParams();
   const shown = useShown();
   const q = params.get('q') ?? '';
-  const found = q.trim() ? searchGuide(q).filter(shown) : null;
+  const exact = q.trim() ? searchGuide(q).filter(shown) : null;
+  // Nothing found tries a near miss (find rule 5): "chek in" shows what "check in" finds, and says so.
+  const near = exact && !exact.length ? nearMiss(q, ARTICLES.filter(shown).map(articleWords)) : null;
+  const found = near ? searchGuide(near).filter(shown) : exact;
   const ARTICLE_WORDS = { thing: 'article', things: 'articles' };
   const latest = latestNews();
   const unread = useUnreadNews().length > 0;
@@ -50,7 +54,7 @@ export function HelpHome() {
         <span className="hint">What each page in Faro does, and how to use it.</span>
       </div>
       <div className="help-search">
-        <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus settleMs={0} onSearch={(v, settled) => setParams(v ? { q: v } : {}, { replace: historyStep(settled ? 'settled' : 'typing') === 'replace' })} />
+        <ListSearch value={q} label="Find in Help" placeholder="Find in Help" autoFocus settleMs={0} onSearch={(v, change) => setParams(v ? { q: v } : {}, { replace: historyStep(change) === 'replace' })} />
       </div>
       {latest && !found && (
         <Link to="/whats-new" className="help-news">
@@ -62,6 +66,7 @@ export function HelpHome() {
       {found ? (
         <section className="block" aria-label="Search results">
           <h2 className="sr">Search results</h2>
+          {near && <NoneFound things={ARTICLE_WORDS} q={q} filtered={false} near={near} onClearSearch={() => setParams({})} onClearFilters={() => setParams({})} />}
           {found.length > 0 && <CountLine things={ARTICLE_WORDS} n={found.length} narrowed />}
           {found.length
             ? <ul className="help-list">{found.map((a) => <ArticleRow key={a.id} a={a} />)}</ul>

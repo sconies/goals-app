@@ -1,12 +1,13 @@
 /* Search, filters, sort and saved views for the Goals screen. Every setting lives in the URL, so a view is a link you
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { movedGoals } from '../domain/goalsPage';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import {
-  describeQuery, EMPTY_QUERY, filters, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
+  EMPTY_QUERY, filters, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, queryParts, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
   type GoalQuery, type SortKey,
 } from '../domain/query';
 import type { Level, SavedView } from '../domain/types';
@@ -14,9 +15,10 @@ import { Sheet } from '../ui/bits';
 import { ATTENTION, QUARTER } from '../domain/vocabulary';
 import { Icon } from '../ui/Icon';
 import { MenuButton, type MenuItem } from '../ui/MenuButton';
+import { FilterLine } from '../ui/ListBar';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
-const VIEW_KEYS = ['show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
+const VIEW_KEYS = ['scope', 'group', 'show', 'view', 'weeks', 'hist', ...QUERY_KEYS];
 // view=list is the list said out loud (GoalViews' useLayout), the same view as no layout at all.
 export const viewParams = (p: URLSearchParams) => new URLSearchParams([...p].filter(([k, v]) => VIEW_KEYS.includes(k) && !(k === 'view' && v === 'list')).sort(([a], [b]) => VIEW_KEYS.indexOf(a) - VIEW_KEYS.indexOf(b))).toString();
 
@@ -33,16 +35,17 @@ export function useLatestParams(): () => URLSearchParams {
 }
 
 /** The query in the URL, and a way to change it that keeps everything else (grouping, layout, the demo's date). */
-export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => void] {
+export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery) => GoalQuery), opts?: { push?: boolean }) => void] {
   const [params, setParams] = useSearchParams();
   const latest = useLatestParams();
   const q = useMemo(() => parseQuery(params), [params]);
   // Two quick changes (tick a filter, then pick a sort) must not undo each other: each builds on the latest address.
-  const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery)) => {
+  // A choice that changes what the page is (the Needs attention switch) is a step Back undoes: it pushes.
+  const set = (change: GoalQuery | ((q: GoalQuery) => GoalQuery), opts?: { push?: boolean }) => {
     const base = latest();
     const next = typeof change === 'function' ? change(parseQuery(base)) : change;
     const out = new URLSearchParams([...[...base].filter(([k]) => !QUERY_KEYS.includes(k)), ...queryEntries(next)]);
-    if (out.toString() !== base.toString()) setParams(out, { replace: true });
+    if (out.toString() !== base.toString()) setParams(out, { replace: !opts?.push });
   };
   return [q, set];
 }
@@ -51,12 +54,21 @@ export function useGoalQuery(): [GoalQuery, (change: GoalQuery | ((q: GoalQuery)
 export function useViews(): SavedView[] {
   const app = useApp();
   // A view saved in the Cards layout is the same view in List (Lane, 9 Nov): opening it says so once (GoalsScreen).
+  // A view saved in the old form (show=…, no scope) is read in the new one (goals spec, rule 6); the record isn't rewritten.
+  const fresh = (params: string) => viewParams(new URLSearchParams(movedGoals(params, 'all', () => true)?.search ?? params));
   return (app.snapshot.views ?? []).filter((v) => !v.deletedAt && !isTableView(v) && (v.pinned || v.personId === app.viewer.id))
-    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view'))) } : v)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
+    .map((v) => (new URLSearchParams(v.params).get('view') === 'cards' ? { ...v, params: fresh(viewParams(new URLSearchParams([...new URLSearchParams(v.params)].filter(([k]) => k !== 'view')))) } : { ...v, params: fresh(v.params) })).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt));
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
-export function FilterBar({ count, total }: { count: number; total: number }) {
+export function FilterBar({ lead, trail, after }: {
+  /** Under the bar, before the filter line: the switch's phone row and the count line. */
+  after?: ReactNode;
+  /** After the search: the Needs attention switch (goals spec, 2.1). */
+  lead?: ReactNode;
+  /** After Sort: the Group menu. */
+  trail?: ReactNode;
+}) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
@@ -70,24 +82,21 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
     person: (id: string) => app.person(id)?.name ?? 'someone',
     goal: (id: string) => app.goal(id)?.title ?? 'a goal',
   };
-  const chips = describeQuery(q, names);
-  const narrowed = filters(q);
+  // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.
+  const parts = queryParts(q, names);
+  const narrowed = filters({ ...q, attention: false });
   const copyLink = async () => {
     const url = `${window.location.origin}${window.location.pathname}?${current}`;
     try { await navigator.clipboard.writeText(url); app.toast('Link copied. Anyone in the workspace who opens it sees these goals the same way.'); }
     catch { app.toast('Couldn’t copy the link. Copy it from the address bar.', 'error'); }
   };
   const viewMenu = useViewMenu(active);
-  // The decision filter shows as the pressed toggle beside Filters; a chip for it as well would say it twice. Where the
-  // toggle is hidden (a phone) the chip stays.
-  const decisionOnly = q.needs.length === 1 && q.needs[0] === 'decision';
   return (
     <div className="filterbar">
       <div className="filterbar-row">
         <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} />
-        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{chips.some((c) => c.key !== 'q') ? ` · ${chips.filter((c) => c.key !== 'q').length}` : ''}</button>
-        {/* The most common question in a weekly scan, one press away. */}
-        <button type="button" className="btn quick-filter" aria-pressed={q.needs.includes('decision')} onClick={() => setQ((cur) => (cur.needs.includes('decision') ? { ...cur, needs: cur.needs.filter((n) => n !== 'decision'), attention: cur.needs.length > 1 } : { ...cur, needs: [...cur.needs, 'decision'], attention: true }))}>{NEED_OPTIONS.find(([k]) => k === 'decision')![1]}</button>
+        {lead}
+        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
         <label className="filter-sort inline-sort"><span className="sr">Sort</span>
           <select className="input" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -95,18 +104,16 @@ export function FilterBar({ count, total }: { count: number; total: number }) {
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>Sort: {l}, reversed</option>)}
           </select>
         </label>
+        {trail}
       </div>
-      {/* Saving and sharing only appear once there's something to save or share. On a phone this is one row: the
-          count, the filters scrolling sideways, and one View menu for saving and sharing. */}
+      {after}
+      {/* Rule 3's filter line (the find spec): each filter in words with Remove; the search and the switch aren't
+          filters. The count is the page's one count line (goals spec, rule 4), not said again here. */}
+      <FilterLine parts={parts} onRemove={(k) => setQ((cur) => without(cur, k))} onClear={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, attention: cur.attention, sort: cur.sort, dir: cur.dir }))} />
+      {/* Saving and sharing only appear once there's something to save or share. On a phone, one View menu. */}
       {(narrowed || q.sort || active) && (
-        <div className="filter-chips" aria-label="Active filters">
+        <div className="filter-chips view-actions" aria-label="This view">
           {active && <span className="small strong filter-view-name">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
-          {narrowed && <span className="small filter-count" role="status">{count} of {total} {total === 1 ? 'goal' : 'goals'}</span>}
-          <span className="filter-chip-scroll">
-            {chips.map((c) => <button key={c.key} type="button" className={'filter-chip' + (c.key === 'needs' && decisionOnly ? ' chip-decision' : '')} aria-label={`Remove filter: ${c.text}`} onClick={() => setQ((cur) => without(cur, c.key))}>{c.text}<Icon name="close" size={12} className="chip-x" /></button>)}
-            {!narrowed && q.sort && !active && <span className="small filter-sorted">{SORT_OPTIONS.find(([k]) => k === q.sort)?.[1]}{q.dir === -1 ? ', reversed' : ''}</span>}
-            {narrowed && <button type="button" className="linkish small filter-clear" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>}
-          </span>
           <span className="filter-chip-actions">
             {!active && <button type="button" className="btn sm" onClick={() => setSaving(true)}>Save view</button>}
             <button type="button" className="btn ghost sm" onClick={() => void copyLink()}>Copy link</button>

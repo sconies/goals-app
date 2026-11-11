@@ -7,7 +7,7 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 ## The rule
 
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then `weeks × 7 − 1` days on) and whether it is running (with its week), not started yet, or over.
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then `weeks × 7 − 1` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (`cycleLine`), with its goals and check-ins ("no check-ins yet" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -40,7 +40,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The same, for Pat, who isn’t an admin. | `nothing` |
 | The example’s name in the demo, and a workspace called “Growth” in the real app. | `Platform Engineering (example data) / Growth` |
 | Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu. | `Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others` |
-| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up. | `2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
+| Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet. | `2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet` |
+| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up. | `2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
 
 ## Not self-explanatory
 
@@ -52,7 +53,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/removal.ts](../../../src/domain/removal.ts): `cycleStanding`, `cycleDeletable`, `leaveWorkspace`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `teamPeople`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `nameProblem`, `nameLength`, `MAX_WORKSPACE_NAME`
-- [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `workspaceName`, `adminsLine`, `yearLine`, `cycleWhen`, `NEEDS_SHOWN`, `ONLY_ADMIN_FROM`, `LEAD_FROM`
+- [src/domain/workspaceAttention.ts](../../../src/domain/workspaceAttention.ts): `workspaceNeeds`, `workspaceName`, `adminsLine`, `yearLine`, `cycleLine`, `cycleWhen`, `NEEDS_SHOWN`, `ONLY_ADMIN_FROM`, `LEAD_FROM`
 - [src/domain/people.ts](../../../src/domain/people.ts): `mergePeople`
 - [src/domain/templates.ts](../../../src/domain/templates.ts): `stagesFromJoining`, `stagesFromNow`
 
@@ -81,6 +82,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the workspace in words (rules 1, 2 and 6) › says the admins as a sentence, A to Z, with a count beyond three
 - the workspace in words (rules 1, 2 and 6) › says where the year stands, and when its wrap-up opens
 - a cycle’s dates (backlog WS) › gives a cycle’s dates and where it stands
+- a cycle’s row on Cycles (WR4) › says where it stands in a word, its week and dates, and its goals and check-ins
 
 ### [src/domain/setupTruth.test.ts](../../../src/domain/setupTruth.test.ts)
 

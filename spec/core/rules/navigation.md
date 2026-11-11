@@ -7,7 +7,7 @@ Which places the menu lists for a viewer, where a module’s items go, which one
 
 ## The rule
 
-**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, People, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+**The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
 **The lit item** is the one whose address the page is at or under: Home only at `/`; Goals for every address under `/goals` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
 
@@ -21,13 +21,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
-| The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics). | `home checkin goals reviews activity people data module:metrics new workspace / home goals reviews activity people data module:metrics new workspace` |
-| The lit item at /goals/lead-mq, /goals/new and /settings. | `goals, new, none` |
+| The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without. | `home checkin goals reviews \| people module:metrics activity data \| new \| workspace settings help feedback / home goals reviews \| people module:metrics activity data \| new \| workspace settings help feedback` |
+| The phone’s tabs for someone with a goal to check in on, and for someone without. | `home checkin goals reviews / home goals reviews people` |
+| The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research. | `goals, new, people, help, none` |
 | The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”. | `Watching, Reviews, Wrap up, Lead time for changes` |
 
 ## Where it lives
 
-- [src/domain/navigation.ts](../../../src/domain/navigation.ts): `CORE_NAV`, `sideFor`, `tabsFor`, `menuFor`, `isLit`, `litItem`, `pageName`, `placeName`
+- [src/domain/navigation.ts](../../../src/domain/navigation.ts): `CORE_NAV`, `GROUP_NAMES`, `menuGroups`, `menuRows`, `phoneTabs`, `moreFor`, `menuViews`, `isLit`, `litItem`, `pageName`, `placeName`
 
 ## Requirements
 
@@ -36,8 +37,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### [src/domain/navigation.test.ts](../../../src/domain/navigation.test.ts)
 
-- the menu, the lit item and a page’s name (AR2) › gives Check-in only to someone who owns a goal, on the sidebar and the phone’s tabs
-- the menu, the lit item and a page’s name (AR2) › places a module’s items by their group
-- the menu, the lit item and a page’s name (AR2) › lights one item for an address
-- the menu, the lit item and a page’s name (AR2) › names a page
-- the menu, the lit item and a page’s name (AR2) › says where a Back link leads
+- the menu, the lit item and a page’s name (AR2, NV1) › groups the menu: your work, look up, make, this workspace and you; Check-in only for someone with a goal to check in on
+- the menu, the lit item and a page’s name (AR2, NV1) › places a module’s items by their group, in the order they register
+- the menu, the lit item and a page’s name (AR2, NV1) › gives a phone four tabs and puts the rest in More, in its groups
+- the menu, the lit item and a page’s name (AR2, NV1) › lists up to four saved views: pinned A to Z, then yours, the latest opened first
+- the menu, the lit item and a page’s name (AR2, NV1) › lights one item for an address
+- the menu, the lit item and a page’s name (AR2, NV1) › names a page
+- the menu, the lit item and a page’s name (AR2, NV1) › says where a Back link leads

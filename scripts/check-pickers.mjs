@@ -1,6 +1,6 @@
 /* The pickers lint (docs/design/find/spec.md, N12; FS1): a person, team, goal, metric or workspace is chosen by typing
    to find it (src/ui/Pick.tsx), never from a <select> of everything. Fails a <select> whose options are mapped from
-   people, teams, goals, metrics or workspaces, except in the files scripts/pickers-left.json lists, no more times than
+   people, teams, goals, metrics or workspaces, or from any list that isn't a fixed one (weeks, levels, sort orders), except in the files scripts/pickers-left.json lists, no more times than
    it says: those are the places still to move, and the list may only shrink.
 
    npm run lint:pickers runs it; so does npm test (src/core/layers.test.ts). */
@@ -19,11 +19,29 @@ function files(root, dir) {
   });
 }
 
-/** Each <select> of everything in a file, by line. */
+/** Lists that are fixed by the app, not by the workspace: a CONSTANT_CASE name, a literal list, or one of these. */
+const FIXED_NAMES = new Set(['levels', 'weeks', 'weeksWithEntries', 'kinds', 'head', 'choices', 'OPS']);
+/** Whether every list this <select> maps is fixed (weeks, levels, sort orders), so it isn't a list of everything. */
+function mapsOnlyFixed(select) {
+  const roots = [...select.matchAll(/\.map\(/g)].map((m) => {
+    const before = select.slice(0, m.index);
+    const expr = before.slice(before.lastIndexOf('{') + 1).trim();
+    // A literal list ([1, 2, 3], [week + 2, week + 4]) is fixed; a spread ([...people]) is what it spreads.
+    if (/^\[(?!\.\.\.)/.test(expr)) return '0';
+    return /^[\w$]+/.exec(expr.replace(/^[[.]+/, ''))?.[0] ?? '';
+  });
+  return roots.every((r) => /^[A-Z][A-Z0-9_]*$/.test(r) || /^\d/.test(r) || FIXED_NAMES.has(r));
+}
+
+/**
+ * Each <select> of everything in a file, by line: options mapped from people, teams, goals, metrics or workspaces, or
+ * from any list that isn't a fixed one (outside review of FS1: "others", "tops", "opts" are people and goals too).
+ */
 export function selectsOfEverything(src) {
   const out = [];
   for (const m of src.matchAll(/<select\b[\s\S]*?<\/select>/g)) {
-    if (KINDS.test(m[0]) && /<option\b/.test(m[0])) out.push(src.slice(0, m.index).split('\n').length);
+    if (!/<option\b/.test(m[0]) || !/\.map\(/.test(m[0])) continue;
+    if (KINDS.test(m[0]) || !mapsOnlyFixed(m[0])) out.push(src.slice(0, m.index).split('\n').length);
   }
   return out;
 }

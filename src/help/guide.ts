@@ -6,6 +6,7 @@
    restated; where the guide says what a status, flag or result means, it reads the vocabulary (domain/vocabulary.ts). */
 import { CAUSES_AHEAD, CAUSES_BEHIND } from '../domain/checkin';
 import { RULES } from '../domain/thresholds';
+import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
@@ -75,13 +76,14 @@ const CORE_ARTICLES: Article[] = [
         'Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.',
         'While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.',
         'On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.',
+        'Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.',
         'After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross.',
       ] },
       { heading: 'Who can', text: ['Everyone has a Home. What is on it depends on the goals you own, the goals you watch and the reviews you’re in. There are no role labels.'] },
     ],
     routes: ['/'],
     screens: ['Home'],
-    reqs: ['HOME-DASHBOARD', 'PROFILES', 'SHAPE-MATCHES-WORD'],
+    reqs: ['HOME-DASHBOARD', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
     keywords: ['dashboard', 'start', 'streak', 'needs your response', 'today', 'this week'],
     related: ['check-in', 'needs-attention', 'requests', 'watching'],
   },
@@ -144,7 +146,8 @@ const CORE_ARTICLES: Article[] = [
         'Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.',
         'A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.',
         'Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.',
-        'Check each goal’s owner, where it starts and its target before you create the workspace.',
+        'The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.',
+        'Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.',
         'Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.',
         'Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.',
         'Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.',
@@ -301,22 +304,24 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'goals',
     title: 'Goals and its layouts',
-    summary: 'Goals lists every goal this year. Tabs choose which goals and how they’re grouped; layouts choose how they look.',
+    summary: 'Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.',
     group: 'goals',
     sections: [
       { heading: 'What it’s for', text: ['Scanning the whole set of goals, or a slice of it, in whatever shape suits the question you have.'] },
       { heading: 'How to use it', list: [
-        'Tabs: Trees (each top goal with what feeds it, worst first), Needs attention, By level, By team, Mine, and your saved views. Goals not linked to anything are flagged.',
+        'Tabs say whose goals: Mine (the goals you own), My team (your team’s, and those of any team you lead), Watching (the goals you follow) and All, each with its count. Goals opens on the tab you used last, else Mine, else Watching. A tab you don’t have (Mine when you own nothing) isn’t shown.',
+        'Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.',
+        'One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.',
         'By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.',
         'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
         'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
-        'Above the goals, one line says their health, as Home does: how many are off track, at risk, on track and so on, each with its shape and word. It counts the goals shown, so a tab or a filter changes it. On a phone the Views button counts them instead, so the goals come first.',
+        'Old links still work: Trees, By level, By team and Needs attention open All with that group or the switch, /watching opens Watching, and a saved view made before keeps working.',
         'The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.',
         'Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.',
         'Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.',
         'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
-        'A link with a tab, team, owner or tree this workspace doesn’t have opens the trees, or the goals without that filter, and a short line says what was left out.',
-        'On a phone the goals come first. Views and Layout are two buttons on one line: Views says which goals are open and how many, and opens the tabs, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
+        'A link with a tab this workspace doesn’t have opens the one you’d open first, and a short line says so.',
+        'On a phone the goals come first. Views and Layout are two buttons on one line: Views says whose goals are open and how many, and opens the tabs, Group, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
         'When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
@@ -327,7 +332,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board'],
     screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'BulkEdit'],
-    reqs: ['VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
+    reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS', 'VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
     keywords: ['list', 'table', 'board', 'cards', 'health', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
   },
@@ -342,7 +347,7 @@ const CORE_ARTICLES: Article[] = [
         'Search for a goal’s key to find it, however it’s typed: G-48, g48 or just 48. A key finds only its own goal; a bare number also finds goals with that number in their words.',
         'Clear search and filters, or removing the search, keeps the tab, the layout and the sort you had.',
         `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
-        'Decision or help needed is one press. Each active filter shows as words you can remove.',
+        'Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.',
         'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.',
         'Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views.',
       ] },
@@ -835,9 +840,10 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each cycle shows its dates, whether it’s running (and which week it’s in), not started or over, and how many goals and check-ins it has. The only cycle always stays, so a new workspace’s cycle says so rather than offering Delete.',
-        'The running cycle leads to its wrap-up: See the wrap-up, or Wrap it up once it’s open.',
-        'An admin can delete a cycle nobody has checked in to, with its goals; it’s listed in Recently removed and can be restored for 30 days. One with check-ins stays. Anyone else reads the list, without Delete, and is told who the admins are.',
+        'Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).',
+        'The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.',
+        'Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.',
+        'An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
       ] },
       { heading: 'Who can', text: ['Everyone reads Cycles and opens the wrap-up. Only admins delete a cycle or start the next one.'] },
@@ -856,7 +862,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Admins lists everyone who is one, A to Z. Add an admin is the page’s main action: find someone by name, job title or team, then Make them an admin. The message that says so has Undo.',
-        'Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin. There is always at least one admin: the only one has no button, and their row says The only admin.',
+        'Remove as admin, on anyone’s row, asks first (“They keep their goals and history”); on your own row it’s Stop being an admin, which has no Undo: only another admin can make you one again. There is always at least one admin: the only one has no button, and their row says The only admin.',
         'The same two are on a person’s page in People, under For admins, with Make an MCP token for that person.',
         'MCP tokens: Make a token for someone (it’s shown once), and revoke any token. The AI tool using it then acts as that person, with their rights, and every change it makes says “via MCP”. A token made as a builder token, before the inbox opened to everyone, is labelled “builder token”: it works as an ordinary one. See MCP access.',
         'In the demo, MCP tokens don’t work: its data stays in your browser, where an AI tool can’t reach it. Access says so in place of the list.',
@@ -902,7 +908,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Untick one to switch it off for everyone here; tick it to switch it back on.',
+        'On Workspace, Features lists the optional parts of Faro this workspace can use, each with what it does; About says which are on, from the same list. Goals, check-ins, reviews and people are the core and always on. Each has a switch with On or Off beside it; switch one off for everyone here; tick it to switch it back on.',
         'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
@@ -948,8 +954,8 @@ const CORE_ARTICLES: Article[] = [
         'Only the people building Faro read markups.',
       ] },
       { heading: 'Turning it off', list: [
-        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says whether it is on where you are.',
-        'Anyone can read what is recorded, and whether it is on, on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP.',
+        'A workspace records only if whoever set it up chose it: set-up asks, and it is off unless ticked. The example in the demo records. Settings says in one line whether it is on where you are, and leads to Privacy.',
+        'Anyone can read what is recorded, and whether it is on (On or Off, in a word), on Workspace, under Privacy. Only an admin can turn it on or off there, for the whole workspace; turning it on asks first, and turning it off says so with Undo. While it is off, nothing is recorded or sent from that workspace, by the app or through MCP.',
       ] },
     ],
     routes: ['/workspace/privacy'],
@@ -991,7 +997,7 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Choose Send feedback, at the foot of the sidebar or in More on a phone. Its first choice is Mark up this screen. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) does the same from anywhere.',
+        'Go to Feedback (in the menu’s last group, or in More on a phone) and choose Send feedback. Its first choice is Mark up the last screen: it takes you back to the page you came from and keeps a picture of it. On a computer, Ctrl+Shift+M (Cmd+Shift+M on a Mac) marks up the screen you’re on from anywhere.',
         'The screen you’re on is kept as a still picture, and a slim toolbar appears. Draw on the picture with the Pen, an Arrow or a Box, or put down a numbered Note with a few words. Undo takes back the last mark, Clear removes them all, and Cancel (or Escape) stops without sending anything.',
         'Next asks one thing: what should change. You can also say how the app is working for you. It shows the exact picture that will be sent, with your marks. Go Back to change it, or Cancel.',
         'Send. “Sent. You’ll hear when it’s fixed.” When a release fixes it, its entry in What’s new says “You raised this”.',
@@ -1024,7 +1030,7 @@ const CORE_ARTICLES: Article[] = [
         'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
         'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
         'It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.',
-        'Send feedback, at the top, opens the same sheet as Send feedback in the sidebar.',
+        'Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it.',
       ] },
       { heading: 'Working through it', list: [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
@@ -1066,8 +1072,13 @@ const CORE_ARTICLES: Article[] = [
     summary: 'The app works at every size, from a small phone to an ultra-wide monitor, and keeps your work safe as you go.',
     group: 'you',
     sections: [
+      { heading: 'The menu', list: [
+        'The menu is in four groups: your work (Home, Check-in when you have a goal to check in on, Goals with up to four saved views under it, Reviews), things to look up (People, Activity, Data, and any feature’s own place), New goal, and this workspace and you (Workspace, Settings, Help, Feedback). Your name and role are at the foot; in the demo they open the Demo panel.',
+        'Collapsed to icons, each icon names itself when you point at it or move to it with the keyboard. Between a phone and a computer the menu is always icons.',
+        'On a phone the tabs are Home, Check-in, Goals and Reviews for someone with a goal to check in on, or Home, Goals, Reviews and People; More holds the rest, in the same groups.',
+      ] },
       { heading: 'How it fits', list: [
-        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, including Data, Settings, Help and Send feedback.',
+        'On a phone, the tabs at the bottom hold Home, your main places and More. More has everything else, in the same groups as the sidebar, including Data, Settings, Help and Feedback.',
         'On a tablet the sidebar is a rail of icons, each named on hover. On a desktop you can choose the rail in Settings.',
         'Focused tasks such as a check-in stay narrow; tables, boards and the map use the whole width.',
         'Text follows your browser’s text size, and every control is big enough to tap.',
@@ -1075,7 +1086,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Your work is safe', list: [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.',
-        'Send feedback, at the foot of the sidebar or in More, tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
+        'Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
       { heading: 'On your home screen', list: [
         'Put Faro on your phone’s home screen like an app: in Chrome on Android, open the menu and choose Add to home screen (or Install app); in Safari on an iPhone, tap Share, then Add to Home Screen. It opens full screen, without the browser around it.',
@@ -1085,7 +1096,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: [],
     screens: [],
-    reqs: ['LAUNCH', 'PHONE', 'A11Y', 'NO-ERRORS', 'EVERY-WIDTH', 'WIDE-SCREENS', 'FIT-AND-FINISH', 'FIT-AND-FINISH-AREAS', 'NO-LOST-UPDATES', 'DRAFTS', 'PERSIST', 'MOTION', 'NAV-GOALS', 'STALE-RELOAD'],
+    reqs: ['NAV-PLACES', 'NAV-COLLAPSED', 'LAUNCH', 'PHONE', 'A11Y', 'NO-ERRORS', 'EVERY-WIDTH', 'WIDE-SCREENS', 'FIT-AND-FINISH', 'FIT-AND-FINISH-AREAS', 'NO-LOST-UPDATES', 'DRAFTS', 'PERSIST', 'MOTION', 'NAV-GOALS', 'STALE-RELOAD'],
     keywords: ['phone', 'mobile', 'tablet', 'desktop', 'more', 'tabs', 'feedback', 'drafts', 'offline', 'accessibility', 'keyboard', 'text size', 'home screen', 'install', 'icon', 'app icon', 'splash', 'lighthouse', 'add to home screen'],
     related: ['settings', 'help'],
   },
@@ -1126,6 +1137,7 @@ export const MOVED_ARTICLES: Record<string, string> = { 'workspace-people': 'peo
 export const articleById = (id: string): Article | undefined => BY_ID.get(id) ?? BY_ID.get(MOVED_ARTICLES[id] ?? '');
 
 /** All the words of an article, for search. */
+export const articleWords = (a: Article): string => textOf(a);
 function textOf(a: Article): string {
   return [a.title, a.summary, ...a.keywords, ...a.sections.flatMap((s) => [s.heading, ...(s.text ?? []), ...(s.list ?? [])])].join(' ').toLowerCase();
 }
@@ -1140,7 +1152,8 @@ export function searchGuide(query: string): Article[] {
   if (!words.length) return [];
   const scored = ARTICLES.map((a) => {
     const all = norm(textOf(a));
-    if (!words.every((w) => all.includes(w))) return null;
+    // Find's rule 1, as everywhere: each word must start a word in the article ("eck" finds nothing).
+    if (!textMatches(textOf(a), query)) return null;
     const title = norm(a.title), keys = norm(a.keywords.join(' ')), sum = norm(a.summary);
     // Where a word appears counts most; how often it appears breaks ties.
     const score = words.reduce((n, w) => n + (title.includes(w) ? 8 : 0) + (keys.includes(w) ? 4 : 0) + (sum.includes(w) ? 2 : 0) + Math.min(4, all.split(w).length - 1), 0);

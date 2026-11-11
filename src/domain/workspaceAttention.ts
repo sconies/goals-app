@@ -2,6 +2,7 @@
    admin has to sort out, the workspace's name and its admins as people read them, where the year stands, and a
    cycle's dates. Workspace's About reads these. Pure. */
 import { wrapUpOpen } from './cycle';
+import { weekDate } from './plan';
 import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
@@ -81,7 +82,7 @@ export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, wee
   if (wrapUpOpen(cycle as Cycle, w)) return `${at} The wrap-up is open: ${left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up'}.`;
   let first = w;
   while (!wrapUpOpen(cycle as Cycle, first) && first < cycle.weeks) first++;
-  return `${at} The wrap-up opens on ${day(new Date(start.getTime() + (first - 1) * 7 * 86_400_000))}.`;
+  return `${at} The wrap-up opens on ${day(new Date(weekDate(cycle as Cycle, first) + 'T00:00:00Z'))}.`;
 }
 
 
@@ -95,3 +96,20 @@ export function cycleWhen(c: Pick<Cycle, 'startDate' | 'weeks'>, current: boolea
   const now = current ? `Running: week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks}` : c.startDate > today.toISOString().slice(0, 10) ? `Starts ${day(start)}` : 'Over';
   return { dates: `${day(start)} to ${day(end)}, ${c.weeks} weeks`, now };
 }
+
+/**
+ * A cycle as Cycles lists it (WR4, docs/design/workspace/spec.md 2.6): its name and where it stands as a word
+ * ("running", "over", "starts {date}"), its week and dates (the running one) or only its dates, and its goals and
+ * check-ins ("no check-ins yet" for none).
+ */
+export function cycleLine(c: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, current: boolean, week: number, today: Date, counts: { goals: number; checkIns: number }): { title: string; when: string; counts: string } {
+  const start = new Date(c.startDate + 'T00:00:00Z');
+  const end = new Date(start.getTime() + (c.weeks * 7 - 1) * 86_400_000);
+  const dates = `${day(start)} to ${day(end)}`;
+  const later = c.startDate > today.toISOString().slice(0, 10);
+  const title = `${c.name} · ${current ? 'running' : later ? `starts ${day(start)}` : 'over'}`;
+  const when = current ? `Week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks} · ${dates}` : dates;
+  const goals = `${counts.goals.toLocaleString('en-GB')} ${counts.goals === 1 ? 'goal' : 'goals'}`;
+  return { title, when, counts: `${goals} · ${counts.checkIns ? `${counts.checkIns.toLocaleString('en-GB')} ${counts.checkIns === 1 ? 'check-in' : 'check-ins'}` : 'no check-ins yet'}` };
+}
+

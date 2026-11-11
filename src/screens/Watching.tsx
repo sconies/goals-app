@@ -21,7 +21,7 @@ const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 export function Watching() {
   const { search } = useLocation();
   const p = new URLSearchParams(search);
-  p.set('show', 'watching');
+  p.set('scope', 'watching');
   return <Navigate to={'/goals?' + p.toString()} replace />;
 }
 

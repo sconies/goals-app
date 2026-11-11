@@ -1,12 +1,13 @@
-import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, matchPath, useLocation } from 'react-router';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, matchPath, useLocation, useNavigate } from 'react-router';
 import { useModules } from '../core/app';
 import { useApp, useToasts } from '../app/state';
 import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, isLit, pageName, sideFor, tabsFor, type GoalsAt, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, isLit, litItem, menuGroups, menuViews, moreFor, pageName, phoneTabs, type GoalsAt, type NavId } from '../domain/navigation';
+import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
 import { ResearchBar } from './ResearchBar';
@@ -16,6 +17,7 @@ import { useViews, viewParams } from '../screens/GoalFilters';
 import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
+import { RailLabel } from './Label';
 import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
@@ -41,6 +43,8 @@ const ICONS: Record<NavId, { icon: ReactNode }> = {
   new: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg> },
   workspace: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg> },
   settings: { icon: <Icon name="settings" size={18} /> },
+  help: { icon: <Icon name="help" size={18} /> },
+  feedback: { icon: <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg> },
 };
 
 const NAV = Object.fromEntries((Object.keys(ICONS) as NavId[]).map((id) => [id, { ...CORE_NAV[id], icon: ICONS[id].icon }])) as unknown as Record<NavId, { to: string; label: string; icon: ReactNode }>;
@@ -48,17 +52,17 @@ const NAV = Object.fromEntries((Object.keys(ICONS) as NavId[]).map((id) => [id, 
 /** Where you are under Goals: one of its sub-items, or none (a goal page, or not in Goals at all). */
 function goalsAt(path: string, search: string, views: SavedView[]): GoalsAt {
   const q = new URLSearchParams(search);
-  if (path === '/watching' || (path === '/goals' && q.get('show') === 'watching')) return 'watching';
+  const scope = q.get('scope') ?? q.get('show');
+  if (path === '/watching' || (path === '/goals' && scope === 'watching')) return 'watching';
   if (path !== '/goals') return null;
   const v = views.find((x) => x.params === viewParams(q));
   if (v) return `view:${v.id}`;
-  return q.get('show') === 'mine' ? 'mine' : 'all';
+  return scope === 'mine' ? 'mine' : 'all';
 }
 
 const isActive = isLit;
 
 /** Views shown under Goals in the sidebar before "more" takes over. */
-const SIDE_VIEWS = 6;
 
 /** The top of the person menu: your settings. It's only about people: workspaces are switched from the sidebar's header (backlog WS). */
 function YouMenu({ onClose }: { onClose: () => void }) {
@@ -75,7 +79,7 @@ function YouMenu({ onClose }: { onClose: () => void }) {
 
 /** What someone thinks of the app, from wherever they are. Two taps; the words are optional. First, the choice to mark up
     the screen instead: a picture with a drawing on it, for the people building the app. */
-function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMarkup: () => void; path: string }) {
+function FeedbackSheet({ onClose, onMarkup, path, fromPage }: { onClose: () => void; onMarkup: () => void; path: string; fromPage?: boolean }) {
   const app = useApp();
   const [mood, setMood] = useState<'good' | 'meh' | 'bad' | null>(null);
   const [text, setText] = useState('');
@@ -93,7 +97,7 @@ function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMar
       <form className="stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void send(); }}>
         <button type="button" className="menuitem markup-choice" onClick={onMarkup}>
           <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="10" rx="1.5" /><path d="M4.5 9.5 7 7l1.5 1.5 3-3" /></svg>
-          <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">Mark up this screen</span><span className="tiny muted">Draw on a picture of it and say what should change{MAC ? ' (Cmd+Shift+M)' : ' (Ctrl+Shift+M)'}</span></span>
+          <span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">{fromPage ? 'Mark up the last screen' : 'Mark up this screen'}</span><span className="tiny muted">{fromPage ? 'Go back to it, draw' : 'Draw'} on a picture of it and say what should change{MAC ? ' (Cmd+Shift+M)' : ' (Ctrl+Shift+M)'}</span></span>
         </button>
         <span className="field-label">Or say how it’s working</span>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
@@ -112,27 +116,23 @@ function FeedbackSheet({ onClose, onMarkup, path }: { onClose: () => void; onMar
   );
 }
 
-/** Goals as a section of the sidebar: Goals itself, then Mine, Watching, All and your saved views (pinned first). */
-function GoalsSection({ owns, at, navAt }: { owns: boolean; at: GoalsAt; navAt: string }) {
-  const views = useViews();
-  const shownViews = views.slice(0, SIDE_VIEWS);
+/** Goals in the sidebar, and under it up to four saved views (navigation rule 1): no Mine, Watching or All. */
+function GoalsSection({ at, navAt, views, label }: { at: GoalsAt; navAt: string; views: SavedView[]; label: (text: string) => { 'data-label': string } }) {
   const cur = (k: GoalsAt) => (at === k ? 'page' as const : undefined);
-  // The section itself is the current page only when none of its items is (a goal's own page, say).
-  const here = !at && isActive('goals', navAt);
+  // Goals is lit unless one of its views is the page you're on.
+  const here = !(at && at.startsWith('view:')) && isActive('goals', navAt);
   return (
     <div className={'nav-section' + (at || here ? ' in-section' : '')}>
-      <Link to="/goals" className="nav" title="Goals" aria-current={here ? 'page' : undefined}>{NAV.goals.icon}<span>Goals</span></Link>
-      <div className="subnav" role="group" aria-label="Goals">
-        {owns && <Link to="/goals?show=mine" className="nav sub" title="Your goals" aria-current={cur('mine')}><span>Mine</span></Link>}
-        <Link to="/watching" className="nav sub has-icon" title="Watching" aria-current={cur('watching')}><i className="sub-icon" aria-hidden="true">{NAV.watching.icon}</i><span>Watching</span></Link>
-        <Link to="/goals" className="nav sub" title="All goals" aria-current={cur('all')}><span>All</span></Link>
-        {shownViews.map((v) => (
-          <Link key={v.id} to={'/goals?' + v.params} className="nav sub view" title={`${v.name}${v.pinned ? ', pinned for everyone' : ', your saved view'}`} aria-current={cur(`view:${v.id}`)}>
-            <span className="ellipsis">{v.name}</span>
-          </Link>
-        ))}
-        {views.length > SIDE_VIEWS && <Link to="/goals" className="nav sub more-views" title="Every saved view is in Views on Goals"><span>{views.length - SIDE_VIEWS} more views</span></Link>}
-      </div>
+      <Link to="/goals" className="nav" {...label('Goals')} aria-current={here ? 'page' : undefined}>{NAV.goals.icon}<span>Goals</span></Link>
+      {views.length > 0 && (
+        <div className="subnav" role="group" aria-label="Saved views">
+          {views.map((v) => (
+            <Link key={v.id} to={'/goals?' + v.params} className="nav sub view" {...label(`${v.name}${v.pinned ? ', pinned for everyone' : ', your saved view'}`)} aria-current={cur(`view:${v.id}`)}>
+              <span className="ellipsis">{v.name}</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -149,10 +149,23 @@ function ShellBody({ children }: { children: ReactNode }) {
   const look = useAppearance();
   const [sheet, setSheet] = useState<'profile' | 'more' | 'feedback' | 'demo' | 'people' | null>(null);
   const [marking, setMarking] = useState(false);
+  // Feedback is one item (WR5): its page's Send feedback opens the sheet, which records the page you came from.
+  // Marking up from there goes back to that page first, then draws on it (a phone has no Ctrl+Shift+M).
+  const cameFrom = useRef({ path: '/', to: '' });
+  const markAfter = useRef(false);
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (pathname === '/feedback') return;
+    cameFrom.current = { path: pathname, to: pathname + search };
+    if (!markAfter.current) return;
+    markAfter.current = false;
+    const t = window.setTimeout(() => setMarking(true), 400);
+    return () => window.clearTimeout(t);
+  }, [pathname, search]);
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
-    // The Feedback page's Send feedback opens the same sheet as the sidebar's.
+    // The Feedback page's Send feedback opens the sheet (Feedback is the one menu item for it, WR5).
     const send = () => setSheet('feedback');
     window.addEventListener('keydown', key);
     window.addEventListener('faro:send-feedback', send);
@@ -160,13 +173,20 @@ function ShellBody({ children }: { children: ReactNode }) {
   }, []);
   // In the demo, choosing who you are is part of the demo panel, roles first; opened from a person, it says so.
   const openPeople = () => setSheet(app.mode === 'demo' ? 'people' : 'profile');
-  const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id);
-  const side = sideFor(ownsGoals);
-  const tabs = tabsFor(ownsGoals);
+  // Check-in is in the menu for someone with a goal to check in on: one of theirs, not stopped or done (rule 1).
+  const ownsGoals = app.snapshot.goals.some((g) => g.ownerId === app.viewer.id && !g.stoppedAt && app.statusOf(g).status !== 'done');
   const views = useViews();
-  // Feature modules (src/core/app.tsx): their navigation items, and the page you're on if it's one of theirs.
+  const prefs = usePrefs();
   const { screens } = useModules();
   const moduleNav = screens.flatMap((m) => m.navigation ?? []);
+  const groups = menuGroups(ownsGoals, moduleNav);
+  const side = [...groups.work, ...groups.lookup, ...groups.make].filter((x): x is NavId => !x.startsWith('module:'));
+  const tabs = phoneTabs(ownsGoals);
+  const more = moreFor(groups, tabs);
+  const shownViews = menuViews(views.map((v) => ({ id: v.id, name: v.name, pinned: v.pinned, mine: v.personId === app.viewer.id, createdAt: v.createdAt })), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'view').map((r) => r.id)).map((m) => views.find((v) => v.id === m.id)!);
+  /** The app's own label on the collapsed rail (hover after a moment, at once on focus): the row's full words. */
+  const label = (text: string) => ({ 'data-label': text });
+  // Feature modules (src/core/app.tsx): their navigation items, and the page you're on if it's one of theirs.
   const moduleRoute = screens.flatMap((m) => m.routes ?? []).find((r) => matchPath(r.path, pathname));
   // A module's page names itself from its thing (AR2), else by its fixed title.
   const moduleName = moduleRoute ? (moduleRoute.name?.(matchPath(moduleRoute.path, pathname)?.params ?? {}, { goal: app.goal, person: app.person, team: app.team }) ?? moduleRoute.title) : null;
@@ -185,10 +205,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   // A review you're in that's held this week, still has goals to cover, and has something to review (review.sessionToDo).
   const reviewsOpen = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).filter((x) => sessionToDo(x, app.snapshot, app.week, app.today)).length;
   const count = (id: NavId) => (id === 'checkin' ? due : id === 'reviews' ? reviewsOpen : 0);
-  // The More sheet: everything not on the tab bar. Goals' own items come first, under its name.
-  const all: NavId[] = ['home', ...(ownsGoals ? ['checkin' as const] : []), 'goals', 'watching', 'reviews', 'activity', 'people', 'data', 'new', 'workspace'];
-  const more = all.filter((id) => !tabs.includes(id) && id !== 'watching');
-  const moreGoals = [...(ownsGoals ? [{ key: 'mine', to: '/goals?show=mine', label: 'Mine', hint: 'The goals you own' }] : []), ...(!tabs.includes('watching') ? [{ key: 'watching', to: '/watching', label: 'Watching', hint: 'The goals you follow' }] : []), ...views.slice(0, SIDE_VIEWS).map((v) => ({ key: v.id, to: '/goals?' + v.params, label: v.name, hint: v.pinned ? 'Pinned for everyone' : 'Your saved view' }))];
+  const team = app.viewer.teamId ? app.team(app.viewer.teamId)?.name ?? '' : '';
   const work = useRef<HTMLElement>(null);
   const at = goalsAt(pathname, search, views);
   // A person's or a team's page is named by them (the redesign's rule: a page's name is the thing's own name).
@@ -221,6 +238,11 @@ function ShellBody({ children }: { children: ReactNode }) {
   const sideAt = /[?&]review=/.test(search) ? null : at;
   const focusMode = !!moduleRoute?.focus || /^\/check-in(\/|$)|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
+  // The rail: chosen, or always between 761 and 1100 px. Its rows name themselves with the app's label.
+  const sideRef = useRef<HTMLElement>(null);
+  const [wide, setWide] = useState(() => typeof window === 'undefined' || window.innerWidth > 1100);
+  useEffect(() => { const f = () => setWide(window.innerWidth > 1100); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
+  const rail = icons || !wide;
   // On a goal's own page, on a phone, its summary bar takes the header's place; the header's controls go with it.
   const goalTop = isGoalTop(pathname, search);
   const topControls = (
@@ -232,6 +254,23 @@ function ShellBody({ children }: { children: ReactNode }) {
       </button>
     </>
   );
+
+  // The one lit item, by the navigation rules (rule 2): core items and modules' alike.
+  const lit = litItem(navAt, [...groups.work, ...groups.lookup, ...groups.make, ...groups.you], moduleNav);
+  const row = (id: string) => {
+    if (id === 'goals') return <GoalsSection key={id} at={sideAt} navAt={navAt} views={shownViews} label={label} />;
+    const m = id.startsWith('module:') ? moduleNav.find((n) => `module:${n.id}` === id) : null;
+    if (m) return <Link key={id} to={m.to} className="nav" {...label(m.label)} aria-current={lit === id ? 'page' : undefined}>{m.icon}<span>{m.label}</span></Link>;
+    const n = id as NavId;
+    const words = n === 'help' && unread ? 'Help, something new' : count(n) > 0 ? `${NAV[n].label}, ${count(n)} to do` : NAV[n].label;
+    return (
+      <Link key={id} to={NAV[n].to} className={'nav' + (n === 'settings' ? ' settings-nav' : n === 'help' ? ' help-nav' : n === 'feedback' ? ' inbox-nav' : '')} {...label(words)} aria-current={lit === id ? 'page' : undefined}>
+        {NAV[n].icon}<span>{NAV[n].label}</span>
+        {n === 'help' && unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}
+        {count(n) > 0 && <span className="count">{count(n)}<span className="sr"> to do</span></span>}
+      </Link>
+    );
+  };
   return (
     <div className={'app' + (focusMode ? ' focus-mode' : '') + (icons ? ' nav-icons' : '') + (goalTop ? ' goal-top' : '')}>
       <a className="skip" href="#main">Skip to content</a>
@@ -245,47 +284,34 @@ function ShellBody({ children }: { children: ReactNode }) {
         {!goalTop && topControls}
       </div>
       <div className="shell">
-        <nav className="side" aria-label="Main" data-part="Sidebar">
+        <nav className="side" aria-label="Main" data-part="Sidebar" ref={sideRef}>
           {/* The product's name, quietly, above the workspace's: the wordmark in the full sidebar, the F alone on the rail. */}
-          <div className="side-brand" title="Faro">
+          <div className="side-brand">
             <FaroLogo size={22} />
             <FaroMark size={28} label={null} />
+            <button type="button" className="iconbtn collapse-nav" aria-label={icons ? 'Show the full sidebar' : 'Collapse the sidebar'} {...label(icons ? 'Show the full sidebar' : 'Collapse the sidebar')} aria-pressed={icons} onClick={() => setAppearance({ sidebar: icons ? 'full' : 'icons' })}>
+              <Icon name={icons ? 'sidebar-expand' : 'sidebar-collapse'} size={18} />
+            </button>
           </div>
           {/* The workspace switcher (backlog WS): the open workspace's name, and every workspace, in one place. */}
           <WorkspaceSwitcher variant="side" />
-          {side.map((id) => id === 'goals'
-            ? <GoalsSection key={id} owns={ownsGoals} at={sideAt} navAt={navAt} />
-            : (
-              <Fragment key={id}>
-                <Link to={NAV[id].to} className="nav" title={NAV[id].label} aria-current={isActive(id, navAt) ? 'page' : undefined}>
-                  {NAV[id].icon}<span>{NAV[id].label}</span>
-                  {count(id) > 0 && <span className="count">{count(id)}<span className="sr"> to do</span></span>}
-                </Link>
-                {/* The modules' items, by their group (menuFor): your work after Reviews, things to look up after Data. */}
-                {(id === 'reviews' || id === 'data') && moduleNav.filter((n) => (n.group === 'work') === (id === 'reviews')).map((n) => <Link key={n.id} to={n.to} className="nav" title={n.label} aria-current={navAt === n.to || navAt.startsWith(n.to + '/') ? 'page' : undefined}>{n.icon}<span>{n.label}</span></Link>)}
-              </Fragment>
-            ))}
+          {(['work', 'lookup', 'make', 'you'] as const).map((g) => (
+            <div key={g} className={'nav-group nav-group-' + g} role="group" aria-label={GROUP_NAMES[g]}>
+              {groups[g].map(row)}
+            </div>
+          ))}
+          {/* The demo's controls, quietly, until "You" alone opens the Demo panel (navigation spec 2.1; kept for now, 12 Nov). */}
           {app.mode === 'demo' && !present && <DemoEntry onOpen={() => setSheet('demo')} />}
-          <Link to="/settings" className="nav settings-nav" title="Settings" aria-current={pathname === '/settings' ? 'page' : undefined}>{NAV.settings.icon}<span>Settings</span></Link>
-          <Link to="/help" className="nav help-nav" title={unread ? 'Help, and something new in What’s new' : 'Help'} aria-current={/^\/(help|whats-new)(\/|$)/.test(pathname) ? 'page' : undefined}>
-            <Icon name="help" size={18} /><span>Help</span>{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}
-          </Link>
-          {/* Feedback from every workspace and the demo, beside Help: it belongs to no one workspace (backlog WS). */}
-          <Link to="/feedback" className="nav inbox-nav" title="Feedback from every workspace and the demo" aria-current={pathname === '/feedback' ? 'page' : undefined}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg><span>Feedback</span></Link>
-          <button className="nav feedback-nav" title="Send feedback" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span>Send feedback</span></button>
-          {/* Named by its own words (kept for screen readers on the rail, where they're hidden); the tooltip says the same. */}
-          <button className="me" onClick={openPeople} title={`${app.mode === 'demo' ? 'Switch person' : 'Not you?'} (${app.viewer.name}${app.viewer.admin ? ', admin here' : ''})`}>
+          {/* You: your name and role here; in the demo it switches person. */}
+          <button className="me" onClick={openPeople} {...label(`${app.viewer.name}${app.viewer.admin ? ', admin here' : ''}: ${app.mode === 'demo' ? 'the demo, and switch person' : 'Not you?'}`)}>
             <Avatar p={app.viewer} />
             <span className="stack" style={{ gap: 0, minWidth: 0, flex: 1, textAlign: 'left' }}>
               <b className="ellipsis">{app.viewer.name}</b>
-              {/* Your role here, so admin-only sections don't appear and vanish unexplained (backlog WS). */}
-              <span className="tiny muted ellipsis">{app.viewer.admin ? <><span className="role-word">Admin</span> · </> : null}{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span>
+              <span className="tiny muted ellipsis">{app.viewer.admin ? <><span className="role-word">Admin</span>{team ? ' · ' : ''}</> : null}{team || (app.viewer.admin ? '' : 'No team')}</span>
             </span>
           </button>
-          <button type="button" className="nav collapse-nav" title={icons ? 'Show the full sidebar' : 'Collapse the sidebar to icons'} aria-pressed={icons} onClick={() => setAppearance({ sidebar: icons ? 'full' : 'icons' })}>
-            <Icon name={icons ? 'sidebar-expand' : 'sidebar-collapse'} size={18} /><span>{icons ? 'Show the full sidebar' : 'Collapse sidebar'}</span>
-          </button>
         </nav>
+        <RailLabel within={sideRef} on={rail} />
         <main className="work" ref={work} id="main">
           {app.mode === 'live' && app.storeKind === 'browser' && <div className="local-banner" role="note">This is a copy kept in this browser only. Nobody else sees changes made here.</div>}
           {app.saveNote && <div className="local-banner save-note" role="alert">{app.saveNote}</div>}
@@ -302,32 +328,26 @@ function ShellBody({ children }: { children: ReactNode }) {
             <span>{NAV[id].label}</span>
           </Link>
         ))}
-        <button onClick={() => setSheet('more')} aria-current={more.some((id) => isActive(id, navAt)) || /^\/(settings|help|whats-new|feedback)(\/|$)/.test(pathname) ? 'page' : undefined}>
+        <button onClick={() => setSheet('more')} aria-current={[...more.lookup, ...more.make, ...more.you].some((id) => !id.startsWith('module:') && isActive(id as NavId, navAt)) ? 'page' : undefined}>
           <span className="tabicon"><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" /></svg>{unread && <i className="help-dot" aria-hidden="true" />}</span>
           <span>More</span>
         </button>
       </nav>
       <Sheet open={sheet === 'more'} onClose={() => setSheet(null)} title="More">
-        <div className="stack" style={{ gap: 4 }}>
-          {moreGoals.length > 0 && (
-            <div className="stack more-goals" style={{ gap: 4 }} role="group" aria-label="Goals">
-              <span className="field-label">Goals</span>
-              {moreGoals.map((g) => (
-                <Link key={g.key} to={g.to} className="menuitem" onClick={() => setSheet(null)}>{g.key === 'watching' ? NAV.watching.icon : NAV.goals.icon}<span className="stack" style={{ gap: 0, minWidth: 0 }}><span className="strong">{g.label}</span><span className="tiny muted">{g.hint}</span></span></Link>
-              ))}
+        <div className="stack" style={{ gap: 4 }} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setSheet(null); }}>
+          {(['lookup', 'make', 'you'] as const).filter((g) => more[g].length).map((g) => (
+            <div key={g} className="stack more-group" style={{ gap: 4 }} role="group" aria-label={GROUP_NAMES[g]}>
+              <span className="field-label">{GROUP_NAMES[g]}</span>
+              {more[g].map((id) => {
+                const m = id.startsWith('module:') ? moduleNav.find((n) => `module:${n.id}` === id) : null;
+                if (m) return <Link key={id} to={m.to} className="menuitem">{m.icon}<span className="strong">{m.label}</span></Link>;
+                const n = id as NavId;
+                return <Link key={id} to={NAV[n].to} className={'menuitem' + (n === 'help' ? ' more-help' : n === 'feedback' ? ' more-inbox' : '')}>{NAV[n].icon}<span className="strong">{NAV[n].label}{n === 'help' && unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span></Link>;
+              })}
             </div>
-          )}
-          {moreGoals.length > 0 && <span className="field-label more-rest">More</span>}
-          {more.map((id) => (
-            <Link key={id} to={NAV[id].to} className="menuitem" onClick={() => setSheet(null)}>{NAV[id].icon}<span className="strong">{NAV[id].label}</span></Link>
           ))}
-          {moduleNav.map((n) => <Link key={n.id} to={n.to} className="menuitem" onClick={() => setSheet(null)}>{n.icon}<span className="strong">{n.label}</span></Link>)}
-          <Link className="menuitem" to="/settings" onClick={() => setSheet(null)}><Icon name="settings" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Settings</span><span className="tiny muted">Light or dark, accent colour, your MCP access</span></span></Link>
-          <Link className="menuitem more-help" to="/help" onClick={() => setSheet(null)}><Icon name="help" size={18} /><span className="stack" style={{ gap: 0 }}><span className="strong">Help{unread && <><i className="help-dot" aria-hidden="true" /><span className="sr">, something new</span></>}</span><span className="tiny muted">What everything does, and what’s new</span></span></Link>
-          <Link className="menuitem more-inbox" to="/feedback" onClick={() => setSheet(null)}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 9.5 4 3.5h8l1.5 6v3h-11z" /><path d="M2.5 9.5h3.2l.8 1.5h3l.8-1.5h3.2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Feedback</span><span className="tiny muted">From every workspace and the demo</span></span></Link>
-          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo controls</span><span className="tiny muted">See it as someone else, walkthroughs, research, reset</span></span></button>}
-          <button className="menuitem" onClick={() => setSheet('feedback')}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" /></svg><span className="strong">Send feedback</span></button>
-          <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.mode === 'demo' ? 'Switch person' : 'Not you?'}</span><span className="tiny muted">{app.viewer.name}{app.viewer.admin ? ', admin here' : ''}</span></span></button>
+          {app.mode === 'demo' && <button className="menuitem" onClick={() => { setPresent(false); setSheet('demo'); }}><svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.5 2" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="2" /></svg><span className="stack" style={{ gap: 0 }}><span className="strong">Demo</span><span className="tiny muted">Switch person, walkthroughs, start over</span></span></button>}
+          <button className="menuitem" onClick={openPeople}><Avatar p={app.viewer} size="sm" /><span className="stack" style={{ gap: 0 }}><span className="strong">{app.viewer.name}</span><span className="tiny muted">{app.viewer.admin ? `Admin${team ? ' · ' + team : ''}` : team || 'No team'}</span></span></button>
         </div>
       </Sheet>
       <ProfileSheet open={sheet === 'profile'} onClose={() => setSheet(null)}><YouMenu onClose={() => setSheet(null)} /></ProfileSheet>
@@ -338,7 +358,9 @@ function ShellBody({ children }: { children: ReactNode }) {
       )}
       {app.mode === 'demo' && <Coach />}
       <ResearchBar />
-      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} onMarkup={() => { setSheet(null); setMarking(true); }} path={pathname} />}
+      {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
+        onMarkup={() => { setSheet(null); if (pathname === '/feedback' && cameFrom.current.to) { markAfter.current = true; void navigate(cameFrom.current.to); } else setMarking(true); }}
+        path={pathname === '/feedback' ? cameFrom.current.path : pathname} />}
       {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (

@@ -179,7 +179,7 @@ module.exports = {
     {
       const [c, p] = await open(360, 780, 'mateo', '/goals/new');
       await name(p, 'Half-written');
-      await p.goto(p.url().replace('/goals/new', '/goals')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
+      await p.goto(p.url().replace('/goals/new', '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
       const b = await p.locator('.resume-actions .btn').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.top, r.bottom]; }));
       const c1 = await col(p);
       if (b.length !== 2 || !near(b[0][0], c1.w) || !near(b[1][0], c1.w) || !near(b[1][1] - b[0][2], 12, 1)) f(`(24) resume buttons ${b.map((x) => x[0]).join('/')}px wide, column ${c1.w}`);

@@ -186,9 +186,10 @@ module.exports = {
       check(again.needs && !again.handled, '[ATTENTION-HANDLED] after a new check-in the red goal is not back under Needs attention');
       await c.close();
     }
-    // Review F13: the first-check-in note counts the whole workspace, whatever Goals is narrowed to, and says so.
+    // Review F13: the first-check-in note counts the whole workspace, whatever Goals is narrowed to, and says so. It
+    // shows with the Needs attention switch on (goals spec, 2.1, item 6).
     {
-      const [c, p] = await open(1280, 900, 'amara', '/goals?show=mine');
+      const [c, p] = await open(1280, 900, 'amara', '/goals?scope=watching&attention=1');
       const note = p.locator('.first-reports');
       if (await note.count()) {
         const t = (await note.innerText()).trim();

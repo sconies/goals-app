@@ -171,7 +171,7 @@ export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: C
 
 /**
  * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
- * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone in the review.
+ * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
  */
 export function acceptRisk(x: ActionContext, goal: Goal, review: Review, reason: string, week: number): Commit {
   if (reason.trim().length < MIN_ACCEPT_REASON) no('Say why the review accepts the risk.');
@@ -469,7 +469,7 @@ export function saveTeam(x: ActionContext, t: { id?: string; name: string; leadI
  * Board shows for it now, this cycle's that are neither removed nor stopped (`current`, what its card counts); and every goal
  * that names it, removed ones too (`named`, what moves when the team is removed, so nothing points at a team that's gone).
  */
-export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, teamId: string) {
+export function teamMembers(x: { snapshot: Pick<Snapshot, 'people' | 'goals'>; allGoals?: Goal[] }, teamId: string) {
   const named = (x.allGoals ?? x.snapshot.goals).filter((g) => g.teamId === teamId);
   return {
     people: x.snapshot.people.filter((p) => p.teamId === teamId),
@@ -480,7 +480,7 @@ export function teamMembers(x: Pick<ActionContext, 'snapshot' | 'allGoals'>, tea
 }
 
 /** A team's people as the directory counts them: everyone in it, and its lead wherever their own team is (backlog WS). */
-export function teamPeople(x: Pick<ActionContext, 'snapshot'>, teamId: string) {
+export function teamPeople(x: { snapshot: Pick<Snapshot, 'people' | 'teams'> }, teamId: string) {
   const lead = x.snapshot.teams.find((t) => t.id === teamId)?.leadId;
   return x.snapshot.people.filter((p) => p.teamId === teamId || p.id === lead);
 }

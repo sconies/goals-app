@@ -91,17 +91,33 @@
   .goals-page .filterbar-row { flex-wrap: nowrap; }
   .goals-page .filter-search { flex: 1 1 200px; min-width: 0; }
 }
-/* Phones: the search and Filters share a line (4, 31). */
+/* Phones: the search and Filters share a line (4, 31). The switch sits in the row above, between whose goals and the
+   layout; Group is in the Views menu (goals spec, 2.4). */
 @container app (max-width: 600px) {
+  .goals-page .filterbar-row > .attention-switch, .goals-page .filterbar-row > .group-menu { display: none; }
+  /* No title on a phone's page (its top bar names it): the heading stays for screen readers. */
+  .goals-page .goals-head .goals-title, .goals-page .page-head.goals-head:not(:has(.actions > a:not(.new-goal-quiet))) { display: none; }
+  .goals-page .goals-sr-title { display: block; }
+  /* New goal closes the page instead; Wrap up, while it's open, stays at the top. */
+  .goals-page .goals-head .new-goal-quiet { display: none; }
+  .goals-page .goals-phone-switch, .goals-page .goals-phone-end { display: flex; }
+  .goals-page .goals-phone-switch > .attention-switch { min-height: 44px; }
+  .goals-page .goals-phone-switch { margin-top: calc(-1 * var(--s1)); }
+  .goals-page .goals-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .goals-page .filterbar-row { flex-wrap: nowrap; }
   .goals-page .filterbar-row .filter-search { flex: 1 1 auto; min-width: 0; }
   .goals-page .filterbar-row > .btn { flex: none; }
 }
 /* The decision toggle, pressed: a light fill and a full 2px outline in the text colour, never a dark block that reads
    as the main action (25). Its chip is left out while the toggle shows it. */
-.quick-filter[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
-.quick-filter[aria-pressed="true"]:hover { background: var(--surface-3); }
-@container app (min-width: 521px) { .goals-page .filter-chip.chip-decision { display: none; } }
+/* The Needs attention switch, pressed: the same quiet weight as a pressed toggle anywhere, with a heavier edge. */
+.attention-switch { flex: none; white-space: nowrap; }
+.attention-switch[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); border: 2px solid var(--fg); padding-inline: 15px; }
+.attention-switch[aria-pressed="true"]:hover { background: var(--surface-3); }
+.goals-page .filterbar-row > .group-menu { flex: none; }
+.goals-page .goals-line { margin-block: var(--s1) 0; max-width: none; }
+.goals-phone-switch, .goals-phone-end, .goals-sr-title { display: none; }
+.goals-phone-end { gap: var(--s2); margin-top: var(--s4); }
 /* The active filters. Wide: they wrap, with Save view and Copy link at the end. Phones: one row, the filters scrolling
    sideways, and one View menu for saving and sharing (23). */
 .filter-chip-scroll { display: contents; }
@@ -276,3 +292,5 @@
 .board-handled { display: flex; align-items: center; gap: 4px; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .board-handled svg { flex: none; }
 .board-handled .muted { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+/* On the Map, room under the count line keeps the map's controls clear of the tour card (F6, Map 5 at 853×533). */
+.goals-page.full .goals-line { margin-bottom: var(--s4); }

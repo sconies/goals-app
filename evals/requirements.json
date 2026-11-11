@@ -199,7 +199,12 @@
     {
       "id": "ONBOARDING",
       "area": "Onboarding",
-      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone."
+      "text": "An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with \"No owner yet\"; one left so is made the setter's and remembered for Home; Check says each owner or \"No owner yet\" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet)."
+    },
+    {
+      "id": "DAY-ONE",
+      "area": "Onboarding",
+      "text": "In a workspace's first weeks Home tells each person, the second included, what is true and what to do first (\"Getting started\", app redesign OB3): whoever set it up sees their first check-ins, \"Give {n} goals an owner\" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old \"Add your people\" card is gone."
     },
     {
       "id": "IDENTITY",
@@ -507,9 +512,34 @@
       "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
     },
     {
+      "id": "GOALS-SCOPE",
+      "area": "Goals",
+      "text": "Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they own one, My team when they have a team, Watching, All), each with its count, and it opens on the scope last used, else Mine, else Watching when it has goals, else All. How the goals are grouped (as trees, by team, by level, none) is a separate choice, each scope with its own default; one line counts the goals shown and their statuses, worst first."
+    },
+    {
+      "id": "GOALS-ATTENTION",
+      "area": "Goals",
+      "text": "Needs attention is a switch on any scope, with its count for that scope and those filters: on, it lists the goals that need attention, then those being handled, and the line says how many need attention and why."
+    },
+    {
+      "id": "GOALS-ADDRESS",
+      "area": "Goals",
+      "text": "Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant."
+    },
+    {
+      "id": "NAV-PLACES",
+      "area": "Navigation",
+      "text": "The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups."
+    },
+    {
+      "id": "NAV-COLLAPSED",
+      "area": "Navigation",
+      "text": "Collapsed to a rail (and always between 761 and 1100 px), each icon names itself in the app's own label, after a moment on hover and at once on keyboard focus, with its full words (\u201cCheck-in, 5 to do\u201d)."
+    },
+    {
       "id": "LIST-BAR",
       "area": "Finding",
-      "text": "Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says \u201c{n} {things} match.\u201d; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles."
+      "text": "Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles."
     },
     {
       "id": "FIND-AND-PICK",

@@ -394,6 +394,30 @@ Share image makes a PNG of the goal's summary bar and a small chart, with the go
 - **Tests:** `evals/goalPage.eval.ts` (1)
 - **Journeys and checks:** N9
 
+### GOALS-SCOPE
+
+Goals opens on the viewer's own goals: its tabs say whose goals (Mine when they own one, My team when they have a team, Watching, All), each with its count, and it opens on the scope last used, else Mine, else Watching when it has goals, else All. How the goals are grouped (as trees, by team, by level, none) is a separate choice, each scope with its own default; one line counts the goals shown and their statuses, worst first.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
+### GOALS-ATTENTION
+
+Needs attention is a switch on any scope, with its count for that scope and those filters: on, it lists the goals that need attention, then those being handled, and the line says how many need attention and why.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
+### GOALS-ADDRESS
+
+Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant.
+
+- **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U73
+
 ## Platform
 
 ### PERSIST
@@ -698,10 +722,19 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone.
+An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
 
+- **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54, U61
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86
+
+### DAY-ONE
+
+In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone.
+
+- **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
+- **Help:** “Home and your week at a glance” (`home`), screens `Home`
+- **Journeys and checks:** U86
 
 ### IDENTITY
 
@@ -965,6 +998,22 @@ Anyone can leave a workspace from Settings (last, after a rule), with a confirm 
 
 - **Help:** “Settings” (`settings`), screens `Settings`
 - **Journeys and checks:** U53, U62
+
+## Navigation
+
+### NAV-PLACES
+
+The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups.
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
+
+### NAV-COLLAPSED
+
+Collapsed to a rail (and always between 761 and 1100 px), each icon names itself in the app's own label, after a moment on hover and at once on keyboard focus, with its full words (“Check-in, 5 to do”).
+
+- **Help:** “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** U67
 
 ## Finding
 

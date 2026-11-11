@@ -6,7 +6,7 @@
      /teams            the teams, with their leads, people and goals by status; admins add a team
      /teams/<id>       a team: its purpose, goals by status and people; admins change or remove it
    Who is listed, in what order, and the lines and counts beside each come from src/domain/directory.ts. */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place } from '../core/app';
@@ -14,7 +14,7 @@ import { DIRECTORY_PAGE, findInDirectory, findTeams, personLine, teamSummary } f
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import { teamMembers } from '../domain/actions';
-import { LABEL } from '../domain/vocabulary';
+import { LABEL, leftName } from '../domain/vocabulary';
 import { statusCounts } from '../domain/order';
 import type { DisplayStatus, Person, Team } from '../domain/types';
 import { newId } from '../data/store';
@@ -25,6 +25,11 @@ import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { TokenSheet } from '../ui/AiAssistants';
 import { useWidth } from '../ui/useWidth';
 import { PickOne } from '../ui/Pick';
+import { CountLine, FilterLine, ListBar, ListSearch, NoneFound } from '../ui/ListBar';
+import type { FilterPart } from '../domain/find';
+
+const PEOPLE = { thing: 'person', things: 'people' };
+const TEAMS = { thing: 'team', things: 'teams' };
 
 /** Below this width the filters fold into one Filter button (a phone). */
 const NARROW = 620;
@@ -88,9 +93,6 @@ export function PeopleList() {
   const found = findInDirectory(app.snapshot.people, app.snapshot.teams, { q, teamId, admins, page });
   const noEmail = app.snapshot.people.filter((p) => !p.email).length;
   const [emails, setEmails] = useState(params.get('emails') === '1');
-  const search = useRef<HTMLInputElement>(null);
-  // On a computer the search has focus when the page opens, so typing finds someone at once.
-  useEffect(() => { if (window.matchMedia?.('(pointer: fine)').matches) search.current?.focus({ preventScroll: true }); }, []);
   /** One history entry per choice; typing in the search replaces the entry as it goes. */
   const set = (changes: Record<string, string | null>, replace = false) => setParams((p) => {
     const n = new URLSearchParams(p);
@@ -100,11 +102,8 @@ export function PeopleList() {
   }, { replace });
   const filtered = !!q.trim() || !!teamId || admins;
   const teamName = teamId === '-' ? '' : app.team(teamId)?.name ?? '';
-  const count = !filtered
-    ? `${plural(found.total, 'person', 'people')}, A to Z.${found.total > DIRECTORY_PAGE ? ` Showing ${found.from} to ${found.to}.` : ''}`
-    : found.total === 1 ? '1 person matches.' : `${found.total} people match.`;
-  const none = q.trim() ? <>No one matches “{q.trim()}”. <button type="button" className="linkish" onClick={() => set({ q: null })}>Clear the search</button></>
-    : teamId === '-' ? 'Everyone is in a team.' : teamId ? `No one in ${teamName} yet.` : admins ? 'There are no admins.' : 'No one is here yet.';
+  // The filters in words, with Remove (FS2's filter line).
+  const parts: FilterPart[] = [...(teamId ? [{ key: 'team', label: 'Team', values: [teamId === '-' ? 'none' : teamName] }] : []), ...(admins ? [{ key: 'admins', label: 'Admins', values: ['only'] }] : [])];
   const filters = (
     <>
       {/* The team, found by typing (FS1's find-and-pick); "no team" comes from a link (About's "in no team") and says so. */}
@@ -120,19 +119,19 @@ export function PeopleList() {
   return (
     <div className="page people-page" ref={ref}>
       <PlaceHead tab="people" action={admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button>} />
-      <div className="people-bar" role="search">
-        <label className="field people-find"><span className="sr">Find a person</span>
-          <input ref={search} className="input" type="search" placeholder="Find by name, job title or team" value={q} maxLength={200} onChange={(e) => set({ q: e.target.value || null }, true)} />
-        </label>
+      {/* The list bar (FS2): the search, the filters (one Filter button on a phone), then the count and filter lines. */}
+      <ListBar search={<ListSearch value={q} onSearch={(t, settled) => set({ q: t || null }, !settled)} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
         {narrow
-          ? <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filter{teamId || admins ? ` · ${[teamId, admins].filter(Boolean).length}` : ''}</button>
+          ? <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filter{parts.length ? ` · ${parts.length}` : ''}</button>
           : filters}
-      </div>
+      </ListBar>
       {gone && <p className="hint" role="note">That team isn’t here any more.</p>}
       {admin && noEmail > 0 && (
         <p className="people-emails small">{plural(noEmail, 'person has', 'people have')} no email yet. <button type="button" className="linkish" onClick={() => setEmails(true)}>Add them</button></p>
       )}
-      <p className="hint people-count" role="status">{found.total ? count : none}</p>
+      <CountLine things={PEOPLE} n={found.total} narrowed={filtered} order="A to Z" shown={found.total > DIRECTORY_PAGE ? { from: found.from, to: found.to } : null} />
+      <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={() => set({ team: null, admins: null })} />
+      {!found.total && <NoneFound things={PEOPLE} q={q} filtered={!!teamId || admins} onClearSearch={() => set({ q: null })} onClearFilters={() => set({ team: null, admins: null })} />}
       {found.total > 0 && (
         <ul className="people-list" aria-label="People">
           {found.rows.map((p) => <li key={p.id}><PersonRow p={p} /></li>)}
@@ -211,7 +210,7 @@ export function PersonPage() {
         <div className="row person-who">
           <Avatar p={p} size="lg" />
           <span className="stack" style={{ gap: 2, minWidth: 0 }}>
-            <h1 className="title-xl">{p.name}{left ? ' (left)' : ''}</h1>
+            <h1 className="title-xl">{left && !p.name.endsWith(leftName('')) ? leftName(p.name) : p.name}</h1>
             {left ? <span className="hint">Left {wsName(app.ws)} on {dateOf(p.leftAt!)}. Their history stays.</span> : p.role ? <span className="hint">{p.role}</span> : null}
           </span>
         </div>
@@ -265,14 +264,9 @@ export function TeamsList() {
   return (
     <div className="page people-page">
       <PlaceHead tab="teams" action={app.viewer.admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button>} />
-      <div className="people-bar" role="search">
-        <label className="field people-find"><span className="sr">Find a team</span>
-          <input className="input" type="search" placeholder="Find a team or its lead" value={q} maxLength={200} onChange={(e) => setParams((p) => { const n = new URLSearchParams(p); if (e.target.value) n.set('q', e.target.value); else n.delete('q'); return n; }, { replace: true })} />
-        </label>
-      </div>
-      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : (
-        <p className="hint people-count" role="status">{!q.trim() ? `${plural(found.length, 'team', 'teams')}, A to Z.` : found.length ? (found.length === 1 ? '1 team matches.' : `${found.length} teams match.`) : `No team matches “${q.trim()}”.`}</p>
-      )}
+      <ListBar search={<ListSearch value={q} onSearch={(t, settled) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); return n; }, { replace: !settled })} label="Find a team" placeholder="Find a team or its lead" />} />
+      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : <CountLine things={TEAMS} n={found.length} narrowed={!!q.trim()} order="A to Z" />}
+      {!!app.snapshot.teams.length && !found.length && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
       {found.length > 0 && (
         <ul className="people-list team-list" aria-label="Teams">
           {found.map((t) => {

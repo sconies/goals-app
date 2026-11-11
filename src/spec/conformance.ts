@@ -10,7 +10,7 @@ import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../dom
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
 import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
-import { litItem, menuFor, pageName, tabsFor, type NavId } from '../domain/navigation';
+import { litItem, menuGroups, pageName, phoneTabs, type NavId } from '../domain/navigation';
 
 /** The moment the demo workspace is built for: Thursday 5 November 2026, noon UTC (week 45), as the evals pin it. */
 export const CHECK_IN_MOMENT = '2026-11-05T12:00:00.000Z';
@@ -176,7 +176,9 @@ export function findRowsOf(w: ConformanceWorkspace): string[][] {
 /* ---------- navigation ---------- */
 
 /** The addresses navigation.csv answers for each viewer (the navigation rules, AR2). */
-export const NAV_ADDRESSES = ['/', '/check-in', '/goals', '/goals?show=mine', '/watching', '/goals/new', '/goals/lead-mq', '/reviews/weekly', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro/x', '/research'];
+export const NAV_ADDRESSES = ['/', '/check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/reviews/weekly', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro/x', '/research'];
+/** A module's menu item, as a module's app.tsx gives it, for the rows that show where one goes. */
+export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
 /** Two viewers: one who owns goals, one who owns none. */
 export const NAV_VIEWERS = ['rhea', 'oskar'];
 export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'lit', 'page'];
@@ -185,14 +187,24 @@ export const NAV_HEADER = ['viewer', 'owns_goals', 'address', 'menu', 'tabs', 'l
 export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
   const rows: string[][] = [];
   for (const viewer of NAV_VIEWERS) {
-    const owns = w.goals.some((g) => g.ownerId === viewer && !g.stoppedAt);
-    const side = menuFor(owns, []);
-    const tabs = tabsFor(owns);
+    // Check-in for someone with a goal to check in on: one of theirs not stopped or done by then.
+    const moment = new Date(w.builtFor);
+    const s = asOf(w, moment);
+    const owns = s.goals.some((g) => g.ownerId === viewer && goalStatus(g, w.cycle, s.checkIns, moment).status !== 'done');
+    const g = menuGroups(owns, []);
+    const side = [...g.work, ...g.lookup, ...g.make, ...g.you];
+    const tabs = phoneTabs(owns);
     for (const address of NAV_ADDRESSES) {
       const [path = '/', q = ''] = address.split('?');
-      const show = new URLSearchParams(q).get('show');
+      const show = new URLSearchParams(q).get('scope') ?? new URLSearchParams(q).get('show');
       const at = path === '/watching' ? 'watching' : path === '/goals' ? (show === 'mine' ? 'mine' : 'all') : null;
-      rows.push([viewer, yes(owns), address, side.join(' '), tabs.join(' '), litItem(path, side) ?? '', pageName(path, at, [...side, ...tabs] as NavId[])]);
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), tabs.join(' '), litItem(path, side) ?? '', pageName(path, at, [...side, ...tabs] as NavId[])]);
+    }
+    // A module's item (AR2): placed in its group by the same rule, and lit on its own pages; it names its own page.
+    const mg = menuGroups(owns, [NAV_MODULE]);
+    const mside = [...mg.work, ...mg.lookup, ...mg.make, ...mg.you];
+    for (const address of [NAV_MODULE.to, NAV_MODULE.to + '/one']) {
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, mside, [NAV_MODULE]) ?? '', pageName(address, null, [...side, ...tabs] as NavId[], NAV_MODULE.label)]);
     }
   }
   return rows;

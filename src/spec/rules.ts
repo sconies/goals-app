@@ -7,6 +7,7 @@ import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '..
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
 import { scopeToCycle } from '../domain/cycle';
+import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
@@ -17,7 +18,7 @@ import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK,
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
-import { adminsLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
+import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
@@ -31,7 +32,9 @@ import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
-import { litItem, menuFor, pageName, sideFor } from '../domain/navigation';
+import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
+import { watchedGoals } from '../domain/review';
 import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
@@ -80,6 +83,17 @@ function workspace(checkIns: Snapshot['checkIns'], requests: Ask[] = [], decisio
   };
 }
 const flagCodes = (s: Snapshot, today: string) => flagsFor(g3075, s, CYCLE, at(today)).flags.map((f) => f.kind).join(', ') || 'none';
+
+/* ---------- a workspace just set up, for day one's examples ---------- */
+const DAY_MADE = '2026-11-11T09:00:00Z';
+const DAY_NOW = new Date('2026-11-11T15:00:00Z');
+const DAY_WS = { name: 'Field Operations', kind: 'own', createdAt: DAY_MADE };
+const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'> => ({
+  people: [{ id: 'ana', name: 'Ana Silva', role: '', initials: 'AS', teamId: 't', admin: true }, { id: 'ben', name: 'Ben Ortiz', role: '', initials: 'BO', teamId: 't', admin: false }],
+  goals: owners.map((ownerId, i) => ({ id: `g${i}`, ownerId, title: `Goal ${i}` } as unknown as Goal)),
+  checkIns: [], watches: [],
+  changes: [{ id: 'c', at: DAY_MADE, actorId: 'ana', goalId: null, entity: 'workspace', entityId: 'w', action: 'created', summary: 'Created “Field Operations” with 2 people', diffs: [] }],
+});
 
 /* ---------- the demo workspace on Wednesday 11 November, for the directory's examples ---------- */
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
@@ -631,14 +645,14 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/removal.ts', names: ['cycleStanding', 'cycleDeletable', 'leaveWorkspace'] },
       { file: 'src/domain/actions.ts', names: ['teamPeople'] },
       { file: 'src/domain/thresholds.ts', names: ['nameProblem', 'nameLength', 'MAX_WORKSPACE_NAME'] },
-      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'workspaceName', 'adminsLine', 'yearLine', 'cycleWhen', 'NEEDS_SHOWN', 'ONLY_ADMIN_FROM', 'LEAD_FROM'] },
+      { file: 'src/domain/workspaceAttention.ts', names: ['workspaceNeeds', 'workspaceName', 'adminsLine', 'yearLine', 'cycleLine', 'cycleWhen', 'NEEDS_SHOWN', 'ONLY_ADMIN_FROM', 'LEAD_FROM'] },
       { file: 'src/domain/people.ts', names: ['mergePeople'] },
       { file: 'src/domain/templates.ts', names: ['stagesFromJoining', 'stagesFromNow'] },
     ],
     tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
     reqs: ['WORKSPACE-ONE-PLACE', 'WORKSPACE-ABOUT'],
     body: `
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over.
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -665,7 +679,8 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'nothing', run: () => workspaceNeeds(workspace([]), CYCLE, false).map((x) => x.id).join(', ') || 'nothing' },
       { given: 'The example’s name in the demo, and a workspace called “Growth” in the real app.', then: 'Platform Engineering (example data) / Growth', run: () => [workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo'), workspaceName({ name: 'Growth', kind: 'own' }, 'live')].map((w) => w.name + (w.kind ? ` (${w.kind})` : '')).join(' / ') },
       { given: 'Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu.', then: 'Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others', run: () => [adminsLine(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg'].map((name) => ({ name, admin: true }))), adminsLine(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${i}`)].map((name) => ({ name, admin: true })))].join(' / ') },
-      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 47), and on Tuesday 15 December (week 52) with 31 goals not wrapped up.', then: '2026, week 47 of 53. The wrap-up opens on 14 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 47, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 52, new Date('2026-12-15T12:00:00Z'), 31)}`; } },
+      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet.', then: '2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet', run: () => { const a = cycleLine({ name: '2026', startDate: '2025-12-22', weeks: 53 }, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}`; } },
+      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up.', then: '2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)} / ${yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)}`; } },
     ],
     unclear: ['When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },
@@ -699,6 +714,29 @@ For a range, better means further from the limit on its safe side.
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
     ],
     unclear: ['The page size (50) and the reading of “a word” (split at spaces and at & / ( ) , . -) are choices; a rebuild with a server search should keep the rule that every word typed starts a word.', 'Who leads a team is not a role: a lead is any person a team names, in any team.'],
+  },
+
+  /* ---------- day one (app redesign OB3) ---------- */
+  {
+    id: 'day-one',
+    title: 'Day one: set-up’s steps and “Getting started”',
+    summary: 'How many steps set-up counts for the path chosen, and what Home’s “Getting started” tells each person in a workspace’s first weeks.',
+    code: [{ file: 'src/domain/dayOne.ts', names: ['setupSteps', 'stepCounter', 'gettingStarted', 'creatorOf', 'DAY_ONE_DAYS', 'NEW_WORKSPACE_DAYS'] }],
+    tests: ['src/domain/dayOne.test.ts'],
+    reqs: ['DAY-ONE', 'ONBOARDING'],
+    body: `
+**Set-up’s steps.** A template or “Start blank”: seven (workspace, you, your team, starting point, outcome, goals, check). “Set goals up later” or a spreadsheet: five, without the outcome and the goals, so Check is “Step 5 of 5”.
+
+**Who set it up** is whoever the workspace’s “Created …” change names, or else its first admin. A goal set-up left with no owner is made theirs, and its id is kept for them (the Prefs port), so Home can ask them to give it one; nothing is added to the goal.
+
+**Getting started**, for one person, in this order, each left out when it doesn’t apply or is done. Whoever set it up: their first check-ins (goals they own with none); “Give {n} goals an owner” (the goals set-up left without one that they still own); “Add the people who own goals” while they’re alone, otherwise “Send your team the link” until they copy it; “Set up the first goal” while there are none. Anyone else: who set it up, when, and how many goals they were given; their first check-ins; and, owning none, the goals to see (until opened), to watch (until they watch one), and a goal of their own. Nothing at all when they hid it, ${DAY_ONE_DAYS} days after their first visit, in the example, or in a workspace more than ${NEW_WORKSPACE_DAYS} days old that they didn’t just join.`,
+    examples: [
+      { given: 'The counter on Check: a template; goals set up later.', then: 'Step 7 of 7 / Step 5 of 5', run: () => `${stepCounter('check', 'product')} / ${stepCounter('check', 'later')}` },
+      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneWs(['ana', 'ana', 'ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
+      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneWs(['ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
+      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneWs(['ana']), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
+    ],
+    unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
   },
 
   /* ---------- the goal map ---------- */
@@ -888,7 +926,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
-**The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; typing replaces it until Enter, leaving the field or a pause; clearing adds one.
+**The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -920,11 +958,11 @@ RULE_LIST.push({
   id: 'navigation',
   title: 'Navigation: the menu, the lit item and a page’s name',
   summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
-  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'sideFor', 'tabsFor', 'menuFor', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'pageName', 'placeName'] }],
   tests: ['src/domain/navigation.test.ts'],
   reqs: [],
   body: `
-**The menu** lists Home, Check-in (only for someone who owns a goal), Goals, Reviews, Activity, People, Data, New goal and Workspace, in that order; Settings, Help and Feedback sit below it. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone who owns a goal, and Home, Goals, Watching and Reviews for someone who doesn't. A module's item says its group: your work (after Reviews) or something to look up (after Data, the default); with the module off, it isn't there.
+**The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
 **The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
 
@@ -932,10 +970,40 @@ RULE_LIST.push({
 
 **A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
   examples: [
-    { given: 'The menu for someone who owns goals, and for someone who doesn’t, with a module item to look things up (Metrics).', then: 'home checkin goals reviews activity people data module:metrics new workspace / home goals reviews activity people data module:metrics new workspace', run: () => [true, false].map((o) => menuFor(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]).join(' ')).join(' / ') },
-    { given: 'The lit item at /goals/lead-mq, /goals/new and /settings.', then: 'goals, new, none', run: () => ['/goals/lead-mq', '/goals/new', '/settings'].map((p) => litItem(p, sideFor(true)) ?? 'none').join(', ') },
-    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => [pageName('/goals', 'watching', sideFor(true)), pageName('/reviews/weekly', null, sideFor(true)), pageName('/retro/x', null, sideFor(true)), pageName('/metrics/m1', null, sideFor(true), 'Lead time for changes')].join(', ') },
+    { given: 'The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without.', then: 'home checkin goals reviews | people module:metrics activity data | new | workspace settings help feedback / home goals reviews | people module:metrics activity data | new | workspace settings help feedback', run: () => [true, false].map((o) => { const g = menuGroups(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]); return [g.work, g.lookup, g.make, g.you].map((x) => x.join(' ')).join(' | '); }).join(' / ') },
+    { given: 'The phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals reviews / home goals reviews people', run: () => [phoneTabs(true), phoneTabs(false)].map((x) => x.join(' ')).join(' / ') },
+    { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
+    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
   ],
+});
+
+RULE_LIST.push({
+  id: 'goals-page',
+  title: 'The Goals page: whose goals, how they are grouped, and the switch',
+  summary: 'Which scope tabs someone has and which opens, each scope’s own grouping, what the Needs attention switch counts, the line that counts the goals shown, and how old addresses and saved views open.',
+  code: [{ file: 'src/domain/goalsPage.ts', names: ['scopesFor', 'ownGroup', 'scopeWords', 'attentionCount', 'goalsLine', 'describeView', 'movedGoals', 'GROUPS'] }],
+  tests: ['src/domain/goalsPage.test.ts'],
+  reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'],
+  body: `
+**Whose goals (the scope).** Mine: the goals someone owns, when they own one. My team: the goals of their own team and of any team they lead, when they have one ("My teams" for several). Watching: the goals they watch. All: every goal. Only goals not stopped count. Goals opens on the scope used last in this workspace when they still have it; otherwise Mine, else Watching when it has goals, else All.
+
+**How they are grouped.** As trees (All's own), by team, by level, or none: one list, worst first (every other scope's own). A group equal to the scope's own is left out of the address.
+
+**The switch.** "Needs attention · {n}" counts the goals in the scope, after the search and the filters, that need attention ([flags](flags.md)); being handled is never counted. On, the goals that need attention come first and those being handled below.
+
+**The line.** Off: the list's count line ([finding things](finding.md)), then each status that has goals, worst first, "{n} {status}", joined with " · ". On: "{n} need attention: " with the same list over those goals, where a status that isn't itself a reason says why ("2 on track, flagged for getting worse"), then how many being handled are listed below.
+
+**Old addresses.** show=mine, watching, outcomes, levels, teams and attention become a scope, a group and the switch; an address with a filter and no scope is All; a bare /goals is the scope that opens; /watching is Watching. A saved view stored in the old form opens in the new one; the record is not rewritten.`,
+  examples: (() => {
+    const facts = (who: string) => ({ goals: demo!.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })), viewerId: who, teams: demo!.teams.filter((t) => t.id === demo!.people.find((p) => p.id === who)?.teamId || t.leadId === who).map((t) => ({ id: t.id, name: t.name })), watched: new Set(watchedGoals(who, demo!).map((g) => g.id)) });
+    const tabs = (who: string) => { const r = scopesFor(facts(who), null); return `${r.tabs.map((t) => `${t.label} ${t.ids.length}`).join(' · ')}; opens on ${r.opens}`; };
+    return [
+      { given: 'Rhea’s tabs (she owns goals and leads CI/CD) in the demo workspace.', then: 'Mine 8 · My team 17 · Watching 12 · All 126; opens on mine', run: () => tabs('rhea') },
+      { given: 'The scope each opens on: Rhea; and someone in no team who owns nothing and watches nothing.', then: 'mine; all', run: () => `${scopesFor(facts('rhea'), null).opens}; ${scopesFor({ goals: facts('rhea').goals, viewerId: 'nobody', teams: [], watched: new Set() }, null).opens}` },
+      { given: 'Each scope’s own group.', then: 'none, none, none, tree', run: () => (['mine', 'team', 'watching', 'all'] as const).map(ownGroup).join(', ') },
+      { given: 'Old addresses: show=levels; show=attention&needs=decision; quiet=2; a bare address for someone who opens on Mine; show=cards-and-more.', then: 'scope=all&group=level / scope=all&attention=1&needs=decision / scope=all&quiet=2 / scope=mine / scope=mine (There’s no “cards-and-more” tab, so these are your goals.)', run: () => ['show=levels', 'show=attention&needs=decision', 'quiet=2', '', 'show=cards-and-more'].map((q) => { const m = movedGoals(q, 'mine', () => true)!; return m.search + (m.note ? ` (${m.note})` : ''); }).join(' / ') },
+    ];
+  })(),
 });
 
 /** The feature modules' rules: each is written in its module's section of the spec. */

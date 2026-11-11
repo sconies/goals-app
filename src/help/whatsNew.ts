@@ -22,13 +22,82 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'not-born-late',
-    date: '2026-11-10',
+    date: '2026-11-11',
     title: 'A new goal doesn’t start out late',
     points: [
       'A stage that’s already past asks whether it’s done, and a done one counts as on time.',
       'If your first number isn’t where the plan starts, you can start the plan from it.',
     ],
     articles: ['new-goal', 'check-in'],
+  },
+  {
+    id: 'goals-filters-in-words',
+    date: '2026-11-10',
+    title: 'Goals counts once, and says its filters in words',
+    points: [
+      'With a search or a filter on, Goals says how many match once, in the line under the bar, and its filters in words underneath: “Filtered by: Status Off track · Owner Rhea Kapoor”, each with Remove.',
+      'A search is never listed as a filter: it stays in the search box.',
+    ],
+    articles: ['goals-filters', 'finding'],
+  },
+  {
+    id: 'track3-fixes',
+    date: '2026-11-10',
+    title: 'The right wrap-up date, and fewer surprises with admins',
+    points: [
+      'Workspace and Cycles said the wrap-up opens a week early. They now give the day it really opens.',
+      'Giving up your own admin rights no longer offers Undo, since only another admin can give them back.',
+      'A person who has left is named once on their page, not “(left) (left)”.',
+    ],
+    articles: ['workspace', 'workspace-access', 'people'],
+  },
+  {
+    id: 'goals-opens-on-yours',
+    date: '2026-11-10',
+    title: 'Goals opens on yours, and the menu is in groups',
+    points: [
+      'Goals’ tabs now say whose goals: Mine, My team, Watching and All, each with its count. It opens on the one you used last.',
+      'How they’re arranged is its own choice, Group (as trees, by team, by level, or one list), and Needs attention is a switch that works on any tab.',
+      'One line under the bar counts the goals shown and their statuses.',
+      'The menu is four groups: your work, things to look up, New goal, and this workspace and you. Collapsed, each icon names itself. On a phone, More holds the rest in the same groups.',
+      'Feedback and Send feedback are one item: Feedback’s page has Send feedback, and from there you can mark up the screen you came from.',
+      'Activity and Help search the way Goals does: each word you type starts a word in what they find, a goal’s key finds its changes, a near miss shows the nearest match, and Back after a search returns to the list as it was.',
+    ],
+    articles: ['goals', 'any-device', 'feedback', 'activity'],
+  },
+  {
+    id: 'history-week-order',
+    date: '2026-11-10',
+    title: 'History puts each week in its place',
+    points: [
+      'A goal’s History listed some comments and changes above the week they belonged to.',
+      'Each week’s entry now comes after everything said or changed that week, so this week’s comments sit under this week.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
+    id: 'getting-started',
+    date: '2026-11-10',
+    title: 'A first week that tells you what to do',
+    points: [
+      'After setting up a workspace, Home lists what’s left: first check-ins, goals to give an owner, and the link to send your team.',
+      'Someone you add sees who set it up and what’s theirs to do.',
+      'Set-up lets you leave a goal’s owner for later, and its step counter counts the path you chose.',
+    ],
+    articles: ['home', 'set-up'],
+  },
+  {
+    id: 'cycles-plainer',
+    date: '2026-11-10',
+    title: 'Cycles says where the year stands',
+    points: [
+      'Each cycle shows its week, its dates and when the wrap-up opens, with one action: see the wrap-up, wrap it up, or start the next cycle.',
+      'Deleting an empty cycle asks first.',
+      'Features and Privacy say On or Off in words beside each switch.',
+      'A long Recently removed list can be searched by name and narrowed to one kind.',
+      'People and Teams search and count like every other list: the same bar, and the filters in words with Remove.',
+    ],
+    articles: ['workspace-cycles', 'features', 'recording', 'removing', 'people'],
   },
   {
     id: 'watch-and-comment-say',
