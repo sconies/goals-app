@@ -48,6 +48,21 @@ export function groupDigits(s: string): string {
   return s.replace(/^([-+]?)(\d{4,})/, (_, sign: string, int: string) => sign + int.replace(/\B(?=(\d{3})+(?!\d))/g, ','));
 }
 
+/** A number as an export writes it at a goal's decimal places: 0.405 at 2 is 0.41. */
+export const asWritten = (v: number, decimals: number) => Number(v.toFixed(decimals));
+
+/**
+ * Whether a typed cell says what the export wrote (import spec rule 9, IM0): the same text after trimming, or the same
+ * number at the column's written precision. An unedited export is never read as a change, however a plan's numbers
+ * fall between two decimal places: 0.405 at 2 places was written 0.41, and 0.41 typed back is no change.
+ */
+export function sameAsWritten(cell: string | number, written: number | null | undefined, decimals: number): boolean {
+  if (written == null) return false;
+  if (String(cell).trim() === String(asWritten(written, decimals))) return true;
+  const n = typeof cell === 'number' ? cell : Number(String(cell).trim().replace(/,/g, ''));
+  return Number.isFinite(n) && asWritten(n, decimals) === asWritten(written, decimals);
+}
+
 /** A number at a fixed number of decimal places, its digits grouped: the form every rendered number takes. */
 export const fixed = (v: number, decimals: number) => groupDigits(v.toFixed(decimals));
 

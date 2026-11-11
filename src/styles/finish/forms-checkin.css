@@ -145,3 +145,31 @@
 /* The draft banner: plain words, one blue link, the same left edge as the rows (Numbers 19). */
 .quick .restored { padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg-2); }
 .quick .restored .linkish { color: var(--accent-text); font-weight: 550; }
+
+/* ---------- Check-in: the week's list (navigation spec, 2.4; NV3) ---------- */
+/* Narrow, as a focused task is, but with the sidebar: a list to start from, not a form. */
+.page.checkin-queue { --page-max: 620px; max-width: var(--page-max); }
+.ciq-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
+.ciq-when, .ciq-empty { margin: 0; }
+.ciq-links { gap: var(--s4); flex-wrap: wrap; }
+.ciq-list { list-style: none; margin: 0; padding: 0; }
+/* Hairline-divided rows: the status (shape and word) where the eye starts, the title and what it last said, then the button. */
+.ciq-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--s1) var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.ciq-row:first-child { border-top: 0; }
+.ciq-status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.ciq-status svg { width: 14px; height: 14px; flex: none; }
+.ciq-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.ciq-title { font-weight: 600; overflow-wrap: anywhere; }
+.ciq-said { font-size: 0.8125rem; }
+.ciq-draft { color: var(--fg); }
+.ciq-go { justify-self: end; white-space: nowrap; }
+.ciq-table { margin: 0; }
+@media (pointer: coarse) { .ciq-go { min-height: 44px; } }
+/* A phone: the status over the title, the button beside them. */
+@container app (max-width: 600px) {
+  .ciq-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .ciq-status { grid-column: 1; grid-row: 1; }
+  .ciq-text { grid-column: 1; grid-row: 2; }
+  .ciq-go { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; }
+  .ciq-start .btn { width: 100%; }
+}

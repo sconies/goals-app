@@ -7,7 +7,7 @@ People’s order and search, a page at a time; the line beside a person; a team�
 
 ## The rule
 
-**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. 50 at a time; a page past the end is the last page.
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. With a search, those whose name it starts come first, then the rest A to Z: People, every person picker and Find share this one search (finding things, rule 7, through the Search port). 50 at a time; a page past the end is the last page.
 
 **What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as `teamPeople` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
 
@@ -39,7 +39,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/directory.ts](../../../src/domain/directory.ts): `findInDirectory`, `matchesWords`, `byName`, `findTeams`, `personLine`, `teamSummary`, `movedTo`, `DIRECTORY_PAGE`
+- [src/domain/directory.ts](../../../src/domain/directory.ts): `personLine`, `teamSummary`, `movedTo`, `DIRECTORY_PAGE`
+- [src/domain/find.ts](../../../src/domain/find.ts): `searchPeople`, `searchTeams`, `byName`
 
 ## Requirements
 
@@ -59,6 +60,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the directory’s order and search (rule 4) › never lists anyone marked as left
 - the directory’s order and search (rule 4) › keeps two people with one name in a stable order, by email
 - the directory’s order and search (rule 4) › matches words, not the middle of one
+- the directory’s order and search (rule 4) › puts those whose name the search starts first, then A to Z: one order for People and every person picker
 - teams (rule 4) › lists the teams A to Z, found by name or by lead
 - a person’s line and a team’s summary (rule 5) › says admin, what they lead and how many goals
 - a person’s line and a team’s summary (rule 5) › says which other team someone leads, or how many

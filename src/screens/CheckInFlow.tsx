@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
@@ -15,15 +16,23 @@ import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 
-/** The focused weekly check-in: every due goal, one at a time, then done. */
+/**
+ * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
+ * goal, one at a time, then done (what Home's Start check-in and the list's Start with open); /check-in/:goal is one
+ * goal's check-in.
+ */
 export function CheckInFlow() {
   // A fresh flow for each goal (or the whole week): moving from /check-in to /check-in/:goal must not keep the old queue.
   const { goalId } = useParams();
+  const [params] = useSearchParams();
+  const fromTable = !!(useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  if (!goalId && params.get('start') !== '1' && !fromTable) return <CheckInQueue />;
   return <Flow key={goalId ?? 'week'} goalId={goalId} />;
 }
 
@@ -36,7 +45,10 @@ export interface FromTable { posted: string[]; kept: number }
 function Flow({ goalId }: { goalId?: string }) {
   const app = useApp();
   const nav = useNavigate();
-  const fromTable = (useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  const location = useLocation();
+  const fromTable = (location.state as { fromTable?: FromTable } | null)?.fromTable;
+  // Opened from the week's list, closing goes back to it (with the draft kept); otherwise Home, as before.
+  const closeTo = (location.state as { from?: string } | null)?.from === 'queue' ? '/check-in' : '/';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
@@ -94,7 +106,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+          <FormClose keeps onClose={() => nav(closeTo)} />
         </span>
       </div>
       {justPosted ? (

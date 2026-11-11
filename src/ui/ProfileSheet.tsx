@@ -1,9 +1,10 @@
-/* Who you are: the people in the workspace, by team, to pick yourself (or, in the demo, someone to view as). */
+/* Who you are: find yourself by typing (or, in the demo, someone to view as). */
 import type { ReactNode } from 'react';
 import { useApp } from '../app/state';
 import { watchedGoals } from '../domain/review';
 import type { Person } from '../domain/types';
-import { Avatar, Sheet } from './bits';
+import { Sheet } from './bits';
+import { PickOne } from './Pick';
 
 /** What a person does here, in a few words: the goals they own, what they watch, whether they're an admin. */
 export function personFacts(p: Person, app: ReturnType<typeof useApp>): string {
@@ -16,25 +17,18 @@ export function personFacts(p: Person, app: ReturnType<typeof useApp>): string {
 
 export function ProfileSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children?: ReactNode }) {
   const app = useApp();
-  const teams = [...app.snapshot.teams.map((t) => [t.name, app.snapshot.people.filter((x) => x.teamId === t.id)] as const), ['No team', app.snapshot.people.filter((x) => !x.teamId)] as const].filter(([, l]) => l.length);
+  // Nothing is built while it's closed: in a workspace of thousands, this sheet is on every page.
+  if (!open) return null;
+  const me = app.person(app.viewer.id);
   return (
-    <Sheet open={open} onClose={onClose} title={app.mode === 'demo' ? 'View as someone else' : 'Who are you?'}>
+    <Sheet open onClose={onClose} title={app.mode === 'demo' ? 'View as someone else' : 'Who are you?'}>
       {children}
       <p className="hint" style={{ marginBottom: 'var(--s3)' }}>{app.mode === 'demo'
         ? 'Each person sees their own home: the goals they own, what they watch and the reviews they’re in.'
-        : 'Pick your name. Sign-in comes later with your company login; until then this device remembers who you are.'}</p>
-      {teams.map(([team, list]) => (
-        <section key={team} className="stack" style={{ gap: 'var(--s1)', marginBottom: 'var(--s4)' }}>
-          <span className="field-label">{team}</span>
-          {list.map((x) => (
-            <button key={x.id} className="menuitem" aria-current={x.id === app.viewer.id ? 'true' : undefined} onClick={() => { app.setViewer(x.id); onClose(); }}>
-              <Avatar p={x} size="sm" />
-              <span className="stack" style={{ gap: 0, flex: 1, minWidth: 0 }}><span className="strong">{x.name}</span><span className="tiny muted">{personFacts(x, app)}</span></span>
-              {x.id === app.viewer.id && <span className="tiny strong" style={{ color: 'var(--accent-text)' }}>You</span>}
-            </button>
-          ))}
-        </section>
-      ))}
+        : 'Type your name to find it. Sign-in comes later with your company login; until then this device remembers who you are.'}</p>
+      {me && <p className="small">Now: <span className="strong">{me.name}</span>, {personFacts(me, app)}.</p>}
+      {/* Find-and-pick (find spec, move 14): someone is found by typing, never chosen from a list of everyone. */}
+      <PickOne kind="person" label={app.mode === 'demo' ? 'See it as' : 'Your name'} value={null} hide={[app.viewer.id]} onChange={(id) => { if (id) { app.setViewer(id); onClose(); } }} />
     </Sheet>
   );
 }

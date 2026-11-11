@@ -6,11 +6,13 @@
      /teams            the teams, with their leads, people and goals by status; admins add a team
      /teams/<id>       a team: its purpose, goals by status and people; admins change or remove it
    Who is listed, in what order, and the lines and counts beside each come from src/domain/directory.ts. */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place } from '../core/app';
-import { DIRECTORY_PAGE, findInDirectory, findTeams, personLine, teamSummary } from '../domain/directory';
+import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
+import { useFound } from '../app/search';
+import { historyStep } from '../domain/find';
 import { initials } from '../domain/importer';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import { teamMembers } from '../domain/actions';
@@ -90,7 +92,11 @@ export function PeopleList() {
   const teamId = gone ? '' : asked;
   const admins = params.get('admins') === '1';
   const page = Number(params.get('page') ?? 1) || 1;
-  const found = findInDirectory(app.snapshot.people, app.snapshot.teams, { q, teamId, admins, page });
+  // The Search port finds them (one search and one order for People, every person picker and Find), a page at a time.
+  const answer = useFound('person', { q, filters: { ...(teamId ? { team: teamId } : {}), ...(admins ? { admins: '1' } : {}) }, after: String((page - 1) * DIRECTORY_PAGE), size: DIRECTORY_PAGE });
+  const found = paged(answer, page, DIRECTORY_PAGE, (id) => app.person(id));
+  // A page past the end is the last page: the address follows (replacing).
+  useEffect(() => { if (answer && found.page !== page && page !== 1) set({ page: found.page > 1 ? String(found.page) : null }, true); });
   const noEmail = app.snapshot.people.filter((p) => !p.email).length;
   const [emails, setEmails] = useState(params.get('emails') === '1');
   /** One history entry per choice; typing in the search replaces the entry as it goes. */
@@ -120,7 +126,7 @@ export function PeopleList() {
     <div className="page people-page" ref={ref}>
       <PlaceHead tab="people" action={admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a person</button>} />
       {/* The list bar (FS2): the search, the filters (one Filter button on a phone), then the count and filter lines. */}
-      <ListBar search={<ListSearch value={q} onSearch={(t, settled) => set({ q: t || null }, !settled)} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
+      <ListBar search={<ListSearch value={q} onSearch={(t, change) => set({ q: t || null }, historyStep(change) === 'replace')} label="Find a person" placeholder="Find by name, job title or team" autoFocus />}>
         {narrow
           ? <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFiltering(true)}>Filter{parts.length ? ` · ${parts.length}` : ''}</button>
           : filters}
@@ -129,9 +135,9 @@ export function PeopleList() {
       {admin && noEmail > 0 && (
         <p className="people-emails small">{plural(noEmail, 'person has', 'people have')} no email yet. <button type="button" className="linkish" onClick={() => setEmails(true)}>Add them</button></p>
       )}
-      <CountLine things={PEOPLE} n={found.total} narrowed={filtered} order="A to Z" shown={found.total > DIRECTORY_PAGE ? { from: found.from, to: found.to } : null} />
+      {answer && !answer.stale && <CountLine things={PEOPLE} n={found.total} narrowed={filtered} order="A to Z" shown={found.total > DIRECTORY_PAGE ? { from: found.from, to: found.to } : null} />}
       <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={() => set({ team: null, admins: null })} />
-      {!found.total && <NoneFound things={PEOPLE} q={q} filtered={!!teamId || admins} onClearSearch={() => set({ q: null })} onClearFilters={() => set({ team: null, admins: null })} />}
+      {answer && !answer.stale && !found.total && <NoneFound things={PEOPLE} q={q} filtered={!!teamId || admins} onClearSearch={() => set({ q: null })} onClearFilters={() => set({ team: null, admins: null })} />}
       {found.total > 0 && (
         <ul className="people-list" aria-label="People">
           {found.rows.map((p) => <li key={p.id}><PersonRow p={p} /></li>)}
@@ -153,6 +159,38 @@ export function PeopleList() {
   );
 }
 
+/** A page of the Search port's answer as a list draws it: the things themselves, where it is, and how many pages. */
+function paged<T>(a: { total: number; rows: { id: string }[] } | null, page: number, size: number, thing: (id: string) => T | undefined) {
+  const total = a?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const at = Math.min(Math.max(1, page), pages);
+  const rows = (a?.rows ?? []).map((r) => thing(r.id)).filter((x): x is T => !!x);
+  const from = rows.length ? (at - 1) * size + 1 : 0;
+  return { total, page: at, pages, from, to: from ? from + rows.length - 1 : 0, rows };
+}
+
+/* Held at company size (N12): a row reads only its own person's or team's goals and people, grouped once per workspace
+   as loaded, not by scanning every goal for every row. The rules (personLine, teamSummary) are unchanged. */
+type Snap = ReturnType<typeof useApp>['snapshot'];
+const indexes = new WeakMap<Snap, { byOwner: Map<string, Snap['goals']>; byTeam: Map<string, Snap['goals']>; peopleIn: Map<string, Snap['people']> }>();
+function indexOf(s: Snap) {
+  let x = indexes.get(s);
+  if (!x) {
+    const group = <T,>(xs: T[], key: (v: T) => string | null | undefined) => { const m = new Map<string, T[]>(); for (const v of xs) { const k = key(v); if (k) { const l = m.get(k); if (l) l.push(v); else m.set(k, [v]); } } return m; };
+    x = { byOwner: group(s.goals, (g) => g.ownerId), byTeam: group(s.goals, (g) => g.teamId), peopleIn: group(s.people, (p) => p.teamId) };
+    indexes.set(s, x);
+  }
+  return x;
+}
+/** A team's summary context cut to that team: its goals, its people and its lead. */
+function slice<C extends { snapshot: Snap }>(ctx: C, teamId: string): C {
+  const ix = indexOf(ctx.snapshot);
+  const team = ctx.snapshot.teams.find((t) => t.id === teamId);
+  const lead = team ? ctx.snapshot.people.find((p) => p.id === team.leadId) : undefined;
+  const people = ix.peopleIn.get(teamId) ?? [];
+  return { ...ctx, snapshot: { ...ctx.snapshot, teams: team ? [team] : [], goals: ix.byTeam.get(teamId) ?? [], people: lead && !people.includes(lead) ? [...people, lead] : people } };
+}
+
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 /** A person in a list: a link to them, with their job title and team, and their line (rule 5). */
@@ -166,7 +204,7 @@ function PersonRow({ p }: { p: Person }) {
         <span className="person-name">{app.personName(p.id)}</span>
         <span className="hint">{[p.role, team || 'No team'].filter(Boolean).join(' · ')}</span>
       </span>
-      <span className="people-line small">{personLine({ snapshot: app.snapshot }, p.id)}</span>
+      <span className="people-line small">{personLine({ snapshot: { ...app.snapshot, people: [p], goals: indexOf(app.snapshot).byOwner.get(p.id) ?? [] } }, p.id)}</span>
     </Link>
   );
 }
@@ -259,18 +297,22 @@ export function TeamsList() {
   const [params, setParams] = useSearchParams();
   const [adding, setAdding] = useState(false);
   const q = params.get('q') ?? '';
-  const found = findTeams(app.snapshot.teams, app.snapshot.people, q);
+  const page = Number(params.get('page') ?? 1) || 1;
+  const answer = useFound('team', { q, after: String((page - 1) * DIRECTORY_PAGE), size: DIRECTORY_PAGE });
+  const shown = paged(answer, page, DIRECTORY_PAGE, (id) => app.team(id));
+  const found = shown.rows;
+  useEffect(() => { if (answer && shown.page !== page && page !== 1) setParams((p) => { const n = new URLSearchParams(p); if (shown.page > 1) n.set('page', String(shown.page)); else n.delete('page'); return n; }, { replace: true }); });
   const ctx = { snapshot: app.snapshot, statusOf: (g: Parameters<typeof app.statusOf>[0]) => app.statusOf(g).status };
   return (
     <div className="page people-page">
       <PlaceHead tab="teams" action={app.viewer.admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button>} />
-      <ListBar search={<ListSearch value={q} onSearch={(t, settled) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); return n; }, { replace: !settled })} label="Find a team" placeholder="Find a team or its lead" />} />
-      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : <CountLine things={TEAMS} n={found.length} narrowed={!!q.trim()} order="A to Z" />}
-      {!!app.snapshot.teams.length && !found.length && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
+      <ListBar search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
+      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : answer && !answer.stale && <CountLine things={TEAMS} n={shown.total} narrowed={!!q.trim()} order="A to Z" shown={shown.total > DIRECTORY_PAGE ? { from: shown.from, to: shown.to } : null} />}
+      {!!app.snapshot.teams.length && answer && !answer.stale && !shown.total && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
       {found.length > 0 && (
         <ul className="people-list team-list" aria-label="Teams">
           {found.map((t) => {
-            const s = teamSummary(ctx, t.id);
+            const s = teamSummary(slice(ctx, t.id), t.id);
             return (
               <li key={t.id}>
                 <Link className="people-row team-row" to={`/teams/${encodeURIComponent(t.id)}`}>
@@ -284,6 +326,13 @@ export function TeamsList() {
             );
           })}
         </ul>
+      )}
+      {shown.pages > 1 && (
+        <nav className="people-pages row" aria-label="Pages">
+          <span className="hint">{shown.from} to {shown.to} of {shown.total}</span>
+          {shown.page > 1 && <Link className="btn sm" to={`?${pageParams(params, shown.page - 1)}`}>Previous {DIRECTORY_PAGE}</Link>}
+          {shown.page < shown.pages && <Link className="btn sm" to={`?${pageParams(params, shown.page + 1)}`}>Next {Math.min(DIRECTORY_PAGE, shown.total - shown.to)}</Link>}
+        </nav>
       )}
       {adding && <TeamSheet team={null} onClose={() => setAdding(false)} onSaved={(id) => void nav(`/teams/${encodeURIComponent(id)}`)} />}
     </div>

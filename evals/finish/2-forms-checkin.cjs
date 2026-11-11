@@ -42,7 +42,7 @@ module.exports = {
     }
     // Check-in 4: step dots on every first step, one kind of dot row, and to-do dots you can see (3:1).
     for (const who of ['rhea', 'farah', 'chen']) {
-      const [c, p] = await open(390, 844, who, '/check-in');
+      const [c, p] = await open(390, 844, who, '/check-in?start=1');
       const n = await p.locator('.goalhead .dots i').count();
       if (n < 1) fail(`check-in 4: ${who}'s first step has no step dots`);
       if (await p.locator('.focus-top .dots').count()) fail(`check-in 4: ${who} has a second, identical dot row for the goal counter`);
