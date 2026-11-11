@@ -8,7 +8,8 @@ import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
 import { resultWeek } from '../domain/plan';
 import { readTour, type TourState } from '../app/tours';
-import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
+import { fmt, gapBeside, nowText } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { FEEDER_SCOPE } from '../domain/goalPage';
 import { above, bounds, criticalPath, edges as mapEdges, layout, layoutIndented, NODE_H, NODE_W, pack, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import { assessPosted, RANK } from '../domain/status';
@@ -47,7 +48,7 @@ function GoalNode({ data, selected }: NodeProps<Node<GoalNodeData>>) {
       )}
       {/* A parent shows the worst status of everything under it, as a shape and its words (the List's roll-up). */}
       {under && <span className={'map-under tone-' + under.worst} title={`${FEEDER_SCOPE.tree} (${under.total})`}><StatusShape k={under.worst} /><span>Under it: {under.text}</span></span>}
-      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${goal.level !== 'team' ? ` · ${LEVEL_LABEL[goal.level]}` : ''}`}</span>
+      <span className="map-meta">{context ? 'Shown for context: not in this filter' : `${goal.key ? goal.key + ' · ' : ''}${owner}${!isEveryday(null, goal.level) ? ` · ${levelName(null, goal.level)}` : ''}`}</span>
       {children > 0 && (
         <button type="button" className="map-toggle nodrag" aria-expanded={hidden === 0} aria-label={hidden ? `Show the ${hidden} ${hidden === 1 ? 'goal' : 'goals'} feeding ${goal.title}` : `Hide the ${children} ${children === 1 ? 'goal' : 'goals'} feeding ${goal.title}`} onClick={(e) => { e.stopPropagation(); onToggle(goal.id); }}>
           {hidden ? <><Icon name="plus" size={12} />{hidden}</> : <Icon name="minus" size={12} />}

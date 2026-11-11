@@ -36,11 +36,22 @@ Everyone can see everything; what a person can change follows from the goals the
 
 ### Level
 
-How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds.
+How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds. A goal's level: an id from its cycle's levels (domain/levels.ts). Faro's three are 'north-star', 'svp' and 'team'.
 
 ```ts
-type Level = 'north-star' | 'svp' | 'team'
+type Level = string
 ```
+
+### LevelDef
+
+A level a workspace has: its id (stored on goals), its name, and the hint the goal form shows (domain/levels.ts).
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `Level` | yes |  |
+| `name` | `string` | yes |  |
+| `hint` | `string` | yes |  |
+| `removedAt` | `string \| null` | no | Removed: goals moved off it; its name is kept for History. |
 
 ### Team
 
@@ -60,6 +71,7 @@ type Level = 'north-star' | 'svp' | 'team'
 | `startDate` | `string` | yes | ISO date (yyyy-mm-dd) of week 0, the day the cycle starts. |
 | `weeks` | `number` | yes | Weeks in the cycle; checkpoints are weeks 0..weeks. |
 | `reviewDay` | `number` | yes | Day of the weekly review, 0 = Monday. Check-ins are due before it. |
+| `levels` | `LevelDef[] \| null` | no | The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). Set by a workspace from CF2. |
 | `removedAt` | `string \| null` | no | Deleted (only a cycle with no check-ins): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |
 

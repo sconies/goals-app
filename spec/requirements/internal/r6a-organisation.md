@@ -25,7 +25,7 @@ It is the first thing a leader looks for in week one (the deep review of 10 Nov,
 ## What Faro does today
 
 - A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).
-- Goal levels are a fixed three, `'north-star' | 'svp' | 'team'` (`Level` in `src/domain/types.ts`, `LEVELS` in `src/domain/query.ts`), used across the rules, screens and spreadsheets.
+- Goal levels are a fixed three, North star, SVP and Team (`DEFAULT_LEVELS` in `src/domain/levels.ts`), read from that one place by the rules, screens, spreadsheets and tools; a cycle can hold its own (`Cycle.levels`) but nothing sets them yet.
 - One workspace is the whole company. Goals’ “By team” groups goals by team in a flat list. “In the tree of” scopes by the goal tree (what a goal feeds), not by the organisation.
 - Teams and who is in them are typed in by admins, in Workspace or the People sheet; nothing reads a directory.
 

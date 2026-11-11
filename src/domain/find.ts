@@ -2,7 +2,7 @@
    kind. Every list bar, picker and Find reaches these through the Search port (src/ports/search.ts), whose browser
    adapter calls them over the loaded workspace; the internal app's adapter asks its server instead. Pure: each rule takes
    only the rows it reads (src/app/reads.ts makes them), never the whole workspace, and no clock. */
-import { LEVEL_LABEL } from './format';
+import { levelName } from './levels';
 import { formatKey, normalKey } from './goalKey';
 import { applyQuery, parseQuery, type QueryContext } from './query';
 import type { GoalSummary } from './summary';
@@ -132,7 +132,7 @@ export function page(all: FoundRow[], ask: SearchAsk): Pick<SearchAnswer, 'rows'
 }
 
 /** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
-export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, LEVEL_LABEL[s.goal.level], LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source].join(' ');
+export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source].join(' ');
 export const goalRow = (s: GoalSummary): FoundRow => ({ kind: 'goal', id: s.goal.id, name: s.goal.title, detail: [s.goal.key, s.owner, s.team].filter(Boolean).join(' · '), status: s.status, key: s.goal.key ?? null });
 
 /** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */

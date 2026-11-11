@@ -3,7 +3,8 @@
    (a date that has slipped, no recovery plan, a call greener than the numbers, a goal gone quiet).
    Also the result once a goal is due: Completed, Completed late or Did not meet. */
 import { causeLabel } from './checkin';
-import { fmt, fmtDiff, LEVEL_LABEL, NO_VALUE } from './format';
+import { fmt, fmtDiff, NO_VALUE } from './format';
+import { isEveryday, levelName } from './levels';
 import { planAt, planEnd, resultWeek, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, projects } from './status';
 import { flagsFor } from './attention';
@@ -199,7 +200,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   if (lastEnded?.kind === 'missed' && !result) warn('missed-quarter', `${WARNING['missed-quarter'].label}. ${lastEnded.text}.`);
 
   const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
-  const feeds = parent ? `Feeds ${parent.title}${parent.level !== 'team' ? ` (${LEVEL_LABEL[parent.level]})` : ''}` : null;
+  const feeds = parent ? `Feeds ${parent.title}${!isEveryday(cycle, parent.level) ? ` (${levelName(cycle, parent.level)})` : ''}` : null;
   const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
   const ans = answeredSince(g.id, last?.postedAt ?? null, s);
   const answered = ans ? { ask: askText(ans, s.people), answer: ans.answer ?? '', by: s.people.find((p) => p.id === ans.answeredBy)?.name ?? 'someone', at: ans.answeredAt ?? '' } : null;

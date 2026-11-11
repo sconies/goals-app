@@ -5,7 +5,7 @@ import { useApp } from '../app/state';
 import { LABEL } from '../domain/status';
 import { type GoalSummary } from '../domain/summary';
 import { SHORT_MEANING } from '../domain/story';
-import { LEVELS } from '../domain/query';
+import { isEveryday, levelRank } from '../domain/levels';
 import type { DisplayStatus } from '../domain/types';
 import { LevelTag, StatusShape, StatusWord, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
@@ -26,7 +26,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
   const sums = useSummaries(groups);
   const all = [...sums.values()];
   // Within a lane: the higher goals first (the north star leads), then those waiting on a decision, then by name.
-  const order = (a: GoalSummary, b: GoalSummary) => LEVELS.indexOf(a.goal.level) - LEVELS.indexOf(b.goal.level) || Number(waitingOnDecision(b.attention)) - Number(waitingOnDecision(a.attention)) || a.goal.title.localeCompare(b.goal.title);
+  const order = (a: GoalSummary, b: GoalSummary) => levelRank(app.cycle, a.goal.level) - levelRank(app.cycle, b.goal.level) || Number(waitingOnDecision(b.attention)) - Number(waitingOnDecision(a.attention)) || a.goal.title.localeCompare(b.goal.title);
   // Filtered, an empty lane is noise: only the lanes with goals in them (round 3 and visual review 2).
   const app = useApp();
   const filtered = all.length < app.snapshot.goals.length;
@@ -49,7 +49,7 @@ export function GoalBoard({ groups }: { groups: ViewGroup[] }) {
                   past its lane's heading still says where it stands. The level sits right on the same row. */}
               <span className="board-top">
                 <StatusWord k={s.status} className="board-status" />
-                {s.goal.level !== 'team' && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
+                {!isEveryday(app.cycle, s.goal.level) && <span className="board-level"><LevelTag level={s.goal.level} /></span>}
               </span>
               <span className="board-title">{s.goal.title}</span><TitleTell goal={s.goal} />
               <span className="hint ellipsis">{s.owner} · {s.team}</span>
