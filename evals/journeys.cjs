@@ -2706,7 +2706,8 @@ journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner ha
     h.set('attention', await p.locator('.side [aria-current="page"]').count() === 1 && await p.locator('.side .nav', { hasText: 'Check-in' }).count() === 1, 'not one lit item, or no Check-in for an owner');
     // Collapsed: each icon names itself at once on keyboard focus.
     await h.click(p.locator('.side .collapse-nav'));
-    await p.locator('.side .nav').first().focus();
+    // From Home, the first place (Find, above the groups, isn't one).
+    await p.locator('.side .nav-group .nav').first().focus();
     await p.keyboard.press('Tab');
     await see(p.locator('.rail-label'), /Check-in, \d+ to do/, 'the rail does not name Check-in on focus');
     await h.click(p.locator('.side .collapse-nav'));
