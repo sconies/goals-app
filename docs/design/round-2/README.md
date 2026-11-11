@@ -2,12 +2,13 @@
 
 11 November 2026. Design and spec only: no app code is changed, and nothing here is built. Main is locked until after the talk. Round 1 (`docs/design/README.md`, backlog RD) stands; this round builds on it and says plainly where it changes it.
 
-Lane asked for four things:
+Lane asked for four things, and on the morning of 11 Nov added a fifth:
 
 1. **Goal entry**: New goal, the goal edit page, and adding a goal from set-up or the review.
 2. **Workspace set-up**: from the first screen to the first week.
 3. **Bulk import and export**: "easy to bulk add data, but difficult to do it incorrectly."
 4. **A question**: can reviews, and check-ins on a timed rhythm, be features a workspace switches off?
+5. **The metrics feature**, deeper than round 1's ML1–ML3: defining a metric well, a goal measured by one with slices and targets, a metric that changes or is retired, numbers arriving from a source, comparing goals that share a metric, metrics in the import and export, and whether Metrics is itself a switch.
 
 | Area | Evaluation and design | Build spec | Items |
 |---|---|---|---|
@@ -15,6 +16,7 @@ Lane asked for four things:
 | Goal entry | [goal-entry/README.md](../goal-entry/README.md) | [goal-entry/spec.md](../goal-entry/spec.md) | GE |
 | Workspace set-up | [setup/README.md](../setup/README.md) | [setup/spec.md](../setup/spec.md) | ST |
 | Reviews and the rhythm as switches | [feature-toggles/README.md](../feature-toggles/README.md) | [feature-toggles/spec.md](../feature-toggles/spec.md) | FT |
+| Metrics, deeper | [metrics-2/README.md](../metrics-2/README.md) | [metrics-2/spec.md](../metrics-2/spec.md) | MT |
 
 ## Part 1. The plan for the work (written before the walk)
 
@@ -43,7 +45,8 @@ import ───────────┼──► goal-entry ──► setup
 - **Import first in thought, because it owns the field table and the validation model.** Goal entry and set-up refer to both; neither restates them.
 - **Toggles beside it**, because its answer changes one step of set-up and a few lines of goal entry.
 - **Goal entry before set-up**, because set-up's goal steps are goal entry.
-- All four are walked and drawn in parallel, one agent each, on the shared decisions below. The decisions are kept here, and each area's output is reviewed against them before it is accepted.
+- **Metrics (added 11 Nov) hangs off three of them**: its sheet is part of the field table (import), "Measured by" is a field of goal entry, and whether it can be switched off is the toggles question asked of a third feature. It is already a module, so its switch exists; the design says what switching it off shows.
+- All five are walked and drawn in parallel, one agent each, on the shared decisions below. The decisions are kept here, and each area's output is reviewed against them before it is accepted.
 
 ### Shared decisions for round 2 (every area uses these)
 
@@ -96,6 +99,7 @@ Round 1 ended at U86, F16, N17, P18. A build session takes the next free number 
 | Goal entry | GE1… | U93–U96 | F18, N19 | `GOAL-ENTRY-REQUIRED`, `GOAL-EDIT-PREVIEW`, `GOAL-ADD-ANYWHERE` |
 | Set-up | ST1… | U97–U100 | F19, N20 | `SETUP-FIRST-SCREEN`, `SETUP-HOW-YOU-WORK`, `SETUP-UPLOAD`, `FIRST-WEEK` |
 | Toggles | FT1… | U101–U104 | F20, N21 | `REVIEWS-OPTIONAL`, `RHYTHM-OPTIONAL` |
+| Metrics | MT1… | U105–U108 | F21, N22 | `METRIC-DEFINED`, `METRIC-CHANGE`, `METRIC-SOURCE`, `METRIC-COMPARE`, `METRIC-SHEET` |
 
 ### How each area is written
 
