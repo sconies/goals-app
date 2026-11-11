@@ -71,11 +71,11 @@ export async function addNote(s: ResearchSession, n: Omit<ResearchNote, 'id' | '
 /** Adds a row to the research table, where the app has a database. Anyone can add; nobody can read back through the app. */
 async function insertNote(row: Record<string, unknown>): Promise<boolean> {
   const { VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: key } = import.meta.env;
-  if (!url || !key) { if (import.meta.env.MODE === 'test') console.error('insertNote: no url or key', { url, key }); return false; }
+  if (!url || !key) return false;
   try {
     const { addResearchNote } = await import('../adapters/supabase/research');
     return await addResearchNote(url, key, { ...row, user_agent: navigator.userAgent.slice(0, 300) });
-  } catch (e) { if (import.meta.env.MODE === 'test') console.error('insertNote failed:', e); return false; }
+  } catch { return false; }
 }
 
 async function send(n: ResearchNote) {
