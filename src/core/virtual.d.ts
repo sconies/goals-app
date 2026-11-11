@@ -16,3 +16,9 @@ declare module 'virtual:faro-modules/app' {
   const app: { id: string; part: import('./app').AppModule }[];
   export default app;
 }
+/* The Help index the build makes (vite.helpIndex.ts): the guide's and What's new's ids, titles and routes, without
+   their text. Read it through src/help/lookup.ts. */
+declare module 'virtual:faro-help-index' {
+  const index: import('../../vite.helpIndex.ts').HelpIndex;
+  export default index;
+}

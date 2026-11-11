@@ -22,7 +22,6 @@ import { Research } from './screens/Research';
 import { Settings } from './screens/Settings';
 import { MotionLayer } from './ui/Count';
 import { MotionLab } from './ui/MotionLab';
-import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
@@ -36,6 +35,10 @@ const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default:
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
+// Help and What's new carry the whole guide and every release (about 200 KB): the first download has only their index.
+const HelpHome = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpHome })));
+const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpArticle })));
+const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 
 export function Routed() {
   const app = useApp();
