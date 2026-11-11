@@ -501,6 +501,8 @@ Formats, unchanged but now stated per field: a number is digits with an optional
 
 ## Decisions for Lane
 
+**Lane's answers (11 Nov):** the recommended answer on every decision in rounds 2 and 3, except round 2's 11 (who may set a level or add a goal for someone else), where he chose "as today": anyone may. On the six about proposed goals (15 to 20 below; 18 to 23 in `../round-2/README.md`) he took every recommendation: the room proposes a goal agreed in a review; a goal for someone else starts on "propose it"; its owner or an admin makes it active; no workspace setting; the proposer may change or withdraw it until it is active; stages due next year and a range's dates wait. Nothing below is open.
+
 ### Settled on 11 Nov (round 2's list)
 
 | Was | Lane's answer |

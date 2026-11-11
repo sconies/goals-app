@@ -183,7 +183,7 @@ Backlog-sized items in order. Effort as in round 1: **S** (under a day), **M** (
 | 21 | **ST8** Your first week | Dated rows for each person; nothing late in week one; unfinished work moves to About | S–M | OB3, WR2 (merged); ST1, ST3; FT1, FT2 | set-up |
 | 22 | **IM6** Large files | Reading off the page's thread, progress, Stop, 50 rows at a time, the 5,000-row limit said first; the server job written as a platform requirement | M | IM3 | import |
 | 23 | **GE5** Add a goal from where you are | Under a goal, on a team's page, as a copy; "Adding several?" to the paste door | S–M | OB1 *held*, GE1, IM5 | goal entry |
-| 24 | **GE6** Agree a goal in a review; ask someone to set one up | A next step "Set up a goal: {name}" that opens the form filled in | S–M | GE5, FS1, FT2 | goal entry |
+| 24 | **GE6** Agree a goal in a review | The room proposes the goal; its owner makes it active (Lane, 11 Nov: decision 18). Built as part of GE10 where that lands first; "ask someone to set one up" is dropped | S | GE10, GE5, FS1, FT2 | goal entry |
 | 25 | **GE7** Several drafts, listed | Up to five, 30 days, on New goal and under Goals, Mine | S–M | OB1 *held*, NV2 | goal entry |
 | 26 | **IM7** Export | One sheet from Goals and from Data; file names | S | FS2 on Data *held* | import |
 | 27 | **IM9** MCP | `bulk_change`, `export`, `undo_import` with the same levels and a dry run | S | IM2, IM4 | import |
@@ -306,7 +306,9 @@ Two things Lane asked for after answering, and what his answer on decision 11 ch
 - **Set-up offers no example goals.** Built into ST2 and ST5 above.
 - **A goal can be proposed before it is active** (GE10, goal-entry spec and wireframe 10). Shown as the word "Proposed", never a shape; no status, nothing due, in no count. Its owner or an admin makes it active. Different from a draft (private) and from a goal that is committed but starts later.
 
-Open, for Lane, recommended first (goal entry's README has the wording):
+**Lane's answers (11 Nov): (a) on all six, 18 to 23.** So: a goal agreed in a review is proposed in the room and its owner makes it active (this replaces the answer on decision 10, and GE6's review half is built inside GE10); a goal added for someone else starts on "propose it"; its owner or an admin makes it active; there is no workspace setting; the proposer may change or withdraw their proposal until it is active; stages stay within the year and a range has no dates to pick, for now.
+
+As they were asked, recommended first (goal entry's README has the wording):
 
 18. **A goal agreed in a review**, now that Proposed exists: (a) the room proposes the goal itself; its owner makes it active. *Recommended; this reopens decision 10.* (b) Keep it a next step for its owner.
 19. **A goal added for someone else**: (a) starts on "propose it", changeable to active. *Recommended: it is the only guard left after decision 11.* (b) Starts active.
