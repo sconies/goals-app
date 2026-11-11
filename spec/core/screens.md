@@ -13,7 +13,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Your first check-in is next week”, “Nothing is due”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
+- **Named parts:** “Nothing is due yet”, “Your first check-in is next week”, “Nothing is due”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
 - **Main action:** The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.
 - **Primary buttons in its markup:** “Start the wrap-up”, “Find goals to watch”, “Set up the first goal”
 - **AI tools:** `get_my_work`, `get_overview`
@@ -183,7 +183,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - **Named parts:** “More in Workspace”, “About this workspace”, “Delete”, “Workspace sections (region)”, “Cycles (region)”, “What the app records (region)”, “Features (region)”
 - **Main action:** For an admin, sort out what About lists; for anyone, read the facts and open the section each leads to.
 - **Primary buttons in its markup:** none written as plain text
-- **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`
+- **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
 
 ## Onboarding
 
@@ -220,6 +220,17 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - **Main action:** Handle the open markup or feedback (in hand, fixed or won’t fix) and go on to the next.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
+
+## StartNext
+
+[src/screens/StartNext.tsx](../../src/screens/StartNext.tsx)
+
+- `/workspace/cycles/next` (`StartNext`): An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it. Help: “Starting the next year” (`start-next-year`).
+
+- **Named parts:** “What happens to each goal (region)”
+- **Main action:** For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).
+- **Primary buttons in its markup:** none written as plain text
+- **AI tools:** `start_next_cycle`, `list_people`
 
 ## Settings
 

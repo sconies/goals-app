@@ -194,6 +194,8 @@ export interface AppState {
   deleteNote(id: string): Promise<void>;
   /** Admins: delete a cycle no one has checked in to. */
   deleteCycle(id: string): Promise<void>;
+  /** Admins: undo starting the next cycle while nobody has used it (domain/removal undoStart). */
+  undoStart(cycleId: string): Promise<void>;
   /** Whoever imported, or an admin: put every row an import or bulk edit wrote back as it was. */
   undoImport(importId: string): Promise<{ restored: number; skipped: string[] }>;
   /** Admins, or whoever removed it: bring back something removed in the last 30 days. */
@@ -708,6 +710,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       deleteComment: async (id) => { await run('deleteComment', { commentId: id }); },
       deleteNote: async (id) => { await run('deleteNote', { noteId: id }); },
       deleteCycle: async (id) => { await run('deleteCycle', { cycleId: id }); },
+      undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
       recentlyRemoved: () => R.recentlyRemoved(snapshot, now),
