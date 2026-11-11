@@ -16,6 +16,19 @@ export function currentWeek(cycle: Cycle, today: Date): number {
   return Math.min(cycle.weeks, Math.floor(d / 7));
 }
 
+/**
+ * The week results are judged at (cycle-end spec, rule 2): the current week, or `weeks + 1` once the cycle's last day
+ * is past, so a goal due in the last week gets its result, and the last quarter closes, without anyone pressing a
+ * button. `currentWeek` stops at `weeks` (a check-in given after the end is dated the last week); only results, the
+ * quarters and the end of "due" read this.
+ */
+export function resultWeek(cycle: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): number {
+  return Math.max(0, Math.min(cycle.weeks + 1, Math.floor(daysBetween(cycle.startDate, today) / 7)));
+}
+
+/** Whether the cycle's last day is past: nothing in it is due, late or out of date from then on. */
+export const hasEnded = (cycle: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => resultWeek(cycle, today) > cycle.weeks;
+
 /** Days since an ISO timestamp. */
 export function daysSince(iso: string, today: Date): number {
   return daysBetween(iso, today);
@@ -204,11 +217,15 @@ export function forecast(series: Point[], weeks: number): number | null {
   return projection(series, weeks)?.value ?? null;
 }
 
+// Made once: a formatter is slow to make, and every goal's summary asks for a week's dates (AX4).
+const DAY_ONLY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', timeZone: 'UTC' });
+const DAY_MONTH = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
 /** "2–8 Nov" (or "28 Oct–3 Nov"): the calendar days of a cycle week, Monday to Sunday. */
 export function weekDates(cycle: Cycle, week: number): string {
   const a = new Date(weekDate(cycle, week) + 'T00:00:00Z');
   const b = new Date(a.getTime() + 6 * 86_400_000);
-  const d = (x: Date, month: boolean) => x.toLocaleDateString('en-GB', { day: 'numeric', ...(month ? { month: 'short' } : {}), timeZone: 'UTC' });
+  const d = (x: Date, month: boolean) => (month ? DAY_MONTH : DAY_ONLY).format(x);
   const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
   // A week in another calendar year than the cycle's own says which: "28 Dec–3 Jan 2027". The cycle's year is week 1's
   // (its start can be the week before, in the previous December).

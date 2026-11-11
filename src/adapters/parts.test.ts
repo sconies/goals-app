@@ -6,8 +6,9 @@ import { feedbackToRow } from '../data/rows';
 import { buildExample } from '../data/examples';
 import { localFeedback } from '../markup/feedback';
 import { markupToRow } from '../markup/model';
-import type { Feedback } from '../domain/types';
-import { clockContract, feedbackContract, filesContract, identityContract, markupContract, numberSourceContract } from '../ports/contracts/parts';
+import type { Feedback, Person } from '../domain/types';
+import { clockContract, feedbackContract, filesContract, identityContract, markupContract, numberSourceContract, pickerContract } from '../ports/contracts/parts';
+import { signInIdentity } from './signIn';
 import { contractWorkspace } from '../ports/contracts/store';
 import { DEMO_SOURCE, demoNumbers } from './demo/numbers';
 import { browserPrefs, fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
@@ -63,7 +64,23 @@ feedbackContract('in this browser', async () => {
 });
 
 const storage = memory();
-identityContract('the “Who are you?” picker', () => pickerIdentity('faro-me:', () => storage));
+identityContract('the “Who are you?” picker', () => { const kept = memory(); const identity = pickerIdentity('faro-me:', () => kept); return { identity, signIn: (ws, id) => identity.choose(ws, id) }; });
+pickerContract('the “Who are you?” picker', () => pickerIdentity('faro-me:', () => storage));
+// A sign-in by email, matched to the workspace's person records (adapters/signIn.ts), with a stand-in session.
+identityContract('a sign-in, by email', () => {
+  let email: string | null = null;
+  const people = new Map<string, Person[]>();
+  const identity = signInIdentity(async () => email, async (ws) => people.get(ws) ?? []);
+  return {
+    identity,
+    signIn: (ws, id) => {
+      email = 'Someone@Example.com';
+      // The same person signed in may be a different record in each workspace.
+      for (const [w, list] of people) people.set(w, list.filter((p) => p.id !== id));
+      people.set(ws, [...(people.get(ws) ?? []).filter((p) => p.email !== 'someone@example.com'), { id, name: id, role: '', initials: '', teamId: null, admin: false, email: 'someone@example.com' } as Person]);
+    },
+  };
+});
 clockContract('the system clock', () => systemClock);
 clockContract('a fixed clock', () => fixedClock(new Date('2026-11-11T09:00:00Z')));
 filesContract('in memory', async () => memoryFiles());

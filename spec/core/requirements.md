@@ -65,14 +65,14 @@ The projection is steady on a noisy number and called exactly on a clean trend: 
 
 When a check-in still needs a reason or a path back, last week's are offered back: 'Still true' carries them over, 'It's changed' opens them for editing.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
 ### ONE-ACCOUNT
 
 When something changed, the owner gives one short account on one screen after the number: what changed, what happens next and by when, starting from last week's words. Progress is stable, the button says Continue until the step that posts, and Still true still posts last week's account in one press.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U39
 
 ### OTHER-CAUSE
@@ -80,8 +80,15 @@ When something changed, the owner gives one short account on one screen after th
 When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U40
+
+### CHECK-IN-QUEUE
+
+The week's check-ins can be seen as a list and started from any of them: Check-in opens on what's due this week, in the order the walk takes them, each with its status and what it last said, a kept draft said on its row; Start with the first walks them all, as Home's Start check-in does; what's done this week can be corrected; the one-table check-in is a line away. Someone who owns no goal is told so.
+
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
+- **Journeys and checks:** U71
 
 ## Change log
 
@@ -166,7 +173,7 @@ One trend rule (domain/trend.ts): a goal is getting worse when it is further beh
 A call greener than the calculation needs a reason and is flagged on the goal.
 
 - **Rule:** [A goal’s status](rules/status.md), [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
-- **Help:** “What the statuses mean” (`status`); “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “What the statuses mean” (`status`); “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U15
 
@@ -175,7 +182,7 @@ A call greener than the calculation needs a reason and is flagged on the goal.
 A reason (cause and explanation) is required when behind plan (below 95%).
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U1, U57
 
@@ -184,7 +191,7 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U57
 
 ### REASON-AHEAD
@@ -192,7 +199,7 @@ A check-in says which week it is for and where it is in the week's queue, even a
 A reason is required when 120% or more ahead, and the check-in asks whether the target should change.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U7
 
@@ -201,7 +208,7 @@ A reason is required when 120% or more ahead, and the check-in asks whether the 
 At risk and Off track need a path to green: what changes and a future week it is back on plan by, plus any decision needed. Carrying last week's account forward shows the open request with it, and the owner can keep it or withdraw it. A request for a decision or help is a record: open until the person asked answers it or the owner withdraws it, shown once to the person asked however many goals wait on it, answered once for all of them, and the answer shown on each goal and in the next review.
 
 - **Rule:** [What a check-in must say](rules/check-in.md), [Flags, the trend and needs attention](rules/flags.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Asks: decisions, updates, questions and actions” (`requests`), screens `Respond`
 - **Tests:** `evals/scenarios.eval.ts` (5)
 - **Journeys and checks:** U1, U36, U37, U39
 
@@ -210,7 +217,7 @@ At risk and Off track need a path to green: what changes and a future week it is
 The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Tests:** `evals/scenarios.eval.ts` (1)
 - **Journeys and checks:** U1, U15
 
@@ -218,21 +225,21 @@ The check-in shows actual against plan today, the gap, the forecast and the calc
 
 Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
 ### UPDATE-ANYTIME
 
 The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
 ### OWNER-ONLY
 
 Only the goal's owner can post its check-in.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9
 
 ## Goals
@@ -252,6 +259,15 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U4, U18, U25
+
+### NEW-GOAL-TRUTH
+
+A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
+
+- **Rule:** [A goal not born late](rules/not-born-late.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Tests:** `evals/onboarding.eval.ts` (1)
+- **Journeys and checks:** U85
 
 ### GOAL-PAGE
 
@@ -286,7 +302,7 @@ In the Goals table and the quarter results, the column headings stay in view whi
 Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U25
 
 ### SAVED-VIEWS
@@ -295,7 +311,7 @@ Search, filter and sort the goals in every layout and in exports. Search covers 
 
 - **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** N10, U32, U33, U34
+- **Journeys and checks:** N10, U32, U33, U34, U87
 
 ### GOAL-SUMMARY
 
@@ -408,6 +424,13 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 - **Rule:** [The Goals page: whose goals, how they are grouped, and the switch](rules/goals-page.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
 - **Journeys and checks:** U73
+
+### GOALS-MENUS
+
+Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
+
+- **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
+- **Journeys and checks:** U87
 
 ## Platform
 
@@ -542,7 +565,7 @@ Needs attention means new since something was agreed (Lane, 10 Nov): a goal that
 
 ### ONE-ATTENTION-RULE
 
-Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the map's "Only what needs attention", the Goals filter (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
+Needs attention is one rule (domain/attention.ts): off track, at risk, no recent update, getting worse, missed or missing path to green, a decision or help waiting, or greener than calculated, unless someone is already handling it. Home, Watching, the Goals switch and filter (the Map's included) (with an optional "because"), reviews and the AI assistant pick exactly the same goals on every day the example is checked on, and list the same goals being handled below them; an old link's needs=no-recovery still opens No path to green.
 
 - **Rule:** [Flags, the trend and needs attention](rules/flags.md)
 - **Help:** “Needs attention, and being handled” (`needs-attention`)
@@ -609,7 +632,7 @@ A review's agenda reads at a glance: one line per goal (status, name, number, ga
 
 Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`; “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U1, U4, U30, U34, U57
 
 ## Data
@@ -633,7 +656,7 @@ An owner can type the week’s numbers for all their number goals in one table; 
 
 Pressing Post again, pressing Enter then clicking, or a double tap never posts a check-in twice; the same holds for the check-in table and answering a request. A check-in already being saved is waited for, not repeated.
 
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
 - **Journeys and checks:** U38
 
 ### NO-LOST-UPDATES
@@ -771,9 +794,17 @@ From the last two weeks of a cycle, each owner wraps up their goals: how it land
 
 Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year.
 
-- **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
+- **Rule:** [Weeks and plans](rules/weeks-and-plans.md), [A year’s end](rules/year-end.md)
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`; “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
-- **Journeys and checks:** U18, U23
+- **Journeys and checks:** U18, U23, U117
+
+### RESULTS
+
+A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
+
+- **Rule:** [A year’s end](rules/year-end.md)
+- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Workspace: Cycles” (`workspace-cycles`)
+- **Journeys and checks:** U117
 
 ### CALENDAR-WEEKS
 
@@ -795,11 +826,11 @@ The same goals can be seen as a list, a sortable table, a board by status, or a 
 
 ### GOAL-MAP
 
-A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, a filter for what needs attention, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; a find box finds a goal by name or key (G-48), opens its tree, outlines it and moves to it; each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
+A goal map shows every goal on a canvas that can be panned, zoomed and rearranged: north stars at the top, solid lines for feeds into, dotted lines for also helps, branches that fold and unfold, the list bar's Needs attention switch, and the critical path (the inputs most likely to make each top goal miss) drawn bold. It works at the size of a division (126 goals): it opens folded to the top goals with only the critical path beneath them; the trees wrap into rows so Fit all shows every goal; the list bar's search, on the Map, lists the goals it finds by name or key (G-48), and choosing one opens its tree, outlines it and moves to it without narrowing the Map (Enter with nothing chosen narrows, as on every layout); each goal shows its number, target and gap, and a goal others feed shows the worst status of everything under it (the List's roll-up, by the group-status rule); Troubled trees only keeps the trees with anything off track, at risk or without a recent update; the map refits whenever what it shows changes, and draws at once, with no staged wait. Selecting a goal shows its story beside the map. The map never removes a goal: Delete and Backspace do nothing on it. On a phone the same map is indented, one goal per row.
 
 - **Rule:** [The goal map](rules/map.md)
 - **Help:** “The goal map” (`goal-map`), screens `GoalMap`
-- **Journeys and checks:** U26, U30
+- **Journeys and checks:** U26, U30, U87
 
 ## AI assistants
 
@@ -1006,6 +1037,29 @@ Collapsed to a rail (and always between 761 and 1100 px), each icon names itself
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** U67
 
+### NAV-WHERE
+
+Every page names itself in the browser's title (“{name} · {workspace} · Faro”) and lights one place: a goal, review, person, team or Help article by its own name, with what the page does to it (“Change {goal}”, “Check in: {goal}”, “{goal} · {review}” in a review's walk); Goals is “Goals” on every tab; a Workspace section is “{section} · Workspace”; an address that leads nowhere says “Page not found”. A goal in a review's walk lights Reviews, a saved view lights itself, and on a phone the tab that holds the lit place (or More) is lit.
+
+- **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U69
+
+### NAV-BACK
+
+One back link per page, “‹ {where}” above the title, never on a place's first page: back to the last page in this tab that isn't a form and isn't this page, named as the menu names it, going back in the browser's history so Forward still works; the browser's Back onto a form you left steps over it the same way. Arriving from outside it goes to the page's parent: the goal a goal feeds, else Goals; the review for a goal in its walk; People, Teams, Help, Reviews.
+
+- **Rule:** [Navigation: the menu, the lit item and a page’s name](rules/navigation.md)
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U70
+
+### NAV-FORMS
+
+A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
+
+- **Help:** “Getting around” (`getting-around`)
+- **Journeys and checks:** U72
+
 ## Finding
 
 ### LIST-BAR
@@ -1021,6 +1075,14 @@ A person, team, goal or metric is always chosen by typing to find it, never from
 
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** F11, U63, U91
+
+### FIND-ANYWHERE
+
+Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
+
+- **Rule:** [Finding things](rules/finding.md)
+- **Help:** “Finding and choosing” (`finding`)
+- **Journeys and checks:** U65
 
 ## Export
 
@@ -1246,7 +1308,7 @@ Faro is a small core with named extension points (routes, navigation, Home block
 A number is never rounded quietly: one typed with more decimal places than its goal keeps is refused, with what it would show as, in the check-in, New goal, goal edit, the import and the AI tools. Letters in a number get one message everywhere, every number shown has its thousands grouped, and numbers far outside the plan are questioned, never refused.
 
 - **Rule:** [Numbers and names](rules/numbers-and-names.md)
-- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F9
 
 ## Names

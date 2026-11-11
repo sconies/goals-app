@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
-import { weekDates } from '../domain/plan';
+import { currentWeek, weekDates } from '../domain/plan';
 import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
@@ -15,15 +16,23 @@ import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 
-/** The focused weekly check-in: every due goal, one at a time, then done. */
+/**
+ * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
+ * goal, one at a time, then done (what Home's Start check-in and the list's Start with open); /check-in/:goal is one
+ * goal's check-in.
+ */
 export function CheckInFlow() {
   // A fresh flow for each goal (or the whole week): moving from /check-in to /check-in/:goal must not keep the old queue.
   const { goalId } = useParams();
+  const [params] = useSearchParams();
+  const fromTable = !!(useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  if (!goalId && params.get('start') !== '1' && !fromTable) return <CheckInQueue />;
   return <Flow key={goalId ?? 'week'} goalId={goalId} />;
 }
 
@@ -36,7 +45,10 @@ export interface FromTable { posted: string[]; kept: number }
 function Flow({ goalId }: { goalId?: string }) {
   const app = useApp();
   const nav = useNavigate();
-  const fromTable = (useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  const location = useLocation();
+  const fromTable = (location.state as { fromTable?: FromTable } | null)?.fromTable;
+  // Opened from the week's list, closing goes back to it (with the draft kept); otherwise Home, as before.
+  const closeTo = (location.state as { from?: string } | null)?.from === 'queue' ? '/check-in' : '/';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
@@ -94,7 +106,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+          <FormClose keeps onClose={() => nav(closeTo)} />
         </span>
       </div>
       {justPosted ? (
@@ -263,6 +275,21 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const team = app.team(goal.teamId);
 
   const valueOk = goal.kind === 'milestone' || !e.codes.some((c) => VALUE_CODES.includes(c));
+  // The first number can restart the plan, when the goal is new and the number isn't where its plan starts (rule 4).
+  const [rebased, setRebased] = useState<'start' | 'keep' | null>(null);
+  const [rebasedFrom, setRebasedFrom] = useState<string | null>(null);
+  const [beforeRebase, setBeforeRebase] = useState<typeof goal | null>(null);
+  const offer = valueOk && rebased !== 'keep' && !existing ? rebaseOffer(goal, cycle, week, parseNumber(draft.value), app.snapshot.checkIns, goal.createdAt ? currentWeek(cycle, new Date(goal.createdAt)) : 0) : null;
+  const startFrom = async () => {
+    if (!offer || goal.kind !== 'metric') return;
+    const from = fmt(offer.start, goal), to = fmt(offer.value, goal);
+    try { await app.saveGoal(rebase(goal, offer.value, week), goal, rebaseWhy(to, from)); setBeforeRebase(goal); setRebased('start'); setRebasedFrom(to); } catch { /* the save already said what went wrong */ }
+  };
+  // Undo puts the plan back as it was, and asks again.
+  const undoRebase = async () => {
+    if (!beforeRebase || beforeRebase.kind !== 'metric' || goal.kind !== 'metric') return;
+    try { await app.saveGoal({ ...goal, plan: beforeRebase.plan }, goal, `Put the plan back to start at ${fmt(beforeRebase.plan.start, goal)}`); setRebased(null); setRebasedFrom(null); setBeforeRebase(null); } catch { /* the save already said what went wrong */ }
+  };
   const needsWhy = valueOk && !!e.reason;
   const needsWay = valueOk && e.needsPath;
   // Last week's story, offered back when this week still needs a reason or a path.
@@ -328,6 +355,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
+      if (offer) { setTried(true); return; }
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
     } else if (step === 'account') {
@@ -439,6 +467,18 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
                 {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
               </span>
               {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
+              {!previous && <span className="hint">This sets where it stands today.</span>}
+              {offer && goal.kind === 'metric' && (
+                <div className="rebase" role="status">
+                  <span>The plan starts at {fmt(offer.start, goal)}; you’ve typed {fmt(offer.value, goal)}. Start the plan from {fmt(offer.value, goal)}?</span>
+                  <span className="row">
+                    <button type="button" className="btn" onClick={() => void startFrom()}>Start from {fmt(offer.value, goal)}</button>
+                    <button type="button" className="btn" onClick={() => setRebased('keep')}>Keep {fmt(offer.start, goal)} and say why</button>
+                  </span>
+                  {tried && <span className="hint tone-off" role="alert">Choose one: start the plan from this number, or keep it and say why.</span>}
+                </div>
+              )}
+              {rebased === 'start' && rebasedFrom && <span className="hint" role="status">The plan now starts from {rebasedFrom}. <button type="button" className="linkish" onClick={() => void undoRebase()}>Undo</button></span>}
               {!draft.value.trim() && onSkip && <button type="button" className="linkish tap small" style={{ alignSelf: 'flex-start' }} onClick={onSkip}>No new number this week</button>}
             </div>
             );

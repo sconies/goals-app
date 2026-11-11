@@ -1,0 +1,12 @@
+Goal,Level,Team,Owner,Type,Unit,Start,Target
+N1 text target,team,CI/CD,Rhea Kapoor,metric,%,10,fast
+N2 percent sign,team,CI/CD,Rhea Kapoor,metric,%,10%,12%
+N3 decimal comma,team,CI/CD,Rhea Kapoor,metric,days,"1,5","0,5"
+N4 negative,team,CI/CD,Rhea Kapoor,metric,%,-5,20
+N5 hundredfold,team,CI/CD,Rhea Kapoor,metric,ms,3,3000
+N6 over 100 pct,team,CI/CD,Rhea Kapoor,metric,%,40,400
+N7 same,team,CI/CD,Rhea Kapoor,metric,%,40,40
+N8 no target,team,CI/CD,Rhea Kapoor,metric,%,40,
+N9 thousands,team,CI/CD,Rhea Kapoor,metric,USD,"1,250","2,500"
+N10 no unit,team,CI/CD,Rhea Kapoor,metric,,1,5
+N11 billion,team,CI/CD,Rhea Kapoor,metric,requests,1,2000000000

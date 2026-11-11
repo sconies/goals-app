@@ -4,15 +4,15 @@ import { OWNER_VIEW_LABEL } from '../domain/vocabulary';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { periodLabel, periodWord } from '../domain/year';
-import { RESULT_LABEL, suggestedResult, wrapUpOpen } from '../domain/cycle';
+import { periodWord } from '../domain/year';
+import { cycleDates, cycleState, dayWithYear, periodNow, RESULT_LABEL, suggestedResult, wrapUpOpenOn } from '../domain/cycle';
 import { MIN_LEARNED } from '../domain/actions';
 import { fmt, gapBeside, NO_VALUE } from '../domain/format';
 import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
 import { Chip, Empty, LevelTag, ProgressRing, Sheet } from '../ui/bits';
-import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 
@@ -26,7 +26,7 @@ export function WrapUp() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
-  const open = wrapUpOpen(app.cycle, app.week);
+  const open = wrapUpOpenOn(app.cycle, app.today);
   const w = periodWord(app.cycle);
   const retroOf = (g: Goal) => app.snapshot.retros.find((r) => r.goalId === g.id);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
@@ -48,12 +48,14 @@ export function WrapUp() {
   return (
     <div className="page narrow">
       <div className="page-head">
-        <span className="eyebrow">{periodLabel(app.cycle, app.week)}</span>
+        <span className="eyebrow">{periodNow(app.cycle, app.today)}</span>
         <h1 className="title-xl">Wrap up the {w}</h1>
         <span className="hint">Each owner says how their goals landed and what they learned. Then next {w}’s goals start with the ones that carry on.</span>
       </div>
       {!open && (
-        <div className="calm">The wrap-up opens in week {app.cycle.weeks - 1}. {app.cycle.weeks - 1 - app.week === 1 ? 'That’s next week.' : `That’s in ${app.cycle.weeks - 1 - app.week} weeks.`}</div>
+        <div className="calm">{cycleState(app.cycle, app.today) === 'closed'
+          ? `The wrap-up closed on ${dayWithYear(cycleDates(app.cycle).wrapUpCloses)}. ${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}.`
+          : <>The wrap-up opens in week {app.cycle.weeks - 1}, on {dayWithYear(cycleDates(app.cycle).wrapUpOpens)}. {app.cycle.weeks - 1 - app.week === 1 ? 'That’s next week.' : `That’s in ${app.cycle.weeks - 1 - app.week} weeks.`}</>}</div>
       )}
 
       {open && mine.length > 0 && (
@@ -137,6 +139,9 @@ function RetroForm({ goal }: { goal: Goal }) {
   const [result, setResult] = useState<Retro['result']>(before?.result ?? suggestedResult(goal, app.cycle, app.snapshot.checkIns, app.today));
   const [learned, setLearned] = useState(before?.learned ?? '');
   const [next, setNext] = useState<Retro['next']>(before?.next ?? 'carry');
+  // Something typed or chosen since it opened: closing asks first (navigation spec 2.5).
+  const [start] = useState(() => JSON.stringify([result, learned, next]));
+  const dirty = JSON.stringify([result, learned, next]) !== start;
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const st = app.statusOf(goal);
@@ -159,7 +164,7 @@ function RetroForm({ goal }: { goal: Goal }) {
       <div className="focus-top">
         <span className="small strong">Wrap up</span>
         <span className="hint">{mineLeft.length && !before ? `${mineLeft.length} more after this` : ''}</span>
-        <button className="iconbtn" onClick={() => nav('/retro')} aria-label="Close without saving"><Icon name="close" /></button>
+        <FormClose keeps={false} dirty={dirty} onClose={() => nav('/retro')} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 'var(--s2)' }}>

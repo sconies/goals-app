@@ -3,7 +3,8 @@ import { parseNumber } from './checkin';
 import { nameProblem } from './thresholds';
 import { farOutside, fixed, notNumberText, precisionProblem, setupProblem } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
-import type { Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape } from './types';
+import type { CheckIn, Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, Status } from './types';
+import { assessMilestone } from './status';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -35,7 +36,8 @@ export interface GoalDraft {
   bound: 'atMost' | 'atLeast';
   limit: string;
   margin: string;
-  stages: { id: string; name: string; dueWeek: string }[];
+  /** `done`: for a stage due before this week, whether it is already done (rule 3): asked, then 'yes' or 'no'. */
+  stages: { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' }[];
 }
 
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
@@ -60,7 +62,7 @@ export function draftOf(g: Goal): GoalDraft {
 
 export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start' | 'target' | 'limit' | 'margin' | 'decimals' | 'effect' | 'stages' | 'points', string>>;
 
-export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null): GoalErrors {
+export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null, week?: number): GoalErrors {
   const e: GoalErrors = {};
   const named = nameProblem(d.title, 'goal');
   if (named) e.title = named;
@@ -102,6 +104,8 @@ export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null)
     if (!rows.length) e.stages = 'Add at least one stage.';
     else if (rows.some((s) => !s.name.trim())) e.stages = 'Every stage needs a name.';
     else if (rows.some((s) => { const w = parseNumber(s.dueWeek); return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks; })) e.stages = 'Every stage needs a due week between 1 and ' + cycle.weeks + '.';
+    // A new goal's stage already past is asked about, so it isn't born late without anyone saying so (rule 3).
+    else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek)!, week) && !s.done)) e.stages = 'Say whether this stage is done.';
   }
   return e;
 }
@@ -238,4 +242,27 @@ export function overHundredHint(unit: string, start: string, target: string): st
   const s = parseNumber(start), t = parseNumber(target);
   if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
   return 'Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.';
+}
+
+/* ---------- a stage already past at set-up (onboarding spec, rule 3; OB2) ---------- */
+
+/** Rule 3. A stage due before this week is past: setting the goal up asks whether it is already done. */
+export const pastStage = (dueWeek: number, week: number) => dueWeek < week;
+
+/** The note on the check-in that records stages already done when a goal was set up. */
+export const DONE_AT_SET_UP = 'Recorded as already done when the goal was set up';
+
+/**
+ * Rule 3. The stages answered "done" at set-up, as one check-in in the week of the latest of them: each done in its own
+ * due week, so none is late. Null when none was. The status is what the stage rule says at that week.
+ */
+export function stagesDoneAtSetUp(goal: Goal, doneIds: readonly string[], authorId: string, now: string, id: string): CheckIn | null {
+  if (goal.kind !== 'milestone') return null;
+  const done = goal.stages.filter((s) => doneIds.includes(s.id));
+  if (!done.length) return null;
+  const week = Math.max(...done.map((s) => s.dueWeek));
+  const stages = goal.stages.map((s) => ({ stageId: s.id, doneWeek: doneIds.includes(s.id) ? s.dueWeek : null, forecastWeek: null }));
+  const a = assessMilestone(goal, week, stages);
+  const status: Status = a.calc === 'planned' || a.calc === 'none' ? 'on' : a.calc;
+  return { id, goalId: goal.id, authorId, week, postedAt: now, value: null, stages, status, calculated: status, cause: null, why: DONE_AT_SET_UP, greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false };
 }

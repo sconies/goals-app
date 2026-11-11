@@ -166,7 +166,8 @@ module.exports = {
       fail(items.length <= 4 && !items.some((x) => ['Mine', 'Watching', 'All'].includes(x)) && items.includes('North star'), `[NAV-GOALS] under Goals: ${items.join(', ')}`);
       fail(!items.includes('Off track') || items.indexOf('North star') < items.indexOf('Off track'), '[NAV-GOALS] the pinned view is not listed before your own');
       const current = () => p.evaluate(() => [...document.querySelectorAll('.side [aria-current="page"]')].map((e) => e.textContent.trim()));
-      await sub.getByRole('link', { name: 'North star' }).click(); await p.waitForTimeout(250);
+      await sub.getByRole('link', { name: 'North star' }).click();
+      for (let i = 0; i < 20 && (await current()).join() !== 'North star'; i++) await p.waitForTimeout(100);
       fail(/level=north-star/.test(p.url()) && (await current()).join() === 'North star', `[NAV-GOALS] a saved view: ${p.url()}, current ${await current()}`);
       await p.locator('.side').getByRole('link', { name: /^Goals/ }).click(); await p.waitForTimeout(250);
       fail(/\/demo\/goals\?(.*&)?scope=/.test(p.url()) && (await current()).join() === 'Goals', `[NAV-GOALS] Goals: ${p.url()}, current ${await current()}`);
@@ -247,24 +248,24 @@ module.exports = {
       const back = () => p.locator('.backlink').first();
       await p.locator('.side').getByRole('link', { name: 'Activity' }).click(); await p.waitForTimeout(250);
       await p.locator('.side').getByRole('link', { name: 'Settings' }).click(); await p.waitForTimeout(250);
-      fail(/Back to Activity/.test(await back().innerText()), `[SETTINGS] Settings after Activity: "${await back().innerText()}"`);
-      await back().click(); await p.waitForTimeout(250);
-      fail(/\/demo\/activity/.test(p.url()), `[SETTINGS] Back from Settings went to ${p.url()}`);
+      // Settings is a place's first page: no back link (navigation spec 2.5).
+      fail(await p.locator('.backlink').count() === 0, `[SETTINGS] Settings has a back link: "${await back().getAttribute('aria-label').catch(() => '')}"`);
       // Home → a goal → Change this goal → saved: Back on the goal skips the form and returns Home.
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
       await p.goto(url('/goals/ns-lead')); await p.waitForTimeout(300);
-      fail(/Back to Goals/.test(await back().innerText()), `[SETTINGS] a goal opened from outside: "${await back().innerText()}" (want its parent, Goals)`);
+      fail(/Back to Goals/.test(await back().getAttribute('aria-label')), `[SETTINGS] a goal opened from outside: "${await back().getAttribute('aria-label')}" (want its parent, Goals)`);
       await p.locator('.side').getByRole('link', { name: 'Home' }).click(); await p.waitForTimeout(250);
       // Any of Maya's own goals on Home (the north star may be folded away under Being handled).
       await p.locator('.page a[href*="/goals/"]:visible').filter({ hasNotText: /^Goals$/ }).first().click(); await p.waitForTimeout(300);
-      fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] a goal opened from Home: "${await back().innerText()}"`);
+      fail(/Back to Home/.test(await back().getAttribute('aria-label')), `[SETTINGS] a goal opened from Home: "${await back().getAttribute('aria-label')}"`);
       const title = (await p.locator('h1').first().innerText()).trim();
       // Edit is "Change this goal" in the bar's "…" menu: one link to the goal's form (GT1).
       await p.locator('.goal-bar summary[aria-label="More about this goal"]').click();
       await p.getByRole('group', { name: 'More about this goal' }).getByRole('link', { name: 'Change this goal' }).click(); await p.waitForTimeout(300);
-      fail((await back().innerText()).includes(`Back to ${title}`), `[SETTINGS] Edit goal: "${await back().innerText()}" (want Back to ${title})`);
+      // A form's one way out is its closing control: no back link as well (navigation spec 2.5).
+      fail(await p.locator('.backlink').count() === 0, `[SETTINGS] Edit goal has a back link as well as its closing control: "${await back().getAttribute('aria-label').catch(() => '')}"`);
       await p.getByRole('button', { name: 'Save changes' }).click(); await p.waitForTimeout(400);
-      fail(/Back to Home/.test(await back().innerText()), `[SETTINGS] after saving an edit, the goal's Back says "${await back().innerText()}" (want Home, not the form)`);
+      fail(/Back to Home/.test(await back().getAttribute('aria-label')), `[SETTINGS] after saving an edit, the goal's Back says "${await back().getAttribute('aria-label')}" (want Home, not the form)`);
       await back().click(); await p.waitForTimeout(300);
       fail(/\/demo\/?(\?|$)/.test(p.url()), `[SETTINGS] Back from the goal went to ${p.url()}`);
       await c.close();
@@ -274,7 +275,7 @@ module.exports = {
       await p.getByRole('button', { name: /^(Start|Continue) review/ }).click(); await p.waitForTimeout(400);
       fail(/review=weekly/.test(p.url()), `[SETTINGS] starting the review opened ${p.url()}`);
       await p.getByRole('button', { name: /^Next goal/ }).first().click(); await p.waitForTimeout(400);
-      const t = await p.locator('.backlink').first().innerText();
+      const t = await p.locator('.backlink').first().getAttribute('aria-label');
       fail(/Back to Platform leadership weekly/.test(t), `[SETTINGS] walking a review, Back says "${t}"`);
       await p.locator('.backlink').first().click(); await p.waitForTimeout(300);
       fail(/\/demo\/reviews\/weekly(\?|$)/.test(p.url()), `[SETTINGS] Back from the walk's second goal went to ${p.url()} (want the review, past the walk)`);
