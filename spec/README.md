@@ -11,6 +11,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | Part | What it holds |
 |---|---|
 | [core/data-model.md](core/data-model.md) | Every record and field, with the comment written beside it in `src/domain/types.ts`, and the database tables |
+| [core/schema.sql](core/schema.sql) | The database as it is after every migration, read back from Postgres: tables, constraints, indexes, functions, triggers and access, in one file to read |
 | [core/vocabulary.md](core/vocabulary.md) | Every word for a state: its code, label, meaning and the rule that decides it (`src/domain/vocabulary.ts`) |
 | [core/rules/](core/rules/README.md) | Every core rule in plain words, with worked examples (run against the code by the spec’s own test) and the tests that check it |
 | [core/screens.md](core/screens.md) | Each core screen: its route, purpose, named parts, main action and the AI tools that do the same |
@@ -25,7 +26,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 
 1. [The data model](core/data-model.md): Cycle, Goal (three kinds), CheckIn, Ask, Decision.
 2. [The vocabulary](core/vocabulary.md): the codes the rules return and the words people read.
-3. The rules, in order: [Weeks and plans](core/rules/weeks-and-plans.md), [A goal’s status](core/rules/status.md), [The projection](core/rules/projection.md), [What a check-in must say](core/rules/check-in.md), [Numbers and names](core/rules/numbers-and-names.md), [Flags, the trend and needs attention](core/rules/flags.md), [The scorecard](core/rules/scorecard.md), [The change engine](core/rules/change-engine.md).
+3. The rules, in order: [Weeks and plans](core/rules/weeks-and-plans.md), [A year’s end](core/rules/year-end.md), [A goal’s status](core/rules/status.md), [The projection](core/rules/projection.md), [What a check-in must say](core/rules/check-in.md), [Numbers and names](core/rules/numbers-and-names.md), [Flags, the trend and needs attention](core/rules/flags.md), [The scorecard](core/rules/scorecard.md), [The change engine](core/rules/change-engine.md).
 4. [The conformance data](conformance/README.md): run the rebuild on `workspace.json` and match every row.
 5. [Stage 1 of the rebuild kit](rebuild/stage-1-core-rules.md): the contract, and how the drill harness scores it.
 

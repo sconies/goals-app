@@ -4,7 +4,7 @@
    Also the result once a goal is due: Completed, Completed late or Did not meet. */
 import { causeLabel } from './checkin';
 import { fmt, fmtDiff, LEVEL_LABEL, NO_VALUE } from './format';
-import { planAt, planEnd, weekDates } from './plan';
+import { planAt, planEnd, resultWeek, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, projects } from './status';
 import { flagsFor } from './attention';
 import { FLAG, LABEL, MEANING, RESULT_MEANING, RESULT_TEXT, SHORT_MEANING, WARNING, type FlagKind, type ResultKind, type WarningKind } from './vocabulary';
@@ -115,7 +115,9 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
   const a = assessPosted(g, cycle, s.checkIns, week);
   const status = st.status;
   const behind = BEHIND.includes(status);
-  const result = goalResult(g, cycle, s.checkIns, week);
+  // Results and quarters are judged at the week after the last once the cycle has ended (cycle-end rule 2).
+  const rw = Math.max(week, resultWeek(cycle, today));
+  const result = goalResult(g, cycle, s.checkIns, rw);
   const warnings: string[] = [];
   const flags: StoryFlag[] = [];
   const warn = (kind: StoryFlag, text: string) => { flags.push(kind); warnings.push(text); };
@@ -155,7 +157,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
     const end = Math.min(q.to, due);
     if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end)!, g)} by week ${end}.`;
   }
-  const quarters = quarterResults(g, cycle, s.checkIns, week);
+  const quarters = quarterResults(g, cycle, s.checkIns, rw);
   const lastEnded = [...quarters].reverse().find((x) => x.kind === 'met' || x.kind === 'missed');
   const fc = forecastText(g, a, cycle.weeks, cycle);
   // A goal gone quiet has no trustworthy forecast: its numbers are out of date.

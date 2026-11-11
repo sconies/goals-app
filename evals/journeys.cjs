@@ -1201,6 +1201,51 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   await p.context().close();
 });
 
+journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
+  // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
+  // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_end', name: 'Year end', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_end', JSON.stringify({ ...full, changes: [] }));
+    localStorage.setItem('goals-app-workspace', 'ws_end');
+    localStorage.setItem('goals-app-viewer:ws_end', 'rhea');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const frame = async () => (await p.locator('.ws-meta, .ws-switch, header').first().innerText().catch(() => '')).replace(/\s+/g, ' ');
+  // The last day: still 2026's last week, and check-ins are still due.
+  await p.goto(on('2027-01-03', '/'));
+  await p.locator('.hero').first().waitFor();
+  const lastDay = await p.locator('body').innerText();
+  h.set('progress', /2026 · week 53, the last week/.test(lastDay), `on the last day the frame said “${await frame()}”`);
+  // The first day after: the year has ended by itself.
+  await p.goto(on('2027-01-11', '/'));
+  await p.locator('.hero').first().waitFor();
+  await h.inView(p.locator('.hero').first(), 'entry', 'Home’s main block');
+  const home = await p.locator('main').innerText();
+  const body = await p.locator('body').innerText();
+  h.set('finish', /2026 has ended/.test(body) && /2026 ended on Sun 3 Jan 2027/.test(home), `Home on 11 Jan 2027: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  h.set('attention', !/check-ins? to do|days late|were due|No recent update|no recent update/.test(home), `something is still due or out of date after the year ended: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  await h.checkpoint('home after the end');
+  // Her goals: none is out of date, and Q4 has closed on the numbers there are.
+  await p.goto(on('2027-01-11', '/goals/ns-lead'));
+  await p.locator('main h1').first().waitFor();
+  const goal = await p.locator('main').innerText();
+  h.set('errors', !/No recent update/.test(goal) && !/Q4[^\n]*(In progress|plan [0-9.]+ hours by week)/.test(goal), `the north star’s page after the end: “${goal.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  // Cycles gives the year's real first and last days, and says it ended.
+  await viewAs(p, 'Amara');
+  await p.goto(on('2027-01-11', '/workspace/cycles'));
+  const cycles = p.getByRole('list', { name: 'Cycles' });
+  await cycles.waitFor();
+  const row = (await cycles.innerText()).replace(/\s+/g, ' ');
+  h.set('parity', /2026 · ended 3 Jan 2027/.test(row) && /29 Dec 2025 to 3 Jan 2027/.test(row), `Cycles: “${row.slice(0, 200)}”`);
+  h.set('logged', true);
+  await p.context().close();
+}, ['budget']);
+
 journey('U15', ['OWNER-CALL', 'GREENER', 'CHECKIN-STATUS-VS-PLAN'], 'Call it greener than the numbers, with a reason, in the status sheet', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/check-in/ns-lead'));
@@ -3249,7 +3294,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   const g = await newPage(device, 'grace');
   await g.goto(url('/workspace/cycles'));
   await see(g, 'Week 45 of 53', 'Cycles does not say which cycle is running');
-  h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
+  h.set('attention', /29 Dec 2025 to 3 Jan 2027/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
   await g.goto(url('/teams'));
   await g.locator('.team-row', { hasText: 'CI/CD' }).click();
   await g.waitForURL(/\/teams\/cicd/);

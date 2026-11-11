@@ -3,7 +3,9 @@
 import { labels, OWNER_VIEW } from './vocabulary';
 import { lastKey } from './goalKey';
 import { requestsFromCheckIns } from './asks';
-import { isYear, yearWeeks } from './year';
+import { isYear, periodLabel, quarterOf, yearWeeks } from './year';
+import { currentWeek, hasEnded } from './plan';
+import { RULES } from './thresholds';
 import { yearName } from './yearName';
 import { assessMilestone, checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
@@ -84,8 +86,89 @@ export function withArchivedGoal(s: Snapshot, goalId: string): Snapshot {
   return { ...s, goals: [...s.goals, g], checkIns: [...s.checkIns, ...a.checkIns.filter((c) => c.goalId === goalId)], decisions: [...s.decisions, ...a.decisions.filter((d) => d.goalId === goalId)] };
 }
 
-/** From the last two weeks of a cycle, owners wrap up their goals. */
-export const wrapUpOpen = (cycle: Cycle, week: number) => week >= cycle.weeks - 1;
+/** A cycle's days, as ISO dates (cycle-end spec, rule 1). */
+export interface CycleDates {
+  /** Week 1's Monday: the first day anything is due. */
+  firstDay: string;
+  /** The last week's Sunday: the day the cycle ends, whether or not the next one is started. */
+  lastDay: string;
+  /** The Monday of the first week of the wrap-up (RULES.wrapUpWeeksBefore weeks before the end). */
+  wrapUpOpens: string;
+  /** The wrap-up's last day (RULES.wrapUpWeeksAfter weeks after the end). */
+  wrapUpCloses: string;
+}
+
+/**
+ * A cycle's real first and last days. Week 0 is the week before week 1 (for starting numbers); week n runs Monday to
+ * Sunday from `startDate` + 7n days, so the last week ends `(weeks + 1) × 7 − 1` days after `startDate`. In the demo's
+ * 2026 (from 22 Dec 2025, 53 weeks) that is Mon 29 Dec 2025 to Sun 3 Jan 2027.
+ */
+export function cycleDates(c: Pick<Cycle, 'startDate' | 'weeks'>): CycleDates {
+  const lastDay = addDays(c.startDate, (c.weeks + 1) * 7 - 1);
+  return {
+    firstDay: addDays(c.startDate, 7),
+    lastDay,
+    wrapUpOpens: addDays(c.startDate, (c.weeks - RULES.wrapUpWeeksBefore + 1) * 7),
+    wrapUpCloses: addDays(lastDay, RULES.wrapUpWeeksAfter * 7),
+  };
+}
+
+/** Where a cycle stands on a day: not begun, running, in its wrap-up weeks, ended (the wrap-up still open) or closed. */
+export type CycleState = 'before' | 'running' | 'ending' | 'ended' | 'closed';
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Where a cycle stands today (rule 1): the clock, not a button, ends a cycle. Week 0 is still `before`. */
+export function cycleState(c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): CycleState {
+  const t = isoDay(today), d = cycleDates(c);
+  if (t < d.firstDay) return 'before';
+  if (t < d.wrapUpOpens) return 'running';
+  if (t <= d.lastDay) return 'ending';
+  if (t <= d.wrapUpCloses) return 'ended';
+  return 'closed';
+}
+
+/** The wrap-up is open from the day it opens until the day it closes, four weeks after the cycle ends. */
+export const wrapUpOpenOn = (c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => ['ending', 'ended'].includes(cycleState(c, today));
+
+/** The cycle whose wrap-up is open today (the later, if two), or nothing. */
+export function wrapUpCycle(cycles: Cycle[], today: Date): Cycle | undefined {
+  return cycles.filter((c) => !c.removedAt && wrapUpOpenOn(c, today)).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+}
+
+/**
+ * From the last two weeks of a cycle (RULES.wrapUpWeeksBefore), owners wrap up their goals: the week it opens, for
+ * screens that count in weeks. Past the last week (`resultWeek` beyond `weeks`), it stays open; `wrapUpOpenOn` says
+ * when it closes.
+ */
+export const wrapUpOpen = (cycle: Pick<Cycle, 'weeks'>, week: number) => week >= cycle.weeks - RULES.wrapUpWeeksBefore + 1;
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
+export function dayWithYear(iso: string): string {
+  const d = new Date(iso + 'T00:00:00Z');
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** The long place line (Goals, the wrap-up, Print): "Week 45 of 53 · Q4 (Oct–Dec) · 2026", or "2026 ended on Sun 3 Jan 2027" once its last day is past. */
+export function periodNow(c: Cycle, today: Date): string {
+  return hasEnded(c, today) ? `${c.name} ended on ${dayWithYear(cycleDates(c).lastDay)}` : periodLabel(c, currentWeek(c, today));
+}
+
+/**
+ * The frame's place line (rule 1): "2026 · week 46 · Q4" while it runs; "2026 · week 53, the last week"; "2026 has
+ * ended" once its last day is past and no later cycle has begun; "2027 starts Mon 4 Jan 2027" before its week 1. A
+ * shorter cycle says "week 7 of 13" in place of the quarter.
+ */
+export function placeLine(c: Cycle, today: Date): string {
+  const state = cycleState(c, today);
+  if (state === 'before') return `${c.name} starts ${dayWithYear(cycleDates(c).firstDay)}`;
+  if (state === 'ended' || state === 'closed') return `${c.name} has ended`;
+  const w = Math.max(1, Math.min(c.weeks, Math.floor((Date.parse(isoDay(today) + 'T00:00:00Z') - Date.parse(c.startDate + 'T00:00:00Z')) / (7 * DAY))));
+  if (w === c.weeks) return `${c.name} · week ${w}, the last week`;
+  return isYear(c) ? `${c.name} · week ${w} · ${quarterOf(c, w).label}` : `${c.name} · week ${w} of ${c.weeks}`;
+}
 
 /** A first guess at how a goal landed, from its status at the end. The owner confirms or changes it. */
 export function suggestedResult(goal: Goal, cycle: Cycle, checkIns: CheckIn[], today: Date): Retro['result'] {
