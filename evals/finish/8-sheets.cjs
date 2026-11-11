@@ -100,8 +100,9 @@ module.exports = {
     for (const [w, h] of [[1440, 700], [390, 844]]) {
       await step(`toast in sheet ${w}`, async () => {
         const [c, p] = await open(w, h, 'amara', '/goals?scope=all', w < 800);
-        // Export these goals (on a phone, in the Views menu: backlog G).
-        if (w < 800) await p.locator('.show-menu > summary').click();
+        // Export these goals: in the Views menu, or the View sheet on a phone (GL2), whose sheet then sits under Export's.
+        if (w < 800) await p.locator('.goals-phone-switch .view-open').click();
+        else await p.locator('.views-menu > summary').click();
         await p.getByRole('button', { name: 'Export these goals' }).click();
         const sheet = p.getByRole('dialog', { name: 'Export goals' });
         await sheet.waitFor();
@@ -109,7 +110,8 @@ module.exports = {
         await p.locator('.sheet-toast').first().waitFor({ timeout: 3000 });
         await p.waitForTimeout(350); // its slide-in has finished
         const r = await p.evaluate(() => {
-          const t = document.querySelector('.sheet-toast').getBoundingClientRect(), b = document.querySelector('.sheet .sheet-body').getBoundingClientRect(), s = document.querySelector('.sheet').getBoundingClientRect();
+          const top = [...document.querySelectorAll('.sheet')].pop();
+          const t = top.querySelector('.sheet-toast').getBoundingClientRect(), b = top.querySelector('.sheet-body').getBoundingClientRect(), s = top.getBoundingClientRect();
           const g = document.querySelector('.toasts').getBoundingClientRect();
           return { tTop: t.top, tBottom: t.bottom, tLeft: t.left, bBottom: b.bottom, sBottom: s.bottom, sLeft: s.left, gW: g.width, vh: innerHeight };
         });

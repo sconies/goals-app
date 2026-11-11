@@ -11,13 +11,13 @@ import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInpu
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
 
-/** Goals' one way out (the goals.tools place): quiet, beside the layouts. Import and the rest are on Data. */
+/** Goals' one way out (the goals.tools place): an item in the Views menu, or the phone's View sheet. Import and the rest are on Data. */
 export function ExportTheseGoals({ goals, viewName, inMenu }: { goals: Goal[]; viewName: string; inMenu?: boolean }) {
   const app = useApp();
   const [open, setOpen] = useState(false);
   const item = useRef<HTMLButtonElement>(null);
   if (!app.snapshot.goals.length) return null;
-  // On a phone it's an item in the Goals Views menu (backlog G). The sheet opens in the page, outside the menu, which
+  // It's an item in Goals' Views menu on every width (goals spec, 2.1; GL2), and in the phone's View sheet. The sheet opens in the page, outside the menu, which
   // closes as it opens: the same place as the button's sheet, so it's laid out the same.
   if (inMenu) return (
     <>

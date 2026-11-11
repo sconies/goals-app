@@ -16,7 +16,7 @@
 .view-menu-list .menu-extra:empty { display: none; }
 
 @container app (max-width: 600px) {
-  .goals-page .goals-toolbar, .goals-page .layout-about { display: none !important; }
+  .goals-page .layout-about { display: none !important; }
   /* The health line (backlog GP) is for wider screens: on a phone the goals come first, and the Views button counts them. */
   .goals-page .goals-about { display: none !important; }
   /* The week line sits under the title, beside New goal, so the header stays one 44px row. */
@@ -39,3 +39,61 @@
   .goals-page .first-reports:not([data-why]) .first-reports-full { display: none; }
   .goals-page .first-reports:not([data-why]) .first-reports-more { display: none; }
 }
+
+/* ---------- The menus, the Map's search and the phone's View sheet (goals spec, 2.1, 2.3, 2.4; GL2) ---------- */
+/* The head and the bar don't move between layouts (G8): they keep the list's width in every frame, and only what's
+   under the count line widens for Table, Board, History and the Map. */
+.goals-page > .goals-top { display: flex; flex-direction: column; gap: inherit; width: 100%; max-width: calc(1120px - 2 * var(--s6)); min-width: 0; }
+.page.full.goals-page .page-head { margin-bottom: 0; }
+/* The tabs at the left, the Views menu at the right of the same row. */
+.goals-page .goals-toolbar { flex-wrap: nowrap; justify-content: space-between; }
+.goals-page .goals-toolbar > .views-menu { flex: none; margin-left: auto; }
+.goals-page .goals-toolbar > .views-menu .view-menu-list { right: 0; left: auto; width: max-content; min-width: 240px; }
+/* The bar's menus say their value ("Group: As trees", "Layout: List") and never wrap inside. */
+.goals-page .filterbar-row > .view-menu { flex: none; }
+.goals-page .filterbar-row > .view-menu > summary { white-space: nowrap; }
+.goals-page .filterbar-row .view-menu-list { width: max-content; min-width: 220px; max-width: min(360px, calc(100vw - 32px)); }
+.goals-page .filterbar-row > .filter-search { flex: 1 1 200px; }
+.goals-page .filterbar-row > .filter-sort { flex: 0 1 auto; }
+.goals-page .filterbar-row > .filter-sort .input { width: auto; max-width: 220px; }
+.goals-page .inline-sort select:disabled { opacity: 0.6; cursor: not-allowed; }
+/* In a menu: the current choice says so in words; a line that isn't a choice; a hairline between kinds of item. */
+.view-menu-list .menu-current { margin-left: auto; padding-left: var(--s3); font-size: 0.75rem; font-weight: 600; color: var(--muted); flex: none; }
+.view-menu-list .menu-note { display: block; padding: 8px 12px; max-width: 280px; }
+.view-menu-list .menu-rule { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+/* Filters says "Filter and sort" on a phone, where Sort lives in its sheet. */
+.filters-phone { display: none; }
+.goals-phone-switch .view-open { display: none; }
+@container app (max-width: 900px) {
+  .goals-page .filterbar-row { flex-wrap: wrap; }
+}
+@container app (max-width: 600px) {
+  /* The phone (2.4): the tabs; the search and Filter and sort; the switch and View; the count line. Group, Layout,
+     Sort and Views are in the View sheet and Filter and sort. */
+  .goals-page .goals-toolbar > .views-menu, .goals-page .filterbar-row > .view-menu { display: none; }
+  .goals-page .filterbar-row { flex-wrap: nowrap; }
+  .goals-page .filters-wide { display: none; }
+  .goals-page .filters-phone { display: inline; }
+  .goals-page .goals-phone-switch { justify-content: space-between; align-items: center; gap: var(--s2); }
+  .goals-page .goals-phone-switch .view-open { display: block; flex: 0 1 auto; min-height: 44px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .goals-page .goals-tabs [role="tab"] { min-height: 44px; }
+  /* The tabs are one row that scrolls sideways inside itself, the lit one kept in view (GoalsScreen), with a fade at
+     the edge that says there's more. */
+  .goals-page .goals-tabs { flex-wrap: nowrap; min-width: 0; flex: 1 1 auto; }
+  .goals-page .goals-tabs > .seg.tabs { flex-wrap: nowrap !important; overflow-x: auto !important; scroll-snap-type: x proximity; padding-inline-end: var(--s4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+  .goals-page .goals-tabs > .seg.tabs > button { flex: none; scroll-snap-align: start; }
+}
+/* A small phone: both buttons of the switch's row in full, with less room around their words. */
+@container app (max-width: 380px) {
+  .goals-page .goals-phone-switch { gap: 6px; }
+  .goals-page .goals-phone-switch > .btn { padding-inline: 8px; }
+  .goals-page .goals-phone-switch > .attention-switch[aria-pressed="true"] { padding-inline: 7px; }
+}
+/* The View sheet: one list of choices per group, each with its line. */
+.view-sheet { gap: var(--s4); }
+.view-sheet .view-choice { align-items: flex-start; padding-block: 8px; }
+.view-sheet .view-choice input { flex: none; margin: 3px 0 0; }
+.view-sheet .menu-text { display: flex; flex-direction: column; }
+.view-sheet-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.view-sheet-tools { display: contents; }
+.view-sheet-tools .menuitem { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--s4); border: 1px solid var(--line-strong); border-radius: var(--radius, 8px); background: var(--surface); color: var(--fg); font: inherit; }

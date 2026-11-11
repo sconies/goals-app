@@ -76,6 +76,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
 | U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
+| U87 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet |  | `GOALS-MENUS` `GOAL-MAP` `SAVED-VIEWS` | 14 | `evals/journeys.cjs` |
 
 ## Platform checks
 
