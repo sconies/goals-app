@@ -74,6 +74,44 @@ describe('MCP server', () => {
     expect((await call('get_goal', { goal_id: 'nope' })).isError).toBe(true);
   });
 
+  it('finds goals by scope, as the Goals screen’s tabs (goals spec, rule 1): mine, team, watching, all', async () => {
+    const ids = (r: Awaited<ReturnType<Awaited<ReturnType<typeof setup>>['call']>>) => (r.structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();
+    const { call, data } = await setup('tariq');
+    const s = data() as Snapshot;
+    const running = s.goals.filter((g) => !g.stoppedAt && !g.removedAt);
+    // Mine: the goals Tariq owns, the same as mine: true.
+    expect(ids(await call('find_goals', { scope: 'mine' }))).toEqual(running.filter((g) => g.ownerId === 'tariq').map((g) => g.id).sort());
+    expect(ids(await call('find_goals', { scope: 'mine' }))).toEqual(ids(await call('find_goals', { mine: true })));
+    // Team: his team's goals (he leads Developer Experience, his own team).
+    const team = ids(await call('find_goals', { scope: 'team' }));
+    expect(team).toEqual(running.filter((g) => g.teamId === 'devex').map((g) => g.id).sort());
+    // Watching: what he watches, directly or through a tree or a level, as Watching lists it.
+    const { watchedGoals } = await import('../domain/review');
+    expect(ids(await call('find_goals', { scope: 'watching' }))).toEqual(watchedGoals('tariq', s).filter((g) => !g.stoppedAt).map((g) => g.id).sort());
+    // All: every goal in the running cycle; no scope is All.
+    const all = ids(await call('find_goals', { scope: 'all' }));
+    expect(all.length).toBe(running.length);
+    expect(ids(await call('find_goals', {}))).toEqual(all);
+    // A scope narrows the other filters, and they narrow it.
+    expect(ids(await call('find_goals', { scope: 'team', status: 'off' })).every((id) => team.includes(id))).toBe(true);
+  });
+
+  it('says why a scope someone doesn’t have finds nothing, and refuses a scope that doesn’t exist', async () => {
+    const { call, data } = await setup('oskar');
+    // Oskar here is in no team, leads none and owns no goals.
+    const s = data() as Snapshot;
+    s.people.find((p) => p.id === 'oskar')!.teamId = null;
+    for (const t of s.teams) if (t.leadId === 'oskar') t.leadId = 'amara';
+    for (const g of s.goals) if (g.ownerId === 'oskar') g.ownerId = 'amara';
+    const mine = await call('find_goals', { scope: 'mine' });
+    expect(mine.structuredContent!.goals).toEqual([]);
+    expect(mine.content[0]!.text).toBe('No goals match: you own no goals this year.');
+    expect((await call('find_goals', { scope: 'team' })).content[0]!.text).toBe('No goals match: you’re in no team and lead none.');
+    const nope = await call('find_goals', { scope: 'everyone' });
+    expect(nope.isError).toBe(true);
+    expect(nope.content[0]!.text).toMatch(/mine, team, watching or all/);
+  });
+
   it('finds what the Goals screen finds for a link with a search, and an argument only narrows a link (outside review of #88)', async () => {
     const { call, data } = await setup();
     const ids = (r: Awaited<ReturnType<typeof call>>) => (r.structuredContent!.goals as { id: string }[]).map((g) => g.id).sort();

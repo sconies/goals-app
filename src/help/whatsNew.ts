@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'mcp-goal-scopes',
+    date: '2026-11-11',
+    title: 'Your AI assistant finds goals the way your Goals tabs do',
+    points: [
+      'Ask Claude (or another AI tool on MCP) for your goals, your team’s or the ones you watch, and it finds the same goals as Mine, My team and Watching on Goals.',
+      'If you have no team or own no goals, it says so instead of guessing.',
+    ],
+    articles: ['ai-assistants', 'goals'],
+  },
+  {
     id: 'feature-undo',
     date: '2026-11-11',
     title: 'Undo brings a feature back',

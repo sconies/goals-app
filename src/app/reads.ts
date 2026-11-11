@@ -4,7 +4,9 @@
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
-import type { Cycle, Snapshot } from '../domain/types';
+import type { Cycle, Person, Snapshot } from '../domain/types';
+import type { ScopeFacts } from '../domain/goalsPage';
+import { watchedGoals } from '../domain/review';
 import type { LocalRows } from '../adapters/localSearch';
 
 const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x) => !x.removedAt);
@@ -28,6 +30,17 @@ export function teamRows(s: Snapshot): TeamRows {
 export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number): LocalRows {
   const once = <T,>(f: () => T) => { let v: T | undefined; return () => (v ??= f()); };
   return { goal: once(() => goalRows(s, cycle, today, week)), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
+}
+
+/** What the Goals scopes read (goals spec, rule 1) for one person: the running cycle's goals (not stopped), their team
+    and the teams they lead, and the goals they watch. Goals' screen and find_goals read the same facts. */
+export function scopeFacts(s: Snapshot, viewer: Pick<Person, 'id' | 'teamId'>): ScopeFacts {
+  return {
+    goals: live(s.goals).filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })),
+    viewerId: viewer.id,
+    teams: s.teams.filter((t) => t.id === viewer.teamId || t.leadId === viewer.id).map((t) => ({ id: t.id, name: t.name })),
+    watched: new Set(watchedGoals(viewer.id, s).map((g) => g.id)),
+  };
 }
 
 /** What Home's "Getting started" reads (domain/dayOne.ts): who set it up, people, goals, which goals have a check-in
