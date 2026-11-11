@@ -11,10 +11,10 @@ import { attentionList, attentionOrder, splitAttention } from '../domain/attenti
 import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
 import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionToDo, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
-import { weekDates } from '../domain/plan';
-import { wrapUpOpen } from '../domain/cycle';
+import { hasEnded, weekDates } from '../domain/plan';
+import { cycleDates, cycleState, dayWithYear, placeLine, wrapUpOpenOn } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
-import { periodWord, shortPeriod } from '../domain/year';
+import { periodWord } from '../domain/year';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
 import type { AskKind, Review } from '../domain/types';
@@ -52,6 +52,7 @@ function streakNote(app: AppState): string {
   if (onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week)) return 'All in on time';
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const day = WEEKDAY[app.cycle.reviewDay];
+  if (hasEnded(app.cycle, app.today)) return `${app.cycle.name} has ended: nothing more is due`;
   if (p.upcoming.length && !p.due.length) return `Starts with your first check-ins, due by ${day}`;
   if (p.goals.length && !p.due.length && daysToReview(app.cycle, app.week, app.today) < 0) return `This week’s came after ${day}’s deadline: it starts again next week`;
   return `Weeks with every check-in in by ${day}`;
@@ -75,7 +76,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
   // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
   const { needs, handled } = splitAttention(att);
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
-  const wrapLeft = wrapUpOpen(app.cycle, app.week) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
+  const wrapLeft = wrapUpOpenOn(app.cycle, app.today) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => sessionToDo(s, app.snapshot, app.week, app.today));
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
@@ -100,7 +101,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
             </>
           ) : wrapLeft.length ? (
             <>
-              <span className="eyebrow">{app.week >= app.cycle.weeks ? `The ${periodWord(app.cycle)} has ended` : `The ${periodWord(app.cycle)} ends next week`}</span>
+              <span className="eyebrow">{`${app.cycle.name} ${cycleState(app.cycle, app.today) === 'ending' ? 'ends' : 'ended'} on ${dayWithYear(cycleDates(app.cycle).lastDay)}`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up</Link></div>
@@ -139,6 +140,14 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
               <span className="muted">{mine.length === 1 ? 'Your goal is' : `Your ${mine.length} goals are`} set. Check in on {mine.length === 1 ? 'it' : 'each'} in week {Math.max(1, app.week + 1)}, by {WEEKDAY[app.cycle.reviewDay]} {dayText(reviewDate(app.cycle, Math.max(1, app.week + 1))).slice(4)}.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
             </>
+          ) : mine.length && hasEnded(app.cycle, app.today) ? (
+            <>
+              {/* The year has ended and the wrap-up is done or closed: nothing is due (cycle-end rule 2). */}
+              <span className="eyebrow">{`${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}`}</span>
+              <h2 className="hero-title">Nothing is due</h2>
+              <span className="muted">{app.cycle.name} has ended. Each goal keeps its last check-in, and its page says how it ended.</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
+            </>
           ) : mine.length ? (
             <>
               <span className="eyebrow">{dueWhen(app)}</span>
@@ -148,7 +157,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
             </>
           ) : (
             <>
-              <span className="eyebrow">{shortPeriod(app.cycle, app.week)}</span>
+              <span className="eyebrow">{placeLine(app.cycle, app.today)}</span>
               <h2 className="hero-title">No check-ins or reviews due</h2>
               <span className="muted">You don’t own a goal. Watch the ones you care about, or set one up in about 3 minutes.</span>
               <div className="row" style={{ marginTop: 8 }}>{app.snapshot.goals.length
@@ -305,11 +314,12 @@ function WatchedGoals() {
 function AdminCard() {
   const app = useApp();
   if (!app.viewer.admin) return null;
-  if (wrapUpOpen(app.cycle, app.week)) {
+  if (wrapUpOpenOn(app.cycle, app.today)) {
+    const ended = cycleState(app.cycle, app.today) === 'ended';
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>The {periodWord(app.cycle)} is ending</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{ended ? `${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
         <Link className="btn" to="/retro">See the wrap-up</Link>
       </section>
     );
@@ -385,7 +395,7 @@ export function Home() {
     <div className="page home" data-part="Home">
       <div className="page-head">
         <h1 className="title-xl">{greeting(app.today)}, {first}</h1>
-        <span className="muted small home-where">{app.ws.name} · {shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}</span>
+        <span className="muted small home-where">{app.ws.name} · {placeLine(app.cycle, app.today)}</span>
         <HomeNews at="head" />
       </div>
       <GettingStarted />

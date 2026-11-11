@@ -1,5 +1,4 @@
 // \0rolldown/runtime.js
-var __defProp = Object.defineProperty;
 var __esmMin = (fn, res, err) => () => {
 	if (err) throw err[0];
 	try {
@@ -7,15 +6,6 @@ var __esmMin = (fn, res, err) => () => {
 	} catch (e) {
 		throw err = [e], e;
 	}
-};
-var __exportAll = (all, no_symbols) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
-	return target;
 };
 // server/log.ts
 /** Writes the failure to standard error and returns its reference. Never throws. */
@@ -38,6 +28,15 @@ function currentWeek(cycle, today) {
 	const d = daysBetween(cycle.startDate, today);
 	if (d < 0) return 0;
 	return Math.min(cycle.weeks, Math.floor(d / 7));
+}
+/**
+* The week results are judged at (cycle-end spec, rule 2): the current week, or `weeks + 1` once the cycle's last day
+* is past, so a goal due in the last week gets its result, and the last quarter closes, without anyone pressing a
+* button. `currentWeek` stops at `weeks` (a check-in given after the end is dated the last week); only results, the
+* quarters and the end of "due" read this.
+*/
+function resultWeek(cycle, today) {
+	return Math.max(0, Math.min(cycle.weeks + 1, Math.floor(daysBetween(cycle.startDate, today) / 7)));
 }
 /** Days since an ISO timestamp. */
 function daysSince(iso, today) {
@@ -203,11 +202,7 @@ function projectionFor(goal, series, toWeek) {
 function weekDates(cycle, week) {
 	const a = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	const b = new Date(a.getTime() + 5184e5);
-	const d = (x, month) => x.toLocaleDateString("en-GB", {
-		day: "numeric",
-		...month ? { month: "short" } : {},
-		timeZone: "UTC"
-	});
+	const d = (x, month) => (month ? DAY_MONTH : DAY_ONLY).format(x);
 	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 	const own = new Date(Date.parse(cycle.startDate + "T00:00:00Z") + 864e6).getUTCFullYear();
 	return b.getUTCFullYear() !== own || a.getUTCFullYear() !== own ? `${range} ${b.getUTCFullYear()}` : range;
@@ -233,11 +228,21 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$2, planEnd, NOT_A_COUNT;
+var DAY$2, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
 	DAY$2 = 864e5;
+	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
+	DAY_ONLY = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		timeZone: "UTC"
+	});
+	DAY_MONTH = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
 }));
 // src/domain/thresholds.ts
 /** What's wrong with a workspace's or a goal's name, or null: empty, shorter than MIN_NAME, or (a workspace) longer than MAX_WORKSPACE_NAME. */
@@ -256,7 +261,11 @@ var init_thresholds = __esmMin((() => {
 		wellAhead: 1.2,
 		staleDays: 14,
 		/** A milestone stage more than this many weeks late is off track. */
-		lateWeeksOff: 2
+		lateWeeksOff: 2,
+		/** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
+		wrapUpWeeksBefore: 2,
+		/** …and stays open this many weeks after it, for the last numbers and the owners' words. */
+		wrapUpWeeksAfter: 4
 	};
 	NUMBER_WORDS = [
 		"no",
@@ -1125,6 +1134,7 @@ function goalStatus(goal, cycle, checkIns, today) {
 	let status;
 	if (latest?.status === "done") status = "done";
 	else if (week === 0) status = "planned";
+	else if (hasEnded(cycle, today)) status = latest ? latest.status : "none";
 	else if (quiet < RULES.staleDays) status = latest ? latest.status : "none";
 	else status = "stale";
 	const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
@@ -1730,10 +1740,8 @@ var init_goalKey = __esmMin((() => {
 	})).sort((a, b) => (a.g.createdAt || "").localeCompare(b.g.createdAt || "") || a.i - b.i).map((x) => x.g);
 }));
 // src/mcp/token.ts
-var token_exports = /* @__PURE__ */ __exportAll({
-	hashToken: () => hashToken,
-	newToken: () => newToken
-});
+init_asks();
+init_goalKey();
 /** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
 async function hashToken(token) {
 	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
@@ -1744,7 +1752,6 @@ function newToken() {
 	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
-var init_token = __esmMin((() => {}));
 // src/domain/progress.ts
 /** The person's goals this week: which are checked in and which are still due. */
 function weekProgress(personId, s, cycle, week, today) {
@@ -1755,7 +1762,7 @@ function weekProgress(personId, s, cycle, week, today) {
 		goals,
 		done,
 		upcoming,
-		due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
+		due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
 	};
 }
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
@@ -2331,7 +2338,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -2349,7 +2356,26 @@ function attentionFor(goal, s, cycle, today) {
 		lookedAt: lookedAtFor(goal, s, cycle, today, status)
 	};
 }
-/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+/** A goal's decisions, in the order kept. Indexed once per list (and again if it grows), so asking for every goal stays
+cheap at scale (AX4), as checkInsFor does for check-ins. */
+function decisionsFor(goalId, all) {
+	let hit = byGoal.get(all);
+	if (!hit || hit.n !== all.length || hit.last !== all[all.length - 1]) {
+		const index = /* @__PURE__ */ new Map();
+		for (const d of all) {
+			const l = index.get(d.goalId);
+			if (l) l.push(d);
+			else index.set(d.goalId, [d]);
+		}
+		hit = {
+			n: all.length,
+			last: all[all.length - 1],
+			index
+		};
+		byGoal.set(all, hit);
+	}
+	return hit.index.get(goalId) ?? [];
+}
 function looksAt(goal, s, cycle, today, status) {
 	if (status.status !== "off" && status.status !== "risk") return [];
 	const latest = status.latest;
@@ -2359,7 +2385,7 @@ function looksAt(goal, s, cycle, today, status) {
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
 	const day = today.toISOString().slice(0, 10);
 	const looks = [];
-	for (const d of s.decisions) {
+	for (const d of decisionsFor(goal.id, s.decisions)) {
 		const kind = LOOKS[d.kind];
 		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
 		if (d.byId === goal.ownerId) continue;
@@ -2446,10 +2472,9 @@ function splitAttention(list) {
 function attentionList(s, cycle, today, opts = {}) {
 	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
 }
-var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, onAttentionList, attentionOrder;
+var WEIGHT, HANDLED_ORDER, LOOKS, byGoal, needsAttention, onAttentionList, attentionOrder;
 var init_attention = __esmMin((() => {
 	init_status();
-	init_asks();
 	init_progress();
 	init_plan();
 	init_trend();
@@ -2466,6 +2491,7 @@ var init_attention = __esmMin((() => {
 		note: "noted",
 		acknowledge: "reviewed"
 	};
+	byGoal = /* @__PURE__ */ new WeakMap();
 	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
 	onAttentionList = (a) => attentionGroup(a) !== null;
 	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
@@ -2987,7 +3013,7 @@ function quarters(c) {
 	].map((n) => ({
 		n,
 		label: `Q${n}`,
-		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		months: `${MONTHS$1[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$1[(m0 + 3 * (n - 1) + 2) % 12]}`,
 		from: (n - 1) * 13 + 1,
 		to: n === 4 ? c.weeks : n * 13
 	}));
@@ -3072,7 +3098,7 @@ function yearWeeks(startDate) {
 	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$1);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$1, MONTHS;
+var isYear, DAY$1, MONTHS$1;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3081,7 +3107,7 @@ var init_year = __esmMin((() => {
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
 	DAY$1 = 864e5;
-	MONTHS = [
+	MONTHS$1 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -3164,6 +3190,34 @@ function scopeToCycle(s, cycle) {
 			reviews: reviews.filter((r) => r.endedAt)
 		}
 	};
+}
+/**
+* A cycle's real first and last days. Week 0 is the week before week 1 (for starting numbers); week n runs Monday to
+* Sunday from `startDate` + 7n days, so the last week ends `(weeks + 1) × 7 − 1` days after `startDate`. In the demo's
+* 2026 (from 22 Dec 2025, 53 weeks) that is Mon 29 Dec 2025 to Sun 3 Jan 2027.
+*/
+function cycleDates(c) {
+	const lastDay = addDays(c.startDate, (c.weeks + 1) * 7 - 1);
+	return {
+		firstDay: addDays(c.startDate, 7),
+		lastDay,
+		wrapUpOpens: addDays(c.startDate, (c.weeks - RULES.wrapUpWeeksBefore + 1) * 7),
+		wrapUpCloses: addDays(lastDay, RULES.wrapUpWeeksAfter * 7)
+	};
+}
+/** Where a cycle stands today (rule 1): the clock, not a button, ends a cycle. Week 0 is still `before`. */
+function cycleState(c, today) {
+	const t = isoDay(today), d = cycleDates(c);
+	if (t < d.firstDay) return "before";
+	if (t < d.wrapUpOpens) return "running";
+	if (t <= d.lastDay) return "ending";
+	if (t <= d.wrapUpCloses) return "ended";
+	return "closed";
+}
+/** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
+function dayWithYear(iso) {
+	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+	return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
@@ -3258,17 +3312,43 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		})
 	};
 }
-var DAY, addDays, wrapUpOpen, RESULT_LABEL;
+var DAY, addDays, isoDay, wrapUpOpenOn, wrapUpOpen, WEEKDAYS, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
-	init_goalKey();
 	init_asks();
 	init_year();
+	init_plan();
+	init_thresholds();
 	init_yearName();
 	init_status();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
-	wrapUpOpen = (cycle, week) => week >= cycle.weeks - 1;
+	isoDay = (d) => d.toISOString().slice(0, 10);
+	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
+	wrapUpOpen = (cycle, week) => week >= cycle.weeks - RULES.wrapUpWeeksBefore + 1;
+	WEEKDAYS = [
+		"Sun",
+		"Mon",
+		"Tue",
+		"Wed",
+		"Thu",
+		"Fri",
+		"Sat"
+	];
+	MONTHS = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
 // src/domain/people.ts
@@ -5587,7 +5667,7 @@ function sayAmount(v, g) {
 		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
 		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
 	}
-	const n = Number(v.toFixed(g.decimals)).toLocaleString("en-GB", { maximumFractionDigits: g.decimals });
+	const n = numberFormat(g.decimals).format(Number(v.toFixed(g.decimals)));
 	if (!g.unit) return n;
 	if (g.unit === "%") return n + "%";
 	return `${n} ${Math.abs(Number(v.toFixed(g.decimals))) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
@@ -5613,7 +5693,7 @@ function headingSentence(goal, p, misses, when, share = false) {
 	const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace("over of", "over");
 	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? wellMiss : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
 }
-var CURRENCY, SYMBOL;
+var CURRENCY, SYMBOL, NUMBER_FORMATS, numberFormat;
 var init_chartStory = __esmMin((() => {
 	init_plan();
 	init_trend();
@@ -5623,6 +5703,12 @@ var init_chartStory = __esmMin((() => {
 		USD: "$",
 		GBP: "£",
 		EUR: "€"
+	};
+	NUMBER_FORMATS = /* @__PURE__ */ new Map();
+	numberFormat = (decimals) => {
+		let f = NUMBER_FORMATS.get(decimals);
+		if (!f) NUMBER_FORMATS.set(decimals, f = new Intl.NumberFormat("en-GB", { maximumFractionDigits: decimals }));
+		return f;
 	};
 }));
 // src/domain/tree.ts
@@ -8399,7 +8485,8 @@ function storyOf(g, s, cycle, week, today) {
 	const a = assessPosted(g, cycle, s.checkIns, week);
 	const status = st.status;
 	const behind = BEHIND.includes(status);
-	const result = goalResult(g, cycle, s.checkIns, week);
+	const rw = Math.max(week, resultWeek(cycle, today));
+	const result = goalResult(g, cycle, s.checkIns, rw);
 	const warnings = [];
 	const flags = [];
 	const warn = (kind, text) => {
@@ -8436,7 +8523,7 @@ function storyOf(g, s, cycle, week, today) {
 		const end = Math.min(q.to, due);
 		if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end), g)} by week ${end}.`;
 	}
-	const quarters = quarterResults(g, cycle, s.checkIns, week);
+	const quarters = quarterResults(g, cycle, s.checkIns, rw);
 	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
 	const fc = forecastText(g, a, cycle.weeks, cycle);
 	const outlook = fc && projects(g, status) ? fc.text : null;
@@ -10110,7 +10197,7 @@ function missedReviews(personId, s, cycle, week, today) {
 			date: sx.date,
 			daysPast: daysPast(sx, today)
 		};
-	}).filter((x) => x.daysPast > 0).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
 function dashboard(personId, s, cycle, week, today) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
@@ -11556,6 +11643,8 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
+				"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
+				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.",
 				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
 				"Wrap up shows everyone which goals are wrapped up, and how.",
 				"An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged."
@@ -11566,11 +11655,18 @@ var CORE_ARTICLES = [
 		}],
 		routes: ["/retro", "/retro/:goalId"],
 		screens: ["Retro"],
-		reqs: ["RETRO", "YEAR"],
+		reqs: [
+			"RETRO",
+			"YEAR",
+			"RESULTS"
+		],
 		keywords: [
 			"retro",
 			"retrospective",
 			"end of year",
+			"year end",
+			"year ended",
+			"last day",
 			"cycle",
 			"next year",
 			"carry on",
@@ -11969,8 +12065,9 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).",
-				"The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.",
+				"Each cycle says where it stands in a word (running; ending, in its wrap-up weeks; ended, with its last day; or starts on a date), then its week and dates (the running one) or its dates and weeks, then how many goals and check-ins it has (“no check-ins yet” for none).",
+				"A cycle’s dates are its real first and last days: week 1’s Monday to its last week’s Sunday. The demo’s 2026 runs from 29 Dec 2025 to 3 Jan 2027.",
+				"The current cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up; once the year has ended, the day it ended and until when the wrap-up stays open.",
 				"Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.",
 				"An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.",
 				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
@@ -11981,7 +12078,7 @@ var CORE_ARTICLES = [
 		}],
 		routes: ["/workspace/cycles"],
 		screens: [],
-		reqs: ["UNDO-REMOVE"],
+		reqs: ["UNDO-REMOVE", "RESULTS"],
 		keywords: [
 			"cycles",
 			"year",
@@ -12609,6 +12706,17 @@ var WHATS_NEW = [
 			"goal-map",
 			"goals-filters"
 		]
+	},
+	{
+		id: "year-ends",
+		date: "2026-11-11",
+		title: "A year ends on its last day",
+		points: [
+			"Results and the last quarter close by themselves on the day after the year’s last day, and nothing is due, late or out of date after the year has ended.",
+			"Cycles gives each year’s real first and last day: 2026 runs from 29 Dec 2025 to 3 Jan 2027. It says when a year is ending, and when it ended.",
+			"The place line at the top says “2026 · week 53, the last week”, then “2026 has ended”."
+		],
+		articles: ["wrap-up", "workspace-cycles"]
 	},
 	{
 		id: "find-anywhere",
@@ -13984,6 +14092,11 @@ var RULE_PAGES = [
 		"which week it is, and what the plan says a number should be"
 	],
 	[
+		"year-end",
+		"A year’s end",
+		"a cycle’s real first and last days; after the last day results close and nothing is due or out of date"
+	],
+	[
 		"status",
 		"A goal’s status",
 		"what the numbers say, and the official status (the owner’s call unless stale)"
@@ -14401,7 +14514,7 @@ var WORK_TOOLS = [
 					asksForAnUpdate: asks,
 					yourActions: actions,
 					yourReviews: reviews,
-					wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week)
+					wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today)
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
@@ -14746,14 +14859,19 @@ var WORK_TOOLS = [
 					next: r?.next ?? null
 				};
 			});
-			const open = wrapUpOpen(ctx.cycle, ctx.week);
+			const open = wrapUpOpenOn(ctx.cycle, ctx.today);
+			const d = cycleDates(ctx.cycle);
+			const when = cycleState(ctx.cycle, ctx.today) === "closed" ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
 			return {
 				data: {
 					open,
 					opensWeek: ctx.cycle.weeks - 1,
+					opens: d.wrapUpOpens,
+					lastDay: d.lastDay,
+					closes: d.wrapUpCloses,
 					goals: list
 				},
-				text: `${open ? "Wrap-up is open." : `Wrap-up opens in week ${ctx.cycle.weeks - 1}.`} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
+				text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
 			};
 		}
 	},
@@ -17899,7 +18017,6 @@ async function callTool(name, args, ctx) {
 /** Who a token acts as, in a sentence: said with every refusal. */
 var actingAs = (p) => `This token acts as ${p.name}, who ${p.admin ? "is an admin" : "isn’t an admin"}.`;
 // src/mcp/protocol.ts
-init_token();
 /** The name stays 'goals' (assistants already have it saved); the title is the product's. */
 var SERVER_INFO = {
 	name: "goals",
@@ -40659,8 +40776,9 @@ function commitPayload(ws, c) {
 // src/adapters/supabase/goalsStore.ts
 init_asks();
 init_goalKey();
-/** A database function that isn't there yet: its migration hasn't been applied. */
+/** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
+var MISSING = (fn) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 var TIMEOUT_MS = 12e3;
 /** Supabase returns at most 1,000 rows per request; read in pages below that. */
@@ -40697,10 +40815,6 @@ var SupabaseStore = class {
 			after = rows[rows.length - 1].id;
 		}
 	}
-	async must(p, what) {
-		const { error } = await p;
-		if (error) throw new Error(`${what}: ${error.message}`);
-	}
 	async workspaces() {
 		const { data, error } = await this.db.from("okr_workspaces").select("*").order("created_at");
 		if (error) throw new Error("Workspaces: " + error.message);
@@ -40719,12 +40833,12 @@ var SupabaseStore = class {
 			this.all("okr_watches", ws),
 			this.all("okr_reviews", ws),
 			this.all("okr_retros", ws),
-			this.viaRpc("okr_feedback_list", ws, "okr_feedback").catch(() => []),
-			this.viaRpc("okr_token_list", ws, "okr_api_tokens").catch(() => []),
-			this.all("okr_views", ws).catch(() => []),
-			this.all("okr_requests", ws).catch(() => null),
-			this.all("okr_metrics", ws).catch(() => null),
-			this.all("okr_goal_metrics", ws).catch(() => null)
+			this.listed("okr_feedback_list", ws),
+			this.listed("okr_token_list", ws),
+			this.all("okr_views", ws),
+			this.all("okr_requests", ws),
+			this.all("okr_metrics", ws),
+			this.all("okr_goal_metrics", ws)
 		]);
 		if (!cycles.length) throw new Error("This workspace has no cycle yet.");
 		return upgradeAsks({
@@ -40741,69 +40855,58 @@ var SupabaseStore = class {
 			feedback: feedback.map(feedbackFromRow),
 			tokens: tokens.map(tokenFromRow),
 			views: views.map(viewFromRow),
-			...requests ? { requests: requests.map(requestFromRow) } : {},
-			...metrics?.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {},
-			...metricLinks?.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}
+			requests: requests.map(requestFromRow),
+			...metrics.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {},
+			...metricLinks.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}
 		});
 	}
-	/** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
-	async viaRpc(fn, ws, table) {
+	/** A workspace's rows from a database function that returns them. */
+	async listed(fn, ws) {
 		const { data, error } = await this.db.rpc(fn, { ws });
-		if (!error) return data ?? [];
-		if (missing(error)) return this.all(table, ws);
-		throw new Error(`${table}: ${error.message}`);
+		if (error) throw new Error(missing(error) ? MISSING(fn) : `${fn}: ${error.message}`);
+		return data ?? [];
 	}
-	/** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
+	/** Runs a database function: one call, one transaction. */
 	async rpc(fn, args, what) {
-		const { error } = await this.db.rpc(fn, args);
-		if (!error) return;
-		if (missing(error)) return "missing";
+		const { data, error } = await this.db.rpc(fn, args);
+		if (!error) return data;
+		if (missing(error)) throw new Error(MISSING(fn));
 		if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ""));
-		throw new Error(`${what}: ${error.message}`);
+		throw new Error(`${what}: ${error.message.replace(/^.*?: /, "")}`);
 	}
-	/** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. Revoking a
-	token goes through okr_token_revoke (migration 0024), with its change-log entry, in its own transaction. */
+	/** Saves in one call and one transaction (okr_commit), refused if something it was based on has changed since.
+	Revoking a token is its own save, through okr_token_revoke with its change-log entry; a new token comes through
+	issueToken, never a save. */
 	async commit(ws, c) {
 		if (c.tokens?.length) {
-			const by = c.changes[0]?.actorId ?? "";
-			const done = [];
-			for (const t of c.tokens) {
-				if (!t.revokedAt) continue;
-				const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === "AI assistant token"));
-				if (await this.rpc("okr_token_revoke", {
-					ws,
-					token_id: t.id,
-					by_id: by,
-					change: change ? changeToRow(ws, change) : null
-				}, "Revoking the token") === "missing") break;
-				done.push(t.id);
-				if (change) c = {
-					...c,
-					changes: c.changes.filter((x) => x !== change)
-				};
-			}
-			if (done.length) c = {
-				...c,
-				tokens: c.tokens.filter((t) => !done.includes(t.id))
-			};
-			if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === "expect" || k === "tokens" || (Array.isArray(v) ? !v.length : v === void 0))) return;
-		}
-		if (await this.rpc("okr_commit", {
-			ws,
-			payload: commitPayload(ws, c)
-		}, "Saving") !== "missing") {
-			await this.teamsAndName(ws, c);
+			const [t, ...more] = c.tokens;
+			const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => /token/i.test(d.field)));
+			const rest = Object.entries(c).some(([k, v]) => ![
+				"tokens",
+				"changes",
+				"expect"
+			].includes(k) && (Array.isArray(v) ? v.length : v !== void 0));
+			if (!t.revokedAt || more.length || rest || c.changes.some((x) => x !== change)) throw new Error("Saving the token: revoke one token at a time, on its own; make one with issueToken.");
+			await this.rpc("okr_token_revoke", {
+				ws,
+				token_id: t.id,
+				by_id: change?.actorId ?? "",
+				change: change ? changeToRow(ws, change) : null
+			}, "Revoking the token");
 			return;
 		}
-		await this.legacyCommit(ws, c);
+		await this.rpc("okr_commit", {
+			ws,
+			payload: commitPayload(ws, c)
+		}, "Saving");
 	}
 	/** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
-	(okr_token_create, migration 0024). Before that migration, the secret is made here and saved with the rest. */
+	(okr_token_create). */
 	async issueToken(ws, c) {
 		const t = c.tokens?.[0];
 		if (!t || c.tokens.length !== 1) throw new Error("Saving the token: one token at a time.");
 		const change = c.changes[0];
-		const { data, error } = await this.db.rpc("okr_token_create", {
+		return this.rpc("okr_token_create", {
 			ws,
 			token: {
 				id: t.id,
@@ -40812,120 +40915,27 @@ var SupabaseStore = class {
 				created_by: t.createdBy
 			},
 			change: change ? changeToRow(ws, change) : null
-		});
-		if (!error) return data;
-		if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, "")}`);
-		const { hashToken, newToken } = await Promise.resolve().then(() => (init_token(), token_exports));
-		const secret = newToken();
-		await this.commit(ws, {
-			...c,
-			tokens: [{
-				...t,
-				tokenHash: await hashToken(secret)
-			}]
-		});
-		return secret;
+		}, "Saving the token");
 	}
-	async teamsAndName(ws, c) {
-		if (c.removeTeams?.length) await this.must(this.db.from("okr_teams").delete().eq("workspace_id", ws).in("id", c.removeTeams), "Removing the team");
-		if (c.workspace) await this.must(this.db.from("okr_workspaces").update({ name: c.workspace.name }).eq("id", ws), "Renaming the workspace");
-	}
-	/** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
-	async legacyCommit(ws, c) {
-		if (c.cycles?.length) await this.must(this.db.from("okr_cycles").upsert(c.cycles.map((x) => cycleToRow(ws, x))), "Saving the cycle");
-		if (c.teams?.length) await this.must(this.db.from("okr_teams").upsert(c.teams.map((t) => teamToRow(ws, t))), "Saving the team");
-		if (c.people?.length) await this.must(this.db.from("okr_people").upsert(c.people.map((p) => personToRow(ws, p))), "Saving people");
-		for (const g of c.goals ?? []) {
-			const { goal, stages } = goalToRows(ws, g);
-			await this.must(this.db.from("okr_goals").upsert(goal), "Saving the goal");
-			if (g.kind === "milestone") {
-				const keep = stages.map((s) => s.id);
-				let del = this.db.from("okr_stages").delete().eq("goal_id", g.id);
-				if (keep.length) del = del.not("id", "in", `(${keep.map((k) => `"${k}"`).join(",")})`);
-				await this.must(del, "Removing stages");
-				if (stages.length) await this.must(this.db.from("okr_stages").upsert(stages), "Saving stages");
-			}
-		}
-		if (c.checkIns?.length) await this.must(this.db.from("okr_check_ins").upsert(c.checkIns.map((x) => checkInToRow(ws, x))), "Saving the check-in");
-		if (c.reviews?.length) await this.must(this.db.from("okr_reviews").upsert(c.reviews.map((x) => reviewToRow(ws, x))), "Saving the review");
-		if (c.feedback?.length) await this.must(this.db.from("okr_feedback").insert(c.feedback.map((x) => feedbackToRow(ws, x))), "Sending feedback");
-		if (c.retros?.length) await this.must(this.db.from("okr_retros").upsert(c.retros.map((x) => retroToRow(ws, x))), "Saving the retro");
-		if (c.decisions?.length) await this.must(this.db.from("okr_decisions").upsert(c.decisions.map((x) => decisionToRow(ws, x))), "Saving the decision");
-		if (c.watches?.length) await this.must(this.db.from("okr_watches").upsert(c.watches.map((x) => watchToRow(ws, x))), "Watching");
-		if (c.tokens?.length) await this.must(this.db.from("okr_api_tokens").upsert(c.tokens.map((x) => tokenToRow(ws, x))), "Saving the token");
-		if (c.views?.length) await this.must(this.db.from("okr_views").upsert(c.views.map((x) => viewToRow(ws, x))), "Saving the view");
-		if (c.requests?.length) await this.must(this.db.from("okr_requests").upsert(c.requests.map((x) => requestToRow(ws, x))), "Saving the request");
-		if (c.metrics?.length) await this.must(this.db.from("okr_metrics").upsert(c.metrics.map((x) => metricToRow(ws, x))), "Saving the metric");
-		if (c.metricLinks?.length) await this.must(this.db.from("okr_goal_metrics").upsert(c.metricLinks.map((x) => metricLinkToRow(ws, x))), "Saving what measures the goal");
-		for (const id of c.unwatch ?? []) await this.must(this.db.from("okr_watches").delete().eq("id", id), "Stopping watching");
-		await this.teamsAndName(ws, c);
-		if (c.changes.length) await this.must(this.db.from("okr_changes").insert(c.changes.map((x) => changeToRow(ws, x))), "Logging the change");
-	}
-	async insertAll(ws, s) {
-		const chunk = async (table, rows, what) => {
-			for (let i = 0; i < rows.length; i += 500) await this.must(this.db.from(table).insert(rows.slice(i, i + 500)), what);
-		};
-		await chunk("okr_teams", s.teams.map((t) => teamToRow(ws, t, false)), "Adding teams");
-		await chunk("okr_people", s.people.map((p) => personToRow(ws, p)), "Adding people");
-		await this.must(this.db.from("okr_teams").upsert(s.teams.map((t) => teamToRow(ws, t))), "Setting team leads");
-		await chunk("okr_cycles", s.cycles.map((c) => cycleToRow(ws, c)), "Adding the cycle");
-		const rows = s.goals.map((g) => goalToRows(ws, g));
-		await chunk("okr_goals", rows.filter((r) => !r.goal.parent_id).map((r) => r.goal), "Adding goals");
-		await chunk("okr_goals", rows.filter((r) => r.goal.parent_id).map((r) => r.goal), "Adding input goals");
-		await chunk("okr_stages", rows.flatMap((r) => r.stages), "Adding stages");
-		await chunk("okr_check_ins", s.checkIns.map((c) => checkInToRow(ws, c)), "Adding check-ins");
-		await chunk("okr_reviews", s.reviews.map((r) => reviewToRow(ws, r)), "Adding reviews");
-		await chunk("okr_decisions", s.decisions.map((d) => decisionToRow(ws, d)), "Adding decisions");
-		await chunk("okr_watches", s.watches.map((w) => watchToRow(ws, w)), "Adding watches");
-		await chunk("okr_retros", (s.retros ?? []).map((r) => retroToRow(ws, r)), "Adding retros");
-		if (s.requests?.length) await chunk("okr_requests", s.requests.map((r) => requestToRow(ws, r)), "Adding requests");
-		if (s.metrics?.length) await chunk("okr_metrics", s.metrics.map((m) => metricToRow(ws, m)), "Adding metrics");
-		if (s.metricLinks?.length) await chunk("okr_goal_metrics", s.metricLinks.map((l) => metricLinkToRow(ws, l)), "Adding what measures each goal");
-		await chunk("okr_changes", s.changes.map((c) => changeToRow(ws, c)), "Adding the change log");
-	}
+	/** A new workspace and everything in it, in one transaction (okr_create_workspace). */
 	async createWorkspace(w, data) {
 		const payload = {
-			...commitPayload(w.id, {
-				...data,
-				changes: data.changes
-			}),
+			...commitPayload(w.id, data),
 			teams: data.teams.map((t) => teamToRow(w.id, t)),
 			expect: null
 		};
-		if (await this.rpc("okr_create_workspace", {
+		await this.rpc("okr_create_workspace", {
 			w: workspaceToRow(w),
 			payload
-		}, "Creating the workspace") !== "missing") return;
-		await this.must(this.db.from("okr_workspaces").insert(workspaceToRow(w)), "Creating the workspace");
-		await this.insertAll(w.id, data);
+		}, "Creating the workspace");
 	}
 	async resetExample() {
 		throw new Error("Only the demo has an example to reset.");
 	}
-	/** Removes a workspace and everything in it. The tables don't cascade from the workspace, so children go first. */
+	/** Removes a workspace and everything in it, in one transaction (okr_delete_workspace). */
 	async deleteWorkspace(ws) {
 		if (ws === EXAMPLE.id) throw new Error("The example can’t be deleted.");
-		if (await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace") !== "missing") return;
-		await this.must(this.db.from("okr_teams").update({ lead_id: null }).eq("workspace_id", ws), "Unlinking teams");
-		await this.must(this.db.from("okr_goals").update({ parent_id: null }).eq("workspace_id", ws), "Unlinking goals");
-		for (const t of [
-			"okr_requests",
-			"okr_views",
-			"okr_api_tokens",
-			"okr_feedback",
-			"okr_retros",
-			"okr_watches",
-			"okr_decisions",
-			"okr_check_ins",
-			"okr_stages",
-			"okr_changes",
-			"okr_reviews",
-			"okr_goals",
-			"okr_cycles",
-			"okr_people",
-			"okr_teams"
-		]) await this.must(this.db.from(t).delete().eq("workspace_id", ws), "Deleting the workspace");
-		await this.must(this.db.from("okr_workspaces").delete().eq("id", ws), "Deleting the workspace");
+		await this.rpc("okr_delete_workspace", { ws }, "Deleting the workspace");
 	}
 };
 // src/adapters/supabase/markups.ts
@@ -41081,17 +41091,16 @@ function tokenFeedback(db, hash) {
 	};
 }
 // src/adapters/supabase/server.ts
-function supabaseDeps(origin, env = process.env) {
+function supabaseDeps(origin, env = process.env, client) {
 	const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
 	const key = env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
-	const db = faroClient(url, key);
+	const db = client ?? faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
 	let seen = null;
 	return {
 		async findToken(hash) {
-			let { data, error } = await db.rpc("okr_token_find", { hash });
-			if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) ({data, error} = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null));
+			const { data, error } = await db.rpc("okr_token_find", { hash });
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
 			const row = (data ?? [])[0];
 			if (!row) return null;
@@ -41107,9 +41116,8 @@ function supabaseDeps(origin, env = process.env) {
 		},
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
-		async touch(id, at) {
-			const { error } = seen ? await db.rpc("okr_token_touch", { hash: seen }) : { error: { message: "no hash" } };
-			if (error) await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
+		async touch() {
+			if (seen) await db.rpc("okr_token_touch", { hash: seen });
 		},
 		issueToken: (ws, c) => store.issueToken(ws, c),
 		markups: (hash) => markupOps({

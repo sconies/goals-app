@@ -6,13 +6,13 @@
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
-import { scopeToCycle } from '../domain/cycle';
+import { cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
-import { currentWeek, firstWeekFrom, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
@@ -40,6 +40,9 @@ import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, sug
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
+import { goalResult } from '../domain/story';
+import { quarterResults } from '../domain/year';
+import { weekProgress } from '../domain/progress';
 
 export interface Example {
   /** The situation, in words. */
@@ -637,6 +640,40 @@ For a range, better means further from the limit on its safe side.
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
+  /* ---------- a year's end (round 3, cycle end CY1) ---------- */
+  {
+    id: 'year-end',
+    title: 'A year’s end',
+    summary: 'A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year.',
+    code: [
+      { file: 'src/domain/cycle.ts', names: ['cycleDates', 'cycleState', 'wrapUpOpenOn', 'wrapUpOpen', 'wrapUpCycle', 'placeLine', 'periodNow', 'dayWithYear'] },
+      { file: 'src/domain/plan.ts', names: ['resultWeek', 'hasEnded'] },
+      { file: 'src/domain/thresholds.ts', names: ['RULES'] },
+    ],
+    tests: ['src/domain/cycleEnd.test.ts', 'src/domain/workspace.test.ts'],
+    reqs: ['RESULTS', 'YEAR'],
+    body: `
+**A cycle's days.** Week 0 is the week before week 1 (for starting numbers). A cycle's **first day** is week 1's Monday (\`startDate\` + 7 days); its **last day** is its last week's Sunday (\`startDate\` + (\`weeks\` + 1) × 7 − 1 days). The wrap-up **opens** on the Monday of week \`weeks − ${RULES.wrapUpWeeksBefore} + 1\` (its last ${RULES.wrapUpWeeksBefore} weeks) and **closes** ${RULES.wrapUpWeeksAfter} weeks after the last day.
+
+**Where it stands** on a day (\`cycleState\`): \`before\` its first day (week 0 included); \`running\` until the day before the wrap-up opens; \`ending\` until its last day; \`ended\` until the wrap-up closes; \`closed\` after. The clock decides, never a button: a year ends on its last day whether or not anyone starts the next. The frame says it in one line (\`placeLine\`): "2026 · week 46 · Q4"; "2026 · week 53, the last week"; "2026 has ended"; before week 1, "2027 starts Mon 4 Jan 2027".
+
+**The week results are judged at** (\`resultWeek\`) is the week by the calendar, held to 0…\`weeks + 1\`: the current week until the last day, then \`weeks + 1\`. A goal's result, its quarters and the last quarter's close read it, so a goal due in the last week gets its result, and Q4 closes on the numbers there are, the day after the year ends. Everything else keeps \`currentWeek\`, which stops at the last week: a check-in given after the end is dated the last week.
+
+**After the last day nothing in the cycle is due, late or out of date.** No check-in is due (no "due" flag, nothing on Home's check-in block), and no goal becomes "No recent update" for want of a check-in: each keeps the last status its owner gave.`,
+    examples: [
+      { given: 'The demo’s 2026: week 0 from Monday 22 December 2025, 53 weeks. Its days.', then: 'first 2025-12-29, last 2027-01-03, wrap-up 2026-12-21 to 2027-01-31', run: () => { const d = cycleDates({ startDate: '2025-12-22', weeks: 53 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up ${d.wrapUpOpens} to ${d.wrapUpCloses}`; } },
+      { given: '2027 (week 0 from Monday 28 December 2026, 52 weeks).', then: 'first 2027-01-04, last 2028-01-02, wrap-up 2027-12-20 to 2028-01-30', run: () => { const d = cycleDates({ startDate: '2026-12-28', weeks: 52 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up ${d.wrapUpOpens} to ${d.wrapUpCloses}`; } },
+      { given: '2026 on Sunday 20 December 2026, Monday 21 December, Monday 28 December, Monday 4 January 2027 and Monday 1 February 2027: its state, and the frame.', then: 'running 2026 · week 51 · Q4 / ending 2026 · week 52 · Q4 / ending 2026 · week 53, the last week / ended 2026 has ended / closed 2026 has ended', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; return ['2026-12-20', '2026-12-21', '2026-12-28', '2027-01-04', '2027-02-01'].map((d) => `${cycleState(y, at(d + 'T12:00:00Z'))} ${placeLine(y, at(d + 'T12:00:00Z'))}`).join(' / '); } },
+      { given: 'Is 2026’s wrap-up open on Sunday 20 December 2026, Monday 21 December, Sunday 31 January 2027 and Monday 1 February 2027?', then: 'no, yes, yes, no', run: () => ['2026-12-20', '2026-12-21', '2027-01-31', '2027-02-01'].map((d) => (wrapUpOpenOn({ startDate: '2025-12-22', weeks: 53 }, at(d + 'T12:00:00Z')) ? 'yes' : 'no')).join(', ') },
+      { given: '2027 seen on Monday 21 December 2026, before its week 1.', then: '2027 starts Mon 4 Jan 2027', run: () => placeLine({ id: 'y', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }, at('2026-12-21T12:00:00Z')) },
+      { given: 'A 13-week cycle from Monday 28 September 2026 (week 0).', then: 'first 2026-10-05, last 2027-01-03, wrap-up opens 2026-12-21', run: () => { const d = cycleDates({ startDate: '2026-09-28', weeks: 13 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up opens ${d.wrapUpOpens}`; } },
+      { given: 'The week and the week results are judged at, on Sunday 3 January 2027 and Monday 4 January 2027, in 2026.', then: '53 53 / 53 54', run: () => { const y = { startDate: '2025-12-22', weeks: 53 } as never; return ['2027-01-03', '2027-01-04'].map((d) => `${currentWeek(y, at(d + 'T12:00:00Z'))} ${resultWeek(y, at(d + 'T12:00:00Z'))}`).join(' / '); } },
+      { given: 'G-37, 4 → 40 pairs due in week 53 of 2026, with 33 pairs in week 53. Its result and Q4 on Sunday 3 January 2027, then on Monday 4 January.', then: 'none, Q4: plan 40 pairs by week 53 / Not met: due week 53, Q4: 33 pairs against a plan of 40 pairs, 7 pairs short', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', unit: 'pairs' }); const cis = [checkIn('g37', 53, 33, { postedAt: '2026-12-29T10:00:00Z' })]; return ['2027-01-03', '2027-01-04'].map((d) => { const w = resultWeek(y, at(d + 'T12:00:00Z')); return `${goalResult(g, y, cis, w)?.text ?? 'none'}, ${quarterResults(g, y, cis, w)[3]!.text}`; }).join(' / '); } },
+      { given: 'The same goal with its last check-in in week 46 (posted 11 November 2026): its status, and whether its check-in is due, on Sunday 3 January 2027 and on Monday 11 January.', then: 'No recent update, due / On track, not due', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', ownerId: 'p', unit: 'pairs' }); const cis = [checkIn('g37', 46, 30, { postedAt: '2026-11-11T10:00:00Z' })]; return ['2027-01-03', '2027-01-11'].map((d) => { const t = at(d + 'T12:00:00Z'); return `${LABEL[goalStatus(g, y, cis, t).status]}, ${weekProgress('p', { goals: [g], checkIns: cis } as unknown as Snapshot, y, currentWeek(y, t), t).due.length ? 'due' : 'not due'}`; }).join(' / '); } },
+    ],
+    unclear: ['How long the wrap-up stays open after the year ends (four weeks) and how early it opens (two weeks) are choices, kept in RULES; the rebuild may tune them.'],
+  },
+
   /* ---------- the workspace (backlog WS) ---------- */
   {
     id: 'workspace',
@@ -653,7 +690,7 @@ For a range, better means further from the limit on its safe side.
     tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
     reqs: ['WORKSPACE-ONE-PLACE', 'WORKSPACE-ABOUT'],
     body: `
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its real first and last days (week 1's Monday to its last week's Sunday: \`cycleDates\`, rule “A year's end”) and whether it is running (with its week), ending (the wrap-up's weeks), ended (with its last day) or not begun; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -665,7 +702,7 @@ For a range, better means further from the limit on its safe side.
 
 **What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has ${ONLY_ADMIN_FROM} people or more; people with no email; people in no team; teams of ${LEAD_FROM} people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first ${NEEDS_SHOWN}; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
 
-**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; a cycle not started says when it starts.`,
+**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; once the year's last day is past, when it ended and until when the wrap-up stays open; a cycle not begun says when its week 1 starts.`,
     examples: [
       { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
       { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
@@ -680,8 +717,8 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'nothing', run: () => workspaceNeeds(workspace([]), CYCLE, false).map((x) => x.id).join(', ') || 'nothing' },
       { given: 'The example’s name in the demo, and a workspace called “Growth” in the real app.', then: 'Platform Engineering (example data) / Growth', run: () => [workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo'), workspaceName({ name: 'Growth', kind: 'own' }, 'live')].map((w) => w.name + (w.kind ? ` (${w.kind})` : '')).join(' / ') },
       { given: 'Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu.', then: 'Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others', run: () => [adminsLine(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg'].map((name) => ({ name, admin: true }))), adminsLine(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${i}`)].map((name) => ({ name, admin: true })))].join(' / ') },
-      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet.', then: '2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet', run: () => { const a = cycleLine({ name: '2026', startDate: '2025-12-22', weeks: 53 }, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}`; } },
-      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up.', then: '2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)} / ${yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)}`; } },
+      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; for a 2027 cycle (week 0 from Monday 28 December 2026) with nothing in it yet; and for 2026 on Monday 11 January 2027.', then: '2026 · running / Week 46 of 53 · 29 Dec 2025 to 3 Jan 2027 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet; 2026 · ended 3 Jan 2027 / 29 Dec 2025 to 3 Jan 2027 · 53 weeks', run: () => { const y = { name: '2026', startDate: '2025-12-22', weeks: 53 }; const a = cycleLine(y, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2026-12-28', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); const c = cycleLine(y, true, 53, new Date('2027-01-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}; ${c.title} / ${c.when}`; } },
+      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), on Tuesday 22 December (week 52) with 31 goals not wrapped up, and on Monday 4 January 2027 with 88.', then: '2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up. / 2026 ended on Sun 3 Jan 2027. The wrap-up is open until Sun 31 Jan 2027: 88 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)} / ${yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)} / ${yearLine(c, 53, new Date('2027-01-04T12:00:00Z'), 88)}`; } },
     ],
     unclear: ['When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },

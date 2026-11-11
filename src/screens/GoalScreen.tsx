@@ -14,7 +14,7 @@ import { useDraft } from '../app/drafts';
 import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
-import { planHistoryOf, valueSeries, weekDates } from '../domain/plan';
+import { planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
@@ -821,7 +821,7 @@ function FeedsSection({ feeding, feeds, parent }: { feeding: Goal[]; feeds: Retu
 function QuarterStrip({ goal }: { goal: Goal }) {
   const app = useApp();
   const now = quarterOf(app.cycle, app.week).n;
-  const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
+  const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today));
   if (rs.every((r) => r.kind === 'none')) return null;
   return (
     <section className="block goal-section" aria-labelledby="g-quarters" data-part="Quarters">
