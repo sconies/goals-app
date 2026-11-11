@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'round-trip-exact',
+    date: '2026-11-11',
+    title: 'An export loaded straight back changes nothing',
+    points: [
+      'A plan with decimal places could read as changed. It doesn’t now.',
+      'Nor does a goal whose stages were moved into a new order.',
+    ],
+    articles: ['import', 'export'],
+  },
+  {
     id: 'not-born-late',
     date: '2026-11-11',
     title: 'A new goal doesn’t start out late',

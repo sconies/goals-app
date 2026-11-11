@@ -18,7 +18,7 @@ import {
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, planQuestion, replanned, validateGoal, type GoalDraft } from './goal';
-import { notNumberText, precisionProblem, typedDecimals } from './numbers';
+import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
@@ -533,7 +533,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // old numbers: only the weeks typed differently from the plan before count.
     const orig = (touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? g) as MetricGoal;
     const origEnd = planEnd(orig.plan, cycle.weeks);
-    const tol = 0.5 * 10 ** -g.decimals;
+    // A week counts as typed only when it differs from the plan's own number as the export writes it (rule 9, IM0):
+    // a tolerance of half a unit misread a number that falls on the half (0.405 written 0.41) as a change.
     const startTyped = val(r, 'start') ? parseNumber(val(r, 'start')) : null;
     if (val(r, 'start') && startTyped == null) return err('Plan', row, g.title, `Start: ${notNumberText(val(r, 'start'), g.decimals)}`);
     const startPrecise = val(r, 'start') ? precisionProblem(val(r, 'start'), startTyped, g.decimals) : null;
@@ -548,9 +549,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (precise) return err('Plan', row, g.title, `Week ${m[1]}: ${precise}`);
       const w = Number(m[1]);
       const was = w <= (orig.plan.fromWeek ?? 0) || w > origEnd ? null : w === origEnd ? orig.plan.target : planAt(orig.plan, w, cycle.weeks);
-      if (was == null || Math.abs(n - was) > tol) typed.set(w, n);
+      if (!sameAsWritten(n, was, g.decimals)) typed.set(w, n);
     }
-    const startChanged = startTyped != null && Math.abs(startTyped - orig.plan.start) > tol;
+    const startChanged = startTyped != null && !sameAsWritten(startTyped, orig.plan.start, g.decimals);
     if (!typed.size && !startChanged) { if (!touched.has(id)) unchanged++; return; }
     if (removals.some((x) => x.g.id === id)) return err('Plan', row, g.title, `This file also stops or deletes “${g.title}”, so its plan can’t change in it.`);
     if (!create && !canChange(g)) return err('Plan', row, g.title, notYours(g));

@@ -9,7 +9,7 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 `planChanges(input)` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
 
-**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from `src/domain/columns.ts`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
+**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from `src/domain/columns.ts`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't `sameAsWritten`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
 
@@ -21,6 +21,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
+| A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
 | Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins. | `the first problem says: Week 4 needs a Cause and a Why` |
@@ -33,6 +34,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`, `records`, `describe`
 - [src/domain/columns.ts](../../../src/domain/columns.ts): `sheetKindOf`
+- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `sameAsWritten`
 - [src/domain/commit.ts](../../../src/domain/commit.ts): `Commit`
 
 ## Requirements
@@ -70,8 +72,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 - one format: export, load back, no change › ${d.name}: the workbook loads back as no change at all
 - one format: export, load back, no change › ${d.name}: the zipped CSVs load back as no change at all
+- the round trip is exact, whatever the day and the decimals › the demo as opened on ${day} loads back with no change
+- the round trip is exact, whatever the day and the decimals › goals at 0, 1, 2 and 3 decimal places, in every plan shape, load back with no change
 - one format: an edited copy applies exactly its edits › through the workbook
 - one format: an edited copy applies exactly its edits › through the zipped CSVs, with the formula guard taken off again
+- a typed cell is the same as what was written › compares numbers at the column’s written precision, never with a tolerance
 - one reader › reads RFC 4180 CSV in one pass: quotes, doubled quotes, line breaks in a cell, a byte-order mark, CRLF
 - one reader › knows each sheet by its header, whatever the file is called
 
