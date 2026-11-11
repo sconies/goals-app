@@ -3021,7 +3021,6 @@ journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus every
   h.set('entry', !(await p.locator('.layout-switch').count()), 'the layouts are still a row of buttons');
   // Where the head and the bar are, to the pixel.
   const place = () => p.evaluate(() => ['.goals-head', '.goals-tabs', '.filterbar-row'].map((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? [r.left, r.top + scrollY, r.width].map(Math.round).join(',') : '-'; }).join(' '));
-  const was = await place();
   if (phone) {
     // The View button says the layout and the group; the sheet holds Layout, Group, Saved views and the actions.
     const says = (await p.locator('.goals-phone-switch .view-open').innerText()).trim();
@@ -3050,6 +3049,8 @@ journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus every
     h.set('finish', items.includes('Copy link') && items.includes('Export these goals') && items.some((t) => /^My goals by status/.test(t)), `Views holds ${items.join(' | ')}`);
     await p.keyboard.press('Escape');
     await p.locator('.goals-head').click();
+    await p.waitForTimeout(300);
+    const was = await place();
     for (const l of ['Table', 'Map']) {
       await chooseLayout(h, p, l);
       await p.locator(l === 'Map' ? '.react-flow__node' : '.gtable').first().waitFor();
@@ -3572,6 +3573,8 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.goto(url('/goals?scope=all'));
   // Export these goals, from the Goals screen (on a phone, in the Views menu).
   const direct = await exportButton(h, p);
+  // On a phone it's at the foot of the View sheet, which scrolls.
+  await direct.scrollIntoViewIfNeeded();
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
   await h.click(direct);
   const sheet = p.getByRole('dialog', { name: 'Export goals' });

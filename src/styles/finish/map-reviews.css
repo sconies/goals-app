@@ -99,13 +99,14 @@
    at 1280 and the map keeps its height (Map 16). */
 .map-short { display: none; }
 @media (max-width: 1599px) { .map-long { display: none; } .map-short { display: inline; } }
-/* A phone: two rows of controls above the map: the two switches; the framing and fold (Map 22). */
+/* A phone: two rows of controls above the map: Troubled trees and the fold; then the framing, the whole width (Map 22).
+   (Needs attention is the list bar's switch, above: GL2.) */
 @media (max-width: 640px) {
   .map-tools { gap: 8px; }
   .map-tools .check { order: 1; }
-  .map-frame { order: 2; flex: 1 1 0; }
-  .map-tools .map-fold { order: 3; min-width: 0; flex: 0 0 auto; }
-  .map-tools > .btn.ghost { order: 4; }
+  .map-tools .map-fold { order: 2; min-width: 0; flex: 0 0 auto; margin-left: auto; }
+  .map-tools > .btn.ghost { order: 3; }
+  .map-frame { order: 4; flex: 1 1 100%; }
 }
 @media (pointer: coarse) { .bar-find-list li { min-height: 44px; } }
 

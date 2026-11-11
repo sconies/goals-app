@@ -57,6 +57,8 @@
 .goals-page .filterbar-row > .filter-sort { flex: 0 1 auto; }
 .goals-page .filterbar-row > .filter-sort .input { width: auto; max-width: 220px; }
 .goals-page .inline-sort select:disabled { opacity: 0.6; cursor: not-allowed; }
+/* A closed menu's list isn't drawn at all (a closed <details> can still give its contents boxes). */
+.view-menu:not([open]) > .view-menu-list { display: none; }
 /* In a menu: the current choice says so in words; a line that isn't a choice; a hairline between kinds of item. */
 .view-menu-list .menu-current { margin-left: auto; padding-left: var(--s3); font-size: 0.75rem; font-weight: 600; color: var(--muted); flex: none; }
 .view-menu-list .menu-note { display: block; padding: 8px 12px; max-width: 280px; }
@@ -65,7 +67,9 @@
 .filters-phone { display: none; }
 .goals-phone-switch .view-open { display: none; }
 @container app (max-width: 900px) {
+  /* A laptop at 150% (853 wide): the search gives way first, so search, the switch, Filters, Group and Layout keep one row. */
   .goals-page .filterbar-row { flex-wrap: wrap; }
+  .goals-page .filterbar-row > .filter-search { flex: 1 1 140px; }
 }
 @container app (max-width: 600px) {
   /* The phone (2.4): the tabs; the search and Filter and sort; the switch and View; the count line. Group, Layout,

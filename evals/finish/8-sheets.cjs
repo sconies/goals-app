@@ -46,14 +46,14 @@ module.exports = {
     // #1 (and Watching/Activity #3, List #3): the footer at every scroll position, on a phone, in both filter sheets.
     await step('Activity filters 390', async () => {
       const [c, p] = await open(390, 844, 'rhea', '/activity', true);
-      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
       await p.getByRole('dialog', { name: 'Filter activity' }).waitFor();
       checkFooter(fails, 'Activity Filters 390×844', await footerEverywhere(p));
       await c.close();
     });
     await step('Goals filters 390', async () => {
       const [c, p] = await open(390, 844, 'rhea', '/goals?scope=all', true);
-      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       const m = await footerEverywhere(p);
       checkFooter(fails, 'Filter goals 390×844', m);
@@ -65,7 +65,7 @@ module.exports = {
     });
     await step('Goals filters 360', async () => {
       const [c, p] = await open(360, 740, 'rhea', '/goals?scope=all', true);
-      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
       await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
       checkFooter(fails, 'Filter goals 360×740', await footerEverywhere(p));
       await c.close();
@@ -75,7 +75,7 @@ module.exports = {
     for (const [w, h, top] of [[1280, 800, 72], [1440, 700, 48], [1024, 768, 48]]) {
       await step(`tall sheet ${w}×${h}`, async () => {
         const [c, p] = await open(w, h, 'rhea', '/goals?scope=all');
-        await p.getByRole('button', { name: /^Filters/ }).click();
+        await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
         await p.getByRole('dialog', { name: 'Filter goals' }).waitFor();
         await p.waitForTimeout(250);
         const r = await p.evaluate(() => { const b = document.querySelector('.sheet').getBoundingClientRect(); return { top: b.top, bottom: b.bottom, vh: innerHeight }; });
@@ -176,6 +176,8 @@ module.exports = {
       const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
       await setTour(p, { id: 'brief', step: 0 });
       await p.locator('.coach').waitFor();
+      // Export these goals is in the Views menu (GL2), which the walkthrough points at first.
+      await p.locator('.views-menu > summary').click();
       await p.getByRole('button', { name: 'Export these goals' }).click();
       await p.getByRole('dialog', { name: 'Export goals' }).waitFor();
       await p.waitForTimeout(900);

@@ -38,8 +38,17 @@ export function MenuButton({ label, items, className, summary, icon, display, ex
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
   }, []);
+  // Opened, the list stays on the screen: it hangs from the button's right edge, or its left one when that would run off.
+  const fit = () => {
+    const d = menu.current, list = d?.querySelector<HTMLElement>('.view-menu-list');
+    if (!d?.open || !list) return;
+    list.style.left = ''; list.style.right = '';
+    const r = list.getBoundingClientRect();
+    if (r.left < 8) { list.style.left = '0'; list.style.right = 'auto'; }
+    else if (r.right > window.innerWidth - 8) { list.style.left = 'auto'; list.style.right = '0'; }
+  };
   return (
-    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu}>
+    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu} onToggle={fit}>
       <summary className={'btn sm ' + (summary ?? 'ghost')} aria-label={icon ? label : undefined} title={icon ? label : undefined}>{icon ?? display ?? label}{!icon && <Icon name="chevron-down" size={12} className="menu-chev" />}</summary>
       <div className="view-menu-list" role="group" aria-label={label}>
         {items.map((it, i) => {

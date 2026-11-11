@@ -32,7 +32,8 @@ module.exports = {
     // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
     {
       const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
-      await p.locator('[aria-label="Map"]').first().click();
+      await p.locator('.layout-menu > summary').click();
+      await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: /^Map/ }).click();
       await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
       const blank = [];
       for (let t = 0; t < 6000; t += 100) {
