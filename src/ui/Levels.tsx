@@ -21,10 +21,14 @@ export function CheckBlock({ id, question, yes, no, onYes, onNo, alert, blockRef
 
 /** Something to fix: what was read, in bold, and the fix. */
 export function MustFixBlock({ id, read, fix }: { id: string; read: string; fix: string }) {
+  // What was read, in bold, unless the fix already starts with it (“0.415 has 3 decimal places…”): said once.
+  const bare = read.replace(/^“|”$/g, '');
+  const lead = [read, bare].find((x) => !!x && fix.startsWith(x));
+  const says = lead ? <><strong>{lead}</strong>{fix.slice(lead.length)}</> : <><strong>{read}</strong> {fix}</>;
   return (
     <div className="level-block level-fix" id={id} role="alert">
       <span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span>
-      <span><strong>{read}</strong> {fix}</span>
+      <span>{says}</span>
     </div>
   );
 }

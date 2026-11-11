@@ -2,6 +2,7 @@
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 import { isCount, isShare } from './plan';
+import { fmt } from './format';
 import { farOutside, fixed, notNumberText, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
@@ -312,7 +313,8 @@ export function checkInLevels(goal: Goal, week: number, draft: Draft, own: Check
   const last = previousFor(own, week).number;
   const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
   const n = parseNumber(draft.value);
-  const u = (v: number) => fixed(v, goal.decimals) + (goal.unit === '%' ? '%' : goal.unit ? ' ' + goal.unit : '');
+  // The app's one number formatter, so 1 reads “1 hour” (build review of #160).
+  const u = (v: number) => fmt(v, goal);
   if (p?.block) mustFix.push({ field: 'This week’s number', says: p.text });
   else if (p && n != null) {
     const question = p.id === 'far-from-last' && last ? `Week ${last.week} was ${u(last.value!)}. Is ${u(n)} right?` : p.text;
