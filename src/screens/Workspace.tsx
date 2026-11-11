@@ -24,7 +24,7 @@ import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { wrapUpOpen } from '../domain/cycle';
+import { wrapUpOpenOn } from '../domain/cycle';
 import { useWidth } from '../ui/useWidth';
 import { movedTo } from '../domain/directory';
 
@@ -277,7 +277,7 @@ function CyclesSection() {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
-            const open = current && wrapUpOpen(c, app.week);
+            const open = current && wrapUpOpenOn(c, app.today);
             const action = !current ? null
               : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
               : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>

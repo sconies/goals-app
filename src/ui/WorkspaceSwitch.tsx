@@ -12,7 +12,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
-import { shortPeriod } from '../domain/year';
+import { placeLine } from '../domain/cycle';
 import { workspaceName } from '../domain/workspaceAttention';
 import { Sheet } from './bits';
 import { Icon } from './Icon';
@@ -121,14 +121,14 @@ export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
       <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
         {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
         <b className="ws-name">{name}</b>
-        <span className="tiny muted ws-meta">{app.opening ? 'Opening…' : `${app.ws.kind === 'example' ? 'Example · ' : ''}${shortPeriod(app.cycle, app.week)}`}</span>
+        <span className="tiny muted ws-meta">{app.opening ? 'Opening…' : `${app.ws.kind === 'example' ? 'Example · ' : ''}${placeLine(app.cycle, app.today)}`}</span>
       </span>
       <Icon name="chevron-down" size={14} className="ws-switch-chev" />
       <span className="sr">: switch workspace, or set one up</span>
     </button>
   ) : (
     <button type="button" className="ws-switch-top tiny muted" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-      <span className="ellipsis">{app.opening ? `Opening ${shown.name}…` : `${app.ws.kind === 'example' ? 'Example data' : app.ws.name}, ${shortPeriod(app.cycle, app.week).replace(/^Week/, 'week')}`}</span>
+      <span className="ellipsis">{app.opening ? `Opening ${shown.name}…` : `${app.ws.kind === 'example' ? 'Example data' : app.ws.name}, ${placeLine(app.cycle, app.today)}`}</span>
       <Icon name="chevron-down" size={12} />
       <span className="sr">: switch workspace</span>
     </button>

@@ -25,7 +25,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 
 1. [The data model](core/data-model.md): Cycle, Goal (three kinds), CheckIn, Ask, Decision.
 2. [The vocabulary](core/vocabulary.md): the codes the rules return and the words people read.
-3. The rules, in order: [Weeks and plans](core/rules/weeks-and-plans.md), [A goal’s status](core/rules/status.md), [The projection](core/rules/projection.md), [What a check-in must say](core/rules/check-in.md), [Numbers and names](core/rules/numbers-and-names.md), [Flags, the trend and needs attention](core/rules/flags.md), [The scorecard](core/rules/scorecard.md), [The change engine](core/rules/change-engine.md).
+3. The rules, in order: [Weeks and plans](core/rules/weeks-and-plans.md), [A year’s end](core/rules/year-end.md), [A goal’s status](core/rules/status.md), [The projection](core/rules/projection.md), [What a check-in must say](core/rules/check-in.md), [Numbers and names](core/rules/numbers-and-names.md), [Flags, the trend and needs attention](core/rules/flags.md), [The scorecard](core/rules/scorecard.md), [The change engine](core/rules/change-engine.md).
 4. [The conformance data](conformance/README.md): run the rebuild on `workspace.json` and match every row.
 5. [Stage 1 of the rebuild kit](rebuild/stage-1-core-rules.md): the contract, and how the drill harness scores it.
 
