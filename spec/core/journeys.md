@@ -76,6 +76,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
 | U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
 | U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
+| U85 | A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan |  | `NEW-GOAL-TRUTH` | 26 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
 
 ## Platform checks

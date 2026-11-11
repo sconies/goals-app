@@ -253,6 +253,15 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U4, U18, U25
 
+### NEW-GOAL-TRUTH
+
+A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
+
+- **Rule:** [A goal not born late](rules/not-born-late.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Tests:** `evals/onboarding.eval.ts` (1)
+- **Journeys and checks:** U85
+
 ### GOAL-PAGE
 
 The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal.
