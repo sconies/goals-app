@@ -188,11 +188,11 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 
 ### HONEST-CHECKIN
 
-A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
+A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
-- **Journeys and checks:** U57
+- **Journeys and checks:** U57, U111
 
 ### REASON-AHEAD
 
@@ -227,7 +227,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1
+- **Journeys and checks:** U1, U111
 
 ### UPDATE-ANYTIME
 
