@@ -33,7 +33,10 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   const others = liveLinks(libraryReads(app.snapshot, app.stamp()), m.metric.id).filter((l) => l.goalId !== goal.id).length;
   return (
     <section className="block goal-section stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
-      <h2 className="block-title" id="g-metric">Measured by {m.metric.name}, for {m.slice === 'The whole company' ? 'the whole company' : m.slice}</h2>
+      <div className="section-head">
+        <h2 className="block-title" id="g-metric">Measured by {m.metric.name}, for {m.slice === 'The whole company' ? 'the whole company' : m.slice}</h2>
+        <p className="section-purpose">What the number means, from the metric library.</p>
+      </div>
       {m.metric.meaning ? <p>{m.metric.meaning}</p> : <p className="hint">Its meaning hasn’t been written yet.</p>}
       {m.metric.source && <p className="small">Where the number comes from: {m.metric.source}</p>}
       {m.metric.caveats && <p className="small">Caveats: {m.metric.caveats}</p>}
