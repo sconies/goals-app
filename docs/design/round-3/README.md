@@ -175,6 +175,8 @@ Round 2's **IM2** (the levels in the engine) and **FT1** (the rhythm) still set 
 
 ## Decisions for Lane
 
+**Lane's answers (11 Nov):** (a) on every decision, 1–16. On 17, round 3's first cut woven with round 2's after round 1's held items, with CY1, CY2 and CY4 built before the demo's year ends on Sunday 3 January 2027.
+
 One batch; the recommended answer is first. Finer lists are in each area's README.
 
 1. **More switches** (switches 1, 2, 7).

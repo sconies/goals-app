@@ -225,6 +225,8 @@ Two items cross tracks and set the pace: **IM2** (the levels) holds GE2, ST4 and
 
 ## Decisions for Lane
 
+**Lane's answers (11 Nov):** (a) on every decision except **11**, where he chose **(c) as today**: anyone may create a goal above Team level or for someone else. On 17, both first cuts (rounds 2 and 3) after round 1's held items.
+
 One batch; the recommended answer is first. Each area's README has its own finer list, and each spec says what changes for another answer.
 
 1. **Reviews and the rhythm as switches** (toggles 1, 2, 4).
