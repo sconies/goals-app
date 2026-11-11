@@ -5,7 +5,7 @@
 
 /** A sheet of a workbook: its name and its rows, the first row being the header (set in bold), and the columns set apart
     in grey (worked out by the app, or there only so the table can be loaded back). */
-export interface SheetOut { name: string; rows: (string | number | null)[][]; muted?: string[] }
+export interface SheetOut { name: string; rows: (string | number | null)[][]; muted?: string[]; bold?: string[] }
 
 export type FileContent =
   | { kind: 'csv'; text: string }
@@ -51,7 +51,7 @@ const MUTED = '#6b6f76';
 const BOM = String.fromCharCode(0xfeff);
 
 /**
- * Sheets as the workbook library takes them: the header in bold, muted columns in grey, and a cell with line breaks
+ * Sheets as the workbook library takes them: the header in bold (or only the headers `bold` names), muted columns in grey, and a cell with line breaks
  * wrapped, so they show. Shared by saving and by the round-trip tests.
  */
 export function excelSheets(sheets: SheetOut[]) {
@@ -62,7 +62,9 @@ export function excelSheets(sheets: SheetOut[]) {
       sheet: t.name.slice(0, 31),
       data: t.rows.map((r, i) => r.map((c, k) => (c == null || c === '' ? null : {
         value: c,
-        ...(i === 0 && t.name !== 'README' ? { fontWeight: 'bold' as const } : {}),
+        // The header row in bold; with `bold`, only those headers (the template's required columns). Start here (and the
+        // README it replaced) opens with a line of text, not headers.
+        ...(i === 0 && !['README', 'Start here'].includes(t.name) && (!t.bold || t.bold.includes(String(c))) ? { fontWeight: 'bold' as const } : {}),
         ...(muted.has(k) ? { textColor: MUTED } : {}),
         ...(typeof c === 'string' && /\n/.test(c) ? { wrap: true } : {}),
       }))),
