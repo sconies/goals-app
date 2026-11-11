@@ -9,6 +9,7 @@ import { PostgresStore } from './postgres/goalsStore';
 import { freshPostgres } from './postgres/testDb';
 import { SupabaseStore } from './supabase/goalsStore';
 import { pgSupabase } from './supabase/testClient';
+import { contractWorkspace } from '../ports/contracts/store';
 
 /** A browser's localStorage, in memory. */
 const memory = (): Storage => {
@@ -22,3 +23,21 @@ storeContract('Supabase', async () => new SupabaseStore('https://stand-in.supaba
 // migration 0035 left under the old names in public (backlog 0c): the same contract, through those.
 storeContract('Supabase, through the old names in public', async () => new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(await freshPostgres(), undefined, 'public')));
 storeContract('plain Postgres', async () => new PostgresStore(await freshPostgres()));
+
+/* The database stores refuse a save that carries a token with anything else (build review, 11 Nov): a token is made
+   through issueToken and revoked on its own, so neither adapter ever splits a save in two. */
+describe('a token never rides with other rows', () => {
+  for (const [name, make] of [
+    ['Supabase', async () => new SupabaseStore('https://stand-in.supabase.co', 'public-key', pgSupabase(await freshPostgres()))],
+    ['plain Postgres', async () => new PostgresStore(await freshPostgres())],
+  ] as const) {
+    it(`${name}: refuses a revoked token saved with a person, and a new token saved at all`, async () => {
+      const store = await make();
+      const s = contractWorkspace('mix' + name.length);
+      await store.createWorkspace({ id: 'ws_mix', name: 'Mixed', kind: 'own', createdAt: '2026-10-30T12:00:00.000Z' }, s);
+      const t = { id: 'tok_mix', personId: s.people[0]!.id, name: 'x', createdBy: s.people[0]!.id, createdAt: '2026-10-30T12:00:00.000Z', lastUsedAt: null, revokedAt: '2026-10-30T12:00:00.000Z' };
+      await expect(store.commit('ws_mix', { tokens: [t], people: [s.people[1]!], changes: [] })).rejects.toThrow(/one token at a time, on its own/);
+      await expect(store.commit('ws_mix', { tokens: [{ ...t, revokedAt: null }], changes: [] })).rejects.toThrow(/make one with issueToken/);
+    }, 60_000);
+  }
+});
