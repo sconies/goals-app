@@ -65,6 +65,7 @@ const CSS = `<style>
 .wk li{min-height:44px;padding:8px 14px}.wk .l1{font-weight:400}.wk .l1 b{font-weight:600}.wk li.on .l1 b:after{content:" · chosen";font-weight:400;color:var(--muted)}
 .yr{display:flex;gap:6px;padding:4px 14px 10px}.yr span{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;display:inline-flex;align-items:center;font-weight:600;color:var(--muted)}.yr span.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg);color:var(--fg)}
 .more{padding:10px 14px;border-top:1px solid var(--line-2);color:var(--muted);font-size:14px}
+.pword{font-weight:600;color:var(--muted)}
 .pair{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.pair>.field:first-child{flex:1 1 150px}.pair>.field:last-child{flex:2 1 280px}.pair .field>.input{flex:none}.pair .input,.pop .input,.scols .input{min-width:0}.pair>.field{min-width:0}.pkl .l1 span{font-weight:400}.fld span{min-width:0}
 @media (max-width:700px){
  .fhead .btn{width:100%}
@@ -78,6 +79,9 @@ const CSS = `<style>
 </style>`;
 
 const SCREENS = {};
+/** A state that isn't a status: the word alone, where a status would sit. No shape, no capsule. */
+const prop = '<span class="pword">Proposed</span>';
+const pgoalrow = (title, line, right) => `<li class="goal"><span class="s">${prop}</span><span class="t"><b>${title}</b><span>${line}</span></span><span class="v">${right}</span></li>`;
 const MARK = '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1.5 13 12.5H1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 6v3" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="10.8" r=".8" fill="currentColor"/></svg>';
 /** Must fix: the warning mark and the words, under a field outlined on every side. */
 const mf = (t) => `<span class="mk mf" role="alert">${MARK}<span>${t}</span></span>`;
@@ -173,14 +177,15 @@ ${rbRow('You said', 'Build &amp; Release already has “Signed artifacts” (G-7
 <p>Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47.</p>
 <p>Everyone in Platform Engineering can see it. It joins no review yet.</p>
 <p class="hint">Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason.</p></div>
+<div class="field" style="margin-top:18px"><b>Is it under way?</b><div class="pl">${rad('Yes: publish it as active', true, 'It is judged against its plan from this week, and check-ins are due.')}${rad('Not yet: propose it', false, 'Everyone can see it and comment. Nothing is due and it has no status until you or an admin make it active.')}</div></div>
 ${foot('Publish goal')}`)}</div>
 <div class="state"><span class="label">(b) The same block where the workspace has no check-in rhythm, and the goal is for someone else</span>
 ${box(`<div class="next"><span class="label">After you publish</span>
 <p>It shows as “No check-in yet” until Amara posts its first number. Nothing is due.</p>
 <p>Amara sees it on her Home the next time she opens Faro. Faro doesn’t send email.</p>
 <p>It joins Platform leadership weekly, which walks every north star.</p>
-<p class="hint">Until its first check-in you or Amara can change anything, or delete it. After that, a change to the plan needs a reason.</p></div>`)}</div>
-${note('Wireframe 3. The read-back, in sentences. Four rows say what was typed; “Left as usual” says every default that was taken, with “Change”; “You said” repeats any Check that was answered. “After you publish” says what the first check-in will be asked and when, who will see the goal, and how long it can still be taken back. With the rhythm switched off the due day is not mentioned at all; with reviews switched off the review line is absent. Today Check says “checks in weekly” whatever the workspace does, and nothing about what happens next (E8).')}` });
+<p class="hint">Only Amara or an admin can change it once it is published. Until its first check-in they can change anything, or delete it. After that, a change to the plan needs a reason.</p></div>`)}</div>
+${note('Wireframe 3. The read-back, in sentences, now ending in one question, “Is it under way?”: with “Not yet: propose it” the button reads “Propose goal” and “After you publish” becomes wireframe 10’s block. Four rows say what was typed; “Left as usual” says every default that was taken, with “Change”; “You said” repeats any Check that was answered. “After you publish” says what the first check-in will be asked and when, who will see the goal, and how long it can still be taken back. With the rhythm switched off the due day is not mentioned at all; with reviews switched off the review line is absent. Today Check says “checks in weekly” whatever the workspace does, and nothing about what happens next (E8).')}` });
 
 /* 4. Edit: what will change, and a reason */
 const chg = (k, t) => `<li><p><span class="k">${k}</span>${t}</p></li>`;
@@ -225,20 +230,19 @@ SCREENS['05-agreed-in-a-review'] = shell({ title: 'Self-service environments rea
 <p class="hint" style="margin-bottom:10px">Platform leadership weekly · Thu 12 Nov · Goal 4 of 20 to discuss</p>
 <div class="stack" style="gap:14px"><div>${st('risk')}</div><h1>Self-service environments ready in under 15 minutes</h1>
 <h2 style="margin-top:8px">What happens next, who, by when?</h2>
-<div class="choices"><span class="btn">Add the next step</span><span class="btn on">Agree a new goal</span><span class="btn">We accept the risk</span><span class="btn">Add a note</span><span class="btn quiet">Skip for now</span></div>
-<div class="panel"><h3>Agree a new goal</h3>
-<p class="hint">Its owner sets it up afterwards, with the numbers. Until then it is a next step, not a goal.</p>
+<div class="choices"><span class="btn">Add the next step</span><span class="btn on">Propose a new goal</span><span class="btn">We accept the risk</span><span class="btn">Add a note</span><span class="btn quiet">Skip for now</span></div>
+<div class="panel"><h3>Propose a new goal</h3>
+<p class="hint">It is saved as proposed: everyone can see it, nothing is due, and it has no status. Its owner adds the numbers and makes it active.</p>
 ${fl('What should the goal be called?', `<span class="input filled">Data-backed environments ready in under an hour</span>`)}
-${fl('Who will own it?', closed('Camille Laurent · Developer Portal'))}
-${fl('It will feed', closed('Self-service environments ready in under 15 minutes · G-5'))}
-${fl('Set up by', select('Week 48 · 23–29 Nov 2026'))}
-<div class="row"><span class="btn primary">Agree it</span><span class="btn">Cancel</span></div></div></div></div>
+${fl('Who would own it?', closed('Camille Laurent · Developer Portal'))}
+${fl('It would feed', closed('Self-service environments ready in under 15 minutes · G-5'))}
+<div class="row"><span class="btn primary">Propose it</span><span class="btn">Cancel</span></div></div></div></div>
 <div class="state"><span class="label">(b) What the review records, and what Camille sees on her Home</span>
 <div class="panel" style="gap:0">
-<div class="hrow"><p><b>Camille agreed: Set up a goal: Data-backed environments ready in under an hour</b><span class="hint" style="display:block">Asked by Amara in Platform leadership weekly · by week 48 · feeds “Self-service environments ready in under 15 minutes”</span></p><span class="btn primary">Set up the goal</span></div>
+<div class="hrow"><p><span style="display:block">${prop}</span><b>Data-backed environments ready in under an hour</b><span class="hint" style="display:block">G-131 · Amara proposed it for you in Platform leadership weekly, today · feeds “Self-service environments ready in under 15 minutes” · how it’s measured isn’t said yet</span></p><span class="btn primary">Finish it</span></div>
 </div>
-<p class="hint" style="margin-top:10px">“Set up the goal” opens New goal with the name, Camille as owner and the goal it feeds filled in. Publishing it marks this step done: “Set up as G-131”.</p></div>
-${note('Wireframe 5. A goal agreed in a review. The room records a name, an owner and what it feeds, in ten seconds, as a next step for the owner: nothing half-made is published and no number is invented in the meeting. The owner finishes it in New goal, where every rule applies, and publishing closes the step. With Reviews switched off this choice is simply absent. Today the review can only write it as a sentence: the example data’s own “Camille agreed: Decide whether to split data-backed environments into their own goal” (E9).')}` });
+<p class="hint" style="margin-top:10px">“Finish it” opens the goal’s edit page at what is missing. Once nothing is missing the button is “Make it active”. At the next session the review’s “Last time” reads “Proposed: Data-backed environments… (G-131). Camille hasn’t made it active yet.”</p></div>
+${note('Wireframe 5. A goal agreed in a review is a proposed goal. The room records a name, who would own it and what it would feed, in ten seconds; it is a real goal with a key that everyone can see, and nobody is held to it until its owner finishes it and makes it active. No number is invented in the meeting. With Reviews switched off this choice is simply absent. Today the review can only write it as a sentence: the example data’s own “Camille agreed: Decide whether to split data-backed environments into their own goal” (E9, E16). Redrawn on 11 Nov: it was a next step, “Set up a goal: …”.')}` });
 
 /* 6. From a parent goal, and "Adding several?" */
 SCREENS['06-from-a-parent-and-several'] = shell({ title: 'Lead time for changes', cur: 'Goals', who: 'rhea', width: 'narrow', body: `${CSS}
@@ -266,8 +270,7 @@ ${note('Wireframe 6. New goal from where you are. “Add a goal that feeds this�
 SCREENS['07-drafts'] = shell({ title: 'Goals', cur: 'Goals', who: 'tunde', width: 'narrow', body: `${CSS}
 <div class="state"><span class="label">(a) New goal, with goals not yet published</span>
 ${box(`${head('New goal', 'Step 1 of 4 · What', 'Close')}
-<div class="panel" style="gap:0;margin-bottom:24px"><h3 style="margin-bottom:6px">Not published yet · 3</h3>
-<div class="drow"><span class="t"><b>Rollback rehearsed for every tier-1 service</b><span>Pavel asked you to set this up in Reliability weekly · by week 48</span></span><span class="btn">Set up the goal</span></div>
+<div class="panel" style="gap:0;margin-bottom:24px"><h3 style="margin-bottom:6px">Not published yet · 2</h3>
 <div class="drow"><span class="t"><b>Signed artifacts in staging</b><span>A number to move · stopped at step 3 of 4 · kept until 9 Dec</span></span><span class="row nowrap" style="gap:8px"><span class="btn">Carry on</span><a class="btn quiet">Discard</a></span></div>
 <div class="drow"><span class="t"><b>Untitled goal</b><span>Dated stages · stopped at step 3 of 4 · kept until 2 Dec</span></span><span class="row nowrap" style="gap:8px"><span class="btn">Carry on</span><a class="btn quiet">Discard</a></span></div></div>
 <h1 style="margin-bottom:20px">Or start a new one: what do you want to achieve?</h1>
@@ -279,10 +282,10 @@ ${foot('Continue', false)}`)}</div>
 ${kit.goal('risk', 'Contract tests between the top 40 service pairs', 'Fewer pairs covered than planned for three weeks.', '27 pairs', '5 behind plan')}
 ${kit.goal('on', 'Release artifacts signed and verified at deploy', 'On plan.', '82%', 'On plan')}
 </ul>
-<p class="hint" style="margin-top:6px">Not published yet: <a>Signed artifacts in staging</a> · <a>Untitled goal</a> · 1 to set up for Pavel. <a>See all 3</a></p></div></div>
+<p class="hint" style="margin-top:6px">Not published yet: <a>Signed artifacts in staging</a> · <a>Untitled goal</a>. Only you can see these.</p></div></div>
 <div class="state"><span class="label">(c) After “Close and keep the draft”</span>
 <div class="toast" role="status"><span>Draft kept until 11 Dec. It’s under Goals, Mine.</span><a>Open it</a></div></div>
-${note('Wireframe 7. Drafts. A person can have several goals not yet published; each says its kind, where it stopped and how long it is kept (30 days from the last change), and a goal someone asked them to set up heads the list. They are listed where a new goal starts and at the foot of Goals, Mine, never on Home. “Close and keep the draft” says where the draft went; with nothing typed the button reads “Close”. Today there is one unlisted draft per browser, and starting another goal throws it away (E11).')}` });
+${note('Wireframe 7. Drafts. A person can have several goals not yet published; each says its kind, where it stopped and how long it is kept (30 days from the last change), and only its author sees it (a goal others should see before it starts is proposed, wireframe 10). They are listed where a new goal starts and at the foot of Goals, Mine, never on Home. “Close and keep the draft” says where the draft went; with nothing typed the button reads “Close”. Today there is one unlisted draft per browser, and starting another goal throws it away (E11).')}` });
 
 /* 8. The three dates, picked */
 SCREENS['08-dates-picked'] = shell({ bare: true, title: 'New goal', body: `${CSS}
@@ -362,5 +365,48 @@ ${fl('Feeds into', fld('Nothing: top of its own tree'), 'optional')}
 ${fl('Level', `<div class="pl">${rad('Team', true)}${rad('SVP', false)}${rad('North star', false)}</div>`)}
 </div>`)}</div>
 ${note('Wireframe 9. Search to find. Every choice of a person, a team, a goal or a metric in goal entry is round 1’s find-and-pick, unchanged: closed, the choice as words with “Change”; open, a search with suggestions first (you, the goal’s team with its lead first, who you chose lately), then results with a count as you type. Short fixed lists (the level, the type, how progress comes, a week) stay plain. Shown as an admin adding a goal for Build &amp; Release. Today the owner is a select of 97 people, the goal it feeds one of 127, and the team one of 14 (E15).')}` });
+
+/* 10. Proposed, not yet active */
+SCREENS['10-proposed'] = shell({ title: 'Goals', cur: 'Goals', who: 'tunde', width: 'narrow', body: `${CSS}
+<div class="state"><span class="label">(a) New goal’s last step, with “Not yet: propose it” chosen</span>
+${box(`<div class="field"><b>Is it under way?</b><div class="pl">${rad('Yes: publish it as active', false, 'It is judged against its plan from this week, and check-ins are due.')}${rad('Not yet: propose it', true, 'Everyone can see it and comment. Nothing is due and it has no status until you or an admin make it active.')}</div></div>
+<div class="next" style="margin-top:18px"><span class="label">After you propose it</span>
+<p>It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.</p>
+<p>Its plan is kept as you typed it. When you make it active, the plan starts from that week unless you say otherwise.</p>
+<p class="hint">You can change anything without giving a reason, or withdraw it.</p></div>
+${foot('Propose goal')}`)}</div>
+<div class="state"><span class="label">(b) A proposed goal’s page, for its owner</span>
+<p style="margin-bottom:10px"><a>‹ your goals</a></p>
+<div class="stack" style="gap:14px">
+<div>${prop}</div>
+<h1>Signed artifacts in staging</h1>
+<p class="hint">G-132 · Tunde Bakare, Build &amp; Release · proposed by Tunde on 11 Nov</p>
+<div class="row"><span class="btn on">Make it active</span><span class="btn">Change it</span><a class="btn quiet">Withdraw it</a></div>
+<div class="panel"><p>Proposed, not yet active. Nothing is due and it has no status. It would move from 40% to 90% over 7 weeks, and feed “Services deploying through the standard pipeline” (G-41).</p>
+<p class="hint">The scorecard, the chart and History’s weeks start when it is made active.</p></div>
+<div class="panel"><h3>Make it active</h3>
+${pair(fl('Baseline', num('40', '%')), fl('From', wk('Week 48 · 23–29 Nov 2026', 'This week')))}
+<p>From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week. It joins no review yet.</p>
+<div class="row"><span class="btn primary">Make it active</span><span class="btn">Cancel</span></div></div>
+</div></div>
+<div class="state"><span class="label">(c) The same page for anyone else</span>
+<div class="stack" style="gap:14px"><div>${prop}</div><h1>Signed artifacts in staging</h1>
+<p>Tunde Bakare or an admin can make this active.</p>
+<div class="row"><span class="btn">Add a comment</span><span class="btn">Ask Tunde a question</span><span class="btn">Watch</span></div></div></div>
+<div class="state"><span class="label">(d) Goals: proposed goals are counted apart, and found by a filter</span>
+<div class="stack"><p class="countline"><b>2 goals</b>, worst first. <a>1 proposed</a></p>
+<ul class="list">
+${kit.goal('risk', 'Contract tests between the top 40 service pairs', 'Fewer pairs covered than planned for three weeks.', '27 pairs', '5 behind plan')}
+${kit.goal('on', 'Release artifacts signed and verified at deploy', 'On plan.', '82%', 'On plan')}
+</ul>
+<span class="label" style="margin-top:14px">With the filter on</span>
+<p class="filters">Filtered by: Proposed (<u>Remove</u>)</p>
+<p class="countline"><b>4 proposed goals</b>, newest first.</p>
+<ul class="list">
+${pgoalrow('Signed artifacts in staging', 'G-132 · Tunde Bakare · Build &amp; Release · proposed 11 Nov', '40% to 90%')}
+${pgoalrow('Data-backed environments ready in under an hour', 'G-131 · Camille Laurent · Developer Portal · proposed by Amara, 11 Nov', 'Not said yet')}
+${pgoalrow('Rollback rehearsed for every tier-1 service', 'G-129 · Pavel Novák · Build &amp; Release · proposed 9 weeks ago', '0 to 40 services')}
+</ul></div></div>
+${note('Wireframe 10. A goal that is proposed, not yet active. It is a real goal that everyone can see and nobody is held to: no status, nothing due, in no count. “Proposed” is a word where a status would sit, never a shape or a capsule. New goal’s last step asks once whether the goal is under way; a proposed goal’s owner (or an admin) has one action, “Make it active”, which reads back the dates and what becomes due; everyone else can comment, ask and watch. Goals counts proposed goals apart (“2 goals · 1 proposed”) and lists them under a filter. Today a goal that isn’t agreed yet is either not in Faro or sits at “No check-in yet” and then “No recent update” (E16).')}` });
 
 kit.render(__dirname, SCREENS);

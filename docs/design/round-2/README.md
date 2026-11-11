@@ -169,6 +169,7 @@ Backlog-sized items in order. Effort as in round 1: **S** (under a day), **M** (
 | 8 | **IM3** The preview | What was read, counts by sheet, Must fix by kind, Check questions, the rows to fix as a file, "Leave these rows out" | M | IM2; FS1's pickers *held* (a fallback is given) | import |
 | 9 | **GE9** The three dates, picked | Baseline, From and To; the year-and-week picker, also for a stage's due week; the conversion rule; From and To in the sheet | M | GE1, GE2, OB1 *held*, IM1, FT1 | goal entry |
 | 10 | **GE3** The read-back | New goal's last step in sentences, with dates and what is due | S | GE1, GE2, OB1 *held*, FT1 | goal entry |
+| 10a | **GE10** A goal is proposed or active (Lane, 11 Nov) | The last step asks "Is it under way?"; a proposed goal is seen by everyone and held to nothing; "Make it active" with its dates read back; counted apart; a State column in the sheet; two nullable columns | M | GE1, GE3, GE9, IM1 | goal entry |
 | 11 | **ST1** Welcome and arrival | `/welcome`, `/join/<id>`, an invitation that opens the right workspace | S–M | Nothing | set-up |
 | 12 | **ST2** Set-up in five steps, each an address | Name and you; how you'll work; people; goals; check | M | NV2 if landed | set-up |
 | 13 | **ST3** How you'll work | The rhythm and reviews asked once, with first dates; two clear days before a first check-in; About says the same | M | FT1, FT2, ST2 | set-up |
@@ -296,6 +297,23 @@ One batch; the recommended answer is first. Each area's README has its own finer
     - (b) The first and second cuts (adds set-up and the edit page).
     - (c) Only IM0 and GE1 now, as fixes; the rest after the talk's feedback.
     - (d) Hold all of it.
+
+### Added after the answers (11 Nov)
+
+Two things Lane asked for after answering, and what his answer on decision 11 changed:
+
+- **Decision 11, "as today".** Anyone may add a goal for anyone at any level, at every door. So the form keeps its freedom and the import's refusal of such a row is what goes; the question for a non-admin and "Ask {name} to set it up" are dropped. GE1 is rewritten around this (goal entry E1).
+- **Set-up offers no example goals.** Built into ST2 and ST5 above.
+- **A goal can be proposed before it is active** (GE10, goal-entry spec and wireframe 10). Shown as the word "Proposed", never a shape; no status, nothing due, in no count. Its owner or an admin makes it active. Different from a draft (private) and from a goal that is committed but starts later.
+
+Open, for Lane, recommended first (goal entry's README has the wording):
+
+18. **A goal agreed in a review**, now that Proposed exists: (a) the room proposes the goal itself; its owner makes it active. *Recommended; this reopens decision 10.* (b) Keep it a next step for its owner.
+19. **A goal added for someone else**: (a) starts on "propose it", changeable to active. *Recommended: it is the only guard left after decision 11.* (b) Starts active.
+20. **Who makes a proposed goal active**: (a) its owner or an admin, the right that already exists. *Recommended.* (b) Also the owner of the goal it feeds, or the team's lead (a new right).
+21. **Requiring proposals**: (a) no workspace setting; proposing is a choice at the last step. *Recommended.* (b) A setting under "How you work": new goals start as proposed.
+22. **The proposer who isn't the owner**: (a) may change or withdraw their own proposal until it is active. *Recommended.* (b) Only the owner or an admin.
+23. **Stages due next year, and a range goal's dates**: (a) not yet: stages stay within the year and a range applies from the week it is made active. *Recommended.* (b) Both now (rule and data changes).
 
 ## What was not covered
 

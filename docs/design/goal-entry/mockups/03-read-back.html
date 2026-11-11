@@ -112,6 +112,7 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 .wk li{min-height:44px;padding:8px 14px}.wk .l1{font-weight:400}.wk .l1 b{font-weight:600}.wk li.on .l1 b:after{content:" · chosen";font-weight:400;color:var(--muted)}
 .yr{display:flex;gap:6px;padding:4px 14px 10px}.yr span{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;display:inline-flex;align-items:center;font-weight:600;color:var(--muted)}.yr span.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg);color:var(--fg)}
 .more{padding:10px 14px;border-top:1px solid var(--line-2);color:var(--muted);font-size:14px}
+.pword{font-weight:600;color:var(--muted)}
 .pair{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.pair>.field:first-child{flex:1 1 150px}.pair>.field:last-child{flex:2 1 280px}.pair .field>.input{flex:none}.pair .input,.pop .input,.scols .input{min-width:0}.pair>.field{min-width:0}.pkl .l1 span{font-weight:400}.fld span{min-width:0}
 @media (max-width:700px){
  .fhead .btn{width:100%}
@@ -139,11 +140,12 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 <p>Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47.</p>
 <p>Everyone in Platform Engineering can see it. It joins no review yet.</p>
 <p class="hint">Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason.</p></div>
+<div class="field" style="margin-top:18px"><b>Is it under way?</b><div class="pl"><div class="rrow sel two"><span class="rd y"></span><span><b>Yes: publish it as active</b><span class="hint">It is judged against its plan from this week, and check-ins are due.</span></span></div><div class="rrow  two"><span class="rd "></span><span><b>Not yet: propose it</b><span class="hint">Everyone can see it and comment. Nothing is due and it has no status until you or an admin make it active.</span></span></div></div></div>
 <div class="ffoot" style=""><span class="btn">Back</span><span class="btn primary">Publish goal</span></div></div></div>
 <div class="state"><span class="label">(b) The same block where the workspace has no check-in rhythm, and the goal is for someone else</span>
 <div class="frame boxed"><div class="next"><span class="label">After you publish</span>
 <p>It shows as “No check-in yet” until Amara posts its first number. Nothing is due.</p>
 <p>Amara sees it on her Home the next time she opens Faro. Faro doesn’t send email.</p>
 <p>It joins Platform leadership weekly, which walks every north star.</p>
-<p class="hint">Until its first check-in you or Amara can change anything, or delete it. After that, a change to the plan needs a reason.</p></div></div></div>
-<p class="note">Wireframe 3. The read-back, in sentences. Four rows say what was typed; “Left as usual” says every default that was taken, with “Change”; “You said” repeats any Check that was answered. “After you publish” says what the first check-in will be asked and when, who will see the goal, and how long it can still be taken back. With the rhythm switched off the due day is not mentioned at all; with reviews switched off the review line is absent. Today Check says “checks in weekly” whatever the workspace does, and nothing about what happens next (E8).</p></main></html>
+<p class="hint">Only Amara or an admin can change it once it is published. Until its first check-in they can change anything, or delete it. After that, a change to the plan needs a reason.</p></div></div></div>
+<p class="note">Wireframe 3. The read-back, in sentences, now ending in one question, “Is it under way?”: with “Not yet: propose it” the button reads “Propose goal” and “After you publish” becomes wireframe 10’s block. Four rows say what was typed; “Left as usual” says every default that was taken, with “Change”; “You said” repeats any Check that was answered. “After you publish” says what the first check-in will be asked and when, who will see the goal, and how long it can still be taken back. With the rhythm switched off the due day is not mentioned at all; with reviews switched off the review line is absent. Today Check says “checks in weekly” whatever the workspace does, and nothing about what happens next (E8).</p></main></html>
