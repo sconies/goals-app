@@ -7,7 +7,7 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 ## The rule
 
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then `weeks × 7 − 1` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (`cycleLine`), with its goals and check-ins ("no check-ins yet" for none).
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its real first and last days (week 1's Monday to its last week's Sunday: `cycleDates`, rule “A year's end”) and whether it is running (with its week), ending (the wrap-up's weeks), ended (with its last day) or not begun; on Cycles as one word after its name (`cycleLine`), with its goals and check-ins ("no check-ins yet" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -19,7 +19,7 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 **What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has 5 people or more; people with no email; people in no team; teams of 3 people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first 3; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
 
-**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (`wrapUpOpen`), or, once it's open, how many goals are still to wrap up; a cycle not started says when it starts.
+**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (`wrapUpOpen`), or, once it's open, how many goals are still to wrap up; once the year's last day is past, when it ended and until when the wrap-up stays open; a cycle not begun says when its week 1 starts.
 
 ## Worked examples
 
@@ -40,8 +40,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The same, for Pat, who isn’t an admin. | `nothing` |
 | The example’s name in the demo, and a workspace called “Growth” in the real app. | `Platform Engineering (example data) / Growth` |
 | Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu. | `Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others` |
-| Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet. | `2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet` |
-| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up. | `2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.` |
+| Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; for a 2027 cycle (week 0 from Monday 28 December 2026) with nothing in it yet; and for 2026 on Monday 11 January 2027. | `2026 · running / Week 46 of 53 · 29 Dec 2025 to 3 Jan 2027 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet; 2026 · ended 3 Jan 2027 / 29 Dec 2025 to 3 Jan 2027 · 53 weeks` |
+| A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), on Tuesday 22 December (week 52) with 31 goals not wrapped up, and on Monday 4 January 2027 with 88. | `2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up. / 2026 ended on Sun 3 Jan 2027. The wrap-up is open until Sun 31 Jan 2027: 88 goals still to wrap up.` |
 
 ## Not self-explanatory
 

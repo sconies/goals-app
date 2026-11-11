@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../app/state';
+import { resultWeek } from '../domain/plan';
 import { readTour, type TourState } from '../app/tours';
 import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
 import { FEEDER_SCOPE } from '../domain/goalPage';
@@ -144,7 +145,7 @@ export function GoalMap({ goals, matches, attention, onAttention }: { goals: Goa
       domAttributes: { 'aria-keyshortcuts': 'Enter Space' },
       ariaLabel: `${g.key ? g.key + ' ' : ''}${g.title}: ${LABEL[st]}${critical.has(n.id) ? ', on the critical path' : ''}${matches && !matches.has(n.id) ? ', shown for context' : ''}`,
       data: {
-        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, app.week)?.kind ?? null,
+        goal: g, status: st, owner: app.person(g.ownerId)?.name ?? '', result: goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today))?.kind ?? null,
         children: kids.length, hidden: kids.filter((c) => !shown.has(c.id)).length, critical: critical.has(n.id), root: n.depth === 0, context: !!matches && !matches.has(n.id), found: found === n.id,
         nums: { now: nowText(g, a), target: g.kind === 'metric' ? fmt(g.plan.target, g) : null, gap: gap ? { short: gap.short, tone: gap.tone } : null },
         under: r ? { worst: r.worst, text: rollupText(r), total: r.total } : null,

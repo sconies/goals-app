@@ -1,8 +1,7 @@
 /* The workspace in words (backlog WS; app redesign WR2, docs/design/workspace/spec.md rules 1, 2, 3 and 6): what an
    admin has to sort out, the workspace's name and its admins as people read them, where the year stands, and a
    cycle's dates. Workspace's About reads these. Pure. */
-import { wrapUpOpen } from './cycle';
-import { weekDate } from './plan';
+import { cycleDates, cycleState, dayWithYear, wrapUpOpen } from './cycle';
 import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
@@ -70,19 +69,22 @@ export function adminsLine(people: Pick<Person, 'name' | 'admin'>[], max = 3): s
 }
 
 /**
- * Where the year stands (rule 6), for About's Year fact and Cycles' running row: the week, and when the wrap-up opens
- * (the first day of the first week `wrapUpOpen` allows), or how many goals are still to wrap up once it's open. A
- * cycle not started yet says when it starts. `left` is how many of its goals have no wrap-up yet.
+ * Where the year stands (rule 6; cycle-end rule 1), for About's Year fact and Cycles' current row: the week, and when the
+ * wrap-up opens, or how many goals are still to wrap up once it's open. Once its last day is past it says so, and until
+ * when the wrap-up stays open. A cycle not begun says when its week 1 starts. `left` is how many of its goals have no
+ * wrap-up yet.
  */
 export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, week: number, today: Date, left: number): string {
-  const start = new Date(cycle.startDate + 'T00:00:00Z');
-  if (cycle.startDate > today.toISOString().slice(0, 10)) return `${cycle.name} starts on ${day(start)}.`;
+  const d = cycleDates(cycle);
+  const state = cycleState(cycle, today);
+  const still = left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up';
+  if (state === 'before') return `${cycle.name} starts on ${day(new Date(d.firstDay + 'T00:00:00Z'))}.`;
+  if (state === 'ended') return `${cycle.name} ended on ${dayWithYear(d.lastDay)}. The wrap-up is open until ${dayWithYear(d.wrapUpCloses)}: ${still}.`;
+  if (state === 'closed') return `${cycle.name} ended on ${dayWithYear(d.lastDay)}.`;
   const w = Math.max(1, Math.min(week, cycle.weeks));
   const at = `${cycle.name}, week ${w} of ${cycle.weeks}.`;
-  if (wrapUpOpen(cycle as Cycle, w)) return `${at} The wrap-up is open: ${left ? `${n(left, 'goal', 'goals')} still to wrap up` : 'every goal is wrapped up'}.`;
-  let first = w;
-  while (!wrapUpOpen(cycle as Cycle, first) && first < cycle.weeks) first++;
-  return `${at} The wrap-up opens on ${day(new Date(weekDate(cycle as Cycle, first) + 'T00:00:00Z'))}.`;
+  if (state === 'ending' || wrapUpOpen(cycle, w)) return `${at} The wrap-up is open: ${still}.`;
+  return `${at} The wrap-up opens on ${day(new Date(d.wrapUpOpens + 'T00:00:00Z'))}.`;
 }
 
 
@@ -91,10 +93,11 @@ export function yearLine(cycle: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, wee
  * days, and where it stands against the week the workspace is in: running (with the week), not started, or over.
  */
 export function cycleWhen(c: Pick<Cycle, 'startDate' | 'weeks'>, current: boolean, week: number, today: Date): { dates: string; now: string } {
-  const start = new Date(c.startDate + 'T00:00:00Z');
-  const end = new Date(start.getTime() + (c.weeks * 7 - 1) * 86_400_000);
-  const now = current ? `Running: week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks}` : c.startDate > today.toISOString().slice(0, 10) ? `Starts ${day(start)}` : 'Over';
-  return { dates: `${day(start)} to ${day(end)}, ${c.weeks} weeks`, now };
+  const d = cycleDates(c);
+  const first = new Date(d.firstDay + 'T00:00:00Z'), last = new Date(d.lastDay + 'T00:00:00Z');
+  const state = cycleState(c, today);
+  const now = state === 'before' ? `Starts ${day(first)}` : state === 'ended' || state === 'closed' ? 'Over' : current ? `Running: week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks}` : 'Running';
+  return { dates: `${day(first)} to ${day(last)}, ${c.weeks} weeks`, now };
 }
 
 /**
@@ -103,12 +106,15 @@ export function cycleWhen(c: Pick<Cycle, 'startDate' | 'weeks'>, current: boolea
  * check-ins ("no check-ins yet" for none).
  */
 export function cycleLine(c: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, current: boolean, week: number, today: Date, counts: { goals: number; checkIns: number }): { title: string; when: string; counts: string } {
-  const start = new Date(c.startDate + 'T00:00:00Z');
-  const end = new Date(start.getTime() + (c.weeks * 7 - 1) * 86_400_000);
-  const dates = `${day(start)} to ${day(end)}`;
-  const later = c.startDate > today.toISOString().slice(0, 10);
-  const title = `${c.name} · ${current ? 'running' : later ? `starts ${day(start)}` : 'over'}`;
-  const when = current ? `Week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks} · ${dates}` : dates;
+  // Its real days (cycle-end rule 1): week 1's Monday to its last week's Sunday, so 2026 is 29 Dec 2025 to 3 Jan 2027.
+  const d = cycleDates(c);
+  const first = new Date(d.firstDay + 'T00:00:00Z'), last = new Date(d.lastDay + 'T00:00:00Z');
+  const dates = `${day(first)} to ${day(last)}`;
+  const state = cycleState(c, today);
+  const word = state === 'before' ? `starts ${day(first)}` : state === 'running' ? 'running' : state === 'ending' ? 'ending' : `ended ${day(last)}`;
+  const title = `${c.name} · ${word}`;
+  const live = state === 'running' || state === 'ending';
+  const when = live && current ? `Week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks} · ${dates}` : `${dates} · ${c.weeks} weeks`;
   const goals = `${counts.goals.toLocaleString('en-GB')} ${counts.goals === 1 ? 'goal' : 'goals'}`;
   return { title, when, counts: `${goals} · ${counts.checkIns ? `${counts.checkIns.toLocaleString('en-GB')} ${counts.checkIns === 1 ? 'check-in' : 'check-ins'}` : 'no check-ins yet'}` };
 }

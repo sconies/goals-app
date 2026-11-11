@@ -788,9 +788,17 @@ From the last two weeks of a cycle, each owner wraps up their goals: how it land
 
 Goals are set for the year: a goal year starting in the month each workspace picks, in four quarters. Quarter targets, and any week in between, are read off the owner’s own plan; each ended quarter shows met or missed against it, a missed quarter is flagged in the goal’s story, and history can be seen for this quarter or the whole year.
 
-- **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
+- **Rule:** [Weeks and plans](rules/weeks-and-plans.md), [A year’s end](rules/year-end.md)
 - **Help:** “History: quarter results and weekly status” (`history`), screens `GoalHistory`; “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`
-- **Journeys and checks:** U18, U23
+- **Journeys and checks:** U18, U23, U117
+
+### RESULTS
+
+A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
+
+- **Rule:** [A year’s end](rules/year-end.md)
+- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Workspace: Cycles” (`workspace-cycles`)
+- **Journeys and checks:** U117
 
 ### CALENDAR-WEEKS
 
@@ -1038,6 +1046,14 @@ A person, team, goal or metric is always chosen by typing to find it, never from
 
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** F11, U63, U84
+
+### FIND-ANYWHERE
+
+Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
+
+- **Rule:** [Finding things](rules/finding.md)
+- **Help:** “Finding and choosing” (`finding`)
+- **Journeys and checks:** U65
 
 ## Export
 

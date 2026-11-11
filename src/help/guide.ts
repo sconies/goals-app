@@ -526,6 +526,17 @@ const CORE_ARTICLES: Article[] = [
         'Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.',
         'A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source.',
       ] },
+      { heading: 'Find, from anywhere', list: [
+        'Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.',
+        'What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.',
+        'A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.',
+        'Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open.',
+      ] },
+      { heading: 'Keys', list: [
+        'Ctrl K (Cmd K on a Mac): Find, from any page.',
+        'Escape closes Find, a picker or a sheet.',
+        'Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen.',
+      ] },
       { heading: 'Searching a list', list: [
         'Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).',
         'When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”',
@@ -535,8 +546,8 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: [],
     screens: [],
-    reqs: ['FIND-AND-PICK', 'LIST-BAR'],
-    keywords: ['find', 'search', 'pick', 'choose', 'owner', 'person', 'team', 'type to find', 'select'],
+    reqs: ['FIND-AND-PICK', 'LIST-BAR', 'FIND-ANYWHERE'],
+    keywords: ['find', 'search', 'pick', 'choose', 'owner', 'person', 'team', 'type to find', 'select', 'ctrl k', 'cmd k', 'shortcut', 'keyboard'],
     related: ['keys', 'reviews', 'goals-filters', 'activity'],
   },
   {
@@ -653,6 +664,8 @@ const CORE_ARTICLES: Article[] = [
     group: 'leading',
     sections: [
       { heading: 'How to use it', list: [
+        'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
         'An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged.',
@@ -661,8 +674,8 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/retro', '/retro/:goalId'],
     screens: ['Retro'],
-    reqs: ['RETRO', 'YEAR'],
-    keywords: ['retro', 'retrospective', 'end of year', 'cycle', 'next year', 'carry on', 'stop', 'learned', 'close'],
+    reqs: ['RETRO', 'YEAR', 'RESULTS'],
+    keywords: ['retro', 'retrospective', 'end of year', 'year end', 'year ended', 'last day', 'cycle', 'next year', 'carry on', 'stop', 'learned', 'close'],
     related: ['history', 'workspace'],
   },
 
@@ -840,8 +853,9 @@ const CORE_ARTICLES: Article[] = [
     group: 'you',
     sections: [
       { heading: 'How to use it', list: [
-        'Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).',
-        'The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.',
+        'Each cycle says where it stands in a word (running; ending, in its wrap-up weeks; ended, with its last day; or starts on a date), then its week and dates (the running one) or its dates and weeks, then how many goals and check-ins it has (“no check-ins yet” for none).',
+        'A cycle’s dates are its real first and last days: week 1’s Monday to its last week’s Sunday. The demo’s 2026 runs from 29 Dec 2025 to 3 Jan 2027.',
+        'The current cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up; once the year has ended, the day it ended and until when the wrap-up stays open.',
         'Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.',
         'An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.',
         'A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped.',
@@ -850,7 +864,7 @@ const CORE_ARTICLES: Article[] = [
     ],
     routes: ['/workspace/cycles'],
     screens: [],
-    reqs: ['UNDO-REMOVE'],
+    reqs: ['UNDO-REMOVE', 'RESULTS'],
     keywords: ['cycles', 'year', 'quarter', 'delete cycle', 'new cycle'],
     related: ['workspace', 'removing'],
   },

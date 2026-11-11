@@ -1211,6 +1211,51 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   await p.context().close();
 });
 
+journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
+  // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
+  // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_end', name: 'Year end', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_end', JSON.stringify({ ...full, changes: [] }));
+    localStorage.setItem('goals-app-workspace', 'ws_end');
+    localStorage.setItem('goals-app-viewer:ws_end', 'rhea');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const frame = async () => (await p.locator('.ws-meta, .ws-switch, header').first().innerText().catch(() => '')).replace(/\s+/g, ' ');
+  // The last day: still 2026's last week, and check-ins are still due.
+  await p.goto(on('2027-01-03', '/'));
+  await p.locator('.hero').first().waitFor();
+  const lastDay = await p.locator('body').innerText();
+  h.set('progress', /2026 · week 53, the last week/.test(lastDay), `on the last day the frame said “${await frame()}”`);
+  // The first day after: the year has ended by itself.
+  await p.goto(on('2027-01-11', '/'));
+  await p.locator('.hero').first().waitFor();
+  await h.inView(p.locator('.hero').first(), 'entry', 'Home’s main block');
+  const home = await p.locator('main').innerText();
+  const body = await p.locator('body').innerText();
+  h.set('finish', /2026 has ended/.test(body) && /2026 ended on Sun 3 Jan 2027/.test(home), `Home on 11 Jan 2027: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  h.set('attention', !/check-ins? to do|days late|were due|No recent update|no recent update/.test(home), `something is still due or out of date after the year ended: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  await h.checkpoint('home after the end');
+  // Her goals: none is out of date, and Q4 has closed on the numbers there are.
+  await p.goto(on('2027-01-11', '/goals/ns-lead'));
+  await p.locator('main h1').first().waitFor();
+  const goal = await p.locator('main').innerText();
+  h.set('errors', !/No recent update/.test(goal) && !/Q4[^\n]*(In progress|plan [0-9.]+ hours by week)/.test(goal), `the north star’s page after the end: “${goal.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  // Cycles gives the year's real first and last days, and says it ended.
+  await viewAs(p, 'Amara');
+  await p.goto(on('2027-01-11', '/workspace/cycles'));
+  const cycles = p.getByRole('list', { name: 'Cycles' });
+  await cycles.waitFor();
+  const row = (await cycles.innerText()).replace(/\s+/g, ' ');
+  h.set('parity', /2026 · ended 3 Jan 2027/.test(row) && /29 Dec 2025 to 3 Jan 2027/.test(row), `Cycles: “${row.slice(0, 200)}”`);
+  h.set('logged', true);
+  await p.context().close();
+}, ['budget']);
+
 journey('U15', ['OWNER-CALL', 'GREENER', 'CHECKIN-STATUS-VS-PLAN'], 'Call it greener than the numbers, with a reason, in the status sheet', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/check-in/ns-lead'));
@@ -2610,6 +2655,59 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   await p.context().close();
 }, ['logged', 'one-action']);
 
+journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind', 6, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  const find = p.getByRole('dialog', { name: 'Find' });
+  const open = async () => {
+    if (phone) await h.click(p.locator('.find-btn:visible').first());
+    else await p.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    await find.waitFor();
+    h.set('one-action', true);
+  };
+  if (!phone) h.set('entry', await p.locator('.side').getByRole('button', { name: /^Find/ }).isVisible(), 'the sidebar has no Find');
+  await open();
+  const box = find.getByRole('combobox');
+  h.set('entry', await box.evaluate((e) => e === document.activeElement), 'the search is not focused when Find opens');
+  h.set('attention', /Opened lately|Type a name, a key like G-48, or a few words\./.test(await find.innerText()), 'Find shows neither what was opened lately nor what to type');
+  await h.checkpoint('find');
+  // A goal's key alone: that goal first, and Enter opens it.
+  await h.fill(box, 'G-48');
+  await see(find, 'Goals · 1', 'G-48 does not find its goal alone');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/goals\/[^/?]+/, { timeout: 5000 }).catch(() => {});
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  const opened = await p.locator('main .gkey').first().innerText({ timeout: 5000 }).catch(() => '');
+  h.set('progress', /\/goals\/[^/?]+/.test(p.url()) && opened === 'G-48', `Enter on G-48 opened ${p.url()} (key ${opened})`);
+  // Again from the goal: a name finds the person, their goals and their team.
+  await open();
+  await h.fill(box, 'rhea');
+  await see(find, 'People · 1', 'Rhea is not found under People');
+  const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
+  h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
+  const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
+  h.set('finish', await goals.count() === 4 && /See all 8 goals/.test(await goals.last().innerText()), 'Goals does not show three rows and See all 8 goals');
+  h.set('a11y', /\/goals\?scope=all&q=rhea/.test(await goals.last().getAttribute('href') || ''), 'See all does not open Goals with the search');
+  await h.checkpoint('rhea');
+  const options = await find.getByRole('option').allInnerTexts();
+  const at = options.findIndex((t) => /^CI\/CD/.test(t.trim()));
+  for (let i = 0; i < at; i++) await p.keyboard.press('ArrowDown');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/teams\/cicd/, { timeout: 5000 }).catch(() => {});
+  h.set('finish', /\/teams\/cicd/.test(p.url()), `Enter on CI/CD opened ${p.url()}`);
+  // Escape closes.
+  await open();
+  await p.keyboard.press('Escape');
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', await find.count() === 0, 'Escape does not close Find');
+  await p.context().close();
+}, ['logged']);
+
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -2674,7 +2772,8 @@ journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner ha
     h.set('attention', await p.locator('.side [aria-current="page"]').count() === 1 && await p.locator('.side .nav', { hasText: 'Check-in' }).count() === 1, 'not one lit item, or no Check-in for an owner');
     // Collapsed: each icon names itself at once on keyboard focus.
     await h.click(p.locator('.side .collapse-nav'));
-    await p.locator('.side .nav').first().focus();
+    // From Home, the first place (Find, above the groups, isn't one).
+    await p.locator('.side .nav-group .nav').first().focus();
     await p.keyboard.press('Tab');
     await see(p.locator('.rail-label'), /Check-in, \d+ to do/, 'the rail does not name Check-in on focus');
     await h.click(p.locator('.side .collapse-nav'));
@@ -3214,7 +3313,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   const g = await newPage(device, 'grace');
   await g.goto(url('/workspace/cycles'));
   await see(g, 'Week 45 of 53', 'Cycles does not say which cycle is running');
-  h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
+  h.set('attention', /29 Dec 2025 to 3 Jan 2027/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
   await g.goto(url('/teams'));
   await g.locator('.team-row', { hasText: 'CI/CD' }).click();
   await g.waitForURL(/\/teams\/cicd/);
