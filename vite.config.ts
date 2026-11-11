@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { faroModules } from './vite.modules.ts';
+import { faroHelpIndex } from './vite.helpIndex.ts';
 
 export default defineConfig({
-  plugins: [react(), faroModules()],
+  plugins: [react(), faroModules(), faroHelpIndex()],
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
     // Node by default (quicker to start); a test that needs a browser says so: // @vitest-environment jsdom.

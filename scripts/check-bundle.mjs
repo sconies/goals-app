@@ -7,8 +7,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-/** The first download, gzipped, at most (427 KB on main on 11 Nov 2026, evening: the entry and its nine preloads). */
-export const FIRST_DOWNLOAD_KB = 430;
+/** The first download, gzipped, at most (367 KB on 11 Nov 2026, late evening, once Help and What's new load when opened
+    and the first download carries only their index, src/help/lookup.ts: the entry and its ten preloads). */
+export const FIRST_DOWNLOAD_KB = 370;
 
 const dist = join(process.cwd(), 'dist');
 let html;

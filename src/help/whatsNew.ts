@@ -5,6 +5,8 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
+import { entriesAfter } from './match';
+
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -1188,10 +1190,7 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export function newsAfter(seenId: string | null): NewsEntry[] {
-  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
-  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
-}
+export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {
