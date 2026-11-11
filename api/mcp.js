@@ -2729,7 +2729,7 @@ function draftOf(g) {
 	}));
 	return d;
 }
-function validateGoal(d, cycle, existing) {
+function validateGoal(d, cycle, existing, week) {
 	const e = {};
 	const named = nameProblem(d.title, "goal");
 	if (named) e.title = named;
@@ -2773,6 +2773,7 @@ function validateGoal(d, cycle, existing) {
 			const w = parseNumber(s.dueWeek);
 			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
 		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
+		else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek), week) && !s.done)) e.stages = "Say whether this stage is done.";
 	}
 	return e;
 }
@@ -2946,11 +2947,14 @@ function overHundredHint(unit, start, target) {
 	if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
 	return "Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.";
 }
+var pastStage;
 var init_goal = __esmMin((() => {
 	init_checkin();
 	init_thresholds();
 	init_numbers();
 	init_plan();
+	init_status();
+	pastStage = (dueWeek, week) => dueWeek < week;
 }));
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
@@ -5530,6 +5534,8 @@ var init_actions = __esmMin((() => {
 	init_thresholds();
 	init_cycle();
 	init_people();
+	init_goal();
+	init_changes();
 	init_asks();
 	init_review();
 	init_status();
@@ -8003,14 +8009,18 @@ function searchGoals(r, ask) {
 		sort: query.sort ?? "worst"
 	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
-/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
+*/
 function searchPeople(r, ask) {
 	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
 	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
+	const left = ask.filters?.left === "too";
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
 		kind: "person",
 		id: p.id,
-		name: p.name,
+		name: p.leftAt ? `${p.name} (left)` : p.name,
 		detail: [p.role, team(p)].filter(Boolean).join(" · ")
 	}));
 }
@@ -10572,7 +10582,8 @@ var CORE_ARTICLES = [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.",
 					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
-					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one."
+					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
+					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
 				]
 			},
 			{
@@ -11257,6 +11268,23 @@ var CORE_ARTICLES = [
 				list: ["Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.", "A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source."]
 			},
 			{
+				heading: "Find, from anywhere",
+				list: [
+					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
+					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
+					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+				]
+			},
+			{
+				heading: "Keys",
+				list: [
+					"Ctrl K (Cmd K on a Mac): Find, from any page.",
+					"Escape closes Find, a picker or a sheet.",
+					"Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen."
+				]
+			},
+			{
 				heading: "Searching a list",
 				list: [
 					"Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).",
@@ -11268,7 +11296,11 @@ var CORE_ARTICLES = [
 		],
 		routes: [],
 		screens: [],
-		reqs: ["FIND-AND-PICK", "LIST-BAR"],
+		reqs: [
+			"FIND-AND-PICK",
+			"LIST-BAR",
+			"FIND-ANYWHERE"
+		],
 		keywords: [
 			"find",
 			"search",
@@ -11278,7 +11310,11 @@ var CORE_ARTICLES = [
 			"person",
 			"team",
 			"type to find",
-			"select"
+			"select",
+			"ctrl k",
+			"cmd k",
+			"shortcut",
+			"keyboard"
 		],
 		related: [
 			"keys",
@@ -11300,6 +11336,7 @@ var CORE_ARTICLES = [
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
+				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
 				"Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.",
 				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
@@ -11313,6 +11350,7 @@ var CORE_ARTICLES = [
 		screens: ["GoalWizard"],
 		reqs: [
 			"GOAL-CREATE",
+			"NEW-GOAL-TRUTH",
 			"PLAN-SHAPE",
 			"LEVELS",
 			"FIRST-CHECKIN",
@@ -12562,6 +12600,20 @@ var WHATS_NEW = [
 			"goal-map",
 			"goals-filters"
 		]
+	},
+	{
+		id: "find-anywhere",
+		date: "2026-11-11",
+		title: "Find, from anywhere",
+		points: ["Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.", "Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar."],
+		articles: ["finding"]
+	},
+	{
+		id: "not-born-late",
+		date: "2026-11-11",
+		title: "A new goal doesn’t start out late",
+		points: ["A stage that’s already past asks whether it’s done, and a done one counts as on time.", "If your first number isn’t where the plan starts, you can start the plan from it."],
+		articles: ["new-goal", "check-in"]
 	},
 	{
 		id: "goals-filters-in-words",

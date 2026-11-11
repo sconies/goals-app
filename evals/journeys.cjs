@@ -337,6 +337,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.getByRole('link', { name: /Pick up where you left off/ }).click();
   const restored = await p.getByLabel('This week’s value').inputValue();
   if (restored !== leadV) fail('the draft value was not restored');
+  // Its first check-in, off its plan: it offers to start the plan from this number (OB2, rule 4). Rhea keeps the plan and says why.
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
   await h.click(p.getByRole('button', { name: 'Continue' }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
@@ -2620,6 +2622,59 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   await p.context().close();
 }, ['logged', 'one-action']);
 
+journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind', 6, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  const find = p.getByRole('dialog', { name: 'Find' });
+  const open = async () => {
+    if (phone) await h.click(p.locator('.find-btn:visible').first());
+    else await p.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    await find.waitFor();
+    h.set('one-action', true);
+  };
+  if (!phone) h.set('entry', await p.locator('.side').getByRole('button', { name: /^Find/ }).isVisible(), 'the sidebar has no Find');
+  await open();
+  const box = find.getByRole('combobox');
+  h.set('entry', await box.evaluate((e) => e === document.activeElement), 'the search is not focused when Find opens');
+  h.set('attention', /Opened lately|Type a name, a key like G-48, or a few words\./.test(await find.innerText()), 'Find shows neither what was opened lately nor what to type');
+  await h.checkpoint('find');
+  // A goal's key alone: that goal first, and Enter opens it.
+  await h.fill(box, 'G-48');
+  await see(find, 'Goals · 1', 'G-48 does not find its goal alone');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/goals\/[^/?]+/, { timeout: 5000 }).catch(() => {});
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  const opened = await p.locator('main .gkey').first().innerText({ timeout: 5000 }).catch(() => '');
+  h.set('progress', /\/goals\/[^/?]+/.test(p.url()) && opened === 'G-48', `Enter on G-48 opened ${p.url()} (key ${opened})`);
+  // Again from the goal: a name finds the person, their goals and their team.
+  await open();
+  await h.fill(box, 'rhea');
+  await see(find, 'People · 1', 'Rhea is not found under People');
+  const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
+  h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
+  const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
+  h.set('finish', await goals.count() === 4 && /See all 8 goals/.test(await goals.last().innerText()), 'Goals does not show three rows and See all 8 goals');
+  h.set('a11y', /\/goals\?scope=all&q=rhea/.test(await goals.last().getAttribute('href') || ''), 'See all does not open Goals with the search');
+  await h.checkpoint('rhea');
+  const options = await find.getByRole('option').allInnerTexts();
+  const at = options.findIndex((t) => /^CI\/CD/.test(t.trim()));
+  for (let i = 0; i < at; i++) await p.keyboard.press('ArrowDown');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/teams\/cicd/, { timeout: 5000 }).catch(() => {});
+  h.set('finish', /\/teams\/cicd/.test(p.url()), `Enter on CI/CD opened ${p.url()}`);
+  // Escape closes.
+  await open();
+  await p.keyboard.press('Escape');
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', await find.count() === 0, 'Escape does not close Find');
+  await p.context().close();
+}, ['logged']);
+
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -2683,7 +2738,8 @@ journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner ha
     h.set('attention', await p.locator('.side [aria-current="page"]').count() === 1 && await p.locator('.side .nav', { hasText: 'Check-in' }).count() === 1, 'not one lit item, or no Check-in for an owner');
     // Collapsed: each icon names itself at once on keyboard focus.
     await h.click(p.locator('.side .collapse-nav'));
-    await p.locator('.side .nav').first().focus();
+    // From Home, the first place (Find, above the groups, isn't one).
+    await p.locator('.side .nav-group .nav').first().focus();
     await p.keyboard.press('Tab');
     await see(p.locator('.rail-label'), /Check-in, \d+ to do/, 'the rail does not name Check-in on focus');
     await h.click(p.locator('.side .collapse-nav'));
@@ -4033,6 +4089,68 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
   await p.context().close();
 }, []);
+
+journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Kafka cut-over plan');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
+  await h.fill(p.getByLabel('Stage 1: due week'), '1');
+  await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Say whether this stage is done.' }).isVisible(), 'an unanswered past stage is not explained');
+  await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
+  await see(p, 'Done in week 1.');
+  await h.checkpoint('stages');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, '1 stage is already done.', 'Check does not say the stage is done');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p.locator('.goal-bar'), '1 of 1 stages', 'the published goal does not count its stage done');
+  let s = await h.snapshot();
+  const kafka = s.goals.find((g) => g.title === 'Kafka cut-over plan');
+  const rec = kafka && s.checkIns.find((c) => c.goalId === kafka.id);
+  h.set('logged', !!rec && rec.week === 1 && /already done when the goal was set up/.test(rec.why) && s.changes.some((c) => c.goalId === kafka.id && c.entity === 'check-in'), 'the stage done at set-up is not recorded in week 1 and logged');
+  // A number goal, 5 → 2 days: before its first check-in its page says so once; its first number, 7, offers to restart the plan.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Lead time for the payments API');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Unit'), 'days');
+  await h.fill(p.getByLabel(/^Today \(week/), '5');
+  await h.fill(p.getByLabel(/^Target \(week/), '2');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p, 'The scorecard starts with the first check-in.', 'a new goal shows an empty scorecard');
+  const id = p.url().match(/\/goals\/(goal_[^?#/]+)/)[1];
+  await p.goto(url('/check-in/' + id));
+  await h.fill(p.getByLabel('This week’s value'), '7');
+  await see(p, 'The plan starts at 5 days; you’ve typed 7 days. Start the plan from 7 days?', 'a first number off the plan is not offered a fresh start');
+  await h.checkpoint('first check-in');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  // Undo puts the plan back, and asks again; then take it.
+  await h.click(p.getByRole('button', { name: 'Undo' }));
+  await see(p, 'Start the plan from 7 days?', 'Undo did not put the plan back');
+  s = await h.snapshot();
+  h.set('attention', s.goals.find((g) => g.id === id)?.plan?.start === 5, 'Undo did not restore the start of 5');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  await h.click(p.locator('.focus-foot button[type=submit]'));
+  await see(p, 'Check-in saved');
+  s = await h.snapshot();
+  const g = s.goals.find((x) => x.id === id);
+  const first = s.checkIns.find((c) => c.goalId === id);
+  h.set('finish', g?.plan?.start === 7 && g?.plan?.target === 2 && first?.status === 'on', `after the fresh start the plan starts at ${g?.plan?.start} and the check-in is ${first?.status}`);
+  await p.context().close();
+}, ['progress']);
 
 async function finishChecks(add) {
   {

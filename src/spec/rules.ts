@@ -7,6 +7,7 @@ import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '..
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
 import { scopeToCycle } from '../domain/cycle';
+import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
@@ -27,13 +28,15 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
+import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
 import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
-import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
+import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
@@ -730,9 +733,9 @@ For a range, better means further from the limit on its safe side.
 **Getting started**, for one person, in this order, each left out when it doesn’t apply or is done. Whoever set it up: their first check-ins (goals they own with none); “Give {n} goals an owner” (the goals set-up left without one that they still own); “Add the people who own goals” while they’re alone, otherwise “Send your team the link” until they copy it; “Set up the first goal” while there are none. Anyone else: who set it up, when, and how many goals they were given; their first check-ins; and, owning none, the goals to see (until opened), to watch (until they watch one), and a goal of their own. Nothing at all when they hid it, ${DAY_ONE_DAYS} days after their first visit, in the example, or in a workspace more than ${NEW_WORKSPACE_DAYS} days old that they didn’t just join.`,
     examples: [
       { given: 'The counter on Check: a template; goals set up later.', then: 'Step 7 of 7 / Step 5 of 5', run: () => `${stepCounter('check', 'product')} / ${stepCounter('check', 'later')}` },
-      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneWs(['ana', 'ana', 'ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
-      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneWs(['ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
-      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneWs(['ana']), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
+      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneRows(dayOneWs(['ana', 'ana', 'ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
+      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneRows(dayOneWs(['ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
+      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneRows(dayOneWs(['ana'])), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
     ],
     unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
   },
@@ -878,14 +881,39 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     })(),
   },
 
+  /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */
+  {
+    id: 'not-born-late',
+    title: 'A goal not born late',
+    summary: 'A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan.',
+    code: [{ file: 'src/domain/goal.ts', names: ['pastStage', 'stagesDoneAtSetUp', 'validateGoal'] }, { file: 'src/domain/checkin.ts', names: ['rebaseOffer', 'rebase', 'REBASE_WEEKS'] }, { file: 'src/domain/actions.ts', names: ['recordStagesDone'] }],
+    tests: ['src/domain/notBornLate.test.ts', 'evals/onboarding.eval.ts'],
+    reqs: ['NEW-GOAL-TRUTH'],
+    body: `
+**A stage already past (rule 3).** Setting up a new goal, a stage due before this week is *past*, and must be answered: *done* or *overdue*. Done: the goal is published with one check-in in the week of the latest stage said to be done, each of those stages done in its own due week (posted by whoever set it up, now, with the note "Recorded as already done when the goal was set up"). So none of them is late, and its quarter can read met. Overdue: published as it stands; the stage is late from the start. Changing an existing goal never asks. Only the goal's owner or an admin records it, and only before its first check-in.
+
+**A fresh start at the first check-in (rule 4).** Offered when all hold: a number to move; no check-in yet; set up at most ${REBASE_WEEKS} weeks ago; the number typed is valid, would not be on plan, and hasn't reached the target. Not for a number kept in range, stages, or a goal with any check-in. Taken, the goal's start becomes the number from this week (\`fromWeek\`), to the same target, due week and shape; hand-set plan numbers after this week are kept. It needs no reason, since no check-in had started; the change log says "Started the plan from {value} at the first check-in (was {start})". The check-in posted then is on plan.`,
+    examples: (() => {
+      const g = metric(5, 2, 'straight', { createdAt: '2026-11-09T09:00:00Z', unit: 'days', plan: { start: 5, target: 2, shape: 'straight', fromWeek: 10 } });
+      const offer = (v: number, created = 10) => { const o = rebaseOffer(g, CYCLE, 10, v, [], created); return o ? `offered (${o.start} → ${o.value})` : 'not offered'; };
+      return [
+        { given: 'Week 10: stages due weeks 12, 10 and 3. Which are past?', then: '3', run: () => [12, 10, 3].filter((w) => pastStage(w, 10)).join(', ') },
+        { given: 'Two stages, A due week 3 and B due week 7, set up in week 10 with A said to be done: the check-in recorded.', then: 'week 3, A done in week 3, B not done', run: () => { const c = stagesDoneAtSetUp(MILESTONE, ['a'], 'p', '2026-11-11T10:00:00Z', 'c')!; return `week ${c.week}, ${c.stages!.map((u) => (u.doneWeek != null ? `${u.stageId.toUpperCase()} done in week ${u.doneWeek}` : `${u.stageId.toUpperCase()} not done`)).join(', ')}`; } },
+        { given: 'Lead time, 5 days down to 2, set up in week 10, no check-in yet: its first number is 7; 5; 2; and 7 for a goal set up in week 1.', then: 'offered (5 → 7); not offered; not offered; not offered', run: () => [offer(7), offer(5), offer(2), offer(7, 1)].join('; ') },
+        { given: 'The same goal, started from 7 in week 10.', then: 'start 7, target 2, from week 10, straight', run: () => { const r = rebase(g, 7, 10); return r.kind === 'metric' ? `start ${r.plan.start}, target ${r.plan.target}, from week ${r.plan.fromWeek}, ${r.plan.shape}` : ''; } },
+      ];
+    })(),
+    unclear: ['How many weeks after set-up a first number may still restart the plan (four) is a choice, not a law.'],
+  },
+
   /* ---------- finding things (the app redesign, AR1) ---------- */
   {
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
-    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
-    reqs: [],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
+    reqs: ['FIND-ANYWHERE'],
     body: `
 **What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
@@ -900,6 +928,8 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
+
+**Find, from anywhere.** One search across kinds: goals, people, teams, then a module's kinds (the metric library's metrics), never workspaces. Each kind is searched by its own rule above with 3 rows, and only the groups that found something are given, in that order, each with how many match in all ("Goals · 8", then "See all 8 goals"). People marked as left are found too, named "{name} (left)", after everyone here. A search that is one goal's key ("G-48", "g48", "48") puts that goal first and alone under Goals. When a kind finds nothing, its near miss is tried; when no kind finds anything, Find says "Nothing matches “{q}”." Before anything is typed it offers what was opened or chosen lately, up to 8, of any kind.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -920,6 +950,12 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
         { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
         { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
+        { given: 'In the demo workspace, Find for “rhea”, “48” and “zzzz”: each group with its total and first rows.', then: 'goal 8: Lead time for changes, Pipeline queue wait (p90), Flaky test rate in the main pipelines; person 1: Rhea Kapoor; team 1: CI/CD / goal 1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / nothing', run: () => {
+          const at = new Date(CHECK_IN_MOMENT), wk = currentWeek(cycle(), at);
+          const rows = { goal: goalRows(demo!, cycle(), at, wk), person: personRows(demo!), team: teamRows(demo!) } as const;
+          return ['rhea', '48', 'zzzz'].map((q) => findAll(q, ['goal', 'person', 'team'], (k, a) => search(rows[k as keyof typeof rows], a)).map((g) => `${g.kind} ${g.total}: ${g.rows.map((r) => r.name).join(', ')}`).join('; ') || 'nothing').join(' / ');
+        } },
+        { given: 'Whole keys: “G-48”, “g48”, “48”, “rollback”.', then: 'G-48, G-48, G-48, none', run: () => ['G-48', 'g48', '48', 'rollback'].map((q) => keyOf(q) ?? 'none').join(', ') },
         { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
       ];
     })(),

@@ -253,6 +253,15 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** U4, U18, U25
 
+### NEW-GOAL-TRUTH
+
+A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
+
+- **Rule:** [A goal not born late](rules/not-born-late.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Tests:** `evals/onboarding.eval.ts` (1)
+- **Journeys and checks:** U85
+
 ### GOAL-PAGE
 
 The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal.
@@ -1028,6 +1037,14 @@ A person, team, goal or metric is always chosen by typing to find it, never from
 
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** F11, U63
+
+### FIND-ANYWHERE
+
+Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
+
+- **Rule:** [Finding things](rules/finding.md)
+- **Help:** “Finding and choosing” (`finding`)
+- **Journeys and checks:** U65
 
 ## Export
 
