@@ -802,9 +802,17 @@ Goals are set for the year: a goal year starting in the month each workspace pic
 
 A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
 
-- **Rule:** [A year’s end](rules/year-end.md)
-- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Workspace: Cycles” (`workspace-cycles`)
+- **Rule:** [A year’s end](rules/year-end.md), [Starting the next year](rules/start-next-year.md)
+- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Starting the next year” (`start-next-year`), screens `StartNext`; “Workspace: Cycles” (`workspace-cycles`)
 - **Journeys and checks:** U117
+
+### CARRY-GOALS
+
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on.
+
+- **Rule:** [Starting the next year](rules/start-next-year.md)
+- **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
+- **Journeys and checks:** U115
 
 ### CALENDAR-WEEKS
 

@@ -89,7 +89,7 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Mark someone as left (handing over their goals and asks); delete someone with no history', who: 'Admins; not themselves, and never the only admin', code: [`${R}markPersonLeft`, `${R}deletePerson`, `${R}leaving`] },
   { area: 'People, teams and the workspace', what: 'Leave the workspace yourself (handing over your goals and asks)', who: 'Anyone; never the only admin', code: [`${R}leaveWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Add, rename, lead or remove a team', who: 'Admins', code: [`${A}saveTeam`, `${A}removeTeam`] },
-  { area: 'People, teams and the workspace', what: 'Start the next cycle; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}deleteCycle`] },
+  { area: 'People, teams and the workspace', what: 'Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}undoStart`, `${R}deleteCycle`] },
   { area: 'People, teams and the workspace', what: 'Rename the workspace; turn recording on or off; switch features on or off; delete the workspace', who: 'Admins', code: [`${A}renameWorkspace`, `${A}setRecording`, `${A}setModule`, `${A}canDeleteWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed', who: 'An admin (everything), or whoever removed it (their own)', code: [`${R}restoreRemoved`, `${R}canRestore`] },
   { area: 'People, teams and the workspace', what: 'Make an MCP token for someone', who: 'Admins', code: [`${A}createToken`] },
@@ -313,7 +313,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 425 KB compressed; 422 KB today, over R4’s 300, so it only goes down), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 430 KB compressed; 427 KB today, over R4’s 300, so it only goes down), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {
@@ -423,13 +423,13 @@ export const INTERNAL: InternalRequirement[] = [
       '6. **Every step is logged**: drafted, proposed, agreed, sent back (with its reason), and who did it. Reading stays open ([R1](r1-sign-in-and-access.md), rule 3): every member can see the round.',
     ].join('\n'),
     today: [
-      'An admin starts the next cycle in the last two weeks of the current one (`startNextCycle` in `src/domain/actions.ts`); every goal wrapped up as “carry on” is copied into it, live at once (`nextCycle` in `src/domain/cycle.ts`).',
+      'An admin sets up the next cycle from the day the current one’s wrap-up opens (`startNextCycle` in `src/domain/actions.ts`), after a read-back of what carries on, finishes and stops (`startReadBack` in `src/domain/carry.ts`); the goals that carry on are copied into it (`nextCycle` in `src/domain/cycle.ts`). Nobody moves into it until its week 1’s Monday (`currentCycle`), and an admin can undo it until someone uses it (`undoStart` in `src/domain/removal.ts`).',
       'A goal is live the moment it is saved: there is no draft, propose or agree step, and no one but its owner (or an admin) is asked.',
       'Set-up asks for an outcome and goals for the first cycle only.',
     ],
     examples: [
       { given: 'Faro today: Maya, not an admin, starts the next cycle.', then: 'refused: “Only admins can start the next cycle.”', run: () => says(() => startNextCycle(ctx(MAYA))) },
-      { given: 'Faro today: Priya, an admin, starts the next cycle in week 3 of 13.', then: 'refused: “The next cycle can start in the last two weeks of this one (from week 12).”', run: () => says(() => startNextCycle(ctx(PRIYA))) },
+      { given: 'Faro today: Priya, an admin, starts the next cycle in week 3 of 13.', then: 'refused: “Dec 2026–Mar 2027 can be started from Mon 30 Nov 2026, when Q4’s wrap-up opens.”', run: () => says(() => startNextCycle(ctx(PRIYA))) },
       { given: 'Required: a round opens 23 November, agree by 11 December, Q1 starts 4 January. Maya drafts “p95 build time under 8 minutes”, feeding Priya’s goal, and proposes it; Priya agrees it on 2 December.', then: 'It is Agreed. It appears on the planning screen and nowhere in Q4’s counts.' },
       { given: 'Required: Priya sends Maya’s proposal back: “too easy, we were at 9 in October”.', then: 'It is Sent back, with the reason, and is at the top of Maya’s planning list.' },
       { given: 'Required: after it is agreed, Maya changes the target from 8 to 10 minutes.', then: 'It goes back to Proposed and Priya is asked again.' },

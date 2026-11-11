@@ -297,6 +297,11 @@
       "text": "A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun."
     },
     {
+      "id": "CARRY-GOALS",
+      "area": "Cycles",
+      "text": "An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on."
+    },
+    {
       "id": "QUARTER-RESULTS",
       "area": "Leaders",
       "text": "History opens on quarter results: for every goal, each quarter's actual number at its end against the owner's plan, met or missed (shape plus word), with the current quarter in progress. The owners' weekly calls are a separate, clearly named option, so weekly confidence is never mistaken for a quarter's result."

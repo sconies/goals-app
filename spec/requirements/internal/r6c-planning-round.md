@@ -23,7 +23,7 @@ It is the one part of the yearly rhythm Faro doesn’t model, and a leader will 
 
 ## What Faro does today
 
-- An admin starts the next cycle in the last two weeks of the current one (`startNextCycle` in `src/domain/actions.ts`); every goal wrapped up as “carry on” is copied into it, live at once (`nextCycle` in `src/domain/cycle.ts`).
+- An admin sets up the next cycle from the day the current one’s wrap-up opens (`startNextCycle` in `src/domain/actions.ts`), after a read-back of what carries on, finishes and stops (`startReadBack` in `src/domain/carry.ts`); the goals that carry on are copied into it (`nextCycle` in `src/domain/cycle.ts`). Nobody moves into it until its week 1’s Monday (`currentCycle`), and an admin can undo it until someone uses it (`undoStart` in `src/domain/removal.ts`).
 - A goal is live the moment it is saved: there is no draft, propose or agree step, and no one but its owner (or an admin) is asked.
 - Set-up asks for an outcome and goals for the first cycle only.
 
@@ -34,7 +34,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 | Given | Then | Kind |
 |---|---|---|
 | Faro today: Maya, not an admin, starts the next cycle. | refused: “Only admins can start the next cycle.” | **Faro today** |
-| Faro today: Priya, an admin, starts the next cycle in week 3 of 13. | refused: “The next cycle can start in the last two weeks of this one (from week 12).” | **Faro today** |
+| Faro today: Priya, an admin, starts the next cycle in week 3 of 13. | refused: “Dec 2026–Mar 2027 can be started from Mon 30 Nov 2026, when Q4’s wrap-up opens.” | **Faro today** |
 | Required: a round opens 23 November, agree by 11 December, Q1 starts 4 January. Maya drafts “p95 build time under 8 minutes”, feeding Priya’s goal, and proposes it; Priya agrees it on 2 December. | It is Agreed. It appears on the planning screen and nowhere in Q4’s counts. | Required |
 | Required: Priya sends Maya’s proposal back: “too easy, we were at 9 in October”. | It is Sent back, with the reason, and is at the top of Maya’s planning list. | Required |
 | Required: after it is agreed, Maya changes the target from 8 to 10 minutes. | It goes back to Proposed and Priya is asked again. | Required |

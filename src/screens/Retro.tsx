@@ -5,13 +5,13 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodWord } from '../domain/year';
-import { cycleDates, cycleState, dayWithYear, periodNow, RESULT_LABEL, suggestedResult, wrapUpOpenOn } from '../domain/cycle';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, periodNow, RESULT_LABEL, suggestedResult, wrapUpOpenOn } from '../domain/cycle';
 import { MIN_LEARNED } from '../domain/actions';
 import { fmt, gapBeside, NO_VALUE } from '../domain/format';
 import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
-import { Chip, Empty, LevelTag, ProgressRing, Sheet } from '../ui/bits';
+import { Chip, Empty, LevelTag, ProgressRing } from '../ui/bits';
 import { FormClose } from '../ui/FormClose';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
@@ -23,9 +23,6 @@ function nowText(g: Goal, app: ReturnType<typeof useApp>) {
 
 export function WrapUp() {
   const app = useApp();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const nav = useNavigate();
   const open = wrapUpOpenOn(app.cycle, app.today);
   const w = periodWord(app.cycle);
   const retroOf = (g: Goal) => app.snapshot.retros.find((r) => r.goalId === g.id);
@@ -34,16 +31,6 @@ export function WrapUp() {
   const all = app.snapshot.goals;
   const done = all.filter((g) => retroOf(g));
   const left = all.filter((g) => !retroOf(g));
-  const carry = all.filter((g) => (retroOf(g)?.next ?? 'carry') === 'carry');
-
-  const start = async () => {
-    setBusy(true);
-    try {
-      const name = await app.startNextCycle();
-      app.toast(`${name} has started`);
-      nav('/');
-    } catch { setBusy(false); }
-  };
 
   return (
     <div className="page narrow">
@@ -102,22 +89,20 @@ export function WrapUp() {
         {!all.length && <Empty title={`No goals this ${w}`} />}
       </section>
 
-      {app.viewer.admin && open && (
-        <section className="block note-card">
-          <span className="stack" style={{ gap: 'var(--s1)' }}>
-            <strong>Start next {w}</strong>
-            <span className="hint">{carry.length} {carry.length === 1 ? 'goal carries' : 'goals carry'} on{all.length - carry.length ? `, ${all.length - carry.length} stop` : ''}.{left.length ? ` ${left.length} not wrapped up yet; they carry on unless their owner says stop.` : ''}</span>
-          </span>
-          <button className="btn" onClick={() => setConfirming(true)}>Start it</button>
-        </section>
-      )}
-      <Sheet open={confirming} onClose={() => setConfirming(false)} title={`Start next ${w}?`}>
-        <div className="stack" style={{ gap: 'var(--s4)' }}>
-          <p>{carry.length} {carry.length === 1 ? 'goal moves' : 'goals move'} into next {w}, starting from where {carry.length === 1 ? 'it' : 'they'} ended. Owners can change targets in the first week. This {w} and its retros stay in the change log.</p>
-          {left.length > 0 && <p className="hint tone-risk">{left.length} {left.length === 1 ? 'goal hasn’t' : 'goals haven’t'} been wrapped up.</p>}
-          <div className="foot-row"><button className="btn ghost big-btn" onClick={() => setConfirming(false)}>Not yet</button><button className="btn primary big-btn" disabled={busy} onClick={() => void start()}>{busy ? 'Starting…' : `Start next ${w}`}</button></div>
-        </div>
-      </Sheet>
+      {app.viewer.admin && cycleState(app.cycle, app.today) !== 'before' && cycleState(app.cycle, app.today) !== 'running' && (() => {
+        // Starting the next year is its own page, with a read-back first (cycle-end 2.4); nobody moves until the last day.
+        const later = laterCycle(app.full.cycles, app.cycle);
+        const next = later?.name ?? nextCycleShape(app.cycle).name;
+        return (
+          <section className="block note-card">
+            <span className="stack" style={{ gap: 'var(--s1)' }}>
+              <strong>{later ? `${next} is ready` : `Start ${next}`}</strong>
+              <span className="hint">{later ? `It opens for everyone on ${dayWithYear(cycleDates(later).firstDay)}.` : `See what carries on, finishes and stops first. Everyone stays in ${app.cycle.name} until ${dayWithYear(cycleDates(app.cycle).lastDay)}.`}</span>
+            </span>
+            <Link className="btn" to="/workspace/cycles/next">{later ? 'See Cycles' : `Start ${next}`}</Link>
+          </section>
+        );
+      })()}
     </div>
   );
 }
