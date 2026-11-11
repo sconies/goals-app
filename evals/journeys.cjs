@@ -3924,7 +3924,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   const file = path.join(OUT, `U46-${device}.xlsx`);
   await xlsx.saveAs(file);
   const book = await readWorkbook(file);
-  h.set('finish', ['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'README'].every((n) => book.some((s) => s.name === n)), `the workbook has ${book.map((s) => s.name).join(', ')}`);
+  h.set('finish', ['Start here', 'Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes'].every((n) => book.some((s) => s.name === n)), `the workbook has ${book.map((s) => s.name).join(', ')}`);
   // In Excel: stop one goal (with a reason) and give another a new owner by email; a line break in a Why.
   const s0 = await h.snapshot();
   const goals = book.find((s) => s.name === 'Goals').rows;
@@ -4433,6 +4433,40 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   h.set('finish', g?.plan?.start === 7 && g?.plan?.target === 2 && first?.status === 'on', `after the fresh start the plan starts at ${g?.plan?.start} and the check-in is ${first?.status}`);
   await p.context().close();
 }, ['progress']);
+
+journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/data/import'));
+  await see(p, 'What a new row must have');
+  await see(p, 'Goal, and Owner or Owner email. A number goal also needs Start and Target', 'Import does not say what a new goal must have');
+  await see(p, 'Goal key (or Goal), Week, and Value or Stages.', 'Import does not say what a new check-in must have');
+  await see(p, 'Name and Email.', 'Import does not say what a new person must have');
+  await h.checkpoint('import');
+  await h.click(p.getByRole('link', { name: 'Every column, with its format and an example' }));
+  await p.waitForURL(/\/help\/columns/);
+  await see(p, 'Every column, and what it needs');
+  const goals = p.getByRole('list', { name: 'Goals columns' });
+  const line = async (col) => (await goals.locator('li').filter({ hasText: new RegExp(`^${col}[:,]`) }).first().innerText().catch(() => '')).replace(/\s+/g, ' ');
+  const [goal, owner, start, worked] = [await line('Goal'), await line('Owner'), await line('Start'), await line('Status')];
+  h.set('attention', /^Goal: Required\./.test(goal) && /^Owner: Required \(or Owner email\)/.test(owner) && /^Start: Required for a number goal/.test(start) && /Worked out/.test(worked), `Help says “${goal}”, “${owner}”, “${start}”, “${worked}”`);
+  await h.checkpoint('help');
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the template' }))]);
+  const file = path.join(OUT, `U87-template-${device}.xlsx`);
+  await download.saveAs(file);
+  const book = await readWorkbook(file);
+  const sheet = (n) => book.find((s) => s.name === n);
+  const head = sheet('Goals')?.rows[0] ?? [];
+  const examples = (sheet('Goals')?.rows.slice(1) ?? []).map((r) => r[head.indexOf('Action')]);
+  h.set('finish', book[0]?.name === 'Start here' && sheet('Start here').rows.some((r) => r[0] === 'Goal' && r[1] === 'Required') && examples.length === 2 && examples.every((x) => x === 'Example') && !head.includes('Status'),
+    `the template's sheets are ${book.map((s) => s.name).join(', ')}; Goals' example rows say ${examples.join(', ') || 'nothing'}`);
+  // Loaded back unchanged, it changes nothing and says it left its example rows out.
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await see(p, '3 example rows left out', 'the preview does not count the example rows');
+  await see(p, 'Nothing in this file changes anything', 'the template loaded back would change something');
+  await h.checkpoint('template loaded back');
+  await p.context().close();
+}, ['progress', 'logged', 'errors', 'parity', 'entry']);
 
 async function finishChecks(add) {
   {

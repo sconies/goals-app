@@ -2,7 +2,7 @@
    server offers them with the core's (src/mcp/tools.ts); in a workspace that has switched spreadsheets off, they say
    so instead of running. */
 import { aiBrief, sheetNamed, toCsv, toJson, workbook } from '../../domain/export';
-import { SHEET_NAMES } from '../../domain/columns';
+import { SHEET_NAMES, START_HERE } from '../../domain/columns';
 import { exportedTable, TABLE_ORDER, TABLES } from '../../domain/tableLayout';
 import type { ToolDef } from '../../mcp/tools';
 import { layoutFrom, sheetOf } from '../../mcp/workTools';
@@ -11,7 +11,7 @@ const str = (description: string, extra: object = {}) => ({ type: 'string', desc
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 /** Each sheet of the workbook as a CSV format the export tool offers: goals_csv, plan_csv, check_ins_csv… */
-const CSV_FORMATS = SHEET_NAMES.filter((n) => n !== 'README').map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
+const CSV_FORMATS = SHEET_NAMES.filter((n) => n !== START_HERE).map((n) => [`${n.toLowerCase().replace(/[^a-z]+/g, '_')}_csv`, n] as const);
 
 const tools: ToolDef[] = [
   {
