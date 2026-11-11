@@ -1726,8 +1726,10 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   await p.goto(url('/goals?scope=all'));
   // A phone's Goals page has no title (goals spec, 2.4): its top bar says the week.
   if (device === 'phone') h.set('entry', /week 45/.test(await p.locator('.mtop').first().innerText()), 'the top bar does not say the week');
-  else await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
-  await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  else {
+    await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
+    await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  }
   await p.goto(url('/goals/cost-rightsize'));
   const strip = p.getByRole('region', { name: 'This year by quarter' });
   await strip.waitFor();
