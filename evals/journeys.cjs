@@ -2589,6 +2589,59 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   await p.context().close();
 }, ['logged', 'one-action']);
 
+journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind', 6, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  const find = p.getByRole('dialog', { name: 'Find' });
+  const open = async () => {
+    if (phone) await h.click(p.locator('.find-btn:visible').first());
+    else await p.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    await find.waitFor();
+    h.set('one-action', true);
+  };
+  if (!phone) h.set('entry', await p.locator('.side').getByRole('button', { name: /^Find/ }).isVisible(), 'the sidebar has no Find');
+  await open();
+  const box = find.getByRole('combobox');
+  h.set('entry', await box.evaluate((e) => e === document.activeElement), 'the search is not focused when Find opens');
+  h.set('attention', /Opened lately|Type a name, a key like G-48, or a few words\./.test(await find.innerText()), 'Find shows neither what was opened lately nor what to type');
+  await h.checkpoint('find');
+  // A goal's key alone: that goal first, and Enter opens it.
+  await h.fill(box, 'G-48');
+  await see(find, 'Goals · 1', 'G-48 does not find its goal alone');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/goals\/[^/?]+/, { timeout: 5000 }).catch(() => {});
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  const opened = await p.locator('main .gkey').first().innerText({ timeout: 5000 }).catch(() => '');
+  h.set('progress', /\/goals\/[^/?]+/.test(p.url()) && opened === 'G-48', `Enter on G-48 opened ${p.url()} (key ${opened})`);
+  // Again from the goal: a name finds the person, their goals and their team.
+  await open();
+  await h.fill(box, 'rhea');
+  await see(find, 'People · 1', 'Rhea is not found under People');
+  const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
+  h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
+  const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
+  h.set('finish', await goals.count() === 4 && /See all 8 goals/.test(await goals.last().innerText()), 'Goals does not show three rows and See all 8 goals');
+  h.set('a11y', /\/goals\?scope=all&q=rhea/.test(await goals.last().getAttribute('href') || ''), 'See all does not open Goals with the search');
+  await h.checkpoint('rhea');
+  const options = await find.getByRole('option').allInnerTexts();
+  const at = options.findIndex((t) => /^CI\/CD/.test(t.trim()));
+  for (let i = 0; i < at; i++) await p.keyboard.press('ArrowDown');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/teams\/cicd/, { timeout: 5000 }).catch(() => {});
+  h.set('finish', /\/teams\/cicd/.test(p.url()), `Enter on CI/CD opened ${p.url()}`);
+  // Escape closes.
+  await open();
+  await p.keyboard.press('Escape');
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', await find.count() === 0, 'Escape does not close Find');
+  await p.context().close();
+}, ['logged']);
+
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));

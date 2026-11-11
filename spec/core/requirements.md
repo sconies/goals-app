@@ -1022,6 +1022,14 @@ A person, team, goal or metric is always chosen by typing to find it, never from
 - **Help:** “Finding and choosing” (`finding`)
 - **Journeys and checks:** F11, U63
 
+### FIND-ANYWHERE
+
+Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
+
+- **Rule:** [Finding things](rules/finding.md)
+- **Help:** “Finding and choosing” (`finding`)
+- **Journeys and checks:** U65
+
 ## Export
 
 ### PRINT-EXPORT

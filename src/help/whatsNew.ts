@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'find-anywhere',
+    date: '2026-11-11',
+    title: 'Find, from anywhere',
+    points: [
+      'Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.',
+      'Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar.',
+    ],
+    articles: ['finding'],
+  },
+  {
     id: 'goals-filters-in-words',
     date: '2026-11-10',
     title: 'Goals counts once, and says its filters in words',
