@@ -1247,8 +1247,8 @@ journey('U16', ['ATTENTION', 'WATCHING', 'ONE-ASK', 'ONE-WATCHING'], 'Home by re
   }
   await p.goto(url('/goals?scope=watching'));
   await see(p, 'Needs attention', 'Watching shows inside Goals');
-  // A phone has no page title: its top bar names the page.
-  h.set('finish', device === 'phone' ? (await p.locator('.mtop strong').first().innerText()).trim() === 'Watching' : await p.getByRole('heading', { name: 'Watching', level: 1 }).isVisible(), 'Watching inside Goals is not named Watching');
+  // A phone has no page title: its top bar names the page, Goals (navigation rule 2), and the scope menu says Watching.
+  h.set('finish', device === 'phone' ? (await p.locator('.mtop strong').first().innerText()).trim() === 'Goals' && /^Watching/.test(await openShow(p)) : await p.getByRole('heading', { name: 'Watching', level: 1 }).isVisible(), 'Watching inside Goals is not named Watching');
   await p.context().close();
 }, ['errors', 'logged']);
 
