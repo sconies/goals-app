@@ -131,9 +131,5 @@ Faro's Supabase project (family-hq) also holds another app's real family data, s
   - the layers lint;
   - the CI job that runs the core without each module;
   - the three rules files that reached into the data layer: `Commit` now lives in `src/domain/commit.ts`.
-- **Still to move,** one at a time, markup first and reviews last:
-  - markup, which lives mostly in one folder;
-  - reviews, which touch about 90 files across nine folders;
-  - asks, Watching and the map.
-
-  Each move takes its screens, Help, tools and journeys into its folder.
+- **Next:** the metric library becomes a module with its own records and rules (AS part 2), the proof that a feature with records of its own can be added without editing the core.
+- **Core, and staying core** (architecture readiness review, 11 Nov): reviews, asks, Watching and the map. Moving reviews (about 90 files across nine folders) would teach a rebuild nothing the metric library won't. Markup lives mostly in one folder and may move when something needs it to.

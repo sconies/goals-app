@@ -3,7 +3,7 @@
    yours. */
 import type { Feedback, Metric } from '../../domain/types';
 import type { Markup, MarkupStatus } from '../../markup/model';
-import type { Clock, FeedbackStore, Files, Identity, MarkupStore, NumberSource } from '../index';
+import type { Clock, FeedbackStore, Files, Identity, MarkupStore, NumberSource, Picker } from '../index';
 
 const at = (minute: number) => new Date(Date.UTC(2026, 10, 2, 9, minute)).toISOString();
 
@@ -85,18 +85,32 @@ export function feedbackContract(name: string, make: () => Promise<{ store: Feed
   });
 }
 
-export function identityContract(name: string, make: () => Identity) {
+/** What any Identity does. `make` gives one and a way to arrange who is signed in to a workspace: for the picker,
+    choosing; for a sign-in, whatever your test stands in for (a session, a token). */
+export function identityContract(name: string, make: () => { identity: Identity; signIn(workspaceId: string, personId: string): void }) {
   describe(`the identity contract: ${name}`, () => {
-    it('says nobody until someone is chosen, then that person, per workspace, and remembers it', () => {
+    it('says nobody until someone is signed in, then that person, per workspace', async () => {
+      const { identity, signIn } = make();
+      expect(await identity.current('ws_a')).toBeNull();
+      signIn('ws_a', 'ada');
+      signIn('ws_b', 'grace');
+      expect(await identity.current('ws_a')).toBe('ada');
+      expect(await identity.current('ws_b')).toBe('grace');
+      expect(await identity.current('ws_nobody')).toBeNull();
+    });
+  });
+}
+
+/** What the demo's picker adds: anyone may be chosen, the choice changes who it says, and it is remembered. A real
+    sign-in has no `choose` and doesn't run this. */
+export function pickerContract(name: string, make: () => Picker) {
+  describe(`the picker contract: ${name}`, () => {
+    it('changes who it says when someone else is chosen, and remembers it', async () => {
       const id = make();
-      expect(id.who('ws_a')).toBeNull();
       id.choose('ws_a', 'ada');
-      id.choose('ws_b', 'grace');
-      expect(id.who('ws_a')).toBe('ada');
-      expect(id.who('ws_b')).toBe('grace');
       id.choose('ws_a', 'alan');
-      expect(id.who('ws_a')).toBe('alan');
-      expect(make().who('ws_a')).toBe('alan');
+      expect(await id.current('ws_a')).toBe('alan');
+      expect(await make().current('ws_a')).toBe('alan');
     });
   });
 }
