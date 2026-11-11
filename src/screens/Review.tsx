@@ -8,7 +8,7 @@ import { useApp } from '../app/state';
 import { LEVEL_LABEL } from '../domain/format';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
-import { answerOf, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
+import { answerOf, canSpeakFor, joinLine, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
 import type { Goal, Level, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
@@ -215,11 +215,9 @@ export function ReviewHome() {
   const last = !done ? lastTime(review, app.snapshot, s.week, app.week) : null;
   const firstName2 = (id: string) => app.person(id)?.name.split(' ')[0] ?? 'Someone';
   const people = review.people.map((id) => app.person(id)).filter((p) => !!p);
-  const inIt = review.people.includes(app.viewer.id);
-  const canChange = inIt || app.viewer.admin;
-  const join = async () => {
-    try { await app.saveReview({ ...review, people: [...review.people, app.viewer.id] }, review); app.toast(`You’re in ${review.name}`); } catch { /* the save already said what went wrong */ }
-  };
+  // Who may speak for it (RV7): someone in it, or an admin. Everyone else reads it, and is told who can add them.
+  const inIt = canSpeakFor(review, app.viewer);
+  const canChange = inIt || review.createdBy === app.viewer.id;
   const remaining = walk.filter((a) => !s.covered.has(a.goal.id));
   const reviewedItems = s.items.filter((a) => s.covered.has(a.goal.id));
   // One terse line under the name: the date and what's on, or where it got to.
@@ -243,7 +241,7 @@ export function ReviewHome() {
           <div className="actions" style={{ marginTop: 'var(--s2)' }}>
             {inIt && !done && first && <button className="btn primary big-btn" onClick={start}>{s.done ? `Continue review · ${goalsN(remaining.length)} left` : `Start review · ${goalsN(walk.length)}`}</button>}
             {inIt && !done && !first && healthyLeft.length > 0 && <button className="btn primary big-btn" disabled={busy} onClick={() => setConfirming('finish')}>Finish review</button>}
-            {!inIt && <button className="btn primary big-btn" onClick={() => void join()}>Join this review</button>}
+            {!inIt && <p className="hint review-join">{joinLine(review, (id) => app.person(id)?.name ?? null)}</p>}
             {canChange && <Link className="btn" to={`/reviews/${review.id}/edit`}>Edit review setup</Link>}
             <Link className="btn ghost print-link" to={`/reviews/${review.id}/print`}><Icon name="print" /><span className="print-link-label">Print or save as PDF</span></Link>
           </div>

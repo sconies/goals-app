@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { weekDates } from '../domain/plan';
-import { dayText, reviewedText, reviewSession, sessionPlan, sessionWhen, walkOrder } from '../domain/review';
+import { canSpeakFor, dayText, joinLine, reviewedText, reviewSession, sessionPlan, sessionWhen, walkOrder } from '../domain/review';
 import { acceptedReason, acceptNote, decisionFor, lastTime, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { canMarkDone } from '../domain/asks';
 import { reviewDate } from '../domain/progress';
@@ -103,8 +103,8 @@ export function ReviewCallBar({ goal }: { goal: Goal }) {
   const [editing, setEditing] = useState<Decision | null>(null);
   const [busy, setBusy] = useState(false);
   if (!rv.active || !rv.review || !rv.session) return null;
-  if (!rv.review.people.includes(app.viewer.id)) {
-    return <div className="decide"><span className="hint">You’re looking at {rv.review.name}. Join it from the review’s page to say something.</span><div className="row decide-buttons"><button className="btn big-btn" onClick={rv.next}>Next goal</button></div></div>;
+  if (!canSpeakFor(rv.review, app.viewer)) {
+    return <div className="decide"><span className="hint">You’re looking at {rv.review.name}. {joinLine(rv.review, (id) => app.person(id)?.name ?? null).replace('You’re not in this review. ', '')} Only people in it, or an admin, speak for it.</span><div className="row decide-buttons"><button className="btn big-btn" onClick={rv.next}>Next goal</button></div></div>;
   }
   const own = goal.ownerId === app.viewer.id;
   const first = (id: string | null | undefined) => app.person(id ?? '')?.name.split(' ')[0] ?? 'Someone';

@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'review-who-speaks',
+    date: '2026-11-11',
+    title: 'Only people in a review, or an admin, decide in it',
+    points: [
+      'Marking goals reviewed, notes, accepting a risk, and questions and next steps raised in a review are for the people in it, or an admin, in the app and through AI assistants alike.',
+      'Everyone can still read every review, and ask a question or agree a next step on a goal’s own page.',
+      'A review you’re not in says who can add you, instead of offering a Join button that didn’t work.',
+    ],
+    articles: ['reviews'],
+  },
+  {
     id: 'check-in-asks',
     date: '2026-11-11',
     title: 'Faro asks about a number that looks wrong',
