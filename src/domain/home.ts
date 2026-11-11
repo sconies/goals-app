@@ -53,7 +53,8 @@ export function missedReviews(personId: string, s: Snapshot, cycle: Cycle, week:
   return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const sx = reviewSession(r, s, cycle, today, week);
     return { id: r.id, name: r.name, week: sx.week, date: sx.date, daysPast: daysPast(sx, today) };
-  }).filter((x) => x.daysPast > 0).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+  // A session after the cycle's last week (a fortnightly one landing in week 54) isn't in this cycle: never missed in it.
+  }).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
 
 export interface Dashboard {

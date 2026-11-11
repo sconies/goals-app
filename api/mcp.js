@@ -30,6 +30,15 @@ function currentWeek(cycle, today) {
 	if (d < 0) return 0;
 	return Math.min(cycle.weeks, Math.floor(d / 7));
 }
+/**
+* The week results are judged at (cycle-end spec, rule 2): the current week, or `weeks + 1` once the cycle's last day
+* is past, so a goal due in the last week gets its result, and the last quarter closes, without anyone pressing a
+* button. `currentWeek` stops at `weeks` (a check-in given after the end is dated the last week); only results, the
+* quarters and the end of "due" read this.
+*/
+function resultWeek(cycle, today) {
+	return Math.max(0, Math.min(cycle.weeks + 1, Math.floor(daysBetween(cycle.startDate, today) / 7)));
+}
 /** Days since an ISO timestamp. */
 function daysSince(iso, today) {
 	return daysBetween(iso, today);
@@ -224,9 +233,10 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$2, planEnd, NOT_A_COUNT;
+var DAY$2, hasEnded, planEnd, NOT_A_COUNT;
 var init_plan = __esmMin((() => {
 	DAY$2 = 864e5;
+	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
 }));
@@ -247,7 +257,11 @@ var init_thresholds = __esmMin((() => {
 		wellAhead: 1.2,
 		staleDays: 14,
 		/** A milestone stage more than this many weeks late is off track. */
-		lateWeeksOff: 2
+		lateWeeksOff: 2,
+		/** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
+		wrapUpWeeksBefore: 2,
+		/** …and stays open this many weeks after it, for the last numbers and the owners' words. */
+		wrapUpWeeksAfter: 4
 	};
 	NUMBER_WORDS = [
 		"no",
@@ -1116,6 +1130,7 @@ function goalStatus(goal, cycle, checkIns, today) {
 	let status;
 	if (latest?.status === "done") status = "done";
 	else if (week === 0) status = "planned";
+	else if (hasEnded(cycle, today)) status = latest ? latest.status : "none";
 	else if (quiet < RULES.staleDays) status = latest ? latest.status : "none";
 	else status = "stale";
 	const greener = latest != null && RANK[latest.status] < RANK[latest.calculated];
@@ -1746,7 +1761,7 @@ function weekProgress(personId, s, cycle, week, today) {
 		goals,
 		done,
 		upcoming,
-		due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
+		due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g))
 	};
 }
 /** The day of a week's review, as an ISO date. Check-ins posted by the end of it count as on time. */
@@ -2322,7 +2337,7 @@ function flagsFor(goal, s, cycle, today) {
 	const trend = status.status === "done" ? null : worseningTrend(goal, cycle, s.checkIns);
 	if (trend) add("trend", trend, "risk");
 	if (status.greener && latest && status.status !== "stale" && status.status !== "done") add("greener", `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, "risk");
-	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
+	if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== "done" && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add("due", `Due before the review in week ${week}.`, "info");
 	flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
 	return {
 		status,
@@ -2974,7 +2989,7 @@ function quarters(c) {
 	].map((n) => ({
 		n,
 		label: `Q${n}`,
-		months: `${MONTHS[(m0 + 3 * (n - 1)) % 12]}–${MONTHS[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		months: `${MONTHS$1[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$1[(m0 + 3 * (n - 1) + 2) % 12]}`,
 		from: (n - 1) * 13 + 1,
 		to: n === 4 ? c.weeks : n * 13
 	}));
@@ -3059,7 +3074,7 @@ function yearWeeks(startDate) {
 	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$1);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$1, MONTHS;
+var isYear, DAY$1, MONTHS$1;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3068,7 +3083,7 @@ var init_year = __esmMin((() => {
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
 	DAY$1 = 864e5;
-	MONTHS = [
+	MONTHS$1 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -3151,6 +3166,34 @@ function scopeToCycle(s, cycle) {
 			reviews: reviews.filter((r) => r.endedAt)
 		}
 	};
+}
+/**
+* A cycle's real first and last days. Week 0 is the week before week 1 (for starting numbers); week n runs Monday to
+* Sunday from `startDate` + 7n days, so the last week ends `(weeks + 1) × 7 − 1` days after `startDate`. In the demo's
+* 2026 (from 22 Dec 2025, 53 weeks) that is Mon 29 Dec 2025 to Sun 3 Jan 2027.
+*/
+function cycleDates(c) {
+	const lastDay = addDays(c.startDate, (c.weeks + 1) * 7 - 1);
+	return {
+		firstDay: addDays(c.startDate, 7),
+		lastDay,
+		wrapUpOpens: addDays(c.startDate, (c.weeks - RULES.wrapUpWeeksBefore + 1) * 7),
+		wrapUpCloses: addDays(lastDay, RULES.wrapUpWeeksAfter * 7)
+	};
+}
+/** Where a cycle stands today (rule 1): the clock, not a button, ends a cycle. Week 0 is still `before`. */
+function cycleState(c, today) {
+	const t = isoDay(today), d = cycleDates(c);
+	if (t < d.firstDay) return "before";
+	if (t < d.wrapUpOpens) return "running";
+	if (t <= d.lastDay) return "ending";
+	if (t <= d.wrapUpCloses) return "ended";
+	return "closed";
+}
+/** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
+function dayWithYear(iso) {
+	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+	return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
@@ -3245,17 +3288,43 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		})
 	};
 }
-var DAY, addDays, wrapUpOpen, RESULT_LABEL;
+var DAY, addDays, isoDay, wrapUpOpenOn, wrapUpOpen, WEEKDAYS, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_goalKey();
 	init_asks();
 	init_year();
+	init_thresholds();
 	init_yearName();
 	init_status();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
-	wrapUpOpen = (cycle, week) => week >= cycle.weeks - 1;
+	isoDay = (d) => d.toISOString().slice(0, 10);
+	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
+	wrapUpOpen = (cycle, week) => week >= cycle.weeks - RULES.wrapUpWeeksBefore + 1;
+	WEEKDAYS = [
+		"Sun",
+		"Mon",
+		"Tue",
+		"Wed",
+		"Thu",
+		"Fri",
+		"Sat"
+	];
+	MONTHS = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
 // src/domain/people.ts
@@ -8380,7 +8449,8 @@ function storyOf(g, s, cycle, week, today) {
 	const a = assessPosted(g, cycle, s.checkIns, week);
 	const status = st.status;
 	const behind = BEHIND.includes(status);
-	const result = goalResult(g, cycle, s.checkIns, week);
+	const rw = Math.max(week, resultWeek(cycle, today));
+	const result = goalResult(g, cycle, s.checkIns, rw);
 	const warnings = [];
 	const flags = [];
 	const warn = (kind, text) => {
@@ -8417,7 +8487,7 @@ function storyOf(g, s, cycle, week, today) {
 		const end = Math.min(q.to, due);
 		if (end < due) where += ` ${q.label} plan: ${fmt(targetAt(g, cycle, end), g)} by week ${end}.`;
 	}
-	const quarters = quarterResults(g, cycle, s.checkIns, week);
+	const quarters = quarterResults(g, cycle, s.checkIns, rw);
 	const lastEnded = [...quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed");
 	const fc = forecastText(g, a, cycle.weeks, cycle);
 	const outlook = fc && projects(g, status) ? fc.text : null;
@@ -10091,7 +10161,7 @@ function missedReviews(personId, s, cycle, week, today) {
 			date: sx.date,
 			daysPast: daysPast(sx, today)
 		};
-	}).filter((x) => x.daysPast > 0).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
+	}).filter((x) => x.daysPast > 0 && x.week <= cycle.weeks).sort((a, b) => b.daysPast - a.daysPast || a.name.localeCompare(b.name));
 }
 function dashboard(personId, s, cycle, week, today) {
 	const mine = s.goals.filter((g) => g.ownerId === personId);
@@ -11505,6 +11575,8 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
+				"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
+				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.",
 				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
 				"Wrap up shows everyone which goals are wrapped up, and how.",
 				"An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged."
@@ -11515,11 +11587,18 @@ var CORE_ARTICLES = [
 		}],
 		routes: ["/retro", "/retro/:goalId"],
 		screens: ["Retro"],
-		reqs: ["RETRO", "YEAR"],
+		reqs: [
+			"RETRO",
+			"YEAR",
+			"RESULTS"
+		],
 		keywords: [
 			"retro",
 			"retrospective",
 			"end of year",
+			"year end",
+			"year ended",
+			"last day",
 			"cycle",
 			"next year",
 			"carry on",
@@ -11918,8 +11997,9 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Each cycle says where it stands in a word (running, over, or starts on a date), then its week and dates (the running one) or only its dates, then how many goals and check-ins it has (“no check-ins yet” for none).",
-				"The running cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up.",
+				"Each cycle says where it stands in a word (running; ending, in its wrap-up weeks; ended, with its last day; or starts on a date), then its week and dates (the running one) or its dates and weeks, then how many goals and check-ins it has (“no check-ins yet” for none).",
+				"A cycle’s dates are its real first and last days: week 1’s Monday to its last week’s Sunday. The demo’s 2026 runs from 29 Dec 2025 to 3 Jan 2027.",
+				"The current cycle also says when its wrap-up opens: the first day of its last two weeks. Once it is open, it says how many goals are still to wrap up; once the year has ended, the day it ended and until when the wrap-up stays open.",
 				"Its one action: See the wrap-up, before it opens (once any goal has a check-in); Wrap it up, once it’s open; and for admins, once every goal is wrapped up, Start the next cycle.",
 				"An admin can delete a cycle nobody has checked in to, with its goals: Delete… asks first (“Delete 2027 and its 4 goals? Nobody has checked in to it.”). It’s listed in Recently removed and can be restored for 30 days. One with check-ins stays, and the only cycle always stays.",
 				"A new cycle starts from the wrap-up at the end of this one, where each goal is carried on or stopped."
@@ -11930,7 +12010,7 @@ var CORE_ARTICLES = [
 		}],
 		routes: ["/workspace/cycles"],
 		screens: [],
-		reqs: ["UNDO-REMOVE"],
+		reqs: ["UNDO-REMOVE", "RESULTS"],
 		keywords: [
 			"cycles",
 			"year",
@@ -12543,6 +12623,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "year-ends",
+		date: "2026-11-11",
+		title: "A year ends on its last day",
+		points: [
+			"Results and the last quarter close by themselves on the day after the year’s last day, and nothing is due, late or out of date after the year has ended.",
+			"Cycles gives each year’s real first and last day: 2026 runs from 29 Dec 2025 to 3 Jan 2027. It says when a year is ending, and when it ended.",
+			"The place line at the top says “2026 · week 53, the last week”, then “2026 has ended”."
+		],
+		articles: ["wrap-up", "workspace-cycles"]
+	},
 	{
 		id: "goals-filters-in-words",
 		date: "2026-11-10",
@@ -13903,6 +13994,11 @@ var RULE_PAGES = [
 		"which week it is, and what the plan says a number should be"
 	],
 	[
+		"year-end",
+		"A year’s end",
+		"a cycle’s real first and last days; after the last day results close and nothing is due or out of date"
+	],
+	[
 		"status",
 		"A goal’s status",
 		"what the numbers say, and the official status (the owner’s call unless stale)"
@@ -14320,7 +14416,7 @@ var WORK_TOOLS = [
 					asksForAnUpdate: asks,
 					yourActions: actions,
 					yourReviews: reviews,
-					wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week)
+					wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today)
 				},
 				text: [
 					`Week ${ctx.week} for ${ctx.actor.name}.`,
@@ -14665,14 +14761,19 @@ var WORK_TOOLS = [
 					next: r?.next ?? null
 				};
 			});
-			const open = wrapUpOpen(ctx.cycle, ctx.week);
+			const open = wrapUpOpenOn(ctx.cycle, ctx.today);
+			const d = cycleDates(ctx.cycle);
+			const when = cycleState(ctx.cycle, ctx.today) === "closed" ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
 			return {
 				data: {
 					open,
 					opensWeek: ctx.cycle.weeks - 1,
+					opens: d.wrapUpOpens,
+					lastDay: d.lastDay,
+					closes: d.wrapUpCloses,
 					goals: list
 				},
-				text: `${open ? "Wrap-up is open." : `Wrap-up opens in week ${ctx.cycle.weeks - 1}.`} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
+				text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.`
 			};
 		}
 	},

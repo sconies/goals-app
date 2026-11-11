@@ -16,6 +16,19 @@ export function currentWeek(cycle: Cycle, today: Date): number {
   return Math.min(cycle.weeks, Math.floor(d / 7));
 }
 
+/**
+ * The week results are judged at (cycle-end spec, rule 2): the current week, or `weeks + 1` once the cycle's last day
+ * is past, so a goal due in the last week gets its result, and the last quarter closes, without anyone pressing a
+ * button. `currentWeek` stops at `weeks` (a check-in given after the end is dated the last week); only results, the
+ * quarters and the end of "due" read this.
+ */
+export function resultWeek(cycle: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): number {
+  return Math.max(0, Math.min(cycle.weeks + 1, Math.floor(daysBetween(cycle.startDate, today) / 7)));
+}
+
+/** Whether the cycle's last day is past: nothing in it is due, late or out of date from then on. */
+export const hasEnded = (cycle: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => resultWeek(cycle, today) > cycle.weeks;
+
 /** Days since an ISO timestamp. */
 export function daysSince(iso: string, today: Date): number {
   return daysBetween(iso, today);

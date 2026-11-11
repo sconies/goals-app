@@ -8,7 +8,8 @@ import { kindWords } from '../domain/format';
 import { valueSeries } from '../domain/plan';
 import { projects } from '../domain/scorecard';
 import { assessPosted } from '../domain/status';
-import { periodLabel, quarterOf } from '../domain/year';
+import { quarterOf } from '../domain/year';
+import { periodNow } from '../domain/cycle';
 import { Chip, Empty, LevelTag } from '../ui/bits';
 import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList } from '../ui/charts';
 import { Icon } from '../ui/Icon';
@@ -87,7 +88,7 @@ function GoalPrintView() {
       <PrintBar back={`/goals/${goal.id}`} label="Back to the goal" />
       <article className="print-sheet" aria-label={`${goal.title}, one page`}>
         <header className="ps-head">
-          <span className="ps-eyebrow">{app.ws.name.replace(/^Example:\s*/, '')} · {periodLabel(app.cycle, app.week)}</span>
+          <span className="ps-eyebrow">{app.ws.name.replace(/^Example:\s*/, '')} · {periodNow(app.cycle, app.today)}</span>
           <h1 className="ps-title">{goal.title}</h1>
           <span className="ps-meta">{s.owner}{s.team !== '—' ? `, ${s.team}` : ''} · <LevelTag level={goal.level} always /> · {kindWords(goal)}</span>
           {sh.feeds && <span className="ps-meta">Feeds {sh.feeds.title}{sh.feeds.why ? `: ${sh.feeds.why}` : ''}</span>}
