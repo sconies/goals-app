@@ -18,16 +18,16 @@ import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
-import { Research } from './screens/Research';
-import { Settings } from './screens/Settings';
 import { MotionLayer } from './ui/Count';
-import { MotionLab } from './ui/MotionLab';
-import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
 // Screens a first visit never needs load when first opened, to keep the first download small (AX4; the bundle budget
 // is scripts/check-bundle.mjs).
+// Screens a first visit doesn't open load when they are opened (the bundle budget, scripts/check-bundle.mjs).
+const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
+const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
+const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
@@ -36,6 +36,10 @@ const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default:
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
 const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
+// Help and What's new carry the whole guide and every release (about 200 KB): the first download has only their index.
+const HelpHome = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpHome })));
+const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpArticle })));
+const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 
 export function Routed() {
   const app = useApp();
@@ -46,7 +50,7 @@ export function Routed() {
   return (
     <Shell>
       <MotionLayer />
-      <MotionLab />
+      <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
       <Suspense fallback={null}>

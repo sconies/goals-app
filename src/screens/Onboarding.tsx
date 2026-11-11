@@ -1,5 +1,6 @@
 /* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
    one question per screen, in about three minutes. A template fills it in so it's never blank. */
+import { isTop, levelName } from '../domain/levels';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
@@ -535,7 +536,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
                 <ul className="record">
                   {result.snapshot.goals.map((g) => (
                     <li key={g.id}>
-                      <span className="strong">{g.title}{g.level === 'north-star' ? ' · North star' : ''}</span>
+                      <span className="strong">{g.title}{isTop(null, g.level) ? ` · ${levelName(null, g.level)}` : ''}</span>
                       <span className="small">{unownedTitles.has(g.title) ? 'No owner yet' : result.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? '—'} · {g.kind === 'metric' ? `${fmt(g.plan.start, g)} today → ${targetText(g)}${g.plan.target < g.plan.start ? ', lower is better' : ''}` : targetText(g)}{g.kind === 'milestone' ? ` · ${g.stages.map((st) => `${st.name} by week ${st.dueWeek}`).join(', ')}` : ''}</span>
                     </li>
                   ))}

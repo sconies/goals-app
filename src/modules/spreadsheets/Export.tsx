@@ -6,10 +6,14 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../app/state';
 import { saveFile, saveFailed, type FileContent } from '../../app/files';
-import { andList, SHEETS } from '../../domain/columns';
+import { andList, sheetNamesWith } from '../../domain/columns';
+import { MODULE_SHEETS } from '../../core/records';
 import { aiBrief, csvFiles, sheetNamed, toCsv, toJson, workbook, type ExportInput } from '../../domain/export';
 import type { Goal } from '../../domain/types';
 import { Sheet } from '../../ui/bits';
+
+/** Every sheet's name after Start here: the core's, then each module's (the metric library's Metrics). */
+const SHEET_NAMES = sheetNamesWith(MODULE_SHEETS).slice(1);
 
 /** Goals' one way out (the goals.tools place): an item in the Views menu, or the phone's View sheet. Import and the rest are on Data. */
 export function ExportTheseGoals({ goals, viewName, inMenu }: { goals: Goal[]; viewName: string; inMenu?: boolean }) {
@@ -46,7 +50,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
   const [busy, setBusy] = useState<string | null>(null);
   // One table on its own, as a CSV.
   const [one, setOne] = useState<string>('Goals');
-  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined };
+  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, goals: scope === 'view' ? goals : undefined, sheets: MODULE_SHEETS };
   // Every file is named the same way: workspace, what it holds, which goals (the view, or the whole cycle), the day.
   const name = (what: string) => ({ workspace: app.ws.name, what, scope: scope === 'view' ? viewName : app.cycle.name, date: app.today });
   const save = (what: string, content: FileContent) => saveFile(name(what), content).then(() => undefined);
@@ -82,7 +86,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
         {/* Every format the same way: what it is on the left, its buttons in one column on the right. */}
         <div className="optlist export-list">
           <div className="opt static">
-            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Every sheet: {andList(SHEETS.map((x) => x.name))}, and a first sheet, Start here, that says what each column means and which a new row must have. Edit it and load it back from Data.</span></span>
+            <span className="stack" style={{ gap: 2 }}><span className="strong">Excel workbook</span><span className="hint">Every sheet: {andList(SHEET_NAMES)}, and a first sheet, Start here, that says what each column means and which a new row must have. Edit it and load it back from Data.</span></span>
             <span className="export-actions">
               <button type="button" className="btn sm" aria-label="Save .xlsx: Excel workbook" disabled={!!busy} onClick={() => void run('xlsx', () => save('goals', { kind: 'xlsx', sheets: workbook(input) }), 'Workbook saved')}>{busy === 'xlsx' ? 'Saving…' : 'Save .xlsx'}</button>
             </span>
@@ -92,7 +96,7 @@ export function ExportSheet({ goals, viewName, onClose }: { goals: Goal[]; viewN
             <span className="export-actions">
               <button type="button" className="btn sm" aria-label="Save .zip: every sheet as a CSV" disabled={!!busy} onClick={() => void run('zip', () => save('goals-csv', { kind: 'zip', files: csvFiles(workbook(input)) }), 'CSV files saved')}>{busy === 'zip' ? 'Saving…' : 'Save .zip'}</button>
               <label className="sr" htmlFor="export-one">One table</label>
-              <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEETS.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}</select>
+              <select id="export-one" className="input sm" value={one} onChange={(e) => setOne(e.target.value)}>{SHEET_NAMES.map((n) => <option key={n} value={n}>{n}</option>)}</select>
               <button type="button" className="btn sm" aria-label={`Save .csv: ${one}`} disabled={!!busy} onClick={() => void run('csv', () => save(one, { kind: 'csv', text: toCsv(sheetNamed(workbook(input), one).rows) }), `${one} saved as CSV`)}>Save .csv</button>
             </span>
           </div>

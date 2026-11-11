@@ -6,13 +6,35 @@
    These are the only rules for it: what a metric needs, who may add, change, remove, link and unlink, and what the
    change log says. The app, the AI assistants' MCP server (src/modules/metrics/tools.ts) and the demo data all call
    these. Removing a metric is never final: it keeps its row (removedAt), unlinks the goals it measured, and comes back
-   with Undo or from Recently removed (domain/removal). */
-import { NotAllowed, type ActionContext } from './actions';
-import { diffFields } from './changes';
-import type { Commit } from './commit';
-import { fmt } from './format';
-import { placesText } from './numbers';
-import type { Change, Goal, Metric, MetricDirection, MetricLink, MetricRefresh, Snapshot } from './types';
+   with Undo or from Recently removed (domain/removal, through records.ts).
+
+   The module's rules (AS part 2): as pure as src/domain, and the layers lint holds them to it. They import only
+   src/domain and this folder, read no clock, browser or network, and take only what they read. The records live in the
+   workspace under `modules.metrics` (domain/records); `metricsOf` and `linksOf` read them. */
+import { NotAllowed, type ActionContext } from '../../domain/actions';
+import { diffFields } from '../../domain/changes';
+import type { Commit } from '../../domain/commit';
+import { fmt } from '../../domain/format';
+import { placesText } from '../../domain/numbers';
+import { mergeModuleRows, moduleRows, withModuleRows, type ModuleRows } from '../../domain/records';
+import type { Change, Goal, Person, Team } from '../../domain/types';
+import type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
+
+export type { Metric, MetricDirection, MetricLink, MetricRefresh } from './types';
+
+/** The module's id, and the keys its records are filed under (records.ts). */
+export const MODULE = 'metrics';
+export const METRICS_KEY = 'metrics';
+export const LINKS_KEY = 'metricLinks';
+
+/** What the rules read of a workspace: the feature modules' rows. */
+type Rows = { modules?: ModuleRows };
+/** Every metric in a workspace (or a commit), removed ones included. */
+export const metricsOf = (s: Rows | null | undefined): Metric[] => moduleRows<Metric>(s, MODULE, METRICS_KEY);
+/** Every goal's link to a metric in a workspace (or a commit), unlinked ones included. */
+export const linksOf = (s: Rows | null | undefined): MetricLink[] => moduleRows<MetricLink>(s, MODULE, LINKS_KEY);
+/** A commit's part for metrics and links: `{ modules: { metrics: { … } } }`. */
+export const metricRows = (rows: { metrics?: Metric[]; metricLinks?: MetricLink[] }): Pick<Commit, 'modules'> => withModuleRows(MODULE, { [METRICS_KEY]: rows.metrics, [LINKS_KEY]: rows.metricLinks });
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 
@@ -37,22 +59,22 @@ export type MetricInput = Partial<Pick<Metric, 'name' | 'meaning' | 'unit' | 'de
 /* ---------- reading ---------- */
 
 /** The metrics in use: not removed, by name. */
-export const liveMetrics = (s: Pick<Snapshot, 'metrics'>): Metric[] => (s.metrics ?? []).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
+export const liveMetrics = (s: Rows): Metric[] => metricsOf(s).filter((m) => !m.removedAt).sort((a, b) => a.name.localeCompare(b.name));
 /** A live metric by id, or by name (any case). */
-export function findMetric(s: Pick<Snapshot, 'metrics'>, ref: string): Metric | undefined {
+export function findMetric(s: Rows, ref: string): Metric | undefined {
   const t = ref.trim().toLowerCase();
   const live = liveMetrics(s);
   return live.find((m) => m.id === ref) ?? live.find((m) => m.name.trim().toLowerCase() === t);
 }
 /** A goal's link to a metric, if it has one that's in force (the metric not removed either). */
-export function linkOf(s: Pick<Snapshot, 'metrics' | 'metricLinks'>, goalId: string): MetricLink | undefined {
-  const l = (s.metricLinks ?? []).find((v) => v.goalId === goalId && !v.removedAt);
+export function linkOf(s: Rows, goalId: string): MetricLink | undefined {
+  const l = linksOf(s).find((v) => v.goalId === goalId && !v.removedAt);
   return l && liveMetrics(s).some((m) => m.id === l.metricId) ? l : undefined;
 }
-/** The goals a metric measures now (links in force, to goals in the snapshot). */
-export function goalsMeasuredBy(s: Pick<Snapshot, 'goals' | 'metrics' | 'metricLinks'>, metricId: string): Goal[] {
-  const ids = new Set((s.metricLinks ?? []).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
-  return s.goals.filter((g) => ids.has(g.id));
+/** The goals a metric measures now: links in force, to the goals given (the cycle's, say). */
+export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: string): Goal[] {
+  const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
+  return goals.filter((g) => ids.has(g.id));
 }
 
 /** A goal's target in its metric: a metric goal's plan target, or a range goal's limit. Milestones have none. */
@@ -65,7 +87,7 @@ export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most'
 /** What a goal is measured by, ready to show: the metric, the slice in words, and the goal's target in it, as a number
     and as every screen writes it (domain/numbers: at the goal's decimals, digits grouped, with its unit: "At most 2.0%"). */
 export interface Measure { link: MetricLink; metric: Metric; slice: string; target: ReturnType<typeof goalTarget>; targetText: string | null }
-export function measureOf(s: Pick<Snapshot, 'goals' | 'teams' | 'metrics' | 'metricLinks'>, goal: Goal): Measure | null {
+export function measureOf(s: Rows & { teams: Team[] }, goal: Goal): Measure | null {
   const link = linkOf(s, goal.id);
   if (!link) return null;
   const metric = liveMetrics(s).find((m) => m.id === link.metricId)!;
@@ -74,7 +96,7 @@ export function measureOf(s: Pick<Snapshot, 'goals' | 'teams' | 'metrics' | 'met
   return { link, metric, slice: sliceName(s, link.teamId), target, targetText };
 }
 /** A slice in words: the team's name (or "a removed team"), or the whole company. */
-export const sliceName = (s: Pick<Snapshot, 'teams'>, teamId: string | null) => (teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? 'A removed team');
+export const sliceName = (s: { teams: Team[] }, teamId: string | null) => (teamId == null ? COMPANY : s.teams.find((t) => t.id === teamId)?.name ?? 'A removed team');
 
 /* ---------- what a metric needs ---------- */
 
@@ -108,7 +130,7 @@ export function metricFrom(input: MetricInput, before: Metric | null, x: Pick<Ac
  * better). Optional: the meaning, decimals (0 to 4), source and its owner, refresh (one of REFRESHES), owner (someone in
  * the workspace) and caveats, each text up to 2,000 characters.
  */
-export function metricProblems(m: Metric, s: Pick<Snapshot, 'metrics' | 'people'>): string[] {
+export function metricProblems(m: Metric, s: Rows & { people: Person[] }): string[] {
   const out: string[] = [];
   if (!m.name) out.push('Give the metric a name.');
   else if (m.name.length < 3) out.push('Give the metric a name of at least three characters.');
@@ -132,7 +154,7 @@ export function metricProblems(m: Metric, s: Pick<Snapshot, 'metrics' | 'people'
 /* ---------- the change log ---------- */
 
 /** A metric's fields as the change log reads them. */
-export function metricFields(m: Metric, s: Pick<Snapshot, 'people'>): Record<string, string> {
+export function metricFields(m: Metric, s: { people: Person[] }): Record<string, string> {
   return {
     Name: m.name,
     Meaning: m.meaning || '—',
@@ -149,7 +171,7 @@ export function metricFields(m: Metric, s: Pick<Snapshot, 'people'>): Record<str
 
 const log = (x: ActionContext, v: Pick<Change, 'entityId' | 'action' | 'summary'> & Partial<Change>): Change => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'metric', diffs: [], ...v });
 const live = (x: ActionContext, id: string) => {
-  const m = (x.snapshot.metrics ?? []).find((v) => v.id === id);
+  const m = metricsOf(x.snapshot).find((v) => v.id === id);
   if (!m || m.removedAt) no('There’s no metric with that ID. Use list_metrics, or the Metrics page, to find it.');
   return m!;
 };
@@ -175,7 +197,7 @@ export function saveMetric(x: ActionContext, input: MetricInput & { id?: string 
   const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
   if (before && !diffs.length) return { commit: null, metric: before };
   const summary = before ? (before.name !== m.name ? `Renamed the metric “${before.name}” to “${m.name}”` : `Changed the metric “${m.name}”`) : `Added the metric “${m.name}”`;
-  return { metric: m, commit: { metrics: [m], changes: [log(x, { entityId: m.id, action: before ? 'edited' : 'created', summary, diffs })] } };
+  return { metric: m, commit: { ...metricRows({ metrics: [m] }), changes: [log(x, { entityId: m.id, action: before ? 'edited' : 'created', summary, diffs })] } };
 }
 
 /**
@@ -185,11 +207,10 @@ export function saveMetric(x: ActionContext, input: MetricInput & { id?: string 
 export function removeMetric(x: ActionContext, id: string): Commit {
   const m = live(x, id);
   if (!ownsOrAdmin(x, m)) no(`Only ${x.snapshot.people.find((p) => p.id === m.ownerId)?.name ?? 'the metric’s owner'} or an admin can remove this metric.`);
-  const links = (x.full ?? x.snapshot).metricLinks?.filter((l) => l.metricId === id && !l.removedAt) ?? [];
+  const links = linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === id && !l.removedAt);
   const n = links.length;
   return {
-    metrics: [{ ...m, removedAt: x.now, removedBy: x.actor.id, updatedAt: x.now }],
-    ...(n ? { metricLinks: links.map((l) => ({ ...l, removedAt: x.now, removedBy: x.actor.id })) } : {}),
+    ...metricRows({ metrics: [{ ...m, removedAt: x.now, removedBy: x.actor.id, updatedAt: x.now }], metricLinks: links.map((l) => ({ ...l, removedAt: x.now, removedBy: x.actor.id })) }),
     changes: [
       log(x, { entityId: m.id, action: 'removed', summary: `Removed the metric “${m.name}”${n ? `, unlinking ${n} ${n === 1 ? 'goal' : 'goals'}` : ''}`, diffs: [{ field: 'Metric', from: m.name, to: '—' }] }),
       ...links.map((l) => log(x, { entityId: m.id, goalId: l.goalId, action: 'edited', summary: `No longer measured by “${m.name}”, as the metric was removed`, diffs: [{ field: 'Measured by', from: m.name, to: '—' }] })),
@@ -227,27 +248,27 @@ export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, t
   if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no('There’s no team with that ID. Leave the slice empty for the whole company.');
   const { errors } = linkProblems(goal, m);
   if (errors.length) no(errors.join(' '));
-  const all = x.full?.metricLinks ?? x.snapshot.metricLinks ?? [];
+  const all = linksOf(x.full ?? x.snapshot);
   const old = all.find((l) => l.id === goal.id);
   const current = old && !old.removedAt ? old : undefined;
   if (current && current.metricId === m.id && current.teamId === teamId) return null;
-  const metricName = (id: string) => (x.full ?? x.snapshot).metrics?.find((v) => v.id === id)?.name ?? '—';
+  const metricName = (id: string) => metricsOf(x.full ?? x.snapshot).find((v) => v.id === id)?.name ?? '—';
   const link: MetricLink = { id: goal.id, goalId: goal.id, metricId: m.id, teamId, linkedBy: x.actor.id, linkedAt: x.now, removedAt: null, removedBy: null };
   const slice = sliceName(x.snapshot, teamId);
   const diffs = [
     ...(!current || current.metricId !== m.id ? [{ field: 'Measured by', from: current ? metricName(current.metricId) : '—', to: m.name }] : []),
     ...(!current || current.teamId !== teamId ? [{ field: 'Slice', from: current ? sliceName(x.snapshot, current.teamId) : '—', to: slice }] : []),
   ];
-  return { metricLinks: [link], changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary: `Measured by “${m.name}” for ${slice === COMPANY ? 'the whole company' : slice}`, diffs })] };
+  return { ...metricRows({ metricLinks: [link] }), changes: [log(x, { entityId: m.id, goalId: goal.id, action: current ? 'edited' : 'linked', summary: `Measured by “${m.name}” for ${slice === COMPANY ? 'the whole company' : slice}`, diffs })] };
 }
 
 /** Stop measuring a goal by its metric: the goal's owner or an admin. Kept, so it can be undone. Null when it has none. */
 export function unlinkGoalMetric(x: ActionContext, goal: Goal): Commit | null {
   if (!canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
-  const l = (x.snapshot.metricLinks ?? []).find((v) => v.goalId === goal.id && !v.removedAt);
+  const l = linksOf(x.snapshot).find((v) => v.goalId === goal.id && !v.removedAt);
   if (!l) return null;
-  const name = (x.full ?? x.snapshot).metrics?.find((v) => v.id === l.metricId)?.name ?? 'its metric';
-  return { metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] })] };
+  const name = metricsOf(x.full ?? x.snapshot).find((v) => v.id === l.metricId)?.name ?? 'its metric';
+  return { ...metricRows({ metricLinks: [{ ...l, removedAt: x.now, removedBy: x.actor.id }] }), changes: [log(x, { entityId: l.metricId, goalId: goal.id, action: 'removed', summary: `No longer measured by “${name}”`, diffs: [{ field: 'Measured by', from: name, to: '—' }] })] };
 }
 
 /** Two saves as one (a new goal and its link, made in one form): records and change-log entries together, in order. */
@@ -258,6 +279,7 @@ export function mergeCommits(...cs: (Commit | null | undefined)[]): Commit | nul
   for (const c of list) {
     for (const [k, v] of Object.entries(c) as [keyof Commit, unknown][]) {
       if (k === 'changes') out.changes.push(...c.changes);
+      else if (k === 'modules') out.modules = mergeModuleRows(out.modules, c.modules);
       else if (Array.isArray(v)) (out as unknown as Record<string, unknown[]>)[k] = [...(((out as unknown as Record<string, unknown[]>)[k]) ?? []), ...v];
       else if (v !== undefined) (out as unknown as Record<string, unknown>)[k] = v;
     }
