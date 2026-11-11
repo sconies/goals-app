@@ -1,7 +1,8 @@
 /* Starting the next year only prepares it (cycle-end spec, CY2: rules 3, 4, 7 and 9), and which goals carry on,
    finish or stop (rule 5's kinds). The example is the demo's: 2026 starts on 22 Dec 2025 (week 0) with 53 weeks. */
 import { describe, expect, it } from 'vitest';
-import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape } from './cycle';
+import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape, periodNow } from './cycle';
+import { wrapUpScope } from '../app/reads';
 import { carryKind, startReadBack } from './carry';
 import { NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
 import { canUndoStart, deleteCycle, undoStart } from './removal';
@@ -161,6 +162,36 @@ describe('starting and undoing (rules 6 and 9)', () => {
   });
 });
 
+describe('last year’s wrap-up once the next year is current (rule 3; build review of #133, high)', () => {
+  const s0 = buildPlatformOrg(on('2026-11-05'));
+  const y26 = s0.cycles[0]!;
+  const amara = s0.people.find((p) => p.id === 'amara')!;
+  let k = 0;
+  const ctx = (full: Snapshot, cycle: Cycle, when: string): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 1, actor: amara, now: when + 'T10:00:00Z', newId: (p) => `${p}_w${++k}`, full });
+  const s1 = applyCommit(s0, startNextCycle({ ...ctx(s0, y26, '2026-12-22'), week: 52 }).commit);
+  const y27 = s1.cycles.find((c) => c.id !== y26.id)!;
+  const old = s1.goals.find((g) => g.cycleId === y26.id && !g.removedAt && !g.stoppedAt && !(s1.retros ?? []).some((r) => r.goalId === g.id))!;
+
+  it('on 11 Jan 2027, with 2027 current, the page is 2026’s and a 2026 goal’s wrap-up saves, in 2026', () => {
+    expect(currentCycle(s1.cycles, on('2027-01-11'))!.id).toBe(y27.id);
+    const scope = wrapUpScope(s1, y27, ctx(s1, y27, '2027-01-11').snapshot, 1, on('2027-01-11'));
+    expect(scope.cycle.id).toBe(y26.id);
+    expect(scope.earlier).toBe(true);
+    expect(scope.snapshot.goals.some((g) => g.id === old.id)).toBe(true);
+    const c = saveRetro(ctx(s1, y27, '2027-01-11'), old, { result: 'partly', learned: 'Moved more slowly than planned', next: 'carry' });
+    expect(c.retros![0]!.cycleId).toBe(y26.id);
+  });
+
+  it('after 2026’s wrap-up closes, the page is 2027’s and a 2026 wrap-up is refused', () => {
+    expect(wrapUpScope(s1, y27, s1, 5, on('2027-02-05')).cycle.id).toBe(y27.id);
+    expect(() => saveRetro(ctx(s1, y27, '2027-02-05'), old, { result: 'partly', learned: 'Moved more slowly than planned', next: 'carry' })).toThrow('2026’s wrap-up closed on Sun 31 Jan 2027.');
+  });
+
+  it('before a year’s first week, the period says when it starts, never week 0', () => {
+    expect(periodNow(y27, on('2026-12-29'))).toBe('2027 starts Mon 4 Jan 2027');
+  });
+});
+
 describe('the start page (2.4)', () => {
   const s = buildPlatformOrg(on('2026-11-05'));
   const cycle = s.cycles[0]!;
@@ -176,7 +207,7 @@ describe('the start page (2.4)', () => {
     expect(p.counts.map((c) => c.says)).toEqual(['carry on', 'finish', 'stop', 'not wrapped up yet']);
     expect(p.counts.reduce((n, c) => n + c.n, 0)).toBe(p.readBack!.total);
     expect(p.startsWith.at(-1)!.bold).toBe('Check-ins every week, due by Thursday');
-    expect(startPage(s, cycle, on('2027-01-11')).line).toMatch(/It opens for everyone as soon as you start it\.$/);
+    expect(startPage(s, cycle, on('2027-01-11')).line).toMatch(/It opens for everyone as soon as you start it\. 2026’s wrap-up stays open until Sun 31 Jan 2027\.$/);
   });
 });
 

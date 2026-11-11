@@ -139,6 +139,12 @@ export function cycleState(c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): 
 /** The wrap-up is open from the day it opens until the day it closes, four weeks after the cycle ends. */
 export const wrapUpOpenOn = (c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => ['ending', 'ended'].includes(cycleState(c, today));
 
+/** Whether the next year can be started today (cycle-end rule 6): from the day this one's wrap-up opens, for as long as
+    no later year exists, even once the wrap-up has closed. */
+export const canStartNext = (cycles: Cycle[], c: Cycle, today: Date): boolean => !['before', 'running'].includes(cycleState(c, today)) && !laterCycle(cycles, c);
+/** Why not yet: "2027 can be started from Mon 21 Dec 2026, when 2026’s wrap-up opens." */
+export const startFromLine = (c: Cycle): string => `${nextCycleShape(c).name} can be started from ${dayWithYear(cycleDates(c).wrapUpOpens)}, when ${c.name}’s wrap-up opens.`;
+
 /** The cycle whose wrap-up is open today (the later, if two), or nothing. */
 export function wrapUpCycle(cycles: Cycle[], today: Date): Cycle | undefined {
   return cycles.filter((c) => !c.removedAt && wrapUpOpenOn(c, today)).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
@@ -161,6 +167,8 @@ export function dayWithYear(iso: string): string {
 
 /** The long place line (Goals, the wrap-up, Print): "Week 45 of 53 · Q4 (Oct–Dec) · 2026", or "2026 ended on Sun 3 Jan 2027" once its last day is past. */
 export function periodNow(c: Cycle, today: Date): string {
+  // Before its week 1 a cycle has no week to name: never "Week 0 of 52" (cycle-end 2.10).
+  if (cycleState(c, today) === 'before') return `${c.name} starts ${dayWithYear(cycleDates(c).firstDay)}`;
   return hasEnded(c, today) ? `${c.name} ended on ${dayWithYear(cycleDates(c).lastDay)}` : periodLabel(c, currentWeek(c, today));
 }
 

@@ -8,7 +8,7 @@ import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
 import { hasModuleRows, type ModuleRecords } from './records';
 import type { Lookup } from './changes';
-import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, nextCycleShape, RESULT_LABEL, wrapUpOpenOn } from './cycle';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, RESULT_LABEL, startFromLine, wrapUpOpenOn } from './cycle';
 import { carryExtras, startReadBack } from './carry';
 import { copyUntouched, recarry } from './recarry';
 import { personChange, personProblems } from './people';
@@ -294,15 +294,17 @@ export const MIN_LEARNED = 10;
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['result']; learned: string; next: Retro['next'] }): Commit {
   if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can wrap it up.');
-  // One test for when a wrap-up can be saved, the page's too: from the day it opens until the day it closes (cycle-end rule 1).
+  // A wrap-up is its goal's year's, which stays open after the next year is current, until the day it closes (cycle-end
+  // rules 1 and 3): one test for when it can be saved, the page's too.
+  const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
   const today = new Date(x.now);
-  if (!wrapUpOpenOn(x.cycle, today)) {
-    const d = cycleDates(x.cycle);
-    no(cycleState(x.cycle, today) === 'closed' ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+  if (!wrapUpOpenOn(cycle, today)) {
+    const d = cycleDates(cycle);
+    no(cycleState(cycle, today) === 'closed' ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
   }
   if (v.learned.trim().length < MIN_LEARNED) no('Say what was learned, in a sentence (10 characters or more).');
-  const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
-  const retro: Retro = { id: before?.id ?? x.newId('retro'), goalId: goal.id, cycleId: x.cycle.id, result: v.result, learned: v.learned.trim(), next: v.next, byId: x.actor.id, at: x.now };
+  const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
+  const retro: Retro = { id: before?.id ?? x.newId('retro'), goalId: goal.id, cycleId: cycle.id, result: v.result, learned: v.learned.trim(), next: v.next, byId: x.actor.id, at: x.now };
   const diffs = [
     ...(!before || before.result !== retro.result ? [{ field: 'Result', from: before ? RESULT_LABEL[before.result] : '—', to: RESULT_LABEL[retro.result] }] : []),
     ...(!before || before.learned !== retro.learned ? [{ field: 'Learned', from: before?.learned ?? '—', to: retro.learned }] : []),
@@ -312,7 +314,7 @@ export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['resu
   // Wrapped up after the next year was started: its copy there follows, while nobody has used it (cycle-end rule 6).
   const full = x.full;
   if (!full) return own;
-  const later = laterCycle(full.cycles, x.cycle);
+  const later = laterCycle(full.cycles, cycle);
   const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : undefined;
   if (copy && retro.next === 'stop' && !copyUntouched(copy, full)) no(`It already has check-ins in ${later!.name}. Stop it there instead.`);
   return mergeCommits(own, recarry(goal, full, { retro }, { now: x.now, actorId: x.actor.id, newId: x.newId, records: x.records }));
@@ -337,7 +339,7 @@ export function startNextCycle(x: ActionContext): { commit: Commit; name: string
   const today = new Date(x.now);
   const full = x.full ?? x.snapshot;
   const state = cycleState(x.cycle, today);
-  if (state === 'before' || state === 'running') no(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+  if (state === 'before' || state === 'running') no(startFromLine(x.cycle));
   const later = laterCycle(full.cycles ?? [], x.cycle);
   if (later) {
     const made = full.changes.find((c) => c.entity === 'cycle' && c.entityId === later.id && c.action === 'created');

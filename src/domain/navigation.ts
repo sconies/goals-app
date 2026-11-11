@@ -185,6 +185,7 @@ export function pageName(path: string, search: string, names: PlaceNames): strin
   if ((x = m(/^\/people\/([^/]+)$/))) return names.person(x[0]!) ?? 'Person not found';
   if ((x = m(/^\/teams\/([^/]+)$/))) return names.team(x[0]!) ?? 'Team not found';
   if ((x = m(/^\/help\/([^/]+)$/))) return names.article(x[0]!) ?? 'Help';
+  if (path.split('?')[0] === '/workspace/cycles/next') return 'Start the next year · Workspace';
   if ((x = m(/^\/workspace\/([^/]+)$/))) { const s = names.section?.(x[0]!); return s ? `${s} · Workspace` : 'Workspace'; }
   return 'Page not found';
 }

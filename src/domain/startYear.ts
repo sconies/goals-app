@@ -2,7 +2,7 @@
    before and after an admin sets the next year up. The counts come from domain/carry's read-back, so what is said is
    what the start makes. Pure. */
 import { carries, startReadBack, type ReadBack } from './carry';
-import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape } from './cycle';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, startFromLine } from './cycle';
 import { reviewDate } from './progress';
 import type { Ask, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
 
@@ -37,12 +37,12 @@ export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
   const state = cycleState(cycle, today);
   const later = laterCycle(s.cycles, cycle);
   const ended = state === 'ended' || state === 'closed';
-  const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? 'It opens for everyone as soon as you start it.' : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+  const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === 'ended' ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ''}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
   if (state === 'before' || state === 'running') {
-    return { next: shape.name, canStart: false, whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`, line, counts: [], startsWith: [], readBack: null };
+    return { next: shape.name, canStart: false, whyNot: startFromLine(cycle), line, counts: [], startsWith: [], readBack: null };
   }
   const goals = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt);
-  const rb = startReadBack({ cycle, next: { name: shape.name, firstDay: nd.firstDay, weeks: shape.weeks }, goals, checkIns: s.checkIns, retros: s.retros ?? [] });
+  const rb = startReadBack({ cycle, next: { name: shape.name, firstDay: nd.firstDay, weeks: shape.weeks }, goals, checkIns: s.checkIns.filter((c) => !c.removedAt), retros: s.retros ?? [] });
   // What comes with the goals that carry on (rule 6), counted as carryExtras will make it.
   const going = new Set(goals.filter((g) => carries(rb.kinds.get(g.id)!)).map((g) => g.id));
   const openAsks = (s.requests ?? []).filter((r) => r.status === 'open' && r.goalIds.some((id) => goals.some((g) => g.id === id)));

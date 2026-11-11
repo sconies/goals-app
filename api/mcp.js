@@ -4014,7 +4014,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, WEEKDAYS$1, MONTHS, RESULT_LABEL;
+var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4030,6 +4030,7 @@ var init_cycle = __esmMin((() => {
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
+	startFromLine = (c) => `${nextCycleShape(c).name} can be started from ${dayWithYear(cycleDates(c).wrapUpOpens)}, when ${c.name}’s wrap-up opens.`;
 	WEEKDAYS$1 = [
 		"Sun",
 		"Mon",
@@ -6028,17 +6029,18 @@ function savePerson(x, p, before) {
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
 	if (!ownsOrAdmin$2(x, goal)) no$2("Only the goal’s owner or an admin can wrap it up.");
+	const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
 	const today = new Date(x.now);
-	if (!wrapUpOpenOn(x.cycle, today)) {
-		const d = cycleDates(x.cycle);
-		no$2(cycleState(x.cycle, today) === "closed" ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+	if (!wrapUpOpenOn(cycle, today)) {
+		const d = cycleDates(cycle);
+		no$2(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
 	}
 	if (v.learned.trim().length < 10) no$2("Say what was learned, in a sentence (10 characters or more).");
-	const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
+	const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
 		goalId: goal.id,
-		cycleId: x.cycle.id,
+		cycleId: cycle.id,
 		result: v.result,
 		learned: v.learned.trim(),
 		next: v.next,
@@ -6078,7 +6080,7 @@ function saveRetro(x, goal, v) {
 	};
 	const full = x.full;
 	if (!full) return own;
-	const later = laterCycle(full.cycles, x.cycle);
+	const later = laterCycle(full.cycles, cycle);
 	const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : void 0;
 	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$2(`It already has check-ins in ${later.name}. Stop it there instead.`);
 	return mergeCommits(own, recarry(goal, full, { retro }, {
@@ -6106,7 +6108,7 @@ function startNextCycle(x) {
 	const today = new Date(x.now);
 	const full = x.full ?? x.snapshot;
 	const state = cycleState(x.cycle, today);
-	if (state === "before" || state === "running") no$2(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+	if (state === "before" || state === "running") no$2(startFromLine(x.cycle));
 	const later = laterCycle(full.cycles ?? [], x.cycle);
 	if (later) {
 		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
@@ -10166,6 +10168,8 @@ function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
 // src/app/reads.ts
+init_cycle();
+init_plan();
 init_review();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
@@ -13335,7 +13339,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
-				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.",
+				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.",
 				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
 				"Wrap up shows everyone which goals are wrapped up, and how.",
 				"An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day."
@@ -14476,6 +14480,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "last-year-wrap-up",
+		date: "2026-11-11",
+		title: "Last year’s wrap-up stays open",
+		points: ["Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.", "An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it."],
+		articles: ["wrap-up", "start-next-year"]
+	},
 	{
 		id: "carry-right",
 		date: "2026-11-11",
@@ -15882,11 +15893,11 @@ function startPage(s, cycle, today) {
 	const state = cycleState(cycle, today);
 	const later = laterCycle(s.cycles, cycle);
 	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? "It opens for everyone as soon as you start it." : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
 	if (state === "before" || state === "running") return {
 		next: shape.name,
 		canStart: false,
-		whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`,
+		whyNot: startFromLine(cycle),
 		line,
 		counts: [],
 		startsWith: [],
@@ -15901,7 +15912,7 @@ function startPage(s, cycle, today) {
 			weeks: shape.weeks
 		},
 		goals,
-		checkIns: s.checkIns,
+		checkIns: s.checkIns.filter((c) => !c.removedAt),
 		retros: s.retros ?? []
 	});
 	const going = new Set(goals.filter((g) => carries(rb.kinds.get(g.id))).map((g) => g.id));

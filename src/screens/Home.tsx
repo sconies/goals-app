@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
 import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows } from '../app/reads';
+import { dayOneRows, wrapUpScope } from '../app/reads';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -76,7 +76,9 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
   // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
   const { needs, handled } = splitAttention(att);
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
-  const wrapLeft = wrapUpOpenOn(app.cycle, app.today) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
+  // The wrap-up this year's, or last year's while it stays open after the next year is current (cycle-end rule 3).
+  const wrap = wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today);
+  const wrapLeft = wrapUpOpenOn(wrap.cycle, app.today) ? wrap.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && !wrap.snapshot.retros.some((r) => r.goalId === g.id)) : [];
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => sessionToDo(s, app.snapshot, app.week, app.today));
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
@@ -101,7 +103,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
             </>
           ) : wrapLeft.length ? (
             <>
-              <span className="eyebrow">{`${app.cycle.name} ${cycleState(app.cycle, app.today) === 'ending' ? 'ends' : 'ended'} on ${dayWithYear(cycleDates(app.cycle).lastDay)}`}</span>
+              <span className="eyebrow">{`${wrap.cycle.name} ${cycleState(wrap.cycle, app.today) === 'ending' ? 'ends' : 'ended'} on ${dayWithYear(cycleDates(wrap.cycle).lastDay)}`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up</Link></div>
@@ -324,6 +326,17 @@ function AdminCard() {
   if (!app.viewer.admin) return null;
   const later = laterCycle(app.full.cycles, app.cycle);
   const over = hasEnded(app.cycle, app.today);
+  // Last year's wrap-up, still open after this year began (cycle-end rule 3).
+  const wrap = wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today);
+  if (wrap.earlier) {
+    const left = wrap.snapshot.goals.filter((g) => !wrap.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{wrap.cycle.name}’s wrap-up is open until {dayWithYear(cycleDates(wrap.cycle).wrapUpCloses)}</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up.` : 'Every goal is wrapped up.'}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}><Link className="btn" to="/retro">See the wrap-up</Link></span>
+      </section>
+    );
+  }
   if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
     const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
     const next = later?.name ?? nextCycleShape(app.cycle).name;

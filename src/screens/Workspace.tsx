@@ -24,7 +24,8 @@ import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, wrapUpOpenOn } from '../domain/cycle';
+import type { Cycle } from '../domain/types';
+import { canStartNext, cycleDates, dayWithYear, laterCycle, nextCycleShape, wrapUpCycle, wrapUpOpenOn } from '../domain/cycle';
 import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
@@ -277,10 +278,11 @@ function CyclesSection() {
   const later = laterCycle(app.full.cycles, app.cycle);
   const undo = later && startOf(app.full, later.id) ? canUndoStart(app.full, later.id) : null;
   const [undoing, setUndoing] = useState(false);
-  const undoStart = async () => {
-    if (!later) return;
+  const undoStart = async (c: Cycle | undefined = later) => {
+    if (!c) return;
+    const before = app.full.cycles.filter((x) => !x.removedAt && x.startDate < c.startDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
     setUndoing(true);
-    try { await app.undoStart(later.id); app.toast(`${later.name} was undone. ${app.cycle.name} is as it was.`, 'success'); } catch { /* said by the toast */ } finally { setUndoing(false); }
+    try { await app.undoStart(c.id); app.toast(`${c.name} was undone. ${before?.name ?? 'The year before'} is as it was.`, 'success'); } catch { /* said by the toast */ } finally { setUndoing(false); }
   };
   return (
     <>
@@ -288,7 +290,7 @@ function CyclesSection() {
       {later && undo?.ok && (
         <section className="block note-card cycle-ready" aria-label={`${later.name} is ready`}>
           <span className="small"><WarnMark /> <strong>{later.name} is ready.</strong> {cycleStanding(app.full, later.id).goals.toLocaleString('en-GB')} goals are set up. It opens for everyone on <strong>{dayWithYear(cycleDates(later).firstDay)}</strong>. Until then this is still {app.cycle.name}, week {Math.max(1, app.week)}.</span>
-          {admin && <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart()}>Undo</button>}
+          {admin && <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart(later)}>Undo</button>}
         </section>
       )}
       <section className="block cycles-block" aria-label="Cycles">
@@ -297,17 +299,20 @@ function CyclesSection() {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
-            const open = current && wrapUpOpenOn(c, app.today);
+            // An earlier year's wrap-up stays open after the next year is current, until the day it closes (cycle-end rule 3).
+            const open = wrapUpOpenOn(c, app.today) && (current || wrapUpCycle(app.full.cycles, app.today)?.id === c.id);
             const start = startOf(app.full, c.id);
             const can = start ? canUndoStart(app.full, c.id) : null;
             const next = nextCycleShape(c).name;
             // Starting the next year isn't part of the wrap-up's weeks: it's offered from the day the wrap-up opens for as
             // long as no later year exists, even once the wrap-up has closed (build review, 11 Nov).
-            const canStart = current && admin && !later && ['ending', 'ended', 'closed'].includes(cycleState(c, app.today));
+            const canStart = current && admin && canStartNext(app.full.cycles, c, app.today);
             const startLink = canStart ? <Link className="btn sm primary" to="/workspace/cycles/next">Start {next}</Link> : null;
-            const action = !current ? null
-              : open ? <><Link className="btn sm" to="/retro">Open the wrap-up</Link>{startLink}</>
-              : <>{anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}</>;
+            // Undo stays on a started year's own row once it's current, while nobody has used it (cycle-end rule 9).
+            const undoHere = admin && can?.ok && c.id !== later?.id ? <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart(c)}>Undo</button> : null;
+            const action = !current ? (open ? <Link className="btn sm" to="/retro">Open the wrap-up</Link> : null)
+              : open ? <><Link className="btn sm" to="/retro">Open the wrap-up</Link>{startLink}{undoHere}</>
+              : <>{anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}{undoHere}</>;
             return (
               <li key={c.id} className="removed-row cycle-row">
                 <span className="removed-text cycle-when">
