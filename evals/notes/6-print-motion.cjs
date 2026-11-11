@@ -284,9 +284,10 @@ module.exports = {
     {
       const [c, p] = await at(390, 844, 'amara', '/goals?show=levels');
       await p.locator('.tree > li').first().waitFor();
-      // On a phone, the views are in the Views menu (backlog G).
-      await p.locator('.show-menu > summary').click();
-      const mid = await slidesOf(p, () => p.getByRole('group', { name: 'Views' }).getByRole('button', { name: /^By team/ }).click(), 'main .tree > li');
+      // On a phone, Group is in the View sheet (GL2); the sheet closes with Done before the rows are watched.
+      await p.locator('.goals-phone-switch .view-open').click();
+      const sheet = p.getByRole('dialog', { name: 'View' });
+      const mid = await slidesOf(p, async () => { await sheet.getByRole('radio', { name: /^By team/ }).click(); await sheet.getByRole('button', { name: 'Done' }).click(); }, 'main .tree > li');
       fail(!!mid, '[Motion] 390: By team lists the goals in the same order as By level, so nothing has to move');
       if (mid) {
         fail(mid.length > 0, '[Motion] 390: switching the list from By level to By team moved no rows');

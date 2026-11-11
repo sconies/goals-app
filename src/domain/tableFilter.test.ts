@@ -39,7 +39,11 @@ describe('property filters on a data table', () => {
     const f: PropFilter[] = [{ col: 'Owner', op: 'is', value: 'Sam Patel|Kofi Boateng' }, { col: 'Why', op: 'contains', value: 'a~b' }];
     const p = new URLSearchParams(filterEntries(f, { col: 'Back on plan by week', dir: -1 }));
     expect(parseFilters(p)).toEqual(f);
-    expect(parseSort(p)).toEqual({ col: 'Back on plan by week', dir: -1 });
+    expect(parseSort(p)).toEqual({ col: 'back on plan by week', dir: -1 });
+    expect(p.get('sort')).toBe('back on plan by week.desc');
+    // The older form still opens: s=Column~asc|desc.
+    expect(parseSort(new URLSearchParams('s=Team~asc'))).toEqual({ col: 'team', dir: 1 });
+    expect(parseSort(new URLSearchParams('sort=team'))).toEqual({ col: 'team', dir: 1 });
     expect(describeFilter(f[0]!)).toBe('Owner is any of Sam Patel or Kofi Boateng');
     expect(describeFilter({ col: 'Week', op: 'gte', value: '40' })).toBe('Week ≥ 40');
   });

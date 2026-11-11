@@ -2,15 +2,29 @@
    against the demo workspace (Platform Engineering, 97 people in 14 teams) as it stands on Wednesday 11 November. */
 import { buildPlatformOrg } from '../data/platformOrg/generate';
 import { scopeToCycle } from './cycle';
-import { findInDirectory, findTeams, matchesWords, movedTo, personLine, teamSummary } from './directory';
+import { movedTo, personLine, teamSummary } from './directory';
+import { search, textMatches, type PersonRows, type TeamRows } from './find';
 import { goalStatus } from './status';
 import type { Person, Snapshot } from './types';
 
 const NOW = new Date('2026-11-11T12:00:00Z');
 const full = buildPlatformOrg(NOW);
 const s: Snapshot = scopeToCycle(full, full.cycles[0]!);
-const names = (xs: Person[]) => xs.map((p) => p.name);
-const ask = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(s.people, s.teams, a);
+const names = (xs: { name: string }[]) => xs.map((p) => p.name);
+// People and Teams ask the one search (find.ts rule 7) through the Search port; these are its rows over the workspace.
+const personRows = (people: Person[], teams = s.teams): PersonRows => ({ kind: 'person', people, teamName: (id) => teams.find((t) => t.id === id)?.name ?? '', teamLead: (id) => teams.find((t) => t.id === id)?.leadId ?? null });
+const teamRows: TeamRows = { kind: 'team', teams: s.teams, people: s.people };
+/** People's ask, as its address has it: `q`, `teamId` (or `-`), `admins`, `page` from 1, 50 a page. */
+const askOf = (people: Person[], teams: Snapshot['teams'], a: { q?: string; teamId?: string; admins?: boolean; page?: number } = {}) => {
+  const filters = { ...(a.teamId ? { team: a.teamId } : {}), ...(a.admins ? { admins: '1' } : {}) };
+  const first = search(personRows(people, teams), { q: a.q ?? '', filters, size: 50 });
+  const pages = Math.max(1, Math.ceil(first.total / 50));
+  const page = Math.min(Math.max(1, Math.floor(a.page ?? 1) || 1), pages);
+  const r = search(personRows(people, teams), { q: a.q ?? '', filters, size: 50, after: String((page - 1) * 50) });
+  return { total: r.total, page, pages, from: r.rows.length ? (page - 1) * 50 + 1 : 0, to: (page - 1) * 50 + r.rows.length, rows: r.rows };
+};
+const ask = (a: Parameters<typeof askOf>[2] = {}) => askOf(s.people, s.teams, a);
+const findTeams = (q = '') => search(teamRows, { q, size: 200 }).rows;
 const ctx = { snapshot: s, statusOf: (g: Snapshot['goals'][number]) => goalStatus(g, s.cycles[0]!, s.checkIns, NOW).status };
 
 describe('the directory’s order and search (rule 4)', () => {
@@ -54,32 +68,37 @@ describe('the directory’s order and search (rule 4)', () => {
   });
   it('never lists anyone marked as left', () => {
     const left = s.people.map((p) => (p.id === 'oskar' ? { ...p, leftAt: '2026-11-01T00:00:00Z' } : p));
-    expect(names(findInDirectory(left, s.teams, { q: 'oskar' }).rows)).toEqual([]);
-    expect(findInDirectory(left, s.teams).total).toBe(96);
+    expect(names(askOf(left, s.teams, { q: 'oskar' }).rows)).toEqual([]);
+    expect(askOf(left, s.teams).total).toBe(96);
   });
   it('keeps two people with one name in a stable order, by email', () => {
     const twins: Person[] = [
       { id: 'b', name: 'Sam Lee', role: '', initials: 'SL', teamId: null, admin: false, email: 'sam.b@x.com' },
       { id: 'a', name: 'Sam Lee', role: '', initials: 'SL', teamId: null, admin: false, email: 'sam.a@x.com' },
     ];
-    expect(findInDirectory(twins, []).rows.map((p) => p.id)).toEqual(['a', 'b']);
+    expect(askOf(twins, []).rows.map((p) => p.id)).toEqual(['a', 'b']);
   });
   it('matches words, not the middle of one', () => {
-    expect(matchesWords('man', ['Engineering Manager'])).toBe(true);
-    expect(matchesWords('ager', ['Engineering Manager'])).toBe(false);
-    expect(matchesWords('finops', ['Cloud Cost (FinOps)'])).toBe(true);
-    expect(matchesWords('', ['anything'])).toBe(true);
+    expect(textMatches('Engineering Manager', 'man')).toBe(true);
+    expect(textMatches('Engineering Manager', 'ager')).toBe(false);
+    expect(textMatches('Cloud Cost (FinOps)', 'finops')).toBe(true);
+    expect(textMatches('anything', '')).toBe(true);
+  });
+  it('puts those whose name the search starts first, then A to Z: one order for People and every person picker', () => {
+    const r = names(ask({ q: 'ci' }).rows);
+    const byName = r.filter((n) => textMatches(n, 'ci'));
+    expect(r.slice(0, byName.length)).toEqual(byName);
   });
 });
 
 describe('teams (rule 4)', () => {
   it('lists the teams A to Z, found by name or by lead', () => {
-    const all = findTeams(s.teams, s.people);
+    const all = findTeams();
     expect(all).toHaveLength(14);
     expect(all[0]!.name).toBe('Build & Release');
-    expect(findTeams(s.teams, s.people, 'rhea').map((t) => t.name)).toEqual(['CI/CD']);
-    expect(findTeams(s.teams, s.people, 'sec').map((t) => t.name)).toEqual(['Security Engineering']);
-    expect(findTeams(s.teams, s.people, 'nothing like it')).toEqual([]);
+    expect(names(findTeams('rhea'))).toEqual(['CI/CD']);
+    expect(names(findTeams('sec'))).toEqual(['Security Engineering']);
+    expect(findTeams('nothing like it')).toEqual([]);
   });
 });
 
