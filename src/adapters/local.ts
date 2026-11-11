@@ -1,14 +1,17 @@
 /* Adapters that need no outside service (backlog 8c): who is viewing, chosen with the "Who are you?" picker and
    remembered in this browser; the clock; and files kept in memory (for tests, and as the smallest Files to copy). */
-import type { Clock, Files, Identity, Prefs } from '../ports';
+import type { Clock, Files, Picker, Prefs } from '../ports';
 
 /** "Who are you?": the person picked, per workspace, kept in this browser under `prefix` + the workspace's id. */
-export function pickerIdentity(prefix: string, storage: () => Storage | null = () => { try { return localStorage; } catch { return null; } }): Identity {
+export function pickerIdentity(prefix: string, storage: () => Storage | null = () => { try { return localStorage; } catch { return null; } }): Picker {
   return {
-    who(ws) { try { return storage()?.getItem(prefix + ws) ?? null; } catch { return null; } },
+    async current(ws) { try { return storage()?.getItem(prefix + ws) ?? null; } catch { return null; } },
     choose(ws, id) { try { storage()?.setItem(prefix + ws, id); } catch { /* storage blocked: it lasts for this visit */ } },
   };
 }
+
+/** The picker the app uses when it is given no Identity: the demo and the real app remember their own person. */
+export const viewerPicker = (mode: 'demo' | 'live'): Picker => pickerIdentity(mode === 'demo' ? 'goals-app-viewer:' : 'goals-live-me:');
 
 export const systemClock: Clock = () => new Date();
 /** A clock stopped at one moment, for the demo (`?today=`) and the evals. */
