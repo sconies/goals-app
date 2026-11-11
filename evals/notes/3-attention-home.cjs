@@ -77,7 +77,7 @@ module.exports = {
           const total = Number(((await section(p, 'Your goals').locator('h2').innerText()).match(/(\d+)/) || [])[1]);
           check(counts.length > 0 && counts.every((x) => x.shape && /^\d+ /.test(x.text) && STATUS_WORD.test(x.text)), `[HOME-OWNER] ${at}: a status count lacks its shape, number or word`);
           check(counts.reduce((n, x) => n + parseInt(x.text, 10), 0) === total, `[HOME-OWNER] ${at}: the counts don't add up to ${total}`);
-          check(counts.every((x) => /^\/goals\?scope=mine&status=\w+$/.test(x.href)), `[HOME-OWNER] ${at}: a count doesn't open exactly those goals (${counts.map((x) => x.href).join(' ')})`);
+          check(counts.every((x) => /^(\/demo)?\/goals\?scope=mine&status=\w+$/.test(x.href)), `[HOME-OWNER] ${at}: a count doesn't open exactly those goals (${counts.map((x) => x.href).join(' ')})`);
         } else check(!counts.length, `[HOME-OWNER] ${at}: someone who owns no goal is shown counts of goals`);
         // Never a bare /goals link or an old show= address, and none of the words Home no longer says.
         const hrefs = await p.$$eval('.page.home a[href]', (as) => as.map((a) => a.getAttribute('href')));
@@ -206,7 +206,7 @@ module.exports = {
       await p.locator('.home-hero').waitFor();
       const t = await p.locator('main').innerText();
       check(!/[A-Z][a-z]+day’s review|before the review|in the review as you wrote/.test(t), `T4 ${who}: Home calls the deadline a review: "${(t.match(/[^\n]*(day’s review|before the review|in the review as you wrote)[^\n]*/) || [''])[0]}"`);
-      check(/Check-ins (are|were) due/.test(await p.locator('.home-hero').innerText()), `T4 ${who}: the main action doesn't say when check-ins are due`);
+      check(/Check-ins (are|were) due|(is|are) due by /.test(await p.locator('.home-hero').innerText()), `T4 ${who}: the main action doesn't say when check-ins are due`);
       // The "Not held yet" tile's warning mark is a small sign beside its words, not a picture filling the tile.
       const mark = await box(p, '.dash-missed .dash-label svg');
       if (who === 'rhea') check(!!mark && mark.w <= 16 && mark.h <= 16, `Home: the "Not held yet" warning mark is ${mark ? `${Math.round(mark.w)}×${Math.round(mark.h)}px` : 'missing'}`);

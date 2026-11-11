@@ -43,7 +43,8 @@ module.exports = {
           return { bottom: b ? Math.round(b.bottom) : null, limit: Math.round(limit), newsH: news ? Math.round(news.height) : 0, atFoot: !!(n && grid && !n.nextElementSibling && news.top >= (document.querySelector('.home-mine')?.getBoundingClientRect().bottom ?? 0) - 1) };
         });
         fail(fold.bottom !== null && fold.bottom <= fold.limit, `[WHATS-NEW] ${w}: Start check-in ends at ${fold.bottom}px, below the fold (${fold.limit})`);
-        fail(fold.newsH > 0 && fold.newsH <= (w < 400 ? 56 : 28), `[WHATS-NEW] ${w}: the Home line is ${fold.newsH}px tall`);
+        // At the foot it pushes nothing down, so a long title may take a second line (a third on a phone).
+        fail(fold.newsH > 0 && fold.newsH <= (w < 400 ? 80 : 56), `[WHATS-NEW] ${w}: the Home line is ${fold.newsH}px tall`);
         // At the foot of Home on every width (Home's spec, part 11, 11 Nov; it replaced backlog N's place under the greeting):
         // the first screen is what is asked of you today.
         fail(fold.atFoot, `[WHATS-NEW] ${w}: the Home line is not at the foot of Home`);
