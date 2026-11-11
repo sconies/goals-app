@@ -19,7 +19,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
 | U7 | An owner changes a target with a reason; a watcher sees it | Owner, then sponsor | `REASON-AHEAD` `REBASELINE` `CHANGE-LOG` `PLAN-CHANGE` `WATCHING` | 16 | `evals/journeys.cjs` |
 | U8 | Watching: see what has gone quiet and chase it | Goals coach | `STALE` `ATTENTION` `WATCHING` `ONE-WATCHING` `ONE-ASK` | 5 | `evals/journeys.cjs` |
-| U9 | Follow goals you don’t own: watch a tree or a level | Contributor | `WATCHING` `HIERARCHY` `OWNER-ONLY` `LEVELS` `PROFILES` `ONE-WATCHING` | 6 | `evals/journeys.cjs` |
+| U9 | Follow goals you don’t own: watch a tree or a level | Contributor | `WATCHING` `HIERARCHY` `OWNER-ONLY` `LEVELS` `PROFILES` `ONE-WATCHING` | 7 | `evals/journeys.cjs` |
 | U10 | Close the cycle: owners wrap up their goals, an admin starts the next cycle | Coach and leads | `RETRO` `CHANGE-LOG` `ADMIN` | 14 | `evals/journeys.cjs` |
 | U11 | Real app: from empty to a filled-in workspace with a template, then a teammate joins | Anyone starting fresh | `ONBOARDING` `IDENTITY` `DEMO-MODE` `CHANGE-LOG` | 14 | `evals/journeys.cjs` |
 | U12 | Demo: switch person, look around, start over | Anyone evaluating the tool | `DEMO-MODE` | 4 | `evals/journeys.cjs` |

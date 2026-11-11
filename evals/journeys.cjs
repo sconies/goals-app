@@ -1092,7 +1092,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await p.context().close();
 }, ['errors']);
 
-journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE-WATCHING'], 'Follow goals you don’t own: watch a tree or a level', 6, async (h, device) => {
+journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE-WATCHING'], 'Follow goals you don’t own: watch a tree or a level', 7, async (h, device) => {
   // Oskar, an engineer, watches three goals and owns none.
   const p = h.use(await newPage(device, 'oskar'));
   await p.goto(url('/'));
@@ -1105,7 +1105,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
-  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3).
+  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3), one step more than before: seven in all.
   await h.click(p.locator('.goal-bar').getByRole('button', { name: 'Watch', exact: true }));
   const watchSheet = p.getByRole('dialog', { name: /^Watch / });
   await h.click(watchSheet.getByRole('radio', { name: /^It and the \d+ goals? feeding it$/ }));
@@ -1358,6 +1358,10 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   const s2 = await h.snapshot();
   const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
   h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Only the corrected number is in the log, as Rhea's post for this week; the mistyped one never was.
+  const before = new Set(s0.changes.map((c) => c.id));
+  const logs = s2.changes.filter((c) => !before.has(c.id) && c.actorId === 'rhea' && c.action === 'posted');
+  h.set('logged', logs.length === 1 && logs[0].diffs.some((d) => d.field === 'Value' && String(d.to).includes(right)) && !logs[0].diffs.some((d) => String(d.to).includes(String(last.value * 10))), `the log holds ${logs.map((c) => c.summary).join(' | ') || 'nothing'} for this post`);
   await h.checkpoint('posted');
 });
 
