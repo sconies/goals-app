@@ -205,8 +205,20 @@ export function placeName(path: string, names: PlaceNames): string {
 /** A place's first page: no Back link there (navigation spec, 2.5). */
 export const FIRST_PAGES = ['/', '/check-in', '/goals', '/watching', '/reviews', '/people', '/teams', '/activity', '/data', '/workspace', '/settings', '/help', '/feedback'];
 
-/** Forms: passed through on the way, never gone back to (each has its one closing control instead). */
-export const FORM = /^\/(check-in|quick-check-in|import|workspace\/new)(\/|$)|^\/goals\/new(\/|$)|^\/goals\/[^/]+\/edit$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/;
+/**
+ * Forms (navigation spec, 2.5 item 3): a goal's check-in and the walk Home starts, the table check-in, New goal and its
+ * steps, goal edit, set-up, a review's set-up and edit, a goal's wrap-up, and the import. Check-in's list is a first page
+ * (NV3), not a form. A form is drawn in focus mode, and Back passes through it, never to it (it has its one closing
+ * control instead). The Shell and the back link both ask here.
+ */
+export const FORM = /^\/(check-in\/[^/]+|quick-check-in|data\/import|workspace\/new)(\/|$)|^\/goals\/new(\/|$)|^\/goals\/[^/]+\/edit$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/;
+
+/** Is this address a form? `path` may carry its query, or the query may be given apart. */
+export function isForm(path: string, search = ''): boolean {
+  const [p = '', q = ''] = path.split('?');
+  if (FORM.test(p)) return true;
+  return p === '/check-in' && new URLSearchParams(search || q).get('start') === '1';
+}
 
 /** What a Back link says and does: go back `steps` entries in the tab (0: open `to` instead). */
 export interface BackTo { label: string; to: string; steps: number }
@@ -223,7 +235,7 @@ export type Trail = { path: string }[];
  */
 export function backTo(path: string, search: string, trail: Trail, names: PlaceNames, firsts: string[] = []): BackTo | null {
   // A form has its one closing control instead (navigation spec 2.5: goal edit's second exit is removed).
-  if (FIRST_PAGES.includes(path) || firsts.includes(path) || FORM.test(path)) return null;
+  if (isForm(path, search) || FIRST_PAGES.includes(path) || firsts.includes(path)) return null;
   const review = new URLSearchParams(search).get('review');
   const goal = /^\/goals\/([^/]+)$/.exec(path)?.[1];
   const same = (p: string) => {
@@ -233,7 +245,7 @@ export function backTo(path: string, search: string, trail: Trail, names: PlaceN
   };
   const now = trail.length - 1;
   let j = now - 1;
-  while (j >= 0 && (FORM.test(trail[j]!.path.split('?')[0]!) || same(trail[j]!.path))) j--;
+  while (j >= 0 && (isForm(trail[j]!.path) || same(trail[j]!.path))) j--;
   if (j >= 0) return { label: placeName(trail[j]!.path, names), to: trail[j]!.path, steps: now - j };
   const up = (to: string, label: string | null, fallback: string): BackTo => ({ label: label ?? fallback, to, steps: 0 });
   if (goal && review) return up(`/reviews/${review}`, names.review(review), 'the review');

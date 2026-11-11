@@ -8,9 +8,9 @@ import { Link, matchPath, useLocation, useNavigate, useNavigationType } from 're
 import { useApp } from '../app/state';
 import { useModules } from '../core/app';
 import { Icon } from './Icon';
-import { viewParams } from '../screens/GoalFilters';
-import { articleRef } from '../help/lookup';
-import { backTo, FORM, type PlaceNames } from '../domain/navigation';
+import { useViews, viewParams } from '../screens/GoalFilters';
+import { articleById } from '../help/guide';
+import { backTo, isForm, type PlaceNames } from '../domain/navigation';
 import { useSectionNames } from '../screens/workspaceSections';
 
 const KEY = 'goals-trail';
@@ -29,13 +29,15 @@ export function usePlaceNames(): PlaceNames {
   const app = useApp();
   const { screens } = useModules();
   const sections = useSectionNames();
+  // The views as the Views menu reads them (old-form params read in the new form), so the two never disagree.
+  const views = useViews();
   return useMemo((): PlaceNames => {
     const routes = screens.flatMap((m) => m.routes ?? []);
     return {
       goal: (id) => app.goal(id)?.title ?? null,
       review: (id) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? null,
-      view: (sp) => { const vp = viewParams(sp); return (app.snapshot.views ?? []).find((v) => !v.deletedAt && !!v.params && v.params === vp && (v.pinned || v.personId === app.viewer.id))?.name ?? null; },
-      article: (id) => articleRef(id)?.title ?? null,
+      view: (sp) => { const vp = viewParams(sp); return views.find((v) => !!v.params && v.params === vp)?.name ?? null; },
+      article: (id) => articleById(id)?.title ?? null,
       person: (id) => app.person(id)?.name ?? null,
       team: (id) => app.team(id)?.name ?? null,
       section: (id) => sections[id] ?? null,
@@ -48,7 +50,7 @@ export function usePlaceNames(): PlaceNames {
         return r.name?.(matchPath(r.path, path)?.params ?? {}, { goal: app.goal, person: app.person, team: app.team }) ?? r.title ?? null;
       },
     };
-  }, [app, screens, sections]);
+  }, [app, screens, sections, views]);
 }
 
 /** The modules' first pages (their menu items' addresses): no Back link there either. */
@@ -70,12 +72,12 @@ export function useTrail() {
     const t = trail();
     const from = last;
     last = now;
-    if (type === 'POP' && from != null && from !== now && FORM.test(loc.pathname)) {
+    if (type === 'POP' && from != null && from !== now && isForm(loc.pathname, loc.search)) {
       const came = t[from];
-      if (came && !FORM.test(bare(came.path))) {
+      if (came && !isForm(came.path)) {
         const dir = now < from ? -1 : 1;
         let j = now;
-        while (t[j] && (FORM.test(bare(t[j]!.path)) || (dir < 0 && bare(t[j]!.path) === bare(came.path)))) j += dir;
+        while (t[j] && (isForm(t[j]!.path) || (dir < 0 && bare(t[j]!.path) === bare(came.path)))) j += dir;
         if (t[j] && j !== now) { last = j; void nav(j - now); return; }
       }
     }

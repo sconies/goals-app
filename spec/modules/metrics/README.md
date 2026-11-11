@@ -17,10 +17,9 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | Places on core screens | none |
 | Workspace sections | none |
 | Database tables | `okr_metrics` (0033_metric_library.sql): The metric library: one row per metric, never deleted (removed_at when removed).; `okr_goal_metrics` (0033_metric_library.sql): Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked. |
-| Its own records | metric (`okr_metrics`, filed under `modules.metrics.metrics`; removable and restorable); metric link (`okr_goal_metrics`, filed under `modules.metrics.metricLinks`) |
 | AI tools | `list_metrics`, `get_metric`, `save_metric`, `remove_metric`, `link_goal_metric` |
 | Help articles | none |
-| Outside its folder | none |
+| Outside its folder | src/domain/metrics.ts, src/data/platformOrg/metrics.ts |
 
 ## Requirements
 
@@ -37,7 +36,5 @@ _None._
 
 Its rebuild stage: [stage 4](../../rebuild/stage-4-module-metrics.md) (an outline, with no drill yet).
 Its rules: [The metric library](rules.md), in plain words with worked examples (run against the code by the spec’s own test). **Not self-explanatory:** it has no conformance rows of its own yet.
-
-Its own records, every field: [its records](records.md).
 
 What was left out on purpose, and how it could grow: [growth notes](growth.md).

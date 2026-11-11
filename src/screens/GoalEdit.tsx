@@ -1,4 +1,5 @@
 import { sameTitleNote } from '../domain/people';
+import { FormClose } from '../ui/FormClose';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -13,9 +14,7 @@ import { PlanTable } from '../ui/PlanTable';
 import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
-import { Icon } from '../ui/Icon';
 import { goalChange } from '../domain/changes';
-import { BackLink } from '../ui/BackLink';
 import { Place, type MeasurePick } from '../core/app';
 import { Pick, PickOne } from '../ui/Pick';
 
@@ -79,7 +78,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const back = () => nav('/goals/' + goal.id);
 
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   const save = async () => {
     setTried(true);
     if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
@@ -88,7 +87,8 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      if (measure) await app.run(measure.action, measure.input(after));
+      if (measure) await app.linkGoalMetric(after, measure.metricId, measure.teamId);
+      else if (measure === null) await app.unlinkGoalMetric(after);
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();
@@ -110,9 +110,9 @@ function EditSheet({ goal }: { goal: Goal }) {
   return (
     <div className="focus goal-form goal-edit">
       <div className="focus-top">
-        <BackLink to={'/goals/' + goal.id} label={goal.title} />
+        {/* One way out, in words (navigation spec 2.5): the second exit, back to the goal, is gone. */}
         <span />
-        <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
+        <FormClose keeps onClose={back} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <h1 className="qtitle big">{part === 'definition' ? `Improve the definition: ${goal.title}` : part === 'plan' ? `Change the ${goal.kind === 'metric' ? 'plan or target' : goal.kind === 'range' ? 'limit' : 'stages'}: ${goal.title}` : part === 'owner' ? `Change the owner or level: ${goal.title}` : `Edit ${goal.title}`}</h1>

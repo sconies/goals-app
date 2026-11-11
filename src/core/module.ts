@@ -7,10 +7,6 @@
      help.ts       its Help articles (optional; pure data, read by the guide, the app and the AI's get_help)
      tools.ts      its AI tools (optional; the MCP server offers them)
      app.tsx       its screens and where they go: routes, navigation, places on core screens (optional; AppModule)
-     records.ts    its own records: rows each way, what a cycle carries, how a removed one comes back (optional;
-                   domain/records ModuleRecords, AS part 2)
-     actions.ts    its actions, run by app.run like the core's (optional; app/actions ModuleActions)
-     spec.ts       its rules in plain words, with worked examples, for its section of the spec (optional)
 
    The build lists the folders (vite.modules.ts) and the core reads them through `virtual:faro-modules…`, so the core
    never imports a module, and a module left out of the build (FARO_WITHOUT=<id>) is simply not there.
@@ -51,13 +47,6 @@ export interface ModuleFacts {
   sections?: string[];
   /** The database tables it owns, each with its migration. */
   tables: { name: string; migration: string; purpose: string }[];
-  /**
-   * Its own records (AS part 2, domain/records), as its records.ts declares them: what one row is (`name`, its kind on
-   * Recently removed), the table it is kept in (one of `tables`), the key a commit and the workspace file it under
-   * (`modules[id][key]`), and whether a row can be removed and restored. The core's tables are closed; a module that
-   * keeps anything brings its own. Optional: most modules keep nothing.
-   */
-  records?: { name: string; table: string; key: string; removable: boolean }[];
   /** The AI tools its tools.ts adds, by name. */
   aiTools: string[];
   /** The Help articles its help.ts adds, by id. */
@@ -138,25 +127,4 @@ export function manifestProblems(installed: readonly Pick<ModuleFacts, 'id' | 'n
   };
   for (const m of installed) visit(m.id, []);
   return [...new Set(out)];
-}
-
-/**
- * What's wrong with a module's records (AS part 2), in words: its module.json `records` and `tables` must agree (every
- * record in one of its tables, every table holding a record), the records must be those its records.ts declares, and
- * `elsewhere` must name no file outside its own folder: a module's code lives in its folder, the core never holds it.
- */
-export function recordProblems(
-  m: Pick<ModuleFacts, 'id' | 'tables' | 'records' | 'elsewhere'>,
-  declared: readonly { name: string; table: string; key: string; removable: boolean }[],
-): string[] {
-  const out: string[] = [];
-  const records = m.records ?? [];
-  const tables = new Set(m.tables.map((t) => t.name));
-  for (const r of records) if (!tables.has(r.table)) out.push(`${m.id}: the record “${r.name}” is kept in ${r.table}, which module.json’s tables don’t list`);
-  for (const t of tables) if (!records.some((r) => r.table === t)) out.push(`${m.id}: the table ${t} holds none of module.json’s records`);
-  const key = (r: { name: string; table: string; key: string; removable: boolean }) => `${r.name} | ${r.table} | ${r.key} | ${r.removable}`;
-  const said = records.map(key).sort(), made = declared.map(key).sort();
-  if (said.join('\n') !== made.join('\n')) out.push(`${m.id}: module.json’s records (${said.join('; ') || 'none'}) aren’t those its records.ts declares (${made.join('; ') || 'none'})`);
-  for (const f of m.elsewhere ?? []) if (!f.startsWith(`src/modules/${m.id}/`)) out.push(`${m.id}: elsewhere names ${f}, a file of the core's; a module's code lives in its own folder`);
-  return out;
 }

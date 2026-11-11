@@ -343,3 +343,24 @@ export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; say
 /** The answers given, as History keeps them: one `Asked` difference per question answered yes. */
 export const answeredDiffs = (checks: Check[], answers: Answers | undefined) =>
   checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({ field: 'Asked', from: c.question, to: c.yes }));
+
+/** The week's walk as a tab keeps it: the goals in their order, and the ones posted in this walk. */
+export interface KeptWalk { queue: string[]; walked: string[] }
+
+/**
+ * Where the week's walk starts (NV3; build review of #114). A walk kept for this tab carries on where it was ("2 of 2"
+ * after a reload) only if every goal in it is still due or was posted in this walk. A goal checked in some other way
+ * since (from the list's row, say) starts a fresh walk of what is due now, so it is never walked again and "n of m" is
+ * the list's count.
+ */
+export function resumeWalk(due: string[], kept: unknown): { walk: KeptWalk; start: number } {
+  const k = kept as Partial<KeptWalk> | null;
+  if (due.length && k && Array.isArray(k.queue) && Array.isArray(k.walked)) {
+    const queue = k.queue.filter((x): x is string => typeof x === 'string');
+    const walked = k.walked.filter((x): x is string => typeof x === 'string');
+    if (due.every((id) => queue.includes(id)) && queue.every((id) => due.includes(id) || walked.includes(id))) {
+      return { walk: { queue, walked }, start: Math.max(0, queue.findIndex((id) => due.includes(id))) };
+    }
+  }
+  return { walk: { queue: due, walked: [] }, start: 0 };
+}

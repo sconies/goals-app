@@ -1,15 +1,8 @@
 /* The Platform Engineering example's metric library (backlog 0b): the numbers its goals are measured by, each defined
    once, and which goals each one measures, for which slice. Linking a goal changes nothing about it (its numbers,
    status and dates stay as they are), so the conformance rows don't move. One metric (CI compute cost) measures no
-   goal yet: a library holds numbers before anyone sets a goal on them.
-
-   The demo's builder (src/data/platformOrg/generate.ts) calls addDemoMetrics through records.ts once the year has been
-   played, so a build without this module has a demo with no metric library and nothing else changed. */
-import type { DemoBuild } from '../../domain/records';
-import { linkGoalMetric, saveMetric, type MetricInput } from './rules';
-
-const DAY = 86_400_000;
-const HOUR = 3_600_000;
+   goal yet: a library holds numbers before anyone sets a goal on them. */
+import type { MetricInput } from '../../domain/metrics';
 
 export interface MetricSpec extends MetricInput {
   /** A short, fixed id: metric_<slug>. */
@@ -112,26 +105,3 @@ export const METRICS: MetricSpec[] = [
     measures: [['ns-devsat', null]],
   },
 ];
-
-/**
- * The library, set up the week before the year starts, each goal linked as it's created, by the people the app would
- * (the metric's owner adds it; the goal's owner links it). Fixed ids of their own, so nothing else's id moves; linking
- * changes no goal, so no number, status or date moves.
- */
-export function addDemoMetrics(b: DemoBuild) {
-  const startMs = b.start.getTime();
-  METRICS.forEach((m, i) => {
-    let k = 0;
-    const mid = (p: string) => (p === 'metric' ? `metric_${m.slug}` : `${p}_metric_${m.slug}_${++k}`);
-    const when = new Date(startMs - 3 * DAY + i * HOUR);
-    b.save(saveMetric(b.act(m.ownerId, when, mid), m).commit!);
-    for (const [goalId, teamId] of m.measures) {
-      const { goal, createdAt } = b.goal(goalId);
-      const linkedAt = new Date(Math.max(when.getTime(), Date.parse(createdAt)) + HOUR);
-      b.save(linkGoalMetric(b.act(goal.ownerId, linkedAt, mid), goal, `metric_${m.slug}`, teamId)!);
-    }
-  });
-}
-
-/** The demo builder's part of this module (virtual:faro-modules/demo), kept out of records.ts so a first visit doesn't load it. */
-export default addDemoMetrics;

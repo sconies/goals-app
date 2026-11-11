@@ -7,15 +7,10 @@ import { join } from 'node:path';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../domain/importer';
 import { emptyDraft, toCheckIn } from '../domain/checkin';
 import { planAt } from '../domain/plan';
-import type { Snapshot } from '../domain/types';
-import type { Metric, MetricLink } from '../modules/metrics/types';
-import { metricRows } from '../modules/metrics/rules';
-import { metricFromRow, metricLinkFromRow } from '../modules/metrics/records';
-import { MODULE_RECORDS } from '../core/records';
-import type { DbRow } from '../domain/records';
+import type { Metric, MetricLink, Snapshot } from '../domain/types';
 import {
-  changeFromRow, checkInFromRow, commitPayload, decisionFromRow, goalFromRows, personFromRow, reviewFromRow, teamToRow, watchFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type DecisionRow, type GoalRow, type PersonRow, type ReviewRow, type WatchRow,
+  changeFromRow, checkInFromRow, commitPayload, decisionFromRow, goalFromRows, metricFromRow, metricLinkFromRow, personFromRow, reviewFromRow, teamToRow, watchFromRow, workspaceToRow,
+  type GoalMetricRow, type MetricRow, type ChangeRow, type CheckInRow, type DecisionRow, type GoalRow, type PersonRow, type ReviewRow, type WatchRow,
 } from './rows';
 import { withExpectations, type Commit } from './store';
 
@@ -31,7 +26,7 @@ describe('database save functions, as the public user', () => {
     await db.exec('set role anon');
     try { return await db.query<T>(q, params); } finally { await db.exec('reset role'); }
   };
-  const commit = (c: Commit) => asAnon('select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(commitPayload(ws, c, MODULE_RECORDS))]);
+  const commit = (c: Commit) => asAnon('select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(commitPayload(ws, c))]);
   const count = async (table: string, where = `workspace_id = '${ws}'`) => (await db.query<{ n: number }>(`select count(*)::int as n from ${table} where ${where}`)).rows[0]!.n;
 
   beforeAll(async () => {
@@ -337,40 +332,29 @@ describe('database save functions, as the public user', () => {
       const g = snap.goals.find((x) => x.kind === 'metric')!;
       const m = metric('metric_rpc_1', 'Build time');
       const link: MetricLink = { id: g.id, goalId: g.id, metricId: m.id, teamId: g.teamId, linkedBy: snap.people[0]!.id, linkedAt: now.toISOString() };
-      await commit({ ...metricRows({ metrics: [m], metricLinks: [link] }), changes: [log('chg_metric_1', 'created'), log('chg_metric_2', 'linked', g.id)] });
-      expect(metricFromRow(await one<DbRow>('select * from okr_metrics where id = $1', [m.id]))).toEqual(m);
-      expect(metricLinkFromRow(await one<DbRow>('select * from okr_goal_metrics where id = $1', [g.id]))).toEqual(link);
+      await commit({ metrics: [m], metricLinks: [link], changes: [log('chg_metric_1', 'created'), log('chg_metric_2', 'linked', g.id)] });
+      expect(metricFromRow(await one<MetricRow>('select * from okr_metrics where id = $1', [m.id]))).toEqual(m);
+      expect(metricLinkFromRow(await one<GoalMetricRow>('select * from okr_goal_metrics where id = $1', [g.id]))).toEqual(link);
       expect(await count('okr_changes', `entity = 'metric' and workspace_id = '${ws}'`)).toBe(2);
     });
 
     it('keeps a removed metric and an unlinked goal as removed, and frees the name for a new metric', async () => {
       const g = snap.goals.find((x) => x.kind === 'metric')!;
       const at = now.toISOString(), by = snap.people[0]!.id;
-      await commit({ ...metricRows({ metrics: [metric('metric_rpc_1', 'Build time', { removedAt: at, removedBy: by })], metricLinks: [{ id: g.id, goalId: g.id, metricId: 'metric_rpc_1', teamId: null, linkedBy: by, linkedAt: at, removedAt: at, removedBy: by }] }), changes: [log('chg_metric_3', 'removed')] });
-      expect((await one<DbRow>('select * from okr_metrics where id = $1', ['metric_rpc_1'])).removed_at).not.toBeNull();
-      expect(metricLinkFromRow(await one<DbRow>('select * from okr_goal_metrics where id = $1', [g.id]))).toMatchObject({ teamId: null, removedBy: by });
+      await commit({ metrics: [metric('metric_rpc_1', 'Build time', { removedAt: at, removedBy: by })], metricLinks: [{ id: g.id, goalId: g.id, metricId: 'metric_rpc_1', teamId: null, linkedBy: by, linkedAt: at, removedAt: at, removedBy: by }], changes: [log('chg_metric_3', 'removed')] });
+      expect((await one<MetricRow>('select * from okr_metrics where id = $1', ['metric_rpc_1'])).removed_at).not.toBeNull();
+      expect(metricLinkFromRow(await one<GoalMetricRow>('select * from okr_goal_metrics where id = $1', [g.id]))).toMatchObject({ teamId: null, removedBy: by });
       // Another metric may take the name of a removed one; two in use may not share one, whatever the case.
-      await commit({ ...metricRows({ metrics: [metric('metric_rpc_2', 'Build time')] }), changes: [] });
-      await expect(commit({ ...metricRows({ metrics: [metric('metric_rpc_3', 'BUILD TIME ')] }), changes: [] })).rejects.toThrow(/okr_metrics_ws_name/);
+      await commit({ metrics: [metric('metric_rpc_2', 'Build time')], changes: [] });
+      await expect(commit({ metrics: [metric('metric_rpc_3', 'BUILD TIME ')], changes: [] })).rejects.toThrow(/okr_metrics_ws_name/);
     });
 
     it('refuses a metric without a unit or a direction, a link to no goal, and a link whose id isn’t its goal’s', async () => {
       const g = snap.goals[0]!;
-      await expect(commit({ ...metricRows({ metrics: [metric('metric_rpc_4', 'No unit', { unit: ' ' })] }), changes: [] })).rejects.toThrow(/okr_metrics_unit_check/);
-      await expect(commit({ ...metricRows({ metrics: [metric('metric_rpc_5', 'No direction', { direction: 'sideways' as never })] }), changes: [] })).rejects.toThrow(/okr_metrics_direction_check/);
-      await expect(commit({ ...metricRows({ metricLinks: [{ id: 'g_none', goalId: 'g_none', metricId: 'metric_rpc_2', teamId: null, linkedBy: 'x', linkedAt: now.toISOString() }] }), changes: [] })).rejects.toThrow();
-      await expect(commit({ ...metricRows({ metricLinks: [{ id: 'other', goalId: g.id, metricId: 'metric_rpc_2', teamId: null, linkedBy: 'x', linkedAt: now.toISOString() }] }), changes: [] })).rejects.toThrow(/okr_goal_metrics_check/);
-    });
-
-    it('takes a module’s rows by table from the allowed list (0039), refuses a table not on it, and still reads the keys saves used before', async () => {
-      const raw = (p: object) => asAnon('select okr_commit($1, $2::jsonb)', [ws, JSON.stringify({ changes: [], expect: null, ...p })]);
-      const row = (id: string, name: string) => ({ workspace_id: ws, id, name, meaning: '', unit: 'min', decimals: 0, direction: 'lower', source: '', source_owner: '', refresh: null, owner_id: snap.people[0]!.id, caveats: '', created_by: snap.people[0]!.id, created_at: now.toISOString(), updated_at: now.toISOString() });
-      await raw({ modules: { okr_metrics: [row('metric_rpc_6', 'By table')] } });
-      expect((await one<DbRow>('select * from okr_metrics where id = $1', ['metric_rpc_6'])).name).toBe('By table');
-      await expect(raw({ modules: { okr_people: [{ workspace_id: ws, id: 'p_sneak', name: 'Sneaked in' }] } })).rejects.toThrow(/isn't a table a module declares/);
-      await expect(raw({ modules: { okr_metrics: [{ ...row('metric_rpc_7', 'Elsewhere'), workspace_id: 'ws_other' }] } })).rejects.toThrow(/belongs to another workspace/);
-      await raw({ metrics: [row('metric_rpc_8', 'From an older client')] });
-      expect((await one<DbRow>('select * from okr_metrics where id = $1', ['metric_rpc_8'])).name).toBe('From an older client');
+      await expect(commit({ metrics: [metric('metric_rpc_4', 'No unit', { unit: ' ' })], changes: [] })).rejects.toThrow(/okr_metrics_unit_check/);
+      await expect(commit({ metrics: [metric('metric_rpc_5', 'No direction', { direction: 'sideways' as never })], changes: [] })).rejects.toThrow(/okr_metrics_direction_check/);
+      await expect(commit({ metricLinks: [{ id: 'g_none', goalId: 'g_none', metricId: 'metric_rpc_2', teamId: null, linkedBy: 'x', linkedAt: now.toISOString() }], changes: [] })).rejects.toThrow();
+      await expect(commit({ metricLinks: [{ id: 'other', goalId: g.id, metricId: 'metric_rpc_2', teamId: null, linkedBy: 'x', linkedAt: now.toISOString() }], changes: [] })).rejects.toThrow(/okr_goal_metrics_check/);
     });
 
     it('applies from the paste-in script on its own, as often as it’s run', async () => {

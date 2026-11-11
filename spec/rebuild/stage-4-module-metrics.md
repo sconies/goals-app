@@ -9,16 +9,14 @@ Define each number goals are measured by once (its meaning and calculation, unit
 ## Entry criteria
 
 - Stages 1 to 3 pass their exit criteria.
-- The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.
+- The change log and undo (stage 2) take a new kind of record: a removal saves the records as changed, and Undo puts each back as it was just before.
 - Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice.
 
 ## What to build
 
-The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s.
+The metric library: a metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) defined once per workspace, and a goal’s link to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/metrics/README.md#what-it-adds-to-the-core).
-
-It keeps records of its own, which the core stores without knowing what they are: metric (`okr_metrics`), metric link (`okr_goal_metrics`). Every field is in [its records](../modules/metrics/records.md); how the core keeps a module’s records is stage 2’s (`src/domain/records.ts`): declared rows each way, what a new cycle carries, and how a removed one comes back, saved with the core’s in one transaction.
 
 ## Exit criteria
 
@@ -29,10 +27,9 @@ It keeps records of its own, which the core stores without knowing what they are
 5. A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.
 6. Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.
 7. The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).
-8. Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.
 
 ## Gaps in the kit
 
 - No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).
-- No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/modules/metrics/rules.test.ts.
+- No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/domain/metrics.test.ts.
 - Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md.

@@ -9,11 +9,12 @@
    | Who is viewing    | Identity         | the "Who are you?" picker (adapters/local.ts); your sign-in replaces it |
    | The time          | Clock            | the system clock, or one fixed for the demo and the evals               |
    | Files             | Files            | Supabase Storage (adapters/supabase/files.ts), memory (adapters/local)  |
-   | Numbers           | NumberSource     | the metric module's demo (modules/metrics/numbers.ts); yours otherwise  |
+   | Numbers           | NumberSource     | the demo's (adapters/demo/numbers.ts); real connectors are yours        |
    | Finding things    | Search           | over the loaded workspace (adapters/localSearch.ts); a server's search  |
    | Small preferences | Prefs            | this browser (adapters/local.ts); later, the server                      |
 
    Supabase is imported only by src/adapters/supabase/ (the layers lint, rule 4). */
+import type { Metric } from '../domain/types';
 
 export type { Store } from '../data/store';
 export type { MarkupStore } from '../markup/ops';
@@ -54,23 +55,14 @@ export interface Reading {
   at: string;
 }
 
-/** What a number source reads of a metric: which one, and where its numbers come from. The metric library's records
-    (src/modules/metrics) are a module's, not the core's, so the port names only what it reads. */
-export interface SourcedMetric {
-  id: string;
-  /** Where its number comes from: a number source of this name reads it. */
-  source: string;
-  removedAt?: string | null;
-}
-
 /** Where a metric's numbers come from (a dashboard, a warehouse, a monitoring tool), so it can fill itself in. */
 export interface NumberSource {
   /** Its name as a metric's `source` names it (e.g. "CI analytics"). */
   readonly name: string;
   /** Whether it can read this metric. */
-  reads(metric: SourcedMetric): boolean;
+  reads(metric: Metric): boolean;
   /** The latest reading at or before `at`; null when it has none yet. */
-  read(metric: SourcedMetric, at: Date): Promise<Reading | null>;
+  read(metric: Metric, at: Date): Promise<Reading | null>;
 }
 
 export type { Search, SearchKind, SearchAsk, SearchAnswer, FoundRow } from './search';

@@ -5,8 +5,6 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
-import { entriesAfter } from './match';
-
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -22,6 +20,18 @@ export interface NewsEntry {
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'forms-close-in-words',
+    date: '2026-11-11',
+    title: 'Every form closes in words, and Back finds your list',
+    points: [
+      'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
+      'A goal opened from a saved view says “Back to” the view’s name.',
+      'From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.',
+      'Page not found has a Find field, so you can look for what you meant.',
+    ],
+    articles: ['getting-around', 'check-in'],
+  },
   {
     id: 'levels-one-style',
     date: '2026-11-11',
@@ -1200,7 +1210,10 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
+export function newsAfter(seenId: string | null): NewsEntry[] {
+  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
+  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
+}
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

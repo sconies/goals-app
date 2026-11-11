@@ -3,14 +3,12 @@ import { aiBrief, CHECKIN_EXPORT_COLUMNS, EXPORT_FORMAT, GOAL_EXPORT_COLUMNS, to
 import { currentWeek, planAsOf, planAt } from './plan';
 import { summarise } from './summary';
 import { buildPlatformOrg } from '../data/platformOrg';
-import { MODULE_SHEETS } from '../core/records';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const s = buildPlatformOrg(today);
 const cycle = s.cycles[0]!;
 const week = currentWeek(cycle, today);
-// With the sheets the modules in this build add (the metric library's Metrics), as the app exports it.
-const input = { ws: { id: 'ws', name: 'Platform' }, snapshot: s, cycle, week, today, sheets: MODULE_SHEETS };
+const input = { ws: { id: 'ws', name: 'Platform' }, snapshot: s, cycle, week, today };
 
 describe('exports', () => {
   it('writes a workbook whose goal and check-in sheets use the import’s column names', () => {

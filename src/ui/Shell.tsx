@@ -6,7 +6,7 @@ import { weekProgress } from '../domain/progress';
 import { reviewSession, sessionToDo } from '../domain/review';
 import type { SavedView } from '../domain/types';
 import { Avatar, Sheet } from './bits';
-import { CORE_NAV, GROUP_NAMES, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
+import { CORE_NAV, GROUP_NAMES, isForm, litItem, litTab, menuGroups, menuViews, moreFor, pageName, phoneTabs, type NavId } from '../domain/navigation';
 import { recentsOf, usePrefs } from '../app/search';
 import { DemoEntry, DemoPanel } from './Demo';
 import { Coach } from './Coach';
@@ -18,7 +18,7 @@ import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
 import { RailLabel } from './Label';
-import { PageHelp } from './HelpLinks';
+import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
@@ -222,9 +222,9 @@ function ShellBody({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
-  const focusMode = !!moduleRoute?.focus || /^\/check-in\/|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search)
-    // Check-in's list keeps the sidebar (NV3); the walk it starts (?start=1) is focus mode, as a goal's form is.
-    || (pathname === '/check-in' && /[?&]start=1/.test(search));
+  // A form is focus mode (navigation's one rule, which Back reads too); so is a module's focus page and a review's walk,
+  // which isn't a form (what was said is saved as it is said). Check-in's list keeps the sidebar (NV3).
+  const focusMode = !!moduleRoute?.focus || isForm(pathname, search) || /[?&]review=/.test(search);
   const icons = look.sidebar === 'icons';
   // The rail: chosen, or always between 761 and 1100 px. Its rows name themselves with the app's label.
   const sideRef = useRef<HTMLElement>(null);

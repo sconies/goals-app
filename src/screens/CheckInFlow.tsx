@@ -20,7 +20,7 @@ import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
 import { useMark } from '../telemetry/react';
-import { NO_REASON } from '../domain/checkin';
+import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 
@@ -53,19 +53,24 @@ function Flow({ goalId }: { goalId?: string }) {
   const closeTo = (location.state as { from?: string } | null)?.from === 'queue' ? '/check-in' : '/';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
+  const walkKey = queueKey(app.ws.id, app.viewer.id, app.week);
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
     if (goalId) return { queue: [goalId], start: 0 };
     const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.map((g) => g.id);
-    const key = queueKey(app.ws.id, app.viewer.id, app.week);
     let kept: unknown = null;
-    try { kept = JSON.parse(sessionStorage.getItem(key) ?? 'null'); } catch { /* storage blocked */ }
-    if (due.length && Array.isArray(kept) && due.every((id) => kept.includes(id))) {
-      const q = kept as string[];
-      return { queue: q, start: Math.max(0, q.findIndex((id) => due.includes(id))) };
-    }
-    try { if (due.length) sessionStorage.setItem(key, JSON.stringify(due)); } catch { /* storage blocked */ }
-    return { queue: due, start: 0 };
+    try { kept = JSON.parse(sessionStorage.getItem(walkKey) ?? 'null'); } catch { /* storage blocked */ }
+    const { walk, start: at } = resumeWalk(due, kept);
+    try { if (due.length) sessionStorage.setItem(walkKey, JSON.stringify(walk)); } catch { /* storage blocked */ }
+    return { queue: walk.queue, start: at };
   });
+  // A goal posted in this walk stays in it, so a reload still says "2 of 2".
+  const walked = (id: string) => {
+    if (goalId) return;
+    try {
+      const k = JSON.parse(sessionStorage.getItem(walkKey) ?? 'null') as KeptWalk | null;
+      if (k && Array.isArray(k.walked) && !k.walked.includes(id)) sessionStorage.setItem(walkKey, JSON.stringify({ ...k, walked: [...k.walked, id] }));
+    } catch { /* storage blocked */ }
+  };
   const [index, setIndex] = useState(start);
   const [justPosted, setJustPosted] = useState<CheckIn | null>(null);
   const [updated, setUpdated] = useState(false);
@@ -100,7 +105,7 @@ function Flow({ goalId }: { goalId?: string }) {
   const next = () => { setJustPosted(null); setIndex((i) => i + 1); };
   return (
     <>
-    {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { setNoData(false); next(); }} />}
+    {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { walked(goal.id); setNoData(false); next(); }} />}
     <div className="focus ci">
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
@@ -114,7 +119,7 @@ function Flow({ goalId }: { goalId?: string }) {
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
+        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} onPosted={(c, updated) => { walked(goal.id); setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
     </div>
     </>

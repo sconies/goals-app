@@ -12,10 +12,10 @@ export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
+import { DIRECTION_LABEL, liveMetrics, REFRESH_LABEL, sliceName } from './metrics';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
-import type { ModuleSheet } from './records';
-import type { Ask, Cause, CheckIn, Cycle, Goal, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
+import type { Ask, Cause, CheckIn, Cycle, Goal, Metric, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
 import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
 
 export type Cell = string | number | null;
@@ -28,8 +28,6 @@ export interface ExportInput {
   today: Date;
   /** Only these goals (the current view); every goal in the cycle when left out. */
   goals?: Goal[];
-  /** The sheets feature modules add (domain/records), after the core's: those of the modules in this build. */
-  sheets?: readonly ModuleSheet[];
 }
 
 /** What a column is for. */
@@ -81,6 +79,8 @@ export interface CheckInRow { c: Ctx; g: Goal; ci: CheckIn }
 export interface PersonRow { c: Ctx; p: Person }
 export interface AskRow { c: Ctx; a: Ask }
 export interface NoteRow { c: Ctx; d: Said }
+/** A metric in the library, and the exported goals it measures, each with its slice. */
+export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[] }
 
 /* ---------- the words a column takes ---------- */
 
@@ -134,10 +134,9 @@ export { isEmail, normalEmail } from './people';
 
 /* ---------- the sheets ---------- */
 
-/** The core's sheets. A feature module's sheet (domain/records ModuleSheet) has a kind of its own. */
-export type SheetKind = 'goals' | 'plan' | 'checkIns' | 'people' | 'results' | 'asks' | 'notes';
-export interface SheetSpec<C, K extends string = SheetKind> {
-  kind: K;
+export type SheetKind = 'goals' | 'plan' | 'checkIns' | 'people' | 'results' | 'asks' | 'notes' | 'metrics';
+export interface SheetSpec<C> {
+  kind: SheetKind;
   name: string;
   /** One row per… */
   rowIs: string;
@@ -151,10 +150,6 @@ const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: st
 const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
 const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
 const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
-/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, and one only shown. */
-export const moduleColumn = { match: m, shown: sh };
-/** A cell: empty for nothing. */
-export const cellOr = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 const blank = () => null;
 const or = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 
@@ -359,14 +354,33 @@ export const NOTES: SheetSpec<NoteRow> = {
   ],
 };
 
-/** The core's sheets, in the workbook's order (a module's sheets follow them; domain/records ModuleSheet). */
-export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES] as const;
+export const METRICS: SheetSpec<MetricRow> = {
+  kind: 'metrics', name: 'Metrics', rowIs: 'metric in the library', loaded: false,
+  about: 'The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.',
+  columns: [
+    m('ID', 'The metric’s identity.', (r) => r.m.id),
+    sh('Metric', 'Its name.', (r) => r.m.name),
+    sh('Meaning', 'What it means and how it’s calculated.', (r) => or(r.m.meaning)),
+    sh('Unit', 'Its unit.', (r) => r.m.unit),
+    sh('Decimals', 'Places after the decimal point it’s shown with.', (r) => r.m.decimals),
+    sh('Direction', `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+    sh('Source', 'Where the number comes from.', (r) => or(r.m.source)),
+    sh('Source owner', 'Who owns that source.', (r) => or(r.m.sourceOwner)),
+    sh('Refresh', `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => (r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null)),
+    sh('Owner', 'Who answers for the definition.', (r) => or(r.c.name(r.m.ownerId))),
+    sh('Owner email', 'Who answers for it, by email.', (r) => r.c.email(r.m.ownerId)),
+    sh('Caveats', 'What to watch out for when reading it.', (r) => or(r.m.caveats)),
+    sh('Measures', 'The goals it measures, each with its slice: a team, or the whole company.', (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join('; '))),
+    sh('Goal keys', 'Their keys.', (r) => or(r.measures.map((x) => x.g.key ?? '').filter(Boolean).join('; '))),
+  ],
+};
+
+/** Every sheet, in the workbook's order (the README comes last, made from these). */
+export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, METRICS] as const;
 /** The workbook's first sheet: what the file is, and the field table (it replaced the README, which is still skipped). */
 export const START_HERE = 'Start here';
-/** Every sheet of the core's workbook, in order. */
+/** Every sheet of the workbook, in order. */
 export const SHEET_NAMES = [START_HERE, ...SHEETS.map((x) => x.name)] as const;
-/** Every sheet's name with the modules' sheets (domain/records) after the core's: Start here first. */
-export const sheetNamesWith = (sheets: readonly ModuleSheet[] = []): string[] => [START_HERE, ...SHEETS.map((x) => x.name), ...sheets.map((x) => x.spec.name)];
 export const specOf = (kind: SheetKind) => SHEETS.find((x) => x.kind === kind)! as SheetSpec<unknown>;
 export const headersOf = (kind: SheetKind) => specOf(kind).columns.map((c) => c.header);
 export const columnOf = (kind: SheetKind, header: string) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
@@ -381,7 +395,7 @@ export const isWorkedOut = (kind: SheetKind, header: string) => ['worked', 'show
  */
 export const KEY_COLUMNS: Record<SheetKind, string[]> = {
   goals: ['Key', 'ID'], plan: ['Key', 'ID'], checkIns: ['ID', 'Goal key', 'Goal ID', 'Week'], people: ['Email', 'ID'],
-  results: ['Key', 'ID'], asks: ['ID'], notes: ['Goal key', 'Goal ID'],
+  results: ['Key', 'ID'], asks: ['ID'], notes: ['Goal key', 'Goal ID'], metrics: ['ID'],
 };
 
 /**
@@ -395,6 +409,7 @@ export function sheetKindOf(header: readonly string[]): SheetKind | null {
   if (h.has('week') && any('value', 'stages', 'call', 'cause', 'why')) return 'checkIns';
   if (h.has('result') && any('q1', 'q2', 'q3', 'q4') && !h.has('type')) return 'results';
   if (h.has('ask') && any('asked by', 'asked of')) return 'asks';
+  if (h.has('metric') && any('unit', 'direction', 'measures')) return 'metrics';
   if (h.has('said by') || (h.has('text') && h.has('kind') && any('goal', 'goal id'))) return 'notes';
   if (any('goal', 'key') && !h.has('name')) return any('goal', 'type', 'owner', 'owner email', 'target', 'level', 'action', 'status') ? 'goals' : null;
   if (any('name', 'email') && !h.has('goal')) return 'people';
@@ -422,6 +437,10 @@ export const rowsOf = <C,>(spec: SheetSpec<C>, items: C[]): Cell[][] => [spec.co
 
 /** Every ask on these goals, and every note, question and action said about them in a review. */
 export const asksFor = (s: Snapshot, ids: Set<string>) => asksOf(s).filter((r) => r.goalIds.some((id) => ids.has(id)));
+/** Every metric in use, with the goals among these it measures (and for which slice). */
+export const metricsFor = (s: Snapshot, ids: Set<string>) => liveMetrics(s).map((m) => ({
+  m, measures: (s.metricLinks ?? []).filter((l) => l.metricId === m.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => { const g = s.goals.find((v) => v.id === l.goalId); return g ? [{ g, slice: sliceName(s, l.teamId) }] : []; }),
+}));
 export const notesFor = (s: Snapshot, ids: Set<string>) => saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
 
 /* ---------- the field table (backlog IM1; docs/design/import/spec.md, section 3 and rules 1 and 2) ----------

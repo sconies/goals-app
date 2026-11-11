@@ -1,12 +1,12 @@
 {
-  "about": "The rules files that take the whole workspace today, and how many times: a parameter or field typed Snapshot, a Pick of Snapshot naming goals, checkIns, changes or requests (whole lists by another name), or a cast to Snapshot. The layers lint (rule 6, AR4) fails any other file that does, and any of these that does it more. The work left is to narrow them (docs/design/architecture.md, 4.4); lower a count or drop a file when you do. Count: 89 uses in 20 files on 11 Nov 2026, after AS part 2 moved the metric rules into their module, narrowed (DirectoryCtx in directory.ts and goalHistory's cast in goalPage.ts among them).",
+  "about": "The rules files that take the whole workspace today, and how many times: a parameter or field typed Snapshot, a Pick of Snapshot naming goals, checkIns, changes or requests (whole lists by another name), or a cast to Snapshot. The layers lint (rule 6, AR4) fails any other file that does, and any of these that does it more. The work left is to narrow them (docs/design/architecture.md, 4.4); lower a count or drop a file when you do. Count: 92 uses in 21 files on 11 Nov 2026 (DirectoryCtx in directory.ts and goalHistory's cast in goalPage.ts among them).",
   "files": {
     "src/domain/actions.ts": 4,
     "src/domain/activity.ts": 4,
     "src/domain/asks.ts": 7,
     "src/domain/attention.ts": 7,
     "src/domain/changeset.ts": 3,
-    "src/domain/columns.ts": 4,
+    "src/domain/columns.ts": 5,
     "src/domain/cycle.ts": 3,
     "src/domain/decide.ts": 2,
     "src/domain/directory.ts": 1,
@@ -14,6 +14,7 @@
     "src/domain/goalPage.ts": 14,
     "src/domain/home.ts": 3,
     "src/domain/importer.ts": 2,
+    "src/domain/metrics.ts": 2,
     "src/domain/onePager.ts": 4,
     "src/domain/progress.ts": 3,
     "src/domain/removal.ts": 12,

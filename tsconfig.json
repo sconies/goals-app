@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"]
   },
-  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts", "vite.modules.ts", "vite.helpIndex.ts"]
+  "include": ["src", "evals", "server", "vite.config.ts", "vite.mcp.config.ts", "vite.modules.ts"]
 }

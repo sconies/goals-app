@@ -9,7 +9,7 @@
    are the flow's, so they're written once. */
 import { moduleById } from '../core/registry';
 import type { AppState } from '../app/state';
-import { articleRef } from './lookup';
+import { articleById } from './guide';
 
 /** Steps inside a screen that has no route of its own for them, set by the screen as it moves on (telemetry.mark). */
 export const MARKS = [
@@ -47,7 +47,7 @@ export interface Flow {
 }
 
 /** An article's own routes: a flow that covers exactly what an article explains uses them, rather than restating them. */
-const routesOf = (article: string) => articleRef(article)?.routes ?? [];
+const routesOf = (article: string) => articleById(article)?.routes ?? [];
 
 /** Every flow, the modules' included; FLOWS is those this build has. */
 const ALL_FLOWS: Flow[] = [

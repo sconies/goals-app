@@ -3,7 +3,7 @@
    Storage can be blocked (private windows, previews): then it lives in memory for this tab. */
 import { useSyncExternalStore } from 'react';
 import { onDemoBrowserCleared } from '../app/demoBrowser';
-import { latestNewsId, newsAfter } from './lookup';
+import { latestNews, newsAfter } from './whatsNew';
 
 export const SEEN_KEY = 'goals-whats-new-seen';
 let memory: string | null = null;
@@ -15,7 +15,7 @@ function read(): string | null {
 
 /** Records the newest entry as seen. */
 export function markWhatsNewSeen() {
-  const id = latestNewsId() ?? null;
+  const id = latestNews()?.id ?? null;
   if (!id || read() === id) return;
   memory = id;
   try { localStorage.setItem(SEEN_KEY, id); } catch { /* storage blocked: this tab only */ }

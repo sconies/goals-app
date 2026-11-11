@@ -11,8 +11,7 @@ import type { Person, Snapshot } from '../domain/types';
 import { ARTICLES } from '../help/guide';
 import { TOOLS as ALL_TOOLS } from '../mcp/tools';
 import { findModules } from '../../vite.modules.ts';
-import { manifestProblems, placeSections, PLACES, recordProblems, resolveModules, sectionsFor, type ModuleFacts } from './module';
-import { MODULE_RECORDS } from './records';
+import { manifestProblems, placeSections, PLACES, resolveModules, sectionsFor, type ModuleFacts } from './module';
 import { isModuleOn, MODULES, modulesOn } from './registry';
 
 const root = path.join(__dirname, '..', '..');
@@ -124,13 +123,6 @@ describe('Every module’s manifest', () => {
         for (const t of m.aiTools) expect(ALL_TOOLS.filter((x) => x.name === t), t).toHaveLength(1);
       });
 
-      it('keeps its records and tables in step with its records.ts, and none of its code outside its folder (AS part 2)', () => {
-        const declared = MODULE_RECORDS.find((x) => x.module === m.id)?.records ?? [];
-        expect(recordProblems(m, declared.map((r) => ({ name: r.name, table: r.table, key: r.key, removable: r.removable })))).toEqual([]);
-        // A record's key is where it is filed in the workspace and a commit: one per module, never two the same.
-        expect(new Set(declared.map((r) => r.key)).size).toBe(declared.length);
-      });
-
       it('names requirements, journeys, checks and migrations that exist', () => {
         expect(m.requirements.filter((r) => !requirements.includes(r))).toEqual([]);
         for (const j of m.journeys) {
@@ -143,24 +135,6 @@ describe('Every module’s manifest', () => {
       });
     });
   }
-});
-
-describe('A module’s records in its manifest (AS part 2)', () => {
-  const tables = [{ name: 'okr_marks', migration: '0099_marks.sql', purpose: 'Marks.' }];
-  const records = [{ name: 'mark', table: 'okr_marks', key: 'marks', removable: true }];
-  it('passes when module.json, its tables and its records.ts agree', () => {
-    expect(recordProblems({ id: 'marks', tables, records }, records)).toEqual([]);
-    expect(recordProblems({ id: 'plain', tables: [], records: [] }, [])).toEqual([]);
-  });
-  it('fails a module whose records and tables disagree', () => {
-    expect(recordProblems({ id: 'marks', tables, records: [] }, [])).toEqual([expect.stringMatching(/the table okr_marks holds none/)]);
-    expect(recordProblems({ id: 'marks', tables: [], records }, records)).toEqual([expect.stringMatching(/kept in okr_marks, which module.json’s tables don’t list/)]);
-    expect(recordProblems({ id: 'marks', tables, records }, [{ ...records[0]!, key: 'other' }])).toEqual([expect.stringMatching(/aren’t those its records.ts declares/)]);
-  });
-  it('fails a module whose elsewhere names core files', () => {
-    expect(recordProblems({ id: 'marks', tables, records, elsewhere: ['src/domain/marks.ts'] }, records)).toEqual([expect.stringMatching(/elsewhere names src\/domain\/marks.ts/)]);
-    expect(recordProblems({ id: 'marks', tables, records, elsewhere: [] }, records)).toEqual([]);
-  });
 });
 
 describe('Building without a module (vite.modules.ts, FARO_WITHOUT)', () => {

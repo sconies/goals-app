@@ -1,4 +1,5 @@
 import { sameTitleNote } from '../domain/people';
+import { FormClose } from '../ui/FormClose';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -55,7 +56,7 @@ export function GoalWizard() {
         <div className="focus-top">
           <span className="small strong">New goal</span>
           <span />
-          <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close"><Icon name="close" /></button>
+          <FormClose keeps onClose={() => nav('/goals')} />
         </div>
         <div className="focus-body">
           <h1 className="qtitle big">You have a goal you didn’t publish</h1>
@@ -97,7 +98,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   // After “Change …” on the summary, Continue comes straight back to it.
   const [fromSummary, setFromSummary] = useState(false);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   useEffect(() => { top.current?.querySelector<HTMLElement>('input, select, textarea, button.kindcard')?.focus(); }, [step]);
 
   const go = (to: number) => {
@@ -116,7 +117,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
       // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
       const done = !existing && g.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
       await app.saveGoal(g, existing, undefined, done.length ? { stagesDone: done } : undefined);
-      if (measure) await app.run(measure.action, measure.input(g));
+      if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
+      else if (measure === null && existing) await app.unlinkGoalMetric(g);
       clear();
       app.toast(existing ? 'Saved. The change is in the goal’s activity.' : `Published “${g.title}”`);
       nav('/goals/' + g.id + (existing ? '' : '?published=1'));
@@ -157,7 +159,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
       <div className="focus-top wiz-top">
         <span className="small strong">{existing ? 'Edit goal' : 'New goal'}</span>
         <Steps at={step + 1} of={4} label={STEP_LABELS[step]} />
-        <button className="iconbtn" onClick={() => nav(existing ? '/goals/' + existing.id : '/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
+        <FormClose keeps onClose={() => nav(existing ? '/goals/' + existing.id : '/goals')} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromSummary ? 3 : step + 1); else void publish(); }} noValidate>
         {restored && <div className="restored small">Restored your unsaved draft. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Start over</button></div>}

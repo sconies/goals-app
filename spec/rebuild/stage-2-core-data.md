@@ -19,7 +19,6 @@ Every core record stored and changed safely, and the one way many changes come i
 ## What to build
 
 - A store for every core record in the data model, with the fields it lists. Any database, or none: the tables say what Faro keeps, not how a rebuild must keep it.
-- The core’s records and tables are closed: a feature module never adds a field or a table to them. A module brings its own records instead, declared (what one row is, its table, where a save and the workspace file it, whether it can be removed), with rows each way, what a new cycle carries, and how a removed one comes back; the store keeps, saves, scopes, removes and restores them without knowing what they are (`src/domain/records.ts`). The metric library’s stage is the worked example.
 - The change log: every change to a record with its field-by-field differences, and undo.
 - The change engine: rows in, a change set out (items, unchanged, issues, whether a reason is needed, counts, and the commit), saved all at once or not at all.
 
@@ -29,7 +28,6 @@ Every core record stored and changed safely, and the one way many changes come i
 2. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.
 3. A change set that blocks saves nothing; one that saves is undone by one undo.
 4. A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.
-5. A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.
 
 ## Gaps in the kit
 

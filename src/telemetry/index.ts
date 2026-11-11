@@ -1,7 +1,7 @@
 /* The app's telemetry, one per tab. It sends to the app's own Supabase (the telemetry tables of migration 0022) with
    the public key, which can add rows but never read them. With no database (the demo built without one, local
    development, the evals' build, unit tests) it records nothing and sends nothing. */
-import { latestNewsId } from '../help/lookup';
+import { WHATS_NEW } from '../help/whatsNew';
 import { Telemetry } from './client';
 import { Exporter, supabaseTarget } from './exporter';
 import { tabSessionId } from './ids';
@@ -18,7 +18,7 @@ export const telemetry = new Telemetry({
   resource: {
     'service.name': 'goals-app',
     // The release people see: the newest What's new entry.
-    'service.version': latestNewsId() ?? 'unknown',
+    'service.version': WHATS_NEW[0]?.id ?? 'unknown',
     'deployment.environment': testing ? 'test' : demo ? 'demo' : 'live',
     'telemetry.sdk.name': 'goals-telemetry',
     'telemetry.sdk.language': 'webjs',

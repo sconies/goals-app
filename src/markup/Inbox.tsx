@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { NEWS } from '../help/lookup';
+import { WHATS_NEW } from '../help/whatsNew';
 import { Sheet, timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
@@ -426,7 +426,7 @@ function MarkupDetail({ row, data, busy, form, setForm, onChange }: { row: Extra
       {form === 'fixed' && <FixedForm label="Mark fixed" onFixed={(fixedIn) => onChange({ status: 'fixed', fixedIn })} onCancel={() => setForm(null)} hint={`${listed.personName || 'The sender'} sees “You raised this” on that entry. List the markup’s id (${listed.id}) in the entry’s fixes, too.`} />}
       {form === 'wont-fix' && <WontFixForm label="Won’t fix" onWontFix={(reason) => onChange({ status: 'wont-fix', reason })} onCancel={() => setForm(null)} />}
       {listed.issueUrl && <p className="small">Issue: <a href={listed.issueUrl} target="_blank" rel="noopener noreferrer">{listed.issueUrl.replace('https://github.com/', '')}</a></p>}
-      {listed.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${listed.fixedIn}`}>{NEWS.find((e) => e.id === listed.fixedIn)?.title ?? listed.fixedIn}</Link>.</p>}
+      {listed.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${listed.fixedIn}`}>{WHATS_NEW.find((e) => e.id === listed.fixedIn)?.title ?? listed.fixedIn}</Link>.</p>}
       {listed.wontFixReason && <p className="small">Won’t fix: {listed.wontFixReason}</p>}
       {!shown && !failed && <p className="hint" role="status">Opening the markup…</p>}
       {shown && (
@@ -495,7 +495,7 @@ function FeedbackDetail({ f, busy, form, setForm, onChange }: { f: InboxFeedback
       <Actions status={f.status} busy={busy} form={form} setForm={setForm} onChange={onChange} n={1} />
       {form === 'fixed' && <FixedForm label="Mark fixed" hint={`${f.personName || 'The sender'} sees “You raised this” on that entry. List the feedback’s id (${f.id}) in the entry’s fixes, too.`} onFixed={(fixedIn) => onChange({ status: 'fixed', fixedIn })} onCancel={() => setForm(null)} />}
       {form === 'wont-fix' && <WontFixForm label="Won’t fix" onWontFix={(reason) => onChange({ status: 'wont-fix', reason })} onCancel={() => setForm(null)} />}
-      {f.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${f.fixedIn}`}>{NEWS.find((e) => e.id === f.fixedIn)?.title ?? f.fixedIn}</Link>.</p>}
+      {f.fixedIn && <p className="small">Fixed in <Link to={`/whats-new#${f.fixedIn}`}>{WHATS_NEW.find((e) => e.id === f.fixedIn)?.title ?? f.fixedIn}</Link>.</p>}
       {f.wontFixReason && <p className="small">Won’t fix: {f.wontFixReason}</p>}
       <dl className="mk-where">
         <dt>Page</dt><dd><code>{f.path || '/'}</code></dd>
@@ -523,11 +523,11 @@ function Actions({ status, busy, form, setForm, onChange, onIssue, n }: { status
 
 /** Marking something fixed: in which What's new entry. */
 function FixedForm({ label, hint, onFixed, onCancel }: { label: string; hint: string; onFixed: (fixedIn: string) => void; onCancel: () => void }) {
-  const [fixedIn, setFixedIn] = useState(NEWS[0]?.id ?? '');
+  const [fixedIn, setFixedIn] = useState(WHATS_NEW[0]?.id ?? '');
   return (
     <form className="stack mk-form" onSubmit={(e) => { e.preventDefault(); onFixed(fixedIn); }}>
       <label className="field"><span className="field-label">Fixed in this What’s new entry</span>
-        <select className="input" value={fixedIn} onChange={(e) => setFixedIn(e.target.value)} autoFocus>{NEWS.slice(0, 30).map((e) => <option key={e.id} value={e.id}>{e.date}: {e.title}</option>)}</select>
+        <select className="input" value={fixedIn} onChange={(e) => setFixedIn(e.target.value)} autoFocus>{WHATS_NEW.slice(0, 30).map((e) => <option key={e.id} value={e.id}>{e.date}: {e.title}</option>)}</select>
       </label>
       <span className="hint">{hint}</span>
       <div className="row" style={{ gap: 'var(--s2)' }}><button type="submit" className="btn primary">{label}</button><button type="button" className="btn ghost" onClick={onCancel}>Cancel</button></div>
