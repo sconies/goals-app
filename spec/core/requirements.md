@@ -1013,14 +1013,14 @@ Collapsed to a rail (and always between 761 and 1100 px), each icon names itself
 Every list is searched, filtered, sorted and counted the same way, and its address says what is shown: a search matches the words on each row (a goal's key included) by the start of each word; the count line says “{n} {things} match.”; filters read as words with Remove; a search that finds nothing says so with Clear the search, and a near miss is tried and said; a choice adds a history entry and typing replaces it until it settles.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** U64, U66, U92
+- **Journeys and checks:** N12, U64, U66, U92
 
 ### FIND-AND-PICK
 
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, U63, U91
+- **Journeys and checks:** F11, N12, U63, U91
 
 ## Export
 

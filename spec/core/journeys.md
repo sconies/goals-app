@@ -110,6 +110,7 @@ Per-area checks from the fit-and-finish reports.
 | F10 | People, Teams and About on a phone: the first person and the first fact near the top, short Teams rows with no buttons, nothing scrolls sideways | `PEOPLE-DIRECTORY` `WORKSPACE-ABOUT` `FIT-AND-FINISH` | `evals/finish/10-people.cjs` |
 | F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
+| N12 | Held at company size: ${SIZE.people.toLocaleString('en-GB')} people, ${SIZE.teams.toLocaleString('en-GB')} teams and ${SIZE.goals.toLocaleString('en-GB')} goals; no select of everything, pickers within ${PICKER_MS} ms, list bars within ${LIST_MS} ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
 
 ## Review notes
 

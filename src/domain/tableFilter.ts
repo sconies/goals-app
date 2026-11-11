@@ -52,11 +52,15 @@ export function passes(cell: string, f: PropFilter): boolean {
 }
 
 /** Rows (as header → value) that pass every filter and contain every search word, sorted. */
+/** Each row's cells in lower case, worked out once per row (a table of 30,000 rows is searched on every key: N12). */
+const lowerCells = new WeakMap<object, string[]>();
+const lowered = (r: { cells: string[] }) => { let l = lowerCells.get(r); if (!l) { l = r.cells.map((c) => c.toLowerCase()); lowerCells.set(r, l); } return l; };
+
 export function applyTable<R extends { cells: string[] }>(rows: R[], head: string[], q: string, filters: PropFilter[], sort: TableSort | null): R[] {
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const idx = (c: string) => head.indexOf(c);
   const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ''));
-  const out = rows.filter((r) => words.every((w) => r.cells.some((c) => c.toLowerCase().includes(w))) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
+  const out = rows.filter((r) => (!words.length || words.every((w) => lowered(r).some((c) => c.includes(w)))) && live.every((f) => passes(r.cells[idx(f.col)] ?? '', f)));
   const si = sortIndex(head, sort);
   if (sort && si >= 0) {
     out.sort((a, b) => {

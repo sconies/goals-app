@@ -457,6 +457,16 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
     // Worked out once per snapshot, when first asked for.
     let dups: Set<string> | null = null, hueMap: Map<string, number> | null = null;
     const dupTitles = () => (dups ??= duplicateTitles(sc.goals));
+    // Names someone else here also has, made once (N12): only those people need what tells them apart, so a name is
+    // looked up, not found by scanning everyone each time it is drawn.
+    let shared: { ids: Set<string>; twins: Set<string> } | undefined;
+    const sharedNames = () => {
+      if (shared) return shared;
+      const count = new Map<string, number>();
+      for (const x of sc.people) { const k = x.name.trim().toLowerCase(); count.set(k, (count.get(k) ?? 0) + 1); }
+      shared = { ids: new Set(sc.people.map((x) => x.id)), twins: new Set([...count].filter(([, n]) => n > 1).map(([k]) => k)) };
+      return shared;
+    };
     const hues = () => (hueMap ??= avatarHues([...people.values()]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
@@ -573,7 +583,7 @@ export function AppProvider({ store, mode = 'demo', today = realNow, empty: rend
       },
       setViewer: (id) => { identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
-      personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
+      personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
       avatarHue: (id) => hues().get(id),
       team: (id) => sc.teams.find((t) => t.id === id),

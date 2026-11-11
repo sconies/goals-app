@@ -169,6 +169,28 @@ function paged<T>(a: { total: number; rows: { id: string }[] } | null, page: num
   return { total, page: at, pages, from, to: from ? from + rows.length - 1 : 0, rows };
 }
 
+/* Held at company size (N12): a row reads only its own person's or team's goals and people, grouped once per workspace
+   as loaded, not by scanning every goal for every row. The rules (personLine, teamSummary) are unchanged. */
+type Snap = ReturnType<typeof useApp>['snapshot'];
+const indexes = new WeakMap<Snap, { byOwner: Map<string, Snap['goals']>; byTeam: Map<string, Snap['goals']>; peopleIn: Map<string, Snap['people']> }>();
+function indexOf(s: Snap) {
+  let x = indexes.get(s);
+  if (!x) {
+    const group = <T,>(xs: T[], key: (v: T) => string | null | undefined) => { const m = new Map<string, T[]>(); for (const v of xs) { const k = key(v); if (k) { const l = m.get(k); if (l) l.push(v); else m.set(k, [v]); } } return m; };
+    x = { byOwner: group(s.goals, (g) => g.ownerId), byTeam: group(s.goals, (g) => g.teamId), peopleIn: group(s.people, (p) => p.teamId) };
+    indexes.set(s, x);
+  }
+  return x;
+}
+/** A team's summary context cut to that team: its goals, its people and its lead. */
+function slice<C extends { snapshot: Snap }>(ctx: C, teamId: string): C {
+  const ix = indexOf(ctx.snapshot);
+  const team = ctx.snapshot.teams.find((t) => t.id === teamId);
+  const lead = team ? ctx.snapshot.people.find((p) => p.id === team.leadId) : undefined;
+  const people = ix.peopleIn.get(teamId) ?? [];
+  return { ...ctx, snapshot: { ...ctx.snapshot, teams: team ? [team] : [], goals: ix.byTeam.get(teamId) ?? [], people: lead && !people.includes(lead) ? [...people, lead] : people } };
+}
+
 const pageParams = (params: URLSearchParams, page: number) => { const n = new URLSearchParams(params); if (page > 1) n.set('page', String(page)); else n.delete('page'); return n.toString(); };
 
 /** A person in a list: a link to them, with their job title and team, and their line (rule 5). */
@@ -182,7 +204,7 @@ function PersonRow({ p }: { p: Person }) {
         <span className="person-name">{app.personName(p.id)}</span>
         <span className="hint">{[p.role, team || 'No team'].filter(Boolean).join(' · ')}</span>
       </span>
-      <span className="people-line small">{personLine({ snapshot: app.snapshot }, p.id)}</span>
+      <span className="people-line small">{personLine({ snapshot: { ...app.snapshot, people: [p], goals: indexOf(app.snapshot).byOwner.get(p.id) ?? [] } }, p.id)}</span>
     </Link>
   );
 }
@@ -290,7 +312,7 @@ export function TeamsList() {
       {found.length > 0 && (
         <ul className="people-list team-list" aria-label="Teams">
           {found.map((t) => {
-            const s = teamSummary(ctx, t.id);
+            const s = teamSummary(slice(ctx, t.id), t.id);
             return (
               <li key={t.id}>
                 <Link className="people-row team-row" to={`/teams/${encodeURIComponent(t.id)}`}>

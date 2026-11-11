@@ -199,10 +199,15 @@ export function DataTables() {
 
   // A person or a team is found and picked (find-and-pick, find spec 2.3 move 8): the cell keeps the name (or email) the
   // one format reads back. Cells with a fixed set of answers are FIXED_CHOICES; the engine checks the rest.
+  // Names, emails and team names to ids, made once per workspace: a cell looks its value up, never scans everyone.
+  const ids = useMemo(() => {
+    const first = <T,>(xs: T[], key: (x: T) => string | null | undefined, id: (x: T) => string) => { const m = new Map<string, string>(); for (const x of xs) { const k = key(x); if (k && !m.has(k)) m.set(k, id(x)); } return m; };
+    return { name: first(app.snapshot.people, (p) => p.name, (p) => p.id), email: first(app.snapshot.people, (p) => p.email, (p) => p.id), team: first(app.snapshot.teams, (t) => t.name, (t) => t.id) };
+  }, [app.snapshot.people, app.snapshot.teams]);
   const pickOf: Record<string, { kind: 'person' | 'team'; idOf: (v: string) => string | null; valueOf: (id: string) => string; none?: string; refuse?: (id: string) => string | null }> = {
-    Owner: { kind: 'person', idOf: (v) => app.snapshot.people.find((p) => p.name === v)?.id ?? null, valueOf: (id) => app.person(id)?.name ?? '' },
-    'Owner email': { kind: 'person', idOf: (v) => app.snapshot.people.find((p) => p.email === v)?.id ?? null, valueOf: (id) => app.person(id)?.email ?? '', refuse: (id) => (app.person(id)?.email ? null : 'No email yet') },
-    Team: { kind: 'team', idOf: (v) => app.snapshot.teams.find((t) => t.name === v)?.id ?? null, valueOf: (id) => app.team(id)?.name ?? '', none: 'No team' },
+    Owner: { kind: 'person', idOf: (v) => ids.name.get(v) ?? null, valueOf: (id) => app.person(id)?.name ?? '' },
+    'Owner email': { kind: 'person', idOf: (v) => ids.email.get(v) ?? null, valueOf: (id) => app.person(id)?.email ?? '', refuse: (id) => (app.person(id)?.email ? null : 'No email yet') },
+    Team: { kind: 'team', idOf: (v) => ids.team.get(v) ?? null, valueOf: (id) => app.team(id)?.name ?? '', none: 'No team' },
   };
 
   const [cs, setCs] = useState<ChangeSet | null>(null);
