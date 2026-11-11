@@ -317,6 +317,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // off and pressing Undo must see it off, or the switch back reads as nothing to change.
   const workspacesNow = useRef(workspaces);
   workspacesNow.current = workspaces;
+  /** The feature switch saving now, if any: the next waits for it (setModule). */
+  const moduleSwitches = useRef<Promise<void>>(Promise.resolve());
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
   const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
@@ -623,11 +625,20 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         telemetry.setContext({ recording: on });
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
       },
-      setModule: async (id, on) => {
-        const out = await run('setModule', { moduleId: id, on });
-        if (!out?.modulesOff) return;
-        const off = out.modulesOff;
-        setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
+      // A switch saves the workspace's whole list of features switched off, so switches run one at a time, each from the
+      // list the one before saved: an Undo pressed while another switch saves can't save a list without it (build
+      // review of #141).
+      setModule: (id, on) => {
+        const step = moduleSwitches.current.then(async () => {
+          const out = await run('setModule', { moduleId: id, on });
+          if (!out?.modulesOff) return;
+          const off = out.modulesOff;
+          const next = (l: Workspace[]) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w));
+          workspacesNow.current = next(workspacesNow.current);
+          setWorkspaces(next);
+        });
+        moduleSwitches.current = step.catch(() => undefined);
+        return step;
       },
       setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),

@@ -41,6 +41,16 @@ describe('the clock', () => {
     view.unmount();
   });
 
+  it('two feature switches at once both hold: each saves from the list the one before saved (build review of #141)', async () => {
+    const { store, view, app } = await open();
+    await act(async () => { await Promise.all([app().setModule('spreadsheets', false), app().setModule('metrics', false)]); });
+    expect((await store.workspaces()).find((w) => w.id === 'ws_clock')?.modulesOff?.slice().sort()).toEqual(['metrics', 'spreadsheets']);
+    // An Undo of the first, pressed while the second is saving, keeps the second off.
+    await act(async () => { await Promise.all([app().setModule('spreadsheets', true), app().setModule('metrics', false)]); });
+    expect((await store.workspaces()).find((w) => w.id === 'ws_clock')?.modulesOff).toEqual(['metrics']);
+    view.unmount();
+  });
+
   it('with the clock stopped, still reloads on coming back to the tab after 30 seconds, and not sooner', async () => {
     const { loads, view } = await open();
     const start = performance.now();
