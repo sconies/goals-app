@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
     id: 'last-year-wrap-up',
     date: '2026-11-11',
     title: 'Last year’s wrap-up stays open',

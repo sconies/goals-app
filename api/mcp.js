@@ -12247,7 +12247,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown."]
+				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
 		routes: ["/workspace/new", "/ready"],
@@ -14480,6 +14480,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "cant-open-why",
+		date: "2026-11-11",
+		title: "When you can’t open a workspace, it says why",
+		points: ["If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.", "Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it."],
+		articles: ["set-up"]
+	},
 	{
 		id: "last-year-wrap-up",
 		date: "2026-11-11",

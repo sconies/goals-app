@@ -158,7 +158,7 @@ const CORE_ARTICLES: Article[] = [
         'Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.',
         'In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.',
       ] },
-      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown.'] },
+      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.'] },
     ],
     routes: ['/workspace/new', '/ready'],
     screens: ['Onboarding', 'Start'],

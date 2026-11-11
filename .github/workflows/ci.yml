@@ -51,7 +51,7 @@ jobs:
           npm run build:mcp
           git diff --exit-code --stat api/mcp.js || { echo "api/mcp.js is out of date. Run npm run build:mcp and commit it."; exit 1; }
       - name: "The bundle budget: the first download stays small (scripts/check-bundle.mjs)"
-        run: npx vite build --logLevel warn && node scripts/check-bundle.mjs
+        run: npx vite build --logLevel warn --manifest && node scripts/check-bundle.mjs
       - name: Spec scenarios, core journeys, design rules and console errors
         run: npm run evals:smoke
       - name: Smoke summary
