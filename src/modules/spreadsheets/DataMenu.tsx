@@ -1,11 +1,11 @@
 /* Spreadsheets, on Data (the data.tools place): the module's home. One menu beside Columns and Saved layouts holds
    every way in and out: the open table as laid out (CSV or Excel), the whole workbook, the same sheets as zipped CSVs,
-   the blank template, and Import, which shows every change before anything is saved. */
+   the template (Start here, the fill-in columns, example rows), and Import, which shows every change before anything is saved. */
 import { useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import type { PlaceProps } from '../../core/app';
-import { blankWorkbook, csvFiles, toCsv, workbook, type ExportInput } from '../../domain/export';
+import { templateWorkbook, csvFiles, toCsv, workbook, type ExportInput } from '../../domain/export';
 import { MenuButton } from '../../ui/MenuButton';
 
 export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
@@ -27,7 +27,7 @@ export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
       { label: 'Excel (.xlsx), as shown', onClick: () => void tableAs('xlsx') },
       { label: 'Everything, as a workbook', onClick: () => void saveAndSay(app.toast, name('goals', app.cycle.name), { kind: 'xlsx', sheets: workbook(input) }, 'Workbook saved') },
       { label: 'Everything, as zipped CSVs', onClick: () => void saveAndSay(app.toast, name('goals-csv', app.cycle.name), { kind: 'zip', files: csvFiles(workbook(input)) }, 'CSV files saved') },
-      { label: 'Blank template', onClick: () => void saveAndSay(app.toast, name('template', 'blank'), { kind: 'xlsx', sheets: blankWorkbook(input) }, 'Blank template saved') },
+      { label: 'The template', onClick: () => void saveAndSay(app.toast, name('template', ''), { kind: 'xlsx', sheets: templateWorkbook(input) }, 'Template saved') },
       { label: 'Import a spreadsheet…', onClick: () => nav('/data/import') },
     ]} />
   );
