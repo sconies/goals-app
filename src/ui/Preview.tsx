@@ -1,6 +1,6 @@
 /* What a change set will do before it's saved: its problems, a reason when plans change, every change by goal, and Save.
    Import and Data both use it, so a change looks the same whichever way it comes in. Problems come in the engine's
-   levels (domain/levels): Must fix, then Check, each a word with the warning mark. A Check is a question asked once for
+   levels (domain/problemLevels): Must fix, then Check, each a word with the warning mark. A Check is a question asked once for
    its group, and one answer covers every row in it (backlog IM2); IM3 rewrites this screen as the preview of the import
    spec, 2.3. */
 import { useRef, useState } from 'react';

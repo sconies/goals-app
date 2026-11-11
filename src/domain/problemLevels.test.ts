@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { planChanges, records, type ChangeInput, type Rec } from './changeset';
 import { LEVEL_WORDS, TYPE_WORDS, wordsAndAlso } from './columns';
-import { CHECK_KINDS, editDistance, fold, groupIssues, issueOf, levelOf, MUST_KINDS, near, whereText } from './levels';
+import { CHECK_KINDS, editDistance, fold, groupIssues, issueOf, levelOf, MUST_KINDS, near, whereText } from './problemLevels';
 import { currentWeek } from './plan';
 import type { MetricGoal, Snapshot } from './types';
 

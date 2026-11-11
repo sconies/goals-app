@@ -1,5 +1,5 @@
 /* The spreadsheets module's Help articles (src/help/guide.ts places them after Data). "Every column, and what it needs"
-   shows the field table itself (domain/columns fieldTable), drawn by the Help screen under these words. */
+   shows the field table itself (domain/columns fieldTable), drawn by this module's ColumnsHelp in Help's help.article place. */
 import type { Article } from '../../help/guide';
 import { requiredLine } from '../../domain/columns';
 
@@ -15,10 +15,10 @@ const help: Article[] = [
         'On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.',
         `What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine('goals')} A check-in, ${requiredLine('checkIns')} A person, ${requiredLine('people')}`,
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
-        'Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview counts them.',
+        'Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.',
         'Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.',
         'Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.',
-        'The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.',
+        'The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.',
         'Every row is checked with the app’s own rules and shown before anything is saved. Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is listed under Check these plan changes and saves only once you say yes.',
         'Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.',
         'Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included.',
@@ -78,11 +78,11 @@ const help: Article[] = [
         'Optional: it can be left out; the table says what an empty cell gives.',
         'Leave empty: Faro fills it in, such as a new goal’s Key.',
         'Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.',
-        'On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it.',
+        'On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away.',
       ] },
     ],
     routes: [],
-    screens: [],
+    screens: ['ColumnsHelp'],
     reqs: ['FIELD-TABLE', 'ONE-FORMAT'],
     keywords: ['columns', 'required', 'optional', 'format', 'example', 'template', 'start here', 'field', 'headers', 'empty', 'what a new row needs'],
     related: ['import', 'export'],

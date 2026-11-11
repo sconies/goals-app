@@ -28,6 +28,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A name one letter out is a question: “Did you mean Platform?”',
       'The same problem on 14 rows is said once, and one answer covers them all.',
       'Numbers that look wrong are asked about before saving.',
+      'An empty Admin cell now keeps what is there, as Every column says, and Takes over accepts a name only one person has as well as an email.',
     ],
     articles: ['import', 'columns'],
   },

@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import type { PlaceProps } from '../../core/app';
-import { templateWorkbook, csvFiles, toCsv, workbook, type ExportInput } from '../../domain/export';
+import { csvFiles, toCsv, workbook, type ExportInput } from '../../domain/export';
+import { saveTemplate } from './template';
 import { MODULE_SHEETS } from '../../core/records';
 import { MenuButton } from '../../ui/MenuButton';
 
@@ -28,7 +29,7 @@ export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
       { label: 'Excel (.xlsx), as shown', onClick: () => void tableAs('xlsx') },
       { label: 'Everything, as a workbook', onClick: () => void saveAndSay(app.toast, name('goals', app.cycle.name), { kind: 'xlsx', sheets: workbook(input) }, 'Workbook saved') },
       { label: 'Everything, as zipped CSVs', onClick: () => void saveAndSay(app.toast, name('goals-csv', app.cycle.name), { kind: 'zip', files: csvFiles(workbook(input)) }, 'CSV files saved') },
-      { label: 'The template', onClick: () => void saveAndSay(app.toast, name('template', ''), { kind: 'xlsx', sheets: templateWorkbook(input) }, 'Template saved') },
+      { label: 'The template', onClick: () => void saveTemplate(app) },
       { label: 'Import a spreadsheet…', onClick: () => nav('/data/import') },
     ]} />
   );

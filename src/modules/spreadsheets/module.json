@@ -6,7 +6,7 @@
   "routes": ["/data/import"],
   "redirects": [["/import", "/data/import"]],
   "navigation": [],
-  "places": ["data.tools", "goals.tools"],
+  "places": ["data.tools", "goals.tools", "help.article"],
   "tables": [],
   "aiTools": ["export", "export_table"],
   "help": ["import", "export", "columns"],

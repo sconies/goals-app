@@ -49,7 +49,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/levels.ts](../../../src/domain/levels.ts): `fold`, `near`, `editDistance`, `levelOf`, `MUST_KINDS`, `CHECK_KINDS`, `NOTE_KINDS`, `issueOf`, `groupId`, `groupIssues`, `groupTitle`, `whereText`, `ANSWERS`
+- [src/domain/problemLevels.ts](../../../src/domain/problemLevels.ts): `fold`, `near`, `editDistance`, `levelOf`, `MUST_KINDS`, `CHECK_KINDS`, `NOTE_KINDS`, `issueOf`, `groupId`, `groupIssues`, `groupTitle`, `whereText`, `ANSWERS`
 - [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`
 
 ## Requirements
@@ -58,7 +58,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Tests that check it
 
-### [src/domain/levels.test.ts](../../../src/domain/levels.test.ts)
+### [src/domain/problemLevels.test.ts](../../../src/domain/problemLevels.test.ts)
 
 - rule 4: fold and near › folds case, accents, “&” and “and”, and punctuation
 - rule 4: fold and near › gives the worked examples

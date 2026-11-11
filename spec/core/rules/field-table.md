@@ -127,6 +127,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/fieldTable.test.ts](../../../src/domain/fieldTable.test.ts)
 
 - the field table › every column a person fills in says whether a new row needs it, its format, an example and what empty does
+- the field table › every column a person fills in on a sheet that loads back has a field-table entry, and every entry is a real column
 - the field table › a new goal needs Goal, and Owner or Owner email; a number goal Start and Target
 - the field table › says what a new row must have in one line per sheet
 - the Start here sheet and the template › the workbook opens on Start here: the file’s workspace and cycle, then the field table of every sheet that loads back

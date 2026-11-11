@@ -7,9 +7,10 @@ import { Link, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { readChanges } from '../../app/spreadsheet';
 import { saveAndSay } from '../../app/files';
-import { describe, type Answers, type Tables } from '../../domain/changeset';
+import { describe, examplesLine, type Answers, type Tables } from '../../domain/changeset';
 import { andList, requiredLine } from '../../domain/columns';
-import { templateWorkbook, workbook } from '../../domain/export';
+import { workbook } from '../../domain/export';
+import { saveTemplate } from './template';
 import { MODULE_SHEETS } from '../../core/records';
 import type { ReadTables } from '../../domain/sheets';
 import { useMark } from '../../telemetry/react';
@@ -55,11 +56,10 @@ export function Import() {
     } catch { setBusy(false); }
   };
   const template = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals-to-edit', scope: app.cycle.name, date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, 'Workbook saved');
-  const starter = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'template', date: app.today }, { kind: 'xlsx', sheets: templateWorkbook({ ws: app.ws, cycle: app.cycle, week: app.week, today: app.today }) }, 'Template saved');
   // Which sheets were read, and which were left out: so a file that changed nothing says why. Example rows (the
   // template's, whose Action says Example) are never imported, and said.
   const examples = cs?.examples ?? 0;
-  const sheetsLine = read ? `Read ${andList(read.read.map((x) => x.name))}.${read.skipped.length ? ` Not loaded back: ${andList(read.skipped.map((x) => x.name))}.` : ''}${examples ? ` ${examples} example ${examples === 1 ? 'row' : 'rows'} left out.` : ''}` : '';
+  const sheetsLine = read ? `Read ${andList(read.read.map((x) => x.name))}.${read.skipped.length ? ` Not loaded back: ${andList(read.skipped.map((x) => x.name))}.` : ''}${examples ? ` ${examplesLine(examples)}` : ''}` : '';
 
   return (
     <div className="page narrow">
@@ -94,7 +94,7 @@ export function Import() {
               <li><span className="strong">A check-in</span>: {requiredLine('checkIns')}</li>
               <li><span className="strong">A person</span>: {requiredLine('people')}</li>
             </ul>
-            <span className="hint"><Link to="/help/columns">Every column, with its format and an example</Link>. Starting from nothing? <button type="button" className="linkish tap" onClick={() => void starter()}>Download the template</button>: every column, the required ones in bold, and example rows that are never imported.</span>
+            <span className="hint"><Link to="/help/columns">Every column, with its format and an example</Link>. Starting from nothing? <button type="button" className="linkish tap" onClick={() => void saveTemplate(app)}>Download the template</button>: every column, the required ones in bold, and example rows that are never imported.</span>
           </section>
           <div><Link className="btn ghost edge-ghost" to="/data">Cancel</Link></div>
         </>

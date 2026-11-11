@@ -83,6 +83,8 @@ export function recordsOf(grid: Grid): Rec[] {
 export const records = (text: string) => recordsOf(parseDelimited(text));
 
 const LOADED: Partial<Record<SheetKind, keyof Tables>> = { goals: 'goals', plan: 'plan', checkIns: 'checkIns', people: 'people' };
+/** The sheets a file loads back (the rest are written for reading): every column a person fills in on them is in the field table. */
+export const LOADED_SHEETS = Object.keys(LOADED) as SheetKind[];
 
 export interface ReadTables {
   tables: Tables;

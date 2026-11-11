@@ -14,7 +14,6 @@ import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
 import { movedTo } from './domain/directory';
-import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
@@ -27,6 +26,9 @@ import { Moved, useModules } from './core/app';
 // is scripts/check-bundle.mjs).
 // Screens a first visit doesn't open load when they are opened (the bundle budget, scripts/check-bundle.mjs).
 const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
+// Set-up (a new workspace, and the welcome of an empty one) is opened once, not on a usual first visit.
+const Onboarding = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })));
+const Welcome = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Welcome })));
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
 const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
@@ -114,7 +116,7 @@ export function Routed() {
 export function App({ store, identity, mode = 'demo', today }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date }) {
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
-      <AppProvider store={store} identity={identity} mode={mode} today={today} empty={() => <Welcome />}>
+      <AppProvider store={store} identity={identity} mode={mode} today={today} empty={() => <Suspense fallback={null}><Welcome /></Suspense>}>
         <TelemetryRoutes />
         <Routed />
       </AppProvider>

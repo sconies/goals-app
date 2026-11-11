@@ -10,7 +10,7 @@ import { carryKind } from '../domain/carry';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
-import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/levels';
+import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { planQuestion } from '../domain/goal';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
@@ -672,10 +672,10 @@ ${fieldTableMarkdown()}`,
     title: 'Kinds, levels and near misses',
     summary: 'Every problem the change engine finds is data: a kind, and a level its kind fixes (Must fix, Check, or said); problems group by kind, one answer covers a group, and a name one letter out is asked about, never guessed.',
     code: [
-      { file: 'src/domain/levels.ts', names: ['fold', 'near', 'editDistance', 'levelOf', 'MUST_KINDS', 'CHECK_KINDS', 'NOTE_KINDS', 'issueOf', 'groupId', 'groupIssues', 'groupTitle', 'whereText', 'ANSWERS'] },
+      { file: 'src/domain/problemLevels.ts', names: ['fold', 'near', 'editDistance', 'levelOf', 'MUST_KINDS', 'CHECK_KINDS', 'NOTE_KINDS', 'issueOf', 'groupId', 'groupIssues', 'groupTitle', 'whereText', 'ANSWERS'] },
       { file: 'src/domain/changeset.ts', names: ['planChanges'] },
     ],
-    tests: ['src/domain/levels.test.ts'],
+    tests: ['src/domain/problemLevels.test.ts'],
     reqs: ['IMPORT-LEVELS'],
     body: `
 Every problem \`planChanges\` finds is an **issue** with a **kind**, and the kind fixes its **level**:

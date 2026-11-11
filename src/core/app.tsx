@@ -37,6 +37,8 @@ export interface PlaceProps {
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */
   'people.team': { team: Team };
+  /** A Help article, under its title and before its sections: given the article's id, so a module draws only in its own article (the spreadsheets module's field table in `columns`). */
+  'help.article': { article: string };
 }
 
 /** What a goal form saves after the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its

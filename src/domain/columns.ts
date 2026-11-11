@@ -548,6 +548,9 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
   },
 };
 
+/** The headers a sheet's field table has facts for, as written in it (a test checks each is a real column). */
+export const fieldHeaders = (kind: FillKind): string[] => Object.keys(FIELDS[kind]);
+
 /** A sheet's columns as the field table: every column, with its field facts (a worked-out one has none). */
 export function fieldTable(kind: FillKind): FieldRow[] {
   const cols = [...specOf(kind).columns.map((c) => ({ header: c.header, role: c.role, means: c.means })), ...(kind === 'plan' ? [{ header: WEEK_COLUMN.header, role: WEEK_COLUMN.role, means: WEEK_COLUMN.means }] : [])];

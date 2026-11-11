@@ -9,7 +9,7 @@
    them is applied, or said to be a problem, never quietly dropped. Set-up uses the same engine in "create" mode: an
    empty workspace, and every row is new.
 
-   Every problem is data (backlog IM2, domain/levels): a kind, and the level its kind fixes. Must fix blocks saving; a
+   Every problem is data (backlog IM2, domain/problemLevels): a kind, and the level its kind fixes. Must fix blocks saving; a
    Check is a question that blocks saving until it is answered (`answers`, by group id), and one answer covers every row
    with the same question; a note says how a row was read. A name or word one letter out is asked about ("Did you mean
    Platform?"), never guessed and never silently refused. */
@@ -34,12 +34,12 @@ import { asksOf, requestsAfterCheckIn } from './asks';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
 import { recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
-import { ANSWERS, fold, groupId, groupIssues, issueOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './levels';
+import { ANSWERS, fold, groupId, groupIssues, issueOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
-export type { Answer, Answers, Choice, Issue, IssueGroup, IssueKind, IssueLevel, Sheet } from './levels';
+export type { Answer, Answers, Choice, Issue, IssueGroup, IssueKind, IssueLevel, Sheet } from './problemLevels';
 export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup' | 'form';
 /** `form` is the check-in screens' own post (CK1): it is no import, so its changes carry no Via mark. */
 export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up', form: 'Check-in' };
@@ -81,7 +81,7 @@ export interface ChangeSet {
   unchanged: number;
   /** Rows whose Action says Example (the template's): left out, and said (C15). */
   examples: number;
-  /** Every problem, a row each, with its kind and level (domain/levels), in the file's order: sheet, then row. */
+  /** Every problem, a row each, with its kind and level (domain/problemLevels), in the file's order: sheet, then row. */
   issues: Issue[];
   /** The same, grouped (rule 6): Must fix, then Check, then what was read; largest first. One answer per group. */
   groups: IssueGroup[];
@@ -165,6 +165,9 @@ export function describe(cs: Pick<ChangeSet, 'counts'>): string {
   return parts.length ? parts.join(', ') : 'No changes';
 }
 
+/** Rows whose Action says Example (the template's, C15), in a sentence: left out, never imported. Empty for none. */
+export const examplesLine = (n: number): string => (n ? `${plural(n, 'example row')} left out.` : '');
+
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 const FIELD_COLUMN: Record<keyof GoalErrors, string> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan' };
 /** A required number left empty, said with its column's name (C20): the form keeps its own words beside the field. */
@@ -183,7 +186,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   let examples = 0;
   const changes: Change[] = [];
   type Extra = { column?: string; found?: string; suggest?: string; answers?: Choice[] };
-  /** A problem, a question or a note on one row: its level comes from its kind (domain/levels). */
+  /** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
   const raise = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => { issues.push(issueOf(kind, sheet, row, name, message, x)); };
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
   /** The answer given to a group, if any (rule 7). */
@@ -381,15 +384,18 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const teamName = has(r, 'team') ? ref(r, 'team') : null;
     const tm = teamName ? teamFrom('People', row, name || before?.name || '', teamName) : undefined;
     if (teamName && !tm) return;
-    const adminWord = has(r, 'admin') ? codeOf(YES_WORDS, val(r, 'admin')) : null;
+    // An empty Admin cell keeps what is there, as the field table says: only "yes" or "no" changes it.
+    const adminWord = has(r, 'admin') && val(r, 'admin') ? codeOf(YES_WORDS, val(r, 'admin')) : null;
     if (adminWord === undefined) return raise('unknown-word', 'People', row, name || before?.name || '', `Admin should be yes or no, not “${val(r, 'admin')}”.`, { column: 'Admin', found: val(r, 'admin'), answers: ANSWERS.unknownWord(Object.values(YES_WORDS.word)) });
 
     if (action === 'left') {
       if (!before) return raise('removal-refused', 'People', row, name || email, `${LEFT} needs someone already here: their email or ID.`, { column: 'Action' });
       if (!admin()) return raise('not-allowed', 'People', row, before.name, 'Only an admin can mark someone as left.', { answers: ANSWERS.leaveOnly });
-      const to = pickPerson('People', r, { email: 'takes over' }, null, 'Takes over');
+      // An email, or a name only one person has (the field table), found as an owner is: one one letter out is asked.
+      const to = pickPerson('People', r, { name: 'takes over' }, null, 'Takes over');
       if (to.left) return leave('People', row);
       if (to.problem) return raise(to.kind!, 'People', row, before.name, `Takes over: ${to.problem}`, to.extra);
+      if (to.person && to.byName) sayByName('People', row, before.name, to.byName, to.person);
       leaving.push({ person: before, row, to: to.person ?? before });
       return;
     }
@@ -437,7 +443,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       ...before, name: nextName, initials: nextName === before.name ? before.initials : initialsOf(nextName),
       role: has(r, 'job title') ? val(r, 'job title') : before.role,
       teamId: teamName == null ? before.teamId : tm?.id ?? null,
-      admin: !has(r, 'admin') ? before.admin : adminWord === 'yes',
+      admin: adminWord == null ? before.admin : adminWord === 'yes',
       // Matched by ID or name, the Email column can change their email; matched by email, it is that email.
       ...(emailSets && has(r, 'email') && email ? { email } : {}),
     };

@@ -197,3 +197,40 @@ describe('changing a goal’s owner', () => {
     expect(cs.issues[0]?.message).toBe('There’s no person with ID nobody.');
   });
 });
+
+describe('People columns do what the field table says (review of #130)', () => {
+  const admin = s.people.find((p) => p.admin && p.id !== 'amara' && p.email)!;
+  const plain = s.people.find((p) => !p.admin && p.email && !p.leftAt)!;
+
+  it('an empty Admin cell keeps what is there; yes and no change it', () => {
+    const blank = planChanges(base('amara', { people: [rec({ email: admin.email!, admin: '' })] }));
+    expect(blank.items).toEqual([]);
+    expect(blank.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    const no = planChanges(base('amara', { people: [rec({ email: admin.email!, admin: 'no' })] }));
+    expect(no.items[0]?.diffs.some((d) => d.field === 'Admin')).toBe(true);
+    const yes = planChanges(base('amara', { people: [rec({ email: plain.email!, admin: 'yes' })] }));
+    expect(yes.items).toHaveLength(1);
+    // Someone new with Admin empty is not an admin.
+    const added = planChanges(base('amara', { people: [rec({ email: 'new.person@example.com', name: 'New Person', team: 'CI/CD', admin: '' })] }));
+    expect(added.commit?.people?.find((p) => p.email === 'new.person@example.com')?.admin).toBe(false);
+  });
+
+  it('Takes over accepts an email, or a name only one person has, and asks about one one letter out', () => {
+    const leaver = s.people.find((p) => p.id !== 'amara' && !p.leftAt && s.goals.some((g) => g.ownerId === p.id))!;
+    const heir = s.people.find((p) => p.id !== leaver.id && p.id !== 'amara' && !p.leftAt && s.people.filter((q) => q.name === p.name).length === 1)!;
+    const byEmail = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': heir.email! })] }));
+    expect(byEmail.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(byEmail.items.map((x) => x.kind)).toEqual(['person left']);
+    const byName = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': heir.name })] }));
+    expect(byName.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(byName.items.map((x) => x.kind)).toEqual(['person left']);
+    expect(byName.issues.find((i) => i.kind === 'by-name')?.message).toContain(`matched by name: ${heir.name}`);
+    // One letter out is a question (IM2's near-miss rule), never "isn't an email".
+    const typo = heir.name.slice(0, -1) + (heir.name.endsWith('a') ? 'e' : 'a');
+    const near = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': typo })] }));
+    const asked = near.issues.find((i) => i.column === 'Takes over');
+    expect(asked?.kind).toBe('near-ref');
+    expect(asked?.message).toBe(`Takes over: “${typo}” isn’t here. Did you mean ${heir.name}?`);
+    expect(near.commit).toBeNull();
+  });
+});
