@@ -11274,7 +11274,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it."]
+				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown."]
 			}
 		],
 		routes: ["/workspace/new", "/ready"],
@@ -13465,6 +13465,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "cant-open-yet",
+		date: "2026-11-11",
+		title: "Plainer words when you can’t open a workspace",
+		points: ["If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.", "Nothing of the workspace shows until you can open it; ask an admin there to add you."],
+		articles: ["set-up"]
+	},
 	{
 		id: "mcp-goal-scopes",
 		date: "2026-11-11",
@@ -41989,14 +41996,14 @@ function supabaseDeps(origin, env = process.env, client) {
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
 	const db = client ?? faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
-	let seen = null;
+	const seen = /* @__PURE__ */ new Map();
 	return {
 		async findToken(hash) {
 			const { data, error } = await db.rpc("okr_token_find", { hash });
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
 			const row = (data ?? [])[0];
 			if (!row) return null;
-			seen = hash;
+			seen.set(row.id, hash);
 			return {
 				token: tokenFromRow(row),
 				workspaceId: row.workspace_id
@@ -42008,8 +42015,9 @@ function supabaseDeps(origin, env = process.env, client) {
 		},
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
-		async touch() {
-			if (seen) await db.rpc("okr_token_touch", { hash: seen });
+		async touch(id) {
+			const hash = seen.get(id);
+			if (hash) await db.rpc("okr_token_touch", { hash });
 		},
 		issueToken: (ws, c) => store.issueToken(ws, c),
 		markups: (hash) => markupOps({
