@@ -1437,7 +1437,8 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await h.inView(p.locator('.hero').first(), 'entry', 'Home’s main block');
   const home = await p.locator('main').innerText();
   const body = await p.locator('body').innerText();
-  h.set('finish', /2026 has ended/.test(body) && /2026 ended on Sun 3 Jan 2027/.test(home), `Home on 11 Jan 2027: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
+  // Home's lead is the wrap-up, which says the year has ended (home spec, 2.1, the wrap-up row: HM1).
+  h.set('finish', /2026 has ended/.test(body) && /2026 has ended/.test(home) && /Wrap up your \d+ goals/.test(home), `Home on 11 Jan 2027: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
   h.set('attention', !/check-ins? to do|days late|were due|No recent update|no recent update/.test(home), `something is still due or out of date after the year ended: “${home.replace(/\s+/g, ' ').slice(0, 220)}”`);
   await h.checkpoint('home after the end');
   // Her goals: none is out of date, and Q4 has closed on the numbers there are.
