@@ -694,14 +694,14 @@ Every goal has a short, readable key (G-1, G-2 … per workspace) that never cha
 
 One spreadsheet format: every sheet and column is defined once (src/domain/columns.ts), with its header, its meaning, whether it matches the row, can be changed or is worked out, and how it is written and read. The workbook, the zipped CSVs, one CSV, the set-up template, set-up from a spreadsheet, Import, the Data tables, the AI assistant’s tools and docs/export-format.md (checked to be current) are all made from it. Sheets are known by their header rows, never their names; CSV is read in one RFC 4180 pass (quotes, line breaks in a cell, a byte-order mark) and the formula guard’s apostrophe is taken off; worked-out columns use the vocabulary’s words and are never read; a word a column doesn’t know is a problem, never a default.
 
-- **Rule:** [The change engine](rules/change-engine.md)
+- **Rule:** [The change engine](rules/change-engine.md), [The field table](rules/field-table.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (6)
 - **Journeys and checks:** U46
 
 ### ROUND-TRIP
 
-Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says.
+Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, on any day and at any number of decimal places (a number counts as typed only when it differs from what the export wrote), a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says.
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`

@@ -1,5 +1,7 @@
-/* The spreadsheets module's Help articles (src/help/guide.ts places them after Data). */
+/* The spreadsheets module's Help articles (src/help/guide.ts places them after Data). "Every column, and what it needs"
+   shows the field table itself (domain/columns fieldTable), drawn by the Help screen under these words. */
 import type { Article } from '../../help/guide';
+import { requiredLine } from '../../domain/columns';
 
 const help: Article[] = [
   {
@@ -10,9 +12,10 @@ const help: Article[] = [
     after: 'data',
     sections: [
       { heading: 'How to use it', list: [
-        'On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the blank template to start from nothing.',
+        'On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.',
+        `What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine('goals')} A check-in, ${requiredLine('checkIns')} A person, ${requiredLine('people')}`,
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
-        'Each sheet is known by its header row, whatever the file or sheet is called. Results, Asks, Notes, Metrics and the README are for reading, and left out.',
+        'Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview counts them.',
         'Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.',
         'Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored. A word a column doesn’t know, such as a level of “vp”, is a problem to fix, never a guess.',
         'The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over, by email). The same rules as the app apply, and the preview shows what each does.',
@@ -26,7 +29,7 @@ const help: Article[] = [
     screens: ['Import'],
     reqs: ['BULK-IMPORT', 'WORKSPACES', 'HONEST-NUMBERS', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'SPREADSHEETS-ON-DATA'],
     keywords: ['import', 'upload', 'excel', 'csv', 'zip', 'spreadsheet', 'workbook', 'load', 'bulk', 'undo', 'action', 'stop', 'delete', 'left', 'email', 'round trip'],
-    related: ['export', 'data', 'keys', 'removing'],
+    related: ['columns', 'export', 'data', 'keys', 'removing'],
   },
   {
     id: 'export',
@@ -37,8 +40,9 @@ const help: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).',
-        'On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template, every sheet with its headers and no rows.',
-        'Excel workbook, the usual choice: every sheet, Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks and Notes, and a README that explains each column. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.',
+        'On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.',
+        'Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.',
+        'The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.',
         'CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.',
         'One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.',
         'JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.',
@@ -50,7 +54,30 @@ const help: Article[] = [
     screens: ['Export', 'DataMenu'],
     reqs: ['EXPORT', 'SHARED-DOWNLOADS', 'ONE-FORMAT'],
     keywords: ['export', 'download', 'excel', 'xlsx', 'csv', 'zip', 'json', 'markdown', 'brief', 'ai chat', 'results', 'year end', 'format', 'template', 'blank'],
-    related: ['import', 'print', 'data'],
+    related: ['import', 'columns', 'print', 'data'],
+  },
+  {
+    id: 'columns',
+    title: 'Every column, and what it needs',
+    summary: 'For every column of Goals, Plan, Check-ins and People: whether a new row must have it, its format, an example, and what happens when it’s left empty.',
+    group: 'data',
+    after: 'export',
+    sections: [
+      { heading: 'What it’s for', text: ['The same table is the first sheet of the template and of every workbook, Start here, and docs/export-format.md is made from it too, so none of them can disagree.'] },
+      { heading: 'What the words mean', list: [
+        'Required: a new row can’t be saved without it. Owner or Owner email: one of the two is enough.',
+        'Required for a number goal (or a range or stages goal): required when the goal is of that type, such as Target for a number goal. Required when…: in that situation only, such as Cause when a check-in is behind plan.',
+        'Optional: it can be left out; the table says what an empty cell gives.',
+        'Leave empty: Faro fills it in, such as a new goal’s Key.',
+        'Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.',
+        'On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['FIELD-TABLE', 'ONE-FORMAT'],
+    keywords: ['columns', 'required', 'optional', 'format', 'example', 'template', 'start here', 'field', 'headers', 'empty', 'what a new row needs'],
+    related: ['import', 'export'],
   },
 ];
 

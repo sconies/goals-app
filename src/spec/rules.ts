@@ -19,8 +19,9 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
-import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
+import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
+import { emptyText, fieldTable, FILL_SHEETS, requiredLine, requiredText, requiredWord, specOf } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
@@ -72,6 +73,20 @@ export interface Rule {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** The field table of every sheet that loads back, as the rule page shows it. */
+function fieldTableMarkdown(): string {
+  const cellOf = (v: string) => v.replace(/\|/g, '\\|');
+  return FILL_SHEETS.map((k) => {
+    const t = fieldTable(k);
+    const line = k === 'plan' ? '' : `. A new row needs: ${requiredLine(k)}`;
+    return [
+      `**${specOf(k).name}**${line}`, '',
+      '| Column | A new row | Format | Example | If it’s left empty |', '|---|---|---|---|---|',
+      ...t.filter((c) => c.required != null).map((c) => `| ${c.header} | ${cellOf(requiredText(c, t))} | ${cellOf(c.format)} | ${cellOf(c.example)} | ${cellOf(emptyText(c))} |`),
+      '', `Worked out: ${t.filter((c) => c.required == null).map((c) => c.header).join(', ') || 'none'}.`,
+    ].join('\n');
+  }).join('\n\n');
+}
 const g3075 = metric(30, 75);
 const ci = checkIn;
 const D = (d: Partial<Draft>): Draft => ({ ...emptyDraft(g3075, null), ...d });
@@ -593,23 +608,46 @@ For a range, better means further from the limit on its safe side.
     id: 'change-engine',
     title: 'The change engine',
     summary: 'The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.',
-    code: [{ file: 'src/domain/changeset.ts', names: ['planChanges', 'records', 'describe'] }, { file: 'src/domain/columns.ts', names: ['sheetKindOf'] }, { file: 'src/domain/commit.ts', names: ['Commit'] }],
+    code: [{ file: 'src/domain/changeset.ts', names: ['planChanges', 'records', 'describe'] }, { file: 'src/domain/columns.ts', names: ['sheetKindOf'] }, { file: 'src/domain/numbers.ts', names: ['sameAsWritten'] }, { file: 'src/domain/commit.ts', names: ['Commit'] }],
     tests: ['src/domain/changeset.test.ts', 'src/domain/roundtrip.test.ts', 'src/domain/removal.test.ts'],
     reqs: ['BULK-IMPORT', 'BULK-EDIT', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'IMPORT-UNDO', 'DATA-TABLES'],
     body: `
 \`planChanges(input)\` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
 
-**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from \`src/domain/columns.ts\`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
+**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from \`src/domain/columns.ts\`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't \`sameAsWritten\`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.`,
     examples: [
+      { given: 'A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12.', then: 'no change / a change', run: () => `${sameAsWritten('0.13', 0.125, 2) ? 'no change' : 'a change'} / ${sameAsWritten('0.12', 0.125, 2) ? 'no change' : 'a change'}` },
       { given: 'In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason.', then: 'needs a reason; nothing to save', run: () => { const cs = change('tariq', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }); return `${cs.needsReason ? 'needs a reason' : 'no reason needed'}; ${cs.commit ? 'ready to save' : 'nothing to save'}`; } },
       { given: 'The same change by Mateo, who neither owns it nor is an admin.', then: 'error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.', run: () => issues(change('mateo', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }, { reason: 'x' })) },
       { given: 'Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins.', then: 'the first problem says: Week 4 needs a Cause and a Why', run: () => { const s = demo!; const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') }; const m = change('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }).issues[0]?.message ?? ''; return `the first problem says: ${/Week 4 needs a Cause and a Why/.exec(m)?.[0] ?? m}`; } },
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
+  },
+  /* ---------- the field table (backlog IM1) ---------- */
+  {
+    id: 'field-table',
+    title: 'The field table',
+    summary: 'For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import.',
+    code: [{ file: 'src/domain/columns.ts', names: ['fieldTable', 'requiredWord', 'requiredText', 'requiredLine', 'emptyText', 'EXAMPLE_ROWS'] }, { file: 'src/domain/export.ts', names: ['startHere', 'templateWorkbook'] }],
+    tests: ['src/domain/fieldTable.test.ts'],
+    reqs: ['FIELD-TABLE', 'ONE-FORMAT'],
+    body: `
+\`fieldTable(sheet)\` gives, for every column of a sheet that loads back (Goals, Plan, Check-ins, People), whether a **new row** must have it, its **format**, an **example**, what an **empty cell** does, and what it means. A column is one of: **Required**; **Required for** a type of goal (Target for a number goal), or **Required when** something holds (Cause when a check-in is behind); **Optional**, with what an empty cell gives; **Leave empty** (Faro fills it in, such as a new goal's Key); **For reading**; or **Worked out** (never read). Columns of which one is enough share a group (Owner or Owner email). On a row already here nothing is required: an empty cell keeps what the record says, except where a column says empty clears it.
+
+The workbook's first sheet, **Start here**, is this table (with a "File of" row giving the workspace's and cycle's ids); the **template** is Start here and the four sheets with only the columns a person fills in, the required headers in bold, and example rows whose Action says **Example**, which the change engine leaves out and counts. A sheet named README (the old first sheet) or Start here is skipped on the way back in.
+
+${fieldTableMarkdown()}`,
+    examples: [
+      { given: 'The Goals columns a new row must have, alone or as one of a pair.', then: 'Goal, Owner, Owner email', run: () => fieldTable('goals').filter((c) => c.required === 'required').map((c) => c.header).join(', ') },
+      { given: 'The words for “required for a number goal” and for an optional column.', then: 'Required for a number goal / Optional', run: () => `${requiredWord({ for: ['metric'] })} / ${requiredWord({ optional: 'team' })}` },
+      { given: 'What a new goal, check-in and person must have.', then: 'Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. | Goal key (or Goal), Week, and Value or Stages. | Name and Email.', run: () => (['goals', 'checkIns', 'people'] as const).map((k) => requiredLine(k)).join(' | ') },
+      { given: 'A Goals row whose Action says Example, with an owner nobody here has.', then: '0 changes, 1 example row left out, 0 problems', run: () => { const cs = change('amara', { goals: [rec({ Goal: 'X', Action: 'Example', Owner: 'Nobody here' })] }); return `${cs.items.length} changes, ${cs.examples} example row left out, ${cs.issues.length} problems`; } },
+    ],
+    unclear: ['It says what Faro does today. The import design (docs/design/import/spec.md, section 3) changes a few defaults in later items (a Type read from which columns are filled; no unit and no margin by default; a Check for many of today’s refusals): those rows change with the rule that changes.'],
   },
   /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
   {

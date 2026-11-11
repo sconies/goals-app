@@ -32,7 +32,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - run: npm run typecheck
       - name: "Layers: src/domain has no database, screen or network code, and the core imports no module"
         run: npm run lint:layers
@@ -94,7 +95,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       # The build leaves the module out (and whatever needs it); the smoke gate leaves out its journeys and checks.
       - name: Build without ${{ matrix.module }}, and run the spec scenarios, core journeys and design rules
         run: npm run evals:smoke
@@ -124,7 +126,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - name: Build this branch and the base branch
         run: |
           npx vite build --logLevel warn
@@ -162,7 +165,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - name: Shard ${{ matrix.shard }} of 4
         run: node evals/run.mjs --shard ${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
