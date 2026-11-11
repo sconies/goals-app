@@ -3694,9 +3694,8 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.getByRole('button', { name: 'Undo' }).last().click();
   await see(p, 'Spreadsheets is back on.');
   if (!(await box.isChecked())) fail('Undo said Spreadsheets is back on and left it off');
-  await p.getByRole('link', { name: 'Goals' }).first().click();
-  await p.locator('.goals-toolbar, .goals-phonebar').filter({ visible: true }).first().waitFor();
-  if (!(await p.getByRole('button', { name: 'Export these goals' }).count())) fail('after Undo, Goals has no export: Spreadsheets did not come back');
+  await p.goto(url('/data'));
+  await p.locator('.data-export > summary').waitFor({ timeout: 10000 }).catch(() => fail('after Undo, Data has no Spreadsheets menu: Spreadsheets did not come back'));
   if ((await h.snapshot()).changes.filter((c) => c.entity === 'workspace' && c.summary === 'Switched on Spreadsheets').length < 2) fail('the Undo was not saved and logged as switching Spreadsheets on');
   h.set('progress', true);
   h.set('errors', true);
@@ -4116,7 +4115,8 @@ const settled = (r) => r.waitForFunction(() => {
 /** A page whose goto and reload wait until it has settled, for the checks that go from page to page and then measure. */
 function steady(r) {
   const goto = r.goto.bind(r), reload = r.reload.bind(r);
-  r.goto = async (...a) => { const res = await goto(...a); await settled(r); return res; };
+  // A goto that asks only for the first bytes (waitUntil 'commit') wants the page before the app: leave it there.
+  r.goto = async (...a) => { const res = await goto(...a); if (a[1]?.waitUntil !== 'commit') await settled(r); return res; };
   r.reload = async (...a) => { const res = await reload(...a); await settled(r); return res; };
   return r;
 }
