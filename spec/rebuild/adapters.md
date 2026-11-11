@@ -39,6 +39,39 @@ For a team that copies Faro’s code rather than rebuilding it from this kit: ev
 - **Sign-in:** an `Identity` whose `current(workspaceId)` answers, asynchronously, with the person in that workspace whose email the sign-in gives (or null), and which has no `choose`: `src/adapters/signIn.ts` is the shape, and passes `identityContract`. Pass it to the app beside the store (`src/main.tsx`); nothing in the core changes. Outside the demo the app never acts as a stand-in: nobody signed in, or a sign-in that matches no one, can look but can’t save anything, and is told to ask an admin. Who may change what is still the server’s to enforce ([R1](../requirements/internal/r1-sign-in-and-access.md)).
 - **Numbers:** a `NumberSource` per system your metrics name as their source (a warehouse, a dashboard’s API). A metric’s `source` says which.
 
+## What Faro keeps in the browser
+
+Records go through the goals store; a few small things a person chose or was doing are kept in the browser instead. Behind the `Prefs` port (`src/ports/prefs.ts`, kept by `browserPrefs` in `src/adapters/local.ts`) today: what was opened lately, the Goals scope used last, and when each goal was last looked at. These files still reach the browser’s storage directly, from the layers lint’s shrinking list (`scripts/browser-storage.json`, rule 7: no new file may), with where the internal app should keep each. “Server” means it should follow the person between devices, so it moves behind `Prefs` or the goals store; “this browser” means it is about one tab or device and stays.
+
+| File | What it keeps | In the internal app |
+|---|---|---|
+| `src/app/appearance.ts` | Appearance: theme, accent, sidebar, motion, sound and story mode | Server: a person’s preference, on every device |
+| `src/app/demoBrowser.ts` | Nothing of its own: clears the demo’s keys when the demo is reset | Not needed: the demo only |
+| `src/app/drafts.ts` | Unsent check-in and form drafts | Server: a draft follows the person from laptop to phone |
+| `src/app/research.ts` | A research session in progress and its notes | Not needed: Faro’s own research sessions |
+| `src/app/state.tsx` | The workspace opened last | Server: a person’s preference |
+| `src/app/tours.ts` | A guided tour in progress (this tab) | This browser |
+| `src/data/store.ts` | The browser store itself (the demo’s records and saves) and the demo’s workspace | Server: the goals store (the browser store is the demo’s adapter) |
+| `src/help/seen.ts` | The last What’s new entry the person has seen | Server: a person’s preference |
+| `src/markup/backend.ts` | The markups this person sent, and, with no database, markups and their pictures (IndexedDB) | Server: the markup store and its files |
+| `src/markup/feedback.ts` | Feedback triage kept in this browser when there is no database | Server: the feedback store |
+| `src/screens/CheckInFlow.tsx` | The check-in queue for the week (this tab) and the step a check-in reached | Server for the step (it is part of a draft); the queue stays in this browser |
+| `src/screens/DataLayout.tsx` | Each table’s columns and layout on Data | Server: a person’s preference |
+| `src/screens/GoalMap.tsx` | Where goals were moved on the Map, and its only-in-trouble switch | Server: a person’s preference |
+| `src/screens/GoalViews.tsx` | The Goals list’s layout | Server: a person’s preference |
+| `src/screens/Inspect.tsx` | The order of a review’s goals (this tab) | This browser |
+| `src/screens/QuickCheckIn.tsx` | Nothing of its own: clears a check-in’s step once it is saved | Server, with the step (see CheckInFlow) |
+| `src/telemetry/ids.ts` | The telemetry session id (this tab) | This browser |
+| `src/telemetry/staleCode.ts` | That the page has already reloaded once for new code (this tab) | This browser |
+| `src/ui/BackLink.tsx` | The trail of pages for Back (this tab) | This browser |
+| `src/ui/Demo.tsx` | Who the demo is viewed as | Not needed: sign-in says who it is (R1) |
+| `src/ui/ResearchBar.tsx` | Research tasks skipped (this tab) | Not needed: Faro’s own research sessions |
+| `src/ui/Shell.tsx` | Presenting mode on or off (this tab) | This browser |
+| `src/ui/Splash.tsx` | That the opening splash has been shown (this tab) | This browser |
+| `src/ui/WorkspaceSwitch.tsx` | Nothing of its own: looks for unsent drafts before switching | Server, with the drafts |
+
+72 uses in 24 files. The time is a port too: every record’s stamp comes from the `Clock` the app is given (`src/app/state.tsx`), never the browser’s own.
+
 ## Exit criteria
 
 1. Each adapter you wrote passes its part’s contract.

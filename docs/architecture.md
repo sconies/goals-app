@@ -87,6 +87,7 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
   - nothing outside `src/modules` imports a module;
   - a module imports another only if it lists it in `needs`;
   - only `src/adapters/supabase/` imports Supabase (8c).
+  - browser storage (`localStorage`, `sessionStorage`, `indexedDB`) only in `src/adapters` and `src/ports`, apart from the shrinking list in `scripts/browser-storage.json` (AX9; shown in `spec/rebuild/adapters.md`).
 - **The manifest test** (`src/core/module.test.ts`) checks each module.json against its code: routes, places, help, tools, requirements, journeys and migrations.
 - **The spec** (`spec/`, `llms.txt`; `npm run spec`, items 8a and 8b) is generated from the code: `spec/core/` for the core, `spec/modules/<id>/` from each module.json, and `spec/conformance/` with what the rules give for every goal in every week of the demo. `src/spec/spec.test.ts` and CI's spec step fail when it is out of date; `src/spec/conformance.test.ts` recomputes the conformance rows.
 - **CI's "Core journeys without <module>" job** builds Faro with `FARO_WITHOUT=<module>` (that module, and anything that needs it, left out of the bundle). It then runs the smoke gate without the module's journeys. It runs for every folder in `src/modules`.

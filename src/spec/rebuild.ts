@@ -287,7 +287,7 @@ const PARTS: [string, string, string, string][] = [
   ['The AI tools’ endpoint', '`Deps` (`server/mcp.ts`)', '`depsContract` (`src/ports/contracts/deps.ts`)', 'Supabase (`src/adapters/supabase/server.ts`), plain Postgres (`src/adapters/postgres/server.ts`), any goals store (`src/adapters/storeDeps.ts`, for a demo or a test)'],
 ];
 
-const adapters = () => GENERATED + [
+const adapters = (browser: Record<string, BrowserState>) => GENERATED + [
   '# Swap the outside parts (copy and adapt)',
   '',
   'For a team that copies Faro’s code rather than rebuilding it from this kit: every part of the outside world Faro touches (its database, who is signed in, the time, files, where a metric’s numbers come from) sits behind one interface in `src/ports/`, with a contract test any replacement must pass. Moving Faro onto your platform is writing one adapter per part you swap, until its contract passes. Supabase is imported only by its own adapters, `src/adapters/supabase/`, and the layers lint (`npm run lint:layers`, rule 4) keeps it so.',
@@ -315,6 +315,14 @@ const adapters = () => GENERATED + [
   '- **The database, if you keep Postgres without Supabase:** run `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase’s roles and its storage and auth schemas), then every migration in `supabase/migrations` in order (from 0035 Faro’s tables and functions live in their own schema, `faro`: connect with `search_path` set to `faro`, or as a role whose default it is; a migration after 0036 writes its grants out, since Supabase’s defaults don’t apply there, makes no redirect in `public`, and reaches nothing outside `faro`: `supabase/README.md`), then use `PostgresStore` (and `postgresDeps` for the AI tools’ endpoint) with node-postgres or any driver with a `query(text, params)` method. What the migrations add up to is [one file to read](../core/schema.sql), and who may do what today is [access today](access-today.md): all of it the demo’s, to replace. The database’s functions (`okr_commit` and the rest) only check that rows belong to the workspace and that goal and review versions haven’t moved; every other rule, the actor, the time and the change-log entry come from the caller today (`src/domain/actions` run in the browser). A company-scale rebuild moves those actions to the server (R1, R4), so read them before you build on this port: [the ports at company scale](ports-at-scale.md) sketches the route.',
   '- **Sign-in:** an `Identity` whose `current(workspaceId)` answers, asynchronously, with the person in that workspace whose email the sign-in gives (or null), and which has no `choose`: `src/adapters/signIn.ts` is the shape, and passes `identityContract`. Pass it to the app beside the store (`src/main.tsx`); nothing in the core changes. Outside the demo the app never acts as a stand-in: nobody signed in, or a sign-in that matches no one, can look but can’t save anything, and is told to ask an admin. Who may change what is still the server’s to enforce ([R1](../requirements/internal/r1-sign-in-and-access.md)).',
   '- **Numbers:** a `NumberSource` per system your metrics name as their source (a warehouse, a dashboard’s API). A metric’s `source` says which.',
+  '',
+  '## What Faro keeps in the browser',
+  '',
+  'Records go through the goals store; a few small things a person chose or was doing are kept in the browser instead. Behind the `Prefs` port (`src/ports/prefs.ts`, kept by `browserPrefs` in `src/adapters/local.ts`) today: what was opened lately, the Goals scope used last, and when each goal was last looked at. These files still reach the browser’s storage directly, from the layers lint’s shrinking list (`scripts/browser-storage.json`, rule 7: no new file may), with where the internal app should keep each. “Server” means it should follow the person between devices, so it moves behind `Prefs` or the goals store; “this browser” means it is about one tab or device and stays.',
+  '',
+  table(['File', 'What it keeps', 'In the internal app'], Object.entries(browser).map(([f, x]) => [`\`${f}\``, cell(x.keeps), cell(x.server)])),
+  '',
+  `${Object.values(browser).reduce((a, x) => a + x.uses, 0)} uses in ${Object.keys(browser).length} files. The time is a port too: every record’s stamp comes from the \`Clock\` the app is given (\`src/app/state.tsx\`), never the browser’s own.`,
   '',
   '## Exit criteria',
   '',
@@ -456,14 +464,17 @@ const portsAtScale = () => GENERATED + [
 ].join('\n');
 
 /** Every file under spec/rebuild/, by path from the repository root. `harness` is scripts/drill.mjs's text. */
-export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string): Record<string, string> {
+/** One file's entry in scripts/browser-storage.json: what it keeps in the browser and where the internal app keeps it. */
+export interface BrowserState { uses: number; keeps: string; server: string }
+
+export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
   const all = stages(mods);
   const out: Record<string, string> = {
     'spec/rebuild/README.md': guide(all, rows),
     'spec/rebuild/stage-1-core-rules.md': stage1(rows),
     'spec/rebuild/stage-2-core-data.md': stage2(),
     'spec/rebuild/stage-3-core-screens.md': stage3(),
-    'spec/rebuild/adapters.md': adapters(),
+    'spec/rebuild/adapters.md': adapters(browser),
     'spec/rebuild/ports-at-scale.md': portsAtScale(),
     'spec/rebuild/drill.mjs': '// Generated by npm run spec from scripts/drill.mjs. Edit that file, not this copy.\n' + harness,
   };

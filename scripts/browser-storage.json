@@ -1,0 +1,29 @@
+{
+  "about": "The files outside src/adapters and src/ports that use browser storage (localStorage, sessionStorage, indexedDB) today, how many times, what they keep and where the internal app keeps it. The layers lint (rule 7, AX9) fails any other file that does, and any of these that does it more; take a file off when it moves behind a port (Prefs, src/ports/prefs.ts, as src/app/goalSeen.ts did). spec/rebuild/adapters.md shows this list as a table. Count: 72 uses in 24 files on 11 Nov 2026.",
+  "files": {
+    "src/app/appearance.ts": { "uses": 3, "keeps": "Appearance: theme, accent, sidebar, motion, sound and story mode", "server": "Server: a person’s preference, on every device" },
+    "src/app/demoBrowser.ts": { "uses": 4, "keeps": "Nothing of its own: clears the demo’s keys when the demo is reset", "server": "Not needed: the demo only" },
+    "src/app/drafts.ts": { "uses": 4, "keeps": "Unsent check-in and form drafts", "server": "Server: a draft follows the person from laptop to phone" },
+    "src/app/research.ts": { "uses": 10, "keeps": "A research session in progress and its notes", "server": "Not needed: Faro’s own research sessions" },
+    "src/app/state.tsx": { "uses": 2, "keeps": "The workspace opened last", "server": "Server: a person’s preference" },
+    "src/app/tours.ts": { "uses": 3, "keeps": "A guided tour in progress (this tab)", "server": "This browser" },
+    "src/data/store.ts": { "uses": 2, "keeps": "The browser store itself (the demo’s records and saves) and the demo’s workspace", "server": "Server: the goals store (the browser store is the demo’s adapter)" },
+    "src/help/seen.ts": { "uses": 2, "keeps": "The last What’s new entry the person has seen", "server": "Server: a person’s preference" },
+    "src/markup/backend.ts": { "uses": 3, "keeps": "The markups this person sent, and, with no database, markups and their pictures (IndexedDB)", "server": "Server: the markup store and its files" },
+    "src/markup/feedback.ts": { "uses": 2, "keeps": "Feedback triage kept in this browser when there is no database", "server": "Server: the feedback store" },
+    "src/screens/CheckInFlow.tsx": { "uses": 6, "keeps": "The check-in queue for the week (this tab) and the step a check-in reached", "server": "Server for the step (it is part of a draft); the queue stays in this browser" },
+    "src/screens/DataLayout.tsx": { "uses": 4, "keeps": "Each table’s columns and layout on Data", "server": "Server: a person’s preference" },
+    "src/screens/GoalMap.tsx": { "uses": 4, "keeps": "Where goals were moved on the Map, and its only-in-trouble switch", "server": "Server: a person’s preference" },
+    "src/screens/GoalViews.tsx": { "uses": 4, "keeps": "The Goals list’s layout", "server": "Server: a person’s preference" },
+    "src/screens/Inspect.tsx": { "uses": 2, "keeps": "The order of a review’s goals (this tab)", "server": "This browser" },
+    "src/screens/QuickCheckIn.tsx": { "uses": 2, "keeps": "Nothing of its own: clears a check-in’s step once it is saved", "server": "Server, with the step (see CheckInFlow)" },
+    "src/telemetry/ids.ts": { "uses": 2, "keeps": "The telemetry session id (this tab)", "server": "This browser" },
+    "src/telemetry/staleCode.ts": { "uses": 1, "keeps": "That the page has already reloaded once for new code (this tab)", "server": "This browser" },
+    "src/ui/BackLink.tsx": { "uses": 2, "keeps": "The trail of pages for Back (this tab)", "server": "This browser" },
+    "src/ui/Demo.tsx": { "uses": 1, "keeps": "Who the demo is viewed as", "server": "Not needed: sign-in says who it is (R1)" },
+    "src/ui/ResearchBar.tsx": { "uses": 3, "keeps": "Research tasks skipped (this tab)", "server": "Not needed: Faro’s own research sessions" },
+    "src/ui/Shell.tsx": { "uses": 3, "keeps": "Presenting mode on or off (this tab)", "server": "This browser" },
+    "src/ui/Splash.tsx": { "uses": 1, "keeps": "That the opening splash has been shown (this tab)", "server": "This browser" },
+    "src/ui/WorkspaceSwitch.tsx": { "uses": 2, "keeps": "Nothing of its own: looks for unsent drafts before switching", "server": "Server, with the drafts" }
+  }
+}
