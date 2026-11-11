@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
     id: 'carry-right',
     date: '2026-11-11',
     title: 'Goals carry on with their history',

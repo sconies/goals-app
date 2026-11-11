@@ -56,6 +56,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - starting and undoing (rules 6 and 9) › prepares 2027 on 21 December; everyone stays in 2026; a second start is refused
 - starting and undoing (rules 6 and 9) › can be undone until someone uses it, and puts 2026 back as it was
 - starting and undoing (rules 6 and 9) › can’t be undone once someone checks in or changes a goal in it
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › on 11 Jan 2027, with 2027 current, the page is 2026’s and a 2026 goal’s wrap-up saves, in 2026
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › after 2026’s wrap-up closes, the page is 2027’s and a 2026 wrap-up is refused
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › before a year’s first week, the period says when it starts, never week 0
 - the start page (2.4) › says when it can be started before the wrap-up opens, and nothing else
 - the start page (2.4) › reads back four counts and what 2027 starts with
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › starts a number goal from its final number in week 1, due at the end of the new year; spreads stages over it; keeps a long plan

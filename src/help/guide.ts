@@ -675,7 +675,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
-        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
         'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',

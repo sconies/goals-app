@@ -1367,7 +1367,7 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await h.checkpoint('posted');
 });
 
-journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
+journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
   const p = h.use(await newPage(device, 'rhea'));
@@ -1416,6 +1416,20 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await see(p, 'The wrap-up closed on Sun 31 Jan 2027');
   const fromRetro = await p.getByRole('link', { name: 'Start 2027' }).count();
   h.set('finish', late > 0 && fromRetro > 0, `after the wrap-up closed, Start 2027 was on Cycles ${late} time(s) and on the wrap-up ${fromRetro}`);
+  // Started on 11 Jan 2027, 2027 is current at once and 2026's wrap-up stays open until 31 Jan (rule 3; build review of #133, high).
+  await p.goto(on('2027-01-11', '/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await p.getByRole('list', { name: 'Cycles' }).waitFor();
+  await p.goto(on('2027-01-11', '/retro'));
+  await see(p, '2026 ended on Sun 3 Jan 2027');
+  const wrapRows = await p.locator('.retro-row').count();
+  await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
+  await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
+  await h.click(p.getByRole('button', { name: /Save/ }));
+  await p.waitForURL(/\/retro/);
+  const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
+  const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
+  h.set('finish', wrapRows > 0 && saved && cyclesAfter > 0, `with 2027 current on 11 Jan, 2026’s wrap-up showed ${wrapRows} goals, saving said “Wrapped up” ${saved}, and Cycles offered 2026’s wrap-up ${cyclesAfter} time(s)`);
   h.set('logged', true);
   await p.context().close();
 }, ['budget']);
