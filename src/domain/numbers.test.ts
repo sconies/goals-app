@@ -112,7 +112,7 @@ describe('plausibility: asked, never refused', () => {
     const g = { ...whole, unit: '%', decimals: 0, plan: { ...whole.plan, start: 30, target: 75 } } as MetricGoal;
     expect(farOutside(400, 30, 75)).toBe(true);
     expect(farOutside(110, 30, 75)).toBe(false);
-    expect(valueProblem('99', null, 'tickets', { ...g, unit: 'tickets', plan: { ...g.plan, start: 3, target: 9 } })).toEqual({ block: false, text: 'That’s far outside this goal’s plan (3 to 9 tickets). Is 99 right?' });
+    expect(valueProblem('99', null, 'tickets', { ...g, unit: 'tickets', plan: { ...g.plan, start: 3, target: 9 } })).toEqual({ block: false, text: 'That’s far outside this goal’s plan (3 to 9 tickets). Is 99 right?', id: 'far-outside-plan' });
   });
 
   it('asks about a set-up number below zero for a time, money or percentage, a target a hundred times the start, or a billion', () => {

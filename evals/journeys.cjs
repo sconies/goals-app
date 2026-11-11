@@ -1311,6 +1311,40 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   await p.context().close();
 }, ['budget']);
 
+journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const last = s0.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week < NOW && c.value != null).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt)).pop();
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(last.value * 10));
+  // The question is a Check block: the word, the question and two plain buttons. No status shape in it.
+  const check = p.locator('.level-check');
+  await check.waitFor();
+  const q = await check.innerText();
+  h.set('attention', /Check/.test(q) && /right\?/.test(q), `the question read “${q.replace(/\s+/g, ' ')}”`);
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Answer the question above first.', 'Continue with a question open says why it does nothing');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.length === s0.checkIns.length, 'something posted with the question unanswered');
+  await h.checkpoint('asked');
+  // "Change the number" goes back to the field; the right number posts, with no question.
+  await h.click(p.getByRole('button', { name: 'Change the number' }));
+  const focused = await field.evaluate((el) => el === document.activeElement);
+  h.set('progress', focused, 'Change the number did not put the cursor back in the field');
+  const right = String(Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW)));
+  await h.fill(field, right);
+  if (await check.count()) fail('the question stayed after the number was corrected');
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s2 = await h.snapshot();
+  const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  await h.checkpoint('posted');
+});
+
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).

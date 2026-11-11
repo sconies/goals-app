@@ -40,6 +40,8 @@ export interface Draft {
   carried?: CarriedStory | null;
   /** The owner said the carried words are still true this week. */
   stillTrue?: boolean;
+  /** Questions answered yes (rule 2), each with the value it was answered for. */
+  answers?: Answers;
 }
 
 /** Last check-in's account, as copied into a new draft. */
@@ -97,8 +99,11 @@ export { isCount, isShare } from './plan';
 /** The places to show a number at: its goal's, or as many as it has when there's no goal. */
 const decimalsOf = (goal: Goal | undefined, n: number) => (goal && goal.kind !== 'milestone' ? goal.decimals : (String(n).split('.')[1] ?? '').length);
 
+/** The questions `valueProblem` can ask of a usable number, by id (check-in spec, rule 2). */
+export type NumberCheckId = 'over-100' | 'far-outside-plan' | 'past-target' | 'far-from-last';
+
 /** Why a typed value can't be used, or a check worth making before posting it. */
-export function valueProblem(raw: string, last: number | null, unit: string, goal?: Goal): { block: boolean; text: string } | null {
+export function valueProblem(raw: string, last: number | null, unit: string, goal?: Goal): { block: boolean; text: string; id?: NumberCheckId } | null {
   if (!raw.trim()) return { block: true, text: 'Type this week’s number.' };
   const n = parseNumber(raw);
   if (n == null) return { block: true, text: notNumberText(raw, goal && goal.kind !== 'milestone' ? goal.decimals : undefined) };
@@ -109,17 +114,17 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
   if (n < 0 && isCount(goal)) return { block: true, text: `It can’t be below zero${unit ? ' ' + unit : ''}: this goal counts things.` };
   if (unit === '%' && n > 100) {
     // A share of something (coverage, adoption) can't pass 100%. A goal planned beyond 100% (growth, say) can.
-    return isShare(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?' };
+    return isShare(goal) ? { block: true, text: 'It can’t be over 100%: this goal measures a share of something.' } : { block: false, text: 'That’s over 100%. Is that right?', id: 'over-100' };
   }
   if (goal?.kind === 'metric' && farOutside(n, goal.plan.start, goal.plan.target)) {
     const d = goal.decimals, u = unit === '%' ? '%' : unit ? ' ' + unit : '';
-    return { block: false, text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?` };
+    return { block: false, text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`, id: 'far-outside-plan' };
   }
   // Past a count's target ("41" for the top 40 service pairs) is worth a question: the target is often all there is.
   if (goal?.kind === 'metric' && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) {
-    return { block: false, text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? ' ' + unit : ''}. Is ${fixed(n, 0)} right?` };
+    return { block: false, text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? ' ' + unit : ''}. Is ${fixed(n, 0)} right?`, id: 'past-target' };
   }
-  if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?` };
+  if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return { block: false, text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`, id: 'far-from-last' };
   return null;
 }
 
@@ -283,3 +288,58 @@ export function rebase(goal: Goal, value: number, week: number): Goal {
 
 /** The words logged with a re-based plan: it needs no reason, since no check-in had started. */
 export const rebaseWhy = (value: string, start: string) => `Started the plan from ${value} at the first check-in (was ${start})`;
+
+/* ---------- the levels in a check-in (check-in spec, rules 2 and 3; CK2) ---------- */
+
+/** What a check-in asks before it posts: a number that looks wrong, or the same number as last week. */
+export type CheckId = NumberCheckId | 'same-as-last';
+/** A question that must be answered before the check-in posts. `key` is the value it is about: a changed value asks again. */
+export interface Check { id: CheckId; field: 'value'; question: string; yes: string; no: string; key: string }
+/** Something that must be fixed before the check-in posts: the field and what it says. */
+export interface MustFix { field: string; says: string }
+/** The answers given, by Check id: the key each was given for. */
+export type Answers = Partial<Record<CheckId, string>>;
+
+/**
+ * Rule 2. What must be fixed and what must be answered before a check-in for `week` posts, in the order the screen asks.
+ * Only the first number question that applies is asked (in `valueProblem`'s order); "the same as last week" is asked of a
+ * number goal not yet at its target, never of a number kept in a range. A carried story still true is `evaluate`'s.
+ */
+export function checkInLevels(goal: Goal, week: number, draft: Draft, own: CheckIn[]): { mustFix: MustFix[]; checks: Check[] } {
+  if (goal.kind === 'milestone') return { mustFix: [], checks: [] };
+  const mustFix: MustFix[] = [];
+  const checks: Check[] = [];
+  const last = previousFor(own, week).number;
+  const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
+  const n = parseNumber(draft.value);
+  const u = (v: number) => fixed(v, goal.decimals) + (goal.unit === '%' ? '%' : goal.unit ? ' ' + goal.unit : '');
+  if (p?.block) mustFix.push({ field: 'This week’s number', says: p.text });
+  else if (p && n != null) {
+    const question = p.id === 'far-from-last' && last ? `Week ${last.week} was ${u(last.value!)}. Is ${u(n)} right?` : p.text;
+    checks.push({ id: p.id ?? 'far-from-last', field: 'value', question, yes: `Yes, ${u(n)} is right`, no: 'Change the number', key: String(n) });
+  } else if (n != null && last?.value === n && goal.kind === 'metric' && !reached(goal, n)) {
+    checks.push({ id: 'same-as-last', field: 'value', question: `The same as week ${last.week}: ${u(n)}. Did you measure it again this week?`, yes: 'Yes, measured again', no: 'No new number this week', key: String(n) });
+  }
+  return { mustFix, checks };
+}
+
+/** Whether a number goal has reached its target with this number (the same number then is expected). */
+const reached = (goal: Goal, n: number) => goal.kind === 'metric' && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
+
+/** The Checks not yet answered for the value they are about. */
+export const unanswered = (checks: Check[], answers: Answers | undefined): Check[] => checks.filter((c) => answers?.[c.id] !== c.key);
+
+/** Rule 3. Whether the step's button acts, and if not, the line under it. */
+export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; says: string } {
+  if (mustFix.length) {
+    const f = mustFix.map((m) => m.field);
+    const named = f.length <= 2 ? f.join(' and ') : `${f.slice(0, 2).join(', ')} and ${f.length - 2} more`;
+    return { go: false, says: `${f.length === 1 ? '1 thing' : `${f.length} things`} to fix above: ${named}.` };
+  }
+  if (open.length) return { go: false, says: 'Answer the question above first.' };
+  return { go: true, says: '' };
+}
+
+/** The answers given, as History keeps them: one `Asked` difference per question answered yes. */
+export const answeredDiffs = (checks: Check[], answers: Answers | undefined) =>
+  checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({ field: 'Asked', from: c.question, to: c.yes }));
