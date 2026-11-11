@@ -335,7 +335,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
       // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
       const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, null);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, existing ? 'again' : 'new');
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -439,7 +439,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {
             // A problem with the number goes 8px under the field; last week's number and "Measured again" stay put.
-            const pr = numberCheck(goal, draft.value, app.snapshot.checkIns);
+            const pr = numberCheck(goal, draft.value, app.snapshot.checkIns, week);
             const shown = pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null)) ? pr : null;
             const empty = !shown && tried && !valueOk;
             const invalid = !!shown?.block || (tried && !valueOk);

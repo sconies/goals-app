@@ -72,7 +72,7 @@ export function QuickCheckIn() {
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
     if (!r.value.trim()) return { g, r, posted, e: null, problem: null };
     // The number itself comes first: until it's a possible value there's no status to show or reason to ask for.
-    const problem = numberCheck(g, r.value, app.snapshot.checkIns);
+    const problem = numberCheck(g, r.value, app.snapshot.checkIns, app.week);
     const d: Draft = { ...emptyDraft(g, null), value: r.value, cause: r.cause, why: r.why, ptgWhat: r.path, ptgBy: r.by, ptgState: 'plan' };
     return { g, r, posted, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem };
   }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week]);

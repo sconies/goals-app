@@ -89,7 +89,7 @@
     {
       "id": "ONE-PER-WEEK",
       "area": "Check-in",
-      "text": "Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such."
+      "text": "Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools."
     },
     {
       "id": "UPDATE-ANYTIME",

@@ -3,20 +3,19 @@ import { viewerPicker } from '../adapters/local';
 import type { Identity } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
-import { checkInChange, goalChange, type Lookup } from '../domain/changes';
-import { toCheckIn, type Draft } from '../domain/checkin';
+import { goalChange, type Lookup } from '../domain/changes';
+import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
 import { findGoal, nextKey, withKeys } from '../domain/goalKey';
-import { requestsAfterCheckIn } from '../domain/asks';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import type { ChangeSet, Tables, Via } from '../domain/changeset';
+import type { ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, perform, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
@@ -104,7 +103,8 @@ export interface AppState {
    */
   run<N extends ActionName>(name: N, input: ActionInput<N>, opts?: { said?: string }): Promise<RunResult<N>>;
   /** Posts (or replaces) this week's check-in and logs it. */
-  postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
+  /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
+  postCheckIn(goal: Goal, draft: Draft, mode: PostMode): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
   answerRequest(r: Ask, answer: string): Promise<void>;
   /** Mark an action done, with an optional note. */
@@ -621,22 +621,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
-      postCheckIn: (goal, draft, existing) => {
+      postCheckIn: (goal, draft, mode) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
-        const run = (async () => {
-        const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(stamp()), existing?.id ?? newId('ci'));
-        const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
-        // Another check-in in the same week is kept alongside the first; the latest is the week's status.
-        if (change && !existing && sc.checkIns.some((x) => x.goalId === goal.id && x.week === week)) change.summary = change.summary.replace('Checked in for week', 'Checked in again for week');
-        // The ask in a check-in raises, continues or withdraws a request (domain/asks).
-        const req = requestsAfterCheckIn(goal, c, sc, viewer.id, c.postedAt, newId);
-        await commit({ checkIns: [c], requests: req.requests, changes: [...(change ? [change] : []), ...req.changes] });
-        return c;
-        })();
-        posting.current.set(goal.id, run);
-        void run.catch(() => undefined).finally(() => posting.current.delete(goal.id));
-        return run;
+        // One way to save (check-in spec, rule 13): the engine the table, the import and the AI tools use; its ask too.
+        const posted = run('postCheckIn', { goalId: goal.id, draft, mode }).then((out) => out.checkIn);
+        posting.current.set(goal.id, posted);
+        void posted.catch(() => undefined).finally(() => posting.current.delete(goal.id));
+        return posted;
       },
       answerRequest: async (r, answer) => { await run('answerRequest', { askId: r.id, answer }); },
       markActionDone: async (r, note) => { await run('markActionDone', { askId: r.id, note }); },

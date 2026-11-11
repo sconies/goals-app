@@ -217,7 +217,8 @@ const CORE_ARTICLES: Article[] = [
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
       ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
-        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.',
+        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+        'Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.',
         'Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.',
         'Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.',
         'Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.',

@@ -13,7 +13,9 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 **Impossible and surprising numbers** (`valueProblem`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit, and for a count (see [the projection](projection.md)); over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than 2 times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a count's value past its target (beyond it in the better direction) is questioned ("That's past the target of 40 pairs. Is 41 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
 
-**One number check** (`numberCheck`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks `valueProblem` with the goal's latest number (`lastValueOf`: the newest of its check-ins that has a value), and a spreadsheet's error for an unusable number is `valueProblem`'s own words.
+**What a new number is compared with** (`previousFor`, for the goal's check-ins and the week): the newest check-in of the latest week before it, and the newest number among the weeks before it. A check-in of the same week is never "last week": a second check-in in week 46 is compared with week 45, as is the goal page's "vs last week" after it. `earlierThisWeek` is the newest of the week's own, for a second check-in to name.
+
+**One number check** (`numberCheck`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks `valueProblem` with the goal's latest number before the week (`lastValueOf`: `previousFor`'s number), and a spreadsheet's error for an unusable number is `valueProblem`'s own words.
 
 **Judging the draft** (`evaluate`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with `planned` and `none` counting as `on`. The owner's call defaults to it.
 
@@ -49,11 +51,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | 58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95. | `reason-ahead; target; can post` |
 | 40 in week 4, with last week’s cause, why, path and week copied in untouched; then said to be still true; then with the why rewritten. | `story-unchanged; can post; story-unchanged (the path)` |
 | A count, 4 → 40 pairs: -5; 41. | `refused; questioned: That’s past the target of 40 pairs. Is 41 right?` |
+| Check-ins of 1.9 in week 44, 1.8 in week 45, then 18 and 1.9 in week 46: what week 46 is compared with; then the same with week 45 posting no number. | `week 45, 1.8 / week 44, 1.9` |
 | 40 in week 4, called on track, with a reason for being behind but none for the greener call. | `greener-why` |
 
 ## Where it lives
 
-- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `lastValueOf`, `numberCheck`, `unchangedStory`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
+- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `previousFor`, `earlierThisWeek`, `lastValueOf`, `numberCheck`, `unchangedStory`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
 
 ## Requirements
 
@@ -86,6 +89,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what a check-in still needs, as stable codes › says each code in words, the same words the import and the check-in show
 - what a check-in still needs, as stable codes › groups the codes the screens read: the number itself, and the reason
 - what a check-in still needs, as stable codes › gives a milestone goal no value codes
+
+### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
+
+- what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
+- what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
+- what a new number is compared with (rule 5) › says “vs last week” against week 45 after a second check-in in week 46
 
 ### [evals/scenarios.eval.ts](../../../evals/scenarios.eval.ts)
 
