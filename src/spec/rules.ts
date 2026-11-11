@@ -4,8 +4,7 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
-import { findPeople } from '../domain/people';
-import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
+import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
@@ -35,7 +34,7 @@ import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
-import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
@@ -119,7 +118,15 @@ const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkI
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
 let dir: Snapshot | null = null;
 const dirWs = (): Snapshot => dir!;
-const dirAsk = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(dirWs().people, dirWs().teams, a);
+/** People's ask, as its address has it, through the one search (finding things, rule 7): a page of 50, a page past the end the last. */
+const dirAsk = (a: { q?: string; teamId?: string; admins?: boolean; page?: number }) => {
+  const filters = { ...(a.teamId ? { team: a.teamId } : {}), ...(a.admins ? { admins: '1' } : {}) };
+  const rows = personRows(dirWs());
+  const pages = Math.max(1, Math.ceil(search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE }).total / DIRECTORY_PAGE));
+  const page = Math.min(Math.max(1, a.page ?? 1), pages);
+  const r = search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE, after: String((page - 1) * DIRECTORY_PAGE) });
+  return { total: r.total, page, pages, from: r.rows.length ? (page - 1) * DIRECTORY_PAGE + 1 : 0, to: (page - 1) * DIRECTORY_PAGE + r.rows.length, rows: r.rows };
+};
 
 /* ---------- the demo workspace, for the change engine's examples ---------- */
 let demo: Snapshot | null = null;
@@ -479,7 +486,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 ### The Needs attention list
 
-\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
+\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the list bar's switch on the Map, Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
     examples: [
       { given: 'Gaps oldest first: −1, −2, −3; 1, 2, 3; −1, −2, −1; −3, −2, −1; only −1, −2; with "short of plan" required: 3, 2, 1.', then: 'worse, better, flat, better, flat, flat', run: () => [gapTrend([-1, -2, -3]), gapTrend([1, 2, 3]), gapTrend([-1, -2, -1]), gapTrend([-3, -2, -1]), gapTrend([-1, -2]), gapTrend([3, 2, 1], true)].join(', ') },
       { given: 'The 30→75 goal held at 33 in weeks 1, 2 and 3 while the plan moves on.', then: 'worse', run: () => goalTrend(g3075, CYCLE, [1, 2, 3].map((w) => ci('m', w, 33))).word },
@@ -652,7 +659,6 @@ ${fieldTableMarkdown()}`,
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
       { file: 'src/domain/review.ts', names: ['sessionToDo'] },
-      { file: 'src/domain/people.ts', names: ['findPeople'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
@@ -664,7 +670,7 @@ ${fieldTableMarkdown()}`,
 - the review **accepting the risk**: a note said in the session whose words are "${DECIDED['accept-risk'].label}: " and then the reason, at least ${MIN_ACCEPT_REASON} characters (\`acceptRisk\`; \`acceptedReason\` reads it back). It is a look, not a plan: the goal still needs attention;
 - or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
 
-**The people search** (\`findPeople\`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+**Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
 **Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
 
@@ -675,7 +681,7 @@ ${fieldTableMarkdown()}`,
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
-      { given: 'Searching the demo workspace’s people for "", then for "kap".', then: 'nobody / Rhea Kapoor', run: () => { const team = (id: string) => demo!.teams.find((t) => t.id === id)?.name ?? ''; return `${findPeople(demo!.people, '', team).map((p) => p.name).join(', ') || 'nobody'} / ${findPeople(demo!.people, 'kap', team).map((p) => p.name).join(', ')}`; } },
+      { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
@@ -767,11 +773,11 @@ ${fieldTableMarkdown()}`,
     id: 'directory',
     title: 'The directory: who People lists, what a search finds, and where old addresses lead',
     summary: 'People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead.',
-    code: [{ file: 'src/domain/directory.ts', names: ['findInDirectory', 'matchesWords', 'byName', 'findTeams', 'personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }],
+    code: [{ file: 'src/domain/directory.ts', names: ['personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }, { file: 'src/domain/find.ts', names: ['searchPeople', 'searchTeams', 'byName'] }],
     tests: ['src/domain/directory.test.ts'],
     reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'],
     body: `
-**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. With a search, those whose name it starts come first, then the rest A to Z: People, every person picker and Find share this one search (finding things, rule 7, through the Search port). ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
 
 **What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as \`teamPeople\` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
 
@@ -785,7 +791,7 @@ ${fieldTableMarkdown()}`,
       { given: 'The same, page 9.', then: 'page 2: 51 to 97', run: () => { const r = dirAsk({ page: 9 }); return `page ${r.page}: ${r.from} to ${r.to}`; } },
       { given: 'Searching for “rhea”, “lucia” and “Romero”.', then: 'Rhea Kapoor / Lucía Romero / Lucía Romero', run: () => ['rhea', 'lucia', 'Romero'].map((q) => dirAsk({ q }).rows.map((p) => p.name).join(', ')).join(' / ') },
       { given: 'The CI/CD team’s people, and the admins.', then: '7 people / Amara Nwosu, Grace Achterberg, Hamid Rezaei', run: () => `${dirAsk({ teamId: 'cicd' }).total} people / ${dirAsk({ admins: true }).rows.map((p) => p.name).join(', ')}` },
-      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => findTeams(dirWs().teams, dirWs().people, 'rhea').map((t) => t.name).join(', ') },
+      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => search(teamRows(dirWs()), { q: 'rhea' }).rows.map((t) => t.name).join(', ') },
       { given: 'The lines beside Amara, Rhea and Oskar.', then: 'Admin · leads the team · no goals / Leads the team · 8 goals / No goals', run: () => ['amara', 'rhea', 'oskar'].map((id) => personLine({ snapshot: dirWs() }, id)).join(' / ') },
       { given: 'CI/CD’s summary.', then: 'led by Rhea Kapoor; 7 people; 17 goals', run: () => { const t = teamSummary({ snapshot: dirWs(), statusOf: (g) => goalStatus(g, dirWs().cycles[0]!, dirWs().checkIns, DIR_NOW).status }, 'cicd'); return `led by ${t.lead?.name}; ${t.people.length} people; ${t.goals.length} goals`; } },
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
@@ -1019,7 +1025,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'personRow', 'teamRow', 'rowsByIds', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
     tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
     reqs: ['FIND-ANYWHERE'],
     body: `
@@ -1033,7 +1039,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 
 **One search per kind.** \`search(rows, ask)\` with \`ask = { q, filters, sort, after, size }\` gives \`{ total, rows, next, near? }\`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (\`src/domain/query.ts\`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
 
-**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
+**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, its lead first, then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
@@ -1055,6 +1061,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
         { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
         { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
+        { given: 'In the demo workspace, Tunde’s people before typing (Build & Release, led by Pavel Novák).', then: 'Tunde Bakare, Pavel Novák, then Build & Release A to Z', run: () => { const r = suggest(personRows(demo!), 'tunde', []).map((x) => x.name); return r[0] === 'Tunde Bakare' && r[1] === 'Pavel Novák' && r.slice(2).every((n, i, a) => i === 0 || a[i - 1]!.localeCompare(n) <= 0) ? 'Tunde Bakare, Pavel Novák, then Build & Release A to Z' : r.join(', '); } },
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
         { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
         { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
@@ -1071,26 +1078,36 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
   },
 ];
 
+/** The names the navigation examples read: a few of the demo's, as the rules look them up. */
+const NAV_GOALS: Record<string, { title: string; parent?: string }> = { 'G-1': { title: 'Lead time for changes' }, 'G-7': { title: 'Merge-to-deploy time', parent: 'G-1' } };
+const NAV_NAMES: PlaceNames = {
+  goal: (id) => NAV_GOALS[id]?.title ?? null, parent: (id) => NAV_GOALS[id]?.parent ?? null,
+  review: (id) => (id === 'weekly' ? 'Platform leadership weekly' : null), view: () => null, article: () => null,
+  person: (id) => (id === 'rhea' ? 'Rhea Kapoor' : null), team: () => null, section: (id) => (id === 'access' ? 'Access' : null),
+  module: (p) => (p === '/metrics/lead-time' ? 'Lead time for changes (metric)' : null),
+};
+
 RULE_LIST.push({
   id: 'navigation',
   title: 'Navigation: the menu, the lit item and a page’s name',
   summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
-  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'litTab', 'pageName', 'placeName', 'backTo', 'FIRST_PAGES', 'FORM'] }],
   tests: ['src/domain/navigation.test.ts'],
-  reqs: [],
+  reqs: ['NAV-WHERE', 'NAV-BACK'],
   body: `
 **The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
-**The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+**The lit item** (one at most): a goal opened in a review's walk (\`?review=\`) lights Reviews; Goals at a saved view's exact address lights that view instead of Goals; otherwise the item whose place the address is in: Home only at \`/\`; Check-in for a check-in and the table; Goals for every goal, its edit and print pages, and the wrap-up (\`/retro\`); New goal for New goal and its steps; People for People and Teams; Workspace for its sections but not set-up (\`/workspace/new\`); Help for Help and What's new; a module's item for its pages. \`/ready\`, \`/research\`, set-up and a page not found light nothing. **On a phone** the tab that holds the lit row is lit; a row in More lights More.
 
-**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address "Page not found". So six goals opened in turn give six titles.
 
-**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
+**The back link** ("‹ {where}", above the title) is never on a place's first page (Home, Check-in, Goals, Reviews, People, Teams, Activity, Data, Workspace, Settings, Help, Feedback, and a module's own), nor on a form, whose one way out is its closing control. Elsewhere it goes back to the last earlier page in the tab that isn't a form (check-in, the table, New goal, an edit, set-up, a wrap-up) and isn't this page (in a review's walk, the walk's other goals count as this page), named in the navigation's words: Home, Goals, "your goals" on Mine, a saved view's name, a goal's title, a review's name. Pressing it goes back that many entries, so the browser's Forward still works, and the browser's Back onto a form you left steps over it the same way. Arriving from outside, it goes to the page's parent: the goal a goal feeds (or Goals), the goal for its print page, the review for a goal in its walk and for its summary, Reviews, People, Teams, Help (for an article and What's new), Workspace for a section, a module's first page for its other pages; otherwise Home.`,
   examples: [
     { given: 'The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without.', then: 'home checkin goals reviews | people module:metrics activity data | new | workspace settings help feedback / home goals reviews | people module:metrics activity data | new | workspace settings help feedback', run: () => [true, false].map((o) => { const g = menuGroups(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]); return [g.work, g.lookup, g.make, g.you].map((x) => x.join(' ')).join(' | '); }).join(' / ') },
     { given: 'The phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals reviews / home goals reviews people', run: () => [phoneTabs(true), phoneTabs(false)].map((x) => x.join(' ')).join(' / ') },
-    { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
-    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
+    { given: 'The lit item at /goals/lead-mq, /goals/lead-mq?review=weekly, /goals/new, /retro, /teams/cicd, /whats-new and /research.', then: 'goals, reviews, new, goals, people, help, none', run: () => ['/goals/lead-mq', '/goals/lead-mq?review=weekly', '/goals/new', '/retro', '/teams/cicd', '/whats-new', '/research'].map((a) => { const [p = '/', q = ''] = a.split('?'); return litItem(p, q, menuRows(menuGroups(true))) ?? 'none'; }).join(', ') },
+    { given: 'The page’s name at /goals?scope=watching, /goals/G-1, its edit page, /goals/G-1?review=weekly, /check-in/G-1, /workspace/access, a module’s page for the metric “Lead time for changes”, and an unknown goal.', then: 'Goals / Lead time for changes / Change Lead time for changes / Lead time for changes · Platform leadership weekly / Check in: Lead time for changes / Access · Workspace / Lead time for changes (metric) / Goal not found', run: () => ['/goals?scope=watching', '/goals/G-1', '/goals/G-1/edit', '/goals/G-1?review=weekly', '/check-in/G-1', '/workspace/access', '/metrics/lead-time', '/goals/G-99'].map((a) => { const [p = '/', q = ''] = a.split('?'); return pageName(p, q, NAV_NAMES); }).join(' / ') },
+    { given: 'The back link: Goals on Mine → Lead time for changes; Goals → a goal → Edit → Save → the goal; a new tab on Merge-to-deploy time (which feeds Lead time for changes); a new tab on Lead time for changes; Settings from a goal; Home → Rhea’s page; a new tab on Rhea’s page.', then: '‹ your goals (1 back) / ‹ Goals (3 back) / ‹ Lead time for changes (/goals/G-1) / ‹ Goals (/goals) / none / ‹ Home (1 back) / ‹ People (/people)', run: () => ([['/goals/G-1', ['/goals?scope=mine']], ['/goals/G-1', ['/goals?scope=all', '/goals/G-1', '/goals/G-1/edit']], ['/goals/G-7', []], ['/goals/G-1', []], ['/settings', ['/goals/G-1']], ['/people/rhea', ['/']], ['/people/rhea', []]] as [string, string[]][]).map(([a, t]) => { const b = backTo(a, '', [...t, a].map((path) => ({ path })), NAV_NAMES); return b ? `‹ ${b.label} (${b.steps ? `${b.steps} back` : b.to})` : 'none'; }).join(' / ') },
   ],
 });
 

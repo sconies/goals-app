@@ -9,6 +9,7 @@ import { goalHasCheckIns, hasHistory, leaving, personHistory } from '../domain/r
 import { leftName, MIN_STOP_REASON } from '../domain/vocabulary';
 import type { Goal, Person } from '../domain/types';
 import { Sheet } from './bits';
+import { PickOne } from './Pick';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const firstOf = (name: string) => name.split(' ')[0] ?? name;
@@ -81,7 +82,6 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
   const history = hasHistory(personHistory(app.full, person.id));
   const l = leaving({ snapshot: app.snapshot, cycle: app.cycle, full: app.full }, person.id);
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
-  const others = app.snapshot.people.filter((p) => p.id !== person.id);
   const [goalsTo, setGoalsTo] = useState('');
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
@@ -103,12 +103,7 @@ export function LeaveSheet({ person, onClose }: { person: Person; onClose: () =>
   };
   const picker = (label: string, value: string, set: (v: string) => void, missing: boolean, hint: string) => (
     <div className="field">
-      <label className="field"><span className="field-label">{label}</span>
-        <select className={'input' + (tried && missing ? ' invalid' : '')} aria-invalid={tried && missing ? true : undefined} value={value} onChange={(e) => set(e.target.value)}>
-          <option value="">Choose someone</option>
-          {others.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </label>
+      <PickOne kind="person" label={label} value={value || null} onChange={(id) => set(id ?? '')} hide={[person.id]} invalid={tried && missing} />
       <span className={'hint' + (tried && missing ? ' tone-off' : '')} role={tried && missing ? 'alert' : undefined}>{tried && missing ? 'Choose who takes them over.' : hint}</span>
     </div>
   );
@@ -152,7 +147,6 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
   const me = app.viewer;
   const l = leaving({ snapshot: app.snapshot, cycle: app.cycle, full: app.full }, me.id);
   const asks = new Set([...l.asked, ...l.asking].map((r) => r.id)).size;
-  const others = app.snapshot.people.filter((p) => p.id !== me.id);
   const [goalsTo, setGoalsTo] = useState('');
   const [asksTo, setAsksTo] = useState('');
   const [tried, setTried] = useState(false);
@@ -168,12 +162,7 @@ export function LeaveWorkspaceSheet({ onClose }: { onClose: () => void }) {
   };
   const picker = (label: string, value: string, set: (v: string) => void, missing: boolean, hint: string) => (
     <div className="field">
-      <label className="field"><span className="field-label">{label}</span>
-        <select className={'input' + (tried && missing ? ' invalid' : '')} aria-invalid={tried && missing ? true : undefined} value={value} onChange={(e) => set(e.target.value)}>
-          <option value="">Choose someone</option>
-          {others.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}
-        </select>
-      </label>
+      <PickOne kind="person" label={label} value={value || null} onChange={(id) => set(id ?? '')} hide={[me.id]} invalid={tried && missing} />
       <span className={'hint' + (tried && missing ? ' tone-off' : '')} role={tried && missing ? 'alert' : undefined}>{tried && missing ? 'Choose who takes them over.' : hint}</span>
     </div>
   );

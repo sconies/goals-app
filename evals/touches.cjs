@@ -30,10 +30,12 @@ const RULES = [
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U86', 'U5', 'U49']],
   [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'N10', 'P6']],
+  // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
+  [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
-  [/^src\/screens\/(CheckInFlow|QuickCheckIn)\.tsx|^src\/domain\/checkin\.ts/, ['U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'F2', 'F9', 'N8']],
+  [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'F2', 'F9', 'N8']],
   [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/domain\/(templates|newGoal)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'F3', 'F9', 'F16']],
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],

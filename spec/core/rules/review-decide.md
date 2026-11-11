@@ -14,7 +14,7 @@ A goal behind leaves a review with a next step (an owner and a week) or an accep
 - the review **accepting the risk**: a note said in the session whose words are "We accept the risk: " and then the reason, at least 5 characters (`acceptRisk`; `acceptedReason` reads it back). It is a look, not a plan: the goal still needs attention;
 - or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
 
-**The people search** (`findPeople`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+**Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
 **Last time** (`lastTime`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
 
@@ -31,7 +31,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Which statuses need a decision: off, risk, on, stale, done. | `yes, yes, no, no, no` |
 | The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through". | `We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision` |
 | In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok". | `refused: Say why the review accepts the risk.` |
-| Searching the demo workspace’s people for "", then for "kap". | `nobody / Rhea Kapoor` |
+| Searching the demo workspace’s people for "kap", then "rhea tunde". | `Rhea Kapoor / nobody` |
 
 ## Not self-explanatory
 
@@ -42,7 +42,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/decide.ts](../../../src/domain/decide.ts): `needsDecision`, `decisionFor`, `acceptNote`, `acceptedReason`, `lastTime`, `sessionDecisions`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `acceptRisk`, `addAction`, `markReviewed`
 - [src/domain/review.ts](../../../src/domain/review.ts): `sessionToDo`
-- [src/domain/people.ts](../../../src/domain/people.ts): `findPeople`
 
 ## Requirements
 
