@@ -30,7 +30,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts) |
+| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`postCheckIn`](../../../src/domain/changeset.ts) |
 | Add a goal | Anyone, for a goal they own; an admin, for anyone | [`planChanges`](../../../src/domain/changeset.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |

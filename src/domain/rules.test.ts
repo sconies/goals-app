@@ -355,6 +355,6 @@ describe('one number check for the form, the table and the import (deep review U
   });
   it('compares with the goal’s latest number, wherever it is typed', () => {
     const last = { ...ci('m', 3, 30), goalId: pairs.id };
-    expect(numberCheck(pairs, '3', [last])?.text).toBe('Last week was 30. Is 3 right?');
+    expect(numberCheck(pairs, '3', [last], 4)?.text).toBe('Last week was 30. Is 3 right?');
   });
 });
