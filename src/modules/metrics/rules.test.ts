@@ -1,15 +1,20 @@
 // @vitest-environment node
-/* The metric library (domain/metrics): what a metric needs, who may add, change, remove, link and unlink, what the
+/* The metric library's rules (src/modules/metrics/rules.ts): what a metric needs, who may add, change, remove, link and unlink, what the
    change log says, and that removing and unlinking come back with Undo or from Recently removed. Worked examples use the
    Platform Engineering demo, whose library has 13 metrics, 12 of them measuring a goal. */
-import { buildPlatformOrg } from '../data/platformOrg';
-import { applyCommit, type Commit } from '../data/store';
-import { NotAllowed, type ActionContext } from './actions';
-import { currentCycle, scopeToCycle } from './cycle';
-import * as M from './metrics';
-import { currentWeek } from './plan';
-import * as R from './removal';
-import type { Goal, Snapshot } from './types';
+import { buildPlatformOrg } from '../../data/platformOrg';
+import { applyCommit, type Commit } from '../../data/store';
+import { NotAllowed, type ActionContext } from '../../domain/actions';
+import { currentCycle, scopeToCycle as scope } from '../../domain/cycle';
+import { currentWeek } from '../../domain/plan';
+import * as R from '../../domain/removal';
+import type { Goal, Snapshot } from '../../domain/types';
+import * as M from './rules';
+import RECORDS from './records';
+
+/** This module's records, as the registry gives them to the core. */
+const MINE = [{ ...RECORDS, module: M.MODULE }];
+const scopeToCycle = (s: Snapshot, c: Parameters<typeof scope>[1]) => scope(s, c, MINE);
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -35,8 +40,8 @@ describe('the demo’s library', () => {
   const w = world();
   it('has 13 metrics, 12 of them measuring a goal, and every link passes the rules', () => {
     expect(M.liveMetrics(w.scoped)).toHaveLength(13);
-    expect(w.scoped.metricLinks).toHaveLength(12);
-    for (const l of w.scoped.metricLinks!) {
+    expect(M.linksOf(w.scoped)).toHaveLength(12);
+    for (const l of M.linksOf(w.scoped)) {
       const g = w.goal(l.goalId);
       const m = M.findMetric(w.scoped, l.metricId)!;
       expect(M.linkProblems(g, m)).toEqual({ errors: [], warnings: [] });
@@ -51,8 +56,8 @@ describe('the demo’s library', () => {
     expect(M.measureOf(w.scoped, w.goal('lead-mq'))).toBeNull();
   });
   it('one metric can sit in the library measuring nothing yet', () => {
-    expect(M.goalsMeasuredBy(w.scoped, 'metric_ci-cost')).toEqual([]);
-    expect(M.goalsMeasuredBy(w.scoped, 'metric_flaky-rate').map((g) => g.id)).toEqual(['lead-flaky']);
+    expect(M.goalsMeasuredBy(w.scoped, w.scoped.goals, 'metric_ci-cost')).toEqual([]);
+    expect(M.goalsMeasuredBy(w.scoped, w.scoped.goals, 'metric_flaky-rate').map((g) => g.id)).toEqual(['lead-flaky']);
   });
 });
 
@@ -113,7 +118,7 @@ describe('linking a goal to a metric', () => {
     const g = w.goal('lead-quarantine');
     refused(() => M.linkGoalMetric(w.x('oskar'), g, 'metric_cache-hit'), /Only the goal’s owner or an admin/);
     const c = M.linkGoalMetric(w.x(g.ownerId), g, 'metric_cache-hit', 'cicd')!;
-    expect(c.metricLinks![0]).toMatchObject({ id: g.id, goalId: g.id, metricId: 'metric_cache-hit', teamId: 'cicd' });
+    expect(M.linksOf(c)[0]).toMatchObject({ id: g.id, goalId: g.id, metricId: 'metric_cache-hit', teamId: 'cicd' });
     expect(c.changes[0]).toMatchObject({ entity: 'metric', goalId: g.id, action: 'linked', summary: 'Measured by “Remote build cache hit rate” for CI/CD', diffs: [{ field: 'Measured by', from: '—', to: 'Remote build cache hit rate' }, { field: 'Slice', from: '—', to: 'CI/CD' }] });
   });
   it('the same metric and slice again changes nothing; another slice is a logged edit', () => {
@@ -163,7 +168,7 @@ describe('removing a metric', () => {
     expect(c.changes.map((v) => v.summary)).toEqual(['Removed the metric “Lead time for changes”, unlinking 1 goal', 'No longer measured by “Lead time for changes”, as the metric was removed']);
     w.apply(c);
     expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeUndefined();
-    expect(w.full.metrics!.find((m) => m.id === 'metric_lead-time')!.removedAt).toBeTruthy();
+    expect(M.metricsOf(w.full).find((m) => m.id === 'metric_lead-time')!.removedAt).toBeTruthy();
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
     w.apply(R.undoRemoval(w.x('rhea'), c, before));
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
@@ -171,9 +176,9 @@ describe('removing a metric', () => {
   it('is on Recently removed, and restoring brings the metric back without its old links', () => {
     const w = world();
     w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
-    const item = R.recentlyRemoved(w.full, today).find((r) => r.kind === 'metric')!;
-    expect(item).toMatchObject({ id: 'metric_lead-time', name: 'Lead time for changes', by: 'rhea' });
-    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id));
+    const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
+    expect(item).toMatchObject({ id: 'metric_lead-time', label: 'Metric', name: 'Lead time for changes', by: 'rhea' });
+    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
     expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeTruthy();
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
   });
@@ -181,15 +186,15 @@ describe('removing a metric', () => {
     const w = world();
     w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
     w.apply(M.saveMetric(w.x('oskar'), { name: 'Lead time for changes', unit: 'hours', direction: 'lower' }).commit);
-    refused(() => R.restoreRemoved(w.x('grace'), 'metric', 'metric_lead-time'), /There’s a metric called Lead time for changes again/);
+    refused(() => R.restoreRemoved(w.x('grace'), 'metric', 'metric_lead-time', MINE), /There’s a metric called Lead time for changes again/);
   });
 });
 
 describe('one form, one save', () => {
   it('mergeCommits puts a goal’s save and its link together, in order', () => {
     const a: Commit = { goals: [], changes: [{ id: 'c1' } as never] };
-    const b: Commit = { metricLinks: [{ id: 'g' } as never], changes: [{ id: 'c2' } as never] };
-    expect(M.mergeCommits(a, null, b)).toEqual({ goals: [], metricLinks: [{ id: 'g' }], changes: [{ id: 'c1' }, { id: 'c2' }] });
+    const b: Commit = { ...M.metricRows({ metricLinks: [{ id: 'g' } as never] }), changes: [{ id: 'c2' } as never] };
+    expect(M.mergeCommits(a, null, b)).toEqual({ goals: [], modules: { metrics: { metricLinks: [{ id: 'g' }] } }, changes: [{ id: 'c1' }, { id: 'c2' }] });
     expect(M.mergeCommits(null, undefined)).toBeNull();
   });
 });

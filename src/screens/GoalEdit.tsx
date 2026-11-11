@@ -5,7 +5,6 @@ import { useApp } from '../app/state';
 import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { LEVEL_LABEL } from '../domain/format';
 import { buildGoal, draftOf, planHint, planChanged, planQuestion, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
@@ -18,6 +17,7 @@ import { Icon } from '../ui/Icon';
 import { goalChange } from '../domain/changes';
 import { BackLink } from '../ui/BackLink';
 import { Place, type MeasurePick } from '../core/app';
+import { Pick, PickOne } from '../ui/Pick';
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 
@@ -75,12 +75,11 @@ function EditSheet({ goal }: { goal: Goal }) {
   const below = new Set<string>();
   const walk = (id: string) => { for (const c of app.snapshot.goals.filter((g) => g.parentId === id)) { if (below.has(c.id) || c.id === goal.id) continue; below.add(c.id); walk(c.id); } };
   walk(goal.id);
-  const parents = app.snapshot.goals.filter((g) => g.id !== goal.id && !below.has(g.id));
   const parent = app.goal(d.parentId);
   const back = () => nav('/goals/' + goal.id);
 
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
+  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const save = async () => {
     setTried(true);
     if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
@@ -89,8 +88,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      if (measure) await app.linkGoalMetric(after, measure.metricId, measure.teamId);
-      else if (measure === null) await app.unlinkGoalMetric(after);
+      if (measure) await app.run(measure.action, measure.input(after));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();
@@ -194,33 +192,14 @@ function EditSheet({ goal }: { goal: Goal }) {
         {show('owner') && <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
           <h2 className="block-title" id="fit-h">Owner and links</h2>
           <div className="pair">
-            <label className="field"><span className="field-label">Owner</span>
-              <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
-            </label>
-            <label className="field"><span className="field-label">Team</span>
-              <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-            </label>
+            <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => id && set({ ownerId: id })} />
+            <PickOne kind="team" label="Team" value={d.teamId || null} onChange={(id) => id && set({ teamId: id })} />
           </div>
           <LevelField level={d.level} onChange={(level) => set({ level })} labelClass="field-label" />
-          {(
-            <label className="field"><span className="field-label">Feeds into</span>
-              <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
-                <option value="">Nothing (top of its tree, or not linked yet)</option>
-                {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.level !== 'team' ? ` · ${LEVEL_LABEL[g.level]}` : ''}</option>)}
-              </select>
-            </label>
-          )}
-          <div className="field"><span className="field-label">Also helps <span className="hint">optional · a dotted line on the map</span></span>
-            {(d.alsoHelps ?? []).length > 0 && (
-              <span className="row" style={{ gap: 'var(--s2)' }}>{(d.alsoHelps ?? []).map((id) => (
-                <span key={id} className="chip tag">{app.goal(id)?.title ?? id} <button type="button" className="linkish small" aria-label={`Remove ${app.goal(id)?.title ?? id}`} onClick={() => set({ alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}><Icon name="close" /></button></span>
-              ))}</span>
-            )}
-            <select className="input" value="" aria-label="Add a goal it also helps" onChange={(e) => e.target.value && set({ alsoHelps: [...(d.alsoHelps ?? []), e.target.value] })}>
-              <option value="">Add a goal it also helps…</option>
-              {app.snapshot.goals.filter((g) => g.id !== goal.id && g.id !== d.parentId && !(d.alsoHelps ?? []).includes(g.id)).map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
-            </select>
-          </div>
+          <PickOne kind="goal" label="Feeds into" none="Nothing: top of its own tree" value={d.parentId || null} onChange={(id) => set({ parentId: id ?? '', alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}
+            hide={[goal.id]} refuse={(row) => (below.has(row.id) ? 'Feeds this goal already' : null)} />
+          <Pick kind="goal" several label="Also helps" hint="optional · a dotted line on the map" value={d.alsoHelps ?? []} onChange={(alsoHelps) => set({ alsoHelps })}
+            hide={[goal.id]} refuse={(row) => (row.id === d.parentId ? 'It feeds this one already' : null)} />
           {d.parentId && (
             <label className="field"><span className="field-label">Why do we expect it to help? <span className="hint">optional</span></span>
               <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />

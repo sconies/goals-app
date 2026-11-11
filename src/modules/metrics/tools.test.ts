@@ -1,11 +1,12 @@
 // @vitest-environment node
-/* The metric library's AI tools, through the MCP server as a person's assistant: the same rules as domain/metrics.ts,
+/* The metric library's AI tools, through the MCP server as a person's assistant: the same rules as rules.ts,
    every change logged as that person via the assistant, a removed metric restorable, and the tools off with the module. */
 import { serve, type Deps } from '../../../server/mcp';
 import { applyCommit } from '../../data/store';
 import { buildPlatformOrg } from '../../data/platformOrg';
 import { hashToken, newToken } from '../../mcp/protocol';
 import type { ApiToken, Snapshot } from '../../domain/types';
+import { linksOf, metricsOf } from './rules';
 
 const today = new Date('2026-11-02T12:00:00Z');
 const built = buildPlatformOrg(today);
@@ -48,7 +49,7 @@ describe('metric library tools', () => {
     const { call, data } = await setup('oskar');
     const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily' });
     expect(r.isError).toBe(false);
-    const m = data().metrics!.find((x) => x.name === 'Build time')!;
+    const m = metricsOf(data()).find((x) => x.name === 'Build time')!;
     expect(m).toMatchObject({ ownerId: 'oskar', refresh: 'daily', decimals: 0 });
     const log = data().changes.find((c) => c.entityId === m.id)!;
     expect(log).toMatchObject({ actorId: 'oskar', entity: 'metric', action: 'created' });
@@ -64,7 +65,7 @@ describe('metric library tools', () => {
     expect((await other.call('save_metric', { id: 'Flaky test rate', caveats: 'x' })).content[0]!.text).toMatch(/Only Rhea Kapoor or an admin/);
     const owner = await setup('rhea');
     expect((await owner.call('save_metric', { id: 'Flaky test rate', decimals: 2 })).isError).toBe(false);
-    expect(owner.data().metrics!.find((m) => m.id === 'metric_flaky-rate')!.decimals).toBe(2);
+    expect(metricsOf(owner.data()).find((m) => m.id === 'metric_flaky-rate')!.decimals).toBe(2);
     expect((await owner.call('save_metric', { id: 'Flaky test rate', decimals: 2 })).content[0]!.text).toMatch(/Nothing changed/);
   });
 
@@ -72,13 +73,13 @@ describe('metric library tools', () => {
     const { call, data } = await setup('rhea');
     const r = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Remote build cache hit rate', team: 'CI/CD' });
     expect(r.isError).toBe(false);
-    expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_cache-hit', teamId: 'cicd' });
+    expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_cache-hit', teamId: 'cicd' });
     const wrong = await call('link_goal_metric', { goal: 'ci-shard', metric: 'Flaky test rate' });
     expect(wrong.content[0]!.text).toMatch(/Warning: The goal aims up, but for Flaky test rate lower is better/);
-    expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_flaky-rate', teamId: null });
+    expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')).toMatchObject({ metricId: 'metric_flaky-rate', teamId: null });
     expect((await call('link_goal_metric', { goal: 'ns-lead', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/The goal is in hours and the metric is in min/);
     expect((await call('link_goal_metric', { goal: 'ci-shard', unlink: true })).isError).toBe(false);
-    expect(data().metricLinks!.find((l) => l.goalId === 'ci-shard')!.removedAt).toBeTruthy();
+    expect(linksOf(data()).find((l) => l.goalId === 'ci-shard')!.removedAt).toBeTruthy();
     expect((await call('link_goal_metric', { goal: 'ns-ci', metric: 'CI pipeline time on main (p90)' })).content[0]!.text).toMatch(/Only the goal’s owner or an admin/);
   });
 
@@ -86,7 +87,7 @@ describe('metric library tools', () => {
     const { call, data } = await setup('grace');
     const r = await call('remove_metric', { metric: 'metric_lead-time' });
     expect(r.content[0]!.text).toMatch(/Removed the metric “Lead time for changes”, unlinking 1 goal/);
-    expect(data().metricLinks!.find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
+    expect(linksOf(data()).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(12);
     expect((await call('restore_removed', { kind: 'metric', id: 'metric_lead-time' })).isError).toBe(false);
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(13);

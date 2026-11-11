@@ -22,7 +22,8 @@ module.exports = {
       if (await p.getByRole('button', { name: 'Something changed' }).isVisible().catch(() => false)) fail('check-in: 12.5 moved on past the number');
       await input.fill('1500');
       await p.waitForTimeout(200);
-      const far = await text(p, '#value-msg');
+      // An unlikely number is a Check (CK2): its question is in the block, not a hint.
+      const far = await text(p, '.level-check');
       if (!/far outside this goal’s plan \(52 to 24 hours\)\. Is 1,500 right\?/.test(far)) fail(`check-in: 1500 hours isn’t asked about, with its thousands grouped (“${far}”)`);
       await input.fill('a12');
       await p.getByRole('button', { name: 'Continue' }).click();
@@ -86,22 +87,22 @@ module.exports = {
       }
       await c.close();
     }
-    // Phones (demo review item 14, then backlog G): the layouts are one menu whose button names the open layout and whose
-    // items say what each layout is; the open view's name is never cut off; active filters wrap, none cut off.
+    // Phones (demo review item 14, backlog G, then GL2): the View button names the open layout and opens the View sheet,
+    // whose Layout group says what each layout is; nothing in it is cut off; active filters wrap, none cut off.
     for (const w of [360, 390]) {
       const [c, p] = await open(w, 800, 'rhea', '/goals?scope=all&view=board&status=off,risk&level=team&owner=rhea', true);
-      await p.locator('.layout-menu > summary').click();
+      const button = (await p.locator('.goals-phone-switch .view-open').innerText()).replace(/\s+/g, ' ').trim();
+      await p.locator('.goals-phone-switch .view-open').click();
+      await p.getByRole('dialog', { name: 'View' }).waitFor();
       const m = await p.evaluate(() => {
         const off = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5 || e.scrollWidth > e.clientWidth + 1); };
-        const items = [...document.querySelectorAll('.layout-menu .view-menu-list .menuitem')].map((b) => b.innerText.replace(/\s+/g, ' ').trim());
-        const name = document.querySelector('.show-menu .show-name');
-        return { items, button: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), items_off: [...document.querySelectorAll('.layout-menu .menuitem')].filter(off).length,
-          view: name && name.scrollWidth > name.clientWidth + 1 ? name.textContent : '', chips: [...document.querySelectorAll('.filter-line .filter-part')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
+        const items = [...document.querySelectorAll('.view-sheet input[name="view-layout"]')].map((b) => b.closest('label').innerText.replace(/\s+/g, ' ').trim());
+        return { items, items_off: [...document.querySelectorAll('.view-sheet .view-choice, .view-sheet .btn')].filter(off).length,
+          chips: [...document.querySelectorAll('.filter-line .filter-part')].filter(off).map((e) => e.textContent), sideways: document.documentElement.scrollWidth - innerWidth };
       });
-      if (m.items.length !== 5 || m.items_off) fail(`${w}px: the Layout menu has ${m.items.length} layouts, ${m.items_off} cut off`);
-      if (m.button !== 'Layout: Board') fail(`${w}px: the Layout button says “${m.button}”`);
-      if (!m.items.includes('Board A column for each status.')) fail(`${w}px: the Layout menu does not say what the Board layout is (${m.items.join(' | ')})`);
-      if (m.view) fail(`${w}px: the open view's name is cut off: ${m.view}`);
+      if (m.items.length !== 5 || m.items_off) fail(`${w}px: the View sheet has ${m.items.length} layouts, ${m.items_off} things cut off`);
+      if (button !== 'View: Board, as trees') fail(`${w}px: the View button says “${button}”`);
+      if (!m.items.includes('Board A column for each status.')) fail(`${w}px: the View sheet does not say what the Board layout is (${m.items.join(' | ')})`);
       if (m.chips.length) fail(`${w}px: filter chips cut off: ${m.chips.join(', ')}`);
       if (m.sideways > 1) fail(`${w}px: Goals scrolls sideways by ${m.sideways}px`);
       await c.close();
@@ -111,7 +112,8 @@ module.exports = {
     {
       const long = 'Platform goals at risk this quarter that need a decision from the steering group';
       const [c, p] = await open(1920, 1000, 'rhea', '/goals?scope=all&status=off,risk');
-      await p.getByRole('button', { name: 'Save view' }).first().click();
+      await p.locator('.views-menu > summary').click();
+      await p.getByRole('button', { name: 'Save this view…' }).click();
       await p.getByRole('dialog').getByLabel('Name').fill(long);
       await p.getByRole('dialog').getByRole('button', { name: 'Save view' }).click();
       const tab = p.locator('.goals-tabs .view-tab');

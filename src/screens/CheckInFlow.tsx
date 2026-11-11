@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
+import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, numberCheck, parseNumber, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
 import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
@@ -15,15 +16,24 @@ import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
+import { CheckBlock, MustFixBlock } from '../ui/Levels';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 
-/** The focused weekly check-in: every due goal, one at a time, then done. */
+/**
+ * Check-in. /check-in is the week's list (CheckInQueue, NV3); /check-in?start=1 is the focused walk through every due
+ * goal, one at a time, then done (what Home's Start check-in and the list's Start with open); /check-in/:goal is one
+ * goal's check-in.
+ */
 export function CheckInFlow() {
   // A fresh flow for each goal (or the whole week): moving from /check-in to /check-in/:goal must not keep the old queue.
   const { goalId } = useParams();
+  const [params] = useSearchParams();
+  const fromTable = !!(useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  if (!goalId && params.get('start') !== '1' && !fromTable) return <CheckInQueue />;
   return <Flow key={goalId ?? 'week'} goalId={goalId} />;
 }
 
@@ -36,7 +46,10 @@ export interface FromTable { posted: string[]; kept: number }
 function Flow({ goalId }: { goalId?: string }) {
   const app = useApp();
   const nav = useNavigate();
-  const fromTable = (useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
+  const location = useLocation();
+  const fromTable = (location.state as { fromTable?: FromTable } | null)?.fromTable;
+  // Opened from the week's list, closing goes back to it (with the draft kept); otherwise Home, as before.
+  const closeTo = (location.state as { from?: string } | null)?.from === 'queue' ? '/check-in' : '/';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
@@ -94,7 +107,7 @@ function Flow({ goalId }: { goalId?: string }) {
         <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
-          <button className="iconbtn" onClick={() => nav('/')} aria-label="Close and save the draft"><Icon name="close" /></button>
+          <FormClose keeps onClose={() => nav(closeTo)} />
         </span>
       </div>
       {justPosted ? (
@@ -226,6 +239,8 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
   const existing = [...own].reverse().find((c) => c.week === week) ?? null;
   const previous = own[own.length - 1] ?? null;
+  // What the new number is compared with: last week's, never this week's earlier check-in (rule 5).
+  const lastNumber = previousFor(own, week).number;
   const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => emptyDraft(goal, previous));
   // Once something is typed it's a draft, and can be discarded.
   const [touched, setTouched] = useState(false);
@@ -261,6 +276,12 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   useMark(step === 'account' ? 'checkIn.account' : step === 'carry' ? 'checkIn.carry' : null);
   const e = evaluate(goal, cycle, week, draft, app.snapshot.checkIns);
   const team = app.team(goal.teamId);
+  // The levels (rules 2 and 3): a number that looks wrong, or the same as last week, is asked about and must be answered.
+  const levels = checkInLevels(goal, week, draft, own);
+  const open = unanswered(levels.checks, draft.answers);
+  const gate = stepState(levels.mustFix, open);
+  const valueRef = useRef<HTMLInputElement>(null);
+  const checkRef = useRef<HTMLDivElement>(null);
 
   const valueOk = goal.kind === 'milestone' || !e.codes.some((c) => VALUE_CODES.includes(c));
   // The first number can restart the plan, when the goal is new and the number isn't where its plan starts (rule 4).
@@ -323,7 +344,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
       // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
       const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, null);
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, existing ? 'again' : 'new');
       clear();
       onPosted(c, !!existing);
     } catch {
@@ -343,6 +364,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const primary = () => {
     if (step === 'measure') {
       if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
+      if (open.length) { setTried(true); checkRef.current?.focus(); return; }
       if (offer) { setTried(true); return; }
       if (needsAccount) go(canCarry ? 'carry' : 'account');
       else void post();
@@ -427,7 +449,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {
             // A problem with the number goes 8px under the field; last week's number and "Measured again" stay put.
-            const pr = numberCheck(goal, draft.value, app.snapshot.checkIns);
+            const pr = numberCheck(goal, draft.value, app.snapshot.checkIns, week);
             const shown = pr && (tried || (!pr.block && draft.value.trim()) || (pr.block && draft.value.trim() && parseNumber(draft.value) != null)) ? pr : null;
             const empty = !shown && tried && !valueOk;
             const invalid = !!shown?.block || (tried && !valueOk);
@@ -435,11 +457,11 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
             <div className="stack">
               <label className={'bignum' + (invalid ? ' invalid' : '')}>
                 <span className="sr">This week’s value</span>
-                <input inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
+                <input ref={valueRef} inputMode="decimal" enterKeyHint="next" autoComplete="off" autoFocus value={draft.value} onChange={(ev) => set({ value: ev.target.value })}
                   placeholder="Type it here" aria-describedby={(shown || empty ? 'value-msg ' : '') + 'value-hint'} aria-label="This week’s value" aria-invalid={invalid} />
                 {goal.unit && <span className="bignum-unit">{goal.unit}</span>}
               </label>
-              {shown && <span id="value-msg" className={'hint ' + (shown.block ? 'tone-off' : 'tone-risk')} role={shown.block ? 'alert' : 'status'}>{shown.text}</span>}
+              {shown?.block && <MustFixBlock id="value-msg" read={`“${draft.value.trim()}”`} fix={shown.text} />}
               {/* A number refused for its decimal places offers to keep them for this goal, in one step (deep review U3). */}
               {shown?.block && (() => {
                 const keep = placesToKeep(draft.value, parseNumber(draft.value), goal.decimals);
@@ -451,10 +473,16 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
               })()}
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
               <span id="value-hint" className="valuehint hint">
-                <span>{previous?.value != null ? `Week ${previous.week}: ${fmt(previous.value, goal)}` : 'First check-in'}</span>
-                {previous?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(previous.value) })}>Measured again: unchanged</button>}
+                <span>{lastNumber?.value != null ? `Week ${lastNumber.week}: ${fmt(lastNumber.value, goal)}` : 'First check-in'}</span>
+                {lastNumber?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(lastNumber.value), answers: { ...draft.answers, 'same-as-last': String(lastNumber.value) } })}>Measured again: unchanged</button>}
               </span>
-              {previous?.value != null && draft.value.trim() !== '' && parseNumber(draft.value) === previous.value && <span className="hint">Same as week {previous.week}. Post it only if you measured it again this week.</span>}
+              {open[0] && (() => {
+                const c = open[0];
+                const change = () => { valueRef.current?.focus(); valueRef.current?.select(); };
+                return <CheckBlock key={c.id + c.key} id={'check-' + c.id} question={c.question} yes={c.yes} no={c.no} alert={tried} blockRef={checkRef}
+                  onYes={() => set({ answers: { ...draft.answers, [c.id]: c.key } })}
+                  onNo={c.id === 'same-as-last' && onSkip ? onSkip : change} />;
+              })()}
               {!previous && <span className="hint">This sets where it stands today.</span>}
               {offer && goal.kind === 'metric' && (
                 <div className="rebase" role="status">
@@ -579,6 +607,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
             {(trail.length > 0 || step !== 'measure') && <button type="button" className="btn ghost" onClick={back}>Back</button>}
             <button className="btn primary big-btn" type="submit" disabled={saving}>{label}</button>
           </div>
+          {tried && step === 'measure' && !gate.go && <p className="hint tone-off foot-says" role="status">{gate.says}</p>}
         </div>
       ) : (
         // Both answers live in the footer, so neither can load out of sight under it: the primary on the right. Its own

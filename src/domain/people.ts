@@ -158,14 +158,3 @@ export function mergePeople<P extends { name: string; email: string }>(typed: P[
   return out;
 }
 
-/**
- * The people a search finds, best first (the person search, deep review P2): a name or a team that starts with what was
- * typed, then one that contains it. Nothing is listed until something is typed, so a picker never shows everyone.
- */
-export function findPeople(people: Person[], q: string, teamName: (id: string) => string, limit = 8): Person[] {
-  const t = q.trim().toLowerCase();
-  if (!t) return [];
-  const text = (p: Person) => `${p.name} ${p.teamId ? teamName(p.teamId) : ''}`.toLowerCase();
-  const starts = (p: Person) => p.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(t)) || p.name.toLowerCase().startsWith(t);
-  return people.filter((p) => !p.leftAt && text(p).includes(t)).sort((a, b) => Number(starts(b)) - Number(starts(a)) || a.name.localeCompare(b.name)).slice(0, limit);
-}

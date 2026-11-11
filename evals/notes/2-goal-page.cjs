@@ -89,7 +89,7 @@ module.exports = {
     chk(/^\d of \d stages done$/.test(f.now) && /^\d+$/.test(f.cells['stages behind']?.value) && /^Week \d+$/.test(f.cells['next stage']?.value), `lead-mq: bar says ${f.now} / ${JSON.stringify(f.cells)}`);
     chk(/^Next steps and asks/.test(f.heads[0] ?? '') && await p.locator('.goal-side .steps-label', { hasText: 'For you' }).count() === 1, `lead-mq as Daniel (the decision is asked of him): first side heading “${f.heads[0]}”, with For you`);
     // (e) Arriving from outside on a goal that feeds another, Back names that goal; About says what it feeds.
-    const back = (await p.locator('.goal-page > .backlink').innerText()).trim();
+    const back = ((await p.locator('.goal-page > .backlink').getAttribute('aria-label')) ?? '').trim();
     chk(back === 'Back to Merge-to-deploy time (median)', `lead-mq from outside: “${back}”`);
     const feeds = await p.evaluate(() => { const dt = [...document.querySelectorAll('.about dt')].find((d) => d.textContent === 'Feeds into'); const a = dt?.nextElementSibling?.querySelector('a'); return a ? a.getAttribute('href') : null; });
     chk(/\/goals\/lead-merge$/.test(feeds || ''), `lead-mq: About's Feeds into links to ${feeds}`);

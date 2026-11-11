@@ -2,6 +2,7 @@
    an assistant can mark someone as left, stop or delete a goal, delete a check-in, end a review, edit or remove a
    comment, undo an import, and list and restore what was removed, exactly as the person it acts for could. Every change
    is logged as that person, via the AI assistant. */
+import { MODULE_RECORDS } from '../core/records';
 import type { Commit } from '../data/store';
 import { editCall, type ActionContext } from '../domain/actions';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -16,7 +17,8 @@ const int = (description: string) => ({ type: 'integer', description });
 const REMOVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
-const KINDS = Object.keys(R.REMOVED_LABEL) as R.RemovedKind[];
+/** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
+const KINDS = R.removedKinds(MODULE_RECORDS);
 
 const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
 async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResult> {
@@ -45,9 +47,9 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
-      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today).filter((r) => R.canRestore(ctx.actor, r));
+      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, MODULE_RECORDS).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
-      const list = all.map((r) => ({ kind: r.kind, label: R.REMOVED_LABEL[r.kind], id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
+      const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
       return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };
     },
   },
@@ -58,8 +60,8 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['kind', 'id'], properties: { kind: str('Its kind, from list_removed.', { enum: KINDS }), id: str('Its ID, from list_removed.') } },
     annotations: WRITE,
     async run(a, ctx) {
-      if (!KINDS.includes(a.kind as R.RemovedKind)) throw new Error(`kind is one of ${KINDS.join(', ')}.`);
-      const c = R.restoreRemoved(ax(ctx), a.kind as R.RemovedKind, String(a.id ?? ''));
+      if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(', ')}.`);
+      const c = R.restoreRemoved(ax(ctx), String(a.kind), String(a.id ?? ''), MODULE_RECORDS);
       await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
       return { text: `${c.changes[0]?.summary ?? 'Restored'} (as ${ctx.actor.name}).` };
     },
@@ -191,6 +193,17 @@ export const REMOVE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
       return save(ctx, R.deleteCycle(ax(ctx), String(a.cycle_id ?? '')), `Deleted the cycle ${c?.name ?? ''}`);
+    },
+  },
+  {
+    name: 'undo_start_cycle',
+    title: 'Undo starting the next cycle',
+    description: 'Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['cycle_id'], properties: { cycle_id: str('The started cycle’s ID, from get_workspace.') } },
+    annotations: REMOVE,
+    async run(a, ctx) {
+      const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+      return save(ctx, R.undoStart(ax(ctx), String(a.cycle_id ?? '')), `${c?.name ?? 'The cycle'} was undone`);
     },
   },
   {

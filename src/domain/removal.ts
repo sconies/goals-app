@@ -13,7 +13,8 @@ import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './ask
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
-import type { Ask, Change, CheckIn, Comment, Decision, Goal, Person, Review, Snapshot } from './types';
+import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
+import { moduleRowsBefore, removedModuleRows, restorableModuleRow, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -388,8 +389,49 @@ export function deleteCycle(x: ActionContext, id: string): Commit {
   const c = full.cycles.find((v) => v.id === id && !v.removedAt);
   if (!c) no('There’s no cycle with that ID.');
   if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no('It’s the only cycle, so it stays.');
+  if (startOf(full, id)) no('Use Undo on Cycles: it also puts back what moved with the goals.');
   if (!cycleDeletable(full, id)) no('Check-ins have been posted in it, so it stays.');
   return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'removed', summary: `Deleted the cycle ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
+}
+
+/** The change that started a cycle from the wrap-up (it keeps what it added), if this cycle was made that way and not undone. */
+export function startOf(s: { changes: Change[] }, cycleId: string): Change | undefined {
+  if (s.changes.some((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'undone')) return undefined;
+  return s.changes.find((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'created' && !!c.undo);
+}
+
+/**
+ * Whether starting a cycle can still be undone (cycle-end rule 9): it was started from the wrap-up, and nobody has used
+ * it yet: no check-in in it, no goal in it changed or added by a person, and no later cycle.
+ */
+export function canUndoStart(full: { cycles: Pick<Cycle, 'id' | 'startDate' | 'removedAt'>[]; goals: Pick<Goal, 'id' | 'cycleId' | 'removedAt'>[]; checkIns: Pick<CheckIn, 'goalId' | 'removedAt'>[]; changes: Change[] }, cycleId: string): { ok: true } | { ok: false; why: string } {
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  const start = startOf(full, cycleId);
+  if (!c || !start) return { ok: false, why: 'it wasn’t started from the wrap-up' };
+  const ids = new Set(full.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+  const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
+  if (checkIns) return { ok: false, why: `${plural(checkIns, 'check-in is', 'check-ins are')} in it` };
+  const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
+  const changed = new Set([...ids].filter((id) => !made.has(id)));
+  for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId)) changed.add(ch.goalId);
+  if (changed.size) return { ok: false, why: `${plural(changed.size, 'goal in it has', 'goals in it have')} been changed` };
+  if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return { ok: false, why: 'a later cycle has been started' };
+  return { ok: true };
+}
+
+/**
+ * Admins: undo starting a cycle (cycle-end rule 9). The cycle is removed as a deleted one is (listed in Recently
+ * removed for 30 days); the year before is as it was. Starting again makes a new cycle, and then the removed one
+ * can never come back (restore refuses a second cycle with the same start).
+ */
+export function undoStart(x: ActionContext, cycleId: string): Commit {
+  if (!x.actor.admin) no('Only admins can undo the start of a cycle.');
+  const full = fullOf(x);
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  if (!c) no('There’s no cycle with that ID.');
+  const can = canUndoStart(full, cycleId);
+  if (!can.ok) no(`${c!.name} can’t be undone now: ${can.why}.`);
+  return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
 }
 
 /* ---------- imports and bulk edits ---------- */
@@ -473,14 +515,20 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
 
 /* ---------- recently removed, and restoring ---------- */
 
-export type RemovedKind = 'left' | 'person' | 'goal' | 'stopped' | 'check-in' | 'review' | 'ended' | 'comment' | 'note' | 'view' | 'watch' | 'cycle' | 'metric';
-/** How each kind is named on Recently removed. */
-export const REMOVED_LABEL: Record<RemovedKind, string> = {
+/** The core's kinds of removed thing. A feature module's removable record adds its own kind: the record's name (domain/records). */
+export type CoreRemovedKind = 'left' | 'person' | 'goal' | 'stopped' | 'check-in' | 'review' | 'ended' | 'comment' | 'note' | 'view' | 'watch' | 'cycle';
+export type RemovedKind = CoreRemovedKind | (string & {});
+/** How each of the core's kinds is named on Recently removed (a module's record names its own: Removed.label). */
+export const REMOVED_LABEL: Record<CoreRemovedKind, string> = {
   left: 'Person who left', person: 'Person', goal: 'Goal', stopped: 'Stopped goal', 'check-in': 'Check-in', review: 'Review', ended: 'Ended review',
-  comment: 'Comment', note: 'Review note', view: 'Saved view', watch: 'Watch', cycle: 'Cycle', metric: 'Metric',
+  comment: 'Comment', note: 'Review note', view: 'Saved view', watch: 'Watch', cycle: 'Cycle',
 };
+/** Every kind restore_removed takes: the core's, then each module's removable records. */
+export const removedKinds = (records: readonly ModuleRecords[] = []): string[] => [...Object.keys(REMOVED_LABEL), ...records.flatMap((m) => m.records.filter((r) => r.removable && r.removed).map((r) => r.name))];
 export interface Removed {
   kind: RemovedKind;
+  /** How its kind reads: "Goal", "Check-in", a module's "Metric". */
+  label: string;
   id: string;
   /** What it was: a person's or goal's name, a check-in's goal and week, the start of a comment. */
   name: string;
@@ -492,11 +540,11 @@ export interface Removed {
 const excerpt = (t: string, n = 60) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
 
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
-export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS): Removed[] {
+export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS, records: readonly ModuleRecords[] = []): Removed[] {
   const since = Number.isFinite(days) ? new Date(now.getTime() - days * 86_400_000).toISOString() : '';
   const goalTitle = (id: string) => full.goals.find((g) => g.id === id)?.title ?? 'A goal';
   const out: Removed[] = [];
-  const add = (kind: RemovedKind, id: string, name: string, by: string | null | undefined, at: string | null | undefined) => { if (at && at >= since) out.push({ kind, id, name, by: by ?? null, at }); };
+  const add = (kind: RemovedKind, id: string, name: string, by: string | null | undefined, at: string | null | undefined, label = REMOVED_LABEL[kind as CoreRemovedKind]) => { if (at && at >= since) out.push({ kind, label, id, name, by: by ?? null, at }); };
   for (const p of full.people) { if (p.removedAt) add('person', p.id, p.name, p.removedBy, p.removedAt); else if (p.leftAt) add('left', p.id, p.name, p.leftBy, p.leftAt); }
   for (const g of full.goals) { if (g.removedAt) add('goal', g.id, g.title, g.removedBy, g.removedAt); else if (g.stoppedAt) add('stopped', g.id, g.title, g.stoppedBy, g.stoppedAt); }
   for (const c of full.checkIns) if (c.removedAt) add('check-in', c.id, `${goalTitle(c.goalId)}, week ${c.week}`, c.removedBy, c.removedAt);
@@ -506,7 +554,8 @@ export function recentlyRemoved(full: Snapshot, now: Date, days = RESTORE_DAYS):
   for (const v of full.views ?? []) if (v.deletedAt) add('view', v.id, isTableView(v) ? `${v.name} (a saved layout in Data)` : v.name, v.deletedBy, v.deletedAt);
   for (const w of full.watches ?? []) if (w.removedAt) add('watch', w.id, `${nameIn(full, w.personId)} on ${w.kind === 'level' ? `every ${w.ref} goal` : goalTitle(w.ref)}`, w.removedBy, w.removedAt);
   for (const c of full.cycles) if (c.removedAt) add('cycle', c.id, c.name, c.removedBy, c.removedAt);
-  for (const m of full.metrics ?? []) if (m.removedAt) add('metric', m.id, m.name, m.removedBy, m.removedAt);
+  // Each feature module's removable records (domain/records), under the record's own name.
+  for (const r of removedModuleRows(full, records)) add(r.kind, r.id, r.name, r.by, r.at, r.label);
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
@@ -518,9 +567,9 @@ export const canRestore = (actor: { id: string; admin?: boolean }, item: Pick<Re
  * moved when it went stays where it is now (Undo, straight after removing, puts that back too). A goal whose parent has
  * gone comes back at the top of its tree.
  */
-export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string): Commit {
+export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string, records: readonly ModuleRecords[] = []): Commit {
   const full = fullOf(x);
-  const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY).find((r) => r.kind === kind && r.id === id);
+  const item = recentlyRemoved(full, new Date(x.now), Number.POSITIVE_INFINITY, records).find((r) => r.kind === kind && r.id === id);
   if (!item) no('There’s nothing removed with that ID.');
   if (!canRestore(x.actor, item!)) no('Only an admin, or whoever removed it, can restore it.');
   const restored = (entity: Change['entity'], summary: string, goalId: string | null = null, diffs: Change['diffs'] = []) => log(x, { entity, entityId: id, goalId, action: 'restored', summary, diffs });
@@ -568,12 +617,10 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string):
       if (full.cycles.some((v) => v.id !== id && !v.removedAt && v.startDate === c.startDate)) no(`Another cycle starting ${c.startDate} has been set up since, so this one can’t come back.`);
       return { cycles: [{ ...c, removedAt: null, removedBy: null }], changes: [restored('cycle', `Restored the cycle ${c.name}`)] };
     }
-    case 'metric': {
-      // The goals it measured stay unlinked (Undo, straight after removing, links them again).
-      const m = (full.metrics ?? []).find((v) => v.id === id)!;
-      const same = (full.metrics ?? []).find((v) => v.id !== id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-      if (same) no(`There’s a metric called ${same.name} again. Rename it first.`);
-      return { metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }], changes: [restored('metric', `Restored the metric “${m.name}”`, null, [{ field: 'Metric', from: '—', to: m.name }])] };
+    default: {
+      // A feature module's record: it says how one comes back (domain/records).
+      const found = restorableModuleRow(full, records, kind, id)!;
+      return found.restore(x, found.row);
     }
   }
 }
@@ -596,11 +643,12 @@ export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot)
     views: back(removal.views, before.views),
     cycles: back(removal.cycles, before.cycles),
     teams: back(removal.teams, before.teams),
-    metrics: back(removal.metrics, before.metrics),
-    metricLinks: back(removal.metricLinks, before.metricLinks),
     changes: [],
   };
   for (const k of Object.keys(out) as (keyof Commit)[]) if (Array.isArray(out[k]) && !(out[k] as unknown[]).length && k !== 'changes') delete out[k];
+  // Every feature module's rows the removal changed (domain/records), as they were.
+  const modules = moduleRowsBefore(removal.modules, before);
+  if (modules) out.modules = modules;
   const main = removal.changes[0];
   for (const c of removal.changes.filter((v) => v.entity === 'note' && v.action === 'removed')) out.changes.push(log(x, { entity: 'note', entityId: c.entityId, goalId: c.goalId, action: 'restored', summary: 'Restored a comment' }));
   if (main && !(main.entity === 'note' && main.action === 'removed')) out.changes.push(log(x, { entity: main.entity, entityId: main.entityId, goalId: main.goalId, action: 'restored', summary: `Undid: ${main.summary.charAt(0).toLowerCase()}${main.summary.slice(1)}` }));

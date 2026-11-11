@@ -13,6 +13,10 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
 
+**One way to save a check-in** (`postCheckIn`): the check-in screens post through the same judgement, with the draft the form holds and a mode that says how it meets the week's own. `new` is refused when the week has a check-in ("Week 45 already has a check-in. Check in again, or correct it."); `again` adds a second beside it ("Checked in again for week 45: …"); `correct` replaces the week's newest, or adds a week that has none, and needs a reason of at least 10 characters, kept as the entry's first difference ("Why corrected") and summed up as "Corrected week 44: 60% is now 61%" or "Added week 44 later: 61%". A week that has passed takes only `correct`. A correction keeps when the record it replaces was posted, so it never turns a late week into an on-time one, nor the reverse; a correction that changes nothing is refused ("Nothing is different from what week 44 already says."). A post that isn't a correction is no import: no Via mark and no import to undo (Delete this check-in takes it back). A correction is an import of one, undone with the import.
+
+**A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
+
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
 ## Worked examples
@@ -24,6 +28,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
+| Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence, so anyone reading week 44 later knows.` |
 | Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins. | `the first problem says: Week 4 needs a Cause and a Why` |
 
 ## Not self-explanatory
@@ -32,7 +37,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`, `records`, `describe`
+- [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`, `postCheckIn`, `records`, `describe`
 - [src/domain/columns.ts](../../../src/domain/columns.ts): `sheetKindOf`
 - [src/domain/numbers.ts](../../../src/domain/numbers.ts): `sameAsWritten`
 - [src/domain/commit.ts](../../../src/domain/commit.ts): `Commit`
@@ -46,6 +51,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `IMPORT-ACTIONS`: A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams.
 - `IMPORT-UNDO`: Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed.
 - `DATA-TABLES`: Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes.
+- `ONE-PER-WEEK`: Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools.
 
 ## Tests that check it
 
@@ -67,6 +73,24 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - changing a goal’s owner › refuses a name two people share, rather than guessing, and says to use their email
 - changing a goal’s owner › still takes a name only one person has, or an ID typed in Owner
 - changing a goal’s owner › says so when an Owner ID matches no one
+
+### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
+
+- one way to save a check-in (rule 13) › posts a new check-in through the engine, with no import to undo and no Via mark
+- one way to save a check-in (rule 13) › refuses a new check-in for a week that has one, and says what to do instead
+- one way to save a check-in (rule 13) › adds a second check-in beside the first with “again”, and keeps both
+- one way to save a check-in (rule 13) › corrects a week with a reason, as an import that can be undone, keeping when it was posted
+- one way to save a check-in (rule 13) › refuses “new” or “again” for a week that has passed: that is a correction
+- one way to save a check-in (rule 13) › lets only the owner or an admin post, in the engine’s words
+- a correction keeps the week it gives (K6) › a row that gives a week keeps the week, though the old record was still investigating
+- what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
+- what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
+- what a new number is compared with (rule 5) › says “vs last week” against week 45 after a second check-in in week 46
+- the levels in a check-in (rules 2 and 3) › asks about a number far from last week’s, naming the week, and asks again once the number changes
+- the levels in a check-in (rules 2 and 3) › never asks a range goal whether the same number was measured again; asks a number still to move
+- the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
+- the levels in a check-in (rules 2 and 3) › says why the button does nothing
+- the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
 
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 

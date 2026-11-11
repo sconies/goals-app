@@ -4,11 +4,13 @@ import { upgradeAsks } from '../../domain/asks';
 import { withKeys } from '../../domain/goalKey';
 import type { Snapshot, Workspace } from '../../domain/types';
 import {
-  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, metricFromRow, metricLinkFromRow, personFromRow,
+  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, loadModules, personFromRow,
   requestFromRow, retroFromRow, reviewFromRow, teamFromRow, teamToRow, tokenFromRow, viewFromRow, watchFromRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalMetricRow, type GoalRow, type MetricRow, type PersonRow, type RequestRow,
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalRow, type PersonRow, type RequestRow,
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
+import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
+import { MODULE_RECORDS } from '../../core/records';
 
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
@@ -34,7 +36,8 @@ export class SupabaseStore implements Store {
   readonly hasExample = false;
   private readonly db: SupabaseClient;
 
-  constructor(url: string, key: string, client?: SupabaseClient) {
+  /** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
+  constructor(url: string, key: string, client?: SupabaseClient, private readonly records: readonly ModuleRecords[] = MODULE_RECORDS) {
     this.db = client ?? faroClient(url, key, { fetch: timedFetch });
   }
 
@@ -62,7 +65,7 @@ export class SupabaseStore implements Store {
   }
 
   async load(ws: string): Promise<Snapshot> {
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, metrics, metricLinks] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, feedback, tokens, views, requests, modules] = await Promise.all([
       this.all<TeamRow>('okr_teams', ws), this.all<PersonRow>('okr_people', ws), this.all<CycleRow>('okr_cycles', ws),
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
@@ -71,7 +74,8 @@ export class SupabaseStore implements Store {
       // fails fails the load: an empty list would look like a workspace with none.
       this.listed<FeedbackRow>('okr_feedback_list', ws), this.listed<TokenRow>('okr_token_list', ws),
       this.all<ViewRow>('okr_views', ws), this.all<RequestRow>('okr_requests', ws),
-      this.all<MetricRow>('okr_metrics', ws), this.all<GoalMetricRow>('okr_goal_metrics', ws),
+      // Each feature module's own tables, as it declares them (domain/records).
+      loadModules(this.records, (table) => this.all<DbRow>(table, ws)),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.
@@ -90,8 +94,7 @@ export class SupabaseStore implements Store {
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
       requests: requests.map(requestFromRow),
-      ...(metrics.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {}),
-      ...(metricLinks.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}),
+      ...(modules ? { modules } : {}),
     });
   }
 
@@ -118,12 +121,12 @@ export class SupabaseStore implements Store {
     if (c.tokens?.length) {
       const [t, ...more] = c.tokens;
       const change = c.changes.find((x) => x.entityId === t!.personId && x.diffs.some((d) => /token/i.test(d.field)));
-      const rest = Object.entries(c).some(([k, v]) => !['tokens', 'changes', 'expect'].includes(k) && (Array.isArray(v) ? v.length : v !== undefined));
+      const rest = Object.entries(c).some(([k, v]) => !['tokens', 'changes', 'expect'].includes(k) && (k === 'modules' ? hasModuleRows(c.modules) : Array.isArray(v) ? v.length : v !== undefined));
       if (!t!.revokedAt || more.length || rest || c.changes.some((x) => x !== change)) throw new Error('Saving the token: revoke one token at a time, on its own; make one with issueToken.');
       await this.rpc('okr_token_revoke', { ws, token_id: t!.id, by_id: change?.actorId ?? '', change: change ? changeToRow(ws, change) : null }, 'Revoking the token');
       return;
     }
-    await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c) }, 'Saving');
+    await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c, this.records) }, 'Saving');
   }
 
   /** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
@@ -137,7 +140,7 @@ export class SupabaseStore implements Store {
 
   /** A new workspace and everything in it, in one transaction (okr_create_workspace). */
   async createWorkspace(w: Workspace, data: Snapshot) {
-    const payload = { ...commitPayload(w.id, data), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
+    const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace');
   }
 

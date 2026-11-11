@@ -64,6 +64,10 @@ module.exports = {
       await p.goto(url('/check-in/dep-jenkins'));
       const g = await p.evaluate(async () => (await window.__goalsStore.load('platform-org')).goals.find((x) => x.id === 'dep-jenkins'));
       await p.getByLabel('This week’s value').fill(String(g.plan.start));
+      // The check-in may ask about this number (CK2: last week's, or far from it): it is meant.
+      await p.waitForTimeout(100);
+      const meant = p.locator('.level-check .level-actions button').first();
+      if (await meant.isVisible().catch(() => false)) await meant.click();
       await p.getByRole('button', { name: 'Continue' }).click();
       const changed = p.getByRole('button', { name: 'Something changed', exact: true });
       if (await changed.count()) await changed.click();

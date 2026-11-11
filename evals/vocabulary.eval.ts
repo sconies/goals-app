@@ -65,6 +65,7 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/ui/ChangeItem.tsx', word: 'Action', why: 'Reads the stored change-log field “Action” to show what was said.' },
   { file: 'src/screens/CheckInFlow.tsx', word: 'Done', why: 'The button that closes the “why better than the numbers” sheet: finished with this sheet, not a status.' },
   { file: 'src/screens/DataLayout.tsx', word: 'Done', why: 'The button that closes the column layout sheet, not a status.' },
+  { file: 'src/screens/GoalsScreen.tsx', word: 'Done', why: 'The button that closes the phone’s View sheet (goals spec, 2.4), not a status.' },
   { file: 'src/screens/Watching.tsx', word: 'Done', why: 'The button that finishes changing what you watch, not a status.' },
   { file: 'src/ui/Pick.tsx', word: 'Done', why: 'The button that closes a picker where several can be chosen (find-and-pick), not a status.' },
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },
@@ -288,10 +289,12 @@ describe('one Needs attention', () => {
     });
   }
 
-  it(A('the map’s “Only what needs attention” is the Goals filter itself, not a status filter of its own'), () => {
+  it(A('on the map, what needs attention is the list bar’s switch, the Goals filter itself, not a filter of the map’s own'), () => {
     const screen = withoutComments(read('src/screens/GoalsScreen.tsx'));
-    expect(screen).toContain('attention={query.attention}');
+    const map = withoutComments(read('src/screens/GoalMap.tsx'));
     expect(screen).not.toMatch(/\['off', 'risk', 'stale'\]/);
+    expect(screen).toContain('<GoalMap goals={mapGoals}');
+    expect(map).not.toMatch(/attention/i);
   });
 
   it(A('a link or saved view from before still opens the goals it meant: needs=no-recovery is No path to green'), () => {
