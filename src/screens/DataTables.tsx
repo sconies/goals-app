@@ -351,7 +351,7 @@ export function DataTables() {
                   return (
                     <td key={c} style={sized(w)} className={'dcell' + kind + (changed != null ? ' edited' : '')} title={changed != null ? `Was: ${original || '(empty)'}` : undefined}>
                       {pick && (value === '' || pick.idOf(value))
-                        ? <PickOne kind={pick.kind} label={label} compact value={pick.idOf(value)} none={pick.none} refuse={pick.refuse && ((row) => pick.refuse!(row.id))}
+                        ? <PickOne kind={pick.kind} label={label} compact shown={value} value={pick.idOf(value)} none={pick.none} refuse={pick.refuse && ((row) => pick.refuse!(row.id))}
                           onChange={(id) => edit(tab, r.key, c, id ? pick.valueOf(id) : '', original)} />
                         : choices && (choices.includes(value) || value === '')
                         ? <select aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)}>{choices.map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>

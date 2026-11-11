@@ -42,6 +42,9 @@ export interface PickProps {
   /** In a table cell or a filter row: the label is for screen readers only (the column or the row says it), and the
       choice is one line of words with Change. */
   compact?: boolean;
+  /** The chosen one's words, when the caller already has them (a Data cell's name): shown closed without asking the
+      Search port, so a table of pickers doesn't ask once per cell. */
+  shown?: string;
   /** Offered first, before anything is typed, each with a note ("who owns this goal"), then the usual suggestions. */
   first?: { id: string; note: string }[];
 }
@@ -68,7 +71,7 @@ export function Pick(p: PickProps) {
 }
 
 /** A picker that asks the source it is given: set-up's people, before the workspace exists. */
-export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, first = [] }: PickProps & { source: PickSource }) {
+export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, shown, first = [] }: PickProps & { source: PickSource }) {
   const { search, viewerId, ws } = source;
   const app = { viewer: { id: viewerId }, ws: { id: ws } };
   const prefs = usePrefs();
@@ -111,7 +114,7 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
 
   // What's chosen, in the words a search gives it: asked of the Search port by id, never read from the workspace here.
   useEffect(() => {
-    if (!value.length) return;
+    if (!value.length || shown !== undefined) return;
     let live = true;
     search.byIds(kind, value).then((rs) => { if (live) setKnown((k) => ({ ...k, ...Object.fromEntries(rs.map((r) => [r.id, r])) })); }).catch(() => {});
     return () => { live = false; };
@@ -168,10 +171,10 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
           ))}
         </ul>
       )}
-      {!several && chosen[0] ? (
+      {!several && (chosen[0] || (shown !== undefined && value[0])) ? (
         <div className={'pick-field' + (invalid ? ' invalid' : '')}>
-          {compact ? <span className="pick-name">{chosen[0].name}</span> : <RowText person={source.person} row={chosen[0]} you={chosen[0].id === app.viewer.id} />}
-          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0].name}. Change`} onClick={() => setOpen((o) => !o)}>Change</button>
+          {compact || !chosen[0] ? <span className="pick-name">{chosen[0]?.name ?? shown}</span> : <RowText person={source.person} row={chosen[0]} you={chosen[0].id === app.viewer.id} />}
+          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0]?.name ?? shown}. Change`} onClick={() => setOpen((o) => !o)}>Change</button>
         </div>
       ) : (
         <button type="button" className={'input pick-open' + (invalid ? ' invalid' : '')} ref={opener} aria-expanded={open} aria-labelledby={`${id}-l ${id}-b`} onClick={() => setOpen((o) => !o)}>
