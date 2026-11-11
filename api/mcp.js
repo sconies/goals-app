@@ -8018,14 +8018,18 @@ function searchGoals(r, ask) {
 		sort: query.sort ?? "worst"
 	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
-/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
+*/
 function searchPeople(r, ask) {
 	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
 	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
+	const left = ask.filters?.left === "too";
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
 		kind: "person",
 		id: p.id,
-		name: p.name,
+		name: p.leftAt ? `${p.name} (left)` : p.name,
 		detail: [p.role, team(p)].filter(Boolean).join(" · ")
 	}));
 }
@@ -11269,6 +11273,23 @@ var CORE_ARTICLES = [
 				list: ["Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.", "A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source."]
 			},
 			{
+				heading: "Find, from anywhere",
+				list: [
+					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
+					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
+					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+				]
+			},
+			{
+				heading: "Keys",
+				list: [
+					"Ctrl K (Cmd K on a Mac): Find, from any page.",
+					"Escape closes Find, a picker or a sheet.",
+					"Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen."
+				]
+			},
+			{
 				heading: "Searching a list",
 				list: [
 					"Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).",
@@ -11280,7 +11301,11 @@ var CORE_ARTICLES = [
 		],
 		routes: [],
 		screens: [],
-		reqs: ["FIND-AND-PICK", "LIST-BAR"],
+		reqs: [
+			"FIND-AND-PICK",
+			"LIST-BAR",
+			"FIND-ANYWHERE"
+		],
 		keywords: [
 			"find",
 			"search",
@@ -11290,7 +11315,11 @@ var CORE_ARTICLES = [
 			"person",
 			"team",
 			"type to find",
-			"select"
+			"select",
+			"ctrl k",
+			"cmd k",
+			"shortcut",
+			"keyboard"
 		],
 		related: [
 			"keys",
@@ -12561,6 +12590,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "find-anywhere",
+		date: "2026-11-11",
+		title: "Find, from anywhere",
+		points: ["Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.", "Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar."],
+		articles: ["finding"]
+	},
 	{
 		id: "not-born-late",
 		date: "2026-11-11",
