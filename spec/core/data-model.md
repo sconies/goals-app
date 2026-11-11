@@ -612,3 +612,4 @@ One Postgres database (Supabase). Each table holds one kind of record for every 
 | `okr_markups` | `supabase/migrations/0024_markups_and_tokens.sql` |
 | `okr_metrics` | `supabase/migrations/0033_metric_library.sql` |
 | `okr_goal_metrics` | `supabase/migrations/0033_metric_library.sql` |
+| `faro` | `supabase/migrations/0039_module_records.sql` |
