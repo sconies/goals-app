@@ -10,20 +10,21 @@ import { PostgresStore, type Sql } from './goalsStore';
 
 export function postgresDeps(db: Sql): Deps {
   const store = new PostgresStore(db);
-  // The hash of the token this request came with, to note when it was used.
-  let seen: string | null = null;
+  // Each token's hash by its id, as findToken saw it, so touch notes the right one even when one Deps serves requests
+  // side by side.
+  const seen = new Map<string, string>();
   const one = async <T>(text: string, params: unknown[]) => (await db.query<T>(text, params)).rows[0];
   return {
     async findToken(hash) {
       const row = await one<TokenRow>('select * from okr_token_find($1)', [hash]);
       if (!row) return null;
-      seen = hash;
+      seen.set(row.id, hash);
       return { token: tokenFromRow(row), workspaceId: row.workspace_id };
     },
     workspaceName: async (id) => (await one<{ name: string }>('select name from okr_workspaces where id = $1', [id]))?.name ?? 'Workspace',
     load: (ws) => store.load(ws),
     commit: (ws, c) => store.commit(ws, c),
-    async touch() { if (seen) await db.query('select okr_token_touch($1)', [seen]); },
+    async touch(id) { const hash = seen.get(id); if (hash) await db.query('select okr_token_touch($1)', [hash]); },
     issueToken: (ws, c) => store.issueToken(ws, c),
     deleteWorkspace: (ws) => store.deleteWorkspace(ws),
     recording: async (id) => (await one<{ recording: boolean | null }>('select recording from okr_workspaces where id = $1', [id]))?.recording !== false,

@@ -91,14 +91,17 @@ export class PostgresStore implements Store {
     });
   }
 
-  /** One transaction (okr_commit), refused if something it was based on has changed. A revoked token goes through
-      okr_token_revoke with its change-log entry, as in the Supabase adapter. */
+  /** One transaction (okr_commit), refused if something it was based on has changed. Revoking a token is its own save,
+      through okr_token_revoke with its change-log entry; a new token comes through issueToken, never a save. The same
+      rule as the Supabase adapter's: a save that carries a token with anything else is refused, not split. */
   async commit(ws: string, c: Commit) {
-    for (const t of c.tokens ?? []) {
-      if (!t.revokedAt) continue;
-      const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === 'AI assistant token'));
-      await this.run('Revoking the token', 'select okr_token_revoke($1, $2, $3, $4::jsonb)', [ws, t.id, c.changes[0]?.actorId ?? '', change ? JSON.stringify(changeToRow(ws, change)) : null]);
-      c = { ...c, tokens: c.tokens!.filter((x) => x.id !== t.id), changes: change ? c.changes.filter((x) => x !== change) : c.changes };
+    if (c.tokens?.length) {
+      const [t, ...more] = c.tokens;
+      const change = c.changes.find((x) => x.entityId === t!.personId && x.diffs.some((d) => /token/i.test(d.field)));
+      const rest = Object.entries(c).some(([k, v]) => !['tokens', 'changes', 'expect'].includes(k) && (Array.isArray(v) ? v.length : v !== undefined));
+      if (!t!.revokedAt || more.length || rest || c.changes.some((x) => x !== change)) throw new Error('Saving the token: revoke one token at a time, on its own; make one with issueToken.');
+      await this.run('Revoking the token', 'select okr_token_revoke($1, $2, $3, $4::jsonb)', [ws, t!.id, change?.actorId ?? '', change ? JSON.stringify(changeToRow(ws, change)) : null]);
+      return;
     }
     if (Object.entries(c).every(([k, v]) => k === 'expect' || (Array.isArray(v) ? !v.length : v === undefined))) return;
     await this.run('Saving', 'select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(commitPayload(ws, c))]);
