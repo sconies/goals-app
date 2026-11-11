@@ -178,11 +178,11 @@ describe('one meaning for every status word', () => {
     const attention = articleText(articleById('needs-attention')!);
     expect(attention).toContain(ATTENTION.needs.long);
     for (const k of ['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const) expect(attention, k).toContain(`${FLAG[k].label}: ${FLAG[k].long}`);
-    // The workbook's README defines every word an export uses, in the vocabulary's words.
+    // The workbook's Start here sheet defines every word an export uses, in the vocabulary's words.
     const today = new Date('2026-11-05T12:00:00Z');
     const s = seed(today), cycle = s.cycles[0]!, week = currentWeek(cycle, today);
     const x = { ws: { id: 'w', name: 'Example' }, snapshot: s, cycle, week, today };
-    const readme = workbook(x).find((t) => t.name === 'README')!.rows;
+    const readme = workbook(x).find((t) => t.name === 'Start here')!.rows;
     for (const k of ['on', 'risk', 'off', 'stale', 'done'] as const) expect(readme.some((r) => r[1] === STATUS[k].label && r[2] === STATUS[k].long), k).toBe(true);
     for (const k of ['completed', 'late', 'missed'] as const) expect(readme.some((r) => r[1] === RESULT[k].label && r[2] === RESULT[k].long), k).toBe(true);
     // The JSON keeps the codes machines read, with the words people read beside them, and defines both.
