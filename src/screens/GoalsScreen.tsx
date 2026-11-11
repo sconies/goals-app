@@ -85,6 +85,9 @@ export function GoalsScreen() {
     keep('owner', (id) => !!app.person(id), 'person');
     keep('feeds', (id) => !!app.goal(id), 'goal');
     if (next.toString() === params.toString() && !said.length) return;
+    // Only while the page is still Goals: under load this effect can run after Back has already left it, and rewriting
+    // the address then would pull the browser back to Goals (U20 and U58 on a phone, in a four-shard run).
+    if (!/^(\/demo)?\/goals\/?$/.test(window.location.pathname)) return;
     if (said.length) setMoved({ text: said.join(' '), at: next.toString(), from: params.toString() });
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
