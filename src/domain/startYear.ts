@@ -4,7 +4,7 @@
 import { carries, startReadBack, type ReadBack } from './carry';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape } from './cycle';
 import { reviewDate } from './progress';
-import type { Ask, CheckIn, Cycle, Goal, MetricLink, Retro, Review, Watch } from './types';
+import type { Ask, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
 
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -28,7 +28,7 @@ export interface StartPage {
 
 /** The start page (2.4) for a year, on a day: everything it says, worked out once. */
 /** The rows the start page reads: the cycles; the goals, check-ins and wrap-ups; and what comes with a goal. */
-export interface StartRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; retros?: Retro[]; requests?: Ask[]; watches?: Watch[]; reviews?: Review[]; metricLinks?: MetricLink[] }
+export interface StartRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; retros?: Retro[]; requests?: Ask[]; watches?: Watch[]; reviews?: Review[] }
 
 export function startPage(s: StartRows, cycle: Cycle, today: Date): StartPage {
   const shape = nextCycleShape(cycle);

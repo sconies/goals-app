@@ -10,6 +10,8 @@ import { startPage } from './startYear';
 import { recarry } from './recarry';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { CheckIn, Cycle, Goal, MetricGoal, Retro, Snapshot } from './types';
+import type { MetricLink } from '../modules/metrics/types';
+import metricsRecords from '../modules/metrics/records';
 import { postCheckIn } from './changeset';
 import { emptyDraft } from './checkin';
 import { planAt } from './plan';
@@ -17,6 +19,8 @@ import { planAt } from './plan';
 const y26: Cycle = { id: 'c26', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 };
 const y27: Cycle = { id: 'c27', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 };
 const on = (iso: string) => new Date(iso + 'T12:00:00Z');
+/** The metrics module's records, as the app hands them to the rules (core/records). */
+const RECORDS = [{ ...metricsRecords, module: 'metrics' }];
 
 describe('which cycle the app is in (rule 3)', () => {
   it('stays in the old year until the new one’s week 1', () => {
@@ -108,7 +112,7 @@ describe('starting and undoing (rules 6 and 9)', () => {
   const amara = s0.people.find((p) => p.id === 'amara')!;
   const rhea = s0.people.find((p) => p.id === 'rhea')!;
   let k = 0;
-  const ctx = (full: Snapshot, when: string, who = amara): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 52, actor: who, now: when + 'T10:00:00Z', newId: (p) => `${p}_t${++k}`, full });
+  const ctx = (full: Snapshot, when: string, who = amara): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 52, actor: who, now: when + 'T10:00:00Z', newId: (p) => `${p}_t${++k}`, full, records: RECORDS });
   const says = (f: () => unknown) => { try { f(); return 'done'; } catch (e) { return e instanceof NotAllowed ? e.message : String(e); } };
 
   it('can’t be started before the wrap-up opens, or by a member', () => {
@@ -181,7 +185,7 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
   const cycle = s0.cycles[0]!;
   const amara = s0.people.find((p) => p.id === 'amara')!;
   let k = 0;
-  const ctx = (full: Snapshot, when: string): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt), checkIns: full.checkIns.filter((c) => !c.removedAt) }, cycle, week: 52, actor: amara, now: when + 'T10:00:00Z', newId: (p) => `${p}_c${++k}`, full });
+  const ctx = (full: Snapshot, when: string): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt), checkIns: full.checkIns.filter((c) => !c.removedAt) }, cycle, week: 52, actor: amara, now: when + 'T10:00:00Z', newId: (p) => `${p}_c${++k}`, full, records: RECORDS });
 
   it('starts a number goal from its final number in week 1, due at the end of the new year; spreads stages over it; keeps a long plan', () => {
     const made = nextCycle(y26, [num('g126', 0.42, 0.3, { plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } } as never)], [ci('g126', 53, 0.37 as never)], [], { cycle: 'c27', goal: (g) => g.id + '-2' }, '2026-12-21T10:00:00Z');
@@ -215,11 +219,13 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
     expect(c.watches!.length).toBeGreaterThan(0);
     expect(c.watches!.every((w) => copies.has(w.ref))).toBe(true);
     expect(c.requests!.every((r) => r.status === 'open' && r.goalIds.some((id) => copies.has(id)))).toBe(true);
-    expect((c.metricLinks ?? []).every((l) => copies.has(l.goalId))).toBe(true);
+    const links = (c.modules?.metrics?.metricLinks ?? []) as MetricLink[];
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.every((l) => copies.has(l.goalId))).toBe(true);
     expect(canUndoStart(s1, c.cycles![0]!.id)).toEqual({ ok: true });
     const s2 = applyCommit(s1, undoStart(ctx(s1, '2026-12-22'), c.cycles![0]!.id));
     const liveWatches = (s: Snapshot) => (s.watches ?? []).filter((w) => !w.removedAt).length;
-    const liveLinks = (s: Snapshot) => (s.metricLinks ?? []).filter((l) => !l.removedAt).length;
+    const liveLinks = (s: Snapshot) => ((s.modules?.metrics?.metricLinks ?? []) as MetricLink[]).filter((l) => !l.removedAt).length;
     expect(liveWatches(s2)).toBe(liveWatches(s0));
     expect(liveLinks(s2)).toBe(liveLinks(s0));
     for (const r of s0.requests ?? []) expect(s2.requests!.find((x) => x.id === r.id)!.goalIds).toEqual(r.goalIds);

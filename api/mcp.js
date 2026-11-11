@@ -1810,6 +1810,56 @@ function restorableModuleRow(full, records, kind, id) {
 	}
 	return null;
 }
+/**
+* What comes with goals copied into the next cycle, from every module that says (`follow`): the new rows, and their
+* ids for Undo. Rows of a record that doesn't follow stay with the old goal.
+*/
+function followCopies(all, copies, records, newId) {
+	const modules = {};
+	const ids = [];
+	for (const m of records) for (const def of m.records) {
+		if (!def.follow) continue;
+		const rows = (all?.[m.module]?.[def.key] ?? []).filter((r) => !r.removedAt);
+		const made = def.follow(rows, copies, newId);
+		if (!made.length) continue;
+		(modules[m.module] ??= {})[def.key] = made;
+		ids.push({
+			module: m.module,
+			key: def.key,
+			ids: made.map((r) => r.id)
+		});
+	}
+	return {
+		modules,
+		ids
+	};
+}
+/** The live rows that belong to these goals (`goalOf`), marked removed: a copy that leaves takes them with it. */
+function rowsLeaving(all, goalIds, records, gone) {
+	const modules = {};
+	for (const m of records) for (const def of m.records) {
+		if (!def.goalOf) continue;
+		const rows = (all?.[m.module]?.[def.key] ?? []).filter((r) => !r.removedAt && goalIds.has(def.goalOf(r) ?? ""));
+		if (rows.length) (modules[m.module] ??= {})[def.key] = rows.map((r) => ({
+			...r,
+			...gone
+		}));
+	}
+	return modules;
+}
+/** The rows a start added (by id), marked removed: Undo takes them back out, whichever module they belong to. */
+function rowsUndone(all, added, gone) {
+	const modules = {};
+	for (const a of added) {
+		const want = new Set(a.ids);
+		const rows = (all?.[a.module]?.[a.key] ?? []).filter((r) => want.has(r.id) && !r.removedAt);
+		if (rows.length) (modules[a.module] ??= {})[a.key] = rows.map((r) => ({
+			...r,
+			...gone
+		}));
+	}
+	return modules;
+}
 var hasModuleRows, recordOf, moduleSheetRows;
 var init_records = __esmMin((() => {
 	hasModuleRows = (m) => !!m && Object.values(m).some((k) => Object.values(k).some((v) => v.length));
@@ -3761,19 +3811,13 @@ function carryCopy(g, ctx) {
 	return base;
 }
 /**
-* What comes with the goals that carry on (rule 6): one metric link per carried goal that had one (same metric and
-* team, linked by the same person); a watch per watch of a carried goal or tree (same person); each open ask or next
+* What comes with the goals that carry on (rule 6): whatever a module says follows a goal (`follow` in its records: the
+* metrics module's link, same metric and team, linked by the same person); a watch per watch of a carried goal or tree (same person); each open ask or next
 * step on a carried goal, with the copy added to it (so it shows in both years); and each review that names a carried
 * goal or tree, with the copies added. `map` is old goal id → copy id.
 */
-function carryExtras(map, s, newId) {
-	const metricLinks = (s.metricLinks ?? []).filter((l) => !l.removedAt && map.has(l.goalId)).map((l) => ({
-		...l,
-		id: map.get(l.goalId),
-		goalId: map.get(l.goalId),
-		removedAt: null,
-		removedBy: null
-	}));
+function carryExtras(map, s, newId, records = []) {
+	const followed = followCopies(s.modules, map, records, newId);
 	const watches = (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === "goal" || w.kind === "tree") && map.has(w.ref)).map((w) => ({
 		...w,
 		id: newId("watch"),
@@ -3784,30 +3828,32 @@ function carryExtras(map, s, newId) {
 		requests: [],
 		reviews: []
 	};
+	const requests = (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => map.has(id))).map((r) => {
+		before.requests.push(r);
+		return {
+			...r,
+			goalIds: add(r.goalIds)
+		};
+	});
+	const reviews = (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => map.has(id))).map((r) => {
+		before.reviews.push(r);
+		return {
+			...r,
+			scope: {
+				...r.scope,
+				goals: add(r.scope.goals),
+				trees: add(r.scope.trees)
+			}
+		};
+	});
 	return {
-		metricLinks,
+		modules: followed.modules,
 		watches,
-		requests: (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => map.has(id))).map((r) => {
-			before.requests.push(r);
-			return {
-				...r,
-				goalIds: add(r.goalIds)
-			};
-		}),
-		reviews: (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => map.has(id))).map((r) => {
-			before.reviews.push(r);
-			return {
-				...r,
-				scope: {
-					...r.scope,
-					goals: add(r.scope.goals),
-					trees: add(r.scope.trees)
-				}
-			};
-		}),
+		requests,
+		reviews,
 		undo: {
 			watches: watches.map((w) => w.id),
-			metricLinks: metricLinks.map((l) => l.id),
+			modules: followed.ids,
 			...before
 		}
 	};
@@ -3978,6 +4024,7 @@ var init_cycle = __esmMin((() => {
 	init_carry();
 	init_yearName();
 	init_status();
+	init_records();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
@@ -4060,10 +4107,10 @@ function recarry(goal, full, extra, x) {
 				changes: [log(`${goal.title} in ${later.name} now starts from ${cycle.name}’s final number`, id)]
 			};
 		}
-		const extras = carryExtras(/* @__PURE__ */ new Map([[goal.id, id]]), full, x.newId);
+		const extras = carryExtras(/* @__PURE__ */ new Map([[goal.id, id]]), full, x.newId, x.records);
 		return {
 			goals: [made],
-			metricLinks: extras.metricLinks,
+			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
 			watches: extras.watches,
 			requests: extras.requests,
 			reviews: extras.reviews,
@@ -4075,6 +4122,7 @@ function recarry(goal, full, extra, x) {
 		removedAt: x.now,
 		removedBy: x.actorId
 	};
+	const leaving = rowsLeaving(full.modules, /* @__PURE__ */ new Set([copy.id]), x.records ?? [], gone);
 	return {
 		goals: [{
 			...copy,
@@ -4084,10 +4132,7 @@ function recarry(goal, full, extra, x) {
 			...w,
 			...gone
 		})),
-		metricLinks: (full.metricLinks ?? []).filter((l) => l.goalId === copy.id && !l.removedAt).map((l) => ({
-			...l,
-			...gone
-		})),
+		...hasModuleRows(leaving) ? { modules: leaving } : {},
 		requests: (full.requests ?? []).filter((r) => r.goalIds.includes(copy.id)).map((r) => ({
 			...r,
 			goalIds: r.goalIds.filter((g) => g !== copy.id)
@@ -4112,6 +4157,7 @@ var byRecarry, sansVersion;
 var init_recarry = __esmMin((() => {
 	init_carry();
 	init_cycle();
+	init_records();
 	byRecarry = (summary) => /now starts from .*’s final number$|carries on into /.test(summary);
 	sansVersion = (g) => ({
 		...g,
@@ -6038,7 +6084,8 @@ function saveRetro(x, goal, v) {
 	return mergeCommits(own, recarry(goal, full, { retro }, {
 		now: x.now,
 		actorId: x.actor.id,
-		newId: x.newId
+		newId: x.newId,
+		records: x.records
 	}));
 }
 /** Two commits as one save: their records and changes side by side. */
@@ -6092,13 +6139,13 @@ function startNextCycle(x) {
 		...finish ? [`${finish} finish`] : [],
 		...rb.stop ? [`${rb.stop} stop`] : []
 	];
-	const extras = carryExtras(map, full, x.newId);
+	const extras = carryExtras(map, full, x.newId, x.records);
 	return {
 		name: next.cycle.name,
 		commit: {
 			cycles: [next.cycle],
 			goals: next.goals,
-			metricLinks: extras.metricLinks,
+			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
 			watches: extras.watches,
 			requests: extras.requests,
 			reviews: extras.reviews,
@@ -6132,7 +6179,7 @@ function startNextCycle(x) {
 						before: r
 					})),
 					watches: extras.undo.watches,
-					metricLinks: extras.undo.metricLinks
+					...extras.undo.modules.length ? { modules: extras.undo.modules } : {}
 				}
 			}]
 		}
@@ -6587,6 +6634,7 @@ var init_actions = __esmMin((() => {
 	init_levels();
 	init_decide();
 	init_thresholds();
+	init_records();
 	init_cycle();
 	init_carry();
 	init_recarry();
@@ -7225,10 +7273,7 @@ function undoStart(x, cycleId) {
 		...w,
 		...gone
 	}));
-	const metricLinks = (full.metricLinks ?? []).filter((l) => (u.metricLinks ?? []).includes(l.id) && l.goalId && !l.removedAt && full.goals.some((g) => g.id === l.goalId && g.cycleId === cycleId)).map((l) => ({
-		...l,
-		...gone
-	}));
+	const modules = rowsUndone(full.modules, u.modules ?? [], gone);
 	const requests = u.requests.map((r) => r.before).filter((r) => !!r).map((r) => {
 		const now = (full.requests ?? []).find((v) => v.id === r.id);
 		return now ? {
@@ -7255,7 +7300,7 @@ function undoStart(x, cycleId) {
 			removedBy: x.actor.id
 		}],
 		watches,
-		metricLinks,
+		...hasModuleRows(modules) ? { modules } : {},
 		requests,
 		reviews,
 		changes: [log$1(x, {
@@ -8876,7 +8921,8 @@ function planChanges(input) {
 		for (const g of new Set(ciOut.map((c) => goalOut.get(c.goalId) ?? s.goals.find((x) => x.id === c.goalId)).filter((g) => !!g))) result.commit = mergeCommits(result.commit, recarry(g, full, { checkIns: ciOut }, {
 			now,
 			actorId: actor.id,
-			newId
+			newId,
+			records: input.records
 		}));
 	}
 	return result;
@@ -9575,7 +9621,15 @@ var MODULE_RECORDS = [{
 			carry: (rows, scope) => {
 				const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
 				return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
-			}
+			},
+			follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
+				...l,
+				id: copies.get(l.goalId),
+				goalId: copies.get(l.goalId),
+				removedAt: null,
+				removedBy: null
+			})),
+			goalOf: (l) => l.goalId
 		}],
 		sheets: [METRICS_SHEET]
 	}
@@ -16332,7 +16386,8 @@ var ax$2 = (ctx) => ({
 	now: ctx.now,
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
-	...ctx.full ? { full: ctx.full } : {}
+	...ctx.full ? { full: ctx.full } : {},
+	records: MODULE_RECORDS
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save$2(ctx, c, done, nothing) {
@@ -18585,7 +18640,8 @@ var ax$1 = (ctx) => ({
 	now: ctx.now,
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
-	...ctx.full ? { full: ctx.full } : {}
+	...ctx.full ? { full: ctx.full } : {},
+	records: MODULE_RECORDS
 });
 async function save$1(ctx, c, done) {
 	await ctx.save({

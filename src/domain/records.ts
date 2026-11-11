@@ -58,6 +58,11 @@ export interface RecordDef<T extends ModuleRow = ModuleRow> {
    * person changes none of a module's rows, unless `onRemoved` says otherwise.
    */
   carry?(rows: T[], scope: CarryScope): T[];
+  /** Rows that come with goals copied into the next cycle (cycle-end rule 6): given old goal id → copy id, the new
+      rows for the copies. A record without it stays with the old goal only. */
+  follow?(rows: T[], copies: ReadonlyMap<string, string>, newId: (prefix: string) => string): T[];
+  /** The one goal a row belongs to, for records that belong to a goal: a copy that leaves takes its rows with it. */
+  goalOf?(row: T): string | null;
   /** Recently removed (removable records): what a removed row is called there, and how it comes back. */
   removed?: {
     /** How the kind reads on Recently removed: "Metric". */
@@ -207,3 +212,46 @@ export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modu
 /** A module sheet's rows, header first (domain/export). */
 export const moduleSheetRows = (sheet: ModuleSheet, x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): Cell[][] =>
   [sheet.spec.columns.map((col) => col.header), ...sheet.rows(x, c, goalIds).map((it) => sheet.spec.columns.map((col) => col.write(it)))];
+
+/** Where a module's rows are filed, and which of them: what a start added, so Undo can take them back out. */
+export interface ModuleRowIds { module: string; key: string; ids: string[] }
+
+/**
+ * What comes with goals copied into the next cycle, from every module that says (`follow`): the new rows, and their
+ * ids for Undo. Rows of a record that doesn't follow stay with the old goal.
+ */
+export function followCopies(all: ModuleRows | undefined, copies: ReadonlyMap<string, string>, records: readonly ModuleRecords[], newId: (prefix: string) => string): { modules: ModuleRows; ids: ModuleRowIds[] } {
+  const modules: ModuleRows = {};
+  const ids: ModuleRowIds[] = [];
+  for (const m of records) for (const def of m.records) {
+    if (!def.follow) continue;
+    const rows = ((all?.[m.module]?.[def.key] ?? []) as ModuleRow[]).filter((r) => !r.removedAt);
+    const made = def.follow(rows, copies, newId);
+    if (!made.length) continue;
+    (modules[m.module] ??= {})[def.key] = made;
+    ids.push({ module: m.module, key: def.key, ids: made.map((r) => r.id) });
+  }
+  return { modules, ids };
+}
+
+/** The live rows that belong to these goals (`goalOf`), marked removed: a copy that leaves takes them with it. */
+export function rowsLeaving(all: ModuleRows | undefined, goalIds: ReadonlySet<string>, records: readonly ModuleRecords[], gone: { removedAt: string; removedBy: string }): ModuleRows {
+  const modules: ModuleRows = {};
+  for (const m of records) for (const def of m.records) {
+    if (!def.goalOf) continue;
+    const rows = ((all?.[m.module]?.[def.key] ?? []) as ModuleRow[]).filter((r) => !r.removedAt && goalIds.has(def.goalOf!(r) ?? ''));
+    if (rows.length) (modules[m.module] ??= {})[def.key] = rows.map((r) => ({ ...r, ...gone }));
+  }
+  return modules;
+}
+
+/** The rows a start added (by id), marked removed: Undo takes them back out, whichever module they belong to. */
+export function rowsUndone(all: ModuleRows | undefined, added: readonly ModuleRowIds[], gone: { removedAt: string; removedBy: string }): ModuleRows {
+  const modules: ModuleRows = {};
+  for (const a of added) {
+    const want = new Set(a.ids);
+    const rows = ((all?.[a.module]?.[a.key] ?? []) as ModuleRow[]).filter((r) => want.has(r.id) && !r.removedAt);
+    if (rows.length) (modules[a.module] ??= {})[a.key] = rows.map((r) => ({ ...r, ...gone }));
+  }
+  return modules;
+}

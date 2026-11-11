@@ -79,6 +79,10 @@ const goalMetric: RecordDef<MetricLink> = {
     const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
     return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
   },
+  // A goal carried into the next year keeps its metric (cycle-end rule 6): the same metric and team, linked by the same
+  // person. A link's id is its goal's.
+  follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({ ...l, id: copies.get(l.goalId)!, goalId: copies.get(l.goalId)!, removedAt: null, removedBy: null })),
+  goalOf: (l) => l.goalId,
 };
 
 const records: Omit<ModuleRecords, 'module'> = {

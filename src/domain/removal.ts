@@ -15,7 +15,7 @@ import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { moduleRowsBefore, removedModuleRows, restorableModuleRow, type ModuleRecords } from './records';
+import { hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsUndone, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -432,14 +432,15 @@ export function undoStart(x: ActionContext, cycleId: string): Commit {
   if (!c) no('There’s no cycle with that ID.');
   const can = canUndoStart(full, cycleId);
   if (!can.ok) no(`${c!.name} can’t be undone now: ${can.why}.`);
-  // What came with the goals goes back as it was: added watches and metric links are removed, asks and reviews restored.
+  // What came with the goals goes back as it was: added watches and modules' rows (a metric link) are removed, asks and
+  // reviews restored.
   const u = startOf(full, cycleId)!.undo!;
   const gone = { removedAt: x.now, removedBy: x.actor.id };
   const watches = (full.watches ?? []).filter((w) => (u.watches ?? []).includes(w.id) && !w.removedAt).map((w) => ({ ...w, ...gone }));
-  const metricLinks = (full.metricLinks ?? []).filter((l) => (u.metricLinks ?? []).includes(l.id) && l.goalId && !l.removedAt && full.goals.some((g) => g.id === l.goalId && g.cycleId === cycleId)).map((l) => ({ ...l, ...gone }));
+  const modules = rowsUndone(full.modules, u.modules ?? [], gone);
   const requests = u.requests.map((r) => r.before).filter((r): r is Ask => !!r).map((r) => { const now = (full.requests ?? []).find((v) => v.id === r.id); return now ? { ...now, goalIds: now.goalIds.filter((id) => !(u.goals ?? []).some((g) => g.id === id)) } : r; });
   const reviews = (u.reviews ?? []).map((r) => r.before).filter((r): r is Review => !!r).map((r) => { const now = (full.reviews ?? []).find((v) => v.id === r.id) ?? r; const added = new Set(u.goals.map((g) => g.id)); return { ...now, scope: { ...now.scope, goals: now.scope.goals.filter((id) => !added.has(id)), trees: now.scope.trees.filter((id) => !added.has(id)) } }; });
-  return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], watches, metricLinks, requests, reviews, changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
+  return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], watches, ...(hasModuleRows(modules) ? { modules } : {}), requests, reviews, changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
 }
 
 /* ---------- imports and bulk edits ---------- */

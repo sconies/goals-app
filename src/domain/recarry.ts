@@ -3,10 +3,11 @@
 import { carries, carryCopy, carryExtras, carryKind } from './carry';
 import type { Commit } from './commit';
 import { laterCycle } from './cycle';
-import type { Ask, Change, CheckIn, Cycle, Goal, MetricLink, Retro, Review, Watch } from './types';
+import type { Ask, Change, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
+import { hasModuleRows, rowsLeaving, type ModuleRecords, type ModuleRows } from './records';
 
 /** The rows recarry reads: the cycles, goals, check-ins, change log and wrap-ups, and what comes with a goal. */
-export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; changes: Change[]; retros?: Retro[]; watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; metricLinks?: MetricLink[] }
+export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; changes: Change[]; retros?: Retro[]; watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; modules?: ModuleRows }
 
 /**
  * Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle gets a
@@ -15,7 +16,7 @@ export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]
  * removed (it now finishes or stops), or a copy is added with what comes with it (it now carries on). Nothing when the
  * copy has been used, or there is no later cycle. `extra` is what the change is about to save.
  */
-export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn[]; retro?: Retro | null }, x: { now: string; actorId: string; newId: (p: string) => string }): Commit | null {
+export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn[]; retro?: Retro | null }, x: { now: string; actorId: string; newId: (p: string) => string; records?: readonly ModuleRecords[] }): Commit | null {
   const cycle = full.cycles.find((c) => c.id === goal.cycleId);
   const later = cycle && laterCycle(full.cycles, cycle);
   if (!cycle || !later || !goal.key) return null;
@@ -33,15 +34,16 @@ export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn
       if (JSON.stringify(sansVersion(made)) === JSON.stringify(sansVersion(copy))) return null;
       return { goals: [{ ...made, version: copy.version }], changes: [log(`${goal.title} in ${later.name} now starts from ${cycle.name}’s final number`, id)] };
     }
-    const extras = carryExtras(new Map([[goal.id, id]]), full, x.newId);
-    return { goals: [made], metricLinks: extras.metricLinks, watches: extras.watches, requests: extras.requests, reviews: extras.reviews, changes: [log(`${goal.title} carries on into ${later.name}`, id)] };
+    const extras = carryExtras(new Map([[goal.id, id]]), full, x.newId, x.records);
+    return { goals: [made], ...(hasModuleRows(extras.modules) ? { modules: extras.modules } : {}), watches: extras.watches, requests: extras.requests, reviews: extras.reviews, changes: [log(`${goal.title} carries on into ${later.name}`, id)] };
   }
   if (!copy) return null;
   const gone = { removedAt: x.now, removedBy: x.actorId };
+  const leaving = rowsLeaving(full.modules, new Set([copy.id]), x.records ?? [], gone);
   return {
     goals: [{ ...copy, ...gone }],
     watches: (full.watches ?? []).filter((w) => w.ref === copy.id && !w.removedAt).map((w) => ({ ...w, ...gone })),
-    metricLinks: (full.metricLinks ?? []).filter((l) => l.goalId === copy.id && !l.removedAt).map((l) => ({ ...l, ...gone })),
+    ...(hasModuleRows(leaving) ? { modules: leaving } : {}),
     requests: (full.requests ?? []).filter((r) => r.goalIds.includes(copy.id)).map((r) => ({ ...r, goalIds: r.goalIds.filter((g) => g !== copy.id) })),
     reviews: (full.reviews ?? []).filter((r) => r.scope.goals.includes(copy.id) || r.scope.trees.includes(copy.id)).map((r) => ({ ...r, scope: { ...r.scope, goals: r.scope.goals.filter((g) => g !== copy.id), trees: r.scope.trees.filter((g) => g !== copy.id) } })),
     changes: [log(`${goal.title} ${kind === 'stop' ? 'stops' : 'finishes'} in ${cycle.name}, so it left ${later.name}`, copy.id)],
