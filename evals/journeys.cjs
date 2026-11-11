@@ -2941,6 +2941,16 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await p.goForward();
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('parity', /\/goals\/ns-lead(\?|$)/.test(p.url()), `after the back link, Forward went to ${p.url()}`);
+  // Settings scrolls to its foot on a computer: the section links never pull the page back up, and the last is lit.
+  if (device !== 'phone') {
+    await p.goto(url('/settings'));
+    await p.locator('.section-links').first().waitFor({ timeout: 5000 }).catch(() => {});
+    await p.mouse.move(700, 500);
+    for (let i = 0; i < 40; i++) { await p.mouse.wheel(0, 60); await p.waitForTimeout(30); }
+    await p.waitForTimeout(300);
+    const at = await p.evaluate(() => ({ y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight, lit: document.querySelector('.section-links [aria-current="true"]')?.textContent?.trim() ?? '' }));
+    h.set('progress', at.y >= at.max - 2 && at.lit === 'Leave', `Settings scrolled to ${at.y} of ${at.max}, with “${at.lit}” lit`);
+  }
   h.set('attention', true); h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
@@ -4750,6 +4760,19 @@ async function platformChecks() {
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
       (await shapeMismatches(r)).forEach((x) => problems.push(`${who} ${route}: ${x}`));
     }
+    // A status in a found row (Find, and every picker's rows, which share them) shows its shape at a real size, not 0 by 0.
+    await r.goto(url('/'));
+    await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await r.reload();
+    await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
+    if (device === 'phone') await r.locator('.find-btn:visible').first().click().catch(() => {});
+    else await r.keyboard.press('Control+k');
+    const finder = r.getByRole('dialog', { name: 'Find' });
+    await finder.getByRole('combobox').fill('rhea').catch(() => {});
+    await finder.locator('.pick-status').first().waitFor({ timeout: 5000 }).catch(() => {});
+    const sizes = await r.$$eval('.pick-status', (els) => els.map((e) => { const b = e.querySelector('svg.status-shape')?.getBoundingClientRect(); return b ? Math.min(b.width, b.height) : 0; }));
+    if (!sizes.length) problems.push('Find "rhea": no goal row with a status');
+    else if (sizes.some((x) => x < 8)) problems.push(`Find "rhea": ${sizes.filter((x) => x < 8).length} goal rows whose status shape has no size`);
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y', 'SHAPE-MATCHES-WORD'] : ['A11Y', 'SHAPE-MATCHES-WORD'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
     lap(device === 'phone' ? 'P3' : 'P4');
