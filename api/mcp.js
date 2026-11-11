@@ -193,11 +193,7 @@ function projectionFor(goal, series, toWeek) {
 function weekDates(cycle, week) {
 	const a = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	const b = new Date(a.getTime() + 5184e5);
-	const d = (x, month) => x.toLocaleDateString("en-GB", {
-		day: "numeric",
-		...month ? { month: "short" } : {},
-		timeZone: "UTC"
-	});
+	const d = (x, month) => (month ? DAY_MONTH : DAY_ONLY).format(x);
 	const range = a.getUTCMonth() === b.getUTCMonth() ? `${d(a, false)}–${d(b, true)}` : `${d(a, true)}–${d(b, true)}`;
 	const own = new Date(Date.parse(cycle.startDate + "T00:00:00Z") + 864e6).getUTCFullYear();
 	return b.getUTCFullYear() !== own || a.getUTCFullYear() !== own ? `${range} ${b.getUTCFullYear()}` : range;
@@ -223,11 +219,20 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$2, planEnd, NOT_A_COUNT;
+var DAY$2, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
 	DAY$2 = 864e5;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
+	DAY_ONLY = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		timeZone: "UTC"
+	});
+	DAY_MONTH = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
 }));
 // src/domain/thresholds.ts
 /** What's wrong with a workspace's or a goal's name, or null: empty, shorter than MIN_NAME, or (a workspace) longer than MAX_WORKSPACE_NAME. */
@@ -2336,7 +2341,26 @@ function attentionFor(goal, s, cycle, today) {
 		lookedAt: lookedAtFor(goal, s, cycle, today, status)
 	};
 }
-/** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+/** A goal's decisions, in the order kept. Indexed once per list (and again if it grows), so asking for every goal stays
+cheap at scale (AX4), as checkInsFor does for check-ins. */
+function decisionsFor(goalId, all) {
+	let hit = byGoal.get(all);
+	if (!hit || hit.n !== all.length || hit.last !== all[all.length - 1]) {
+		const index = /* @__PURE__ */ new Map();
+		for (const d of all) {
+			const l = index.get(d.goalId);
+			if (l) l.push(d);
+			else index.set(d.goalId, [d]);
+		}
+		hit = {
+			n: all.length,
+			last: all[all.length - 1],
+			index
+		};
+		byGoal.set(all, hit);
+	}
+	return hit.index.get(goalId) ?? [];
+}
 function looksAt(goal, s, cycle, today, status) {
 	if (status.status !== "off" && status.status !== "risk") return [];
 	const latest = status.latest;
@@ -2346,7 +2370,7 @@ function looksAt(goal, s, cycle, today, status) {
 	const first = (id) => s.people.find((p) => p.id === id)?.name.split(" ")[0] ?? "Someone";
 	const day = today.toISOString().slice(0, 10);
 	const looks = [];
-	for (const d of s.decisions) {
+	for (const d of decisionsFor(goal.id, s.decisions)) {
 		const kind = LOOKS[d.kind];
 		if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
 		if (d.byId === goal.ownerId) continue;
@@ -2433,7 +2457,7 @@ function splitAttention(list) {
 function attentionList(s, cycle, today, opts = {}) {
 	return (opts.goals ?? s.goals).map((g) => attentionFor(g, s, cycle, today)).filter((a) => a.flags.some((f) => opts.includeDue || f.kind !== "due")).sort(attentionOrder);
 }
-var WEIGHT, HANDLED_ORDER, LOOKS, needsAttention, onAttentionList, attentionOrder;
+var WEIGHT, HANDLED_ORDER, LOOKS, byGoal, needsAttention, onAttentionList, attentionOrder;
 var init_attention = __esmMin((() => {
 	init_status();
 	init_progress();
@@ -2452,6 +2476,7 @@ var init_attention = __esmMin((() => {
 		note: "noted",
 		acknowledge: "reviewed"
 	};
+	byGoal = /* @__PURE__ */ new WeakMap();
 	needsAttention = (a) => !a.handled && a.flags.some((f) => f.kind !== "due");
 	onAttentionList = (a) => attentionGroup(a) !== null;
 	attentionOrder = (a, b) => Number(!!a.handled) - Number(!!b.handled) || b.weight - a.weight || a.goal.title.localeCompare(b.goal.title);
@@ -5572,7 +5597,7 @@ function sayAmount(v, g) {
 		if (x >= 1e3) return `${sign}${sym}${trim(x / 1e3, own(1e3, x >= 1e4 ? 0 : 1))}k`;
 		return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
 	}
-	const n = Number(v.toFixed(g.decimals)).toLocaleString("en-GB", { maximumFractionDigits: g.decimals });
+	const n = numberFormat(g.decimals).format(Number(v.toFixed(g.decimals)));
 	if (!g.unit) return n;
 	if (g.unit === "%") return n + "%";
 	return `${n} ${Math.abs(Number(v.toFixed(g.decimals))) === 1 && /[a-z]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
@@ -5598,7 +5623,7 @@ function headingSentence(goal, p, misses, when, share = false) {
 	const wellMiss = `well ${shortWord(goal.plan.target >= goal.plan.start ? 1 : -1)} of`.replace("over of", "over");
 	return `On its recent trend it ends at about ${likely} ${when}${range}, ${misses ? `${close === "well " ? wellMiss : close === "just " ? "just missing" : "missing"} its target of ${target}` : `${close === "well " ? "comfortably beating" : "reaching"} its target of ${target}`}. Projected by the app from the last eight weeks, not the owner’s date.`;
 }
-var CURRENCY, SYMBOL;
+var CURRENCY, SYMBOL, NUMBER_FORMATS, numberFormat;
 var init_chartStory = __esmMin((() => {
 	init_plan();
 	init_trend();
@@ -5608,6 +5633,12 @@ var init_chartStory = __esmMin((() => {
 		USD: "$",
 		GBP: "£",
 		EUR: "€"
+	};
+	NUMBER_FORMATS = /* @__PURE__ */ new Map();
+	numberFormat = (decimals) => {
+		let f = NUMBER_FORMATS.get(decimals);
+		if (!f) NUMBER_FORMATS.set(decimals, f = new Intl.NumberFormat("en-GB", { maximumFractionDigits: decimals }));
+		return f;
 	};
 }));
 // src/domain/tree.ts
