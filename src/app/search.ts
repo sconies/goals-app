@@ -40,17 +40,18 @@ export function searchNames(names: string[]): Search {
 
 /**
  * One page of a kind's search, for a list (People, Teams): the Search port's answer to the last thing asked, kept while
- * the next is on its way so the list doesn't flash empty. Null until the first answer.
+ * the next is on its way so the list doesn't flash empty (marked `stale`). Null until the first answer.
  */
-export function useFound(kind: SearchKind, ask: SearchAsk): SearchAnswer | null {
+export function useFound(kind: SearchKind, ask: SearchAsk): (SearchAnswer & { stale: boolean }) | null {
   const search = useSearch();
   const key = JSON.stringify(ask);
-  const [answer, setAnswer] = useState<SearchAnswer | null>(null);
+  const [answer, setAnswer] = useState<{ key: string; a: SearchAnswer } | null>(null);
   useEffect(() => {
     let live = true;
-    search.search(kind, ask).then((a) => { if (live) setAnswer(a); }).catch(() => {});
+    search.search(kind, ask).then((a) => { if (live) setAnswer({ key, a }); }).catch(() => {});
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, kind, key]);
-  return answer;
+  // `stale`: the answer to an earlier ask, shown while this one is on its way; its count isn't this search's.
+  return answer ? { ...answer.a, stale: answer.key !== key } : null;
 }

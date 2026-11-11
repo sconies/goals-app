@@ -135,9 +135,9 @@ export function PeopleList() {
       {admin && noEmail > 0 && (
         <p className="people-emails small">{plural(noEmail, 'person has', 'people have')} no email yet. <button type="button" className="linkish" onClick={() => setEmails(true)}>Add them</button></p>
       )}
-      <CountLine things={PEOPLE} n={found.total} narrowed={filtered} order="A to Z" shown={found.total > DIRECTORY_PAGE ? { from: found.from, to: found.to } : null} />
+      {answer && !answer.stale && <CountLine things={PEOPLE} n={found.total} narrowed={filtered} order="A to Z" shown={found.total > DIRECTORY_PAGE ? { from: found.from, to: found.to } : null} />}
       <FilterLine parts={parts} onRemove={(key) => set({ [key]: null })} onClear={() => set({ team: null, admins: null })} />
-      {answer && !found.total && <NoneFound things={PEOPLE} q={q} filtered={!!teamId || admins} onClearSearch={() => set({ q: null })} onClearFilters={() => set({ team: null, admins: null })} />}
+      {answer && !answer.stale && !found.total && <NoneFound things={PEOPLE} q={q} filtered={!!teamId || admins} onClearSearch={() => set({ q: null })} onClearFilters={() => set({ team: null, admins: null })} />}
       {found.total > 0 && (
         <ul className="people-list" aria-label="People">
           {found.rows.map((p) => <li key={p.id}><PersonRow p={p} /></li>)}
@@ -285,8 +285,8 @@ export function TeamsList() {
     <div className="page people-page">
       <PlaceHead tab="teams" action={app.viewer.admin && <button type="button" className="btn primary" onClick={() => setAdding(true)}>Add a team</button>} />
       <ListBar search={<ListSearch value={q} onSearch={(t, change) => setParams((p) => { const n = new URLSearchParams(p); if (t) n.set('q', t); else n.delete('q'); n.delete('page'); return n; }, { replace: historyStep(change) === 'replace' })} label="Find a team" placeholder="Find a team or its lead" />} />
-      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : <CountLine things={TEAMS} n={shown.total} narrowed={!!q.trim()} order="A to Z" shown={shown.total > DIRECTORY_PAGE ? { from: shown.from, to: shown.to } : null} />}
-      {!!app.snapshot.teams.length && answer && !shown.total && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
+      {!app.snapshot.teams.length ? <p className="hint" role="status">No teams yet.</p> : answer && !answer.stale && <CountLine things={TEAMS} n={shown.total} narrowed={!!q.trim()} order="A to Z" shown={shown.total > DIRECTORY_PAGE ? { from: shown.from, to: shown.to } : null} />}
+      {!!app.snapshot.teams.length && answer && !answer.stale && !shown.total && <NoneFound things={TEAMS} q={q} filtered={false} onClearSearch={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('q'); return n; })} onClearFilters={() => undefined} />}
       {found.length > 0 && (
         <ul className="people-list team-list" aria-label="Teams">
           {found.map((t) => {
