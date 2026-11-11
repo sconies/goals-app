@@ -2,6 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
+import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
@@ -245,7 +246,7 @@ export function newReview(x: ActionContext, v: { name: string; everyWeeks: numbe
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
     you stopped watching brings the same watch back (one watch per person and thing). */
 export function watch(x: ActionContext, kind: Watch['kind'], ref: string): Commit | null {
-  if (kind === 'level' ? !['north-star', 'svp', 'team'].includes(ref) : !x.snapshot.goals.some((g) => g.id === ref)) no(kind === 'level' ? 'Levels are north-star, svp and team.' : 'There’s no goal with that ID in this cycle.');
+  if (kind === 'level' ? !isLevel(x.cycle, ref) : !x.snapshot.goals.some((g) => g.id === ref)) no(kind === 'level' ? `There’s no level called “${ref}” here. The levels are ${levelsOf(x.cycle).map((l) => `${l.name} (${l.id})`).join(', ')}.` : 'There’s no goal with that ID in this cycle.');
   if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
   const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
   return { watches: [old ? { ...old, removedAt: null, removedBy: null } : { id: x.newId('w'), personId: x.actor.id, kind, ref }], changes: [] };

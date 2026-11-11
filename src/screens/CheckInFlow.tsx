@@ -9,7 +9,8 @@ import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
-import { fmt, gapText, LEVEL_LABEL, targetText, weekLabel } from '../domain/format';
+import { fmt, gapText, targetText, weekLabel } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
@@ -436,7 +437,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
           </div>
         </Sheet>
       )}
-      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={goal.level !== 'team' ? `${LEVEL_LABEL[goal.level]} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
+      <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={!isEveryday(app.cycle, goal.level) ? `${levelName(app.cycle, goal.level)} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
       {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 

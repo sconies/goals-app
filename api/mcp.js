@@ -1830,6 +1830,57 @@ function newToken() {
 	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
+// src/domain/levels.ts
+var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, levelRank, LEVEL_WORDS, EVERYDAY_WORD;
+var init_levels = __esmMin((() => {
+	DEFAULT_LEVELS = [
+		{
+			id: "north-star",
+			name: "North star",
+			hint: "Reported at the top. You can have several."
+		},
+		{
+			id: "svp",
+			name: "SVP",
+			hint: "Reported at SVP reviews."
+		},
+		{
+			id: "team",
+			name: "Team",
+			hint: "Most goals. Flag SVP or North star only for goals reported at major reviews."
+		}
+	];
+	all = (c) => c?.levels?.length ? c.levels : DEFAULT_LEVELS;
+	levelsOf$1 = (c) => all(c).filter((l) => !l.removedAt);
+	levelIds = (c) => levelsOf$1(c).map((l) => l.id);
+	levelDef = (c, id) => all(c).find((l) => l.id === id) ?? null;
+	isLevel = (c, id) => levelsOf$1(c).some((l) => l.id === id);
+	levelName = (c, id) => levelDef(c, id)?.name ?? id;
+	everydayLevel = (c) => levelIds(c).at(-1) ?? "team";
+	isEveryday = (c, id) => id === everydayLevel(c);
+	levelRank = (c, id) => {
+		const i = levelIds(c).indexOf(id);
+		return i < 0 ? levelIds(c).length : i;
+	};
+	LEVEL_WORDS = {
+		what: "Level",
+		word: {
+			"north-star": "north star",
+			svp: "svp",
+			team: "team"
+		},
+		also: {
+			"north-star": [
+				"northstar",
+				"headline",
+				"north star goal"
+			],
+			svp: ["senior vp", "senior"]
+		},
+		prefix: { "north-star": ["north"] }
+	};
+	EVERYDAY_WORD = LEVEL_WORDS.word[everydayLevel(null)] ?? everydayLevel(null);
+}));
 // src/domain/progress.ts
 /** The person's goals this week: which are checked in and which are still due. */
 function weekProgress(personId, s, cycle, week, today) {
@@ -2324,17 +2375,12 @@ function gapText(g, a) {
 		tone: "stale"
 	};
 }
-var NO_VALUE$1, weekLabel, LEVEL_LABEL;
+var NO_VALUE$1, weekLabel;
 var init_format = __esmMin((() => {
 	init_numbers();
 	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
-	LEVEL_LABEL = {
-		"north-star": "North star",
-		svp: "SVP",
-		team: "Team"
-	};
 }));
 // src/domain/trend.ts
 /**
@@ -3492,7 +3538,7 @@ function storyOf(g, s, cycle, week, today) {
 	}
 	if (lastEnded?.kind === "missed" && !result) warn("missed-quarter", `${WARNING["missed-quarter"].label}. ${lastEnded.text}.`);
 	const parent = g.parentId ? s.goals.find((x) => x.id === g.parentId) : null;
-	const feeds = parent ? `Feeds ${parent.title}${parent.level !== "team" ? ` (${LEVEL_LABEL[parent.level]})` : ""}` : null;
+	const feeds = parent ? `Feeds ${parent.title}${!isEveryday(cycle, parent.level) ? ` (${levelName(cycle, parent.level)})` : ""}` : null;
 	const label = result ? RESULT_TEXT[result.kind] : LABEL[status];
 	const ans = answeredSince(g.id, last?.postedAt ?? null, s);
 	const answered = ans ? {
@@ -3524,6 +3570,7 @@ var STORY_FLAGS, BEHIND;
 var init_story = __esmMin((() => {
 	init_checkin();
 	init_format();
+	init_levels();
 	init_plan();
 	init_status();
 	init_attention();
@@ -3989,7 +4036,7 @@ function goalFields(g, l) {
 		"Feeds into": g.parentId ? l.goal(g.parentId)?.title ?? "—" : "Nothing",
 		"Why it helps": g.parentId ? g.whyHelps || "—" : "—",
 		"Also helps": g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(", ") : "—",
-		Level: LEVEL_LABEL[g.level],
+		Level: levelName(null, g.level),
 		Role: g.io === "input" ? "Input" : "Output",
 		Guardrail: g.guardrail ? "Yes" : "No",
 		"Estimated effect": g.effect == null ? "—" : String(g.effect),
@@ -4072,6 +4119,7 @@ var shapeName, RECOVERY_LABEL, list$2;
 var init_changes = __esmMin((() => {
 	init_checkin();
 	init_format();
+	init_levels();
 	init_status();
 	shapeName = {
 		straight: "Straight line",
@@ -4172,8 +4220,9 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$2, unknownWord, oneOf, andList, LEVEL_WORDS, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$2, unknownWord, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
+	init_levels();
 	init_asks();
 	init_checkin();
 	init_plan();
@@ -4191,23 +4240,6 @@ var init_columns = __esmMin((() => {
 	unknownWord = (w, raw) => `${w.what} “${raw.trim()}” isn’t one of: ${oneOf(Object.values(w.word))}.`;
 	oneOf = (list) => list.length < 2 ? list.join("") : `${list.slice(0, -1).join(", ")} or ${list.at(-1)}`;
 	andList = (list) => list.length < 2 ? list.join("") : `${list.slice(0, -1).join(", ")} and ${list.at(-1)}`;
-	LEVEL_WORDS = {
-		what: "Level",
-		word: {
-			"north-star": "north star",
-			svp: "svp",
-			team: "team"
-		},
-		also: {
-			"north-star": [
-				"northstar",
-				"headline",
-				"north star goal"
-			],
-			svp: ["senior vp", "senior"]
-		},
-		prefix: { "north-star": ["north"] }
-	};
 	TYPE_WORDS = {
 		what: "Type",
 		word: {
@@ -4410,7 +4442,7 @@ var init_columns = __esmMin((() => {
 				means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`,
 				write: blank
 			},
-			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level]),
+			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
 			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
 			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
 			e("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
@@ -4553,7 +4585,7 @@ var init_columns = __esmMin((() => {
 			m$1("Key", "The goal’s key.", (r) => or$1(r.g.key)),
 			m$1("ID", "The goal’s ID in this cycle.", (r) => r.g.id),
 			sh$1("Goal", "The goal’s name.", (r) => r.g.title),
-			sh$1("Level", "Its level.", (r) => LEVEL_WORDS.word[r.g.level]),
+			sh$1("Level", "Its level.", (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
 			sh$1("Team", "Its team.", (r) => or$1(r.c.team(r.g.teamId))),
 			sh$1("Owner", "Who owns it.", (r) => or$1(r.c.name(r.g.ownerId))),
 			sh$1("Owner email", "Who owns it, by email.", (r) => r.c.email(r.g.ownerId)),
@@ -4694,10 +4726,10 @@ var init_columns = __esmMin((() => {
 				empty: "The row adds or changes the goal"
 			},
 			Level: {
-				required: { optional: LEVEL_WORDS.word.team },
+				required: { optional: EVERYDAY_WORD },
 				format: wordList(LEVEL_WORDS),
-				example: LEVEL_WORDS.word.team,
-				empty: LEVEL_WORDS.word.team,
+				example: EVERYDAY_WORD,
+				empty: EVERYDAY_WORD,
 				also: ["goal level"]
 			},
 			Team: {
@@ -5062,7 +5094,7 @@ var init_columns = __esmMin((() => {
 	};
 	emptyText = (row) => `${row.empty}${row.clears ? ". On a row already here, empty clears it" : ""}`;
 	isFillIn = (row) => row.required != null && row.required !== "reading";
-	GOAL_ACTION_WORDS.word.example, LEVEL_WORDS.word.team, TYPE_WORDS.word.metric, SHAPE_WORDS.word.straight, GOAL_ACTION_WORDS.word.example, LEVEL_WORDS.word.team, TYPE_WORDS.word.milestone, PERSON_ACTION_WORDS.word.example, YES_WORDS.word.no;
+	GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.metric, SHAPE_WORDS.word.straight, GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.milestone, PERSON_ACTION_WORDS.word.example, YES_WORDS.word.no;
 }));
 // src/domain/tableFilter.ts
 /** Does one cell value pass the filter? */
@@ -5708,11 +5740,7 @@ function newReview(x, v) {
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
 you stopped watching brings the same watch back (one watch per person and thing). */
 function watch(x, kind, ref) {
-	if (kind === "level" ? ![
-		"north-star",
-		"svp",
-		"team"
-	].includes(ref) : !x.snapshot.goals.some((g) => g.id === ref)) no$2(kind === "level" ? "Levels are north-star, svp and team." : "There’s no goal with that ID in this cycle.");
+	if (kind === "level" ? !isLevel(x.cycle, ref) : !x.snapshot.goals.some((g) => g.id === ref)) no$2(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
 	if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
 	const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
 	return {
@@ -6338,6 +6366,7 @@ function canDeleteWorkspace(actor, kind, name, confirmName) {
 }
 var NotAllowed, no$2, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
+	init_levels();
 	init_decide();
 	init_thresholds();
 	init_cycle();
@@ -9292,7 +9321,7 @@ var MODULE_RECORDS = [{
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 // src/domain/find.ts
-init_format();
+init_levels();
 init_goalKey();
 init_vocabulary();
 /** Lower case, accents gone: "Lucía" reads as "lucia". */
@@ -9374,7 +9403,7 @@ var goalWords = (s) => [
 	s.goal.key ?? "",
 	s.owner,
 	s.team,
-	LEVEL_LABEL[s.goal.level],
+	levelName(null, s.goal.level),
 	LABEL[s.status],
 	s.story.why ?? "",
 	s.story.doing ?? "",
@@ -9573,7 +9602,7 @@ function suggest(rows, viewerId, recents) {
 	}
 }
 // src/domain/query.ts
-init_format();
+init_levels();
 init_attention();
 init_status();
 init_vocabulary();
@@ -9633,11 +9662,6 @@ var SORT_OPTIONS = [
 	["last", "Longest since a check-in"],
 	["due", "Due soonest"]
 ];
-var LEVELS$2 = [
-	"north-star",
-	"svp",
-	"team"
-];
 var list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
 var int$3 = (v) => {
 	const n = v == null ? NaN : Number(v);
@@ -9651,7 +9675,7 @@ function parseQuery(p) {
 	return {
 		q: (p.get("q") ?? "").slice(0, 200),
 		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
-		level: list$1(p.get("level"), LEVELS$2),
+		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
 		team: (p.get("team") ?? "").split(",").filter(Boolean),
 		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
 		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
@@ -9741,11 +9765,6 @@ var GAP_RANK = {
 	on: 1,
 	ahead: 0
 };
-var LEVEL_RANK = {
-	"north-star": 0,
-	svp: 1,
-	team: 2
-};
 /** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
 function compare(q, _week) {
 	const key = q.sort ?? "worst";
@@ -9756,7 +9775,7 @@ function compare(q, _week) {
 		title: name,
 		owner: (a, b) => a.owner.localeCompare(b.owner),
 		team: (a, b) => a.team.localeCompare(b.team),
-		level: (a, b) => LEVEL_RANK[a.goal.level] - LEVEL_RANK[b.goal.level],
+		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
 		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
 		last: (a, b) => b.quietDays - a.quietDays,
 		due: (a, b) => a.dueWeek - b.dueWeek
@@ -9772,6 +9791,7 @@ function applyQuery(sums, q, ctx) {
 // src/domain/summary.ts
 init_checkin();
 init_format();
+init_levels();
 init_plan();
 init_status();
 init_attention();
@@ -9795,7 +9815,7 @@ function summarise(goal, s, cycle, today, week) {
 		goal,
 		owner,
 		team,
-		level: LEVEL_LABEL[goal.level],
+		level: levelName(cycle, goal.level),
 		type: kindLabel(goal),
 		status: st.status,
 		statusLabel: LABEL[st.status],
@@ -9990,7 +10010,7 @@ function localSearch(rows, finders = {}) {
 init_changeset();
 init_goal();
 init_asks();
-init_format();
+init_levels();
 init_plan();
 init_year();
 init_review();
@@ -10564,7 +10584,7 @@ function aiBrief(x) {
 	}
 	out.push("## Every goal, by what it feeds");
 	const line = (s, depth) => {
-		const lvl = s.goal.level !== "team" ? ` [${LEVEL_LABEL[s.goal.level]}]` : "";
+		const lvl = !isEveryday(null, s.goal.level) ? ` [${levelName(null, s.goal.level)}]` : "";
 		out.push(`${"  ".repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ""}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ""}; ${s.gap}. Owner ${s.owner}.${s.forecast ? " " + s.forecast : ""}`);
 	};
 	const seen = /* @__PURE__ */ new Set();
@@ -11294,7 +11314,7 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 	};
 }
 // src/domain/activity.ts
-init_format();
+init_levels();
 init_plan();
 init_year();
 var ACTIVITY_KINDS = [
@@ -11325,7 +11345,7 @@ function parseActivity(p) {
 		goal: p.get("goal"),
 		tree: p.get("tree") === "1",
 		team: list(p.get("team")),
-		level: list(p.get("level")).filter((l) => l in LEVEL_LABEL),
+		level: list(p.get("level")).filter((l) => isLevel(null, l)),
 		kind: list(p.get("kind")).filter((k) => kinds.includes(k)),
 		when: WHEN_OPTIONS.some(([k]) => k === when) ? when : null,
 		from: date(p.get("from")),
@@ -14136,6 +14156,13 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "levels-one-style",
+		date: "2026-11-11",
+		title: "Levels look the same",
+		points: ["A goal’s level (North star, SVP) is shown in one plain style everywhere: North star no longer has a coloured tag of its own.", "Team goals still carry no tag. Nothing else about levels has changed."],
+		articles: ["goals"]
+	},
+	{
 		id: "check-in-asks",
 		date: "2026-11-11",
 		title: "Faro asks about a number that looks wrong",
@@ -15829,6 +15856,11 @@ var RULE_PAGES = [
 		"a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart"
 	],
 	[
+		"levels",
+		"Levels",
+		"which levels a goal can have, what each is called, which is untagged, and how they sort"
+	],
+	[
 		"flags",
 		"Flags, the trend and needs attention",
 		"why a goal is flagged, and whether it needs attention"
@@ -15944,6 +15976,7 @@ function systemOverview() {
 	].join("\n");
 }
 // src/mcp/workTools.ts
+init_levels();
 init_actions();
 init_attention();
 init_cycle();
@@ -15977,11 +16010,7 @@ var ids$1 = (description) => ({
 	items: { type: "string" },
 	description
 });
-var LEVELS$1 = [
-	"north-star",
-	"svp",
-	"team"
-];
+var LEVELS$1 = levelIds(null);
 var READ$4 = {
 	readOnlyHint: true,
 	openWorldHint: false
@@ -16050,7 +16079,7 @@ var teamOf = (ctx, ref) => {
 var levelsOf = (v) => {
 	const list = (v ?? []).map((l) => l.toLowerCase().replace(/\s+/g, "-"));
 	const bad = list.filter((l) => !LEVELS$1.includes(l));
-	if (bad.length) throw new Error(`Levels are north-star, svp and team (not ${bad.join(", ")}).`);
+	if (bad.length) throw new Error(`Levels are ${LEVELS$1.join(", ")} (not ${bad.join(", ")}).`);
 	return list;
 };
 var requestData = (ctx, r) => ({
@@ -19023,6 +19052,7 @@ var tools_default = [{
 	part: tools
 }];
 // src/mcp/tools.ts
+init_levels();
 init_actions();
 init_changeset();
 init_columns();
@@ -19072,11 +19102,7 @@ function statusIn(v, only = STATUSES) {
 	if (!k || !only.includes(k)) throw new Error(`“${String(v)}” isn’t a status here. Use one of: ${choices(STATUS, only)}.`);
 	return k;
 }
-var LEVELS = [
-	"north-star",
-	"svp",
-	"team"
-];
+var LEVELS = levelIds(null);
 var DRY = bool("Check the change without saving it. Use it to see what would change, or what is missing.");
 /** Tool arguments → a spreadsheet-style row (the same column names as the export). */
 function row(args, map) {
@@ -19218,11 +19244,7 @@ var GOAL_FIELDS = {
 	owner: str("The owner’s full name, as in the workspace (when only one person has it; owner_email is exact)."),
 	owner_email: str("The owner’s email: exact, even where two people share a name."),
 	team: str("The team’s name."),
-	level: str("How important it is for reporting.", { enum: [
-		"north star",
-		"svp",
-		"team"
-	] }),
+	level: str("How important it is for reporting.", { enum: LEVELS.map((l) => LEVEL_WORDS.word[l] ?? l) }),
 	unit: str("Number goals: the unit, e.g. \"%\", \"days\", \"USD\"."),
 	decimals: int("Number goals: decimal places, 0 to 3."),
 	start: num$1("Move-a-number goals: where it starts."),

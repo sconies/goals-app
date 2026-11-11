@@ -2,6 +2,7 @@
    wrap-ups and the next cycle, saved views, tokens and feedback, plus what needs them and the activity log. Each write
    is a shared action (domain/actions.ts), so the assistant meets exactly the rules the person does in the app, and every
    change it makes is logged as that person, via MCP. Check-ins, goals and plans are in tools.ts. */
+import { levelIds } from '../domain/levels';
 import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
@@ -35,7 +36,7 @@ const str = (description: string, extra: object = {}) => ({ type: 'string', desc
 const int = (description: string) => ({ type: 'integer', description });
 const bool = (description: string) => ({ type: 'boolean', description });
 const ids = (description: string) => ({ type: 'array', items: { type: 'string' }, description });
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
+const LEVELS: Level[] = levelIds(null);
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
 const VIA = VIA_MCP;
@@ -85,7 +86,7 @@ const teamOf = (ctx: McpContext, ref: unknown) => {
 const levelsOf = (v: unknown): Level[] => {
   const list = ((v as string[] | undefined) ?? []).map((l) => l.toLowerCase().replace(/\s+/g, '-'));
   const bad = list.filter((l) => !LEVELS.includes(l as Level));
-  if (bad.length) throw new Error(`Levels are north-star, svp and team (not ${bad.join(', ')}).`);
+  if (bad.length) throw new Error(`Levels are ${LEVELS.join(', ')} (not ${bad.join(', ')}).`);
   return list as Level[];
 };
 const requestData = (ctx: McpContext, r: ReturnType<typeof requestOf>) => ({

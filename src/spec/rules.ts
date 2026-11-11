@@ -7,6 +7,7 @@ import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '..
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
 import { carryKind } from '../domain/carry';
+import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, levelRank, levelsOf } from '../domain/levels';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
@@ -767,6 +768,29 @@ ${fieldTableMarkdown()}`,
       { given: 'A goal kept at most 12.0% that ended inside its limit, and a number goal whose plan runs to week 66 of a 53-week year.', then: 'carry, keep', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; return [carryKind(RANGE, { cycle: y, checkIns: [checkIn('r', 53, 11)], retro: null }).kind, carryKind(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { cycle: y, checkIns: [], retro: null }).kind].join(', '); } },
     ],
     unclear: ['A goal nobody wrapped up follows the rule (it carries on unless it met its target): the owner can still stop it during the wrap-up. Removing the copy of a goal stopped after the start is round 3’s CY4 (recarry).'],
+  },
+
+  /* ---------- levels (round 3, workspace settings CF1) ---------- */
+  {
+    id: 'levels',
+    title: 'Levels',
+    summary: 'Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place.',
+    code: [{ file: 'src/domain/levels.ts', names: ['DEFAULT_LEVELS', 'levelsOf', 'levelIds', 'levelDef', 'isLevel', 'levelName', 'everydayLevel', 'isEveryday', 'isTop', 'levelRank', 'hasLevels', 'LEVEL_WORDS'] }],
+    tests: ['src/domain/levels.test.ts', 'src/core/layers.test.ts'],
+    reqs: ['LEVELS'],
+    body: `
+**A goal's level** is an id from its cycle's levels, top first. A cycle that sets none has Faro's three: North star (\`north-star\`), SVP (\`svp\`) and Team (\`team\`), each with the hint the goal form shows. Every rule, screen, export and tool asks \`src/domain/levels.ts\`; nothing else names a level (\`scripts/check-settings.mjs\` fails one that does).
+
+- **The everyday level** is the last: goals at it carry no tag. Every other level is tagged, in one plain style.
+- **The top level** is the first, when there are two or more: the map's roots sort it first. With one level nothing is tagged and there is no top.
+- **Sorting by level** goes top first; a removed or unknown level sorts after every live one.
+- **A removed level** keeps its name for History, and leaves the lists.`,
+    examples: [
+      { given: 'A cycle with no levels of its own.', then: 'North star, SVP, Team; everyday team; top north-star', run: () => `${levelsOf(null).map((l) => l.name).join(', ')}; everyday ${everydayLevel(null)}; top ${levelIds(null).find((l) => isTop(null, l))}` },
+      { given: 'Levels Company (north-star), Group, Division (svp) and Team: a goal at svp, and one at team.', then: 'Division, rank 2, tagged; Team, not tagged', run: () => { const c = { levels: [{ id: 'north-star', name: 'Company', hint: '' }, { id: 'lv-1', name: 'Group', hint: '' }, { id: 'svp', name: 'Division', hint: '' }, { id: 'team', name: 'Team', hint: '' }] }; return `${levelName(c, 'svp')}, rank ${levelRank(c, 'svp')}, ${isEveryday(c, 'svp') ? 'not tagged' : 'tagged'}; ${levelName(c, 'team')}, ${isEveryday(c, 'team') ? 'not tagged' : 'tagged'}`; } },
+      { given: 'One level, Team.', then: 'no levels to tell apart; nothing tagged; no top', run: () => { const c = { levels: [{ id: 'team', name: 'Team', hint: '' }] }; return `${hasLevels(c) ? 'levels' : 'no levels to tell apart'}; ${isEveryday(c, 'team') ? 'nothing tagged' : 'tagged'}; ${isTop(c, 'team') ? 'top' : 'no top'}`; } },
+    ],
+    unclear: ['Setting a workspace’s own levels (names, number, order) is CF2; until then every cycle has the three.'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */

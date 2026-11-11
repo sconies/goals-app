@@ -7,13 +7,15 @@
 
    The words a column takes (a level, a type, a call…) are here too, with the ways people write them, so the export
    writes one word and the import reads it back; a word it doesn't know is a problem to fix, never a quiet default. */
+import { EVERYDAY_WORD, LEVEL_WORDS } from './levels';
+export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
 import type { ModuleSheet } from './records';
-import type { Ask, Cause, CheckIn, Cycle, Goal, Level, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
+import type { Ask, Cause, CheckIn, Cycle, Goal, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
 import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
 
 export type Cell = string | number | null;
@@ -109,7 +111,6 @@ export const oneOf = (list: string[]) => (list.length < 2 ? list.join('') : `${l
 /** "Goals, Plan and People" */
 export const andList = (list: string[]) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
 
-export const LEVEL_WORDS: Words<Level> = { what: 'Level', word: { 'north-star': 'north star', svp: 'svp', team: 'team' }, also: { 'north-star': ['northstar', 'headline', 'north star goal'], svp: ['senior vp', 'senior'] }, prefix: { 'north-star': ['north'] } };
 export const TYPE_WORDS: Words<Goal['kind']> = { what: 'Type', word: { metric: 'metric', range: 'range', milestone: 'milestone' }, also: { metric: ['move a number', 'number'], range: ['keep a number in range', 'keep in range'], milestone: ['hit dated stages', 'stages'] }, prefix: { metric: ['metric', 'move'], range: ['range', 'keep'], milestone: ['mile', 'hit'] } };
 export const SHAPE_WORDS: Words<PlanShape> = { what: 'Plan', word: { straight: 'straight', back: 'back-loaded', stepped: 'stepped' }, also: { straight: ['linear', 'straight line'], back: ['back', 'backloaded', 'back loaded'], stepped: ['steps', 'step'] } };
 export const BOUND_WORDS: Words<'atMost' | 'atLeast'> = { what: 'Must stay', word: { atMost: 'at most', atLeast: 'at least' }, also: { atMost: ['atmost', 'max', 'maximum', '<=', '≤', 'below'], atLeast: ['atleast', 'min', 'minimum', '>=', '≥', 'above'] } };
@@ -192,7 +193,7 @@ export const GOALS: SheetSpec<GoalRow> = {
     m('ID', 'The goal’s identity in this cycle. Leave it empty for a new goal.', (r) => r.g.id, 'Matches the goal when there’s no Key'),
     e('Goal', 'The goal’s name.', (r) => r.g.title),
     { header: 'Action', role: 'action', means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`, write: blank },
-    e('Level', `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level]),
+    e('Level', `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
     e('Team', 'The team it belongs to, by name.', (r) => or(r.c.team(r.g.teamId))),
     e('Owner', 'Who owns it, by name. A name works when only one person has it; Owner email is exact.', (r) => or(r.c.name(r.g.ownerId))),
     e('Owner email', 'Who owns it, by email: what tells two people with the same name apart.', (r) => r.c.email(r.g.ownerId), 'Changes the owner; when Owner and Owner email disagree, the one you changed counts'),
@@ -305,7 +306,7 @@ export const RESULTS: SheetSpec<GoalRow> = {
     m('Key', 'The goal’s key.', (r) => or(r.g.key)),
     m('ID', 'The goal’s ID in this cycle.', (r) => r.g.id),
     sh('Goal', 'The goal’s name.', (r) => r.g.title),
-    sh('Level', 'Its level.', (r) => LEVEL_WORDS.word[r.g.level]),
+    sh('Level', 'Its level.', (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
     sh('Team', 'Its team.', (r) => or(r.c.team(r.g.teamId))),
     sh('Owner', 'Who owns it.', (r) => or(r.c.name(r.g.ownerId))),
     sh('Owner email', 'Who owns it, by email.', (r) => r.c.email(r.g.ownerId)),
@@ -482,7 +483,7 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     ID: { required: 'leave-empty', format: 'Faro’s own', example: 'goal_hzde4g', empty: 'Faro gives a new goal its own' },
     Goal: { required: 'required', format: 'Text, 3 characters or more', example: 'Deploy lead time', empty: 'Must fix: a new goal needs a name', also: ['goal name', 'title', 'objective'] },
     Action: { required: { optional: 'none' }, format: wordList(GOAL_ACTION_WORDS), example: GOAL_ACTION_WORDS.word.stop, empty: 'The row adds or changes the goal' },
-    Level: { required: { optional: LEVEL_WORDS.word.team }, format: wordList(LEVEL_WORDS), example: LEVEL_WORDS.word.team, empty: LEVEL_WORDS.word.team, also: ['goal level'] },
+    Level: { required: { optional: EVERYDAY_WORD }, format: wordList(LEVEL_WORDS), example: EVERYDAY_WORD, empty: EVERYDAY_WORD, also: ['goal level'] },
     Team: { required: { optional: 'the owner’s team' }, format: 'A team’s name', example: 'Platform', empty: 'The owner’s team', also: ['team name'] },
     Owner: { required: 'required', oneOf: 'owner', format: 'A name only one person has', example: 'Ben Ortiz', empty: 'Owner email says who; with neither, Must fix', also: ['owner name'] },
     'Owner email': { required: 'required', oneOf: 'owner', format: 'An email', example: 'ben.ortiz@example.com', empty: 'Owner says who; with neither, Must fix', also: ['owner e-mail', 'owner email address'] },
@@ -593,8 +594,8 @@ export function requiredLine(kind: 'goals' | 'checkIns' | 'people'): string {
 /** The template's example rows (C15): their Action says Example, so loading the template back never imports them. */
 export const EXAMPLE_ROWS: Partial<Record<FillKind, Record<string, string>[]>> = {
   goals: [
-    { Goal: 'Deploy lead time', Action: GOAL_ACTION_WORDS.word.example, Level: LEVEL_WORDS.word.team, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.metric, Unit: 'days', Decimals: '0', Start: '5', Target: '1', Plan: SHAPE_WORDS.word.straight, Definition: 'Median days from first commit to production' },
-    { Goal: 'Canary releases live', Action: GOAL_ACTION_WORDS.word.example, Level: LEVEL_WORDS.word.team, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.milestone, Stages: 'Design@48; Pilot@52', 'Feeds into': 'Deploy lead time' },
+    { Goal: 'Deploy lead time', Action: GOAL_ACTION_WORDS.word.example, Level: EVERYDAY_WORD, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.metric, Unit: 'days', Decimals: '0', Start: '5', Target: '1', Plan: SHAPE_WORDS.word.straight, Definition: 'Median days from first commit to production' },
+    { Goal: 'Canary releases live', Action: GOAL_ACTION_WORDS.word.example, Level: EVERYDAY_WORD, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.milestone, Stages: 'Design@48; Pilot@52', 'Feeds into': 'Deploy lead time' },
   ],
   people: [
     { Email: 'ana.silva@example.com', Name: 'Ana Silva', Action: PERSON_ACTION_WORDS.word.example, 'Job title': 'Platform lead', Team: 'Platform', Admin: YES_WORDS.word.no },

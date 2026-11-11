@@ -10,9 +10,8 @@
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
 import { createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
-import { LEVEL_LABEL } from '../domain/format';
 import { currentWeek, daysSince } from '../domain/plan';
-import { LEVELS } from '../domain/query';
+import { levelIds, levelName } from '../domain/levels';
 import { sessionDate } from '../domain/review';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
@@ -334,12 +333,12 @@ export const INTERNAL: InternalRequirement[] = [
     ].join('\n'),
     today: [
       'A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).',
-      'Goal levels are a fixed three, `\'north-star\' | \'svp\' | \'team\'` (`Level` in `src/domain/types.ts`, `LEVELS` in `src/domain/query.ts`), used across the rules, screens and spreadsheets.',
+      'Goal levels are a fixed three, North star, SVP and Team (`DEFAULT_LEVELS` in `src/domain/levels.ts`), read from that one place by the rules, screens, spreadsheets and tools; a cycle can hold its own (`Cycle.levels`) but nothing sets them yet.',
       'One workspace is the whole company. Goals’ “By team” groups goals by team in a flat list. “In the tree of” scopes by the goal tree (what a goal feeds), not by the organisation.',
       'Teams and who is in them are typed in by admins, in Workspace or the People sheet; nothing reads a directory.',
     ],
     examples: [
-      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => LEVELS.map((l) => LEVEL_LABEL[l]).join(', ') },
+      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => levelIds(null).map((l) => levelName(null, l)).join(', ') },
       { given: 'Required: Platform and Developer Experience sit under Engineering, which sits under the company. Amara leads Engineering; Rhea leads Platform. Each opens Home.', then: 'Amara’s counts cover Engineering, Platform and Developer Experience; Rhea’s cover Platform. Either can widen or narrow the scope.' },
       { given: 'Required: Oskar’s manager is Maya, and Maya’s is Priya. Priya scopes Goals to her whole chain.', then: 'Oskar’s goals are in it, as are Maya’s and those of everyone else under Priya.' },
       { given: 'Required: a workspace’s levels are Company, Division, Team. An admin renames Division to Group.', then: 'Every goal at Division is now at Group; no goal is changed or logged as changed, and the rename is logged once.' },

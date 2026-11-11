@@ -1,7 +1,8 @@
 /* One goal in a line of facts: what every view and every export shows about it, worked out once.
    The table, board, cards, history grid, spreadsheet, JSON and AI brief all read from here, so they can't disagree. */
 import { causeLabel } from './checkin';
-import { fmt, gapText, kindLabel, LEVEL_LABEL, nowText, targetText } from './format';
+import { fmt, gapText, kindLabel, nowText, targetText } from './format';
+import { levelName } from './levels';
 import { planAt, planEnd, valueSeries, weekDate, type Point, type Projection } from './plan';
 import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus, LABEL, projects, RANK } from './status';
 import { attentionFor, type GoalAttention } from './attention';
@@ -66,7 +67,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
   const behind = st.status === 'off' || st.status === 'risk';
   return {
     goal, owner, team,
-    level: LEVEL_LABEL[goal.level],
+    level: levelName(cycle, goal.level),
     type: kindLabel(goal),
     status: st.status,
     statusLabel: LABEL[st.status],
