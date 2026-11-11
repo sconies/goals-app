@@ -93,7 +93,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
               <h2 className="hero-title">{p.due.length === 1 ? '1 check-in to do' : `${p.due.length} check-ins to do`}</h2>
               <span className="muted">About {minutes} min · {p.due.map((g) => g.title).join(', ')}</span>
               <div className="row" style={{ marginTop: 8 }}>
-                <Link className="btn primary big-btn" to="/check-in">{resuming ? 'Pick up where you left off' : 'Start check-in'}</Link>
+                <Link className="btn primary big-btn" to="/check-in?start=1">{resuming ? 'Pick up where you left off' : 'Start check-in'}</Link>
               </div>
               {p.due.filter((g) => g.kind !== 'milestone').length >= 2 && <Link className="linkish small" to="/quick-check-in">Or type all your numbers in one table</Link>}
             </>

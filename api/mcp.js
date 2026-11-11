@@ -10549,7 +10549,10 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.",
+					"Check-in in the menu opens on the week’s list: the goals to do this week, in the order the check-in takes them, each with its status and what it last said (“Last week: 36 hours · 8 behind plan”, or “No check-in yet”); then what you’ve done this week, each with Correct it; then a line to type all your numbers in one table.",
+					"Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.",
+					"Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.",
+					"With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.",
 					"The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.",
 					"Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.",
 					`On plan, that’s it: post. Behind (under ${pct$1(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct$1(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
@@ -10581,8 +10584,9 @@ var CORE_ARTICLES = [
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
-		screens: ["CheckInFlow"],
+		screens: ["CheckInFlow", "CheckInQueue"],
 		reqs: [
+			"CHECK-IN-QUEUE",
 			"NO-SILENT-ROUNDING",
 			"CARRY-OVER",
 			"GREENER",
@@ -10605,6 +10609,10 @@ var CORE_ARTICLES = [
 			"weekly",
 			"number",
 			"post",
+			"list",
+			"queue",
+			"start with",
+			"draft kept",
 			"cause",
 			"reason",
 			"path to green",
@@ -12543,6 +12551,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-in-queue",
+		date: "2026-11-11",
+		title: "See your check-ins before you start",
+		points: [
+			"Check-in opens on the week’s list. Start with the first, or pick any.",
+			"Each goal says its status and what it last said; one you started and closed says Draft kept.",
+			"Start check-in on Home still goes straight into the first one."
+		],
+		articles: ["check-in"]
+	},
 	{
 		id: "goals-filters-in-words",
 		date: "2026-11-10",

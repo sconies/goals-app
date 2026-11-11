@@ -522,6 +522,11 @@
       "text": "Goals' address names the scope, the group, the layout and the switch; every old address (show=…, /watching, a filter with no scope) and every saved view made before opens what it meant."
     },
     {
+      "id": "CHECK-IN-QUEUE",
+      "area": "Check-ins",
+      "text": "The week's check-ins can be seen as a list and started from any of them: Check-in opens on what's due this week, in the order the walk takes them, each with its status and what it last said, a kept draft said on its row; Start with the first walks them all, as Home's Start check-in does; what's done this week can be corrected; the one-table check-in is a line away. Someone who owns no goal is told so."
+    },
+    {
       "id": "NAV-PLACES",
       "area": "Navigation",
       "text": "The menu is four groups: your work (Home; Check-in for someone with a goal to check in on; Goals with up to four saved views; Reviews), things to look up (People, a module's places, Activity, Data), New goal, and this workspace and you (Workspace, Settings, Help, Feedback); one item is lit. A phone has four tabs (Check-in or People as the second) and More, in the same groups."

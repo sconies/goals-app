@@ -236,7 +236,9 @@ function ShellBody({ children }: { children: ReactNode }) {
   // Walking a review (a goal page with ?review=) is in Reviews, so Reviews is the current place in the nav.
   const navAt = /[?&]review=/.test(search) ? '/reviews/walk' : at === 'watching' ? '/watching' : pathname;
   const sideAt = /[?&]review=/.test(search) ? null : at;
-  const focusMode = !!moduleRoute?.focus || /^\/check-in(\/|$)|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search);
+  const focusMode = !!moduleRoute?.focus || /^\/check-in\/|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search)
+    // Check-in's list keeps the sidebar (NV3); the walk it starts (?start=1) is focus mode, as a goal's form is.
+    || (pathname === '/check-in' && /[?&]start=1/.test(search));
   const icons = look.sidebar === 'icons';
   // The rail: chosen, or always between 761 and 1100 px. Its rows name themselves with the app's label.
   const sideRef = useRef<HTMLElement>(null);

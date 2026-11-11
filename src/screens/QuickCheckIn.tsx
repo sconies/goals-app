@@ -101,7 +101,7 @@ export function QuickCheckIn() {
       clearDraft(legacyKey);
       // The same confirmation as the one-by-one check-in, with what was posted (deep review U12).
       const fromTable: FromTable = { posted: ready.map((x) => x.g.id), kept: filled.length - ready.length };
-      nav('/check-in', { state: { fromTable } });
+      nav('/check-in?start=1', { state: { fromTable } });
     } catch { inFlight.current = false; setBusy(false); }
   };
   const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);

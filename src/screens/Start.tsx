@@ -72,7 +72,7 @@ export function Ready() {
           : 'No check-ins are due until there are goals: each owner adds theirs from New goal.'}</p>
         <div className="stack" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
           {mine.due.length + mine.upcoming.length > 0
-            ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>
+            ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in?start=1' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>
             : goals ? <Link className="btn primary big-btn" to="/goals">See your goals</Link>
               : <Link className="btn primary big-btn" to="/goals/new">Set up the first goal</Link>}
           {/* Inviting is a link to pass on: Faro sends no email (UX report, 8 Nov). */}

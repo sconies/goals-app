@@ -1667,9 +1667,10 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     fail(`${e.message}${said ? `: ${said}` : ''}`);
   });
   // The done screen still offers a check-in, for when something changes.
+  // Check-in's list (NV3) says the week is done, and each goal done this week can be corrected.
   await p.goto(url('/check-in'));
-  await see(p, 'is done', 'the week is not shown as done');
-  h.set('progress', (await p.locator('.again-links a').count()) >= 2, 'the done screen offers no way to check in again');
+  await see(p, `You’re all set for week ${NOW}`, 'the week is not shown as done');
+  h.set('progress', (await p.getByRole('link', { name: /^Correct it: / }).count()) >= 2, 'the list offers no way to check in again');
   await h.checkpoint('week done');
   // The check-in walkthrough, started now, says the check-ins are in and points at Check-in instead of a missing button.
   await p.goto(url('/'));
@@ -1679,9 +1680,9 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await see(coach, 'already in this week', 'the walkthrough asks for a button that isn’t there');
   await h.click(p.locator('a:visible', { hasText: /^Check-in$/ }).first());
   await see(coach, 'step 2 of 4', 'opening Check-in did not move the walkthrough on');
-  await see(coach, 'check in again', 'step 2 does not explain the week is done');
+  await see(coach, 'correct it', 'step 2 does not explain the week is done');
   h.set('attention', await p.locator('.coach-ring').isVisible(), 'the walkthrough points at nothing');
-  await h.click(p.locator('.again-links a').first());
+  await h.click(p.locator('.ciq-go').first());
   await p.getByLabel('This week’s value').waitFor();
   await see(coach, 'Type this week’s number', 'the walkthrough did not pick up once the number field was there');
   h.set('finish', true);
@@ -2980,6 +2981,57 @@ journey('U62', ['LEAVE-WORKSPACE', 'SETTINGS'], 'Settings is about you: Your pag
 });
 
 /* App redesign OB3: set-up's owners and day one. */
+// NV3 (navigation spec, 2.4): Check-in opens on the week's list. "Start with …" walks them all, as Home's Start
+// check-in still does; any row opens its own goal; a draft is kept and said; the table is one line away.
+journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the week’s list, Start with the first or pick any, a kept draft said on its row, the table one line away; someone who owns no goal is told so', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/'));
+  await navTo(h, p, 'Check-in');
+  await p.waitForURL((u) => u.pathname.endsWith('/check-in') && !/start=1/.test(u.search), { timeout: 5000 }).catch(() => {});
+  const todo = p.getByRole('region', { name: 'To do this week' });
+  await todo.waitFor();
+  const rows = todo.locator('.ciq-row');
+  const n = await rows.count();
+  const first = (await rows.first().locator('.ciq-title').innerText()).trim();
+  const start = p.getByRole('link', { name: n === 1 ? `Check in on ${first}` : `Start with ${first}` });
+  await h.inView(start, 'entry', 'Start with the first');
+  h.set('attention', n >= 2 && /^Week \d+, .+\. Check-ins are due by \w+/.test((await p.locator('.ciq-when').innerText()).trim())
+    && (await rows.locator('.ciq-status').allInnerTexts()).every((t) => t.trim().length > 0) && (await rows.locator('.ciq-said').allInnerTexts()).every((t) => /^(Last week|Week \d+): |^No check-in yet$/.test(t.trim())),
+    `the list has ${n} rows, or a row doesn’t say its status and what it last said`);
+  // The sidebar stays (not focus mode); Check-in is lit.
+  h.set('parity', device === 'phone' || await p.locator('.side [aria-current="page"]', { hasText: 'Check-in' }).count() === 1, 'Check-in is not lit on its list');
+  await h.checkpoint('queue');
+  // Any row opens its own goal; closing keeps the draft, back on the list, which says so on that row.
+  const pick = rows.nth(n - 1);
+  const title = (await pick.locator('.ciq-title').innerText()).trim();
+  await h.click(pick.getByRole('link', { name: /^Check in: / }));
+  await p.waitForURL(/\/check-in\/[^/?]+/);
+  await h.fill(p.getByLabel('This week’s value'), '1');
+  await p.waitForTimeout(300);
+  await h.click(p.getByRole('button', { name: 'Close and save the draft' }));
+  await p.waitForURL((u) => u.pathname.endsWith('/check-in'), { timeout: 5000 }).catch(() => {});
+  const row = p.locator('.ciq-row', { hasText: title });
+  await row.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('finish', /Draft kept/.test(await row.innerText().catch(() => '')) && await row.getByRole('link', { name: /^Carry on: / }).isVisible().catch(() => false), `closing did not come back to the list with “Draft kept” on ${title}`);
+  // The table is one line away, and it is Check-in's too.
+  await h.click(p.getByRole('link', { name: 'Or type all your numbers in one table' }));
+  await p.waitForURL(/\/quick-check-in/);
+  await p.locator('main h1, .focus h1, h1').first().waitFor();
+  h.set('progress', /Check-in/.test(await p.title()), `the table's page is called “${await p.title()}”`);
+  // Home's Start check-in still goes straight into the first form, the walk through every due goal.
+  await p.goto(url('/'));
+  await h.click(p.locator('.home-hero').getByRole('link', { name: /Start check-in|Pick up where you left off/ }));
+  await p.waitForURL(/check-in\?start=1/, { timeout: 5000 }).catch(() => {});
+  await p.locator('.ci-week').waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('logged', /of \d+$/.test((await p.locator('.ci-week').innerText().catch(() => '')).trim()), 'Home’s Start check-in does not open the first form of the week’s walk');
+  // Someone who owns no goal, at the address typed by hand, is told so.
+  await viewAs(p, 'Oskar');
+  await p.goto(url('/check-in'));
+  await see(p, 'You don’t own a goal in', 'Check-in does not say Oskar owns no goal');
+  h.set('errors', await p.getByRole('link', { name: 'See the goals you watch' }).isVisible() && await p.getByRole('link', { name: 'Set up a goal' }).isVisible(), 'no way on for someone who owns no goal');
+  await p.context().close();
+});
+
 journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/'));
@@ -3071,8 +3123,8 @@ journey('U57', ['HONEST-CHECKIN', 'REASON-BEHIND', 'DRAFTS', 'BULK-EDIT', 'GOAL-
   };
   await one();
   // A reload keeps the queue: still "2 of 2", not a shorter queue of what's left. (Opened again by its address, the same
-  // tab: a bare reload would drop the demo's pinned day.)
-  await p.goto(url('/check-in'));
+  // tab: a bare reload would drop the demo's pinned day. The walk is ?start=1; /check-in alone is the week's list.)
+  await p.goto(url('/check-in?start=1'));
   await head.waitFor();
   h.set('progress', await said() === `Week ${NOW} check-in · 2 of 2`, `after a reload the header says “${await said()}”`);
   await one();
@@ -3141,7 +3193,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   await h.checkpoint('member');
   // Part-way through a check-in, switching asks first and says the draft stays. (A phone's check-in takes the whole
   // screen, with no switcher: there you switch from Home.)
-  await p.goto(url(phone ? '/' : '/check-in'));
+  await p.goto(url(phone ? '/' : '/check-in?start=1'));
   if (!phone) { await p.getByLabel('This week’s value').fill('7'); await p.waitForTimeout(300); }
   const at = new URL(p.url()).pathname;
   const sw = await openSwitcher(p, h);
@@ -3664,7 +3716,7 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   // Demo review, 8 Nov, item 4: with a check-in left as a draft, Home's button says "Pick up where you left off". The
   // walkthrough still points at it, and never says Rhea is all set while Home says a check-in is to do.
   await p.goto(url('/'));
-  const start = p.locator('.hero a.btn.primary[href$="/check-in"]');
+  const start = p.locator('.hero a.btn.primary[href*="/check-in?start=1"]');
   if (await start.isVisible().catch(() => false)) {
     await start.click();
     await p.getByLabel('This week’s value').fill('1');
