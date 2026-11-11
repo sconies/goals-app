@@ -4,12 +4,12 @@ import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed } from './actions';
 import { planChanges, postCheckIn, type CheckInPost } from './changeset';
-import { earlierThisWeek, emptyDraft, lastValueOf, previousFor } from './checkin';
+import { checkInLevels, earlierThisWeek, emptyDraft, lastValueOf, previousFor, stepState, unanswered, type Answers, type Draft } from './checkin';
 import { currentWeek, planAt } from './plan';
 import { fmt } from './format';
 import { goalScorecard } from './scorecard';
 import { checkInsFor } from './status';
-import type { CheckIn, MetricGoal, Snapshot } from './types';
+import type { CheckIn, Goal, MetricGoal, Snapshot } from './types';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const s = buildPlatformOrg(today);
@@ -111,5 +111,51 @@ describe('what a new number is compared with (rule 5)', () => {
     const cell = goalScorecard(goal, cycle, [...checkInsFor(goal, s.checkIns).filter((c) => c.week < week), ...two], week, false).cells.find((c) => c.key === 'since')!;
     expect(cell.sub).toBe(`was ${fmt(last.value!, goal)} in week ${last.week}`);
     expect(cell.value).toBe('No change');
+  });
+});
+
+describe('the levels in a check-in (rules 2 and 3)', () => {
+  const ci = (w: number, value: number | null): CheckIn => ({ id: 'c' + w, goalId: 'g', authorId: 'p', week: w, postedAt: '2026-11-01T10:00:00Z', value, stages: null, status: 'on', calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false });
+  const flaky = { id: 'g', kind: 'range', title: 'Flaky test rate', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 2, warn: 0.4 } } as unknown as Goal;
+  const suites = { id: 'g', kind: 'metric', title: 'Test suites split', unit: '%', decimals: 0, plan: { start: 40, target: 100, fromWeek: 1, dueWeek: 50, shape: 'straight' } } as unknown as Goal;
+  const d = (value: string, answers?: Answers): Draft => ({ ...emptyDraft(suites, null), value, answers });
+
+  it('asks about a number far from last week’s, naming the week, and asks again once the number changes', () => {
+    const own = [ci(44, 1.9), ci(45, 1.8)];
+    const { checks, mustFix } = checkInLevels(flaky, 46, { ...d('18'), value: '18' }, own);
+    expect(mustFix).toEqual([]);
+    expect(checks).toEqual([expect.objectContaining({ id: 'far-from-last', question: 'Week 45 was 1.8%. Is 18.0% right?', yes: 'Yes, 18.0% is right', no: 'Change the number', key: '18' })]);
+    const answered: Answers = { 'far-from-last': '18' };
+    expect(unanswered(checks, answered)).toEqual([]);
+    const again = checkInLevels(flaky, 46, d('19'), own).checks;
+    expect(unanswered(again, answered)).toHaveLength(1);
+  });
+
+  it('never asks a range goal whether the same number was measured again; asks a number still to move', () => {
+    expect(checkInLevels(flaky, 46, d('1.8'), [ci(45, 1.8)]).checks).toEqual([]);
+    expect(checkInLevels(suites, 46, d('80'), [ci(45, 80)]).checks[0]).toMatchObject({ id: 'same-as-last', question: 'The same as week 45: 80%. Did you measure it again this week?', no: 'No new number this week' });
+    expect(checkInLevels(suites, 46, d('100'), [ci(45, 100)]).checks).toEqual([]);
+  });
+
+  it('makes an impossible number a Must fix, not a question', () => {
+    expect(checkInLevels(suites, 46, d('lots'), [ci(45, 80)])).toMatchObject({ mustFix: [{ field: 'This week’s number' }], checks: [] });
+  });
+
+  it('says why the button does nothing', () => {
+    const q = checkInLevels(flaky, 46, d('18'), [ci(45, 1.8)]).checks;
+    expect(stepState([], q).says).toBe('Answer the question above first.');
+    expect(stepState([{ field: 'A', says: '' }], q).says).toBe('1 thing to fix above: A.');
+    expect(stepState([{ field: 'A', says: '' }, { field: 'B', says: '' }, { field: 'C', says: '' }], []).says).toBe('3 things to fix above: A, B and 1 more.');
+    expect(stepState([], [])).toEqual({ go: true, says: '' });
+  });
+
+  it('posts nothing from a screen until the question is answered, then keeps the answer in History', () => {
+    const last = checkInsFor(goal, fresh.checkIns).filter((c) => c.week < week && c.value != null).at(-1)!;
+    const far = String(Math.round(last.value! / 4));
+    const draft = { ...emptyDraft(goal, null), value: far, cause: 'slower' as const, why: 'The tracker export lost half the incidents', ptgWhat: 'Re-run the export by hand', ptgBy: week + 2 };
+    expect(() => postCheckIn(x(fresh), post({ draft }))).toThrow(/right\? Answer it first\./);
+    const asked = checkInLevels(goal, week, draft, checkInsFor(goal, fresh.checkIns)).checks[0]!;
+    const out = postCheckIn(x(fresh), post({ draft: { ...draft, answers: { [asked.id]: asked.key } } }));
+    expect(out.commit.changes[0]!.diffs).toContainEqual({ field: 'Asked', from: asked.question, to: asked.yes });
   });
 });

@@ -86,6 +86,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
 - what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
 - what a new number is compared with (rule 5) › says “vs last week” against week 45 after a second check-in in week 46
+- the levels in a check-in (rules 2 and 3) › asks about a number far from last week’s, naming the week, and asks again once the number changes
+- the levels in a check-in (rules 2 and 3) › never asks a range goal whether the same number was measured again; asks a number still to move
+- the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
+- the levels in a check-in (rules 2 and 3) › says why the button does nothing
+- the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
 
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 
