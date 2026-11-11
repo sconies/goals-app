@@ -1,10 +1,11 @@
 /* Bulk actions on the goals ticked in the table: change their owner or level, or watch them. Changes go through the
    bulk-change engine, so the same rules, rights and change log apply as for Import and Data. Exporting is Goals' own
    "Export these goals" (the spreadsheets module), which starts from what's shown. */
+import { LEVEL_WORDS } from '../domain/levels';
 import { useState } from 'react';
 import { useApp } from '../app/state';
 import { describe, type ChangeSet } from '../domain/changeset';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import type { Goal, Level } from '../domain/types';
 import { PickOne } from '../ui/Pick';
 import { Sheet } from '../ui/bits';
@@ -43,11 +44,11 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
   const [value, setValue] = useState('');
   const [cs, setCs] = useState<ChangeSet | null>(null);
   const [busy, setBusy] = useState(false);
-  const levels: Level[] = ['north-star', 'svp', 'team'];
+  const levels: Level[] = levelIds(app.cycle);
   const save = async () => {
     if (!value) return;
     // The owner goes by their ID, so two people with the same name can't be confused.
-    const res = app.previewChanges({ goals: goals.map((g, i) => ({ __row: String(i + 2), id: g.id, ...(kind === 'owner' ? { 'owner id': value } : { level: value === 'north-star' ? 'north star' : value }) })) }, 'bulk');
+    const res = app.previewChanges({ goals: goals.map((g, i) => ({ __row: String(i + 2), id: g.id, ...(kind === 'owner' ? { 'owner id': value } : { level: LEVEL_WORDS.word[value] ?? value }) })) }, 'bulk');
     setCs(res);
     if (!res.commit) return;
     setBusy(true);
@@ -68,7 +69,7 @@ function BulkSheet({ kind, goals, onClose, onDone }: { kind: 'owner' | 'level'; 
           <label className="field"><span className="field-label">Level</span>
             <select className="input" value={value} onChange={(e) => { setValue(e.target.value); setCs(null); }}>
               <option value="">Choose…</option>
-              {levels.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
+              {levels.map((l) => <option key={l} value={l}>{levelName(app.cycle, l)}</option>)}
             </select>
           </label>
         )}

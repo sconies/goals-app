@@ -7,8 +7,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useAppearance } from '../app/appearance';
-import { appRouteFor } from '../help/guide';
-import { WHATS_NEW } from '../help/whatsNew';
+import { appRouteFor, latestNewsId } from '../help/lookup';
 import { recentProblems, recentSteps, telemetry } from '../telemetry';
 import { captureScreen, type Capture } from './capture';
 import { HALO, HALO_WIDTH, INK, WIDTH, arrowHead, makePictures, noteLabel, penPath, type Pictures } from './ink';
@@ -215,7 +214,7 @@ export default function MarkupFlow({ onClose }: { onClose: () => void }) {
       const m = buildMarkup({
         id, line, mood, includeSteps: steps, strokes, parts: cap.parts, pathname, search, route: appRouteFor(pathname) ?? pathname,
         workspace: { id: app.ws.id, name: app.ws.name }, demo: app.mode === 'demo', person: { id: app.viewer.id, name: app.viewer.name },
-        context: { viewport: { w: cap.width, h: cap.height, dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100 }, theme: dark ? 'dark' : 'light', themeChoice: look.theme, accent: look.accent, appVersion: WHATS_NEW[0]?.id ?? 'unknown', sessionId: telemetry.sessionId, userAgent: navigator.userAgent.slice(0, 200), host: location.host },
+        context: { viewport: { w: cap.width, h: cap.height, dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100 }, theme: dark ? 'dark' : 'light', themeChoice: look.theme, accent: look.accent, appVersion: latestNewsId() ?? 'unknown', sessionId: telemetry.sessionId, userAgent: navigator.userAgent.slice(0, 200), host: location.host },
         steps: recentSteps(), errors: recentProblems(), pictures: ['screen.png', 'ink.png', 'thumb.jpg', 'marked.jpg'], now: app.stamp(),
       });
       await sendMarkup(m, pics);

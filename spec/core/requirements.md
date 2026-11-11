@@ -288,6 +288,7 @@ Goals are shown as trees: each goal that feeds nothing heads a tree, with what f
 
 Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged.
 
+- **Rule:** [Levels](rules/levels.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
 

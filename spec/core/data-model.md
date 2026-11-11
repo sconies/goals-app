@@ -36,11 +36,22 @@ Everyone can see everything; what a person can change follows from the goals the
 
 ### Level
 
-How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds.
+How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds. A goal's level: an id from its cycle's levels (domain/levels.ts). Faro's three are 'north-star', 'svp' and 'team'.
 
 ```ts
-type Level = 'north-star' | 'svp' | 'team'
+type Level = string
 ```
+
+### LevelDef
+
+A level a workspace has: its id (stored on goals), its name, and the hint the goal form shows (domain/levels.ts).
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | `Level` | yes |  |
+| `name` | `string` | yes |  |
+| `hint` | `string` | yes |  |
+| `removedAt` | `string \| null` | no | Removed: goals moved off it; its name is kept for History. |
 
 ### Team
 
@@ -60,6 +71,7 @@ type Level = 'north-star' | 'svp' | 'team'
 | `startDate` | `string` | yes | ISO date (yyyy-mm-dd) of week 0, the day the cycle starts. |
 | `weeks` | `number` | yes | Weeks in the cycle; checkpoints are weeks 0..weeks. |
 | `reviewDay` | `number` | yes | Day of the weekly review, 0 = Monday. Check-ins are due before it. |
+| `levels` | `LevelDef[] \| null` | no | The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). Set by a workspace from CF2. |
 | `removedAt` | `string \| null` | no | Deleted (only a cycle with no check-ins): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |
 
@@ -413,8 +425,7 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 | `tokens` | `ApiToken[]` | no | Personal tokens for AI assistants (the MCP server). |
 | `views` | `SavedView[]` | no | Saved views of the goals: each person's own, and any an admin pinned for everyone. |
 | `requests` | `Ask[]` | no | Every ask (a decision or help, an update, a question, an action): open until answered, done or withdrawn. The name is the stored table's, from before asks had kinds. |
-| `metrics` | `Metric[]` | no | The metric library (backlog 0b, domain/metrics): every metric defined once, with its meaning, unit, direction and source. Removed ones stay, with removedAt, and are out of every list once scoped (domain/cycle scopeToCycle). |
-| `metricLinks` | `MetricLink[]` | no | Which metric measures a goal, and for which slice (a team, or the whole company): one per goal at most. |
+| `modules` | `ModuleRows` | no | Every feature module's own records (domain/records, AS part 2), by module id and then by the key the module files them under: `modules.metrics.metrics`, say. The core never reads inside them; the module that declares them does. Rows of a module this build leaves out stay as they are. |
 | `keysIssued` | `number` | no | The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one cycle), so a new goal's key is never one an earlier cycle used. |
 | `archive` | `Archive` | no | Set when a snapshot is scoped (domain/cycle scopeToCycle): records kept for history but out of every list, stat, picker, attention list and review. Stopped goals with their check-ins and notes, people who left, ended reviews. Deleted records are in neither; they're read from the whole snapshot (Recently removed). |
 
@@ -427,60 +438,6 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 | `decisions` | `Decision[]` | yes |  |
 | `people` | `Person[]` | yes |  |
 | `reviews` | `Review[]` | yes |  |
-
-### MetricDirection
-
-Whether a bigger number is better (deploys a day) or a smaller one (build time).
-
-```ts
-type MetricDirection = 'higher' | 'lower'
-```
-
-### MetricRefresh
-
-How often a metric's source refreshes its number.
-
-```ts
-type MetricRefresh = 'live' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'quarterly'
-```
-
-### Metric
-
-A metric in the library (backlog 0b): one definition of a number, shared by every goal it measures, so two goals about "build time" mean the same build time. The rules are in domain/metrics.ts: a name, a unit and a direction are required; the rest is optional. Anyone can add one; its owner or an admin changes or removes it. Stored in okr_metrics.
-
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `id` | `Id` | yes |  |
-| `name` | `string` | yes |  |
-| `meaning` | `string` | yes | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
-| `unit` | `string` | yes |  |
-| `decimals` | `number` | yes | Places after the decimal point it's shown with. |
-| `direction` | `MetricDirection` | yes |  |
-| `source` | `string` | yes | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
-| `sourceOwner` | `string` | yes |  |
-| `refresh` | `MetricRefresh \| null` | yes | How often the source refreshes; null when nobody has said. |
-| `ownerId` | `Id` | yes | The person who answers for the definition: whoever added it, unless they hand it on. |
-| `caveats` | `string` | yes | What to watch out for when reading it (a known gap, a change of method). |
-| `createdBy` | `Id` | yes |  |
-| `createdAt` | `string` | yes |  |
-| `updatedAt` | `string` | yes |  |
-| `removedAt` | `string \| null` | no | Removed: kept, out of every list, restorable (domain/removal). |
-| `removedBy` | `Id \| null` | no |  |
-
-### MetricLink
-
-A goal measured by a metric, for one slice: a team's number (teamId), or the whole company's (null). One per goal: its id is the goal's id. The goal's own target (its plan's target, or its range's limit) is the target in that metric; nothing is copied. Unlinking sets removedAt, so it can be undone. Stored in okr_goal_metrics.
-
-| Field | Type | Required | Meaning |
-|---|---|---|---|
-| `id` | `Id` | yes | The goal's id: one link per goal. |
-| `goalId` | `Id` | yes |  |
-| `metricId` | `Id` | yes |  |
-| `teamId` | `Id \| null` | yes |  |
-| `linkedBy` | `Id` | yes |  |
-| `linkedAt` | `string` | yes |  |
-| `removedAt` | `string \| null` | no |  |
-| `removedBy` | `Id \| null` | no |  |
 
 ### AskStatus
 

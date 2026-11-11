@@ -5,13 +5,16 @@
    (app/state.tsx `run`) for a call to its server and changes no screen. No screens, storage or network here. */
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
-import * as M from '../domain/metrics';
 import { planChanges, postCheckIn, type PostMode, type Via } from '../domain/changeset';
 import type { Draft } from '../domain/checkin';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
 import type { Goal, Person, Retro, Review, Watch, Workspace } from '../domain/types';
+import type { Commit } from '../domain/commit';
+import MODULE_PARTS from 'virtual:faro-modules/actions';
+import { MODULE_RECORDS } from '../core/records';
+import { isModuleOn, moduleById } from '../core/registry';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
 export interface RunContext extends A.ActionContext {
@@ -98,31 +101,56 @@ export const ACTIONS = {
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
-  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id),
+  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, MODULE_RECORDS),
   createToken: (x: RunContext, i: { personId: string; name: string }) => A.createToken(x, i.personId, i.name),
   revokeToken: (x: RunContext, i: { tokenId: string }) => A.revokeToken(x, i.tokenId),
   sendFeedback: (x: RunContext, i: { mood: 'good' | 'meh' | 'bad'; text: string; path: string }) => A.sendFeedback(x, i.mood, i.text, i.path),
 
-  /* The metric library's (backlog 0b). Its rules move into its module's folder with AS part 2. */
-  saveMetric: (x: RunContext, i: M.MetricInput & { id?: string }) => M.saveMetric(x, i),
-  removeMetric: (x: RunContext, i: { metricId: string }) => M.removeMetric(x, i.metricId),
-  linkGoalMetric: (x: RunContext, i: { goalId: string; metricId: string; teamId: string | null }) => M.linkGoalMetric(x, goalOf(x, i.goalId), i.metricId, i.teamId),
-  unlinkGoalMetric: (x: RunContext, i: { goalId: string }) => M.unlinkGoalMetric(x, goalOf(x, i.goalId)),
 } as const;
 
 export type ActionName = keyof typeof ACTIONS;
 export type ActionInput<N extends ActionName> = Parameters<(typeof ACTIONS)[N]>[1];
 export type ActionResult<N extends ActionName> = ReturnType<(typeof ACTIONS)[N]>;
 
+/**
+ * A feature module's action (AS part 2): registered in the same table by the module's actions.ts, read through the
+ * registry (virtual:faro-modules/actions), so app/state.tsx carries no method for it. `said` is what a removal says,
+ * with Undo, as the core's removals do.
+ */
+export interface ModuleAction<I = any, O = any> {
+  run(x: RunContext, input: I): O;
+  /** The AI tools that do the same, so an assistant can do whatever a person can (src/mcp/parity.test.ts). */
+  tools: string[];
+  said?(out: NonNullable<O>, input: I): string;
+}
+/** What a module's actions.ts default-exports: its actions, by name. */
+export type ModuleActions = Record<string, ModuleAction>;
+
+/** Every module's actions in this build, by name, with the module each belongs to. */
+export const MODULE_ACTIONS: Readonly<Record<string, ModuleAction & { module: string }>> = Object.fromEntries(
+  MODULE_PARTS.flatMap((p) => Object.entries(p.part).map(([name, a]) => [name, { ...a, module: p.id }] as const)),
+);
+/** Every action's name: the core's, then the modules'. The command port lists the same (src/app/actions.test.ts). */
+export const actionNames = (): string[] => [...Object.keys(ACTIONS), ...Object.keys(MODULE_ACTIONS)];
+
 /** Run one action's rule: what it would save, or NotAllowed. Nothing is saved here (app/state.tsx `run` saves it). */
 export function perform<N extends ActionName>(x: RunContext, name: N, input: ActionInput<N>): ActionResult<N> {
-  const fn = ACTIONS[name] as (x: RunContext, i: ActionInput<N>) => ActionResult<N>;
-  if (!fn) throw new Error(`There’s no action called ${String(name)}.`);
-  return fn(x, input);
+  return performAny(x, name, input) as ActionResult<N>;
+}
+
+/** Run any action's rule by name, the core's or a module's: what app/state.tsx `run` calls. */
+export function performAny(x: RunContext, name: string, input: unknown): unknown {
+  const fn = (ACTIONS as Record<string, (x: RunContext, i: unknown) => unknown>)[name];
+  if (fn) return fn(x, input);
+  const mod = MODULE_ACTIONS[name];
+  if (!mod) throw new Error(`There’s no action called ${String(name)}.`);
+  // A module switched off in the workspace runs nothing, as its AI tools say it's off.
+  if (!isModuleOn(x.workspace, mod.module)) throw new A.NotAllowed(`${moduleById(mod.module)?.name ?? mod.module} is switched off in ${x.workspace.name}. An admin can switch it on in Workspace, under Features.`);
+  return mod.run(x, input);
 }
 
 /** The commit an action's result carries, if any: a Commit, `{ commit, … }`, or null. A change set's only with `apply`. */
-export function commitOf(name: ActionName, out: unknown, input: unknown): import('../domain/commit').Commit | null {
+export function commitOf(name: ActionName | string, out: unknown, input: unknown): Commit | null {
   if (!out) return null;
   if (name === 'planChanges') return (input as { apply?: boolean }).apply ? (out as { commit: import('../domain/commit').Commit | null }).commit : null;
   return 'commit' in (out as object) ? (out as { commit: import('../domain/commit').Commit | null }).commit : (out as import('../domain/commit').Commit);

@@ -9,7 +9,7 @@ import { SCREENS } from '../mcp/parity';
 import { GROUPS, type Term } from '../domain/vocabulary';
 import { RULES, TREND_SPAN } from '../domain/thresholds';
 import { cell, link, table, UNCLEAR } from './md';
-import { dataModelMarkdown } from './model';
+import { dataModelMarkdown, declarations } from './model';
 import { RULE_LIST, wrongExamples, type Rule } from './rules';
 import { MAIN_ACTION } from './screens';
 import { RULE_PAGES, systemOverview } from './overview';
@@ -257,6 +257,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
       row('Places on core screens', m.places.map((x) => `\`${x}\``).join(', ')),
       row('Workspace sections', (m.sections ?? []).map((x) => `\`/workspace/${x}\``).join(', ')),
       row('Database tables', m.tables.map((t) => `\`${t.name}\` (${t.migration}): ${t.purpose}`).join('; ')),
+      row('Its own records', (m.records ?? []).map((x) => `${x.name} (\`${x.table}\`, filed under \`modules.${m.id}.${x.key}\`${x.removable ? '; removable and restorable' : ''})`).join('; ')),
       row('AI tools', m.aiTools.map((x) => `\`${x}\``).join(', ')),
       row('Help articles', arts.map((a) => `“${a.title}” (\`${a.id}\`)`).join(', ')),
       row('Outside its folder', (m.elsewhere ?? []).join(', ')),
@@ -280,9 +281,32 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     ...(RULE_LIST.some((x) => x.module === m.id)
       ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md)`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${UNCLEAR} it has no conformance rows of its own yet.`]
       : [`${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`]),
+    ...(m.records?.length ? ['', `Its own records, every field: [its records](records.md).`] : []),
     ...(m.growth?.length ? ['', `What was left out on purpose, and how it could grow: [growth notes](growth.md).`] : []),
     '',
   ].join('\n');
+}
+
+/** A module's own records (AS part 2): every field, from its types.ts, as the core's data model is from src/domain/types.ts. */
+function recordsPage(m: ModuleFacts, r: Repo): string {
+  const { header, decls } = declarations(r, `src/modules/${m.id}/types.ts`);
+  const out = [
+    `# ${m.name}: its records`,
+    '',
+    `Generated from \`src/modules/${m.id}/types.ts\` (every record, field and the comment written beside it). ${header}`,
+    '',
+    `The module’s own records, not the core’s: the core keeps them without knowing what they are (\`src/domain/records.ts\`), filed in the workspace and in a save under \`modules.${m.id}\`. How each is declared, as \`module.json\` lists it:`,
+    '',
+    table(['Record', 'Table', 'Filed under', 'Removable'], (m.records ?? []).map((x) => [x.name, `\`${x.table}\``, `\`modules.${m.id}.${x.key}\``, x.removable ? 'yes: restorable from Recently removed' : 'no'])),
+    '',
+  ];
+  for (const d of decls) {
+    out.push(`## ${d.name}`, '');
+    if (d.doc) out.push(d.doc, '');
+    if (d.kind === 'type') { out.push('```ts', `type ${d.name} = ${d.text}`, '```', ''); continue; }
+    if (d.fields.length) out.push(table(['Field', 'Type', 'Required', 'Meaning'], d.fields.map((f) => [`\`${f.name}\``, `\`${cell(f.type)}\``, f.optional ? 'no' : 'yes', cell(f.doc)])), '');
+  }
+  return GENERATED(`src/modules/${m.id}/types.ts`) + out.join('\n');
 }
 
 /** A module's growth notes: what it deliberately leaves out, why, and how the internal rebuild could add it. */
@@ -403,6 +427,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   for (const m of mods) {
     out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
     if (m.growth?.length) out[`spec/modules/${m.id}/growth.md`] = growthPage(m);
+    if (m.records?.length) out[`spec/modules/${m.id}/records.md`] = recordsPage(m, r);
   }
   const { buildPlatformOrg } = await import('../data/platformOrg/generate');
   const w = conformanceWorkspace(buildPlatformOrg(new Date(CHECK_IN_MOMENT)));

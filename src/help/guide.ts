@@ -10,6 +10,7 @@ import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
+import { closestRoute, routePaths, routeScore } from './match';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -1246,52 +1247,18 @@ export function searchGuide(query: string): Article[] {
   return scored.sort((x, y) => y.score - x.score || ARTICLES.indexOf(x.a) - ARTICLES.indexOf(y.a)).map((x) => x.a);
 }
 
-/** A route pattern's path and the query values it needs. */
-function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
-  const [path = '/', q = ''] = r.split('?');
-  return { segs: path.split('/').filter(Boolean), query: [...new URLSearchParams(q).entries()] };
-}
-
-/**
- * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
- * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
- * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
- */
-export function routeScore(route: string, pathname: string, search = ''): number | null {
-  const segs = pathname.split('/').filter(Boolean);
-  const p = parseRoute(route);
-  if (p.segs.length !== segs.length) return null;
-  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
-  const q = new URLSearchParams(search);
-  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
-  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-}
+/** How closely a route matches an address (src/help/match.ts, shared with the light index in src/help/lookup.ts). */
+export { routeScore };
 
 /** The article for a page: the one whose route matches the address most closely. */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
-  let best: { a: Article; score: number } | undefined;
-  for (const a of ARTICLES) {
-    for (const r of a.routes) {
-      const score = routeScore(r, pathname, search);
-      if (score !== null && (!best || score > best.score)) best = { a, score };
-    }
-  }
-  return best?.a;
-}
+export const articleForPath = (pathname: string, search = ''): Article | undefined => closestRoute(ARTICLES, (a) => a.routes, pathname, search)?.item;
 
 /** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
 let appRoutes: string[] | null = null;
-export function appRouteFor(pathname: string): string | undefined {
-  let best: { r: string; score: number } | undefined;
-  for (const r of (appRoutes ??= guideRoutes())) {
-    const score = routeScore(r, pathname);
-    if (score !== null && (!best || score > best.score)) best = { r, score };
-  }
-  return best?.r;
-}
+export const appRouteFor = (pathname: string): string | undefined => closestRoute(appRoutes ??= guideRoutes(), (r) => [r], pathname)?.route;
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */
-export const guideRoutes = (): string[] => [...new Set(ARTICLES.flatMap((a) => a.routes.map((r) => r.split('?')[0]!)))];
+export const guideRoutes = (): string[] => routePaths(ARTICLES);
 
 /** An article as plain text: for the AI assistant. */
 export function articleText(a: Article): string {
