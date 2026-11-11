@@ -6,12 +6,13 @@ import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
 import type { PlaceProps } from '../../core/app';
 import { templateWorkbook, csvFiles, toCsv, workbook, type ExportInput } from '../../domain/export';
+import { MODULE_SHEETS } from '../../core/records';
 import { MenuButton } from '../../ui/MenuButton';
 
 export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
   const app = useApp();
   const nav = useNavigate();
-  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today };
+  const input: ExportInput = { ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS };
   const name = (what: string, scope: string) => ({ workspace: app.ws.name, what, scope, date: app.today });
   const tableAs = async (kind: 'csv' | 'xlsx') => {
     // As shown, with the columns that say which record each row is added at the end (greyed), so it loads back.

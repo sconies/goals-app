@@ -1,9 +1,9 @@
 /* The contracts for the other outside parts (backlog 8c; the goals store's is store.ts). Each takes a way to make the
    part and checks what any replacement must do. src/adapters/parts.test.ts runs them on Faro's adapters; run them on
    yours. */
-import type { Feedback, Metric } from '../../domain/types';
+import type { Feedback } from '../../domain/types';
 import type { Markup, MarkupStatus } from '../../markup/model';
-import type { Clock, FeedbackStore, Files, Identity, MarkupStore, NumberSource, Picker } from '../index';
+import type { Clock, FeedbackStore, Files, Identity, MarkupStore, NumberSource, Picker, SourcedMetric } from '../index';
 
 const at = (minute: number) => new Date(Date.UTC(2026, 10, 2, 9, minute)).toISOString();
 
@@ -145,7 +145,7 @@ export function filesContract(name: string, make: () => Promise<Files>) {
 }
 
 /** `metric` is one the source reads; `before` a moment before its first reading. */
-export function numberSourceContract(name: string, make: () => Promise<{ source: NumberSource; metric: Metric; before: Date; after: Date }>) {
+export function numberSourceContract(name: string, make: () => Promise<{ source: NumberSource; metric: SourcedMetric; before: Date; after: Date }>) {
   describe(`the number source contract: ${name}`, () => {
     it('reads its own metrics: a number measured at or before the moment asked, and none before its first', async () => {
       const { source, metric, before, after } = await make();

@@ -14,13 +14,13 @@ import { findGoal, nextKey, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
+import { MODULE_RECORDS } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
-import { commitOf, perform, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
+import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
-import * as M from '../domain/metrics';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
 import { avatarHues, duplicateTitles, goalTell, nameWithTell } from '../domain/people';
 import { COMMENT_REMOVED, ENDED, leftName, NOTE_REMOVED, RESTORE_DAYS, UNDO_MS } from '../domain/vocabulary';
@@ -102,6 +102,8 @@ export interface AppState {
    * a removal shows Undo for 10 seconds. The action methods below are aliases of it; new code calls it directly.
    */
   run<N extends ActionName>(name: N, input: ActionInput<N>, opts?: { said?: string }): Promise<RunResult<N>>;
+  /** A feature module's action, by the name its actions.ts registers (app/actions MODULE_ACTIONS): run the same way. */
+  run(name: string, input: unknown, opts?: { said?: string }): Promise<unknown>;
   /** Posts (or replaces) this week's check-in and logs it. */
   /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
   postCheckIn(goal: Goal, draft: Draft, mode: PostMode): Promise<CheckIn>;
@@ -160,15 +162,6 @@ export interface AppState {
   saveTableView(v: { id?: string; name: string; layout: TableLayout }, head?: readonly string[]): Promise<string>;
   /** Delete one of your views (an admin: anyone's), with Undo. */
   deleteView(id: string): Promise<void>;
-  /* The metric library (domain/metrics, backlog 0b): what its screens call. The rules say no with a message, shown. */
-  /** Add a metric (anyone; they own it unless `ownerId` says) or change one (`id`: its owner or an admin). Returns its id; nothing is saved when nothing changed. */
-  saveMetric(m: M.MetricInput & { id?: string }): Promise<string>;
-  /** Owner or admin: remove a metric, unlinking the goals it measures, with Undo. */
-  removeMetric(id: string): Promise<void>;
-  /** The goal's owner or an admin: measure a goal by a metric, for a team (`teamId`) or the whole company (null). */
-  linkGoalMetric(goal: Goal, metricId: string, teamId: string | null): Promise<void>;
-  /** The goal's owner or an admin: stop measuring a goal by its metric, with Undo. */
-  unlinkGoalMetric(goal: Goal): Promise<void>;
   /* Removing, archiving and undoing (domain/removal): each shows a message with Undo for 10 seconds and is logged. */
   /** Admins: mark someone as left, handing their goals and open asks to the people given. */
   markPersonLeft(id: string, to: { goalsTo?: string | null; asksTo?: string | null }): Promise<void>;
@@ -466,7 +459,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const now = today();
     const cycle = currentCycle(snapshot.cycles, now);
     if (!cycle) return null;
-    const sc = scopeToCycle(snapshot, cycle);
+    const sc = scopeToCycle(snapshot, cycle, MODULE_RECORDS);
     const week = currentWeek(cycle, now);
     // Everyone history names: the people here now, and those who left, as "Name (left)". Pickers and counts read
     // snapshot.people, which has only the people here now (domain/cycle scopeToCycle).
@@ -524,9 +517,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     const nameOf = (id: string) => people.get(id)?.name;
     const said: { [N in ActionName]?: (out: NonNullable<ReturnType<typeof perform<N>>>, input: ActionInput<N>) => string } = {
       unwatch: (c) => c.changes[0]?.summary ?? 'Stopped watching',
-      removeMetric: (c) => c.changes[0]!.summary,
       deleteView: (c) => c.changes[0]!.summary,
-      unlinkGoalMetric: (c) => c.changes[0]!.summary,
       markPersonLeft: (_, i) => `${nameOf(i.personId) ?? 'They'} ${nameOf(i.personId) ? 'is' : 'are'} marked as left`,
       deletePerson: (_, i) => `Deleted ${nameOf(i.personId) ?? 'them'}`,
       stopGoal: (_, i) => `Stopped ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
@@ -545,7 +536,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
       if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
       let out: ReturnType<typeof perform<N>>;
-      try { out = perform(rx(), name, input); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+      try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.
       if (name === 'createToken') return (await issueToken(out as Commit)) as RunResult<N>;
       if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
@@ -557,14 +548,15 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
         toast(opts.said ?? `${n} ${n === 1 ? 'goal' : 'goals'} marked reviewed in ${review?.name ?? 'the review'}`, 'success', { label: 'Undo', run: () => { void act(() => R.unmarkReviewed(ax(), c.decisions ?? [])).then(() => toast('Undone: back on the agenda')).catch(() => undefined); } });
       } else {
-        const say = said[name] as ((o: unknown, i: unknown) => string) | undefined;
+        // A module's removal says what it did, with Undo, as the core's do (its actions.ts `said`).
+        const say = (said[name] ?? MODULE_ACTIONS[name]?.said) as ((o: unknown, i: unknown) => string) | undefined;
         if (say) toast(opts.said ?? say(out, input), 'success', { label: 'Undo', run: undoBy(c, before) });
       }
       return out as RunResult<N>;
     }
 
     return traced({
-      run: (name, input, opts) => telemetry.action(name, () => run(name, input, opts)),
+      run: ((name: ActionName, input: ActionInput<ActionName>, opts?: { said?: string }) => telemetry.action(name, () => run(name, input, opts))) as AppState['run'],
       mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose,
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
@@ -684,10 +676,6 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       saveView: async (v) => (await run('saveView', v)).id,
       saveTableView: async (v, head) => (await run('saveTableView', { ...v, head })).id,
       deleteView: async (id) => { await run('deleteView', { viewId: id }); },
-      saveMetric: async (m) => (await run('saveMetric', m)).metric.id,
-      removeMetric: async (id) => { await run('removeMetric', { metricId: id }); },
-      linkGoalMetric: async (goal, metricId, teamId) => { await run('linkGoalMetric', { goalId: goal.id, metricId, teamId }); },
-      unlinkGoalMetric: async (goal) => { await run('unlinkGoalMetric', { goalId: goal.id }); },
       markPersonLeft: async (id, to) => { await run('markPersonLeft', { personId: id, ...to }); },
       leaveWorkspace: async (to) => {
         await run('leaveWorkspace', to);
@@ -708,7 +696,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
-      recentlyRemoved: () => R.recentlyRemoved(snapshot, now),
+      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, MODULE_RECORDS),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
       pinView: async (id, pinned) => { await run('pinView', { viewId: id, pinned }); },
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },

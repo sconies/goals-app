@@ -1,5 +1,6 @@
 /* The goals domain. Everything the screens show is derived from these records by the
    pure functions in plan.ts, status.ts and checkin.ts. */
+import type { ModuleRows } from './records';
 
 export type Id = string;
 
@@ -359,11 +360,10 @@ export interface Snapshot {
   /** Every ask (a decision or help, an update, a question, an action): open until answered, done or withdrawn. The
       name is the stored table's, from before asks had kinds. */
   requests?: Ask[];
-  /** The metric library (backlog 0b, domain/metrics): every metric defined once, with its meaning, unit, direction
-      and source. Removed ones stay, with removedAt, and are out of every list once scoped (domain/cycle scopeToCycle). */
-  metrics?: Metric[];
-  /** Which metric measures a goal, and for which slice (a team, or the whole company): one per goal at most. */
-  metricLinks?: MetricLink[];
+  /** Every feature module's own records (domain/records, AS part 2), by module id and then by the key the module files
+      them under: `modules.metrics.metrics`, say. The core never reads inside them; the module that declares them does.
+      Rows of a module this build leaves out stay as they are. */
+  modules?: ModuleRows;
   /** The highest goal key given in the workspace so far, across every cycle (set when a snapshot is scoped to one
       cycle), so a new goal's key is never one an earlier cycle used. */
   keysIssued?: number;
@@ -381,59 +381,6 @@ export interface Archive {
   decisions: Decision[];
   people: Person[];
   reviews: Review[];
-}
-
-/** Whether a bigger number is better (deploys a day) or a smaller one (build time). */
-export type MetricDirection = 'higher' | 'lower';
-/** How often a metric's source refreshes its number. */
-export type MetricRefresh = 'live' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'quarterly';
-
-/**
- * A metric in the library (backlog 0b): one definition of a number, shared by every goal it measures, so two goals
- * about "build time" mean the same build time. The rules are in domain/metrics.ts: a name, a unit and a direction are
- * required; the rest is optional. Anyone can add one; its owner or an admin changes or removes it. Stored in okr_metrics.
- */
-export interface Metric {
-  id: Id;
-  name: string;
-  /** What it means and how it's calculated, in words: what's counted, over what, and what's left out. */
-  meaning: string;
-  unit: string;
-  /** Places after the decimal point it's shown with. */
-  decimals: number;
-  direction: MetricDirection;
-  /** Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). */
-  source: string;
-  sourceOwner: string;
-  /** How often the source refreshes; null when nobody has said. */
-  refresh: MetricRefresh | null;
-  /** The person who answers for the definition: whoever added it, unless they hand it on. */
-  ownerId: Id;
-  /** What to watch out for when reading it (a known gap, a change of method). */
-  caveats: string;
-  createdBy: Id;
-  createdAt: string;
-  updatedAt: string;
-  /** Removed: kept, out of every list, restorable (domain/removal). */
-  removedAt?: string | null;
-  removedBy?: Id | null;
-}
-
-/**
- * A goal measured by a metric, for one slice: a team's number (teamId), or the whole company's (null). One per goal:
- * its id is the goal's id. The goal's own target (its plan's target, or its range's limit) is the target in that
- * metric; nothing is copied. Unlinking sets removedAt, so it can be undone. Stored in okr_goal_metrics.
- */
-export interface MetricLink {
-  /** The goal's id: one link per goal. */
-  id: Id;
-  goalId: Id;
-  metricId: Id;
-  teamId: Id | null;
-  linkedBy: Id;
-  linkedAt: string;
-  removedAt?: string | null;
-  removedBy?: Id | null;
 }
 
 /** Where an ask stands: open until the person asked responds (answered; an action: done) or it's taken back. */

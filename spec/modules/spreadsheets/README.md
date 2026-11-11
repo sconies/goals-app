@@ -17,6 +17,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Places on core screens | `data.tools`, `goals.tools` |
 | Workspace sections | none |
 | Database tables | none |
+| Its own records | none |
 | AI tools | `export`, `export_table` |
 | Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`), “Every column, and what it needs” (`columns`) |
 | Outside its folder | none |
