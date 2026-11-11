@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Find shows each goal’s status shape',
+    points: [
+      'A goal found in Find shows its status as a shape beside the word, as everywhere else.',
+      'The same in every list where you pick a goal, such as a review’s goals.',
+    ],
+    articles: ['finding'],
+  },
+  {
     id: 'mcp-goal-scopes',
     date: '2026-11-11',
     title: 'Your AI assistant finds goals the way your Goals tabs do',
