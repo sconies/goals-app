@@ -26,7 +26,7 @@ export const WHATS_NEW: NewsEntry[] = [
     title: 'Every owner, team and goal is found by typing',
     points: [
       'Setting up or editing a goal, its owner, team, what it feeds and what it also helps are now a search, with you and your team suggested first, your team’s lead straight after you.',
-      'The same goes for an owner or a team in Data, who takes over when someone leaves, the owners in set-up, the person filter on Feedback, “Who are you?”, and anyone beyond the demo’s role cards.',
+      'The same goes for an owner or a team in Data, who takes over when someone leaves, the owners in set-up, the person filter on Feedback, “Who are you?” (and Not you?), and anyone beyond the demo’s role cards.',
       'A goal already under the one you’re editing is listed, greyed, with why it can’t feed it.',
       'On a phone the list of matches opens as a full screen, not half of one.',
     ],
