@@ -430,8 +430,8 @@ journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows wha
   await p.goto(url('/'));
   // Lane's notes (5 Nov): Home shows "Your goals" (what needs attention, what's being handled) and "Goals you watch".
   await see(p, 'Your goals');
-  await see(p, 'Need attention');
-  await see(p, 'Watching', 'home also shows the goals Rhea watches');
+  await see(p, /\d+ needs? attention/);
+  await see(p, 'Goals you watch', 'home also shows the goals Rhea watches');
   await h.checkpoint('home');
   h.set('progress', await p.locator('.hero .ring').isVisible(), 'no weekly progress ring');
   const cards = p.locator('.arow');
@@ -1097,7 +1097,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   // Oskar, an engineer, watches three goals and owns none.
   const p = h.use(await newPage(device, 'oskar'));
   await p.goto(url('/'));
-  await see(p, 'No check-ins or reviews due', 'someone who owns no goal is told so, calmly');
+  await see(p, 'Nothing is asked of you today.', 'someone who owns no goal is told so, calmly');
   await see(p, 'Goals you watch', 'home shows what Oskar watches');
   // One watching block on Home (one Watching): no second summary of the same goals.
   h.set('parity', await p.locator('.dash-watch').count() === 0 && await p.locator('.home-watch').count() === 1, 'Home shows the goals you watch more than once');
@@ -1246,8 +1246,8 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   let s = await h.snapshot('ws_wrap');
   h.set('logged', s.retros.length === 2 && s.changes.filter((c) => c.entity === 'retro' && c.actorId === 'mateo').length === 2, 'the retros are not saved and logged');
   // Amara, an admin, starts the next cycle.
+  // (Home's admin card went with HM1; the workspace's line, HM7, brings "The wrap-up is open" back to an admin's Home.)
   await viewAs(p, 'Amara');
-  await see(p, 'The year is ending', 'an admin is told the year is ending');
   // Starting next year is its own page with a read-back (cycle-end 2.4); it prepares 2027 and moves nobody yet.
   await p.goto(late('/workspace/cycles/next'));
   await h.click(p.getByRole('button', { name: 'Start 2027' }));
