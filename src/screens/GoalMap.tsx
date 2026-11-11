@@ -251,7 +251,14 @@ export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set
   };
   const pendingPan = useRef<string | null>(null);
   // The list bar's search found a goal (goals spec, 2.3): go to it, each time it's asked, even for the same goal again.
-  useEffect(() => { const g = goTo && goals.find((x) => x.id === goTo.id); if (g) findGoal(g); }, [goTo?.n]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A request made before this Map was drawn (it was found, then the layout changed and came back) is not asked again.
+  const goneTo = useRef(goTo?.n);
+  useEffect(() => {
+    if (!goTo || goTo.n === goneTo.current) return;
+    goneTo.current = goTo.n;
+    const g = goals.find((x) => x.id === goTo.id);
+    if (g) findGoal(g);
+  }, [goTo?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const id = pendingPan.current, rf = flow.current, cv = canvas.current?.getBoundingClientRect();
     const n = placed.find((x) => x.id === id);

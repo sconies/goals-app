@@ -10,7 +10,6 @@ import { saveAndSay } from '../../app/files';
 import { describe, type Tables } from '../../domain/changeset';
 import { andList, requiredLine } from '../../domain/columns';
 import { templateWorkbook, workbook } from '../../domain/export';
-import { MODULE_SHEETS } from '../../core/records';
 import type { ReadTables } from '../../domain/sheets';
 import { useMark } from '../../telemetry/react';
 import { Preview } from '../../ui/Preview';
@@ -52,7 +51,7 @@ export function Import() {
       nav('/goals');
     } catch { setBusy(false); }
   };
-  const template = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals-to-edit', scope: app.cycle.name, date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, 'Workbook saved');
+  const template = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals-to-edit', scope: app.cycle.name, date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today }) }, 'Workbook saved');
   const starter = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'template', date: app.today }, { kind: 'xlsx', sheets: templateWorkbook({ ws: app.ws, cycle: app.cycle, week: app.week, today: app.today }) }, 'Template saved');
   // Which sheets were read, and which were left out: so a file that changed nothing says why. Example rows (the
   // template's, whose Action says Example) are never imported, and said.

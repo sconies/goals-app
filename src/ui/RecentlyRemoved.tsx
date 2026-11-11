@@ -3,7 +3,7 @@
    domain/removal's. (The cycles are Workspace's Cycles section.) */
 import { useState } from 'react';
 import { useApp } from '../app/state';
-import { canRestore, type Removed } from '../domain/removal';
+import { canRestore, REMOVED_LABEL, type Removed } from '../domain/removal';
 import { RESTORE_DAYS } from '../domain/vocabulary';
 import { whenText } from './ChangeItem';
 
@@ -37,7 +37,7 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
           <label className="field" style={{ flex: '1 1 160px' }}><span className="sr">Kind</span>
             <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="">Kind: every kind</option>
-              {kinds.map((k) => <option key={k} value={k}>{all.find((r) => r.kind === k)!.label}</option>)}
+              {kinds.map((k) => <option key={k} value={k}>{REMOVED_LABEL[k]}</option>)}
             </select>
           </label>
         </div>
@@ -47,11 +47,11 @@ export function RecentlyRemoved({ bare = false }: { bare?: boolean } = {}) {
           {list.slice(0, limit).map((r) => (
             <li key={r.kind + r.id} className="removed-row">
               <span className="removed-text">
-                <span className="removed-kind">{r.label}</span>
+                <span className="removed-kind">{REMOVED_LABEL[r.kind]}</span>
                 <span className="removed-name">{r.name}</span>
                 <span className="hint">{who(r.by)} · {whenText(r.at, app.today)}</span>
               </span>
-              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void restore(r)} aria-label={`Restore ${r.label.toLowerCase()}: ${r.name}`}>{busy === r.kind + r.id ? 'Restoring…' : 'Restore'}</button>
+              <button type="button" className="btn sm" disabled={!!busy} onClick={() => void restore(r)} aria-label={`Restore ${REMOVED_LABEL[r.kind].toLowerCase()}: ${r.name}`}>{busy === r.kind + r.id ? 'Restoring…' : 'Restore'}</button>
             </li>
           ))}
         </ul>

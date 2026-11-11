@@ -79,7 +79,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const back = () => nav('/goals/' + goal.id);
 
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   const save = async () => {
     setTried(true);
     if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
@@ -88,7 +88,8 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      if (measure) await app.run(measure.action, measure.input(after));
+      if (measure) await app.linkGoalMetric(after, measure.metricId, measure.teamId);
+      else if (measure === null) await app.unlinkGoalMetric(after);
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();

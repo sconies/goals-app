@@ -1,8 +1,7 @@
 /* One save: the records that leave draft, and the change-log entries that describe them. The rules (src/domain) make
    them and the stores (src/data) keep them, so the type lives with the rules: the rules layer never reaches into the
    data layer (scripts/check-layers.mjs). */
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Person, Retro, Review, Team, Watch } from './types';
-import type { ModuleRows } from './records';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Feedback, Goal, Metric, MetricLink, Person, Retro, Review, Team, Watch } from './types';
 
 /** One save: the records that leave draft, and the change-log entries that describe them. */
 export interface Commit {
@@ -20,9 +19,10 @@ export interface Commit {
   tokens?: ApiToken[];
   views?: SavedView[];
   requests?: Ask[];
-  /** Feature modules' records added, changed or removed (domain/records): by module id, then the key the module files
-      them under, as in the workspace. A store saves them with the rest, in the same transaction. */
-  modules?: ModuleRows;
+  /** Metrics added, changed or removed (domain/metrics). */
+  metrics?: Metric[];
+  /** Goals linked to a metric, relinked or unlinked (domain/metrics). */
+  metricLinks?: MetricLink[];
   /** Teams added or changed. */
   teams?: Team[];
   /** Ids of teams to remove: emptied first, by the same save (domain/actions removeTeam). */

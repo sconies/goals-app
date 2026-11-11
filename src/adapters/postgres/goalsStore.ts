@@ -10,36 +10,31 @@
 import { upgradeAsks } from '../../domain/asks';
 import { withKeys } from '../../domain/goalKey';
 import type { Snapshot, Workspace } from '../../domain/types';
-import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
 import {
-  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, loadModules, personFromRow,
+  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, metricFromRow, metricLinkFromRow, personFromRow,
   requestFromRow, retroFromRow, reviewFromRow, teamFromRow, teamToRow, tokenFromRow, viewFromRow, watchFromRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalRow, type PersonRow, type RequestRow,
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalMetricRow, type GoalRow, type MetricRow, type PersonRow, type RequestRow,
   type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow,
 } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
-import { MODULE_RECORDS } from '../../core/records';
 
 /** What the adapter needs from a Postgres driver: node-postgres (Pool, Client) and PGlite both have it. */
 export interface Sql {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
 
-/** The core's tables, and the name of each in the snapshot. They are closed: a feature module brings its own tables and
-    declares them (domain/records), and the adapter reads and writes those as each module says. */
+/** The tables a workspace's records are in, and the name of each in the snapshot. */
 const TABLES = {
   teams: 'okr_teams', people: 'okr_people', cycles: 'okr_cycles', goals: 'okr_goals', stages: 'okr_stages', checkIns: 'okr_check_ins',
   decisions: 'okr_decisions', changes: 'okr_changes', watches: 'okr_watches', reviews: 'okr_reviews', retros: 'okr_retros', views: 'okr_views',
-  requests: 'okr_requests',
+  requests: 'okr_requests', metrics: 'okr_metrics', metricLinks: 'okr_goal_metrics',
 } as const;
-
 
 export class PostgresStore implements Store {
   readonly kind = 'postgres' as const;
   readonly hasExample = false;
 
-  /** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
-  constructor(private readonly db: Sql, private readonly records: readonly ModuleRecords[] = MODULE_RECORDS) {}
+  constructor(private readonly db: Sql) {}
 
   /** Runs a statement, turning the database's "stale: …" refusal into StaleError and anything else into a plain message. */
   private async run<T>(what: string, text: string, params: unknown[]): Promise<T[]> {
@@ -66,13 +61,11 @@ export class PostgresStore implements Store {
 
   async load(ws: string): Promise<Snapshot> {
     const T = TABLES;
-    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, views, requests, modules, feedback, tokens] = await Promise.all([
+    const [teams, people, cycles, goals, stages, checkIns, decisions, changes, watches, reviews, retros, views, requests, metrics, metricLinks, feedback, tokens] = await Promise.all([
       this.all<TeamRow>(T.teams, ws), this.all<PersonRow>(T.people, ws), this.all<CycleRow>(T.cycles, ws), this.all<GoalRow>(T.goals, ws),
       this.all<StageRow>(T.stages, ws), this.all<CheckInRow>(T.checkIns, ws), this.all<DecisionRow>(T.decisions, ws), this.all<ChangeRow>(T.changes, ws),
       this.all<WatchRow>(T.watches, ws), this.all<ReviewRow>(T.reviews, ws), this.all<RetroRow>(T.retros, ws), this.all<ViewRow>(T.views, ws),
-      this.all<RequestRow>(T.requests, ws),
-      // Each feature module's own tables, as it declares them.
-      loadModules(this.records, (table) => this.all<DbRow>(table, ws)),
+      this.all<RequestRow>(T.requests, ws), this.all<MetricRow>(T.metrics, ws), this.all<GoalMetricRow>(T.metricLinks, ws),
       // Feedback and tokens through the same functions the Supabase adapter reads them with (tokens without their hashes).
       this.json<FeedbackRow>('Feedback', 'select * from okr_feedback_list($1)', [ws]),
       this.json<TokenRow>('Tokens', 'select * from okr_token_list($1)', [ws]),
@@ -93,7 +86,8 @@ export class PostgresStore implements Store {
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
       requests: requests.map(requestFromRow),
-      ...(modules ? { modules } : {}),
+      ...(metrics.length ? { metrics: metrics.map(metricFromRow).sort((a, b) => a.createdAt.localeCompare(b.createdAt)) } : {}),
+      ...(metricLinks.length ? { metricLinks: metricLinks.map(metricLinkFromRow) } : {}),
     });
   }
 
@@ -109,8 +103,8 @@ export class PostgresStore implements Store {
       await this.run('Revoking the token', 'select okr_token_revoke($1, $2, $3, $4::jsonb)', [ws, t!.id, change?.actorId ?? '', change ? JSON.stringify(changeToRow(ws, change)) : null]);
       return;
     }
-    if (Object.entries(c).every(([k, v]) => k === 'expect' || (k === 'modules' ? !hasModuleRows(c.modules) : Array.isArray(v) ? !v.length : v === undefined))) return;
-    await this.run('Saving', 'select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(commitPayload(ws, c, this.records))]);
+    if (Object.entries(c).every(([k, v]) => k === 'expect' || (Array.isArray(v) ? !v.length : v === undefined))) return;
+    await this.run('Saving', 'select okr_commit($1, $2::jsonb)', [ws, JSON.stringify(commitPayload(ws, c))]);
   }
 
   /** The database makes the secret, keeps only its hash and returns it this once (okr_token_create). */
@@ -125,7 +119,7 @@ export class PostgresStore implements Store {
   }
 
   async createWorkspace(w: Workspace, data: Snapshot) {
-    const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
+    const payload = { ...commitPayload(w.id, data), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.run('Creating the workspace', 'select okr_create_workspace($1::jsonb, $2::jsonb)', [JSON.stringify(workspaceToRow(w)), JSON.stringify(payload)]);
   }
 

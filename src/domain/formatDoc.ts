@@ -5,14 +5,12 @@ import {
   TYPE_WORDS, BOUND_WORDS, WEEK_COLUMN, type FillKind, type Words,
 } from './columns';
 import { STATUS, withCode } from './vocabulary';
-import type { ModuleSheet } from './records';
 
 const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const words = (w: Words<string>) => Object.values(w.word).map((x) => `\`${x}\``).join(', ');
 
-/** The whole of docs/export-format.md, with the sheets of the feature modules in this build (domain/records) after the core's. */
-export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): string {
-  const sheets = [...SHEETS.map((x) => ({ x: x as (typeof SHEETS)[number] | ModuleSheet['spec'], keys: KEY_COLUMNS[x.kind] })), ...modules.map((m) => ({ x: m.spec, keys: m.keys }))];
+/** The whole of docs/export-format.md. */
+export function exportFormatMarkdown(): string {
   const out: string[] = [
     '<!-- Generated from src/domain/columns.ts by `npm run export-format`. Edit the columns there, not this file. -->',
     '',
@@ -24,7 +22,7 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
     '',
     '## Files',
     '',
-    `- **Excel workbook (.xlsx)**, the default: a first sheet, ${START_HERE}, that says where the file came from (the workspace’s and cycle’s ids, on its “File of” row) and, for every column, what a new row needs, its format, an example, what an empty cell does and what it means (the field table below); then every sheet below (${sheets.map((v) => v.x.name).join(', ')}). Worked-out columns are set in grey. A file’s README sheet, from before ${START_HERE}, is skipped as ${START_HERE} is.`,
+    `- **Excel workbook (.xlsx)**, the default: a first sheet, ${START_HERE}, that says where the file came from (the workspace’s and cycle’s ids, on its “File of” row) and, for every column, what a new row needs, its format, an example, what an empty cell does and what it means (the field table below); then every sheet below (${SHEETS.map((x) => x.name).join(', ')}). Worked-out columns are set in grey. A file’s README sheet, from before ${START_HERE}, is skipped as ${START_HERE} is.`,
     `- **The template**: ${START_HERE}, then Goals, Plan, Check-ins and People with only the columns a person fills in, the headers a new row must have in bold, and example rows whose Action says \`${GOAL_ACTION_WORDS.word.example}\`, which are never imported.`,
     '- **CSV files (.zip)**: the same sheets, one CSV each with the same headers, named after the sheet (`Goals.csv`, `Check-ins.csv`…). UTF-8 with a byte-order mark, so Excel opens them correctly.',
     '- **One CSV**: any one sheet on its own.',
@@ -46,7 +44,7 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
     '- **What a new row needs** (the field table): a column is Required; Required for a type of goal (Target for a number goal) or in a situation (Cause when a check-in is behind); Optional, with what an empty cell gives; Leave empty (Faro fills it in); or Worked out (never read). On a row already here no column is required: an empty cell keeps what the record says, except where the column says empty clears it.',
     '',
   ];
-  for (const { x: sheet, keys } of sheets) {
+  for (const sheet of SHEETS) {
     out.push(`## ${sheet.name}`, '', `One row per ${sheet.rowIs}. ${sheet.about}${sheet.loaded ? '' : ' Not loaded back.'}`, '');
     if (sheet.loaded) {
       // The field table: what a new row needs, the format, an example and what an empty cell does, then the meaning.
@@ -62,7 +60,7 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
       out.push('| Column | Kind | What it means | When loaded back |', '|---|---|---|---|');
       for (const c of sheet.columns) out.push(`| ${cell(c.header)} | ${ROLE_WORD[c.role]} | ${cell(c.means)} | Not loaded back |`);
     }
-    out.push('', `Always written by a table from Data: ${keys.join(', ')}.`, '');
+    out.push('', `Always written by a table from Data: ${KEY_COLUMNS[sheet.kind].join(', ')}.`, '');
   }
   out.push(
     '## Words',

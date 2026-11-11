@@ -12,6 +12,18 @@ module.exports = {
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
 
+    // Goals spec 2.4: the phone's Goals is anything under 700px. At 650 (a phone's frame) the computer's menus are the
+    // View sheet, as at 360; at 700 they are the computer's.
+    for (const [w, phoneBar] of [[650, true], [700, false]]) {
+      const [c, p] = await open(w, 800, 'amara', '/goals?scope=all', true);
+      await p.locator('.goals-line').waitFor();
+      const m = await p.evaluate(() => {
+        const shown = (s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length;
+        return { menus: shown('.views-menu') + shown('.layout-menu') + shown('.group-menu'), view: shown('.goals-phone-switch .view-open') };
+      });
+      chk(phoneBar ? m.menus === 0 && m.view === 1 : m.menus > 0 && m.view === 0, `G: ${w}px Goals shows ${m.menus} of a computer's menus and ${m.view ? 'the' : 'no'} View button (goals spec 2.4: the phone's bar is under 700px)`);
+      await c.close();
+    }
     // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
     // the title, beside New goal, so the header is one 44px row; the tabs one row; search and Filter and sort one row with
     // a short placeholder; the switch and View one row (GL2: View opens the sheet with Layout, Group and Saved views).

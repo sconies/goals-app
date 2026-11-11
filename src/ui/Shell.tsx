@@ -18,7 +18,7 @@ import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
 import { RailLabel } from './Label';
-import { PageHelp } from './HelpLinks';
+import { PageHelp } from '../screens/Help';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';

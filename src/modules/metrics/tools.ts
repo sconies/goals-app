@@ -1,12 +1,12 @@
 /* The metric library's AI tools (backlog 0b): list and read the metrics, add, change or remove one, and say which
-   metric measures a goal. Every rule is rules.ts's, so an assistant meets exactly the rules a person does,
+   metric measures a goal. Every rule is domain/metrics.ts's, so an assistant meets exactly the rules a person does,
    and every change is logged as that person, via the AI assistant. A removed metric comes back with restore_removed
    (kind metric). In a workspace that has switched the metric library off, these say so instead of running. */
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
-import * as M from './rules';
-import type { Metric, MetricDirection, MetricRefresh } from './types';
+import * as M from '../../domain/metrics';
+import type { Metric, MetricDirection, MetricRefresh } from '../../domain/types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { VIA_MCP } from '../../domain/changeset';
 
@@ -56,7 +56,7 @@ function metricData(ctx: McpContext, m: Metric) {
     direction: m.direction, directionLabel: M.DIRECTION_LABEL[m.direction], source: m.source, sourceOwner: m.sourceOwner,
     refresh: m.refresh, owner: name(ctx, m.ownerId), ownerId: m.ownerId, caveats: m.caveats, updatedAt: m.updatedAt,
     youCanChange: M.canEditMetric(ctx.actor, m),
-    measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
+    measures: M.goalsMeasuredBy(ctx.snapshot, m.id).map((g) => {
       const me = M.measureOf(ctx.snapshot, g)!;
       return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target, targetText: me.targetText };
     }),
@@ -86,7 +86,7 @@ const tools: ToolDef[] = [
     async run(a, ctx) {
       const q = String(a.search ?? '').trim().toLowerCase();
       const list = M.liveMetrics(ctx.snapshot).filter((m) => !q || [m.name, m.meaning, m.source].some((t) => t.toLowerCase().includes(q)));
-      const rows = list.map((m) => ({ id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner: name(ctx, m.ownerId), goals: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).length }));
+      const rows = list.map((m) => ({ id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner: name(ctx, m.ownerId), goals: M.goalsMeasuredBy(ctx.snapshot, m.id).length }));
       return { data: { metrics: rows }, text: rows.length ? rows.map((r) => `${r.id} · ${r.name} (${r.unit}, ${M.DIRECTION_LABEL[r.direction].toLowerCase()}) · owner ${r.owner ?? '—'} · measures ${r.goals} ${r.goals === 1 ? 'goal' : 'goals'}`).join('\n') : q ? `No metric matches “${q}”.` : 'The metric library is empty. Add one with save_metric.' };
     },
   },
@@ -146,7 +146,7 @@ const tools: ToolDef[] = [
       return ruled(async () => {
         const c = M.removeMetric(ax(ctx), metricOf(ctx, a.metric).id);
         await save(ctx, c);
-        return { data: { removed: true, unlinked: M.linksOf(c).map((l) => l.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
+        return { data: { removed: true, unlinked: (c.metricLinks ?? []).map((l) => l.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
       });
     },
   },

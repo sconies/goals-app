@@ -5,8 +5,6 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
-import { entriesAfter } from './match';
-
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -22,6 +20,18 @@ export interface NewsEntry {
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'map-comes-back-fresh',
+    date: '2026-11-11',
+    title: 'The Map behaves when you come back to it',
+    points: [
+      'Coming back to the Map from another layout no longer jumps to the last goal you found.',
+      'Emptying the Map’s search shows every goal again at once, without pressing Enter.',
+      'On the Map, Filters no longer offers a sort: the Map always shows the trees.',
+      'Goals takes its phone layout on any screen under 700 pixels wide, not only under 600.',
+    ],
+    articles: ['goal-map', 'goals'],
+  },
   {
     id: 'levels-one-style',
     date: '2026-11-11',
@@ -1200,7 +1210,10 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
+export function newsAfter(seenId: string | null): NewsEntry[] {
+  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
+  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
+}
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

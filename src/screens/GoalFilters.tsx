@@ -91,7 +91,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
         <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} find={find} />
         {lead}
         {/* On a phone Sort is in the same sheet as the filters, so the button says both (goals spec, 2.4). */}
-        <button type="button" className="btn filters-open" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
+        <button type="button" className="btn filters-open" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">{sortOff ? 'Filters' : 'Filter and sort'}</span>{parts.length ? ` · ${parts.length}` : ''}</button>
         <label className="filter-sort inline-sort" title={sortOff}><span className="sr">Sort</span>
           <select className="input" disabled={!!sortOff} aria-description={sortOff} value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -106,7 +106,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
           filters. The count is the page's one count line (goals spec, rule 4), not said again here. Saving and sharing
           are in the Views menu (or the phone's View sheet), the same on every width (GL2). */}
       <FilterLine parts={parts} onRemove={(k) => setQ((cur) => without(cur, k))} onClear={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, attention: cur.attention, sort: cur.sort, dir: cur.dir }))} />
-      {open && <FilterSheet onClose={() => setOpen(false)} />}
+      {open && <FilterSheet onClose={() => setOpen(false)} sortOff={sortOff} />}
     </div>
   );
 }
@@ -207,7 +207,8 @@ function SearchBox({ value, onSearch, find }: { value: string; onSearch: (text: 
           const t = e.target.value;
           setText(t);
           if (timer.current) clearTimeout(timer.current);
-          if (mapMode) { setListOpen(true); setAt(-1); return; }
+          // Emptied on the Map, the search stops narrowing at once: there is nothing left to press Enter on.
+          if (mapMode) { setListOpen(true); setAt(-1); if (t.trim() === '') flush(''); return; }
           timer.current = setTimeout(() => flush(t), SEARCH_SETTLE_MS);
         }}
         onKeyDown={(e) => {
@@ -264,7 +265,7 @@ function SaveViewSheet({ params, view, onClose }: { params: string; view?: Saved
 }
 
 /** Every filter, changing the goals behind it as you go. */
-function FilterSheet({ onClose }: { onClose: () => void }) {
+function FilterSheet({ onClose, sortOff }: { onClose: () => void; sortOff?: string }) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const [owner, setOwner] = useState('');
@@ -281,13 +282,14 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet open onClose={onClose} title="Filter goals" wide>
       <div className="filter-sheet">
-        <fieldset className="filter-group"><legend className="field-label">Sort</legend>
+        {/* On the Map there is no sort (it is always the trees), so the sheet doesn't offer one (goals spec, 2.3). */}
+        {!sortOff && <fieldset className="filter-group"><legend className="field-label">Sort</legend>
           <select className="input" aria-label="Sort" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">As grouped</option>
             {SORT_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>{l}, reversed</option>)}
           </select>
-        </fieldset>
+        </fieldset>}
         {checks('Status', STATUS_OPTIONS, 'status')}
         {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
         <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>

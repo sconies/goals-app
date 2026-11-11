@@ -3,7 +3,6 @@ import { screenFiles } from '../core/sources';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACTIONS, SCREENS } from './parity';
-import { MODULE_ACTIONS } from '../app/actions';
 import { TOOLS } from './tools';
 
 const root = path.join(__dirname, '..', '..');
@@ -17,14 +16,6 @@ describe('Every action a person can take, their AI assistant can take too', () =
     const actions = [...body.matchAll(/^ {2}(\w+)\(.*\): (Promise<[^>]*>|ChangeSet|void);$/gm)].map((m) => m[1]!).filter((n) => n !== 'toast');
     expect(actions.length).toBeGreaterThan(20);
     expect(actions.filter((a) => !(a in ACTIONS))).toEqual([]);
-  });
-
-  it('maps every feature module’s action (run through app.run) to MCP tools that exist', () => {
-    expect(Object.keys(MODULE_ACTIONS).length).toBeGreaterThan(0);
-    for (const [name, a] of Object.entries(MODULE_ACTIONS)) {
-      expect(a.tools.length, name).toBeGreaterThan(0);
-      expect(a.tools.filter((t) => !names.has(t)), name).toEqual([]);
-    }
   });
 
   it('maps every screen to the tools that read or do what it shows', () => {

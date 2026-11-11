@@ -97,7 +97,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   // After “Change …” on the summary, Continue comes straight back to it.
   const [fromSummary, setFromSummary] = useState(false);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
   useEffect(() => { top.current?.querySelector<HTMLElement>('input, select, textarea, button.kindcard')?.focus(); }, [step]);
 
   const go = (to: number) => {
@@ -116,7 +116,8 @@ function Wizard({ existing }: { existing: Goal | null }) {
       // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
       const done = !existing && g.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
       await app.saveGoal(g, existing, undefined, done.length ? { stagesDone: done } : undefined);
-      if (measure) await app.run(measure.action, measure.input(g));
+      if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
+      else if (measure === null && existing) await app.unlinkGoalMetric(g);
       clear();
       app.toast(existing ? 'Saved. The change is in the goal’s activity.' : `Published “${g.title}”`);
       nav('/goals/' + g.id + (existing ? '' : '?published=1'));

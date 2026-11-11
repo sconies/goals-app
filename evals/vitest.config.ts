@@ -1,9 +1,8 @@
 import { defineConfig } from 'vitest/config';
 import { faroModules } from '../vite.modules.ts';
-import { faroHelpIndex } from '../vite.helpIndex.ts';
 
 export default defineConfig({
-  plugins: [faroModules(), faroHelpIndex()],
+  plugins: [faroModules()],
   test: {
     include: ['evals/**/*.eval.ts'],
     environment: 'node',
