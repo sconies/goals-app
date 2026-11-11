@@ -8533,6 +8533,7 @@ function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
 // src/app/reads.ts
+init_review();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week) {
@@ -8572,6 +8573,69 @@ function searchRows(s, cycle, today, week) {
 		goal: once(() => goalRows(s, cycle, today, week)),
 		person: once(() => personRows(s)),
 		team: once(() => teamRows(s))
+	};
+}
+/** What the Goals scopes read (goals spec, rule 1) for one person: the running cycle's goals (not stopped), their team
+and the teams they lead, and the goals they watch. Goals' screen and find_goals read the same facts. */
+function scopeFacts(s, viewer) {
+	return {
+		goals: live(s.goals).filter((g) => !g.stoppedAt).map((g) => ({
+			id: g.id,
+			ownerId: g.ownerId,
+			teamId: g.teamId
+		})),
+		viewerId: viewer.id,
+		teams: s.teams.filter((t) => t.id === viewer.teamId || t.leadId === viewer.id).map((t) => ({
+			id: t.id,
+			name: t.name
+		})),
+		watched: new Set(watchedGoals(viewer.id, s).map((g) => g.id))
+	};
+}
+// src/domain/goalsPage.ts
+init_attention();
+init_vocabulary();
+var SCOPES = [
+	"mine",
+	"team",
+	"watching",
+	"all"
+];
+/**
+* Rule 1. The tabs someone has, in order: Mine (when they own a goal), My team or My teams (their team and the teams
+* they lead, when they have one), Watching, All. Opens on the scope last used when they still have it; otherwise Mine,
+* else Watching when it has goals, else All.
+*/
+function scopesFor(f, last) {
+	const tabs = [];
+	const mine = f.goals.filter((g) => g.ownerId === f.viewerId).map((g) => g.id);
+	if (mine.length) tabs.push({
+		id: "mine",
+		label: "Mine",
+		ids: mine
+	});
+	if (f.teams.length) {
+		const ids = new Set(f.teams.map((t) => t.id));
+		tabs.push({
+			id: "team",
+			label: f.teams.length === 1 ? "My team" : "My teams",
+			ids: f.goals.filter((g) => ids.has(g.teamId)).map((g) => g.id)
+		});
+	}
+	tabs.push({
+		id: "watching",
+		label: "Watching",
+		ids: f.goals.filter((g) => f.watched.has(g.id)).map((g) => g.id)
+	});
+	tabs.push({
+		id: "all",
+		label: "All",
+		ids: f.goals.map((g) => g.id)
+	});
+	const has = (s) => !!s && tabs.some((t) => t.id === s);
+	return {
+		tabs,
+		opens: has(last) ? last : mine.length ? "mine" : tabs.find((t) => t.id === "watching").ids.length ? "watching" : "all"
 	};
 }
 // src/ports/search.ts
@@ -12173,7 +12237,8 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.",
-					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest."
+					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
+					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
 			},
 			{
@@ -12543,6 +12608,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "mcp-goal-scopes",
+		date: "2026-11-11",
+		title: "Your AI assistant finds goals the way your Goals tabs do",
+		points: ["Ask Claude (or another AI tool on MCP) for your goals, your team’s or the ones you watch, and it finds the same goals as Mine, My team and Watching on Goals.", "If you have no team or own no goals, it says so instead of guessing."],
+		articles: ["ai-assistants", "goals"]
+	},
 	{
 		id: "goals-filters-in-words",
 		date: "2026-11-10",
@@ -17352,7 +17424,7 @@ var CORE_TOOLS = [
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -17362,7 +17434,8 @@ var CORE_TOOLS = [
 				status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
 				needs_attention: bool(`Only the goals on the ${ATTENTION.needs.label} list: those that need attention first, then those ${ATTENTION.handled.label.toLowerCase()} (beingHandled says how), as the Goals screen lists them. ${ATTENTION.needs.long}`),
 				level: str("Only goals at this level.", { enum: LEVELS }),
-				mine: bool("Only goals you own."),
+				mine: bool("Only goals you own (the same as scope \"mine\")."),
+				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
 			}
@@ -17401,6 +17474,18 @@ var CORE_TOOLS = [
 				},
 				text: "No goals match."
 			};
+			const scope = a.scope ? String(a.scope) : null;
+			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
+			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
+			if (scope && scope !== "all" && !scoped) return {
+				data: {
+					week: ctx.week,
+					weeks: ctx.cycle.weeks,
+					goals: []
+				},
+				text: scope === "team" ? "No goals match: you’re in no team and lead none." : "No goals match: you own no goals this year."
+			};
+			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
 			const found = await allPages(localSearch(rows), "goal", {
@@ -17412,7 +17497,7 @@ var CORE_TOOLS = [
 				sort: asked.sort ? asked.sort + (asked.dir === -1 ? ".desc" : "") : null
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
-			let list = found.map((r) => byId.get(r.id)).filter(Boolean);
+			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
