@@ -92,6 +92,8 @@ export const SCREENS: Record<string, Entry> = {
   DataMenu: ['export', 'export_table', 'bulk_change'],
   Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],
   Workspace: ['list_people', 'list_tokens', 'create_token', 'revoke_token', 'delete_workspace', 'rename_workspace', 'set_recording', 'set_feature', 'list_removed', 'restore_removed', 'delete_cycle'],
+  Metrics: ['list_metrics', 'get_metric', 'save_metric', 'remove_metric', 'restore_removed'],
+  MetricPlaces: ['get_goal', 'get_metric', 'list_metrics'],
   People: ['list_people', 'save_person', 'save_team', 'remove_team', 'mark_person_left', 'delete_person', 'create_token', 'find_goals'],
   Feedback: ['list_markups', 'get_markup', 'update_markup', 'list_feedback', 'get_feedback', 'update_feedback', 'review_inbox', 'send_feedback'],
   Settings: ['list_tokens', 'revoke_token', 'get_help'],

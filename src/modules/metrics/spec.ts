@@ -3,6 +3,11 @@
    every example runs against the module's own rules (rules.ts) in the demo workspace, so it can't drift from the code. */
 import { exampleKit, type Rule } from '../../spec/rules';
 import * as MET from './rules';
+import * as LIB from './rulesLibrary';
+import { goalsOfMetric, libraryReads } from './reads';
+import { CHECK_IN_MOMENT } from '../../spec/conformance';
+import { currentWeek } from '../../domain/plan';
+import { LABEL } from '../../domain/vocabulary';
 
 // Read when an example runs, never before: the kit's demo workspace is built first (src/spec/rules prepareExamples).
 const demo = () => exampleKit.demo();
@@ -44,5 +49,54 @@ A **metric** is one number defined once per workspace, so every goal about it me
   ],
   unclear: ['Two people changing the same metric at once: the later save wins (metrics carry no version yet, unlike goals and reviews).', 'The words for a slice are the team’s name, or “The whole company”; the change log says “for the whole company” or “for <team>”.'],
 },
+  {
+  id: 'metric-library-place',
+  title: 'The library as a place',
+  summary: 'Which metrics the library lists for a search and its filters, in what order (rule 1); a metric’s goals side by side (rule 2); and what a metric still needs (rule 3).',
+  code: [{ file: 'src/modules/metrics/rulesLibrary.ts', names: ['findMetrics', 'liveLinks', 'metricGoals', 'summaryLine', 'goalsByStatus', 'metricNeeds', 'needsLine', 'movedMetrics', 'metricSlug', 'metricAt', 'decimalsWords'] }, { file: 'src/modules/metrics/reads.ts', names: ['libraryReads', 'goalsOfMetric'] }],
+  tests: ['src/modules/metrics/rulesLibrary.test.ts', 'src/modules/metrics/tools.test.ts'],
+  reqs: ['METRICS-LIBRARY'],
+  body: `
+Each rule takes plain rows: every metric, every goal’s link, the ids of the running cycle’s **live goals** (not removed, not stopped), the people, and the moment it is judged at. A **link in force** is one not unlinked, to a live goal. Removed metrics are never listed.
+
+**Rule 1. Finding metrics** (\`findMetrics\`). A search matches when every word typed starts a word of the metric’s name, unit, “lower is better” or “higher is better”, its owner’s name, its meaning or its source, ignoring case and accents ([finding things](../../core/rules/finding.md), rule 1). Filters, each optional: a **unit** (the same, any case); a **team** (a link in force whose slice is that team) or \`company\` (a link in force for the whole company); an **owner**; a **direction**; **unused** (no link in force); **sort out** (rule 3 says it needs something, whoever is looking). Order: **A to Z** by name, ignoring case and accents (the default); **most goals first** (links in force), then A to Z; **changed lately** (\`updatedAt\`, latest first), then A to Z. Fifty a page; a page past the last shows the last.
+
+**Rule 2. A metric’s goals** (\`metricGoals\`). One row per link in force to a live goal: its status, its slice in words (the team’s name, “The whole company”, or “A removed team”), its latest number as the goal shows it (“No value yet”), its target with its week (“24 hours by year end”), where it stands against plan as the scorecard says it (“9 hours behind plan”; a goal kept in range says its room to the limit, “Near the 2.0% limit”) and its owner: each from the goal’s own summary, never worked out again. Worst status first (on track, then at risk and no recent update, then off track, by the status rank), then by slice name, then title. Under them, \`summaryLine\`: when two or more rows have a number and every one of them is in the same unit with the same decimals, “Lowest now: {slice}, {now}. Highest: {slice}, {now}.” (the lowest number, then the highest; ties by slice name); otherwise nothing.
+
+**Rule 3. What a metric needs** (\`metricNeeds\`), in this order: **no-owner** (“It has no owner” when its owner is no one in the workspace; “Its owner has left” when they have left), **no-meaning** (“No meaning yet”), **no-source** (“No source named”), **unused** (“No goal uses it”: no link in force, and it was added more than ${LIB.UNUSED_GRACE_DAYS} days before the moment). Each has one button: “Choose an owner”, “Say what it means”, “Say where the number comes from” (each opens the metric’s form at that field), or “See goals in {unit}” (Goals, every goal, searched for its unit). A library row says the first, with “and {k} more” after it; only the metric’s owner and admins see them.
+
+**Addresses.** A metric’s page is \`/metrics/<slug>\`, its slug being its id without \`metric_\`. Wednesday’s addresses under Data lead on (\`movedMetrics\`): \`/data/metrics\` to \`/metrics\`, \`?m=<id>\` to the metric, \`?m=<id>&edit\` to its form, \`?new\` to a new one, keeping the rest of the query. Its rows are scored in [the conformance data](../../conformance/README.md) (\`metrics.csv\`).`,
+  examples: [
+    { given: 'The library, nothing asked.', then: '13 metrics; the first is Change failure rate', run: () => { const f = LIB.findMetrics(reads()); return `${f.total} metrics; the first is ${f.rows[0]!.metric.name}`; } },
+    { given: 'Search “min lower”.', then: 'CI pipeline time on main (p90), Mean time to detect, Mean time to restore (P1 and P2), Pipeline queue wait (p90)', run: () => names({ q: 'min lower' }) },
+    { given: 'Search “rhea”.', then: 'Flaky test rate, Lead time for changes, Pipeline queue wait (p90), Remote build cache hit rate', run: () => names({ q: 'rhea' }) },
+    { given: 'Unit “%”.', then: 'Change failure rate, Flaky test rate, Remote build cache hit rate', run: () => names({ unit: '%' }) },
+    { given: 'Used by CI/CD.', then: 'Flaky test rate, Pipeline queue wait (p90), Remote build cache hit rate', run: () => names({ teamId: 'cicd' }) },
+    { given: 'Used by the whole company.', then: '7 metrics', run: () => `${LIB.findMetrics(reads(), { teamId: 'company' }).total} metrics` },
+    { given: 'No goals use it.', then: 'CI compute cost per pipeline run', run: () => names({ unused: true }) },
+    { given: 'Most goals first.', then: 'the last is CI compute cost per pipeline run', run: () => `the last is ${LIB.findMetrics(reads(), { sort: 'goals' }).rows.at(-1)!.metric.name}` },
+    { given: 'Lead time for changes’ goals.', then: 'Off track · Lead time for changes · The whole company · 37 hours · 24 hours by year end · 9 hours behind plan · Rhea Kapoor; no summary line', run: () => { const rows = goalsOf('metric_lead-time'); return rows.map((r) => [LABEL[r.status], r.goal.title, r.slice, r.now, r.target, r.vsPlan, r.owner].join(' · ')).join(' / ') + (LIB.summaryLine(rows) ? `; ${LIB.summaryLine(rows)}` : '; no summary line'); } },
+    { given: 'Flaky test rate’s goal, kept at most 2.0%.', then: 'At risk · CI/CD · ≤ 2.0% by year end · Near the 2.0% limit', run: () => goalsOf('metric_flaky-rate').map((r) => [LABEL[r.status], r.slice, r.target, r.vsPlan].join(' · ')).join(' / ') },
+    { given: 'CI compute cost per pipeline run’s goals.', then: 'none', run: () => String(goalsOf('metric_ci-cost').length || 'none') },
+    { given: 'What Lead time for changes needs (owner, meaning, source, one goal).', then: 'nothing', run: () => needs('metric_lead-time') },
+    { given: 'What CI compute cost per pipeline run needs: added before the year, complete, no goal.', then: 'unused: No goal uses it → See goals in USD', run: () => needs('metric_ci-cost') },
+    { given: 'A metric added today in a goal form with only a name, unit and direction, linked; then its owner marked as left.', then: 'no-meaning, no-source; then no-owner, no-meaning, no-source', run: () => {
+      const m = { ...LIB_METRIC('metric_lead-time'), id: 'metric_runner-wait', meaning: '', source: '', createdAt: CHECK_IN_MOMENT };
+      const r = { ...reads(), links: [...reads().links, { id: 'ci-shard', goalId: 'ci-shard', metricId: m.id, teamId: 'cicd', linkedBy: 'rhea', linkedAt: CHECK_IN_MOMENT }] };
+      const left = { ...r, people: r.people.map((p) => (p.id === m.ownerId ? { ...p, leftAt: CHECK_IN_MOMENT } : p)) };
+      return `${LIB.metricNeeds(m, r).map((n) => n.id).join(', ')}; then ${LIB.metricNeeds(m, left).map((n) => n.id).join(', ')}`;
+    } },
+    { given: 'A metric added yesterday, not yet linked, with a meaning and a source.', then: 'nothing (14 days’ grace)', run: () => { const m = { ...LIB_METRIC('metric_ci-cost'), createdAt: new Date(Date.parse(CHECK_IN_MOMENT) - 86_400_000).toISOString() }; return LIB.metricNeeds(m, reads()).map((n) => n.id).join(', ') || 'nothing (14 days’ grace)'; } },
+    { given: 'Old addresses: /data/metrics?m=metric_lead-time&edit, and /data/metrics?new.', then: '/metrics/lead-time/edit, /metrics/new', run: () => `${LIB.movedMetrics('/data/metrics', '?m=metric_lead-time&edit')}, ${LIB.movedMetrics('/data/metrics', '?new')}` },
+  ],
+  unclear: ['“Changed lately” orders by the metric’s own `updatedAt`, which a link or an unlink doesn’t move.', 'A row with no value yet is left out of the summary line, so one goal with a number and one without says no line.'],
+},
 ];
+
+/* ---------- the library's examples: the demo as built for the conformance moment ---------- */
+const reads = () => libraryReads(demo(), CHECK_IN_MOMENT);
+const names = (a: LIB.LibraryAsk) => LIB.findMetrics(reads(), a).rows.map((r) => r.metric.name).join(', ');
+const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;
+const goalsOf = (id: string) => { const s = demo(); const cycle = s.cycles[0]!; const today = new Date(CHECK_IN_MOMENT); return goalsOfMetric(s, cycle, today, currentWeek(cycle, today), id); };
+const needs = (id: string) => LIB.metricNeeds(LIB_METRIC(id), reads()).map((n) => `${n.id}: ${n.sentence} → ${n.button}`).join('; ') || 'nothing';
 export default rules;

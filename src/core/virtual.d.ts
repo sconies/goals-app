@@ -28,3 +28,7 @@ declare module 'virtual:faro-modules/spec' {
   const spec: { id: string; part: import('../spec/rules').Rule[] }[];
   export default spec;
 }
+declare module 'virtual:faro-modules/conformance' {
+  const conformance: { id: string; part: import('../spec/conformance').ModuleConformance[] }[];
+  export default conformance;
+}
