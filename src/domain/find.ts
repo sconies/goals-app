@@ -151,7 +151,8 @@ export const byName = (a: Pick<Person, 'name' | 'email' | 'id'>, b: Pick<Person,
   collator.compare(a.name, b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id);
 
 /**
- * People: name, job title and team; nobody marked as left; those whose name the search starts first, then by name A to
+ * People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+ * names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
  * Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
  * team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
  */
@@ -159,12 +160,13 @@ export function searchPeople(r: PersonRows, ask: SearchAsk): FoundRow[] {
   const team = (p: Person) => (p.teamId ? r.teamName(p.teamId) : '');
   const named = (p: Person) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
   const f = ask.filters ?? {};
+  const left = f.left === 'too';
   const lead = f.team && f.team !== '-' ? r.teamLead?.(f.team) ?? null : null;
   const inTeam = (p: Person) => !f.team || (f.team === '-' ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
   return r.people
-    .filter((p) => !p.leftAt && !p.removedAt && inTeam(p) && (f.admins !== '1' || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
-    .sort((a, b) => Number(named(b)) - Number(named(a)) || byName(a, b))
-    .map((p) => personRow(r, p));
+    .filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== '1' || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
+    .sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b))
+    .map((p) => (p.leftAt ? { ...personRow(r, p), name: `${p.name} (left)` } : personRow(r, p)));
 }
 
 /** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
@@ -234,6 +236,60 @@ export function rowsByIds(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows
     }
   };
   return ids.map(found).filter((r): r is FoundRow => !!r);
+}
+
+/* ---------- Rule 8: Find, across kinds ---------- */
+
+/** The kinds Find looks in, in its order; a module's kinds (the metric library's) follow. Never workspaces. */
+export const FIND_KINDS = ['goal', 'person', 'team', 'metric'] as const;
+/** Rows Find shows in each group before "See all". */
+export const FIND_SIZE = 3;
+
+/** One group of Find's answer: a kind, how many match in all, and its first rows. `near` when rule 5 found them. */
+export interface FoundGroup { kind: string; total: number; rows: FoundRow[]; near?: string }
+
+/** The goal key a whole search names ("G-48", "g48", "48"), else null. */
+export function keyOf(q: string): string | null {
+  const t = q.trim();
+  return normalKey(t) ?? (/^\d{1,9}$/.test(t) ? formatKey(Number(t)) : null);
+}
+
+/**
+ * Rule 8, as the questions it asks: rule 7 for each kind (goal, person, team, then a module's, such as metric) with 3
+ * rows, people marked as left included and said to be; the groups that found something, in that order, each with its
+ * total. A search that is one goal's key puts that goal first and alone in Goals. `findAll` and `findAllAsync` answer it.
+ */
+function* findSteps(q: string, kinds: string[]): Generator<[string, SearchAsk], FoundGroup[], SearchAnswer> {
+  if (!wordsOf(q).length) return [];
+  const core: readonly string[] = FIND_KINDS;
+  const order = [...FIND_KINDS.filter((k) => kinds.includes(k)), ...kinds.filter((k) => !core.includes(k) && k !== 'workspace')];
+  const key = keyOf(q);
+  const groups: FoundGroup[] = [];
+  for (const kind of order) {
+    if (kind === 'goal' && key) {
+      const one = yield ['goal', { q: key, size: 1 }];
+      if (one.rows.length) { groups.push({ kind, total: 1, rows: one.rows }); continue; }
+    }
+    const a = yield [kind, { q, size: FIND_SIZE, ...(kind === 'person' ? { filters: { left: 'too' } } : {}) }];
+    if (a.rows.length) groups.push({ kind, total: a.total, rows: a.rows, ...(a.near ? { near: a.near } : {}) });
+  }
+  return groups;
+}
+
+/** Rule 8. Find from anywhere, over a search that answers at once. */
+export function findAll(q: string, kinds: string[], run: (kind: string, ask: SearchAsk) => SearchAnswer): FoundGroup[] {
+  const it = findSteps(q, kinds);
+  let step = it.next();
+  while (!step.done) step = it.next(run(...step.value));
+  return step.value;
+}
+
+/** Rule 8 over the Search port, which answers later. */
+export async function findAllAsync(q: string, kinds: string[], run: (kind: string, ask: SearchAsk) => SearchAnswer | Promise<SearchAnswer>): Promise<FoundGroup[]> {
+  const it = findSteps(q, kinds);
+  let step = it.next();
+  while (!step.done) step = it.next(await run(...step.value));
+  return step.value;
 }
 
 /* ---------- Rule 6: suggestions before typing ---------- */

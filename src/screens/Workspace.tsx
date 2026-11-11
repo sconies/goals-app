@@ -24,8 +24,9 @@ import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { wrapUpOpen } from '../domain/cycle';
+import { wrapUpOpenOn } from '../domain/cycle';
 import { useWidth } from '../ui/useWidth';
+import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
@@ -34,13 +35,13 @@ const NARROW = 720;
 /** The core's sections, in menu order. A module's sections follow the one they name in `after`, or come last. The
     landing section keeps the id `overview` (old links and modules name it); people read it as About (WR2). */
 const CORE: WorkspaceSection[] = [
-  { id: 'overview', label: 'About', summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
-  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
-  { id: 'access', label: 'Access', summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
-  { id: 'features', label: 'Features', summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
+  { id: 'overview', label: CORE_SECTION_LABELS.overview, summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
+  { id: 'cycles', label: CORE_SECTION_LABELS.cycles, summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
+  { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
-  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
-  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
+  { id: 'privacy', label: CORE_SECTION_LABELS.privacy, summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
+  { id: 'removed', label: CORE_SECTION_LABELS.removed, summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
@@ -52,6 +53,9 @@ export function useSections(): WorkspaceSection[] {
   const { screens } = useModules();
   return sectionsFor(app.viewer, CORE, screens.flatMap((m) => m.sections ?? []));
 }
+
+/** Every section's name, whoever is looking (a page's name, navigation rule 2): the core's, then the modules'. */
+export { useSectionNames } from './workspaceSections';
 
 interface Ctx { narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }
 const WsCtx = createContext<Ctx | null>(null);
@@ -277,7 +281,7 @@ function CyclesSection() {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
-            const open = current && wrapUpOpen(c, app.week);
+            const open = current && wrapUpOpenOn(c, app.today);
             const action = !current ? null
               : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
               : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>

@@ -12,6 +12,14 @@ import { GAP, lower, shortWord, TREND } from './vocabulary';
 const CURRENCY = /^([£$€]|USD|GBP|EUR)\s?([km]?)$/i;
 const SYMBOL: Record<string, string> = { USD: '$', GBP: '£', EUR: '€' };
 
+// One formatter per number of decimals, made once: making one is slow, and every goal's summary says amounts (AX4).
+const NUMBER_FORMATS = new Map<number, Intl.NumberFormat>();
+const numberFormat = (decimals: number) => {
+  let f = NUMBER_FORMATS.get(decimals);
+  if (!f) NUMBER_FORMATS.set(decimals, (f = new Intl.NumberFormat('en-GB', { maximumFractionDigits: decimals })));
+  return f;
+};
+
 /** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
     in front and a k or m to suit the size; everything else keeps its unit. */
 export function sayAmount(v: number, g: Numeric): string {
@@ -28,7 +36,7 @@ export function sayAmount(v: number, g: Numeric): string {
     // Small amounts in the goal's own unit keep its decimals as written: "$0.60", not "$0.6".
     return `${sign}${sym}${scale === 1 && g.decimals > 0 ? x.toFixed(g.decimals) : String(Math.round(x))}`;
   }
-  const n = Number(v.toFixed(g.decimals)).toLocaleString('en-GB', { maximumFractionDigits: g.decimals });
+  const n = numberFormat(g.decimals).format(Number(v.toFixed(g.decimals)));
   if (!g.unit) return n;
   if (g.unit === '%') return n + '%';
   // "1 day", not "1 days".

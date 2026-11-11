@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, gapBeside, LEVEL_LABEL, nowText } from '../domain/format';
-import { daysSince } from '../domain/plan';
+import { daysSince, resultWeek } from '../domain/plan';
 import { coveringWatches, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
 import { goalResult, RESULT_TEXT } from '../domain/story';
@@ -88,7 +88,7 @@ export function GoalRow({ g, density = 'full', showOwner = true, why, whyTitle, 
   const moved = statusChange(g, app.snapshot.checkIns);
   const owner = app.person(g.ownerId);
   const fresh = freshness(g, app);
-  const result = goalResult(g, app.cycle, app.snapshot.checkIns, app.week);
+  const result = goalResult(g, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today));
   const reason = flag ? flag.detail : `${showOwner && owner ? owner.name + '. ' : ''}${fresh.text}.`;
   const title = whyTitle ?? `${moved?.worse ? `Was ${LABEL[moved.from].toLowerCase()} in week ${moved.week}. ` : ''}${reason}`;
   return (

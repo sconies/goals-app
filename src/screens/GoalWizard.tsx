@@ -89,7 +89,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
   useMark(existing ? null : STEP_MARKS[step] ?? null);
   const endOptions = dueOptions(cycle, week, yearEnd);
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
-  const errors = validateGoal(d, cycle, existing);
+  const errors = validateGoal(d, cycle, existing, existing ? undefined : week);
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
   const showErr = (k: keyof GoalErrors) => tried.includes(step) && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const top = useRef<HTMLDivElement>(null);
@@ -112,7 +112,9 @@ function Wizard({ existing }: { existing: Goal | null }) {
     setSaving(true);
     const g = buildGoal(d, cycle, { id: existing?.id ?? newId('goal'), createdAt: existing?.createdAt ?? app.stamp() }, existing, started, week);
     try {
-      await app.saveGoal(g, existing);
+      // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
+      const done = !existing && g.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
+      await app.saveGoal(g, existing, undefined, done.length ? { stagesDone: done } : undefined);
       if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
       else if (measure === null && existing) await app.unlinkGoalMetric(g);
       clear();
@@ -242,7 +244,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
             {/* What measures it (the goal.measure place, backlog 0b): beside how it's measured; empty unless a module fills it. */}
             <Place name="goal.measure" goal={existing} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />
             {d.kind === 'milestone' && (
-              <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={tried.includes(1) ? errors.stages ?? null : null}
+              <StageFields stages={d.stages} weeks={cycle.weeks} week={existing ? undefined : week} labelClass="small strong" error={tried.includes(1) ? errors.stages ?? null : null}
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
           </>
@@ -285,7 +287,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                 <strong>{owner?.name ?? 'Someone'}</strong> owns it and checks in weekly. {d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null
                   ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {endChoice} <DateRange>({weekDates(cycle, endChoice)})</DateRange>, {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
-                    : d.kind === 'milestone' ? <>{d.stages.filter((s) => s.name).length} stages, the last due week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.</> : null}
+                    : d.kind === 'milestone' ? <>{((n) => (n === 1 ? '1 stage, due' : `${n} stages, the last due`))(d.stages.filter((s) => s.name).length)} week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.{(['yes', 'no'] as const).map((k) => { const n = existing ? 0 : d.stages.filter((s) => s.name && s.done === k).length; return n ? ` ${n} ${n === 1 ? 'stage is' : 'stages are'} already ${k === 'yes' ? 'done' : 'overdue'}.` : ''; }).join('')}</> : null}
               </p>
               <p className="small muted">{d.level !== 'team' ? `${LEVEL_LABEL[d.level]} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
             </div>

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { periodLabel } from '../domain/year';
+import { periodNow } from '../domain/cycle';
 import { firstReview, weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { WEEKLY_REVIEW } from '../domain/importer';
@@ -16,6 +16,18 @@ export function WhoAreYou() {
   // "you" yet, so nothing is suggested before typing.
   const search = useSearch();
   const source = { search, viewerId: '', ws: app.ws.id, person: app.person };
+  // Signed in, but nobody here has that sign-in's email (R1, rule 2): only an admin can add them.
+  if (!app.canChooseViewer) return (
+    <div className="focus">
+      <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
+        <div className="stack" style={{ gap: 'var(--s2)' }}>
+          <span className="eyebrow">{app.ws.name}</span>
+          <h1 className="title-xl">You’re not in {app.ws.name} yet</h1>
+          <span className="hint">No one here has the email you signed in with. Ask whoever set up {app.ws.name} to add you.</span>
+        </div>
+      </div>
+    </div>
+  );
   return (
     <div className="focus">
       <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
@@ -51,7 +63,7 @@ export function Ready() {
       <div className="celebrate" role="status">
         <span className="tick" aria-hidden="true"><svg viewBox="0 0 48 48" width="64" height="64"><circle cx="24" cy="24" r="22" /><path d="m14 25 7 7 13-15" /></svg></span>
         <h1 className="title-xl">{app.ws.name} is ready</h1>
-        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {periodLabel(app.cycle, app.week)}.</p>
+        <p className="muted">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'}{goals ? `, ${goals} ${goals === 1 ? 'goal' : 'goals'}` : ''}. {periodNow(app.cycle, app.today)}.</p>
         {/* The review set-up made, and when the first check-ins are due: never already late (setup review, 8 Nov). */}
         {/* With no goals yet ("Set goals up later"), nothing is due: it says so rather than naming a date (deep review U6). */}
         <p className="muted">{review ? `${review.name} for everyone on ${WEEKDAY[review.weekday]}s. ` : ''}{goals
@@ -59,7 +71,7 @@ export function Ready() {
           : 'No check-ins are due until there are goals: each owner adds theirs from New goal.'}</p>
         <div className="stack" style={{ gap: 'var(--s3)', alignItems: 'center' }}>
           {mine.due.length + mine.upcoming.length > 0
-            ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>
+            ? <Link className="btn primary big-btn" to={mine.due.length ? '/check-in?start=1' : '/'}>{mine.due.length ? `Check in on your ${mine.due.length === 1 ? 'goal' : `${mine.due.length} goals`}` : 'Go to Home'}</Link>
             : goals ? <Link className="btn primary big-btn" to="/goals">See your goals</Link>
               : <Link className="btn primary big-btn" to="/goals/new">Set up the first goal</Link>}
           {/* Inviting is a link to pass on: Faro sends no email (UX report, 8 Nov). */}

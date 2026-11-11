@@ -30,6 +30,7 @@ describe('The layers', () => {
     put('src/adapters/supabase/store.ts', "import { createClient } from '@supabase/supabase-js';\n");
     put('src/domain/c.ts', "import type { Snapshot } from './types';\nexport const now = () => new Date();\nexport const at = (iso: string) => new Date(iso);\nexport const old = (s: Snapshot, t = Date.now()) => s;\n");
     put('src/domain/d.ts', "import type { Snapshot } from './types';\nexport const ok = (s: Snapshot) => s;\nexport const more = (w: Snapshot) => w;\n");
+    put('src/domain/e.ts', "import type { Snapshot } from './types';\nexport const p = (s: Pick<Snapshot, 'people' | 'checkIns'>) => s;\nexport const q = (s: Pick<Snapshot, 'people' | 'teams'>) => s;\nexport const r = (x: object) => x as unknown as Snapshot;\n");
     put('scripts/whole-workspace.json', '{ "files": { "src/domain/d.ts": 1 } }');
     const found = check(dir);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -43,8 +44,10 @@ describe('The layers', () => {
       expect.stringMatching(/^src\/domain\/c\.ts:4: a rule reads the clock/),
       expect.stringMatching(/^src\/modules\/sheets\/Import\.tsx:1: the sheets module imports \.\.\/maps\/Map from maps, which its module\.json doesn't list/),
       expect.stringMatching(/^src\/screens\/S\.tsx:1: imports \.\.\/modules\/sheets\/Import from the sheets module; the core never depends on a module/),
-      expect.stringMatching(/^src\/domain\/c\.ts: takes the whole workspace \(Snapshot\) 1 time\(s\); a new rule takes only/),
-      expect.stringMatching(/^src\/domain\/d\.ts: takes the whole workspace \(Snapshot\) 2 time\(s\), more than the 1/),
+      expect.stringMatching(/^src\/domain\/c\.ts: takes the whole workspace \(Snapshot.*\) 1 time\(s\); a new rule takes only/),
+      expect.stringMatching(/^src\/domain\/d\.ts: takes the whole workspace \(Snapshot.*\) 2 time\(s\), more than the 1/),
+      // A Pick naming a whole list counts, and so does a cast; a Pick of people and teams doesn't.
+      expect.stringMatching(/^src\/domain\/e\.ts: takes the whole workspace \(Snapshot.*\) 2 time\(s\); a new rule takes only/),
     ]);
   });
 });

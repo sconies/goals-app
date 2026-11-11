@@ -2,6 +2,7 @@
    reads. New rules in src/domain take only these rows, never the whole workspace (the layers lint checks it), so the
    internal app can hand them the same shapes from its query port instead of a loaded workspace. */
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
+import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
 import type { Cycle, Snapshot } from '../domain/types';
 import type { LocalRows } from '../adapters/localSearch';
@@ -27,4 +28,16 @@ export function teamRows(s: Snapshot): TeamRows {
 export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number): LocalRows {
   const once = <T,>(f: () => T) => { let v: T | undefined; return () => (v ??= f()); };
   return { goal: once(() => goalRows(s, cycle, today, week)), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
+}
+
+/** What Home's "Getting started" reads (domain/dayOne.ts): who set it up, people, goals, which goals have a check-in
+    and who watches anything. */
+export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'>): DayOneRows {
+  return {
+    creatorId: creatorOf(s.changes, s.people),
+    people: s.people,
+    goals: s.goals,
+    checkedIn: new Set(live(s.checkIns).map((c) => c.goalId)),
+    watchers: new Set(live(s.watches ?? []).map((w) => w.personId)),
+  };
 }
