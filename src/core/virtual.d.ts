@@ -24,6 +24,10 @@ declare module 'virtual:faro-modules/actions' {
   const actions: { id: string; part: import('../app/actions').ModuleActions }[];
   export default actions;
 }
+declare module 'virtual:faro-modules/demo' {
+  const demo: { id: string; part: (b: import('../domain/records').DemoBuild) => void }[];
+  export default demo;
+}
 declare module 'virtual:faro-modules/spec' {
   const spec: { id: string; part: import('../spec/rules').Rule[] }[];
   export default spec;

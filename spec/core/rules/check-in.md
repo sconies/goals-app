@@ -17,6 +17,8 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 **One number check** (`numberCheck`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks `valueProblem` with the goal's latest number before the week (`lastValueOf`: `previousFor`'s number), and a spreadsheet's error for an unusable number is `valueProblem`'s own words.
 
+**The levels: Must fix and Check** (`checkInLevels`, `unanswered`, `stepState`). A number that can't be used is a *Must fix*: the check-in can't go on until it is fixed. A usable number that looks wrong is a *Check*: a question that must be answered before the check-in posts. Only the first that applies is asked, in `valueProblem`'s order: over 100% where the goal isn't a share, far outside its plan, past a count's target, then more than 3 times or under a third of the last number before this week ("Week 45 was 1.8%. Is 18.0% right?", with "Yes, 18.0% is right" and "Change the number"). Failing those, a number goal not yet at its target whose number is the same as last week's asks "The same as week 45: 80%. Did you measure it again this week?" ("Yes, measured again" or "No new number this week"); a number kept in a range never asks it. A Check is answered for the value it is about (its *key*): change the number and it asks again. With something to fix, the button says "1 thing to fix above: This week's number."; with a question open, "Answer the question above first.". A check-in posted from a screen is refused until its questions are answered, and each answer is kept in History as an *Asked* difference (the question, then the answer). The table asks the same questions under its rows; a spreadsheet and the AI tools keep today's hint.
+
 **Judging the draft** (`evaluate`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with `planned` and `none` counting as `on`. The owner's call defaults to it.
 
 - *greener*: the owner's call ranks better than the calculated one.
@@ -52,11 +54,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | 40 in week 4, with last week’s cause, why, path and week copied in untouched; then said to be still true; then with the why rewritten. | `story-unchanged; can post; story-unchanged (the path)` |
 | A count, 4 → 40 pairs: -5; 41. | `refused; questioned: That’s past the target of 40 pairs. Is 41 right?` |
 | Check-ins of 1.9 in week 44, 1.8 in week 45, then 18 and 1.9 in week 46: what week 46 is compared with; then the same with week 45 posting no number. | `week 45, 1.8 / week 44, 1.9` |
+| A range goal at most 2.0% (1 decimal), 1.8% in week 45: 18 typed in week 46; then 18 with that question answered; then 19. | `Week 45 was 1.8%. Is 18.0% right? / no question / Week 45 was 1.8%. Is 19.0% right?` |
+| The 30→75 goal, 40 in week 3: 40 typed in week 4; and the button with that question open. | `The same as week 3: 40%. Did you measure it again this week? / Answer the question above first.` |
 | 40 in week 4, called on track, with a reason for being behind but none for the greener call. | `greener-why` |
 
 ## Where it lives
 
-- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `previousFor`, `earlierThisWeek`, `lastValueOf`, `numberCheck`, `unchangedStory`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
+- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `emptyDraft`, `parseNumber`, `valueProblem`, `previousFor`, `earlierThisWeek`, `lastValueOf`, `numberCheck`, `checkInLevels`, `unanswered`, `stepState`, `answeredDiffs`, `unchangedStory`, `evaluate`, `toCheckIn`, `MISSING_TEXT`, `CAUSES_BEHIND`, `CAUSES_AHEAD`
 
 ## Requirements
 
@@ -68,7 +72,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `CHECKIN-STATUS-VS-PLAN`: The check-in shows actual against plan today, the gap, the forecast and the calculated status as the value is typed.
 - `OTHER-CAUSE`: When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause.
 - `FIRST-CHECKIN`: Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead.
-- `HONEST-CHECKIN`: A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
+- `HONEST-CHECKIN`: A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History.
 
 ## Tests that check it
 
@@ -95,6 +99,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
 - what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
 - what a new number is compared with (rule 5) › says “vs last week” against week 45 after a second check-in in week 46
+- the levels in a check-in (rules 2 and 3) › asks about a number far from last week’s, naming the week, and asks again once the number changes
+- the levels in a check-in (rules 2 and 3) › never asks a range goal whether the same number was measured again; asks a number still to move
+- the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
+- the levels in a check-in (rules 2 and 3) › says why the button does nothing
+- the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
 
 ### [evals/scenarios.eval.ts](../../../evals/scenarios.eval.ts)
 

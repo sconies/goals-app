@@ -318,6 +318,15 @@ const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) =
 
 /* ---------------- the ten journeys ---------------- */
 const J = [];
+/** Answer every question a check-in asks about a number (CK2's Check blocks) with its yes: the journey's number is meant. */
+async function answerChecks(p) {
+  for (let i = 0; i < 10; i++) {
+    const yes = p.locator('.level-check .level-actions button').first();
+    if (!(await yes.isVisible().catch(() => false))) return;
+    await yes.click();
+    await p.waitForTimeout(50);
+  }
+}
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
@@ -1311,6 +1320,43 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   await p.context().close();
 }, ['budget']);
 
+journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const last = s0.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week < NOW && c.value != null).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt)).pop();
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(last.value * 10));
+  // The question is a Check block: the word, the question and two plain buttons. No status shape in it.
+  const check = p.locator('.level-check');
+  await check.waitFor();
+  const q = await check.innerText();
+  h.set('attention', /Check/.test(q) && /right\?/.test(q), `the question read “${q.replace(/\s+/g, ' ')}”`);
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Answer the question above first.', 'Continue with a question open says why it does nothing');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.length === s0.checkIns.length, 'something posted with the question unanswered');
+  await h.checkpoint('asked');
+  // "Change the number" goes back to the field; the right number posts, with no question.
+  await h.click(p.getByRole('button', { name: 'Change the number' }));
+  const focused = await field.evaluate((el) => el === document.activeElement);
+  h.set('progress', focused, 'Change the number did not put the cursor back in the field');
+  const right = String(Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW)));
+  await h.fill(field, right);
+  // The far question is gone; the plan's number may be last week's too, which asks whether it was measured again.
+  const after = (await check.count()) ? await check.innerText() : '';
+  if (/right\?/.test(after)) fail('the question stayed after the number was corrected');
+  if (/measure it again/.test(after)) await h.click(p.getByRole('button', { name: 'Yes, measured again' }));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s2 = await h.snapshot();
+  const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  await h.checkpoint('posted');
+});
+
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
@@ -1827,6 +1873,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     const asks = (await row.getByRole('textbox').count()) > 1 || (await row.locator('select').evaluateAll((els) => els.some((e) => !e.value)));
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
+  await answerChecks(p);
   await h.click(p.getByRole('button', { name: /^Post/ }));
   // The table lands on the check-in's own confirmation (deep review U12).
   await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
@@ -2941,6 +2988,16 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await p.goForward();
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('parity', /\/goals\/ns-lead(\?|$)/.test(p.url()), `after the back link, Forward went to ${p.url()}`);
+  // Settings scrolls to its foot on a computer: the section links never pull the page back up, and the last is lit.
+  if (device !== 'phone') {
+    await p.goto(url('/settings'));
+    await p.locator('.section-links').first().waitFor({ timeout: 5000 }).catch(() => {});
+    await p.mouse.move(700, 500);
+    for (let i = 0; i < 40; i++) { await p.mouse.wheel(0, 60); await p.waitForTimeout(30); }
+    await p.waitForTimeout(300);
+    const at = await p.evaluate(() => ({ y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight, lit: document.querySelector('.section-links [aria-current="true"]')?.textContent?.trim() ?? '' }));
+    h.set('progress', at.y >= at.max - 2 && at.lit === 'Leave', `Settings scrolled to ${at.y} of ${at.max}, with “${at.lit}” lit`);
+  }
   h.set('attention', true); h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
@@ -4241,6 +4298,7 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   const s0 = await h.snapshot();
   const g = s0.goals.find((x) => x.id === 'ci-docker');
   await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.02));
+  await answerChecks(p);
   await see(coach, 'step 3 of 4', 'the coach did not move on when the number was typed');
   h.set('progress', true);
   await h.click(p.locator('.focus-foot button[type=submit]'));
@@ -4750,6 +4808,19 @@ async function platformChecks() {
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
       (await shapeMismatches(r)).forEach((x) => problems.push(`${who} ${route}: ${x}`));
     }
+    // A status in a found row (Find, and every picker's rows, which share them) shows its shape at a real size, not 0 by 0.
+    await r.goto(url('/'));
+    await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await r.reload();
+    await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
+    if (device === 'phone') await r.locator('.find-btn:visible').first().click().catch(() => {});
+    else await r.keyboard.press('Control+k');
+    const finder = r.getByRole('dialog', { name: 'Find' });
+    await finder.getByRole('combobox').fill('rhea').catch(() => {});
+    await finder.locator('.pick-status').first().waitFor({ timeout: 5000 }).catch(() => {});
+    const sizes = await r.$$eval('.pick-status', (els) => els.map((e) => { const b = e.querySelector('svg.status-shape')?.getBoundingClientRect(); return b ? Math.min(b.width, b.height) : 0; }));
+    if (!sizes.length) problems.push('Find "rhea": no goal row with a status');
+    else if (sizes.some((x) => x < 8)) problems.push(`Find "rhea": ${sizes.filter((x) => x < 8).length} goal rows whose status shape has no size`);
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y', 'SHAPE-MATCHES-WORD'] : ['A11Y', 'SHAPE-MATCHES-WORD'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
     lap(device === 'phone' ? 'P3' : 'P4');

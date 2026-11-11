@@ -16,14 +16,15 @@ export function WhoAreYou() {
   // "you" yet, so nothing is suggested before typing.
   const search = useSearch();
   const source = { search, viewerId: '', ws: app.ws.id, person: app.person };
-  // Signed in, but nobody here has that sign-in's email (R1, rule 2): only an admin can add them.
+  // Nobody is signed in, or nobody here has that sign-in's email (R1, rule 2): nothing of the workspace is shown, and
+  // only an admin can add them.
   if (!app.canChooseViewer) return (
     <div className="focus">
       <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
           <span className="eyebrow">{app.ws.name}</span>
-          <h1 className="title-xl">You’re not in {app.ws.name} yet</h1>
-          <span className="hint">No one here has the email you signed in with. Ask whoever set up {app.ws.name} to add you.</span>
+          <h1 className="title-xl">You can’t open {app.ws.name} yet</h1>
+          <span className="hint">You aren’t signed in, or no one here has the email you signed in with. Ask whoever set up {app.ws.name} to add you.</span>
         </div>
       </div>
     </div>

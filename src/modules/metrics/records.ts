@@ -14,7 +14,6 @@ import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { LINKS_KEY, metricRows, metricsOf, METRICS_KEY } from './rules';
-import { addDemoMetrics } from './demo';
 import { METRICS_SHEET } from './sheet';
 import type { Metric, MetricLink } from './types';
 
@@ -85,6 +84,5 @@ const goalMetric: RecordDef<MetricLink> = {
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [METRICS_SHEET],
-  demo: addDemoMetrics,
 };
 export default records;

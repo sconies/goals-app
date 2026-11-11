@@ -435,7 +435,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   // Stage 1's files only: find.csv belongs to the find rules, scored when asked.
   const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'find.csv' && f !== 'navigation.csv').map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
   Object.assign(out, internalFiles());
-  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs')));
+  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files));
   Object.assign(out, await databaseFiles(root));
   return out;
 }

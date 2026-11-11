@@ -132,3 +132,6 @@ export function addDemoMetrics(b: DemoBuild) {
     }
   });
 }
+
+/** The demo builder's part of this module (virtual:faro-modules/demo), kept out of records.ts so a first visit doesn't load it. */
+export default addDemoMetrics;

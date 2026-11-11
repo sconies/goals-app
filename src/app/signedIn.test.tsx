@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /* The sign-in seam (backlog AX3): the app takes its Identity beside the store, and outside the demo it never acts as a
-   stand-in. Nobody signed in: the workspace can be looked at, and nothing can be saved. */
+   stand-in. Nobody signed in: none of the workspace is shown, the page says to ask an admin, and nothing can be saved. */
 import { act, render, waitFor } from '@testing-library/react';
 import { AppProvider, NOBODY, useApp, type AppState } from './state';
+import { WhoAreYou } from '../screens/Start';
 import { BrowserStore } from '../data/store';
 import { contractWorkspace } from '../ports/contracts/store';
 import type { Identity } from '../ports';
@@ -30,6 +31,17 @@ describe('the sign-in seam', () => {
     expect(app().viewerChosen).toBe(false);
     await act(async () => { await expect(app().renameWorkspace('Taken over')).rejects.toThrow(NOBODY); });
     expect((await store.workspaces()).find((w) => w.id === 'ws_signin')?.name).toBe('Signed in');
+  });
+
+  it('nobody signed in, with a sign-in that can’t be chosen: one page says so, and shows nothing of the workspace', async () => {
+    const store = new BrowserStore(() => new Date('2026-01-14T12:00:00Z'), { storage: memory(), example: false, key: 'signed-out' });
+    const data = contractWorkspace('signout');
+    await store.createWorkspace({ id: 'ws_out', name: 'Signed out', kind: 'own', createdAt: '2026-01-14T12:00:00.000Z' }, data);
+    const view = render(<AppProvider store={store} identity={{ current: async () => null }} mode="live"><WhoAreYou /></AppProvider>);
+    await waitFor(() => expect(view.getByRole('heading', { name: 'You can’t open Signed out yet' })).toBeTruthy());
+    expect(view.getByText(/You aren’t signed in, or no one here has the email you signed in with/)).toBeTruthy();
+    for (const p of data.people) expect(view.queryByText(p.name)).toBeNull();
+    view.unmount();
   });
 
   it('a sign-in that can’t be chosen: the app acts as the person signed in, and only them', async () => {

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { viewerPicker } from '../adapters/local';
-import type { Identity } from '../ports';
+import { systemClock, viewerPicker } from '../adapters/local';
+import type { Clock, Identity } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { goalChange, type Lookup } from '../domain/changes';
@@ -264,8 +264,8 @@ export function ArchivedGoalScope({ goalId, children }: { goalId: string; childr
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 /** Now, as the person's own wall-clock time: weeks turn over at their midnight on Sunday, wherever they are. */
-const realNow = () => {
-  const n = new Date();
+const wallClock = (clock: Clock) => () => {
+  const n = clock();
   return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
 };
 
@@ -276,7 +276,10 @@ const ToastCtx = createContext<Toast[]>([]);
 /** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
 export const useToasts = () => useContext(ToastCtx);
 
-export function AppProvider({ store, identity: given, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+/** `clock` is the real time (the Clock port): every record's stamp and the reload timer read it, never the browser's own
+    clock. `today` is the app's day, which the demo and the evals pin (`?today=`); by default the clock's, as wall-clock time. */
+export function AppProvider({ store, identity: given, mode = 'demo', clock = systemClock, today: pinned, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+  const today = useMemo(() => pinned ?? wallClock(clock), [pinned, clock]);
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
   const K = mode === 'demo' ? { ws: 'goals-app-workspace' } : { ws: 'goals-live-workspace' };
   // Who is viewing (src/ports Identity), passed in beside the store: the "Who are you?" picker unless a sign-in is given.
@@ -343,7 +346,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       }
       const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
       if (!live) return;
-      setLoaded({ ws: id, snap, at: Date.now() });
+      setLoaded({ ws: id, snap, at: clock().getTime() });
       setViewerId(me);
     })().catch((e: unknown) => {
       if (!live) return;
@@ -352,13 +355,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     return () => { live = false; };
     // K is derived from mode, which never changes while the app runs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, wsId, attempt]);
+  }, [store, wsId, attempt, clock]);
 
   // No workspace yet (setting one up): nothing to switch recording off, so it records, without a workspace.
   useEffect(() => { if (empty) telemetry.setContext({ workspaceId: null, userId: null, store: store.kind, recording: true }); }, [empty, store]);
 
   const createWorkspace = useCallback((name: string, data: Snapshot, meId?: string, recording = false) => telemetry.action('createWorkspace', async () => {
-    const at = new Date().toISOString();
+    const at = clock().toISOString();
     const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at, ...(recording ? {} : { recording: false }) };
     const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
     const logged: Snapshot = {
@@ -378,15 +381,15 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     setWsId(w.id);
     return w.id;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [store]);
+  }), [store, clock]);
 
   /** Reloads the open workspace from the store, unless a save has happened since the reload started. */
   const reload = useCallback(async (ws: string) => {
     const started = loadedRef.current?.at;
     const snap = await store.load(ws);
-    setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: Date.now() } : l));
+    setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: clock().getTime() } : l));
     return snap;
-  }, [store]);
+  }, [store, clock]);
 
   const commit = useCallback(async (c: Commit) => {
     const cur = loadedRef.current;
@@ -402,14 +405,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         const first = c.changes[0];
         if (!isStale(e) && first && e instanceof Error && /did not answer in time|abort/i.test(e.message)) {
           const fresh = await store.load(cur.ws).catch(() => null);
-          if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: Date.now() } : l)); return; }
+          if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: clock().getTime() } : l)); return; }
         }
         throw e;
       }
-      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: clock().getTime() } : l));
     } catch (e) {
       if (isStale(e) && cur) {
-        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: Date.now() } : l))).catch(() => undefined);
+        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: clock().getTime() } : l))).catch(() => undefined);
         toast('Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.', 'error');
       } else {
         toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
@@ -418,7 +421,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     } finally {
       saving.current--;
     }
-  }, [store, toast]);
+  }, [store, toast, clock]);
 
   /** A new AI assistant token: the store makes the secret and keeps only its hash; the secret comes back once. */
   const issueToken = useCallback(async (c: Commit) => {
@@ -428,25 +431,25 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     saving.current++;
     try {
       const secret = await store.issueToken(cur.ws, c);
-      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: clock().getTime() } : l));
       return secret;
     } finally {
       saving.current--;
     }
-  }, [store]);
+  }, [store, clock]);
 
   // See other people's changes: reload when coming back to the tab, and every two minutes while it's open.
   useEffect(() => {
     const refresh = () => {
       const cur = loadedRef.current;
-      if (!cur || saving.current > 0 || document.visibilityState !== 'visible' || Date.now() - cur.at < 30_000) return;
+      if (!cur || saving.current > 0 || document.visibilityState !== 'visible' || clock().getTime() - cur.at < 30_000) return;
       void reload(cur.ws).catch(() => undefined);
     };
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
     const timer = setInterval(refresh, 120_000);
     return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh); clearInterval(timer); };
-  }, [reload]);
+  }, [reload, clock]);
 
   const wanted = wsId;
   const value = useMemo<AppState | null>(() => {
@@ -494,8 +497,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
     // Records are stamped with the real time of day, moved to the app's today (the demo and the evals pin today to a date).
-    const skewDays = Math.round((now.getTime() - Date.now()) / 86_400_000);
-    const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
+    const skewDays = Math.round((now.getTime() - clock().getTime()) / 86_400_000);
+    const stamp = () => new Date(clock().getTime() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
@@ -562,7 +565,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
         // Everything else the demo keeps in this browser goes too: drafts, what's been seen, walkthroughs, layouts.
         forgetDemoBrowser();
-        if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: Date.now() });
+        if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: clock().getTime() });
         toast('The example is back to its starting point, drafts and all');
       },
       deleteWorkspace: async () => {
@@ -699,7 +702,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
       startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
-  }, [loaded, wanted, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, store, today, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

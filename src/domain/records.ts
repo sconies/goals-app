@@ -101,8 +101,6 @@ export interface ModuleRecords {
   records: RecordDef<any>[];
   /** The workbook's sheets it adds, if any. */
   sheets?: ModuleSheet<any>[];
-  /** Its rows in the demo workspace, if it has any: added once the demo's year has been played (DemoBuild). */
-  demo?(b: DemoBuild): void;
 }
 
 /* ---------- reading and writing a module's rows ---------- */

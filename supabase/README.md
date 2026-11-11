@@ -1,6 +1,6 @@
 # Faro's database
 
-Faro shares the family-hq Supabase project with another app's real family data, so it keeps to its own schema, `faro` (backlog 0c; `docs/architecture.md`, "The database"). CI applies `migrations/` on merge (`scripts/migrate.mjs`), after `scripts/check-fence.mjs` has checked the role it runs as. `manual/` holds paste-in scripts for Lane, including `faro-role.sql`, which makes the Faro role.
+Faro shares the family-hq Supabase project with another app's real family data, so it keeps to its own schema, `faro` (backlog 0c; `docs/architecture.md`, "The database"). CI applies `migrations/` on merge (`scripts/migrate.mjs`), after `scripts/check-fence.mjs` has checked the role it runs as: it fails if the role reaches a table outside `faro`, except the ones Supabase opens to everyone in `extensions`, `cron` and `net`, which it reports as a warning. `manual/` holds paste-in scripts for Lane, including `faro-role.sql`, which makes the Faro role.
 
 ## Writing a migration (from 0036 on)
 
@@ -17,6 +17,6 @@ Supabase's table editor and SQL editor run as postgres. Once `faro_owner` owns `
 ## What's here
 
 - `migrations/0001`–`0034`: written for `public`, with Supabase's default grants; 0035 moved everything to `faro`; 0036 removed the last things that ran as postgres; 0037 took Faro's functions out of Storage's rules.
-- `migrations/0039`: a save takes every feature module's rows under `modules`, by table, from the allowed list `faro.module_tables` (AS part 2). A module with tables of its own adds them to that list in its migration (`insert … on conflict do nothing`); the core's tables stay as they are.
+- `migrations/0039`: a save takes every feature module's rows under `modules`, by table, from the allowed list `faro.module_tables` (AS part 2). A module with tables of its own adds them to that list in its migration (`insert … on conflict do nothing`); the core's tables stay as they are. It still reads the old `metrics` and `goal_metrics` keys, so it ships one merge ahead of the code that sends `modules` (AX10).
 - `manual/faro-role.sql`: makes `faro_owner` and hands it `faro`. Run it after 0035, 0036 and 0037, and again after CI's `DATABASE_URL` becomes `faro_owner`.
 - `manual/apply-*.sql`: old paste-ins, from before CI applied migrations.

@@ -21,7 +21,7 @@ function logFailure(where, e) {
 function daysBetween(fromIso, to) {
 	const from = Date.parse(fromIso.slice(0, 10) + "T00:00:00Z");
 	const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-	return Math.floor((toDay - from) / DAY$3);
+	return Math.floor((toDay - from) / DAY$2);
 }
 /** The cycle's week today: 0 in the first seven days, capped at the last checkpoint. */
 function currentWeek(cycle, today) {
@@ -51,12 +51,12 @@ function firstWeekFrom(cycle, iso, weekday) {
 	const day = (iso ?? "").slice(0, 10);
 	if (!day || day <= cycle.startDate) return 1;
 	const w = currentWeek(cycle, /* @__PURE__ */ new Date(day + "T12:00:00Z"));
-	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$3).toISOString().slice(0, 10);
+	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$2).toISOString().slice(0, 10);
 	return Math.max(1, due < day ? w + 1 : w);
 }
 /** The ISO date of a week's checkpoint. */
 function weekDate(cycle, week) {
-	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$3;
+	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$2;
 	return new Date(t).toISOString().slice(0, 10);
 }
 /** Share of the change planned by a week, 0..1. */
@@ -228,9 +228,9 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$3, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
+var DAY$2, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
-	DAY$3 = 864e5;
+	DAY$2 = 864e5;
 	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
@@ -1811,7 +1811,7 @@ function restorableModuleRow(full, records, kind, id) {
 	return null;
 }
 var hasModuleRows, recordOf, moduleSheetRows;
-var init_records$3 = __esmMin((() => {
+var init_records = __esmMin((() => {
 	hasModuleRows = (m) => !!m && Object.values(m).some((k) => Object.values(k).some((v) => v.length));
 	recordOf = (records, module, key) => records.find((m) => m.module === module)?.records.find((r) => r.key === key);
 	moduleSheetRows = (sheet, x, c, goalIds) => [sheet.spec.columns.map((col) => col.header), ...sheet.rows(x, c, goalIds).map((it) => sheet.spec.columns.map((col) => col.write(it)))];
@@ -1819,7 +1819,7 @@ var init_records$3 = __esmMin((() => {
 // src/mcp/token.ts
 init_asks();
 init_goalKey();
-init_records$3();
+init_records();
 /** SHA-256 of a token, as hex: what's stored, and what a presented token is checked against. */
 async function hashToken(token) {
 	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
@@ -1998,22 +1998,26 @@ function valueProblem(raw, last, unit, goal) {
 		text: "It can’t be over 100%: this goal measures a share of something."
 	} : {
 		block: false,
-		text: "That’s over 100%. Is that right?"
+		text: "That’s over 100%. Is that right?",
+		id: "over-100"
 	};
 	if (goal?.kind === "metric" && farOutside(n, goal.plan.start, goal.plan.target)) {
 		const d = goal.decimals, u = unit === "%" ? "%" : unit ? " " + unit : "";
 		return {
 			block: false,
-			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
+			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`,
+			id: "far-outside-plan"
 		};
 	}
 	if (goal?.kind === "metric" && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) return {
 		block: false,
-		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`
+		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`,
+		id: "past-target"
 	};
 	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
 		block: false,
-		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
+		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`,
+		id: "far-from-last"
 	};
 	return null;
 }
@@ -2106,7 +2110,50 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 		dataFlagged: draft.dataFlagged
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES;
+/**
+* Rule 2. What must be fixed and what must be answered before a check-in for `week` posts, in the order the screen asks.
+* Only the first number question that applies is asked (in `valueProblem`'s order); "the same as last week" is asked of a
+* number goal not yet at its target, never of a number kept in a range. A carried story still true is `evaluate`'s.
+*/
+function checkInLevels(goal, week, draft, own) {
+	if (goal.kind === "milestone") return {
+		mustFix: [],
+		checks: []
+	};
+	const mustFix = [];
+	const checks = [];
+	const last = previousFor(own, week).number;
+	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
+	const n = parseNumber(draft.value);
+	const u = (v) => fixed(v, goal.decimals) + (goal.unit === "%" ? "%" : goal.unit ? " " + goal.unit : "");
+	if (p?.block) mustFix.push({
+		field: "This week’s number",
+		says: p.text
+	});
+	else if (p && n != null) {
+		const question = p.id === "far-from-last" && last ? `Week ${last.week} was ${u(last.value)}. Is ${u(n)} right?` : p.text;
+		checks.push({
+			id: p.id ?? "far-from-last",
+			field: "value",
+			question,
+			yes: `Yes, ${u(n)} is right`,
+			no: "Change the number",
+			key: String(n)
+		});
+	} else if (n != null && last?.value === n && goal.kind === "metric" && !reached(goal, n)) checks.push({
+		id: "same-as-last",
+		field: "value",
+		question: `The same as week ${last.week}: ${u(n)}. Did you measure it again this week?`,
+		yes: "Yes, measured again",
+		no: "No new number this week",
+		key: String(n)
+	});
+	return {
+		mustFix,
+		checks
+	};
+}
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES, reached, unanswered, answeredDiffs;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
@@ -2147,6 +2194,13 @@ var init_checkin = __esmMin((() => {
 		"value-precision",
 		"value-impossible"
 	];
+	reached = (goal, n) => goal.kind === "metric" && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
+	unanswered = (checks, answers) => checks.filter((c) => answers?.[c.id] !== c.key);
+	answeredDiffs = (checks, answers) => checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({
+		field: "Asked",
+		from: c.question,
+		to: c.yes
+	}));
 }));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
@@ -3096,7 +3150,7 @@ var init_goal = __esmMin((() => {
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
 function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$2).getUTCMonth();
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$1).getUTCMonth();
 }
 function quarters(c) {
 	if (!isYear(c)) return [{
@@ -3185,22 +3239,22 @@ function quarterResults(g, c, checkIns, week) {
 /** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
 function weekOneOf(year, month) {
 	const first = Date.UTC(year, month, 1);
-	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$2 - 3 * DAY$2;
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$1 - 3 * DAY$1;
 }
 /** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
 function goalYear(year, month) {
 	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
 	return {
-		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$2)).toISOString().slice(0, 10),
-		weeks: Math.round((b - a) / (7 * DAY$2))
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$1)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$1))
 	};
 }
 /** How many weeks the goal year starting on this date has: 52, or 53 in a long calendar year. */
 function yearWeeks(startDate) {
-	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
+	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$1);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$2, MONTHS$1;
+var isYear, DAY$1, MONTHS$1;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3208,7 +3262,7 @@ var init_year = __esmMin((() => {
 	init_status();
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
-	DAY$2 = 864e5;
+	DAY$1 = 864e5;
 	MONTHS$1 = [
 		"Jan",
 		"Feb",
@@ -3697,7 +3751,7 @@ function dayWithYear(iso) {
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
 	const a = /* @__PURE__ */ new Date(startDate + "T00:00:00Z");
-	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$1);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
@@ -3797,7 +3851,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		})
 	};
 }
-var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, WEEKDAYS$1, MONTHS, RESULT_LABEL;
+var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -3807,8 +3861,8 @@ var init_cycle = __esmMin((() => {
 	init_carry();
 	init_yearName();
 	init_status();
-	DAY$1 = 864e5;
-	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
+	DAY = 864e5;
+	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
@@ -7259,7 +7313,7 @@ var init_removal = __esmMin((() => {
 	init_status();
 	init_tableLayout();
 	init_vocabulary();
-	init_records$3();
+	init_records();
 	no$1 = (msg) => {
 		throw new NotAllowed(msg);
 	};
@@ -8022,6 +8076,12 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, notYours(g));
 			return;
 		}
+		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
+		const open = unanswered(asked, draft.answers);
+		if (open.length) {
+			err("Check-ins", row, g.title, `${open[0].question} Answer it first.`);
+			return;
+		}
 		const asOf = goalAsOf(g, w);
 		const e = evaluate(asOf, cycle, w, draft, ctx);
 		const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === "reason-behind" || c === "reason-ahead" || c === "target" || c === "path" || c === "greener-why") ? asWritten(asOf, w, draft, e, actor.id, now, "probe") : null;
@@ -8058,6 +8118,7 @@ function planChanges(input) {
 			return;
 		}
 		if (again) ch.summary = ch.summary.replace("Checked in for week", "Checked in again for week");
+		ch.diffs.push(...answeredDiffs(asked, draft.answers));
 		if (post?.mode === "correct") {
 			ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
 			ch.diffs.unshift({
@@ -8903,7 +8964,7 @@ var init_rules = __esmMin((() => {
 	init_changes();
 	init_format();
 	init_numbers();
-	init_records$3();
+	init_records();
 	MODULE = "metrics";
 	METRICS_KEY = "metrics";
 	LINKS_KEY = "metricLinks";
@@ -8964,413 +9025,6 @@ var init_rules = __esmMin((() => {
 	canEditMetric = (actor, m) => actor.admin || m.ownerId === actor.id;
 	canLinkGoal = (actor, g) => actor.admin || g.ownerId === actor.id;
 }));
-// src/modules/metrics/demo.ts
-/**
-* The library, set up the week before the year starts, each goal linked as it's created, by the people the app would
-* (the metric's owner adds it; the goal's owner links it). Fixed ids of their own, so nothing else's id moves; linking
-* changes no goal, so no number, status or date moves.
-*/
-function addDemoMetrics(b) {
-	const startMs = b.start.getTime();
-	METRICS.forEach((m, i) => {
-		let k = 0;
-		const mid = (p) => p === "metric" ? `metric_${m.slug}` : `${p}_metric_${m.slug}_${++k}`;
-		const when = /* @__PURE__ */ new Date(startMs - 3 * DAY + i * HOUR);
-		b.save(saveMetric(b.act(m.ownerId, when, mid), m).commit);
-		for (const [goalId, teamId] of m.measures) {
-			const { goal, createdAt } = b.goal(goalId);
-			const linkedAt = new Date(Math.max(when.getTime(), Date.parse(createdAt)) + HOUR);
-			b.save(linkGoalMetric(b.act(goal.ownerId, linkedAt, mid), goal, `metric_${m.slug}`, teamId));
-		}
-	});
-}
-var DAY, HOUR, METRICS;
-var init_demo = __esmMin((() => {
-	init_rules();
-	DAY = 864e5;
-	HOUR = 36e5;
-	METRICS = [
-		{
-			slug: "lead-time",
-			name: "Lead time for changes",
-			unit: "hours",
-			decimals: 0,
-			direction: "lower",
-			ownerId: "rhea",
-			refresh: "daily",
-			meaning: "Median hours from a change’s first commit to running in production, over the last 28 days. Counts every change to a deployable service; reverts count as changes.",
-			source: "DORA dashboard (Four Keys)",
-			sourceOwner: "CI/CD team",
-			caveats: "Changes to libraries only count once a service that uses them deploys.",
-			measures: [["ns-lead", null]]
-		},
-		{
-			slug: "ci-time",
-			name: "CI pipeline time on main (p90)",
-			unit: "min",
-			decimals: 0,
-			direction: "lower",
-			ownerId: "daniel",
-			refresh: "hourly",
-			meaning: "90th percentile of wall-clock minutes from push to a finished pipeline on main, over the last 7 days. Queue time included; cancelled runs left out.",
-			source: "CI analytics",
-			sourceOwner: "Developer Experience",
-			caveats: "Monorepo and service repositories are pooled; a slow monorepo week moves the whole number.",
-			measures: [["ns-ci", null]]
-		},
-		{
-			slug: "queue-wait",
-			name: "Pipeline queue wait (p90)",
-			unit: "min",
-			decimals: 0,
-			direction: "lower",
-			ownerId: "rhea",
-			refresh: "hourly",
-			meaning: "90th percentile of minutes a pipeline job waits for a runner, over the last 7 days.",
-			source: "CI runner metrics",
-			sourceOwner: "CI/CD team",
-			caveats: "",
-			measures: [["lead-ci-time", "cicd"]]
-		},
-		{
-			slug: "flaky-rate",
-			name: "Flaky test rate",
-			unit: "%",
-			decimals: 1,
-			direction: "lower",
-			ownerId: "rhea",
-			refresh: "daily",
-			meaning: "Share of test runs on main that fail and then pass on a retry of the same commit, over the last 7 days.",
-			source: "CI test analytics",
-			sourceOwner: "CI/CD team",
-			caveats: "Quarantined tests are left out, so quarantining lowers the number without fixing the test.",
-			measures: [["lead-flaky", "cicd"]]
-		},
-		{
-			slug: "cache-hit",
-			name: "Remote build cache hit rate",
-			unit: "%",
-			decimals: 0,
-			direction: "higher",
-			ownerId: "rhea",
-			refresh: "daily",
-			meaning: "Share of build actions served from the remote cache instead of run again, across CI and laptops.",
-			source: "Bazel remote cache metrics",
-			sourceOwner: "CI/CD team",
-			caveats: "Only Bazel builds report it; Gradle builds aren’t counted yet.",
-			measures: [["lead-cache", "cicd"]]
-		},
-		{
-			slug: "first-review",
-			name: "Time to first review",
-			unit: "hours",
-			decimals: 1,
-			direction: "lower",
-			ownerId: "tariq",
-			refresh: "daily",
-			meaning: "Median working hours from a pull request being opened (or leaving draft) to its first human review.",
-			source: "GitHub pull request data",
-			sourceOwner: "Developer Experience",
-			caveats: "Bot reviews don’t count as a first review.",
-			measures: [["lead-review", "devex"]]
-		},
-		{
-			slug: "deploys",
-			name: "Production deploys per day",
-			unit: "deploys",
-			decimals: 0,
-			direction: "higher",
-			ownerId: "pavel",
-			refresh: "daily",
-			meaning: "Successful production deploys on a working day, averaged over the last 28 days. A rollback is not a deploy.",
-			source: "DORA dashboard (Four Keys)",
-			sourceOwner: "Build & Release",
-			caveats: "",
-			measures: [["ns-deploy", null]]
-		},
-		{
-			slug: "cfr",
-			name: "Change failure rate",
-			unit: "%",
-			decimals: 1,
-			direction: "lower",
-			ownerId: "marisol",
-			refresh: "weekly",
-			meaning: "Share of production deploys that led to an incident, a rollback or a hotfix, over the last 28 days.",
-			source: "DORA dashboard (Four Keys)",
-			sourceOwner: "Site Reliability Engineering",
-			caveats: "An incident is tied to a deploy by hand in the incident tracker, so the last week’s number can still rise.",
-			measures: [["ns-cfr", null]]
-		},
-		{
-			slug: "mttr",
-			name: "Mean time to restore (P1 and P2)",
-			unit: "min",
-			decimals: 0,
-			direction: "lower",
-			ownerId: "mateo",
-			refresh: "weekly",
-			meaning: "Mean minutes from an incident being declared to service restored, for P1 and P2 incidents closed in the last 28 days.",
-			source: "Incident tracker",
-			sourceOwner: "Site Reliability Engineering",
-			caveats: "A few long incidents move the mean a lot; the median is on the same dashboard.",
-			measures: [["ns-mttr", null]]
-		},
-		{
-			slug: "mttd",
-			name: "Mean time to detect",
-			unit: "min",
-			decimals: 1,
-			direction: "lower",
-			ownerId: "yuki",
-			refresh: "weekly",
-			meaning: "Mean minutes from an incident’s start (its first bad data point) to the first alert or report.",
-			source: "Incident tracker",
-			sourceOwner: "Observability",
-			caveats: "",
-			measures: [["mttr-detect", "obs"]]
-		},
-		{
-			slug: "cost-per-request",
-			name: "Cloud cost per 1,000 requests",
-			unit: "USD",
-			decimals: 2,
-			direction: "lower",
-			ownerId: "bjorn",
-			refresh: "monthly",
-			meaning: "The month’s cloud bill for production, after discounts, divided by thousands of requests served at the edge.",
-			source: "FinOps dashboard",
-			sourceOwner: "Cloud Cost (FinOps)",
-			caveats: "Committed-use discounts land at the start of the month they’re bought, so a purchase month looks cheap.",
-			measures: [["ns-cost", null]]
-		},
-		{
-			slug: "ci-cost",
-			name: "CI compute cost per pipeline run",
-			unit: "USD",
-			decimals: 2,
-			direction: "lower",
-			ownerId: "ethan",
-			refresh: "monthly",
-			meaning: "The month’s spend on CI runners and their storage, divided by pipeline runs finished that month.",
-			source: "Cloud billing export",
-			sourceOwner: "Cloud Cost (FinOps)",
-			caveats: "Laptops’ remote cache use is billed to CI too.",
-			measures: []
-		},
-		{
-			slug: "devsat",
-			name: "Developer satisfaction (pulse)",
-			unit: "pts",
-			decimals: 0,
-			direction: "higher",
-			ownerId: "ingrid",
-			refresh: "monthly",
-			meaning: "The rolling three-month score, 0 to 100, from the monthly developer pulse survey’s five core questions.",
-			source: "Developer pulse survey",
-			sourceOwner: "Developer Portal, Golden Paths & Self-Service Environments",
-			caveats: "About a third of engineers answer each month; the score is noisy month to month.",
-			measures: [["ns-devsat", null]]
-		}
-	];
-}));
-// src/modules/metrics/sheet.ts
-var m, sh, or, METRICS_SHEET;
-var init_sheet = __esmMin((() => {
-	init_columns();
-	init_rules();
-	({match: m, shown: sh} = moduleColumn);
-	or = cellOr;
-	METRICS_SHEET = {
-		spec: {
-			kind: "metrics",
-			name: "Metrics",
-			rowIs: "metric in the library",
-			loaded: false,
-			about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.",
-			columns: [
-				m("ID", "The metric’s identity.", (r) => r.m.id),
-				sh("Metric", "Its name.", (r) => r.m.name),
-				sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
-				sh("Unit", "Its unit.", (r) => r.m.unit),
-				sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
-				sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-				sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
-				sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
-				sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
-				sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
-				sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
-				sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
-				sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
-				sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
-			]
-		},
-		keys: ["ID"],
-		rows: (x, c, ids) => {
-			const s = x.snapshot;
-			return liveMetrics(s).map((mt) => ({
-				c,
-				m: mt,
-				measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
-					const g = s.goals.find((v) => v.id === l.goalId);
-					return g ? [{
-						g,
-						slice: sliceName(s, l.teamId)
-					}] : [];
-				})
-			}));
-		}
-	};
-}));
-// src/modules/metrics/records.ts
-var set$1, iso$3, when$2, who$1, metricToRow, metricFromRow, metricLinkToRow, metricLinkFromRow, records$1;
-var init_records$2 = __esmMin((() => {
-	init_actions();
-	init_rules();
-	init_demo();
-	init_sheet();
-	set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
-	iso$3 = (v) => new Date(String(v)).toISOString();
-	when$2 = (k, v) => v ? { [k]: iso$3(v) } : {};
-	who$1 = (k, v) => v ? { [k]: String(v) } : {};
-	metricToRow = (ws, m) => ({
-		workspace_id: ws,
-		id: m.id,
-		name: m.name,
-		meaning: m.meaning,
-		unit: m.unit,
-		decimals: m.decimals,
-		direction: m.direction,
-		source: m.source,
-		source_owner: m.sourceOwner,
-		refresh: m.refresh,
-		owner_id: m.ownerId,
-		caveats: m.caveats,
-		created_by: m.createdBy,
-		created_at: m.createdAt,
-		updated_at: m.updatedAt,
-		...set$1({
-			removed_at: m.removedAt,
-			removed_by: m.removedBy
-		})
-	});
-	metricFromRow = (r) => ({
-		id: r.id,
-		name: String(r.name),
-		meaning: String(r.meaning ?? ""),
-		unit: String(r.unit),
-		decimals: Number(r.decimals ?? 0),
-		direction: r.direction,
-		source: String(r.source ?? ""),
-		sourceOwner: String(r.source_owner ?? ""),
-		refresh: r.refresh ?? null,
-		ownerId: String(r.owner_id),
-		caveats: String(r.caveats ?? ""),
-		createdBy: String(r.created_by),
-		createdAt: iso$3(r.created_at),
-		updatedAt: iso$3(r.updated_at),
-		...when$2("removedAt", r.removed_at),
-		...who$1("removedBy", r.removed_by)
-	});
-	metricLinkToRow = (ws, l) => ({
-		workspace_id: ws,
-		id: l.id,
-		goal_id: l.goalId,
-		metric_id: l.metricId,
-		team_id: l.teamId,
-		linked_by: l.linkedBy,
-		linked_at: l.linkedAt,
-		...set$1({
-			removed_at: l.removedAt,
-			removed_by: l.removedBy
-		})
-	});
-	metricLinkFromRow = (r) => ({
-		id: r.id,
-		goalId: String(r.goal_id),
-		metricId: String(r.metric_id),
-		teamId: r.team_id ?? null,
-		linkedBy: String(r.linked_by),
-		linkedAt: iso$3(r.linked_at),
-		...when$2("removedAt", r.removed_at),
-		...who$1("removedBy", r.removed_by)
-	});
-	records$1 = {
-		records: [{
-			name: "metric",
-			key: METRICS_KEY,
-			table: "okr_metrics",
-			removable: true,
-			toRow: metricToRow,
-			fromRow: metricFromRow,
-			order: (a, b) => a.createdAt.localeCompare(b.createdAt),
-			carry: (rows) => rows.filter((m) => !m.removedAt),
-			removed: {
-				label: "Metric",
-				name: (m) => m.name,
-				restore(x, m) {
-					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-					return {
-						...metricRows({ metrics: [{
-							...m,
-							removedAt: null,
-							removedBy: null,
-							updatedAt: x.now
-						}] }),
-						changes: [{
-							id: x.newId("chg"),
-							at: x.now,
-							actorId: x.actor.id,
-							goalId: null,
-							entity: "metric",
-							entityId: m.id,
-							action: "restored",
-							summary: `Restored the metric “${m.name}”`,
-							diffs: [{
-								field: "Metric",
-								from: "—",
-								to: m.name
-							}]
-						}]
-					};
-				}
-			}
-		}, {
-			name: "metric link",
-			key: LINKS_KEY,
-			table: "okr_goal_metrics",
-			removable: false,
-			toRow: metricLinkToRow,
-			fromRow: metricLinkFromRow,
-			carry: (rows, scope) => {
-				const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
-				return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
-			}
-		}],
-		sheets: [METRICS_SHEET],
-		demo: addDemoMetrics
-	};
-}));
-// \0virtual:faro-modules/records
-var records_default;
-var init_records$1 = __esmMin((() => {
-	init_records$2();
-	records_default = [{
-		id: "metrics",
-		part: records$1
-	}];
-}));
-// src/core/records.ts
-var MODULE_RECORDS, MODULE_SHEETS;
-var init_records = __esmMin((() => {
-	init_records$1();
-	MODULE_RECORDS = records_default.map((p) => ({
-		...p.part,
-		module: p.id
-	}));
-	MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
-}));
 // src/data/examples.ts
 var EXAMPLE = {
 	id: "platform-org",
@@ -9381,7 +9035,7 @@ var EXAMPLE = {
 // src/data/store.ts
 init_asks();
 init_goalKey();
-init_records$3();
+init_records();
 /** The versions a save is based on, read from the snapshot the person was looking at. */
 function withExpectations(c, s) {
 	return {
@@ -9457,8 +9111,187 @@ function applyCommit(s, c) {
 	};
 }
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+// src/modules/metrics/sheet.ts
+init_columns();
+init_rules();
+var { match: m, shown: sh } = moduleColumn;
+var or = cellOr;
+var METRICS_SHEET = {
+	spec: {
+		kind: "metrics",
+		name: "Metrics",
+		rowIs: "metric in the library",
+		loaded: false,
+		about: "The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.",
+		columns: [
+			m("ID", "The metric’s identity.", (r) => r.m.id),
+			sh("Metric", "Its name.", (r) => r.m.name),
+			sh("Meaning", "What it means and how it’s calculated.", (r) => or(r.m.meaning)),
+			sh("Unit", "Its unit.", (r) => r.m.unit),
+			sh("Decimals", "Places after the decimal point it’s shown with.", (r) => r.m.decimals),
+			sh("Direction", `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
+			sh("Source", "Where the number comes from.", (r) => or(r.m.source)),
+			sh("Source owner", "Who owns that source.", (r) => or(r.m.sourceOwner)),
+			sh("Refresh", `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null),
+			sh("Owner", "Who answers for the definition.", (r) => or(r.c.name(r.m.ownerId))),
+			sh("Owner email", "Who answers for it, by email.", (r) => r.c.email(r.m.ownerId)),
+			sh("Caveats", "What to watch out for when reading it.", (r) => or(r.m.caveats)),
+			sh("Measures", "The goals it measures, each with its slice: a team, or the whole company.", (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join("; "))),
+			sh("Goal keys", "Their keys.", (r) => or(r.measures.map((x) => x.g.key ?? "").filter(Boolean).join("; ")))
+		]
+	},
+	keys: ["ID"],
+	rows: (x, c, ids) => {
+		const s = x.snapshot;
+		return liveMetrics(s).map((mt) => ({
+			c,
+			m: mt,
+			measures: linksOf(s).filter((l) => l.metricId === mt.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => {
+				const g = s.goals.find((v) => v.id === l.goalId);
+				return g ? [{
+					g,
+					slice: sliceName(s, l.teamId)
+				}] : [];
+			})
+		}));
+	}
+};
+// src/modules/metrics/records.ts
+init_actions();
+init_rules();
+/** Written only when there is one (a restore writes null), so rows never removed look exactly as before. */
+var set$1 = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
+var iso$3 = (v) => new Date(String(v)).toISOString();
+var when$2 = (k, v) => v ? { [k]: iso$3(v) } : {};
+var who$1 = (k, v) => v ? { [k]: String(v) } : {};
+var metricToRow = (ws, m) => ({
+	workspace_id: ws,
+	id: m.id,
+	name: m.name,
+	meaning: m.meaning,
+	unit: m.unit,
+	decimals: m.decimals,
+	direction: m.direction,
+	source: m.source,
+	source_owner: m.sourceOwner,
+	refresh: m.refresh,
+	owner_id: m.ownerId,
+	caveats: m.caveats,
+	created_by: m.createdBy,
+	created_at: m.createdAt,
+	updated_at: m.updatedAt,
+	...set$1({
+		removed_at: m.removedAt,
+		removed_by: m.removedBy
+	})
+});
+var metricFromRow = (r) => ({
+	id: r.id,
+	name: String(r.name),
+	meaning: String(r.meaning ?? ""),
+	unit: String(r.unit),
+	decimals: Number(r.decimals ?? 0),
+	direction: r.direction,
+	source: String(r.source ?? ""),
+	sourceOwner: String(r.source_owner ?? ""),
+	refresh: r.refresh ?? null,
+	ownerId: String(r.owner_id),
+	caveats: String(r.caveats ?? ""),
+	createdBy: String(r.created_by),
+	createdAt: iso$3(r.created_at),
+	updatedAt: iso$3(r.updated_at),
+	...when$2("removedAt", r.removed_at),
+	...who$1("removedBy", r.removed_by)
+});
+var metricLinkToRow = (ws, l) => ({
+	workspace_id: ws,
+	id: l.id,
+	goal_id: l.goalId,
+	metric_id: l.metricId,
+	team_id: l.teamId,
+	linked_by: l.linkedBy,
+	linked_at: l.linkedAt,
+	...set$1({
+		removed_at: l.removedAt,
+		removed_by: l.removedBy
+	})
+});
+var metricLinkFromRow = (r) => ({
+	id: r.id,
+	goalId: String(r.goal_id),
+	metricId: String(r.metric_id),
+	teamId: r.team_id ?? null,
+	linkedBy: String(r.linked_by),
+	linkedAt: iso$3(r.linked_at),
+	...when$2("removedAt", r.removed_at),
+	...who$1("removedBy", r.removed_by)
+});
+// src/core/records.ts
+/** Every module's records, in module id order. */
+var MODULE_RECORDS = [{
+	id: "metrics",
+	part: {
+		records: [{
+			name: "metric",
+			key: METRICS_KEY,
+			table: "okr_metrics",
+			removable: true,
+			toRow: metricToRow,
+			fromRow: metricFromRow,
+			order: (a, b) => a.createdAt.localeCompare(b.createdAt),
+			carry: (rows) => rows.filter((m) => !m.removedAt),
+			removed: {
+				label: "Metric",
+				name: (m) => m.name,
+				restore(x, m) {
+					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
+					return {
+						...metricRows({ metrics: [{
+							...m,
+							removedAt: null,
+							removedBy: null,
+							updatedAt: x.now
+						}] }),
+						changes: [{
+							id: x.newId("chg"),
+							at: x.now,
+							actorId: x.actor.id,
+							goalId: null,
+							entity: "metric",
+							entityId: m.id,
+							action: "restored",
+							summary: `Restored the metric “${m.name}”`,
+							diffs: [{
+								field: "Metric",
+								from: "—",
+								to: m.name
+							}]
+						}]
+					};
+				}
+			}
+		}, {
+			name: "metric link",
+			key: LINKS_KEY,
+			table: "okr_goal_metrics",
+			removable: false,
+			toRow: metricLinkToRow,
+			fromRow: metricLinkFromRow,
+			carry: (rows, scope) => {
+				const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
+				return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
+			}
+		}],
+		sheets: [METRICS_SHEET]
+	}
+}].map((p) => ({
+	...p.part,
+	module: p.id
+}));
+/** The workbook's sheets the modules add (domain/export), in module id order. */
+var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 // src/domain/find.ts
-init_records();
 init_format();
 init_goalKey();
 init_vocabulary();
@@ -10164,7 +9997,7 @@ init_review();
 init_attention();
 init_vocabulary();
 init_columns();
-init_records$3();
+init_records();
 init_checkin();
 var EXPORT_FORMAT = "goals-app.export";
 GOALS.columns.filter((c) => c.role !== "worked").map((c) => c.header);
@@ -12071,7 +11904,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it."]
+				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown."]
 			}
 		],
 		routes: ["/workspace/new", "/ready"],
@@ -12180,7 +12013,8 @@ var CORE_ARTICLES = [
 					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
 					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
-					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned."
+					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.",
+					"A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix."
 				]
 			},
 			{
@@ -14301,6 +14135,27 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-in-asks",
+		date: "2026-11-11",
+		title: "Faro asks about a number that looks wrong",
+		points: ["Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.", "The same number as last week asks whether you measured it again."],
+		articles: ["check-in"]
+	},
+	{
+		id: "cant-open-yet",
+		date: "2026-11-11",
+		title: "Plainer words when you can’t open a workspace",
+		points: ["If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.", "Nothing of the workspace shows until you can open it; ask an admin there to add you."],
+		articles: ["set-up"]
+	},
+	{
+		id: "found-rows-show-status",
+		date: "2026-11-11",
+		title: "Two fixes: status shapes in Find, and Settings scrolls to the end",
+		points: ["A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.", "On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached."],
+		articles: ["finding", "settings"]
+	},
 	{
 		id: "check-in-one-way",
 		date: "2026-11-11",
@@ -19061,7 +18916,6 @@ var tools$1 = [
 ];
 // src/modules/spreadsheets/tools.ts
 init_columns();
-init_records();
 init_tableLayout();
 var str$1 = (description, extra = {}) => ({
 	type: "string",
@@ -20287,7 +20141,6 @@ var SpanCollector = class {
 };
 // server/mcp.ts
 init_cycle();
-init_records();
 init_plan();
 /** The longest the end of a request waits for its spans to be stored. */
 var TELEMETRY_WAIT_MS = 1500;
@@ -42644,7 +42497,6 @@ async function loadModules(records, read) {
 // src/adapters/supabase/goalsStore.ts
 init_asks();
 init_goalKey();
-init_records$3();
 init_records();
 /** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 var missing = (error) => error.code === "PGRST202" || /Could not find the function|function .* does not exist/i.test(error.message);
@@ -42968,14 +42820,14 @@ function supabaseDeps(origin, env = process.env, client) {
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
 	const db = client ?? faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
-	let seen = null;
+	const seen = /* @__PURE__ */ new Map();
 	return {
 		async findToken(hash) {
 			const { data, error } = await db.rpc("okr_token_find", { hash });
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
 			const row = (data ?? [])[0];
 			if (!row) return null;
-			seen = hash;
+			seen.set(row.id, hash);
 			return {
 				token: tokenFromRow(row),
 				workspaceId: row.workspace_id
@@ -42987,8 +42839,9 @@ function supabaseDeps(origin, env = process.env, client) {
 		},
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
-		async touch() {
-			if (seen) await db.rpc("okr_token_touch", { hash: seen });
+		async touch(id) {
+			const hash = seen.get(id);
+			if (hash) await db.rpc("okr_token_touch", { hash });
 		},
 		issueToken: (ws, c) => store.issueToken(ws, c),
 		markups: (hash) => markupOps({

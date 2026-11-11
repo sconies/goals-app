@@ -77,9 +77,11 @@ export function depsContract(name: string, make: () => Promise<DepsMade>) {
       expect((await deps.load(ws)).changes.some((x) => x.id === c.changes[0]!.id)).toBe(true);
     });
 
-    it('notes a token as used without failing', async () => {
+    it('notes when a token was used', async () => {
+      expect((await deps.load(ws)).tokens?.find((t) => t.id === token.id)?.lastUsedAt).toBeFalsy();
       await deps.findToken(await hashToken(token.secret));
-      await expect(deps.touch(token.id, NOW.toISOString())).resolves.not.toThrow();
+      await deps.touch(token.id, NOW.toISOString());
+      expect((await deps.load(ws)).tokens?.find((t) => t.id === token.id)?.lastUsedAt).toBeTruthy();
     });
 
     it('says whether the workspace records, and which modules are off (unknown is on, and none)', async () => {

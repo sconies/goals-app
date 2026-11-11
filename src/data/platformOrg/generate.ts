@@ -15,7 +15,7 @@ import { withKeys } from '../../domain/goalKey';
 import { goalAsOf, planAt } from '../../domain/plan';
 import { requestsAfterCheckIn } from '../../domain/asks';
 import { applyModuleRows } from '../../domain/records';
-import { MODULE_RECORDS } from '../../core/records';
+import MODULE_DEMOS from 'virtual:faro-modules/demo';
 import type { Ask, Change, CheckIn, Cycle, Decision, Goal, MetricGoal, Review, SavedView, Snapshot, StageUpdate, Watch } from '../../domain/types';
 import { demoYear, yearName } from './year';
 import { CLOSED, COMMENTS, HELD, REVIEWS, SAID, UNDER_WAY, UPDATE_ASKS, VIEWS, WATCHES } from './conversation';
@@ -422,7 +422,7 @@ export function buildPlatformOrg(today: Date): Snapshot {
 
   /* ---------- Each feature module's own rows (domain/records): the metric library's, in this build ---------- */
   // Added the way the app would, through each module's rules; a build without the module has none, and nothing else moves.
-  for (const m of MODULE_RECORDS) m.demo?.({
+  for (const { part: addRows } of MODULE_DEMOS) addRows({
     save: (c) => { if (c.modules) S.modules = applyModuleRows(S.modules, c.modules); S.changes.push(...c.changes); },
     start: new Date(startMs),
     act: (by, when, ids) => ({ ...ctx(by, when), newId: ids }),
