@@ -3645,7 +3645,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.context().close();
 });
 
-journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back', 10, async (h, device) => {
+journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on, or Undo straight after switching it off, brings it all back', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/workspace/features'));
   // An admin setting, down the Workspace page with the others: 'entry' is judged on everyday journeys, not this one.
@@ -3685,6 +3685,19 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.goto(url('/import'));
   await p.waitForURL(/\/data\/import/);
   await see(p, 'Import from a spreadsheet', 'Import did not come back');
+  // Off again, then Undo straight away, without leaving the page: it comes back (Lane, 11 Nov: the Undo said "back on"
+  // and left it off). Checked, not scored: the steps above are the journey.
+  await p.goto(url('/workspace/features'));
+  await box.scrollIntoViewIfNeeded();
+  await box.click();
+  await see(p, 'Spreadsheets is off in');
+  await p.getByRole('button', { name: 'Undo' }).last().click();
+  await see(p, 'Spreadsheets is back on.');
+  if (!(await box.isChecked())) fail('Undo said Spreadsheets is back on and left it off');
+  await p.getByRole('link', { name: 'Goals' }).first().click();
+  await p.locator('.goals-toolbar, .goals-phonebar').filter({ visible: true }).first().waitFor();
+  if (!(await p.getByRole('button', { name: 'Export these goals' }).count())) fail('after Undo, Goals has no export: Spreadsheets did not come back');
+  if ((await h.snapshot()).changes.filter((c) => c.entity === 'workspace' && c.summary === 'Switched on Spreadsheets').length < 2) fail('the Undo was not saved and logged as switching Spreadsheets on');
   h.set('progress', true);
   h.set('errors', true);
   // Someone who isn't an admin sees no switches. (Import is a focused page with no Demo control on a phone: leave it first.)
@@ -4092,6 +4105,22 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await p.context().close();
 }, ['progress']);
 
+/** Until the app has drawn the page: the boot screen gone, and something in main. A screen that loads when it's opened
+    (AX4: Data, Workspace, Feedback, Print, the wrap-up) leaves main empty until it arrives, so a fixed wait after going
+    there measured nothing on a slower machine (Data's search read 0px wide on CI). */
+const settled = (r) => r.waitForFunction(() => {
+  if (document.querySelector('.preboot, .boot')) return false;
+  const main = document.querySelector('main');
+  return !main || [...main.children].some((e) => !e.matches('.page-help'));
+}, null, { timeout: 15000 }).catch(() => {});
+/** A page whose goto and reload wait until it has settled, for the checks that go from page to page and then measure. */
+function steady(r) {
+  const goto = r.goto.bind(r), reload = r.reload.bind(r);
+  r.goto = async (...a) => { const res = await goto(...a); await settled(r); return res; };
+  r.reload = async (...a) => { const res = await reload(...a); await settled(r); return res; };
+  return r;
+}
+
 async function finishChecks(add) {
   {
     const open = async (w, h, who, route, touch) => {
@@ -4099,16 +4128,11 @@ async function finishChecks(add) {
       // Who's looking is set before the app starts (as newPage does), so the page loads once, not twice: opening Home
       // first just to set it cost every check a whole extra load of the app and its example.
       if (who) await c.addInitScript((v) => { if (!sessionStorage.getItem('viewer-set')) { localStorage.setItem('goals-app-viewer:platform-org', v); sessionStorage.setItem('viewer-set', '1'); } }, who);
-      const r = await c.newPage();
+      const r = steady(await c.newPage());
+      // The example is built as the page opens: goto waits for the page itself (settled). On a slower machine (the CI
+      // runners) the shell can still be empty here, with nothing moving yet, so the wait below ended at once and the
+      // measuring landed part-way through the page's entrance: WA 10 read 27px for a 24px gap, the rows still 3px into their rise.
       await r.goto(url(route));
-      // The example is built as the page opens: wait for the page itself first. On a slower machine (the CI runners) the
-      // shell can still be empty here, with nothing moving yet, so the wait below ended at once and the measuring
-      // landed part-way through the page's entrance: WA 10 read 27px for a 24px gap, the rows still 3px into their rise.
-      await r.waitForFunction(() => {
-        if (document.querySelector('.preboot, .boot')) return false;
-        const main = document.querySelector('main');
-        return !main || [...main.children].some((e) => !e.matches('.page-help'));
-      }, null, { timeout: 15000 }).catch(() => {});
       // Then measure once the fade-in has finished, not part-way through it.
       await r.waitForFunction(() => document.getAnimations().every((x) => x.playState !== 'running'), null, { timeout: 3000 }).catch(() => {});
       return [c, r];
@@ -4371,7 +4395,7 @@ async function platformChecks() {
   if (want('P10')) {
     const at = async (w, h, who, path, touch) => {
       const c = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: !!touch });
-      const r = await c.newPage();
+      const r = steady(await c.newPage());
       await r.goto(url('/')); await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.goto(url(path)); await r.waitForTimeout(400);
       return [c, r];

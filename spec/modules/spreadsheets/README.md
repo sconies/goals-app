@@ -35,7 +35,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U19 | See the same goals as a table, board or history grid, and export them | `evals/journeys.cjs` |
 | U20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | `evals/journeys.cjs` |
 | U46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | `evals/journeys.cjs` |
-| U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back | `evals/journeys.cjs` |
+| U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on, or Undo straight after switching it off, brings it all back | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
