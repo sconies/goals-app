@@ -21,6 +21,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'levels-one-style',
+    date: '2026-11-11',
+    title: 'Levels look the same',
+    points: [
+      'A goal’s level (North star, SVP) is shown in one plain style everywhere: North star no longer has a coloured tag of its own.',
+      'Team goals still carry no tag. Nothing else about levels has changed.',
+    ],
+    articles: ['goals'],
+  },
+  {
     id: 'check-in-asks',
     date: '2026-11-11',
     title: 'Faro asks about a number that looks wrong',

@@ -1,15 +1,10 @@
 /* Fields the new-goal wizard, Edit goal and setting up a workspace share, so they look and behave the same in each. */
 import type { ReactNode } from 'react';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelsOf } from '../domain/levels';
+import { useApp } from '../app/state';
 import type { Level } from '../domain/types';
 import { Icon } from './Icon';
 
-const LEVEL_ORDER: Level[] = ['team', 'svp', 'north-star'];
-const LEVEL_HINT: Record<Level, string> = {
-  team: 'Most goals. Flag SVP or North star only for goals reported at major reviews.',
-  svp: 'Reported at SVP reviews.',
-  'north-star': 'Reported at the top. You can have several.',
-};
 
 /** A field's error: said in words under the field, in the error colour. */
 export function FieldError({ children }: { children: ReactNode }) {
@@ -21,12 +16,14 @@ export const DateRange = ({ children }: { children: ReactNode }) => <span classN
 
 /** The level: one segmented choice, with what it means underneath. */
 export function LevelField({ level, onChange, labelClass }: { level: Level; onChange: (l: Level) => void; labelClass: string }) {
+  const levels = levelsOf(useApp().cycle);
   return (
     <div className="field"><span className={labelClass} id="level-l">Level</span>
       <div className="seg full" role="group" aria-labelledby="level-l">
-        {LEVEL_ORDER.map((l) => <button key={l} type="button" aria-pressed={level === l} onClick={() => onChange(l)}>{LEVEL_LABEL[l]}</button>)}
+        {/* Everyday first, the top last, as the form has always read. */}
+        {[...levels].reverse().map((l) => <button key={l.id} type="button" aria-pressed={level === l.id} onClick={() => onChange(l.id)}>{l.name}</button>)}
       </div>
-      <span className="hint">{LEVEL_HINT[level]}</span>
+      <span className="hint">{levels.find((l) => l.id === level)?.hint ?? ''}</span>
     </div>
   );
 }

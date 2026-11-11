@@ -4,8 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { periodNow, wrapUpOpenOn } from '../domain/cycle';
 import { attentionGroup, attentionList, splitAttention } from '../domain/attention';
-import { LEVEL_LABEL } from '../domain/format';
-import type { Level } from '../domain/types';
+import { levelIds, levelName } from '../domain/levels';
 import { LABEL, worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
 import { AttentionCard, Chip, Empty, Sheet, StatusShape } from '../ui/bits';
@@ -40,7 +39,6 @@ import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** Goals, starting from the trees: each top goal, then what feeds it, worst first. */
 export function GoalsScreen() {
@@ -106,7 +104,7 @@ export function GoalsScreen() {
   const grouped: ViewGroup[] = useMemo(() => show === 'outcomes'
     ? [...trees.map((t) => ({ key: t.goal.id, title: t.goal.title, rows: flat(t) })), ...(loose.length ? [{ ...one('loose', 'Not linked', loose), hint: 'These don’t feed another goal yet.' }] : [])]
     : show === 'attention' ? [one('attention', ATTENTION.needs.label, att.map((a) => a.goal)), ...(handled.length ? [{ ...one('handled', ATTENTION.handled.label, handled.map((a) => a.goal)), hint: HANDLED_LINE }] : [])]
-    : show === 'levels' ? LEVELS.map((l) => one(l, LEVEL_LABEL[l], app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
+    : show === 'levels' ? levelIds(app.cycle).map((l) => one(l, levelName(app.cycle, l), app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app)))).filter((g) => g.rows.length)
     : show === 'teams' ? teamsWorstFirst(app).map(({ team: t, goals }) => one(t.id, t.name, goals))
     : show === 'mine' ? [one('mine', scopeTab.label, app.snapshot.goals.filter((g) => inScope.has(g.id)).sort(worstFirst(app)))]
     : [one('watching', 'Watching', watchedGoals(app.viewer.id, app.snapshot).sort(worstFirst(app)))],
@@ -329,13 +327,13 @@ export function GoalsScreen() {
         : <div className="calm"><Icon name="check-circle" size={15} /> Nothing new is off track, stale or slipping.</div>)}
       {!alt && !refined && show === 'attention' && <HandledGroup list={handled} />}
 
-      {!alt && !refined && show === 'levels' && LEVELS.map((l) => {
+      {!alt && !refined && show === 'levels' && levelIds(app.cycle).map((l) => {
         const list = app.snapshot.goals.filter((g) => g.level === l).sort(worstFirst(app));
         if (!list.length) return null;
         return (
-          <section key={l} className="block" aria-label={LEVEL_LABEL[l]} data-part={LEVEL_LABEL[l]}>
+          <section key={l} className="block" aria-label={levelName(app.cycle, l)} data-part={levelName(app.cycle, l)}>
             <div className="row between nowrap">
-              <h2 className="block-title">{LEVEL_LABEL[l]} <span className="hint">· {list.length}</span></h2>
+              <h2 className="block-title">{levelName(app.cycle, l)} <span className="hint">· {list.length}</span></h2>
               <Chip k={worst(list.map((g) => app.statusOf(g).status))} />
             </div>
             <ul className="tree">{list.map((g) => <li key={g.id}><GoalRow g={g} /></li>)}</ul>

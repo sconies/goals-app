@@ -13,7 +13,8 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
-import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
+import { directionLabel, fmt } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
@@ -424,7 +425,7 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
       const a = assessPosted(goal, app.cycle, app.snapshot.checkIns, app.week);
       const card: ShareCard = {
         workspace: app.ws.name.replace(/^Example:\s*/, ''), title: goal.title, owner: owner?.name ?? '',
-        meta: [goal.level !== 'team' ? LEVEL_LABEL[goal.level] : '', goal.key ?? ''].filter(Boolean).join(' · '),
+        meta: [!isEveryday(app.cycle, goal.level) ? levelName(app.cycle, goal.level) : '', goal.key ?? ''].filter(Boolean).join(' · '),
         status, statusWord: LABEL[status], now, against: against.join(' · '), why,
         when: `Week ${app.week} · ${app.today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
         link: link(),
@@ -1048,7 +1049,7 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd></>}
         {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}{goal.source ? '' : ''}</dd></>}
         {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (week ${s.dueWeek})`).join(', ')}{goal.source ? <span className="muted">. Source: {goal.source}.</span> : null}</dd></>}
-        <dt>Level</dt><dd>{LEVEL_LABEL[goal.level]}{goal.level !== 'team' ? ', reported at major reviews' : ''}</dd>
+        <dt>Level</dt><dd>{levelName(app.cycle, goal.level)}{!isEveryday(app.cycle, goal.level) ? ', reported at major reviews' : ''}</dd>
         <dt>Team</dt><dd>{team?.name ?? '—'}</dd>
         <dt>Feeds into</dt><dd>{parent ? <><Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link>{goal.whyHelps ? <span className="muted">. {goal.whyHelps}</span> : null}</> : fed ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
         {fed > 0 && <><dt>Fed by</dt><dd><Link className="linkish" to={`/goals?feeds=${goal.id}`}>{fed === 1 ? '1 goal' : `${fed} goals`}</Link></dd></>}

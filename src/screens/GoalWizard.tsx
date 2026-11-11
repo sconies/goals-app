@@ -6,7 +6,8 @@ import { dueOptions, isYear } from '../domain/year';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, draftOf, planHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
-import { fmt, LEVEL_LABEL } from '../domain/format';
+import { fmt } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import type { Goal, GoalKind, MetricGoal, PlanShape } from '../domain/types';
 
 import { newId } from '../data/store';
@@ -289,7 +290,7 @@ function Wizard({ existing }: { existing: Goal | null }) {
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
                     : d.kind === 'milestone' ? <>{((n) => (n === 1 ? '1 stage, due' : `${n} stages, the last due`))(d.stages.filter((s) => s.name).length)} week {Math.max(0, ...d.stages.map((s) => parseNumber(s.dueWeek) ?? 0))}.{(['yes', 'no'] as const).map((k) => { const n = existing ? 0 : d.stages.filter((s) => s.name && s.done === k).length; return n ? ` ${n} ${n === 1 ? 'stage is' : 'stages are'} already ${k === 'yes' ? 'done' : 'overdue'}.` : ''; }).join('')}</> : null}
               </p>
-              <p className="small muted">{d.level !== 'team' ? `${LEVEL_LABEL[d.level]} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
+              <p className="small muted">{!isEveryday(app.cycle, d.level) ? `${levelName(app.cycle, d.level)} level. ` : ''}{parent ? `It feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}.` : 'It’s at the top of its own tree.'}{d.guardrail ? ' Guardrail.' : ''}</p>
             </div>
             <ul className="review-rows" aria-label="Change a step">
               {[0, 1, 2].map((i) => (
