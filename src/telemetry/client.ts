@@ -6,7 +6,7 @@
    Recording is cheap on purpose: building a row and pushing it to a list. The exporter sends in batches, later.
    The last few steps of this tab's session, and its errors and failed saves, are kept in memory (recentSteps,
    recentProblems), never sent by themselves: a markup attaches them when its sender says so (src/markup). */
-import { appRouteFor } from '../help/guide';
+import { appRouteFor } from '../help/lookup';
 import { redact, type Attrs } from './attributes';
 import { errorType, exceptionType, saveOutcome } from './errors';
 import { Exporter } from './exporter';

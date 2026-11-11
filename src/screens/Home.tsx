@@ -24,7 +24,7 @@ import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { FirstReports } from '../ui/FirstReports';
-import { HomeNews } from './Help';
+import { HomeNews } from '../ui/HelpLinks';
 
 function greeting(d: Date) {
   const h = d.getHours();
