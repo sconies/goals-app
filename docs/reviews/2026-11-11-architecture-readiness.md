@@ -11,7 +11,7 @@ Faro is a sound model and not a scalable system, and the first half of that is w
 | **Scale** | **2 of 5** | Right for 126 goals. Slow at about 1,000 goals or after two to three years of history; unusable at 10,000. The route out is written down but not built or tested. |
 | **Handoff** | **3 of 5** | The rules, the drill and the honesty are strong. The seams a team will copy first (reads, saves, sign-in, the database's own check) each have a fault that would be copied with them. |
 
-After items AR2-1 to AR2-5 below (about three releases), I would score handoff 4 of 5. Scale stays at 2 by design: the platform provides it, and the spec says how.
+After items AX1 to AX5 below (about three releases), I would score handoff 4 of 5. Scale stays at 2 by design: the platform provides it, and the spec says how.
 
 ## How it was done
 
@@ -103,7 +103,7 @@ Measured on the demo workspace and copies of it. One demo workspace is 97 people
 - **Also known:** the lint that guards this matches the spelling `: Snapshot` (`scripts/check-layers.mjs:69`). A rule that takes an `ActionContext` receives the whole workspace twice (`snapshot` and `full`, `state.tsx:477`) and is not counted. The handover already lists this as "the AR4 lint gap".
 - **Why it matters (scale, and handoff):** a server that works out summary rows with this code inherits the same curve. The fix is also the work `ports-at-scale.md` calls "step 3 starts by finding out".
 - **Fix (S, then M):** index people, teams, goals, decisions and asks by id once in `src/app/reads.ts` and hand the rules lookups. Then narrow the 18 files a few at a time, each proven by unchanged conformance rows.
-- **Where:** Faro now for the indexes. The narrowing rides with AR2-5.
+- **Where:** Faro now for the indexes. The narrowing rides with AX5.
 
 #### 7. The Supabase adapter: failures read as "not migrated yet", and a save that is three transactions
 
@@ -154,7 +154,7 @@ Measured on the demo workspace and copies of it. One demo workspace is 97 people
 #### 14. The kit: one stage proven, contracts out of reach, hand-written pages drifting
 
 - **Evidence:** stage 1 has a drill; stages 2 to 5 are outlines (`spec/rebuild/README.md`). The contracts live in `src/ports/contracts/`, outside the kit. `docs/handoff.md` says "the 33 migrations" (there are 37) and still lists 8g and "0c: Faro's own database project" as work to do; both are done, and 0c was decided the other way. `src/ports/index.ts:3` points at `spec/rebuild/stage-6-adapters.md`, which does not exist. `docs/handover.md` says migrations 0001 to 0027 are applied.
-- **Fix (S):** correct the pages; add a test that every file path a hand-written doc names exists. With AR2-5, write the two ports' contract cases as data in `spec/conformance/` so a rewrite can run them (the drill already works this way for the rules).
+- **Fix (S):** correct the pages; add a test that every file path a hand-written doc names exists. With AX5, write the two ports' contract cases as data in `spec/conformance/` so a rewrite can run them (the drill already works this way for the rules).
 - **Where:** Faro now.
 
 #### 15. Operability: enough for a demo, with three habits not to copy
@@ -170,7 +170,7 @@ Measured on the demo workspace and copies of it. One demo workspace is 97 people
 | 16 | Ids are made in the browser from `Math.random` and four characters of the time | `src/data/store.ts:350` | The spec already says the server makes ids. No action |
 | 17 | The import has no row or size limit; parsing and the change engine run on the main thread, and the engine scans arrays about sixty times per run. Read, not timed | `src/app/spreadsheet.ts:18-23`; `src/domain/changeset.ts` | Spec (R4): import as a server job with a stated limit. In Faro, a cap with a plain message (S) if Lane wants it |
 | 18 | `migrate.mjs` and `faro-data.mjs` connect with certificate checking off | `scripts/migrate.mjs:20` | A line in the "don't copy this" list (AS part 3) |
-| 19 | The `Store` interface still lives in `src/data/store.ts` with the demo's plumbing (`hasExample`, `resetExample`) and imports from `src/mcp` | `src/data/store.ts:4`, `:54-79` | Deep review A7, still open. Fold into AR2-5 |
+| 19 | The `Store` interface still lives in `src/data/store.ts` with the demo's plumbing (`hasExample`, `resetExample`) and imports from `src/mcp` | `src/data/store.ts:4`, `:54-79` | Deep review A7, still open. Fold into AX5 |
 | 20 | `api/mcp.js` is still a committed build, now 1.54 MB | `api/mcp.js` | Deep review A7, already in AS part 3 |
 
 ---
@@ -193,7 +193,7 @@ Measured on the demo workspace and copies of it. One demo workspace is 97 people
 
 Estimates, for two engineers who know their own platform. They assume copy and adapt. Product work (R3 time zones, R6a to R6c) is left out.
 
-| Work | Today | After AR2-1 to AR2-5 |
+| Work | Today | After AX1 to AX5 |
 |---|---|---|
 | Run Faro on their Postgres (a `Store` adapter; the plain-Postgres one is the pattern) | 3 to 5 days | 2 to 4 |
 | Sign-in: an `Identity` from single sign-on, membership by email | 8 to 10 days (edit the core, find the stand-in, rewrite the contract) | 3 to 5 |
@@ -215,18 +215,18 @@ Shaped as backlog items. Nothing here is visible to people, so each commit says 
 
 | ID | Item | Size | Depends on | Findings |
 |---|---|---|---|---|
-| **AR2-1** | **The workspace check holds.** A migration: an upsert never updates a row stored under another workspace; stages are checked through their goal. `storeContract` gains "refuses a save that names another workspace's record", on all three adapters. The three kit sentences then stand | S | Nothing | 1 |
-| **AR2-2** | **Every change through the dispatcher.** The single check-in and the goal forms become actions with their rules in `src/domain`; `applyChanges` re-sends its input with `apply`; a test that nothing on `AppState` saves except through `run`. Keep clear of the held redesign items that touch the same forms | S to M | The redesign's held GoalWizard and GoalEdit work (FS1, FS2) | 2 |
-| **AR2-3** | **A sign-in seam that takes a sign-in.** `Identity` passed in beside the store, asynchronous, with `choose` only on the picker; no stand-in actor outside the demo; the contract split, with "nobody signed in: nothing is saved" | S to M | Nothing | 3 |
-| **AR2-4** | **A scale fixture and two budgets in CI.** The benchmark from this review as a test: a 10x workspace, with limits on its loaded size and on the time to summarise it; a limit on the first chunk's compressed size. With it, the indexes in `src/app/reads.ts` and lazy routes that bring the numbers under | S | Nothing | 6, 8 |
-| **AR2-5** | **The query port, first cut.** `goals()`, `counts()` and `goal()` as a port in `src/ports`, answered in the browser as `Search` is, with a contract (the summaries are the rules, keyset paging, a page at most, only `goal()` reads check-ins) and its cases written into `spec/conformance/`. Home and Goals read through it. The load takes the current cycle's check-ins and recent changes only; Activity and History page for the rest. The `Store` interface moves to `src/ports`, its demo plumbing to the browser adapter | M to L | AR2-4; AS part 2 (so a module's records come through the same way) | 4, 6, 14, 19 |
-| **AR2-6** | **A stale save runs again.** On a refusal the dispatcher reloads, re-runs the action and saves; a version on every record two people can edit | M | AR2-2 | 5 |
-| **AR2-7** | **The Supabase adapter, tidied.** No fallbacks for migrations long applied, a failed read fails the load, a save is one call | S | Nothing | 7 |
-| **AR2-8** | **The kit shows the database as it is.** `schema.sql` and an "access today" page generated from the migrated database; a contract for the MCP endpoint's `Deps`. Merge with AS part 3's remainder | S to M | Nothing | 9, 10, 11 |
-| **AR2-9** | **Browser state behind the ports.** A lint rule for browser storage with a shrinking list; the stamp taken from `Clock`; a table in `adapters.md` of what Faro keeps in the browser | S | Nothing | 12 |
-| **AR2-10** | **Pages that tell the truth.** `docs/handoff.md`, `docs/handover.md`, the "still to move" list, the pointer in `src/ports/index.ts`, one sentence on migration order in `CLAUDE.md`; a test that file paths named in hand-written docs exist; the server writes its failures to standard error | S | Nothing | 11, 13, 14, 15 |
+| **AX1** | **The workspace check holds.** A migration: an upsert never updates a row stored under another workspace; stages are checked through their goal. `storeContract` gains "refuses a save that names another workspace's record", on all three adapters. The three kit sentences then stand | S | Nothing | 1 |
+| **AX2** | **Every change through the dispatcher.** The single check-in and the goal forms become actions with their rules in `src/domain`; `applyChanges` re-sends its input with `apply`; a test that nothing on `AppState` saves except through `run`. Keep clear of the held redesign items that touch the same forms | S to M | The redesign's held GoalWizard and GoalEdit work (FS1, FS2) | 2 |
+| **AX3** | **A sign-in seam that takes a sign-in.** `Identity` passed in beside the store, asynchronous, with `choose` only on the picker; no stand-in actor outside the demo; the contract split, with "nobody signed in: nothing is saved" | S to M | Nothing | 3 |
+| **AX4** | **A scale fixture and two budgets in CI.** The benchmark from this review as a test: a 10x workspace, with limits on its loaded size and on the time to summarise it; a limit on the first chunk's compressed size. With it, the indexes in `src/app/reads.ts` and lazy routes that bring the numbers under | S | Nothing | 6, 8 |
+| **AX5** | **The query port, first cut.** `goals()`, `counts()` and `goal()` as a port in `src/ports`, answered in the browser as `Search` is, with a contract (the summaries are the rules, keyset paging, a page at most, only `goal()` reads check-ins) and its cases written into `spec/conformance/`. Home and Goals read through it. The load takes the current cycle's check-ins and recent changes only; Activity and History page for the rest. The `Store` interface moves to `src/ports`, its demo plumbing to the browser adapter | M to L | AX4; AS part 2 (so a module's records come through the same way) | 4, 6, 14, 19 |
+| **AX6** | **A stale save runs again.** On a refusal the dispatcher reloads, re-runs the action and saves; a version on every record two people can edit | M | AX2 | 5 |
+| **AX7** | **The Supabase adapter, tidied.** No fallbacks for migrations long applied, a failed read fails the load, a save is one call | S | Nothing | 7 |
+| **AX8** | **The kit shows the database as it is.** `schema.sql` and an "access today" page generated from the migrated database; a contract for the MCP endpoint's `Deps`. Merge with AS part 3's remainder | S to M | Nothing | 9, 10, 11 |
+| **AX9** | **Browser state behind the ports.** A lint rule for browser storage with a shrinking list; the stamp taken from `Clock`; a table in `adapters.md` of what Faro keeps in the browser | S | Nothing | 12 |
+| **AX10** | **Pages that tell the truth.** `docs/handoff.md`, `docs/handover.md`, the "still to move" list, the pointer in `src/ports/index.ts`, one sentence on migration order in `CLAUDE.md`; a test that file paths named in hand-written docs exist; the server writes its failures to standard error | S | Nothing | 11, 13, 14, 15 |
 
-**In one line:** AR2-1, AR2-3 and AR2-10 first (small, independent, and each removes something a team would copy wrong); AR2-4 and AR2-7 beside them; AR2-2 once the held forms work lands; then AR2-5, the one large item; AR2-6, AR2-8 and AR2-9 after.
+**In one line:** AX1, AX3 and AX10 first (small, independent, and each removes something a team would copy wrong); AX4 and AX7 beside them; AX2 once the held forms work lands; then AX5, the one large item; AX6, AX8 and AX9 after.
 
 **Spec only (ride with R5):**
 
