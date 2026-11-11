@@ -43,6 +43,7 @@ export const ACTIONS = {
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),
   saveRetro: (x: RunContext, i: { goalId: string } & Pick<Retro, 'result' | 'learned' | 'next'>) => A.saveRetro(x, goalOf(x, i.goalId), i),
+  recordStagesDone: (x: RunContext, i: { goalId: string; stageIds: string[] }) => A.recordStagesDone(x, goalOf(x, i.goalId), i.stageIds),
   undoImport: (x: RunContext, i: { importId: string }) => R.undoImport(x, i.importId),
 
   /* Comments, next steps and asks. */

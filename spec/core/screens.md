@@ -99,7 +99,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - **Named parts:** “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
-- **Primary buttons in its markup:** “Set up the first goal”
+- **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
 
 ## GoalWizard

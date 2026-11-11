@@ -14,9 +14,9 @@ import { MenuButton } from '../ui/MenuButton';
 
 export type Layout = 'list' | 'table' | 'board' | 'history' | 'map';
 export const LAYOUTS: [Layout, string][] = [['list', 'List'], ['table', 'Table'], ['board', 'Board'], ['history', 'History'], ['map', 'Map']];
-/** Each layout in one line, said under the toolbar and on its button (backlog N, 8 Nov). */
+/** Each layout in one line, said in the Layout menu and the phone's View sheet (backlog N, 8 Nov). */
 export const LAYOUT_ABOUT: Record<Layout, string> = {
-  list: 'rows, grouped as the tab says.',
+  list: 'rows, grouped as Group says.',
   table: 'a row per goal; sort any column.',
   board: 'a column for each status.',
   history: 'each goal’s status, week by week.',
@@ -61,31 +61,22 @@ export function useLayout(): [Layout, (l: Layout) => void] {
   return [layout, set];
 }
 
-export function LayoutSwitch({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
-  return (
-    <div className="seg layout-switch" role="group" aria-label="Layout">
-      {LAYOUTS.map(([k, label]) => (
-        <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={`${label}: ${LAYOUT_ABOUT[k]}`} onClick={() => onChange(k)}>
-          <LayoutIcon k={k} /><span className="ls-label">{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /**
- * On a phone, the layouts are one choice rather than a row of five buttons (backlog G, 9 Nov): the button says the open
- * layout, and the menu says what each one is, which the line under the toolbar says on a wider screen.
+ * The layouts are one choice on every width (goals spec, 2.1, item 3.6; GL2): the button says the open layout, and the
+ * menu says what each one is. On a phone it is the View sheet's first group instead.
  */
 export function LayoutMenu({ layout, onChange }: { layout: Layout; onChange: (l: Layout) => void }) {
-  const name = LAYOUTS.find(([k]) => k === layout)?.[1] ?? 'List';
   return (
-    <MenuButton className="layout-menu" label="Layout" summary="" display={<><span className="sr">Layout: </span><LayoutIcon k={layout} />{name}</>}
-      items={LAYOUTS.map(([k, label]) => ({ label, hint: LAYOUT_ABOUT[k].replace(/^./, (c) => c.toUpperCase()), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
+    <MenuButton className="layout-menu" label="Layout" summary="" markCurrent display={`Layout: ${layoutName(layout)}`}
+      items={LAYOUTS.map(([k, label]) => ({ label, hint: layoutLine(k), icon: <LayoutIcon k={k} />, current: k === layout, onClick: () => onChange(k) }))} />
   );
 }
 
-function LayoutIcon({ k }: { k: Layout }) {
+/** A layout's name, and its line as a sentence ("Rows, grouped as Group says."). */
+export const layoutName = (l: Layout) => LAYOUTS.find(([k]) => k === l)?.[1] ?? 'List';
+export const layoutLine = (l: Layout) => LAYOUT_ABOUT[l].replace(/^./, (c) => c.toUpperCase());
+
+export function LayoutIcon({ k }: { k: Layout }) {
   const p = { viewBox: '0 0 16 16', width: 14, height: 14, fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, 'aria-hidden': true } as const;
   if (k === 'list') return <svg {...p}><path d="M3 4h10M3 8h10M3 12h10" /></svg>;
   if (k === 'table') return <svg {...p}><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2 6.5h12M6 6.5V13" /></svg>;

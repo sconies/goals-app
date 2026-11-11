@@ -1,0 +1,9 @@
+Key,Goal,Level,Team,Owner,Type,Unit,Start,Target
+G-1,Lead time for changes,north star,CI/CD,Rhea Kapoor,metric,hours,52,20
+G-1,Lead time for changes,north star,CI/CD,Rhea Kapoor,metric,hours,52,22
+,Pipeline queue wait (p90),team,CI/CD,Rhea Kapoor,metric,min,14,3
+,Pipeline queue wait (p90),team,Build & Release,Tunde Bakare,metric,min,14,3
+,Twice in this file,team,CI/CD,Rhea Kapoor,metric,%,1,5
+,Twice in this file,team,CI/CD,Rhea Kapoor,metric,%,1,5
+G-999,No such key,team,CI/CD,Rhea Kapoor,metric,%,1,5
+12,Bad key,team,CI/CD,Rhea Kapoor,metric,%,1,5

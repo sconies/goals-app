@@ -23,6 +23,7 @@ import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
 import { WorkspaceSwitcher, WorkspaceSwitchProvider } from './WorkspaceSwitch';
+import { Find, FIND_KEY, isFindKey } from './Find';
 
 /** Marking up a screen loads only when someone starts one (src/markup). */
 const MarkupFlow = lazy(() => import('../markup/Markup'));
@@ -136,6 +137,8 @@ function ShellBody({ children }: { children: ReactNode }) {
   const look = useAppearance();
   const [sheet, setSheet] = useState<'profile' | 'more' | 'feedback' | 'demo' | 'people' | null>(null);
   const [marking, setMarking] = useState(false);
+  // Find from anywhere (find spec, 2.4): the sidebar's Find, the phone's Find button, or Ctrl K (Cmd K on a Mac).
+  const [finding, setFinding] = useState(false);
   // Feedback is one item (WR5): its page's Send feedback opens the sheet, which records the page you came from.
   // Marking up from there goes back to that page first, then draws on it (a phone has no Ctrl+Shift+M).
   const cameFrom = useRef({ path: '/', to: '' });
@@ -151,7 +154,10 @@ function ShellBody({ children }: { children: ReactNode }) {
   }, [pathname, search]);
   // Ctrl+Shift+M (Cmd+Shift+M on a Mac), from anywhere: mark up this screen. Any open sheet closes first, so it isn't in the picture.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setMarking(true); };
+    const key = (e: KeyboardEvent) => {
+      if (isFindKey(e)) { e.preventDefault(); setSheet(null); setFinding((f) => !f); return; }
+      if (!isMarkupKey(e)) return; e.preventDefault(); setSheet(null); setFinding(false); setMarking(true);
+    };
     // The Feedback page's Send feedback opens the sheet (Feedback is the one menu item for it, WR5).
     const send = () => setSheet('feedback');
     window.addEventListener('keydown', key);
@@ -227,6 +233,7 @@ function ShellBody({ children }: { children: ReactNode }) {
   const goalTop = isGoalTop(pathname, search);
   const topControls = (
     <>
+      <button type="button" className="btn find-btn" onClick={() => setFinding(true)}><Icon name="search" size={18} /><span>Find</span></button>
       {app.mode === 'demo' && !present && <DemoEntry compact onOpen={() => setSheet('demo')} />}
       <button className="profilebtn" onClick={openPeople}>
         <Avatar p={app.viewer} />
@@ -276,6 +283,10 @@ function ShellBody({ children }: { children: ReactNode }) {
           </div>
           {/* The workspace switcher (backlog WS): the open workspace's name, and every workspace, in one place. */}
           <WorkspaceSwitcher variant="side" />
+          {/* Find, drawn as a field with its key (find spec 2.4); on the rail, its icon. */}
+          <button type="button" className="nav find-nav" onClick={() => setFinding(true)} {...label(`Find (${FIND_KEY})`)} aria-keyshortcuts={MAC ? 'Meta+K' : 'Control+K'}>
+            <Icon name="search" size={18} /><span>Find</span><kbd className="find-key" aria-hidden="true">{FIND_KEY}</kbd>
+          </button>
           {(['work', 'lookup', 'make', 'you'] as const).map((g) => (
             <div key={g} className={'nav-group nav-group-' + g} role="group" aria-label={GROUP_NAMES[g]}>
               {groups[g].map(row)}
@@ -342,6 +353,7 @@ function ShellBody({ children }: { children: ReactNode }) {
       {sheet === 'feedback' && <FeedbackSheet onClose={() => setSheet(null)} fromPage={pathname === '/feedback' && !!cameFrom.current.to}
         onMarkup={() => { setSheet(null); if (pathname === '/feedback' && cameFrom.current.to) { markAfter.current = true; void navigate(cameFrom.current.to); } else setMarking(true); }}
         path={pathname === '/feedback' ? cameFrom.current.path : pathname} />}
+      {finding && <Find onClose={() => setFinding(false)} />}
       {marking && <Suspense fallback={null}><MarkupFlow onClose={() => setMarking(false)} /></Suspense>}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (

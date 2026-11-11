@@ -33,6 +33,38 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['getting-around', 'settings'],
   },
   {
+    id: 'goals-view-menus',
+    date: '2026-11-11',
+    title: 'Layouts have names',
+    points: [
+      'Layout and Views are menus, the same on a computer and a phone. Views holds your saved views, Save this view, Copy link and Export these goals.',
+      'On the Map, the search at the top finds a goal and takes you to it.',
+      'On a phone, View opens one sheet with the layout, the grouping and your saved views.',
+      'Filters finds the goal whose tree you want by typing its name or key, instead of a list of every goal.',
+    ],
+    articles: ['goals', 'goal-map', 'goals-filters'],
+  },
+  {
+    id: 'find-anywhere',
+    date: '2026-11-11',
+    title: 'Find, from anywhere',
+    points: [
+      'Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.',
+      'Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar.',
+    ],
+    articles: ['finding'],
+  },
+  {
+    id: 'not-born-late',
+    date: '2026-11-11',
+    title: 'A new goal doesn’t start out late',
+    points: [
+      'A stage that’s already past asks whether it’s done, and a done one counts as on time.',
+      'If your first number isn’t where the plan starts, you can start the plan from it.',
+    ],
+    articles: ['new-goal', 'check-in'],
+  },
+  {
     id: 'goals-filters-in-words',
     date: '2026-11-10',
     title: 'Goals counts once, and says its filters in words',

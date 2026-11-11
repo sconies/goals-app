@@ -1,0 +1,11 @@
+Goal,Level,Team,Owner,Type,Unit,Start,Target
+T1 owner typo,team,CI/CD,Rhea Kapor,metric,%,10,50
+T2 team typo,team,Platfrom,Rhea Kapoor,metric,%,10,50
+T3 level vp,vp,CI/CD,Rhea Kapoor,metric,%,10,50
+T4 type number,team,CI/CD,Rhea Kapoor,number,%,10,50
+T5 type numbr,team,CI/CD,Rhea Kapoor,numbr,%,10,50
+T6 team case,Team,ci/cd,rhea kapoor,Metric,%,10,50
+T7 team near,team,CI CD,Rhea Kapoor,metric,%,10,50
+T8 team near 2,team,Build and Release,Rhea Kapoor,metric,%,10,50
+T9 owner first name,team,CI/CD,Rhea,metric,%,10,50
+T10 owner email typo,team,CI/CD,rhea.kapor@example.com,metric,%,10,50

@@ -57,24 +57,61 @@ let browser;
 
 function fail(msg) { throw new Error(msg); }
 /** Waits until some visible element shows the text (a hidden duplicate, like a phone-only label on a desktop, doesn't count). */
-/* Goals on a phone (backlog G, 9 Nov): which goals and how to see them are two menus on one line (Views, Layout) instead
-   of the tabs and the layout buttons, and Export these goals is in Views. These pick the same things on any screen. */
+/* Goals (GL2, goals spec 2.1 and 2.4): Layout, Group and Views are menus on a computer, the same everywhere; on a phone
+   the View sheet holds Layout, Group, Saved views, Save this view, Copy link and Export these goals, and the whose-goals
+   tabs are on every width. These pick the same things on any screen. */
 const phoneBar = async (p) => {
   // Wait for the Goals controls to be drawn first: straight after goto, neither is there yet.
-  await p.locator('.goals-phonebar, .goals-toolbar').filter({ visible: true }).first().waitFor({ timeout: 10000 }).catch(() => {});
-  return p.locator('.goals-phonebar').isVisible();
+  await p.locator('.goals-toolbar').filter({ visible: true }).first().waitFor({ timeout: 10000 }).catch(() => {});
+  return p.locator('.goals-phone-switch .view-open').isVisible();
 };
+/** The phone's View sheet, open. */
+async function viewSheet(h, p) {
+  await h.click(p.locator('.goals-phone-switch .view-open'));
+  const d = p.getByRole('dialog', { name: 'View' });
+  await d.waitFor();
+  return d;
+}
+/** Done in the View sheet: closing it isn't a step of its own. */
+const doneSheet = (p) => p.getByRole('dialog', { name: 'View' }).getByRole('button', { name: 'Done' }).click();
 async function chooseLayout(h, p, name) {
-  if (await phoneBar(p)) await h.click(p.locator('.layout-menu > summary'));
+  if (await phoneBar(p)) {
+    const d = await viewSheet(h, p);
+    await h.click(d.getByRole('radio', { name: new RegExp('^' + name) }));
+    await doneSheet(p);
+    return;
+  }
+  await h.click(p.locator('.layout-menu > summary'));
   await h.click(p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: new RegExp('^' + name) }));
 }
-/** The open layout or view's name: the pressed layout button, the selected tab, or what the phone's menu button says. */
-async function openLayout(p) { return (await phoneBar(p)) ? (await p.locator('.layout-menu > summary').innerText()).replace(/^Layout:\s*/, '').trim() : ((await p.getByRole('group', { name: 'Layout' }).locator('[aria-pressed="true"]').getAttribute('aria-label')) ?? ''); }
-async function openShow(p) { return (await phoneBar(p)) ? (await p.locator('.show-menu > summary .show-name').innerText()).trim() : ((await p.getByRole('tab', { selected: true }).first().innerText().catch(() => '')) ?? '').trim(); }
-/** Export these goals: beside the layouts, or in the Views menu on a phone. */
+/** The open layout's name: what the Layout menu's button says, or the phone's View button ("View: List, as trees"). */
+async function openLayout(p) {
+  return (await phoneBar(p))
+    ? (await p.locator('.goals-phone-switch .view-open').innerText()).replace(/^View:\s*/, '').split(',')[0].trim()
+    : (await p.locator('.layout-menu > summary').innerText()).replace(/^Layout:\s*/, '').trim();
+}
+/** The open scope or saved view: the selected tab, on every width. */
+async function openShow(p) {
+  await phoneBar(p);
+  return ((await p.getByRole('tab', { selected: true }).first().innerText().catch(() => '')) ?? '').trim();
+}
+/** One of the Views menu's actions (Save this view…, Copy link, Rename…, Delete this view…), or the View sheet's on a phone. */
+async function viewsAction(h, p, name) {
+  if (await phoneBar(p)) return h.click((await viewSheet(h, p)).getByRole('button', { name }));
+  await h.click(p.locator('.views-menu > summary'));
+  await h.click(p.getByRole('group', { name: 'Views' }).getByRole('button', { name }));
+}
+/** Open a saved view by its name: from the Views menu, or the View sheet's Saved views on a phone. */
+async function openSaved(h, p, name) {
+  if (await phoneBar(p)) { await h.click((await viewSheet(h, p)).getByRole('radio', { name })); await doneSheet(p); return; }
+  await h.click(p.locator('.views-menu > summary'));
+  await h.click(p.getByRole('group', { name: 'Views' }).getByRole('button', { name }));
+}
+/** Export these goals: in the Views menu, or in the View sheet on a phone. */
 async function exportButton(h, p) {
-  if (await phoneBar(p)) await h.click(p.locator('.show-menu > summary'));
-  return p.getByRole('button', { name: 'Export these goals' });
+  if (await phoneBar(p)) return (await viewSheet(h, p)).getByRole('button', { name: 'Export these goals' });
+  await h.click(p.locator('.views-menu > summary'));
+  return p.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'Export these goals' });
 }
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
@@ -233,13 +270,11 @@ const goalMenu = async (h, p, item) => {
   await h.click(p.getByRole('group', { name: 'More about this goal' }).getByRole(item === 'Print or save as PDF' || /^Check in/.test(item) || item === 'Change this goal' ? 'link' : 'button', { name: item }));
 };
 
-/** Watching is a scope of Goals (GL1): Goals in the menu, then its Watching tab, or the Views menu on a phone. */
+/** Watching is a scope of Goals (GL1): Goals in the menu, then its Watching tab (on every width since GL2). */
 const toWatching = async (h, p) => {
   await navTo(h, p, 'Goals');
-  if (await phoneBar(p)) {
-    await h.click(p.locator('.show-menu > summary'));
-    await h.click(p.getByRole('menuitem', { name: /^Watching/ }).or(p.getByRole('button', { name: /^Watching/ })).first());
-  } else await h.click(p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab', { name: /^Watching/ }));
+  await phoneBar(p);
+  await h.click(p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab', { name: /^Watching/ }));
   await p.waitForURL(/scope=watching/);
 };
 const navTo = async (h, p, label) => {
@@ -302,6 +337,8 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.getByRole('link', { name: /Pick up where you left off/ }).click();
   const restored = await p.getByLabel('This week’s value').inputValue();
   if (restored !== leadV) fail('the draft value was not restored');
+  // Its first check-in, off its plan: it offers to start the plan from this number (OB2, rule 4). Rhea keeps the plan and says why.
+  await h.click(p.getByRole('button', { name: /^Keep .* and say why$/ }));
   await h.click(p.getByRole('button', { name: 'Continue' }));
   await h.click(p.getByRole('button', { name: 'Change landed early' }));
   await h.fill(p.getByLabel('What happened'), 'The runner budget came through a week early.');
@@ -1004,7 +1041,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await toWatching(h, p);
     await see(p, 'No recent update');
   await see(p, /\d+ goals · .*need/, 'the summary line counts what needs attention');
-  h.set('parity', /^Watching/.test(await openShow(p)) && await p.locator('.goals-toolbar .view-bar, .goals-phonebar').filter({ visible: true }).count() > 0, 'Watching is not a Goals tab with the Goals toolbar');
+  h.set('parity', /^Watching/.test(await openShow(p)) && await p.locator('.goals-page .filterbar-row').filter({ visible: true }).count() > 0, 'Watching is not a Goals tab with the Goals toolbar');
   // A goal with no recent update needs attention (the one rule): it's in that group, saying its status.
   const quiet = p.locator('section', { has: p.getByRole('heading', { name: /Needs attention/ }) }).locator('.trow[data-tone="stale"]').first();
   await h.inView(p.getByRole('heading', { name: /Needs attention/ }), 'entry', 'Needs attention');
@@ -1330,7 +1367,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
 journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, board or history grid, and export them', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
-  await h.inView(p.locator('.layout-switch, .layout-menu > summary').filter({ visible: true }), 'entry', 'the layout switch');
+  await h.inView(p.locator('.layout-menu > summary, .goals-phone-switch .view-open').filter({ visible: true }), 'entry', 'the Layout menu');
   // Table: sorting by status puts the off-track goal first.
   await chooseLayout(h, p, 'Table');
   await p.locator('.gtable').first().waitFor();
@@ -1718,7 +1755,7 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   h.set('attention', await p.getByRole('link', { name: /Kafka moved to the managed service/ }).first().isVisible().catch(() => false) || (await p.getByText('Kafka moved to the managed service').count()) > 0, 'a search on the owner’s reason did not find the goal');
   await h.fill(search, '');
   // Filters: what needs someone. Then sort, and the same goals in the Table.
-  await h.click(p.getByRole('button', { name: /^Filters/ }));
+  await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ }));
   const sheet = p.getByRole('dialog', { name: 'Filter goals' });
   // Needs attention, narrowed to a slipped date: the one Needs attention rule, then why.
   await h.click(sheet.getByLabel('Date slipped'));
@@ -1733,24 +1770,22 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await p.locator('.gtable tbody tr').first().waitFor();
   const rows = await p.locator('.gtable tbody tr:not(.story-row)').count();
   h.set('progress', rows === 25 && (await p.getByRole('button', { name: /Remove the filter Needs attention because date slipped/ }).isVisible()), `table shows ${rows} goals with the filter`);
-  // Save it: a name is needed; then it's a tab of its own. On a phone, saving and sharing are in one View menu (L&T 23).
-  if (device === 'phone') await h.click(p.locator('.filter-view-menu > summary'));
-  await h.click(p.getByRole('button', { name: 'Save view' }));
+  // Save it: a name is needed; then it's a tab of its own. Saving and sharing are in Views, or the phone's View sheet (GL2).
+  await viewsAction(h, p, 'Save this view…');
   const save = p.getByRole('dialog', { name: 'Save this view' });
   await h.click(save.getByRole('button', { name: 'Save view' }));
   h.set('errors', await save.getByRole('alert').filter({ hasText: 'Give the view a name' }).isVisible(), 'saving without a name is not caught');
   await h.fill(save.getByLabel('Name'), 'Slipped dates');
   await h.click(save.getByRole('button', { name: 'Save view' }));
   const tab = p.getByRole('tab', { name: /Slipped dates/ });
-  await p.waitForFunction(() => [...document.querySelectorAll('.goals-tabs .view-tab, .show-menu .show-name')].some((e) => e.getClientRects().length && /Slipped dates/.test(e.textContent)), null, { timeout: 5000 }).catch(() => {});
+  await tab.waitFor({ timeout: 5000 }).catch(() => {});
   h.set('finish', (await openShow(p)) === 'Slipped dates', 'the saved view is not shown as the current one');
   const s = await h.snapshot();
   h.set('logged', (s.views ?? []).some((v) => v.name === 'Slipped dates' && v.params.includes('needs=slipped') && v.params.includes('view=table') && !v.deletedAt), 'the view was not saved with its filters and layout');
   // Back later: plain Goals, then the view, from the Views menu, brings it all back (saved views wait in one menu
   // rather than adding tabs that run off a phone's screen, L&T 2).
   await p.goto(url('/goals?scope=all&view=list'));
-  await h.click(p.locator('.views-menu:visible > summary'));
-  await h.click(p.getByRole('button', { name: /Slipped dates/ }));
+  await openSaved(h, p, /Slipped dates/);
   await see(p, /24 need attention: .*1 being handled/, 'opening the saved view did not bring its filters back');
   // A shared link opens the same goals for anyone.
   const other = await newPage(device, 'rhea');
@@ -1759,12 +1794,10 @@ journey('U32', ['SAVED-VIEWS'], 'Search, filter and sort the goals in any layout
   await see(other, /24 need attention: .*1 being handled/, 'a shared link does not open the same goals');
   await other.context().close();
   // Delete it: the tab goes.
-  // Rename, pin and delete live in one menu, not beside the filters.
-  if (device === 'phone') await p.locator('.filter-view-menu > summary').click();
-  else await p.getByText('Manage view', { exact: true }).click();
-  await p.getByRole('button', { name: 'Delete' }).click();
-  if (device === 'phone') await p.waitForFunction(() => !/Slipped dates/.test(document.querySelector('.show-menu .show-name')?.textContent ?? ''), null, { timeout: 5000 });
-  else await tab.waitFor({ state: 'detached' });
+  // Rename, pin and delete are in Views (the View sheet on a phone), not beside the filters.
+  if (await phoneBar(p)) await (await viewSheet({ click: (l) => l.click() }, p)).getByRole('button', { name: 'Delete this view…' }).click();
+  else { await p.locator('.views-menu > summary').click(); await p.getByRole('group', { name: 'Views' }).getByRole('button', { name: 'Delete this view…' }).click(); }
+  await tab.waitFor({ state: 'detached' });
   await p.context().close();
 });
 
@@ -1817,12 +1850,12 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
 
 journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is what you share: the map’s attention filter, History’s range and an unposted table survive links and refreshes', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'tariq'));
-  // The map's "Only what needs attention" is the status filter: in the link, in the count, and in Export.
+  // On the map, what needs attention is the list bar's switch (GL2): in the link, in the count, and in Export.
   await p.goto(url('/goals?scope=all&view=map'));
   await p.getByRole('region', { name: /Goal map/ }).waitFor();
-  await h.click(p.getByLabel('Only what needs attention'));
-  await p.waitForURL(/status=off(%2C|,)risk(%2C|,)stale/, { timeout: 3000 }).catch(() => {});
-  // The map's toggle is the Goals screen's Needs attention filter (the one rule), so the link carries attention=1.
+  await h.click(p.locator('.attention-switch:visible'));
+  await p.waitForURL(/attention=1/, { timeout: 3000 }).catch(() => {});
+  // The switch is the Goals screen's Needs attention filter (the one rule), so the link carries attention=1.
   h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
   await see(p, /\d+ needs? attention: /, 'the attention filter does not show in the count');
   await h.click(await exportButton(h, p));
@@ -1905,7 +1938,7 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await p.goto(url('/activity'));
   await h.click(p.getByRole('group', { name: 'Kind of change' }).getByRole('button', { name: /^Check-ins/ }));
   await p.waitForURL(/kind=checkins/, { timeout: 3000 }).catch(() => {});
-  await h.click(p.getByRole('button', { name: /^Filters/ }));
+  await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ }));
   await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByLabel('Only my changes'));
   // Demo review, 8 Nov, item 12: no filter is offered greyed out with no reason.
   const greyed = await p.getByRole('dialog', { name: 'Filter activity' }).evaluate((d) => [...d.querySelectorAll('input:disabled, select:disabled, button:disabled')].filter((e) => !e.closest('label, .field')?.querySelector('.hint') && !e.getAttribute('title')).map((e) => e.closest('label')?.textContent.trim() || e.outerHTML.slice(0, 60)));
@@ -1916,7 +1949,7 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await see(p, /\d+ changes? match(es)?\./, 'the filtered activity does not say how many it shows');
   const download = p.waitForEvent('download', { timeout: 5000 }).catch(() => null);
   // On a phone, Save .csv is in the Filters sheet's footer rather than a row of the filter bar.
-  if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filters/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
+  if (device === 'phone') { await h.click(p.getByRole('button', { name: /^Filter(s| and sort)/ })); await h.click(p.getByRole('dialog', { name: 'Filter activity' }).getByRole('button', { name: 'Save .csv' })); }
   else await h.click(p.getByRole('button', { name: 'Save .csv' }));
   h.set('progress', !!(await download), 'Save .csv did not download the filtered log');
   await p.context().close();
@@ -2721,6 +2754,59 @@ journey('U72', ['NAV-FORMS'], 'One way out of a form: each focus-mode page has o
   await p.context().close();
 }, ['logged']);
 
+journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s Find) opens one search; a key alone opens its goal with Enter; a name finds that person, their goals with See all, and their team, each a link; only Goals, People and Teams while no module adds a kind', 6, async (h, device) => {
+  const phone = device === 'phone';
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await p.locator('.side:visible, .tabbar:visible').first().waitFor();
+  const find = p.getByRole('dialog', { name: 'Find' });
+  const open = async () => {
+    if (phone) await h.click(p.locator('.find-btn:visible').first());
+    else await p.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    await find.waitFor();
+    h.set('one-action', true);
+  };
+  if (!phone) h.set('entry', await p.locator('.side').getByRole('button', { name: /^Find/ }).isVisible(), 'the sidebar has no Find');
+  await open();
+  const box = find.getByRole('combobox');
+  h.set('entry', await box.evaluate((e) => e === document.activeElement), 'the search is not focused when Find opens');
+  h.set('attention', /Opened lately|Type a name, a key like G-48, or a few words\./.test(await find.innerText()), 'Find shows neither what was opened lately nor what to type');
+  await h.checkpoint('find');
+  // A goal's key alone: that goal first, and Enter opens it.
+  await h.fill(box, 'G-48');
+  await see(find, 'Goals · 1', 'G-48 does not find its goal alone');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/goals\/[^/?]+/, { timeout: 5000 }).catch(() => {});
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  const opened = await p.locator('main .gkey').first().innerText({ timeout: 5000 }).catch(() => '');
+  h.set('progress', /\/goals\/[^/?]+/.test(p.url()) && opened === 'G-48', `Enter on G-48 opened ${p.url()} (key ${opened})`);
+  // Again from the goal: a name finds the person, their goals and their team.
+  await open();
+  await h.fill(box, 'rhea');
+  await see(find, 'People · 1', 'Rhea is not found under People');
+  const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
+  h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
+  const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
+  h.set('finish', await goals.count() === 4 && /See all 8 goals/.test(await goals.last().innerText()), 'Goals does not show three rows and See all 8 goals');
+  h.set('a11y', /\/goals\?scope=all&q=rhea/.test(await goals.last().getAttribute('href') || ''), 'See all does not open Goals with the search');
+  await h.checkpoint('rhea');
+  const options = await find.getByRole('option').allInnerTexts();
+  const at = options.findIndex((t) => /^CI\/CD/.test(t.trim()));
+  for (let i = 0; i < at; i++) await p.keyboard.press('ArrowDown');
+  await p.keyboard.press('Enter');
+  await p.waitForURL(/\/teams\/cicd/, { timeout: 5000 }).catch(() => {});
+  h.set('finish', /\/teams\/cicd/.test(p.url()), `Enter on CI/CD opened ${p.url()}`);
+  // Escape closes.
+  await open();
+  await p.keyboard.press('Escape');
+  await find.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', await find.count() === 0, 'Escape does not close Find');
+  await p.context().close();
+}, ['logged']);
+
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -2743,14 +2829,13 @@ journey('U73', ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS'], 'Goals opens
   await p.goto(url('/goals'));
   await p.waitForURL(/scope=mine/, { timeout: 8000 }).catch(() => {});
   h.set('entry', /scope=mine/.test(p.url()), `Goals opened at ${p.url()}`);
-  const tabs = device === 'phone' ? [] : (await p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
-  if (device !== 'phone') h.set('attention', JSON.stringify(tabs) === JSON.stringify(['Mine 8', 'My team 17', 'Watching 12', 'All 126']), `the tabs are ${tabs.join(' | ')}`);
+  const tabs = (await p.getByRole('tablist', { name: 'Whose goals' }).getByRole('tab').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
+  h.set('attention', JSON.stringify(tabs) === JSON.stringify(['Mine 8', 'My team 17', 'Watching 12', 'All 126']), `the tabs are ${tabs.join(' | ')}`);
   const line = p.locator('.goals-line').first();
   await see(line, /^8 goals, worst first\. /, 'the line does not count the goals shown');
   await h.checkpoint('mine');
   // All, as trees; then the switch on it.
-  if (device === 'phone') { await h.click(p.locator('.show-menu > summary')); await h.click(p.getByRole('menuitem', { name: /^All/ }).or(p.getByRole('button', { name: /^All/ })).first()); }
-  else await h.click(p.getByRole('tab', { name: /^All/ }));
+  await h.click(p.getByRole('tab', { name: /^All/ }));
   await p.waitForURL(/scope=all/);
   await see(line, /^126 goals, as trees\. /, 'All is not counted as trees');
   const sw = p.getByRole('button', { name: /^Needs attention · \d+$/ });
@@ -2785,7 +2870,8 @@ journey('U67', ['NAV-PLACES', 'NAV-COLLAPSED'], 'The menu in groups: an owner ha
     h.set('attention', await p.locator('.side [aria-current="page"]').count() === 1 && await p.locator('.side .nav', { hasText: 'Check-in' }).count() === 1, 'not one lit item, or no Check-in for an owner');
     // Collapsed: each icon names itself at once on keyboard focus.
     await h.click(p.locator('.side .collapse-nav'));
-    await p.locator('.side .nav').first().focus();
+    // From Home, the first place (Find, above the groups, isn't one).
+    await p.locator('.side .nav-group .nav').first().focus();
     await p.keyboard.press('Tab');
     await see(p.locator('.rail-label'), /Check-in, \d+ to do/, 'the rail does not name Check-in on focus');
     await h.click(p.locator('.side .collapse-nav'));
@@ -3112,6 +3198,79 @@ journey('U62', ['LEAVE-WORKSPACE', 'SETTINGS'], 'Settings is about you: Your pag
 });
 
 /* App redesign OB3: set-up's owners and day one. */
+// GL2 (goals spec, 2.1, 2.3, 2.4): Layout and Views are menus on every width; the head and the bar don't move between
+// layouts; on the Map, Group and Sort can't be used and the bar's search goes to a goal; a phone has one View sheet.
+journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals?scope=all'));
+  const phone = await phoneBar(p);
+  await p.locator('.outcome').first().waitFor();
+  await p.evaluate(() => document.fonts.ready);
+  h.set('entry', !(await p.locator('.layout-switch').count()), 'the layouts are still a row of buttons');
+  // Where the head and the bar are, to the pixel.
+  const place = () => p.evaluate(() => ['.goals-head', '.goals-tabs', '.filterbar-row'].map((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? [r.left, r.top + scrollY, r.width].map(Math.round).join(',') : '-'; }).join(' '));
+  if (phone) {
+    // The View button says the layout and the group; the sheet holds Layout, Group, Saved views and the actions.
+    const says = (await p.locator('.goals-phone-switch .view-open').innerText()).trim();
+    h.set('attention', says === 'View: List, as trees', `the View button says “${says}”`);
+    const d = await viewSheet(h, p);
+    const groups = await d.locator('legend').allInnerTexts();
+    const acts = await d.getByRole('button').allInnerTexts();
+    // A bare scope is nothing to save yet, so Save this view… waits until something is chosen.
+    h.set('finish', JSON.stringify(groups) === JSON.stringify(['Layout', 'Group', 'Saved views']) && ['Copy link', 'Export these goals', 'Done'].every((a) => acts.some((x) => x.trim() === a)) && !acts.some((x) => /^Save this view/.test(x.trim())), `the View sheet has ${groups.join(', ')} and ${acts.map((x) => x.trim()).filter(Boolean).join(', ')}`);
+    await h.checkpoint('view sheet');
+    await h.click(d.getByRole('radio', { name: /^Board/ }));
+    await p.waitForURL(/view=board/, { timeout: 3000 }).catch(() => {});
+    await h.click(d.getByRole('radio', { name: /^Map/ }));
+    await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
+    await d.getByText('Group', { exact: true }).waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+    // On the Map there's no Group to choose; and now there is something to save.
+    h.set('parity', JSON.stringify(await d.locator('legend').allInnerTexts()) === JSON.stringify(['Layout', 'Saved views']) && await d.getByRole('button', { name: 'Save this view…' }).isVisible(), 'the View sheet still offers Group on the Map, or nothing to save');
+    await doneSheet(p);
+    h.set('attention', (await p.locator('.goals-phone-switch .view-open').innerText()).trim() === 'View: Map', 'the View button does not say Map');
+  } else {
+    // Layout says what's drawn; Group and Views are menus beside it.
+    h.set('attention', (await p.locator('.layout-menu > summary').innerText()).trim() === 'Layout: List' && (await p.locator('.group-menu > summary').innerText()).trim() === 'Group: As trees', 'the bar does not say the layout and the group');
+    await h.click(p.locator('.views-menu > summary'));
+    const views = p.getByRole('group', { name: 'Views' });
+    const items = (await views.getByRole('button').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
+    h.set('finish', items.includes('Copy link') && items.includes('Export these goals') && items.some((t) => /^My goals by status/.test(t)), `Views holds ${items.join(' | ')}`);
+    await p.keyboard.press('Escape');
+    await p.locator('.goals-head').click();
+    await p.waitForTimeout(300);
+    const was = await place();
+    for (const l of ['Table', 'Map']) {
+      await chooseLayout(h, p, l);
+      await p.locator(l === 'Map' ? '.react-flow__node' : '.gtable').first().waitFor();
+      const now = await place();
+      h.set('parity', now === was, `the head or the bar moved in ${l}: ${was} → ${now}`);
+    }
+    // On the Map, Group and Sort say why they can't be used.
+    await h.click(p.locator('.group-menu > summary'));
+    await see(p.getByRole('group', { name: 'Group' }), 'The Map is always the trees.', 'Group on the Map does not say the Map is always the trees');
+    h.set('parity', await p.locator('.inline-sort select').isDisabled(), 'Sort can still be changed on the Map');
+    await p.locator('.goals-head').click();
+    await h.checkpoint('map');
+  }
+  // On the Map: no search or Needs attention of its own; the bar's search lists goals and goes to one without narrowing.
+  await p.locator('.react-flow__node').first().waitFor();
+  h.set('errors', !(await p.locator('.map-canvas input, .map-bar input[type="checkbox"]:not(.map-troubled input)').count()) && !(await p.getByLabel('Only what needs attention').count()), 'the map still has its own search or Needs attention tick box');
+  const box = p.getByRole('combobox', { name: 'Find a goal' });
+  await h.fill(box, 'G-48');
+  await h.click(p.getByRole('option', { name: /G-48/ }).first());
+  await p.locator('.react-flow__node[data-id="mttr-oncall"] .map-node.found').waitFor({ timeout: 4000 }).catch(() => {});
+  // The goal takes focus once the map has moved to it (so Enter opens its story).
+  await p.waitForFunction(() => !!document.activeElement?.closest('.react-flow__node'), null, { timeout: 2000 }).catch(() => {});
+  h.set('progress', await p.locator('.react-flow__node[data-id="mttr-oncall"] .map-node.found').count() === 1 && !/[?&]q=/.test(p.url()), `choosing G-48 did not go to it on the map (${p.url()})`);
+  // Enter with nothing chosen narrows, as on any layout. (The pointer moves off the list first: a goal under it is chosen.)
+  await p.mouse.move(1, 1);
+  await h.fill(box, 'merge');
+  await box.press('Enter');
+  await p.waitForURL(/[?&]q=merge/, { timeout: 3000 }).catch(() => {});
+  h.set('logged', /[?&]q=merge/.test(p.url()), 'Enter did not narrow the map');
+  await p.context().close();
+});
+
 journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/'));
@@ -3373,7 +3532,7 @@ journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works
   const sixInHand = db.markups.filter((m) => /week strip/.test(m.line) && m.status === 'in-hand').length;
   await h.click(inbox.getByRole('button', { name: 'Clear the filters' }));
   // Filters: feedback only, then one person.
-  if (phone) await h.click(inbox.getByRole('button', { name: /^Filters/ }));
+  if (phone) await h.click(inbox.getByRole('button', { name: /^Filter(s| and sort)/ }));
   await inbox.getByLabel('Kind').selectOption('feedback');
   await p.waitForTimeout(200);
   const kinds = await inbox.locator('.ibx-row .mk-item').count();
@@ -3602,6 +3761,8 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.goto(url('/goals?scope=all'));
   // Export these goals, from the Goals screen (on a phone, in the Views menu).
   const direct = await exportButton(h, p);
+  // On a phone it's at the foot of the View sheet, which scrolls.
+  await direct.scrollIntoViewIfNeeded();
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
   await h.click(direct);
   const sheet = p.getByRole('dialog', { name: 'Export goals' });
@@ -3691,7 +3852,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.locator('.data-tools').waitFor();
   const dataGone = !(await p.locator('.data-export').count());
   await p.goto(url('/goals?scope=all'));
-  await p.locator('.goals-toolbar, .goals-phonebar').filter({ visible: true }).first().waitFor();
+  await p.locator('.goals-toolbar').filter({ visible: true }).first().waitFor();
   const goalsGone = !(await p.getByRole('button', { name: 'Export these goals' }).count());
   await p.goto(url('/data/import'));
   await see(p, 'Page not found', 'Import still opens with spreadsheets off');
@@ -3760,12 +3921,12 @@ journey('U26', ['GOAL-MAP'], 'Find what will sink the north star on the goal map
   await h.click(p.getByRole('button', { name: 'Fold to the top' }));
   await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length < n, all, { timeout: 3000 }).catch(() => {});
   const folded = await p.locator('.react-flow__node').count();
-  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
+  await h.click(p.locator('.attention-switch:visible'));
   // It's the status filter now, so the map redraws from the link, every match unfolded.
   await p.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length !== n, folded, { timeout: 3000 }).catch(() => {});
   const attention = await p.locator('.react-flow__node').count();
   h.set('progress', before < all && folded === before && attention < all && attention >= 3, `nodes: ${before} on opening, ${all} unfolded, ${folded} folded again, ${attention} needing attention`);
-  await h.click(p.getByLabel(/Only what needs attention|^Needs attention$/));
+  await h.click(p.locator('.attention-switch:visible'));
   h.set('logged', helps, 'no dotted also-helps lines');
   await p.context().close();
 }, ['errors', 'budget']);
@@ -4060,6 +4221,68 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
   await p.context().close();
 }, []);
+
+journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Kafka cut-over plan');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
+  await h.fill(p.getByLabel('Stage 1: due week'), '1');
+  await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Say whether this stage is done.' }).isVisible(), 'an unanswered past stage is not explained');
+  await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
+  await see(p, 'Done in week 1.');
+  await h.checkpoint('stages');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, '1 stage is already done.', 'Check does not say the stage is done');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p.locator('.goal-bar'), '1 of 1 stages', 'the published goal does not count its stage done');
+  let s = await h.snapshot();
+  const kafka = s.goals.find((g) => g.title === 'Kafka cut-over plan');
+  const rec = kafka && s.checkIns.find((c) => c.goalId === kafka.id);
+  h.set('logged', !!rec && rec.week === 1 && /already done when the goal was set up/.test(rec.why) && s.changes.some((c) => c.goalId === kafka.id && c.entity === 'check-in'), 'the stage done at set-up is not recorded in week 1 and logged');
+  // A number goal, 5 → 2 days: before its first check-in its page says so once; its first number, 7, offers to restart the plan.
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Lead time for the payments API');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.fill(p.getByLabel('Unit'), 'days');
+  await h.fill(p.getByLabel(/^Today \(week/), '5');
+  await h.fill(p.getByLabel(/^Target \(week/), '2');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/goal_/);
+  await see(p, 'The scorecard starts with the first check-in.', 'a new goal shows an empty scorecard');
+  const id = p.url().match(/\/goals\/(goal_[^?#/]+)/)[1];
+  await p.goto(url('/check-in/' + id));
+  await h.fill(p.getByLabel('This week’s value'), '7');
+  await see(p, 'The plan starts at 5 days; you’ve typed 7 days. Start the plan from 7 days?', 'a first number off the plan is not offered a fresh start');
+  await h.checkpoint('first check-in');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  // Undo puts the plan back, and asks again; then take it.
+  await h.click(p.getByRole('button', { name: 'Undo' }));
+  await see(p, 'Start the plan from 7 days?', 'Undo did not put the plan back');
+  s = await h.snapshot();
+  h.set('attention', s.goals.find((g) => g.id === id)?.plan?.start === 5, 'Undo did not restore the start of 5');
+  await h.click(p.getByRole('button', { name: 'Start from 7 days' }));
+  await see(p, 'The plan now starts from 7 days.');
+  await h.click(p.locator('.focus-foot button[type=submit]'));
+  await see(p, 'Check-in saved');
+  s = await h.snapshot();
+  const g = s.goals.find((x) => x.id === id);
+  const first = s.checkIns.find((c) => c.goalId === id);
+  h.set('finish', g?.plan?.start === 7 && g?.plan?.target === 2 && first?.status === 'on', `after the fresh start the plan starts at ${g?.plan?.start} and the check-in is ${first?.status}`);
+  await p.context().close();
+}, ['progress']);
 
 async function finishChecks(add) {
   {

@@ -17,6 +17,15 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
+// server/log.ts
+/** Writes the failure to standard error and returns its reference. Never throws. */
+function logFailure(where, e) {
+	const reference = `err_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+	try {
+		console.error(`[faro mcp] ${where} failed (${reference}):`, e instanceof Error ? e.stack ?? e.message : e);
+	} catch {}
+	return reference;
+}
 // src/domain/plan.ts
 /** Days between two ISO dates or timestamps, by calendar date in UTC. */
 function daysBetween(fromIso, to) {
@@ -2729,7 +2738,7 @@ function draftOf(g) {
 	}));
 	return d;
 }
-function validateGoal(d, cycle, existing) {
+function validateGoal(d, cycle, existing, week) {
 	const e = {};
 	const named = nameProblem(d.title, "goal");
 	if (named) e.title = named;
@@ -2773,6 +2782,7 @@ function validateGoal(d, cycle, existing) {
 			const w = parseNumber(s.dueWeek);
 			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
 		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
+		else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek), week) && !s.done)) e.stages = "Say whether this stage is done.";
 	}
 	return e;
 }
@@ -2946,11 +2956,14 @@ function overHundredHint(unit, start, target) {
 	if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
 	return "Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.";
 }
+var pastStage;
 var init_goal = __esmMin((() => {
 	init_checkin();
 	init_thresholds();
 	init_numbers();
 	init_plan();
+	init_status();
+	pastStage = (dueWeek, week) => dueWeek < week;
 }));
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
@@ -5530,6 +5543,8 @@ var init_actions = __esmMin((() => {
 	init_thresholds();
 	init_cycle();
 	init_people();
+	init_goal();
+	init_changes();
 	init_asks();
 	init_review();
 	init_status();
@@ -8003,14 +8018,18 @@ function searchGoals(r, ask) {
 		sort: query.sort ?? "worst"
 	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
-/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
+*/
 function searchPeople(r, ask) {
 	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
 	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	return r.people.filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
+	const left = ask.filters?.left === "too";
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
 		kind: "person",
 		id: p.id,
-		name: p.name,
+		name: p.leftAt ? `${p.name} (left)` : p.name,
 		detail: [p.role, team(p)].filter(Boolean).join(" · ")
 	}));
 }
@@ -10572,7 +10591,8 @@ var CORE_ARTICLES = [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.",
 					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
-					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one."
+					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
+					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
 				]
 			},
 			{
@@ -10795,19 +10815,21 @@ var CORE_ARTICLES = [
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
-					"Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.",
-					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.",
+					"Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link.",
+					"Views, at the right of the tabs, holds your saved views (pinned ones first, the open one marked Current), then Save this view…, Copy link and Export these goals; with a saved view open, also Rename…, Pin for everyone (admins) and Delete this view…. It means the same on every screen.",
+					"The title, the tabs and the bar stay exactly where they are whichever layout you choose; only the goals under the count line widen for Table, Board, History and the Map. On the Map, Group and Sort can’t be changed: the Map is always the trees.",
+					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole.",
 					"Old links still work: Trees, By level, By team and Needs attention open All with that group or the switch, /watching opens Watching, and a saved view made before keeps working.",
 					"The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.",
 					"Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.",
 					"Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.",
 					"Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.",
 					"A link with a tab this workspace doesn’t have opens the one you’d open first, and a short line says so.",
-					"On a phone the goals come first. Views and Layout are two buttons on one line: Views says whose goals are open and how many, and opens the tabs, Group, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.",
+					"On a phone the goals come first. The tabs are one row that scrolls sideways, the open one kept in view; then the search and Filter and sort (Sort is in its sheet); then Needs attention at the left and View at the right, which says the layout and the group (“View: List, as trees”). View opens one sheet: Layout, Group (not on the Map), your saved views, then Save this view…, Copy link and Export these goals. Each choice applies at once; Done closes it. The note about first check-ins is one line, with Why? for the rest.",
 					"When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.",
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
-					"In the sidebar, Goals has Mine, Watching, All and your saved views under it.",
+					"In the sidebar, Goals has your saved views under it.",
 					"The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere."
 				]
 			},
@@ -10833,6 +10855,7 @@ var CORE_ARTICLES = [
 			"GOALS-SCOPE",
 			"GOALS-ATTENTION",
 			"GOALS-ADDRESS",
+			"GOALS-MENUS",
 			"VIEWS",
 			"OUTCOME-TREE",
 			"HIERARCHY",
@@ -10880,7 +10903,7 @@ var CORE_ARTICLES = [
 				`Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(", ")}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
 				"Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.",
 				"Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.",
-				"Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views."
+				"Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open."
 			]
 		}, {
 			heading: "Who can",
@@ -10942,7 +10965,7 @@ var CORE_ARTICLES = [
 					"Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.",
 					"Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).",
 					"On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.",
-					"Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
+					"Home, Watching, Goals (the Needs attention switch and filter, on the Map too), the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”."
 				]
 			}
 		],
@@ -11026,12 +11049,13 @@ var CORE_ARTICLES = [
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
+				"Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.",
 				"It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.",
 				"Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.",
-				"Find a goal, at the top left of the map, finds a goal by its name or its key (G-48). Choose one: its tree opens, the goal is outlined and the map moves to it. Press Enter to read its story.",
+				"On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.",
+				"Group and Sort can’t be changed on the Map, which is always the trees.",
 				"Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.",
-				"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. Only what needs attention narrows the map to those goals and what they feed, every branch unfolded.",
+				"Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.",
 				"Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.",
 				"Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.",
 				"The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story."
@@ -11253,6 +11277,23 @@ var CORE_ARTICLES = [
 				list: ["Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.", "A goal is found by its title, key, owner, team, level, status, the owner’s latest reason, its definition and its source."]
 			},
 			{
+				heading: "Find, from anywhere",
+				list: [
+					"Press Ctrl K (Cmd K on a Mac), or choose Find at the top of the sidebar (on a phone, Find in the top bar), and type a name, a few words, or a goal’s key like G-48.",
+					"What matches comes in groups: Goals, People, Teams, and Metrics while the metric library is on. Each shows its first three with how many match in all; “See all 8 goals” opens that list with your search filled in.",
+					"A goal’s key on its own (G-48, g48 or 48) puts that goal first. Enter opens the first row; Down and Up move to another; Escape closes. Each row is a link, so you can open it in a new tab.",
+					"Before you type, it lists what you opened or chose lately. Someone who has left is still found, marked “(left)”. Find only looks in the workspace you have open."
+				]
+			},
+			{
+				heading: "Keys",
+				list: [
+					"Ctrl K (Cmd K on a Mac): Find, from any page.",
+					"Escape closes Find, a picker or a sheet.",
+					"Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen."
+				]
+			},
+			{
 				heading: "Searching a list",
 				list: [
 					"Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).",
@@ -11264,7 +11305,11 @@ var CORE_ARTICLES = [
 		],
 		routes: [],
 		screens: [],
-		reqs: ["FIND-AND-PICK", "LIST-BAR"],
+		reqs: [
+			"FIND-AND-PICK",
+			"LIST-BAR",
+			"FIND-ANYWHERE"
+		],
 		keywords: [
 			"find",
 			"search",
@@ -11274,7 +11319,11 @@ var CORE_ARTICLES = [
 			"person",
 			"team",
 			"type to find",
-			"select"
+			"select",
+			"ctrl k",
+			"cmd k",
+			"shortcut",
+			"keyboard"
 		],
 		related: [
 			"keys",
@@ -11296,6 +11345,7 @@ var CORE_ARTICLES = [
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
 				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
+				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
 				"Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.",
 				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
@@ -11309,6 +11359,7 @@ var CORE_ARTICLES = [
 		screens: ["GoalWizard"],
 		reqs: [
 			"GOAL-CREATE",
+			"NEW-GOAL-TRUTH",
 			"PLAN-SHAPE",
 			"LEVELS",
 			"FIRST-CHECKIN",
@@ -12607,6 +12658,36 @@ var WHATS_NEW = [
 			"Settings has links to its parts under the title, with the one you’re in lit."
 		],
 		articles: ["getting-around", "settings"]
+	},
+	{
+		id: "goals-view-menus",
+		date: "2026-11-11",
+		title: "Layouts have names",
+		points: [
+			"Layout and Views are menus, the same on a computer and a phone. Views holds your saved views, Save this view, Copy link and Export these goals.",
+			"On the Map, the search at the top finds a goal and takes you to it.",
+			"On a phone, View opens one sheet with the layout, the grouping and your saved views.",
+			"Filters finds the goal whose tree you want by typing its name or key, instead of a list of every goal."
+		],
+		articles: [
+			"goals",
+			"goal-map",
+			"goals-filters"
+		]
+	},
+	{
+		id: "find-anywhere",
+		date: "2026-11-11",
+		title: "Find, from anywhere",
+		points: ["Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.", "Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar."],
+		articles: ["finding"]
+	},
+	{
+		id: "not-born-late",
+		date: "2026-11-11",
+		title: "A new goal doesn’t start out late",
+		points: ["A stage that’s already past asks whether it’s done, and a done one counts as on time.", "If your first number isn’t where the plan starts, you can start the plan from it."],
+		articles: ["new-goal", "check-in"]
 	},
 	{
 		id: "goals-filters-in-words",
@@ -18449,12 +18530,14 @@ async function serve(req, deps) {
 			headers: CORS
 		});
 	} catch (e) {
+		const reference = logFailure("A request", e);
 		res = json({
 			jsonrpc: "2.0",
 			id: body?.id ?? null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}, 500);
 	}
@@ -41138,12 +41221,14 @@ var handler = async (req) => {
 	try {
 		return await serve(req, supabaseDeps(new URL(req.url).origin));
 	} catch (e) {
+		const reference = logFailure("The MCP endpoint", e);
 		return new Response(JSON.stringify({
 			jsonrpc: "2.0",
 			id: null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}), {
 			status: 500,

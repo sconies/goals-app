@@ -149,7 +149,7 @@ module.exports = {
       check(await noSideways(p), `[WA] sideways scroll on Activity at ${w}`);
       // [WA] 3: the Filters sheet footer stays on the screen.
       if (w === 390) {
-        await p.getByRole('button', { name: /^Filters/ }).click();
+        await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
         const dlg = p.getByRole('dialog', { name: 'Filter activity' });
         await dlg.waitFor(); await p.waitForTimeout(400);
         for (const end of [false, true]) {
@@ -167,7 +167,7 @@ module.exports = {
       const [c, p] = await open(1024, 800, 'amara', '/activity?who=elena,maya&team=pm');
       const f = await box(p, '.filterbar-row > .btn[aria-haspopup]');
       check(f && f.w >= 104 && await p.locator('.filterbar-row > .btn[aria-haspopup] .tabcount').count() === 1, '[WA] 13: Filters count is not a pill on a 104px button');
-      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
       await p.locator('.activity-filter-sheet').waitFor();
       const tops = await p.$$eval('.activity-filter-sheet .filter-group', (gs) => gs.slice(0, 3).map((g) => { const l = g.querySelector('legend').getBoundingClientRect(); const f = [...g.children].find((x) => x.tagName !== 'LEGEND').getBoundingClientRect(); return Math.round(f.top - l.bottom); }));
       check(tops.every((x) => x === 8), `[WA] 8: fields sit ${tops.join(', ')}px under their legends`);
