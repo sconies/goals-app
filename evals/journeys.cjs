@@ -318,6 +318,15 @@ const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) =
 
 /* ---------------- the ten journeys ---------------- */
 const J = [];
+/** Answer every question a check-in asks about a number (CK2's Check blocks) with its yes: the journey's number is meant. */
+async function answerChecks(p) {
+  for (let i = 0; i < 10; i++) {
+    const yes = p.locator('.level-check .level-actions button').first();
+    if (!(await yes.isVisible().catch(() => false))) return;
+    await yes.click();
+    await p.waitForTimeout(50);
+  }
+}
 const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
@@ -1336,7 +1345,10 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   h.set('progress', focused, 'Change the number did not put the cursor back in the field');
   const right = String(Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW)));
   await h.fill(field, right);
-  if (await check.count()) fail('the question stayed after the number was corrected');
+  // The far question is gone; the plan's number may be last week's too, which asks whether it was measured again.
+  const after = (await check.count()) ? await check.innerText() : '';
+  if (/right\?/.test(after)) fail('the question stayed after the number was corrected');
+  if (/measure it again/.test(after)) await h.click(p.getByRole('button', { name: 'Yes, measured again' }));
   await h.click(p.getByRole('button', { name: 'Post check-in' }));
   await see(p, 'Check-in saved');
   const s2 = await h.snapshot();
@@ -1861,6 +1873,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     const asks = (await row.getByRole('textbox').count()) > 1 || (await row.locator('select').evaluateAll((els) => els.some((e) => !e.value)));
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
+  await answerChecks(p);
   await h.click(p.getByRole('button', { name: /^Post/ }));
   // The table lands on the check-in's own confirmation (deep review U12).
   await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
@@ -4275,6 +4288,7 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   const s0 = await h.snapshot();
   const g = s0.goals.find((x) => x.id === 'ci-docker');
   await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.02));
+  await answerChecks(p);
   await see(coach, 'step 3 of 4', 'the coach did not move on when the number was typed');
   h.set('progress', true);
   await h.click(p.locator('.focus-foot button[type=submit]'));

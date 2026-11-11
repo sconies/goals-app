@@ -474,7 +474,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
               {empty && <span id="value-msg" className="hint tone-off" role="alert">Type this week’s number.</span>}
               <span id="value-hint" className="valuehint hint">
                 <span>{lastNumber?.value != null ? `Week ${lastNumber.week}: ${fmt(lastNumber.value, goal)}` : 'First check-in'}</span>
-                {lastNumber?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(lastNumber.value) })}>Measured again: unchanged</button>}
+                {lastNumber?.value != null && !draft.value && <button type="button" className="linkish tap" onClick={() => set({ value: String(lastNumber.value), answers: { ...draft.answers, 'same-as-last': String(lastNumber.value) } })}>Measured again: unchanged</button>}
               </span>
               {open[0] && (() => {
                 const c = open[0];
