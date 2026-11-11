@@ -31,6 +31,26 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['set-up'],
   },
   {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
+    points: [
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
+    ],
+    articles: ['finding', 'settings'],
+  },
+  {
+    id: 'check-in-one-way',
+    date: '2026-11-11',
+    title: 'Checking in again, or correcting',
+    points: [
+      'A second check-in in the same week is now compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+      'Checking in again adds a check-in beside the first; correcting one replaces it and keeps your reason with it.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'start-prepares',
     date: '2026-11-11',
     title: 'Starting next year doesn’t move anyone early',

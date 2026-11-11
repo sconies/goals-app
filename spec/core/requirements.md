@@ -223,8 +223,9 @@ The check-in shows actual against plan today, the gap, the forecast and the calc
 
 ### ONE-PER-WEEK
 
-Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such.
+Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools.
 
+- **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
