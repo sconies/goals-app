@@ -8,7 +8,7 @@
    The words a column takes (a level, a type, a call…) are here too, with the ways people write them, so the export
    writes one word and the import reads it back; a word it doesn't know is a problem to fix, never a quiet default. */
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel } from './checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
 import { DIRECTION_LABEL, liveMetrics, REFRESH_LABEL, sliceName } from './metrics';
 import { answerOf, saidIn, type Said } from './review';
@@ -123,10 +123,11 @@ export const CALL_WORDS: Words<Status> = {
 const causeCodes = [...new Map([...CAUSES_BEHIND, ...CAUSES_AHEAD]).keys()];
 export const CAUSE_WORDS: Words<Cause> = { what: 'Cause', word: Object.fromEntries(causeCodes.map((k) => [k, causeLabel(k)])) as Record<Cause, string>, also: {} };
 export const RECOVERY_WORDS: Words<RecoveryState> = { what: 'Recovery', word: { plan: 'Plan', investigating: 'Still investigating', help: 'Needs a decision or help', target: 'Target should change' }, also: { help: ['help'], target: ['target'] } };
-/** A Goals row's Action: stop a goal with history (with a Reason), or delete one set up by mistake (domain/removal). */
-export const GOAL_ACTION_WORDS: Words<'stop' | 'delete'> = { what: 'Action', word: { stop: 'Stop', delete: 'Delete' }, also: { stop: [STOPPED.toLowerCase()], delete: ['deleted', 'remove'] } };
-/** A People row's Action: mark someone as left, handing their goals and asks to Takes over (domain/removal). */
-export const PERSON_ACTION_WORDS: Words<'left'> = { what: 'Action', word: { left: LEFT }, also: { left: ['leave', 'leaving', 'mark as left'] } };
+/** A Goals row's Action: stop a goal with history (with a Reason), or delete one set up by mistake (domain/removal).
+    Example marks a template's example row, which is never imported (import spec C15). */
+export const GOAL_ACTION_WORDS: Words<'stop' | 'delete' | 'example'> = { what: 'Action', word: { stop: 'Stop', delete: 'Delete', example: 'Example' }, also: { stop: [STOPPED.toLowerCase()], delete: ['deleted', 'remove'] } };
+/** A People row's Action: mark someone as left, handing their goals and asks to Takes over (domain/removal); or Example. */
+export const PERSON_ACTION_WORDS: Words<'left' | 'example'> = { what: 'Action', word: { left: LEFT, example: 'Example' }, also: { left: ['leave', 'leaving', 'mark as left'] } };
 
 export { isEmail, normalEmail } from './people';
 
@@ -375,7 +376,10 @@ export const METRICS: SheetSpec<MetricRow> = {
 
 /** Every sheet, in the workbook's order (the README comes last, made from these). */
 export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, METRICS] as const;
-export const SHEET_NAMES = [...SHEETS.map((x) => x.name), 'README'] as const;
+/** The workbook's first sheet: what the file is, and the field table (it replaced the README, which is still skipped). */
+export const START_HERE = 'Start here';
+/** Every sheet of the workbook, in order. */
+export const SHEET_NAMES = [START_HERE, ...SHEETS.map((x) => x.name)] as const;
 export const specOf = (kind: SheetKind) => SHEETS.find((x) => x.kind === kind)! as SheetSpec<unknown>;
 export const headersOf = (kind: SheetKind) => specOf(kind).columns.map((c) => c.header);
 export const columnOf = (kind: SheetKind, header: string) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
@@ -437,3 +441,181 @@ export const metricsFor = (s: Snapshot, ids: Set<string>) => liveMetrics(s).map(
   m, measures: (s.metricLinks ?? []).filter((l) => l.metricId === m.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => { const g = s.goals.find((v) => v.id === l.goalId); return g ? [{ g, slice: sliceName(s, l.teamId) }] : []; }),
 }));
 export const notesFor = (s: Snapshot, ids: Set<string>) => saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
+
+/* ---------- the field table (backlog IM1; docs/design/import/spec.md, section 3 and rules 1 and 2) ----------
+   For every column a person fills in: whether a new row must have it, its format, an example, and what an empty cell
+   does. The template's Start here sheet, every workbook's Start here sheet, docs/export-format.md, Help's "Every column,
+   and what it needs" and the Import page's three lines are all made from it. A column added to a sheet above gets its
+   row here (a test fails while it has none): that is the whole of adding one.
+
+   It says what Faro does today. Where the import design changes a default (a Type read from the row, no "%" for a
+   missing Unit column), the build that changes the rule changes its row here. */
+
+/** A goal's type, said as people say it. */
+export const TYPE_NAME: Record<Goal['kind'], string> = { metric: 'number', range: 'range', milestone: 'stages' };
+
+/**
+ * Whether a new row must have a column: always; for some types of goal; in some situations (`when`); optional, with what
+ * an empty cell gives; left empty (Faro fills it); for reading; or worked out (null).
+ */
+export type Required =
+  | 'required'
+  | { for: Goal['kind'][] }
+  | { when: string }
+  | { optional: string }
+  | 'leave-empty'
+  | 'reading'
+  | null;
+
+export interface Field {
+  required: Required;
+  /** What the cell holds, in words. */
+  format: string;
+  example: string;
+  /** What an empty cell does on a new row. */
+  empty: string;
+  /** On a row already here, an empty cell removes the value (most keep it). */
+  clears?: boolean;
+  /** Columns of which one is enough: Owner or Owner email. */
+  oneOf?: string;
+  /** Other header names read as this column (backlog IM5 reads them). */
+  also?: string[];
+}
+
+export interface FieldRow extends Field {
+  header: string;
+  role: Role;
+  means: string;
+}
+
+export type FillKind = 'goals' | 'plan' | 'checkIns' | 'people';
+/** The sheets that load back, whose columns people fill in. */
+export const FILL_SHEETS: FillKind[] = ['goals', 'plan', 'checkIns', 'people'];
+
+const wordList = <C extends string>(w: Words<C>) => oneOf(Object.values(w.word) as string[]);
+const causeWords = [...new Set(Object.values(CAUSE_WORDS.word) as string[])];
+
+const FIELDS: Record<FillKind, Record<string, Field>> = {
+  goals: {
+    Key: { required: 'leave-empty', format: 'G- and a number', example: 'G-12', empty: 'Faro gives a new goal the next key' },
+    ID: { required: 'leave-empty', format: 'Faro’s own', example: 'goal_hzde4g', empty: 'Faro gives a new goal its own' },
+    Goal: { required: 'required', format: 'Text, 3 characters or more', example: 'Deploy lead time', empty: 'Must fix: a new goal needs a name', also: ['goal name', 'title', 'objective'] },
+    Action: { required: { optional: 'none' }, format: wordList(GOAL_ACTION_WORDS), example: GOAL_ACTION_WORDS.word.stop, empty: 'The row adds or changes the goal' },
+    Level: { required: { optional: LEVEL_WORDS.word.team }, format: wordList(LEVEL_WORDS), example: LEVEL_WORDS.word.team, empty: LEVEL_WORDS.word.team, also: ['goal level'] },
+    Team: { required: { optional: 'the owner’s team' }, format: 'A team’s name', example: 'Platform', empty: 'The owner’s team', also: ['team name'] },
+    Owner: { required: 'required', oneOf: 'owner', format: 'A name only one person has', example: 'Ben Ortiz', empty: 'Owner email says who; with neither, Must fix', also: ['owner name'] },
+    'Owner email': { required: 'required', oneOf: 'owner', format: 'An email', example: 'ben.ortiz@example.com', empty: 'Owner says who; with neither, Must fix', also: ['owner e-mail', 'owner email address'] },
+    Type: { required: { optional: TYPE_WORDS.word.metric }, format: wordList(TYPE_WORDS), example: TYPE_WORDS.word.metric, empty: `A number goal (${TYPE_WORDS.word.metric}). A goal’s type can’t change later`, also: ['goal type'] },
+    Unit: { required: { optional: 'no unit' }, format: 'Text', example: 'days', empty: 'No unit', clears: true, also: ['units'] },
+    Decimals: { required: { optional: 'from the numbers typed' }, format: '0, 1, 2 or 3', example: '1', empty: 'The most decimal places typed in Start, Target or Limit, up to 3' },
+    Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline', 'from'] },
+    Target: { required: { for: ['metric'] }, format: 'A number, different from Start', example: '1', empty: 'Must fix for a number goal', also: ['target value', 'goal value'] },
+    Plan: { required: { optional: SHAPE_WORDS.word.straight }, format: wordList(SHAPE_WORDS), example: SHAPE_WORDS.word.back, empty: SHAPE_WORDS.word.straight },
+    'Plan from week': { required: { optional: 'this week' }, format: 'A whole number, −104 to 104', example: '46', empty: 'This week (0 when setting up a workspace)' },
+    'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number, 1 to 104, after Plan from week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
+    Limit: { required: { for: ['range'] }, format: 'A number', example: '5', empty: 'Must fix for a range goal' },
+    'Must stay': { required: { optional: BOUND_WORDS.word.atMost }, format: wordList(BOUND_WORDS), example: BOUND_WORDS.word.atMost, empty: BOUND_WORDS.word.atMost },
+    Margin: { required: { optional: '1' }, format: 'A number, zero or more', example: '0.5', empty: '1' },
+    Stages: { required: { for: ['milestone'] }, format: 'Name@week; Name@week (weeks from the cycle’s start)', example: 'Design@48; Pilot@52', empty: 'Must fix for a stages goal' },
+    'Feeds into': { required: { optional: 'nothing' }, format: 'A goal’s name', example: 'Deploy lead time', empty: 'It feeds nothing', clears: true },
+    'Feeds into key': { required: { optional: 'nothing' }, format: 'A goal’s key', example: 'G-1', empty: 'It feeds nothing', clears: true },
+    'Why it helps': { required: { optional: 'empty' }, format: 'Text', example: 'Fewer failed deploys mean fewer rollbacks', empty: 'Nothing said', clears: true },
+    Effect: { required: { optional: 'empty' }, format: 'A number, in the fed goal’s unit', example: '1', empty: 'Nothing said', clears: true },
+    Source: { required: { optional: 'empty' }, format: 'Text', example: 'CI dashboard', empty: 'Nothing said', clears: true },
+    Definition: { required: { optional: 'empty' }, format: 'Text', example: 'Median hours from first commit to production', empty: 'Nothing said', clears: true },
+    Reason: { required: { when: `with ${GOAL_ACTION_WORDS.word.stop}, and when a plan changes after check-ins began` }, format: 'Text', example: 'Agreed at the Q4 review', empty: 'The preview asks for one reason for every plan change', also: ['reason for change'] },
+  },
+  plan: {
+    Key: { required: 'required', oneOf: 'goal', format: 'G- and a number', example: 'G-12', empty: 'ID says which goal; with neither, Must fix' },
+    ID: { required: 'required', oneOf: 'goal', format: 'Faro’s own', example: 'goal_hzde4g', empty: 'Key says which goal; with neither, Must fix' },
+    Goal: { required: 'reading', format: 'Text', example: 'Deploy lead time', empty: 'Never read: change the name on Goals' },
+    Unit: { required: 'reading', format: 'Text', example: 'days', empty: 'Never read: change the unit on Goals' },
+    Start: { required: { optional: 'the plan’s start' }, format: 'A number', example: '5', empty: 'The plan keeps its start' },
+    [WEEK_COLUMN.header]: { required: { optional: 'the plan’s own number' }, format: 'A number, only for weeks inside the plan', example: '4.2', empty: 'The plan keeps its own number that week' },
+  },
+  checkIns: {
+    ID: { required: 'leave-empty', format: 'Faro’s own', example: 'ci_4kd9', empty: 'A new check-in, or a correction of that goal’s check-in for the week' },
+    'Goal key': { required: 'required', oneOf: 'goal', format: 'G- and a number', example: 'G-14', empty: 'Goal ID or Goal says which goal; with none of them, Must fix' },
+    'Goal ID': { required: 'required', oneOf: 'goal', format: 'Faro’s own', example: 'goal_hzde4g', empty: 'Goal key or Goal says which goal' },
+    Goal: { required: 'required', oneOf: 'goal', format: 'The goal’s exact name, when only one goal has it', example: 'Pipeline queue wait (p90)', empty: 'Goal key or Goal ID says which goal' },
+    Week: { required: 'required', format: 'A whole number from 1 to this week', example: '46', empty: 'Must fix' },
+    Value: { required: { for: ['metric', 'range'] }, format: 'A number, at the goal’s decimal places', example: '6', empty: 'Must fix for a number or range goal' },
+    Stages: { required: { for: ['milestone'] }, format: '“Pilot: done week 6; Rollout: expected week 9”', example: 'Pilot: done week 6', empty: 'Must fix for a stages goal' },
+    Call: { required: { optional: 'the rules decide' }, format: wordList(CALL_WORDS), example: CALL_WORDS.word.risk, empty: 'The rules decide' },
+    Cause: { required: { when: 'when it’s behind, or well ahead' }, format: oneOf(causeWords), example: causeWords[0] ?? '', empty: 'Must fix when it’s behind or well ahead', clears: true },
+    Why: { required: { when: 'when it’s behind, or well ahead' }, format: `Text, ${MIN_REASON} characters or more`, example: 'Runner pool was halved for the migration', empty: 'Must fix when it’s behind or well ahead', clears: true },
+    'Why greener': { required: { when: 'when Call is better than the rules say' }, format: `Text, ${MIN_REASON} characters or more`, example: 'The fix shipped after the number was taken', empty: 'Must fix when the call is greener than calculated', clears: true },
+    'Path to green': { required: { when: 'when it’s behind' }, format: `Text, ${MIN_PATH} characters or more`, example: 'Add 20 runners by week 48', empty: 'Must fix when it’s behind', clears: true },
+    Recovery: { required: { optional: RECOVERY_WORDS.word.plan }, format: wordList(RECOVERY_WORDS), example: RECOVERY_WORDS.word.plan, empty: RECOVERY_WORDS.word.plan },
+    'Back on plan by week': { required: { when: `when Recovery is ${RECOVERY_WORDS.word.plan} and it’s behind` }, format: 'A week after this one', example: '48', empty: 'Must fix when it’s behind with a plan', clears: true },
+    Needs: { required: { optional: 'empty' }, format: 'Text', example: 'A decision on runner budget from Amara', empty: 'Nothing needed', clears: true },
+    'Next step': { required: { optional: 'empty' }, format: 'Text', example: 'Order runners', empty: 'Nothing said', clears: true },
+  },
+  people: {
+    Email: { required: 'required', format: 'An email', example: 'ana.silva@example.com', empty: 'Must fix for someone new. An email can be changed, not taken away' },
+    ID: { required: 'leave-empty', format: 'Faro’s own', example: 'p_ana', empty: 'Faro gives someone new their own' },
+    Name: { required: 'required', format: 'Text', example: 'Ana Silva', empty: 'Must fix for someone new' },
+    Action: { required: { optional: 'none' }, format: wordList(PERSON_ACTION_WORDS), example: PERSON_ACTION_WORDS.word.left, empty: 'The row adds or changes the person' },
+    'Job title': { required: { optional: 'empty' }, format: 'Text', example: 'Platform lead', empty: 'No job title', clears: true },
+    Team: { required: { optional: 'no team' }, format: 'A team’s name', example: 'Platform', empty: 'No team', clears: true },
+    Admin: { required: { optional: 'no' }, format: wordList(YES_WORDS), example: YES_WORDS.word.yes, empty: 'Not an admin (when setting up, the first person is one)' },
+    'Team objective': { required: { optional: 'empty' }, format: 'Text, on the team lead’s row', example: 'Make every deploy safe and fast', empty: 'No objective', clears: true },
+    'Takes over': { required: { when: `with ${PERSON_ACTION_WORDS.word.left}, when they own goals, asks or teams` }, format: 'An email, or a name only one person has', example: 'chloe.wu@example.com', empty: `Must fix with ${PERSON_ACTION_WORDS.word.left} when they own anything` },
+  },
+};
+
+/** A sheet's columns as the field table: every column, with its field facts (a worked-out one has none). */
+export function fieldTable(kind: FillKind): FieldRow[] {
+  const cols = [...specOf(kind).columns.map((c) => ({ header: c.header, role: c.role, means: c.means })), ...(kind === 'plan' ? [{ header: WEEK_COLUMN.header, role: WEEK_COLUMN.role, means: WEEK_COLUMN.means }] : [])];
+  return cols.map((c) => {
+    const f = FIELDS[kind][c.header];
+    return f ? { ...c, ...f } : { ...c, required: null, format: '', example: '', empty: 'Worked out by Faro: never read' };
+  });
+}
+
+/** "Required", "Required for a number goal", "Optional", "Leave empty", "For reading", "Worked out". */
+export function requiredWord(r: Required): string {
+  if (r === 'required') return 'Required';
+  if (r === 'leave-empty') return 'Leave empty';
+  if (r === 'reading') return 'For reading';
+  if (r == null) return 'Worked out';
+  if ('for' in r) return `Required for a ${oneOf(r.for.map((k) => TYPE_NAME[k]))} goal`;
+  if ('when' in r) return `Required ${r.when}`;
+  return 'Optional';
+}
+
+/** A column's word in the table, naming the columns that can stand in for it: "Required (or Owner email)". */
+export function requiredText(row: FieldRow, table: FieldRow[]): string {
+  const others = row.oneOf ? table.filter((c) => c.oneOf === row.oneOf && c.header !== row.header).map((c) => c.header) : [];
+  return requiredWord(row.required) + (others.length ? ` (or ${others.join(', or ')})` : '');
+}
+
+/** What an empty cell does, on a new row and on a row already here: the "If it’s left empty" column. */
+export const emptyText = (row: FieldRow) => `${row.empty}${row.clears ? '. On a row already here, empty clears it' : ''}`;
+
+/** Whether a header is one a new row must have (bold in the template), alone or as one of a pair. */
+export const isRequiredHeader = (kind: FillKind, header: string) => FIELDS[kind][header]?.required === 'required';
+
+/** A fill-in column: one a person types into (not worked out, not for reading). */
+export const isFillIn = (row: FieldRow) => row.required != null && row.required !== 'reading';
+
+/** What a new row must have, in one line per sheet (import spec rule 2): the Import page, Help and Start here say it. */
+export function requiredLine(kind: 'goals' | 'checkIns' | 'people'): string {
+  const t = fieldTable(kind);
+  const req = (h: string) => { if (!t.some((c) => c.header === h && c.required)) throw new Error(`${h} isn’t in the ${kind} field table`); return h; };
+  const forType = (k: Goal['kind']) => t.filter((c) => c.required && typeof c.required === 'object' && 'for' in c.required && c.required.for.length === 1 && c.required.for[0] === k).map((c) => c.header);
+  if (kind === 'goals') return `${req('Goal')}, and ${req('Owner')} or ${req('Owner email')}. A ${TYPE_NAME.metric} goal also needs ${andList(forType('metric'))}; a ${TYPE_NAME.range} goal, ${andList(forType('range'))}; a ${TYPE_NAME.milestone} goal, ${andList(forType('milestone'))}.`;
+  if (kind === 'checkIns') return `${req('Goal key')} (or ${req('Goal')}), ${req('Week')}, and ${req('Value')} or ${req('Stages')}.`;
+  return `${req('Name')} and ${req('Email')}.`;
+}
+
+/** The template's example rows (C15): their Action says Example, so loading the template back never imports them. */
+export const EXAMPLE_ROWS: Partial<Record<FillKind, Record<string, string>[]>> = {
+  goals: [
+    { Goal: 'Deploy lead time', Action: GOAL_ACTION_WORDS.word.example, Level: LEVEL_WORDS.word.team, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.metric, Unit: 'days', Decimals: '0', Start: '5', Target: '1', Plan: SHAPE_WORDS.word.straight, Definition: 'Median days from first commit to production' },
+    { Goal: 'Canary releases live', Action: GOAL_ACTION_WORDS.word.example, Level: LEVEL_WORDS.word.team, Team: 'Platform', Owner: 'Ben Ortiz', 'Owner email': 'ben.ortiz@example.com', Type: TYPE_WORDS.word.milestone, Stages: 'Design@48; Pilot@52', 'Feeds into': 'Deploy lead time' },
+  ],
+  people: [
+    { Email: 'ana.silva@example.com', Name: 'Ana Silva', Action: PERSON_ACTION_WORDS.word.example, 'Job title': 'Platform lead', Team: 'Platform', Admin: YES_WORDS.word.no },
+  ],
+};

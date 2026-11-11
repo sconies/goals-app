@@ -13,18 +13,18 @@ const input = { ws: { id: 'ws', name: 'Platform' }, snapshot: s, cycle, week, to
 describe('exports', () => {
   it('writes a workbook whose goal and check-in sheets use the import’s column names', () => {
     const wb = workbook(input);
-    expect(wb.map((t) => t.name)).toEqual(['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'Metrics', 'README']);
-    const goals = wb[0]!.rows;
+    expect(wb.map((t) => t.name)).toEqual(['Start here', 'Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'Metrics']);
+    const goals = wb[1]!.rows;
     expect(goals[0]!.slice(0, GOAL_EXPORT_COLUMNS.length)).toEqual([...GOAL_EXPORT_COLUMNS]);
     expect(goals.length - 1).toBe(s.goals.length);
-    expect(wb[2]!.rows[0]).toEqual([...CHECKIN_EXPORT_COLUMNS]);
-    expect(wb[2]!.rows.length - 1).toBe(s.checkIns.length);
+    expect(wb[3]!.rows[0]).toEqual([...CHECKIN_EXPORT_COLUMNS]);
+    expect(wb[3]!.rows.length - 1).toBe(s.checkIns.length);
   });
 
   it('agrees with what the screens show for each goal', () => {
     const wb = workbook(input);
-    const head = wb[0]!.rows[0]!;
-    for (const row of wb[0]!.rows.slice(1)) {
+    const head = wb[1]!.rows[0]!;
+    for (const row of wb[1]!.rows.slice(1)) {
       const g = s.goals.find((x) => x.id === row[head.indexOf('ID')])!;
       expect(row[head.indexOf('Key')]).toBe(g.key);
       expect(row[head.indexOf('Owner email')]).toBe(s.people.find((p) => p.id === g.ownerId)!.email);
@@ -35,7 +35,7 @@ describe('exports', () => {
   });
 
   it('puts every week of a number goal’s plan on the Plan sheet, ending at the target', () => {
-    const plan = workbook(input)[1]!.rows;
+    const plan = workbook(input)[2]!.rows;
     const g = s.goals.find((x) => x.kind === 'metric')!;
     const row = plan.find((r) => r[plan[0]!.indexOf('ID')] === g.id)!;
     expect(row[0]).toBe(g.key);
@@ -45,7 +45,7 @@ describe('exports', () => {
   it('can export just the goals in a view', () => {
     const some = s.goals.slice(0, 3);
     const wb = workbook({ ...input, goals: some });
-    expect(wb[0]!.rows.length).toBe(4);
+    expect(wb[1]!.rows.length).toBe(4);
     expect(toJson({ ...input, goals: some }).goals.map((g) => g.id)).toEqual(some.map((g) => g.id));
   });
 
@@ -109,7 +109,7 @@ describe('exports', () => {
     // The brief's weekly history
     expect(aiBrief(input)).toContain(`w${early.week} ${early.value} [${then}]`);
     // The workbook's check-ins
-    const rows = workbook(input)[2]!.rows;
+    const rows = workbook(input)[3]!.rows;
     const col = rows[0]!.indexOf('Plan that week');
     const col_ = (h: string) => rows[0]!.indexOf(h);
     const row = rows.find((r) => r[col_('ID')] === early.id)!;
@@ -135,7 +135,7 @@ describe('a stopped goal in an export (backlog 7)', () => {
   });
 
   it('the workbook and CSV leave its Forecast empty', () => {
-    const goals = workbook(x)[0]!.rows;
+    const goals = workbook(x)[1]!.rows;
     const head = goals[0]!;
     const row = goals.find((r) => r[head.indexOf('ID')] === live.id)!;
     expect(row[head.indexOf('Status')]).toBe('Stopped');
