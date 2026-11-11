@@ -123,14 +123,27 @@ export function valueProblem(raw: string, last: number | null, unit: string, goa
   return null;
 }
 
-/** The goal's latest number, the one a new number is compared with. */
-export const lastValueOf = (goal: Goal, all: CheckIn[]): number | null => checkInsFor(goal, all).filter((c) => c.value != null).pop()?.value ?? null;
+/**
+ * What a new number for `week` is compared with (check-in spec, rule 5): the newest check-in of the latest week before it,
+ * and the newest number among the weeks before it. A check-in of the same week is never "last week", so a second
+ * check-in this week is compared with last week, not with the first.
+ */
+export function previousFor(own: CheckIn[], week: number): { checkIn: CheckIn | null; number: CheckIn | null } {
+  const before = own.filter((c) => c.week < week);
+  return { checkIn: before.at(-1) ?? null, number: before.filter((c) => c.value != null).at(-1) ?? null };
+}
+
+/** The newest of this week's check-ins, when there is one (a second check-in names it). */
+export const earlierThisWeek = (own: CheckIn[], week: number): CheckIn | null => own.filter((c) => c.week === week).at(-1) ?? null;
+
+/** The goal's latest number before `week`, the one a new number for it is compared with (rule 5). */
+export const lastValueOf = (goal: Goal, all: CheckIn[], week: number): number | null => previousFor(checkInsFor(goal, all), week).number?.value ?? null;
 
 /**
  * The one number check (deep review U10): the check-in form, the one-table check-in and the import all ask it, so a number
  * is refused or questioned the same way, with the same words, wherever it is typed.
  */
-export const numberCheck = (goal: Goal, raw: string, all: CheckIn[]) => valueProblem(raw, lastValueOf(goal, all), goal.kind === 'milestone' ? '' : goal.unit, goal);
+export const numberCheck = (goal: Goal, raw: string, all: CheckIn[], week: number) => valueProblem(raw, lastValueOf(goal, all, week), goal.kind === 'milestone' ? '' : goal.unit, goal);
 
 /**
  * What a check-in can still be missing, as a stable code. Screens and the import read the codes; the words for each are

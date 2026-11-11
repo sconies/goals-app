@@ -3,7 +3,7 @@
    changed since the last update, and where the app projects it lands by its due date, as a range. For number goals,
    ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
 import { fixed } from './numbers';
-import { isShare } from './checkin';
+import { isShare, previousFor } from './checkin';
 import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
 import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
@@ -145,10 +145,11 @@ function metricFacts(goal: MetricGoal, cycle: Cycle, all: CheckIn[], own: CheckI
   return out;
 }
 
-/** What changed since the check-in before the latest: the number, and the call if it moved. */
+/** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
+    is compared with last week, never with the first. The number, and the call if it moved. */
 function sinceFact(goal: MetricGoal | RangeGoal, own: CheckIn[], better: number): SummaryFact {
   const latest = own[own.length - 1]!;
-  const prev = [...own.slice(0, -1)].reverse().find((c) => c.value != null);
+  const prev = previousFor(own, latest.week).number;
   const callMoved = (p: CheckIn) => (p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : '');
   if (latest.value == null) return { key: 'since', label: 'Since last update', value: 'No number this time', detail: null, tone: 'flat' };
   if (!prev) return { key: 'since', label: 'Since last update', value: 'First check-in', detail: `${fmt(latest.value, goal)} in week ${latest.week}`, tone: 'flat' };
@@ -251,7 +252,7 @@ function milestoneFacts(goal: MilestoneGoal, own: CheckIn[], week: number, stale
   }
 
   // Since last update: stages done, and dates that moved.
-  const prev = own.length > 1 ? own[own.length - 2]! : null;
+  const prev = previousFor(own, latest.week).checkIn;
   if (!prev) out.push({ key: 'since', label: 'Since last update', value: 'First check-in', detail: `${m.doneCount} of ${plural(m.stages.length, 'stage')} done in week ${latest.week}`, tone: 'flat' });
   else {
     const before = assessMilestone(goal, prev.week, prev.stages);
