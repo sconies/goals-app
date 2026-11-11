@@ -37,7 +37,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | `evals/journeys.cjs` |
 | U46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | `evals/journeys.cjs` |
 | U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on brings it all back | `evals/journeys.cjs` |
-| U87 | What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out | `evals/journeys.cjs` |
+| U87 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |

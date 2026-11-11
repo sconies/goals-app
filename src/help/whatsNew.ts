@@ -21,6 +21,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goals-view-menus',
+    date: '2026-11-11',
+    title: 'Layouts have names',
+    points: [
+      'Layout and Views are menus, the same on a computer and a phone. Views holds your saved views, Save this view, Copy link and Export these goals.',
+      'On the Map, the search at the top finds a goal and takes you to it.',
+      'On a phone, View opens one sheet with the layout, the grouping and your saved views.',
+      'Filters finds the goal whose tree you want by typing its name or key, instead of a list of every goal.',
+    ],
+    articles: ['goals', 'goal-map', 'goals-filters'],
+  },
+  {
     id: 'field-table',
     date: '2026-11-11',
     title: 'What every column needs, in one place',
