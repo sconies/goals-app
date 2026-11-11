@@ -93,7 +93,8 @@ describe('one format', () => {
 
   it(F('ONE-FORMAT', 'docs/export-format.md is made from the same definitions, and is current'), () => {
     const doc = fs.readFileSync(path.join(root, 'docs/export-format.md'), 'utf8');
-    expect(doc).toBe(exportFormatMarkdown(MODULE_SHEETS));
+    // The committed page describes every module's sheets; a build that leaves a module out (FARO_WITHOUT) can't make it whole.
+    if (!process.env.FARO_WITHOUT) expect(doc).toBe(exportFormatMarkdown(MODULE_SHEETS));
     for (const sheet of SHEETS) for (const c of sheet.columns) expect(doc).toContain(`| ${c.header.replace(/\|/g, '\\|')} |`);
     expect(doc).toMatch(/"ownerEmail"/);
     expect(doc).toMatch(/## Activity/);
