@@ -3238,7 +3238,7 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   const g = await newPage(device, 'grace');
   await g.goto(url('/workspace/cycles'));
   await see(g, 'Week 45 of 53', 'Cycles does not say which cycle is running');
-  h.set('attention', /22 Dec 2025 to 27 Dec 2026/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
+  h.set('attention', /29 Dec 2025 to 3 Jan 2027/.test(await g.locator('.cycles-block').innerText()) && (phone || /Admin/.test(await g.locator('.side .me').innerText())), 'Cycles has no dates, or an admin’s badge does not say Admin');
   await g.goto(url('/teams'));
   await g.locator('.team-row', { hasText: 'CI/CD' }).click();
   await g.waitForURL(/\/teams\/cicd/);
