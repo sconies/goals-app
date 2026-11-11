@@ -1054,6 +1054,7 @@ const CORE_ARTICLES: Article[] = [
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
         'Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.',
+        'Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.',
       ] },
       { heading: 'How to connect', list: [
         'An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',
