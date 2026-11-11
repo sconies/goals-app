@@ -12,7 +12,7 @@ import { assessPosted } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
 import { Chip, Empty, LevelTag, ProgressRing, Sheet } from '../ui/bits';
-import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 
@@ -139,6 +139,9 @@ function RetroForm({ goal }: { goal: Goal }) {
   const [result, setResult] = useState<Retro['result']>(before?.result ?? suggestedResult(goal, app.cycle, app.snapshot.checkIns, app.today));
   const [learned, setLearned] = useState(before?.learned ?? '');
   const [next, setNext] = useState<Retro['next']>(before?.next ?? 'carry');
+  // Something typed or chosen since it opened: closing asks first (navigation spec 2.5).
+  const [start] = useState(() => JSON.stringify([result, learned, next]));
+  const dirty = JSON.stringify([result, learned, next]) !== start;
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const st = app.statusOf(goal);
@@ -161,7 +164,7 @@ function RetroForm({ goal }: { goal: Goal }) {
       <div className="focus-top">
         <span className="small strong">Wrap up</span>
         <span className="hint">{mineLeft.length && !before ? `${mineLeft.length} more after this` : ''}</span>
-        <button className="iconbtn" onClick={() => nav('/retro')} aria-label="Close without saving"><Icon name="close" /></button>
+        <FormClose keeps={false} dirty={dirty} onClose={() => nav('/retro')} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div className="stack" style={{ gap: 'var(--s2)' }}>

@@ -46,11 +46,11 @@ module.exports = {
     if (req.text !== 'Ask' || req.pos !== 'sticky' || req.w > 161) fails.push(`[D3] Asks: first column "${req.text}", ${req.pos}, ${Math.round(req.w)}px`);
     const asked = await r.evaluate(() => { const i = [...document.querySelectorAll('.dtable thead th')].findIndex((t) => /Asked at/.test(t.innerText)); const td = document.querySelector('.dtable tbody tr').children[i]; return { t: td.innerText.trim(), f: getComputedStyle(td).fontFamily, w: td.getBoundingClientRect().width }; });
     if (!/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(asked.t) || /mono/i.test(asked.f) || !near(asked.w, 160)) fails.push(`[D17] Asked at reads "${asked.t}" in ${asked.f.split(',')[0]}, ${Math.round(asked.w)}px`);
-    // A filter with three values: one line, two values then +1.
+    // A filter with three values, from a link: the filter line says it in words, with Remove, inside the page's width.
     await r.goto(url('/data?t=goals&f=' + encodeURIComponent('Owner~is~Rhea Kapoor|Tariq Haddad|Mateo Fernández'))); await r.waitForTimeout(400);
-    const chip = await r.evaluate(() => { const e = document.querySelector('.prop-chip'); return e ? { h: e.getBoundingClientRect().height, w: e.getBoundingClientRect().width, t: e.innerText, pw: e.parentElement.getBoundingClientRect().width } : null; });
-    if (!chip) fails.push('[D19] no filter chip from the link');
-    else if (chip.h > 46 || chip.w > chip.pw + 1 || !/\+1/.test(chip.t)) fails.push(`[D19] 360 filter chip ${Math.round(chip.w)}x${Math.round(chip.h)} "${chip.t.trim()}"`);
+    const line = await r.evaluate(() => { const e = document.querySelector('.filter-line'); return e ? { w: e.getBoundingClientRect().width, t: e.innerText, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth, remove: !!e.querySelector('button') } : null; });
+    if (!line) fails.push('[D19] no filter line from the link');
+    else if (!/^Filtered by: Owner is any of Rhea Kapoor or Tariq Haddad or Mateo Fernández/.test(line.t.trim()) || !line.remove || line.sideways > 1) fails.push(`[D19] 360 filter line "${line.t.trim()}" (Remove ${line.remove}, sideways ${line.sideways}px)`);
     const sw = await r.evaluate(() => document.querySelector('.filter-search .input').getBoundingClientRect().width);
     if (sw < 280) fails.push(`360 Data search is ${Math.round(sw)}px wide`);
     await c.close();
@@ -83,10 +83,10 @@ module.exports = {
     await r.locator('.dtable thead').getByRole('button', { name: /^Owner/ }).click(); await r.waitForTimeout(250);
     const after = await r.evaluate(() => { const th = [...document.querySelectorAll('.dtable thead th')].find((t) => t.innerText.trim() === 'Owner'); return { w: th.getBoundingClientRect().width, icon: !!th.querySelector('.sort-slot svg'), glyph: /[↑↓]/.test(th.innerText) }; });
     if (!near(before, after.w) || !after.icon || after.glyph) fails.push(`[D26] sorting: Owner ${Math.round(before)}→${Math.round(after.w)}px, icon ${after.icon}, glyph ${after.glyph}`);
-    // Nothing matches: inside the box, quiet.
-    await r.getByPlaceholder('Search goals').fill('zzzz'); await r.waitForTimeout(250);
-    const em = await r.evaluate(() => { const e = document.querySelector('.data-wrap .data-empty'); if (!e) return null; const cs = getComputedStyle(e); return { c: cs.color, w: cs.fontWeight, link: !!e.querySelector('button.linkish') }; });
-    if (!em || em.c !== 'rgb(70, 87, 89)' || em.w !== '400' || !em.link) fails.push(`[D18] no rows: ${JSON.stringify(em)}`);
+    // Nothing matches: inside the box, in the list bar's words (find spec 2.1), with Clear the search.
+    await r.getByPlaceholder('Find in this table').fill('zzzz'); await r.waitForTimeout(400);
+    const em = await r.evaluate(() => { const e = document.querySelector('.data-wrap'); if (!e) return null; return { said: /No row matches “zzzz”\./.test(e.textContent ?? ''), clear: [...e.querySelectorAll('button')].some((b) => b.textContent === 'Clear the search') }; });
+    if (!em || !em.said || !em.clear) fails.push(`[D18] no rows: ${JSON.stringify(em)}`);
     await c.close();
 
     // Plans: week columns 72px. Columns: a grouped chooser in two columns.
@@ -250,6 +250,7 @@ module.exports = {
     if (pv.save !== '1 rgb(210, 206, 196) nowrap') fails.push(`[W16] Save not ready: ${pv.save}`);
     await c.close();
     [c, r] = await open(1280, 800, 'rhea', '/goals?scope=all');
+    await r.locator('.views-menu > summary').click();
     await r.getByRole('button', { name: 'Export these goals' }).click(); await r.waitForTimeout(400);
     const ex = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const row = dlg.querySelector('.export-list .opt.static'); const [a, b] = row.children; return { w: dlg.getBoundingClientRect().width, gap: b.getBoundingClientRect().left - a.getBoundingClientRect().right, bw: b.getBoundingClientRect().width }; });
     if (!near(ex.w, 520) || !near(ex.gap, 16) || ex.bw < 112) fails.push(`[W22] export sheet ${Math.round(ex.w)}px, ${Math.round(ex.gap)}px gap, buttons ${Math.round(ex.bw)}px`);

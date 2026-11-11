@@ -33,10 +33,10 @@ export const TOURS: Tour[] = [
     id: 'checkin', title: 'Post your weekly check-in', role: 'Goal owner', personId: 'rhea', start: '/',
     steps: [
       // Home's one check-in button, whatever it says ("Start check-in", or "Pick up where you left off" with a draft).
-      { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: '.hero a.btn.primary[href$="/check-in"]' }, doneWhen: { route: /^\/check-in/ },
+      { say: 'This is Rhea’s Home. She runs CI/CD and owns eight goals. What she needs to do this week comes first. Start her check-in.', target: { selector: '.hero a.btn.primary[href*="/check-in?start=1"]' }, doneWhen: { route: /^\/check-in/ },
         ifMissing: { say: 'Rhea’s check-ins are already in this week, so Home says she’s all set. You can still check in again whenever something changes: open Check-in.', target: { selector: 'a', text: 'Check-in' }, when: { text: /check-ins are in|check-ins? (is )?posted|all set/i } } },
       { say: 'Type this week’s number. The verdict says at once whether it’s on plan, and against which week.', target: { selector: 'input[aria-label="This week’s value"], #value' }, doneWhen: { selector: '.verdict' },
-        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals to check in again.', target: { selector: '.again-links a' } } },
+        ifMissing: { say: 'This week is done, and every check-in is kept. Something changed? Pick one of Rhea’s goals and correct it: the newer check-in becomes the week’s.', target: { selector: '.again-links a, .ciq-go' } } },
       { say: 'Off plan, it asks why and how it gets back on track. Keep what you said last week if it still holds, or say what changed, then post.', target: { selector: '.focus-foot button[type=submit]' }, doneWhen: { text: 'Check-in saved' } },
       { say: 'Saved, and in the change log. Anyone watching the goal sees it, and the review picks it up. You can check in again any time; every check-in is kept.' },
     ],
@@ -61,7 +61,7 @@ export const TOURS: Tour[] = [
   {
     id: 'map', title: 'Find what will sink the north star', role: 'Leader', personId: 'amara', start: '/goals',
     steps: [
-      { say: 'Goals can be seen several ways. Open the map.', target: { selector: '[aria-label="Map"], .layout-menu > summary' }, doneWhen: { selector: '.goalmap' } },
+      { say: 'Goals can be seen several ways. Choose Map from Layout (View, on a phone).', target: { selector: '.layout-menu > summary, .goals-phone-switch .view-open' }, doneWhen: { selector: '.goalmap' } },
       { say: 'The bold red line is the critical path: the inputs most likely to make the north star miss. Open the goal it leads to.', target: { selector: '.map-node.critical' }, doneWhen: { selector: '.map-panel' } },
       { say: 'Its story opens with the map still in view: why it’s off, the recovery plan, by when, and what decision is needed. Drag to move around; fold branches to focus.' },
     ],
@@ -69,7 +69,7 @@ export const TOURS: Tour[] = [
   {
     id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'amara', start: '/goals', module: 'spreadsheets',
     steps: [
-      { say: 'Export these goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: 'button.export-these, .show-menu > summary' }, doneWhen: { text: 'Export goals' } },
+      { say: 'Export these goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: '.views-menu > summary, .goals-phone-switch .view-open' }, doneWhen: { text: 'Export goals' } },
       // Done on doing it (the brief copied or saved), not on the word "Brief", which the sheet already shows.
       { say: 'Copy the brief, or save it. It leads with the decisions waiting on people, then each goal that’s off and its story.', target: { selector: '.export-list .opt', text: 'Brief for an AI chat' }, doneWhen: { text: /Brief (copied|saved)/ } },
       { say: 'The same brief is what an AI assistant reads through the app’s MCP server.' },

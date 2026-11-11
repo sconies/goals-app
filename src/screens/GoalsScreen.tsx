@@ -8,7 +8,7 @@ import { LEVEL_LABEL } from '../domain/format';
 import type { Level } from '../domain/types';
 import { LABEL, worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
-import { AttentionCard, Chip, Empty, StatusShape } from '../ui/bits';
+import { AttentionCard, Chip, Empty, Sheet, StatusShape } from '../ui/bits';
 import { GoalRow, TreeCard, TreeRows } from '../ui/goalRows';
 import { statusCounts, worstFirst, worstGroupsFirst } from '../domain/order';
 import { HandledGroup } from '../ui/HandledGroup';
@@ -16,13 +16,13 @@ import { WatchingBody } from './Watching';
 import { watchedGoals } from '../domain/review';
 import type { Goal } from '../domain/types';
 import type { TreeNode } from '../domain/tree';
-import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LayoutMenu, LayoutSwitch, useLayout, type ViewGroup } from './GoalViews';
+import { forgetGoneLayout, GONE_LAYOUT, GONE_LAYOUT_NOTE, LAYOUTS, LayoutMenu, layoutLine, layoutName, useLayout, type Layout, type ViewGroup } from './GoalViews';
 import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { StatusLegend } from '../ui/StatusLegend';
 import { Place } from '../core/app';
-import { FilterBar, useGoalQuery, useLatestParams, useViews, viewParams } from './GoalFilters';
+import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { goalWords, nearMiss } from '../domain/find';
@@ -128,10 +128,12 @@ export function GoalsScreen() {
     const again = fix ? applyQuery(sums, { ...query, q: fix }, ctx).map((x) => x.goal.id) : [];
     return again.length ? [again, fix] : [ids, null];
   }, [refined, query, app.snapshot, app.cycle, app.today, app.week, inScope]);
-  const views = useViews();
-  const activeView = views.find((v) => v.params === viewParams(params));
-  // The saved views, once for both places the Views menu sits: beside the tabs, or on a phone beside New goal.
-  const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
+  // Saved views and what can be done with this one: the Views menu, or the phone's View sheet (goals spec, 2.1, 2.4).
+  const actions = useViewActions();
+  const { views, active: activeView } = actions;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // On the Map, the bar's search goes to a goal (goals spec, 2.3): the Map is told which, each time anew.
+  const [goTo, setGoTo] = useState<{ id: string; n: number } | null>(null);
   const fitted: ViewGroup[] = useMemo(() => {
     if (!ranked) return grouped;
     const pos = new Map(ranked.map((id, i) => [id, i]));
@@ -204,11 +206,21 @@ export function GoalsScreen() {
     if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 4);
     else if (right > row.scrollLeft + row.clientWidth - 24) row.scrollLeft = right - row.clientWidth + 24;
   }, [scope, activeView?.id]);
+  const groupWord = GROUPS.find(([k]) => k === group)![1];
+  const onMap = layout === 'map';
+  // The Group menu: the four, or why there's nothing to choose (the switch has its own two groups; the Map is the trees).
+  const groupOff = onMap ? MAP_IS_TREES : switchOn ? `${ATTENTION.needs.label} has its own two groups` : null;
+  const switchButton = <button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>;
+  // The phone's one button for how the goals are seen: "View: List, as trees"; "View: Board"; "View: Map".
+  const viewSays = `View: ${layoutName(layout)}${!onMap && !switchOn && group !== 'none' ? `, ${groupWord.toLowerCase()}` : ''}`;
+  const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' · pinned' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
   return (
     <div className={frame} data-part={show === 'watching' ? 'Watching' : 'Goals'}>
-      {/* A short header, so the goals start near the top: the title and the one creating action, then one toolbar. */}
       {/* A phone draws no title (its top bar names the page); this one is for screen readers there. */}
       <h1 className="sr goals-sr-title">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
+      {/* The head and the bar stay where they are, the same width in every layout (goals spec, 2.1, G8): only what's
+          under the count line changes width. */}
+      <div className="goals-top">
       <div className="page-head row between goals-head" data-part="Views, search and filters">
         <span className="goals-title">
           <h1 className="title-xl">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
@@ -218,23 +230,7 @@ export function GoalsScreen() {
         {/* New goal is a quiet link here (Lane, 9 Nov): people seldom make one, so it isn't the page's big button. The sidebar's New goal is one step from anywhere. */}
         <span className="actions">{wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
-      {/* On a phone, the goals come first (backlog G, Lane's markup, 9 Nov): which goals and how to see them are two
-          choices on one line, instead of two rows of tabs, a row of layouts and a row for the download. The Views menu
-          says the open view and its count, and holds the views, the saved views and Export these goals. */}
-      {app.snapshot.goals.length > 0 && (
-        <div className="goals-phonebar" data-part="Views and layout">
-          <MenuButton className="views-menu show-menu" label="Views" summary=""
-            display={<><span className="sr">Views: </span><span className="show-name">{activeView?.name ?? viewName}</span><span className="sr">, </span><span className="tabcount">{refined || activeView ? shown.length : scopeTab.ids.length}</span><span className="sr"> goals</span></>}
-            items={[
-              ...scopeTabs.map((t) => ({ section: 'Whose goals', label: t.label, count: t.ids.length, current: scope === t.id && !activeView, onClick: () => pickScope(t.id) })),
-              ...(layout !== 'map' && !switchOn ? GROUPS.map(([k, l]) => ({ section: 'Group', label: l, current: group === k, onClick: () => pickGroup(k) })) : []),
-              ...views.map((v) => ({ section: 'Saved views', label: v.name + (v.pinned ? ' (pinned)' : ''), current: activeView?.id === v.id, onClick: () => openView(v) })),
-            ]}
-            extra={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} />
-          <LayoutMenu layout={layout} onChange={setLayout} />
-        </div>
-      )}
-      {/* One toolbar: which goals on the left, how to see them on the right. It wraps on a narrow screen. */}
+      {/* Whose goals, as tabs; at the right of the same row, the Views menu (one meaning on every width). */}
       <div className="goals-toolbar">
         <div className="goals-tabs">
           <div className="seg tabs one-row" role="tablist" aria-label="Whose goals" ref={tabRow}>
@@ -250,30 +246,43 @@ export function GoalsScreen() {
               </button>
             )}
           </div>
-          {views.length > 0 && <MenuButton className="views-menu views-menu-wide" label="Views" items={viewItems} />}
         </div>
         {app.snapshot.goals.length > 0 && (
-          <div className="row view-bar">
-            <LayoutSwitch layout={layout} onChange={setLayout} />
-            {/* Modules' tools for these goals (the goals.tools place): the spreadsheets module's quiet Export these goals. */}
-            <span className="row io-buttons" style={{ gap: 'var(--s2)' }}>
-              <Place name="goals.tools" goals={shown} viewName={viewName} />
-            </span>
-          </div>
+          <MenuButton className="views-menu" label="Views" markCurrent
+            items={[
+              ...viewItems,
+              ...(actions.canSave ? [{ label: 'Save this view…', onClick: actions.save }] : []),
+              { label: 'Copy link', onClick: () => void actions.copyLink() },
+              ...actions.manage,
+            ].map((it, i) => (i === views.length && views.length > 0 ? { ...it, rule: true } : it))}
+            extra={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} />
         )}
       </div>
 
-      {/* The list bar: search, the Needs attention switch, Filters, Sort, Group (goals spec, 2.1); then the count line. */}
+      {/* The list bar: search, the Needs attention switch, Filters, Sort, Group, Layout (goals spec, 2.1); then the count line. */}
       {app.snapshot.goals.length > 0 && <FilterBar
-        lead={<button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button>}
-        trail={layout !== 'map' && <MenuButton className="group-menu" label="Group" display={switchOn ? 'Group: needs attention first' : `Group: ${GROUPS.find(([k]) => k === group)![1]}`}
-          items={switchOn ? [{ label: `${ATTENTION.needs.label} has its own two groups` }] : GROUPS.map(([k, l]) => ({ label: l, current: group === k, onClick: () => pickGroup(k) }))} />}
+        lead={switchButton}
+        find={onMap ? { goals: mapGoals, onFind: (g) => setGoTo((cur) => ({ id: g.id, n: (cur?.n ?? 0) + 1 })) } : undefined}
+        sortOff={onMap ? MAP_IS_TREES : undefined}
+        trail={<>
+          <MenuButton className="group-menu" label="Group" summary="" markCurrent display={switchOn && !onMap ? 'Group: needs attention first' : `Group: ${onMap ? GROUPS.find(([k]) => k === 'tree')![1] : groupWord}`}
+            items={groupOff ? [{ label: groupOff, note: true }] : GROUPS.map(([k, l]) => ({ label: l, hint: GROUP_LINE[k], current: group === k, onClick: () => pickGroup(k) }))} />
+          <LayoutMenu layout={layout} onChange={setLayout} />
+        </>}
         after={<>
-          {/* On a phone the switch has a row of its own under the search (goals spec, 2.4); in the bar it's hidden there. */}
-          <div className="goals-phone-switch"><button type="button" className="btn attention-switch" aria-pressed={switchOn} onClick={toggleSwitch}>{ATTENTION.needs.label} · {switchCount}</button></div>
+          {/* On a phone (goals spec, 2.4): the switch at the left, how the goals are seen at the right, in one sheet. */}
+          <div className="goals-phone-switch">
+            {switchButton}
+            <button type="button" className="btn view-open" aria-haspopup="dialog" onClick={() => setSheetOpen(true)}>{viewSays}</button>
+          </div>
           {/* The one count line (rule 4); the filter line follows it. */}
           {line && <p className="small goals-line" role="status">{line}</p>}
         </>} />}
+      </div>
+      {actions.sheets}
+      {sheetOpen && <ViewSheet layout={layout} onLayout={setLayout} group={group} groupOff={groupOff} onGroup={pickGroup} items={viewItems}
+        canSave={actions.canSave} onSave={() => { setSheetOpen(false); actions.save(); }} onCopy={() => void actions.copyLink()}
+        manage={actions.manage} tools={<Place name="goals.tools" goals={shown} viewName={viewName} inMenu />} onClose={() => setSheetOpen(false)} />}
 
       {linkNote && <p className="hint link-note" role="status">{linkNote}</p>}
       {/* Until every goal has had its first check-in, the switch says how far that has got (goals spec, 2.1, item 6). */}
@@ -284,7 +293,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} attention={query.attention} onAttention={(on) => setQuery((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] }))} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} goTo={goTo} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (
@@ -365,6 +374,61 @@ export function GoalsScreen() {
 }
 
 
+
+/** Why Group and Sort can't be used on the Map (goals spec, 2.3). */
+const MAP_IS_TREES = 'The Map is always the trees.';
+/** Each group in one line (goals spec, 2.1, item 3.4). */
+const GROUP_LINE: Record<Group, string> = {
+  tree: 'Each top goal, then what feeds it',
+  team: 'Teams worst first, each with its counts',
+  level: 'North stars, then SVP, then team goals',
+  none: 'One list',
+};
+
+/**
+ * The phone's View sheet (goals spec, 2.4): Layout, Group (not on the Map), Saved views, then saving, the link and the
+ * modules' tools. Each choice applies at once; Done closes it.
+ */
+function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave, onSave, onCopy, manage, tools, onClose }: {
+  layout: Layout; onLayout: (l: Layout) => void; group: Group; groupOff: string | null; onGroup: (g: Group) => void;
+  items: { label: string; current: boolean; onClick: () => void }[]; canSave: boolean; onSave: () => void; onCopy: () => void;
+  manage: { label: string; onClick?: () => void }[]; tools: React.ReactNode; onClose: () => void;
+}) {
+  return (
+    <Sheet open onClose={onClose} title="View">
+      <div className="view-sheet stack">
+        <fieldset className="filter-group"><legend className="field-label">Layout</legend>
+          {LAYOUTS.map(([k, l]) => (
+            <label key={k} className="check view-choice"><input type="radio" name="view-layout" checked={layout === k} onChange={() => onLayout(k)} />
+              <span className="menu-text"><span>{l}</span><span className="hint">{layoutLine(k)}</span></span></label>
+          ))}
+        </fieldset>
+        {layout !== 'map' && (
+          <fieldset className="filter-group"><legend className="field-label">Group</legend>
+            {groupOff ? <span className="hint">{groupOff}</span> : GROUPS.map(([k, l]) => (
+              <label key={k} className="check view-choice"><input type="radio" name="view-group" checked={group === k} onChange={() => onGroup(k)} />
+                <span className="menu-text"><span>{l}</span><span className="hint">{GROUP_LINE[k]}</span></span></label>
+            ))}
+          </fieldset>
+        )}
+        {items.length > 0 && (
+          <fieldset className="filter-group"><legend className="field-label">Saved views</legend>
+            {items.map((v) => (
+              <label key={v.label} className="check view-choice"><input type="radio" name="view-saved" checked={v.current} onChange={v.onClick} /> <span>{v.label}</span></label>
+            ))}
+          </fieldset>
+        )}
+        <div className="view-sheet-actions">
+          {canSave && <button type="button" className="btn" onClick={onSave}>Save this view…</button>}
+          <button type="button" className="btn" onClick={onCopy}>Copy link</button>
+          {manage.map((m) => <button key={m.label} type="button" className="btn" onClick={() => { onClose(); m.onClick?.(); }}>{m.label}</button>)}
+          <div className="view-sheet-tools">{tools}</div>
+        </div>
+      </div>
+      <div className="sheet-foot"><button type="button" className="btn primary" onClick={onClose}>Done</button></div>
+    </Sheet>
+  );
+}
 
 /** The teams that have goals, worst first (domain/order.ts worstGroupsFirst), each with its goals worst first (U24). */
 function teamsWorstFirst(app: ReturnType<typeof useApp>) {
