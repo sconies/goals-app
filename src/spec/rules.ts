@@ -14,7 +14,7 @@ import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
 import { currentWeek, firstWeekFrom, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
-import { fmt } from '../domain/format';
+import { fmt, LEVEL_LABEL } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
@@ -29,6 +29,7 @@ import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWo
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
+import { feedRefusal, parentSuggestions, PARENT_SUGGESTIONS, planNote, startLevel } from '../domain/newGoal';
 import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
@@ -879,6 +880,38 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'Oskar, one other watching (and Oskar himself, who isn’t counted).', then: 'Everyone in Platform Engineering can read this. Rhea and the 1 person watching see it on Home.', run: () => say('o', ['a', 'o']) },
       ];
     })(),
+  },
+
+  /* ---------- New goal's order (onboarding spec, rules 1, 2 and 5; OB1) ---------- */
+  {
+    id: 'new-goal',
+    title: 'New goal',
+    summary: 'New goal asks what, then who and where, then how it’s measured, then reads it back; its level starts from the goal it feeds, and “Feeds into” suggests the goals one level up.',
+    code: [{ file: 'src/domain/newGoal.ts', names: ['NEW_GOAL_STEPS', 'stepIndex', 'startLevel', 'canFeed', 'feedRefusal', 'parentSuggestions', 'PARENT_SUGGESTIONS', 'planNote'] }],
+    tests: ['src/domain/newGoal.test.ts'],
+    reqs: ['NEW-GOAL-STEPS'],
+    body: `
+**The steps.** Four, each with its own address under \`/goals/new\`: *what* (the name and the kind), *who and where* (owner, team, level, what it feeds, what else it helps, guardrail), *how it's measured* (what measures it, the numbers or stages, how it's measured in words and where the number comes from), and *check* (the goal read back, each row with Change). Each Continue is one history entry, so the browser's Back steps back; a later step opened with an earlier one unfilled goes to the first unfilled one. A draft is kept on every change and picked up at the step it stopped at. People, teams and goals are found by typing (the [finding](finding.md) rules), never chosen from a list of everything. The owner starts as the person adding it, and the team follows the owner until it is chosen by hand.
+
+**The level it starts at (rule 1).** With a goal it feeds: one level below that goal's. Without: Team, unless the owner leads a team that already owns a north-star or SVP goal; then none, and the person is asked ("Choose a level."). A goal can only feed one at a higher level: one at the same or a lower level is listed but can't be chosen, saying so ("A Team goal can’t feed a Team goal.").
+
+**Suggestions for "Feeds into" (rule 2).** Before anything is typed, at most ${PARENT_SUGGESTIONS}: the goals one level up in the goal's team, worst first; then goals one level up that the person's own goals already feed; then goals opened lately that are above the level. A north star has none: it is the top of its tree.
+
+**The plan's note (rule 5).** One sentence with this goal's own next quarter end: "Each week’s number is checked in during that week, so the one that closes Q4 is week 53, checked in 28 Dec–3 Jan."`,
+    examples: (() => {
+      const org = { get teams() { return dirWs().teams; }, get goals() { return dirWs().goals; }, get cycles() { return dirWs().cycles; } };
+      const g = (id: string) => org.goals.find((x) => x.id === id)!;
+      const byTitle = (a: Goal, b: Goal) => a.title.localeCompare(b.title);
+      const lvl = (l: string | null) => l ?? 'none: asked';
+      return [
+        { given: 'The demo: Rhea (her team, CI/CD, owns SVP goals) and Tunde, each with nothing to feed; then anyone, under the north star “Lead time for changes”.', then: 'none: asked; team; svp', run: () => [startLevel('rhea', org.teams, org.goals, null), startLevel('tunde', org.teams, org.goals, null), startLevel('tunde', org.teams, org.goals, g('ns-lead'))].map(lvl).join('; ') },
+        { given: 'Rhea’s new SVP goal in CI/CD: the first suggestion for “Feeds into”.', then: 'Lead time for changes', run: () => parentSuggestions('svp', 'cicd', 'rhea', org.goals, byTitle)[0]?.title ?? 'none' },
+        { given: 'A north star’s suggestions.', then: '0', run: () => String(parentSuggestions('north-star', 'cicd', 'rhea', org.goals, byTitle).length) },
+        { given: 'An SVP goal choosing to feed the SVP goal “Flaky test rate in the main pipelines”.', then: 'An SVP goal can’t feed an SVP goal.', run: () => feedRefusal('svp', g('lead-flaky'), LEVEL_LABEL) ?? 'allowed' },
+        { given: 'The plan’s note in week 10 of 2026.', then: 'Each week’s number is checked in during that week, so the one that closes Q1 is week 13, checked in 23–29 Mar.', run: () => planNote(org.cycles[0]!, 10) ?? '' },
+      ];
+    })(),
+    unclear: ['Whether a goal for someone else should start as proposed (round 2, GE10) is a later item; today anyone may add a goal for anyone, at any level (Lane, 11 Nov, decision 11).'],
   },
 
   /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */

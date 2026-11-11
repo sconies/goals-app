@@ -29,10 +29,11 @@ export interface PlaceProps {
   /**
    * New goal and goal edit, with the goal's own fields: what measures the goal (backlog 0b). Given the goal as saved
    * (null while it's new) and the form's kind, unit and team as typed. `onChange` says what to save with it: a metric and
-   * a slice, null for none, or undefined to leave it as it is. The form saves it after the goal (app.linkGoalMetric or
+   * a slice, null for none, or undefined to leave it as it is; and, optionally, the words New goal’s Check says for it
+   * ("Measured by Pipeline queue wait (p90), for CI/CD."). The form saves it after the goal (app.linkGoalMetric or
    * app.unlinkGoalMetric). Nothing renders here unless a module fills it.
    */
-  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined) => void };
+  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined, words?: string) => void };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */

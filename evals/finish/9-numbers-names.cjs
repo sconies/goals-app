@@ -36,10 +36,14 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
       await p.locator('.big-input').first().fill('Lead time for changes');
-      const warn = await text(p, '.field .hint.tone-risk');
-      if (!/Another goal is called “Lead time for changes” \(G-1/.test(warn)) fail(`New goal: a duplicate name isn’t warned about (“${warn}”)`);
+      const warn = await text(p, '.hint.tone-risk');
+      if (!/Another goal is called “Lead time for changes”: G-1, .*owned by /.test(warn)) fail(`New goal: a duplicate name isn’t warned about (“${warn}”)`);
+      await p.getByRole('button', { name: 'Continue' }).click();
+      // Who and where (OB1): Rhea is asked the level.
+      await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
       await p.getByRole('button', { name: 'Continue' }).click();
       const start = p.getByLabel(/^Today/);
+      await start.waitFor({ timeout: 3000 }).catch(() => {});
       if (!(await start.isVisible().catch(() => false))) fail('New goal: a duplicate name stopped the wizard at its first step');
       else {
         await start.fill('12.5');

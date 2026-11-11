@@ -1,11 +1,10 @@
 {
-  "about": "The places that still choose a person, team, goal or workspace from a <select> of everything (any list that isn't fixed by the app, such as weeks, levels or sort orders), and how many: the pickers lint fails any other, and any of these with more. Each moves to find-and-pick (src/ui/Pick.tsx) in its item: GoalWizard, GoalEdit, Data's Owner cell and Goals' “In the tree of” after the 11 Nov talk (FS1, second part); who takes over in Remove and set-up's owners with them; the Feedback inbox with the list bar on Data and Feedback (FS2, second part). Lower a count or drop a file when you do.",
+  "about": "The places that still choose a person, team, goal or workspace from a <select> of everything (any list that isn't fixed by the app, such as weeks, levels or sort orders), and how many: the pickers lint fails any other, and any of these with more. Each moves to find-and-pick (src/ui/Pick.tsx) in its item: GoalEdit, Data's Owner cell and Goals' “In the tree of” after the 11 Nov talk (FS1, second part); who takes over in Remove and set-up's owners with them; the Feedback inbox with the list bar on Data and Feedback (FS2, second part). Lower a count or drop a file when you do.",
   "files": {
     "src/markup/Inbox.tsx": 1,
     "src/screens/DataTables.tsx": 1,
     "src/screens/GoalEdit.tsx": 4,
     "src/screens/GoalFilters.tsx": 1,
-    "src/screens/GoalWizard.tsx": 3,
     "src/screens/Onboarding.tsx": 1,
     "src/ui/RemoveSheets.tsx": 2
   }

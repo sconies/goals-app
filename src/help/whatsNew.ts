@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'new-goal-order',
+    date: '2026-11-11',
+    title: 'New goal asks in a better order',
+    points: [
+      'What, then who and where, then how it’s measured, then check.',
+      'Type to find the owner, the team and the goal it feeds. “Also helps” can be set as you create it.',
+      'Your browser’s Back steps back a step.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'not-born-late',
     date: '2026-11-11',
     title: 'A new goal doesn’t start out late',

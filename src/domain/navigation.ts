@@ -2,6 +2,7 @@
    from who is looking and the address, not drawn inline in the shell. The shell (src/ui/Shell.tsx) and the Back link
    (src/ui/BackLink.tsx) draw what these say; a rebuild copies these and draws its own. Pure: each takes what it reads
    (whether the viewer owns goals, names looked up by id), never the workspace. */
+import { NEW_GOAL_STEPS } from './newGoal';
 
 /** The core's places in the menu. */
 export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'people' | 'data' | 'new' | 'workspace' | 'settings' | 'help' | 'feedback';
@@ -76,7 +77,7 @@ export const menuRows = (g: MenuGroups) => [...g.work, ...g.lookup, ...g.make, .
 export function isLit(id: NavId, path: string, tabs?: NavId[]): boolean {
   const to = CORE_NAV[id].to;
   if (id === 'home') return path === '/';
-  if (id === 'goals') return (path.startsWith('/goals') && path !== '/goals/new') || (path === '/watching' && !!tabs && !tabs.includes('watching'));
+  if (id === 'goals') return (path.startsWith('/goals') && !/^\/goals\/new(\/|$)/.test(path)) || (path === '/watching' && !!tabs && !tabs.includes('watching'));
   // People and Teams are one place (app redesign WR1).
   if (id === 'people') return /^\/(people|teams)(\/|$)/.test(path);
   if (id === 'help') return /^\/(help|whats-new)(\/|$)/.test(path);
@@ -110,6 +111,9 @@ export function pageName(path: string, at: GoalsAt, items: NavId[], moduleName?:
   const fixed: Record<string, string> = { '/settings': 'Settings', '/feedback': 'Feedback', '/whats-new': 'What’s new' };
   if (fixed[path]) return fixed[path]!;
   if (path.startsWith('/help')) return 'Help';
+  // New goal's steps are named by step (onboarding spec, 1).
+  const step = /^\/goals\/new\/([a-z]+)$/.exec(path);
+  if (step) return NEW_GOAL_STEPS.find((s) => s.slug === step[1])?.title ?? 'New goal';
   const lit = items.find((id) => isLit(id, path));
   if (lit) return CORE_NAV[lit].label;
   if (path.startsWith('/retro')) return 'Wrap up';

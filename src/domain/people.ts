@@ -93,6 +93,11 @@ export function duplicateTitles(goals: Pick<Goal, 'title'>[]): Set<string> {
 export const goalTell = (g: Pick<Goal, 'title' | 'key' | 'teamId'>, dups: Set<string>, teamName: (id: string) => string): string | null =>
   dups.has(norm(g.title)) ? g.key || teamName(g.teamId) || null : null;
 
+/** Every other goal with this title (compared without case or outer spaces): New goal names them as links (OB1). */
+export function sameTitleGoals<G extends Pick<Goal, 'id' | 'title'>>(title: string, id: string | null, goals: G[]): G[] {
+  return title.trim() ? goals.filter((g) => g.id !== id && norm(g.title) === norm(title)) : [];
+}
+
 /** The warning when a new goal's title is one another goal already has: allowed (two teams can both "Reduce latency"). */
 export function sameTitleNote(title: string, id: string | null, goals: Pick<Goal, 'id' | 'title' | 'key' | 'teamId'>[], teamName: (id: string) => string): string | null {
   const twin = title.trim() ? goals.find((g) => g.id !== id && norm(g.title) === norm(title)) : undefined;
