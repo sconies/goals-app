@@ -31,6 +31,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features'],
   },
   {
+    id: 'check-in-asks',
+    date: '2026-11-11',
+    title: 'Faro asks about a number that looks wrong',
+    points: [
+      'Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.',
+      'The same number as last week asks whether you measured it again.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'cant-open-yet',
     date: '2026-11-11',
     title: 'Plainer words when you can’t open a workspace',

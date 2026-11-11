@@ -12,7 +12,7 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, YES_WORDS,
   type Words,
@@ -642,6 +642,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { err('Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
     if (!create && !canChange(g)) { err('Check-ins', row, g.title, notYours(g)); return; }
+    // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
+    const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
+    const open = unanswered(asked, draft.answers);
+    if (open.length) { err('Check-ins', row, g.title, `${open[0]!.question} Answer it first.`); return; }
     // A week before the plan was changed is judged against the plan that applied then.
     const asOf: Goal = goalAsOf(g, w);
     const e = evaluate(asOf, cycle, w, draft, ctx);
@@ -679,6 +683,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
     if (!ch) { unchanged++; return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
+    ch.diffs.push(...answeredDiffs(asked, draft.answers));
     if (post?.mode === 'correct') {
       ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
       ch.diffs.unshift({ field: 'Why corrected', from: '—', to: reason });

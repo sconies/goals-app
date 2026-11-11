@@ -229,6 +229,16 @@ select.input { padding-right: 28px; }
 /* Last time's words still untouched: one explicit choice (deep review U9). A full outline when it's still needed. */
 .still-true { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line); border-radius: 10px; }
 .still-true.invalid { border-color: var(--off-mark); }
+/* The two levels (src/ui/Levels.tsx): a Check is outlined all round; a Must fix has the off-track wash. Never an edge. */
+.level-block { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line-strong); border-radius: 10px; }
+.level-block.level-fix { background: var(--off-wash); border-color: var(--off-line); }
+.level-block.level-alert { border-color: var(--off-mark); }
+.level-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--fg-2); }
+.level-head svg { width: 14px; height: 14px; flex: none; }
+.level-word { font-weight: 600; }
+.level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+.level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
+.foot-says { margin: var(--s2) 0 0; }
 /* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */
 .ring:has(> .ring-counts) { flex-direction: column; }
 .ring-counts { position: relative; font-weight: 500; font-size: 0.625rem; line-height: 1; margin-top: 1px; color: var(--muted); }

@@ -1920,22 +1920,26 @@ function valueProblem(raw, last, unit, goal) {
 		text: "It can’t be over 100%: this goal measures a share of something."
 	} : {
 		block: false,
-		text: "That’s over 100%. Is that right?"
+		text: "That’s over 100%. Is that right?",
+		id: "over-100"
 	};
 	if (goal?.kind === "metric" && farOutside(n, goal.plan.start, goal.plan.target)) {
 		const d = goal.decimals, u = unit === "%" ? "%" : unit ? " " + unit : "";
 		return {
 			block: false,
-			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`
+			text: `That’s far outside this goal’s plan (${fixed(goal.plan.start, d)} to ${fixed(goal.plan.target, d)}${u}). Is ${fixed(n, Math.max(d, 0))} right?`,
+			id: "far-outside-plan"
 		};
 	}
 	if (goal?.kind === "metric" && isCount(goal) && (goal.plan.target > goal.plan.start ? n > goal.plan.target : n < goal.plan.target)) return {
 		block: false,
-		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`
+		text: `That’s past the target of ${fixed(goal.plan.target, 0)}${unit ? " " + unit : ""}. Is ${fixed(n, 0)} right?`,
+		id: "past-target"
 	};
 	if (last != null && last !== 0 && (n / last > 3 || n / last < 1 / 3)) return {
 		block: false,
-		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`
+		text: `Last week was ${fixed(last, decimalsOf(goal, last))}. Is ${fixed(n, decimalsOf(goal, n))} right?`,
+		id: "far-from-last"
 	};
 	return null;
 }
@@ -2028,7 +2032,50 @@ function toCheckIn(goal, cycle, week, draft, all, authorId, now, id) {
 		dataFlagged: draft.dataFlagged
 	};
 }
-var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES;
+/**
+* Rule 2. What must be fixed and what must be answered before a check-in for `week` posts, in the order the screen asks.
+* Only the first number question that applies is asked (in `valueProblem`'s order); "the same as last week" is asked of a
+* number goal not yet at its target, never of a number kept in a range. A carried story still true is `evaluate`'s.
+*/
+function checkInLevels(goal, week, draft, own) {
+	if (goal.kind === "milestone") return {
+		mustFix: [],
+		checks: []
+	};
+	const mustFix = [];
+	const checks = [];
+	const last = previousFor(own, week).number;
+	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
+	const n = parseNumber(draft.value);
+	const u = (v) => fixed(v, goal.decimals) + (goal.unit === "%" ? "%" : goal.unit ? " " + goal.unit : "");
+	if (p?.block) mustFix.push({
+		field: "This week’s number",
+		says: p.text
+	});
+	else if (p && n != null) {
+		const question = p.id === "far-from-last" && last ? `Week ${last.week} was ${u(last.value)}. Is ${u(n)} right?` : p.text;
+		checks.push({
+			id: p.id ?? "far-from-last",
+			field: "value",
+			question,
+			yes: `Yes, ${u(n)} is right`,
+			no: "Change the number",
+			key: String(n)
+		});
+	} else if (n != null && last?.value === n && goal.kind === "metric" && !reached(goal, n)) checks.push({
+		id: "same-as-last",
+		field: "value",
+		question: `The same as week ${last.week}: ${u(n)}. Did you measure it again this week?`,
+		yes: "Yes, measured again",
+		no: "No new number this week",
+		key: String(n)
+	});
+	return {
+		mustFix,
+		checks
+	};
+}
+var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_CODES, reached, unanswered, answeredDiffs;
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
@@ -2069,6 +2116,13 @@ var init_checkin = __esmMin((() => {
 		"value-precision",
 		"value-impossible"
 	];
+	reached = (goal, n) => goal.kind === "metric" && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
+	unanswered = (checks, answers) => checks.filter((c) => answers?.[c.id] !== c.key);
+	answeredDiffs = (checks, answers) => checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({
+		field: "Asked",
+		from: c.question,
+		to: c.yes
+	}));
 }));
 // src/domain/format.ts
 /** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
@@ -8314,6 +8368,12 @@ function planChanges(input) {
 			err("Check-ins", row, g.title, notYours(g));
 			return;
 		}
+		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
+		const open = unanswered(asked, draft.answers);
+		if (open.length) {
+			err("Check-ins", row, g.title, `${open[0].question} Answer it first.`);
+			return;
+		}
 		const asOf = goalAsOf(g, w);
 		const e = evaluate(asOf, cycle, w, draft, ctx);
 		const recorded = create && w < week && !e.canPost && e.codes.every((c) => c === "reason-behind" || c === "reason-ahead" || c === "target" || c === "path" || c === "greener-why") ? asWritten(asOf, w, draft, e, actor.id, now, "probe") : null;
@@ -8350,6 +8410,7 @@ function planChanges(input) {
 			return;
 		}
 		if (again) ch.summary = ch.summary.replace("Checked in for week", "Checked in again for week");
+		ch.diffs.push(...answeredDiffs(asked, draft.answers));
 		if (post?.mode === "correct") {
 			ch.summary = existing ? `Corrected week ${w}: ${headlineOf(existing, g)} is now ${headlineOf(c, g)}` : `Added week ${w} later: ${headlineOf(c, g)}`;
 			ch.diffs.unshift({
@@ -11714,7 +11775,8 @@ var CORE_ARTICLES = [
 					"A number is kept exactly as you type it, never rounded quietly. One with more decimal places than the goal keeps (12.5 in a goal of whole numbers) is refused with what it would show as: type it to the goal’s places, or choose Keep 1 decimal place for this goal, which changes the goal’s decimals in one step, logged on its history.",
 					"A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.",
 					"Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.",
-					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned."
+					"The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.",
+					"A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix."
 				]
 			},
 			{
@@ -13841,6 +13903,13 @@ var WHATS_NEW = [
 		title: "Undo stays in its own workspace",
 		points: ["Pressing Undo after switching to another workspace no longer changes the one you switched to. It says the Undo was for another workspace, and changes nothing.", "Open that workspace again to undo it there."],
 		articles: ["features"]
+	},
+	{
+		id: "check-in-asks",
+		date: "2026-11-11",
+		title: "Faro asks about a number that looks wrong",
+		points: ["Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.", "The same number as last week asks whether you measured it again."],
+		articles: ["check-in"]
 	},
 	{
 		id: "cant-open-yet",

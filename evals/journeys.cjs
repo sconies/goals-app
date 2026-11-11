@@ -318,7 +318,20 @@ const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) =
 
 /* ---------------- the ten journeys ---------------- */
 const J = [];
-const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
+/** Answer every question a check-in asks about a number (CK2's Check blocks) with its yes: the journey's number is meant. */
+async function answerChecks(p) {
+  for (let i = 0; i < 10; i++) {
+    const yes = p.locator('.level-check .level-actions button').first();
+    if (!(await yes.isVisible().catch(() => false))) return;
+    await yes.click();
+    await p.waitForTimeout(50);
+  }
+}
+const journey = (id, reqs, title, budget, fn, na = []) => {
+  // Each id once: a second journey with the same id runs in every shard and is counted as one (issue #150).
+  if (J.some((j) => j.id === id)) throw new Error(`Two journeys are called ${id}: give the newer one the next free number`);
+  J.push({ id, reqs, title, budget, fn, na });
+};
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
   // Rhea: two goals due. Image slimming is on plan (number, post, next: three interactions); the new CI cost goal comes
@@ -1311,6 +1324,43 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   await p.context().close();
 }, ['budget']);
 
+journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const last = s0.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week < NOW && c.value != null).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt)).pop();
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(last.value * 10));
+  // The question is a Check block: the word, the question and two plain buttons. No status shape in it.
+  const check = p.locator('.level-check');
+  await check.waitFor();
+  const q = await check.innerText();
+  h.set('attention', /Check/.test(q) && /right\?/.test(q), `the question read “${q.replace(/\s+/g, ' ')}”`);
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Answer the question above first.', 'Continue with a question open says why it does nothing');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.length === s0.checkIns.length, 'something posted with the question unanswered');
+  await h.checkpoint('asked');
+  // "Change the number" goes back to the field; the right number posts, with no question.
+  await h.click(p.getByRole('button', { name: 'Change the number' }));
+  const focused = await field.evaluate((el) => el === document.activeElement);
+  h.set('progress', focused, 'Change the number did not put the cursor back in the field');
+  const right = String(Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW)));
+  await h.fill(field, right);
+  // The far question is gone; the plan's number may be last week's too, which asks whether it was measured again.
+  const after = (await check.count()) ? await check.innerText() : '';
+  if (/right\?/.test(after)) fail('the question stayed after the number was corrected');
+  if (/measure it again/.test(after)) await h.click(p.getByRole('button', { name: 'Yes, measured again' }));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s2 = await h.snapshot();
+  const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  await h.checkpoint('posted');
+});
+
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
@@ -1827,6 +1877,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     const asks = (await row.getByRole('textbox').count()) > 1 || (await row.locator('select').evaluateAll((els) => els.some((e) => !e.value)));
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
+  await answerChecks(p);
   await h.click(p.getByRole('button', { name: /^Post/ }));
   // The table lands on the check-in's own confirmation (deep review U12).
   await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
@@ -3485,7 +3536,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
 
 // GL2 (goals spec, 2.1, 2.3, 2.4): Layout and Views are menus on every width; the head and the bar don't move between
 // layouts; on the Map, Group and Sort can't be used and the bar's search goes to a goal; a phone has one View sheet.
-journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
+journey('U135', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
   const phone = await phoneBar(p);
@@ -4251,6 +4302,7 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   const s0 = await h.snapshot();
   const g = s0.goals.find((x) => x.id === 'ci-docker');
   await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.02));
+  await answerChecks(p);
   await see(coach, 'step 3 of 4', 'the coach did not move on when the number was typed');
   h.set('progress', true);
   await h.click(p.locator('.focus-foot button[type=submit]'));

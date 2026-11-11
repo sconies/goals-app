@@ -188,11 +188,11 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 
 ### HONEST-CHECKIN
 
-A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
+A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
-- **Journeys and checks:** U57
+- **Journeys and checks:** U57, U111
 
 ### REASON-AHEAD
 
@@ -227,7 +227,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1
+- **Journeys and checks:** U1, U111
 
 ### UPDATE-ANYTIME
 
@@ -312,7 +312,7 @@ Search, filter and sort the goals in every layout and in exports. Search covers 
 
 - **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** N10, U32, U33, U34, U87
+- **Journeys and checks:** N10, U32, U33, U34, U135
 
 ### GOAL-SUMMARY
 
@@ -431,7 +431,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
 
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
-- **Journeys and checks:** U87
+- **Journeys and checks:** U135
 
 ## Platform
 
@@ -839,7 +839,7 @@ A goal map shows every goal on a canvas that can be panned, zoomed and rearrange
 
 - **Rule:** [The goal map](rules/map.md)
 - **Help:** “The goal map” (`goal-map`), screens `GoalMap`
-- **Journeys and checks:** U26, U30, U87
+- **Journeys and checks:** U26, U30, U135
 
 ## AI assistants
 
