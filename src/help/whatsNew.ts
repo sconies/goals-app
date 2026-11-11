@@ -31,6 +31,26 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in'],
   },
   {
+    id: 'cant-open-yet',
+    date: '2026-11-11',
+    title: 'Plainer words when you can’t open a workspace',
+    points: [
+      'If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.',
+      'Nothing of the workspace shows until you can open it; ask an admin there to add you.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
+    points: [
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
+    ],
+    articles: ['finding', 'settings'],
+  },
+  {
     id: 'check-in-one-way',
     date: '2026-11-11',
     title: 'Checking in again, or correcting',

@@ -1,6 +1,6 @@
 # Faro's database
 
-Faro shares the family-hq Supabase project with another app's real family data, so it keeps to its own schema, `faro` (backlog 0c; `docs/architecture.md`, "The database"). CI applies `migrations/` on merge (`scripts/migrate.mjs`), after `scripts/check-fence.mjs` has checked the role it runs as. `manual/` holds paste-in scripts for Lane, including `faro-role.sql`, which makes the Faro role.
+Faro shares the family-hq Supabase project with another app's real family data, so it keeps to its own schema, `faro` (backlog 0c; `docs/architecture.md`, "The database"). CI applies `migrations/` on merge (`scripts/migrate.mjs`), after `scripts/check-fence.mjs` has checked the role it runs as: it fails if the role reaches a table outside `faro`, except the ones Supabase opens to everyone in `extensions`, `cron` and `net`, which it reports as a warning. `manual/` holds paste-in scripts for Lane, including `faro-role.sql`, which makes the Faro role.
 
 ## Writing a migration (from 0036 on)
 

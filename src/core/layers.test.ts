@@ -1,6 +1,6 @@
 // @vitest-environment node
 /* The layers lint (scripts/check-layers.mjs), so npm test keeps it as CI does: the rules layer imports only itself and
-   uses no browser, network or clock, new rules take only what they read, the core never imports a module, and a module imports only what it needs. */
+   uses no browser, network or clock, new rules take only what they read, browser storage stays behind the ports, the core never imports a module, and a module imports only what it needs. */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -32,6 +32,10 @@ describe('The layers', () => {
     put('src/domain/d.ts', "import type { Snapshot } from './types';\nexport const ok = (s: Snapshot) => s;\nexport const more = (w: Snapshot) => w;\n");
     put('src/domain/e.ts', "import type { Snapshot } from './types';\nexport const p = (s: Pick<Snapshot, 'people' | 'checkIns'>) => s;\nexport const q = (s: Pick<Snapshot, 'people' | 'teams'>) => s;\nexport const r = (x: object) => x as unknown as Snapshot;\n");
     put('scripts/whole-workspace.json', '{ "files": { "src/domain/d.ts": 1 } }');
+    put('src/ui/Keep.tsx', "export const a = () => localStorage.getItem('x');\nexport const b = () => sessionStorage.setItem('y', '1');\n// localStorage in a comment is fine\n");
+    put('src/adapters/kept.ts', "export const k = () => indexedDB.open('x');\n");
+    put('src/ui/Gone.tsx', 'export const nothing = 1;\n');
+    put('scripts/browser-storage.json', '{ "files": { "src/ui/Keep.tsx": { "uses": 1 }, "src/ui/Gone.tsx": { "uses": 1 } } }');
     const found = check(dir);
     fs.rmSync(dir, { recursive: true, force: true });
     expect(found).toEqual([
@@ -48,6 +52,10 @@ describe('The layers', () => {
       expect.stringMatching(/^src\/domain\/d\.ts: takes the whole workspace \(Snapshot.*\) 2 time\(s\), more than the 1/),
       // A Pick naming a whole list counts, and so does a cast; a Pick of people and teams doesn't.
       expect.stringMatching(/^src\/domain\/e\.ts: takes the whole workspace \(Snapshot.*\) 2 time\(s\); a new rule takes only/),
+      // Browser storage only behind the ports (AX9): the adapters may; a listed file no more than listed; a listed file that stopped leaves the list.
+      expect.stringMatching(/^src\/domain\/b\.ts: uses browser storage .* 1 time\(s\); keep it behind a port/),
+      expect.stringMatching(/^src\/ui\/Keep\.tsx: uses browser storage .* 2 time\(s\), more than the 1 scripts\/browser-storage\.json allows/),
+      expect.stringMatching(/^src\/ui\/Gone\.tsx: no longer uses browser storage; take it off scripts\/browser-storage\.json/),
     ]);
   });
 });

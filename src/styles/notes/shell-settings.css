@@ -207,3 +207,7 @@
   .find-wrap { padding: 0; align-items: stretch; }
   .sheet.find-sheet { width: 100%; max-height: none; height: 100dvh; border-radius: 0; }
 }
+
+/* A goal's status in a picker or Find row: the shape beside the word, always (design rules; build review of #110). */
+.pick-status { display: inline-flex; align-items: center; gap: 4px; }
+.pick-status .status-shape { width: 12px; height: 12px; flex: none; }
