@@ -116,7 +116,7 @@ export interface SearchAnswer {
 
 /** What each kind's search reads: rows, not the workspace (AR4). src/app/reads.ts makes them. */
 export interface GoalRows { kind: 'goal'; summaries: GoalSummary[]; ctx: QueryContext }
-export interface PersonRows { kind: 'person'; people: Person[]; teamName: (id: string) => string }
+export interface PersonRows { kind: 'person'; people: Person[]; teamName: (id: string) => string; /** A team's lead's id, for rule 6's "its lead first". */ teamLead?: (id: string) => string | null }
 export interface TeamRows { kind: 'team'; teams: Team[]; people: Pick<Person, 'id' | 'name' | 'teamId' | 'leftAt'>[] }
 export interface WorkspaceRows { kind: 'workspace'; workspaces: { id: string; name: string; detail: string }[] }
 
@@ -142,6 +142,9 @@ export function searchGoals(r: GoalRows, ask: SearchAsk): FoundRow[] {
   return listed.filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
 
+/** A person's row: "{job title} · {team}" under the name. */
+export const personRow = (r: PersonRows, p: Person): FoundRow => ({ kind: 'person', id: p.id, name: p.name, detail: [p.role, p.teamId ? r.teamName(p.teamId) : ''].filter(Boolean).join(' · ') });
+
 /** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
 export function searchPeople(r: PersonRows, ask: SearchAsk): FoundRow[] {
   const team = (p: Person) => (p.teamId ? r.teamName(p.teamId) : '');
@@ -149,18 +152,25 @@ export function searchPeople(r: PersonRows, ask: SearchAsk): FoundRow[] {
   return r.people
     .filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
     .sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name))
-    .map((p) => ({ kind: 'person', id: p.id, name: p.name, detail: [p.role, team(p)].filter(Boolean).join(' · ') }));
+    .map((p) => personRow(r, p));
 }
 
-/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+export function teamRow(r: TeamRows, t: Team): FoundRow {
+  const here = r.people.filter((p) => !p.leftAt);
+  const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+  const n = here.filter((p) => p.teamId === t.id).length;
+  return { kind: 'team', id: t.id, name: t.name, detail: `${lead ? `Led by ${lead}` : 'No lead'} · ${n} ${n === 1 ? 'person' : 'people'}` };
+}
+
+/** Teams: the name and its lead's name; A to Z. */
 export function searchTeams(r: TeamRows, ask: SearchAsk): FoundRow[] {
   const here = r.people.filter((p) => !p.leftAt);
-  const lead = (t: Team) => here.find((p) => p.id === t.leadId)?.name ?? null;
-  const people = (t: Team) => { const n = here.filter((p) => p.teamId === t.id).length; return `${n} ${n === 1 ? 'person' : 'people'}`; };
+  const lead = (t: Team) => here.find((p) => p.id === t.leadId)?.name ?? '';
   return r.teams
-    .filter((t) => textMatches(`${t.name} ${lead(t) ?? ''}`, ask.q))
+    .filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q))
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((t) => ({ kind: 'team', id: t.id, name: t.name, detail: `${lead(t) ? `Led by ${lead(t)}` : 'No lead'} · ${people(t)}` }));
+    .map((t) => teamRow(r, t));
 }
 
 export function searchWorkspaces(r: WorkspaceRows, ask: SearchAsk): FoundRow[] {
@@ -197,6 +207,23 @@ export function search(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, a
   return near && again.length ? { ...page(again, ask), near } : page([], ask);
 }
 
+/**
+ * The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+ * picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+ * left out.
+ */
+export function rowsByIds(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, ids: string[]): FoundRow[] {
+  const found = (id: string): FoundRow | null => {
+    switch (rows.kind) {
+      case 'goal': { const s = rows.summaries.find((x) => x.goal.id === id); return s ? goalRow(s) : null; }
+      case 'person': { const p = rows.people.find((x) => x.id === id && !x.removedAt); return p ? personRow(rows, p) : null; }
+      case 'team': { const t = rows.teams.find((x) => x.id === id); return t ? teamRow(rows, t) : null; }
+      case 'workspace': { const w = rows.workspaces.find((x) => x.id === id); return w ? { kind: 'workspace', id: w.id, name: w.name, detail: w.detail } : null; }
+    }
+  };
+  return ids.map(found).filter((r): r is FoundRow => !!r);
+}
+
 /* ---------- Rule 6: suggestions before typing ---------- */
 
 /** A thing opened or chosen lately: newest first, at most 12, kept per person and workspace (the Prefs port). */
@@ -209,7 +236,7 @@ export const withRecent = (recents: Recent[], r: Recent): Recent[] => [r, ...rec
 
 /**
  * Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
- * then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+ * (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
  * worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
  * when the rest would fill the list. Nobody marked as left; nothing it can't find.
  */
@@ -233,7 +260,8 @@ export function suggest(rows: GoalRows | PersonRows | TeamRows, viewerId: string
       const all = searchPeople(rows, { q: '' });
       const by = new Map(all.map((r) => [r.id, r]));
       const me = rows.people.find((p) => p.id === viewerId);
-      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : [];
+      const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : [];
       return pick([viewerId, ...mates], (id) => by.get(id) ?? null);
     }
     case 'team': {

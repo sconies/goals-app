@@ -7,9 +7,8 @@ import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, draftOf, planHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
 import { fmt, LEVEL_LABEL } from '../domain/format';
-import type { Goal, GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
+import type { Goal, GoalKind, MetricGoal, PlanShape } from '../domain/types';
 
-const LEVEL_RANK: Record<Level, number> = { 'north-star': 0, svp: 1, team: 2 };
 import { newId } from '../data/store';
 import { Empty, Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
@@ -20,6 +19,7 @@ import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Place, type MeasurePick } from '../core/app';
+import { PickOne } from '../ui/Pick';
 
 const KINDS: [GoalKind, string, string, string][] = [
   ['metric', 'Move a number', 'From where it is to where it should be', 'e.g. Lead time from 4.2 to 2 days'],
@@ -136,7 +136,6 @@ function Wizard({ existing }: { existing: Goal | null }) {
     };
   })();
   const rebaseline = existing?.kind === 'metric' && started && preview && (existing.plan.start !== preview.plan.start || existing.plan.target !== preview.plan.target || existing.plan.shape !== preview.plan.shape);
-  const parents = app.snapshot.goals.filter((g) => g.id !== existing?.id).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || a.title.localeCompare(b.title));
   const owner = app.person(d.ownerId);
   const parent = app.goal(d.parentId);
   const unitFmt = { unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 };
@@ -252,20 +251,11 @@ function Wizard({ existing }: { existing: Goal | null }) {
         {step === 2 && (
           <>
             <h1 className="qtitle big">Where does it fit?</h1>
-            <label className="field"><span className="small strong">Feeds into</span>
-              <select className="input" value={d.parentId} onChange={(e) => set({ parentId: e.target.value })}>
-                <option value="">Nothing (top of its own tree)</option>
-                {parents.map((g) => <option key={g.id} value={g.id}>{g.title}{g.level !== 'team' ? ` · ${LEVEL_LABEL[g.level]}` : ''}</option>)}
-              </select>
-              {!d.parentId && parents.length > 0 && <span className="hint">Goals that feed nothing and have nothing feeding them show as not linked.</span>}
-            </label>
+            <PickOne kind="goal" label="Feeds into" none="Nothing: top of its own tree" value={d.parentId || null} onChange={(id) => set({ parentId: id ?? '' })}
+              hide={existing ? [existing.id] : []} hint={!d.parentId ? 'Goals that feed nothing and have nothing feeding them show as not linked.' : undefined} />
             <div className="fit-pair">
-              <label className="field"><span className="small strong">Team</span>
-                <select className="input" value={d.teamId} onChange={(e) => set({ teamId: e.target.value })}>{app.snapshot.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-              </label>
-              <label className="field"><span className="small strong">Owner · checks in weekly</span>
-                <select className="input" value={d.ownerId} onChange={(e) => set({ ownerId: e.target.value })}>{app.snapshot.people.map((p) => <option key={p.id} value={p.id}>{app.personName(p.id)}</option>)}</select>
-              </label>
+              <PickOne kind="team" label="Team" value={d.teamId || null} onChange={(id) => id && set({ teamId: id })} />
+              <PickOne kind="person" label="Owner · checks in weekly" value={d.ownerId || null} onChange={(id) => id && set({ ownerId: id })} />
             </div>
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">How much will it move “{parent?.title}”? <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>

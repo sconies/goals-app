@@ -147,7 +147,7 @@ const CORE_ARTICLES: Article[] = [
         'A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.',
         'Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.',
         'The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.',
-        'Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.',
+        'Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.',
         'Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.',
         'Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.',
         'Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.',
@@ -157,7 +157,7 @@ const CORE_ARTICLES: Article[] = [
         'Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.',
         'In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.',
       ] },
-      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device and remembers the answer. Choose Not you? in the person menu to change it.'] },
+      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.'] },
     ],
     routes: ['/workspace/new', '/ready'],
     screens: ['Onboarding', 'Start'],
@@ -173,7 +173,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: [PROTOTYPE_LINE, 'Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
       { heading: 'How to use it', list: [
-        'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.',
+        'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.',
         'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.',
         'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
         'In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.',
@@ -516,10 +516,11 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'Choosing someone or something', list: [
-        'Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).',
+        'Wherever you choose a person, a team or a goal (a goal’s owner, team, what it feeds and what it also helps; who takes part in a review; a next step’s owner; who takes over when someone leaves; an owner in Data or in set-up; who sent feedback), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal), or what nothing means there, such as “Nothing: top of its own tree”.',
         'Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.',
         'Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.',
-        'Someone marked as left is never offered.',
+        'Someone marked as left is never offered. A goal that can’t be chosen is still listed, greyed, with the reason: a goal already under this one can’t be what it feeds (“Feeds this goal already”).',
+        'On a phone the list opens as a full screen of its own, with Close at the top.',
       ] },
       { heading: 'What a search matches', list: [
         'Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.',
@@ -548,7 +549,7 @@ const CORE_ARTICLES: Article[] = [
         'Choose New goal. Name it the way your team would say it.',
         'Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.',
         'For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.',
-        'Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.',
+        'Say what it feeds into by typing a few of its words or its key (or choose Nothing: top of its own tree) and, optionally, why it is expected to help. Type a name to find its team and its owner. Set its level: Team, SVP or North star, for goals reported at major reviews.',
         'Check and publish. The owner is then offered the first check-in.',
         'A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.',
         'Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.',
@@ -571,7 +572,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Open the goal and choose Edit.',
-        'Change the title, definition, data source, owner, level, what it feeds and what it also helps.',
+        'Change the title, definition, data source, owner, level, what it feeds and what it also helps. The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.',
         'Plan by week shows the numbers week by week; type over any week.',
         'After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.',
         'Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.',
@@ -679,7 +680,7 @@ const CORE_ARTICLES: Article[] = [
         'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
         'IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.',
       ] },
-      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses.'] },
+      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
       { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a saved layout for everyone.'] },
     ],
     routes: ['/data'],
@@ -1034,7 +1035,7 @@ const CORE_ARTICLES: Article[] = [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
         'Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.',
         'Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.',
-        'Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person. On a phone the filters are under Filters.',
+        'Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person (type a name to find them). On a phone the filters are under Filters.',
         'On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.',
         'On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.',
         'Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.',

@@ -76,6 +76,15 @@ async function exportButton(h, p) {
   if (await phoneBar(p)) await h.click(p.locator('.show-menu > summary'));
   return p.getByRole('button', { name: 'Export these goals' });
 }
+/** Find-and-pick (FS1): open the picker its opener names, type, and choose the row named `option` (a choice, or a
+    picker's "none" row such as "Anyone"). `scope` holds the picker. */
+async function pickIn(scope, opener, typed, option) {
+  await scope.getByRole('button', { name: opener }).first().click();
+  // One picker is open at a time; `scope` may be the picker itself.
+  const panel = (typeof scope.page === 'function' ? scope.page() : scope).locator('.pick.open');
+  if (typed) await panel.getByRole('combobox').fill(typed);
+  await panel.getByRole('option', { name: option }).first().click();
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -221,8 +230,12 @@ const openSwitcher = async (p, h) => {
 const viewAs = async (p, first, h) => {
   const panel = await demoPanel(p, h);
   const pick = panel.getByRole('button', { name: new RegExp('\\b' + first + '\\b') }).first();
-  if (!(await pick.isVisible().catch(() => false))) await panel.getByRole('button', { name: /Everyone else/ }).click();
-  if (h) await h.click(pick); else await pick.click();
+  if (await pick.isVisible().catch(() => false)) { if (h) await h.click(pick); else await pick.click(); return; }
+  // Anyone not on a role card is found by typing (find-and-pick).
+  await panel.getByRole('button', { name: /Everyone else/ }).click();
+  if (h) await h.click(panel.getByRole('button', { name: /^Everyone else \(\d+\)/ })); else await panel.getByRole('button', { name: /^Everyone else \(\d+\)/ }).click();
+  await panel.locator('.pick.open').getByRole('combobox').fill(first);
+  await panel.locator('.pick.open').getByRole('option', { name: new RegExp('\\b' + first + '\\b') }).first().click();
 };
 
 /** The goal page's "…" menu: Share image, Copy link, Print, Change this goal, Stop this goal; and the bar's Check in again. */
@@ -534,7 +547,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.checkpoint('step 2');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'Where does it fit?');
-  await p.getByLabel('Feeds into').selectOption('ns-mttr');
+  await pickIn(p, /^Feeds into\b/, 'restore', /Mean time to restore service/);
   await h.click(p.getByRole('button', { name: 'SVP' }));
   await h.checkpoint('step 3');
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -667,7 +680,7 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   const q = await other.newPage();
   await q.goto(live('/'));
   await see(q, 'Who are you?');
-  await q.getByRole('button', { name: /Omar Haddad/ }).click();
+  await pickIn(q, /^Your name\b/, 'omar', /Omar Haddad/);
   await see(q, 'Omar', 'the teammate lands on their own home');
   await other.close();
   await p.context().close();
@@ -2551,6 +2564,46 @@ journey('U63', ['FIND-AND-PICK'], 'One way to pick: in a review’s set-up, peop
   await p.context().close();
 }, ['logged']);
 
+journey('U91', ['FIND-AND-PICK'], 'Picking everywhere else: editing a goal, its owner, team, the goal it feeds and the goals it also helps are found by typing; a goal under it is shown but can’t be chosen to feed it, in the rule’s words; a Data owner cell is picked the same way; no select on either page lists everyone', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  await p.goto(url('/goals/ns-ai/edit'));
+  const owner = p.getByRole('button', { name: /^Owner: Tariq Haddad\. Change$/ });
+  await owner.waitFor();
+  h.set('entry', await p.getByRole('button', { name: /^Team: .*Change$/ }).isVisible(), 'the goal’s team is not shown as words with Change');
+  await h.click(owner);
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'mei');
+  await h.click(p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first());
+  h.set('progress', /Mei/.test(await p.getByRole('button', { name: /^Owner: .*Change$/ }).getAttribute('aria-label')), 'choosing Mei did not show her as the owner');
+  await h.checkpoint('owner');
+  // A goal that already feeds this one is listed, not selectable, with the rule’s words.
+  await h.click(p.getByRole('button', { name: /^Feeds into\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'repositories default');
+  const under = p.locator('.pick.open').getByRole('option', { name: /Repositories with the AI reviewer on by default/ });
+  await under.waitFor();
+  h.set('errors', (await under.getAttribute('aria-disabled')) === 'true' && /Feeds this goal already/.test(await under.innerText()), 'a goal under this one could be chosen to feed it, or did not say why not');
+  await p.keyboard.press('Escape');
+  await h.click(p.getByRole('button', { name: /^Also helps\b/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'G-48');
+  await h.click(p.locator('.pick.open').getByRole('option').first());
+  await h.click(p.locator('.pick.open').getByRole('button', { name: 'Done' }));
+  h.set('finish', await p.locator('.pick-chosen').getByRole('button', { name: /^Remove / }).first().isVisible(), 'the goal it also helps is not listed with Remove');
+  const big = async () => p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((s) => s.options.length)));
+  const editBig = await big();
+  await h.checkpoint('links');
+  // Data: the owner cell is the same picker.
+  await p.goto(url('/data'));
+  const cell = p.getByRole('button', { name: /^Owner, Pull requests with AI-assisted review: .*Change$/ });
+  await cell.waitFor();
+  await h.click(cell);
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'mei');
+  await h.click(p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first());
+  await see(p, /1 change in 1 row, not saved yet/, 'picking an owner in Data did not make a change to review');
+  h.set('attention', (await p.locator('.dcell.edited').count()) === 1, 'the changed owner cell is not marked as changed');
+  const dataBig = await big();
+  h.set('a11y', editBig <= 25 && dataBig <= 25, `a select lists ${editBig} (Edit goal) or ${dataBig} (Data) options`);
+  await p.context().close();
+}, ['logged']);
+
 journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that matches says how many in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, and the address holds the search and the filter so Back steps through them', 10, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/activity'));
@@ -2999,10 +3052,10 @@ journey('U86', ['DAY-ONE', 'ONBOARDING'], 'Day one is true for both: set up a wo
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, 'What feeds it?');
   // Each goal feeding the outcome starts with no owner; give Ben the first and leave the rest.
-  const owners = p.getByRole('combobox', { name: /^Owner/ });
-  const firstOwner = await owners.nth(1).inputValue();
-  await owners.nth(1).selectOption({ label: 'Ben Ortiz' });
-  const left = (await owners.evaluateAll((els) => els.map((e) => e.value))).filter((v) => v === '').length;
+  const owners = p.locator('.pick').filter({ has: p.locator('.field-label', { hasText: /^Owner$/ }) });
+  const firstOwner = /No owner yet/.test(await owners.nth(1).innerText()) ? '' : await owners.nth(1).innerText();
+  await pickIn(owners.nth(1), /^Owner\b/, 'ben', /Ben Ortiz/);
+  const left = (await owners.allInnerTexts()).filter((t) => /No owner yet/.test(t)).length;
   await h.checkpoint('owners');
   await h.click(p.getByRole('button', { name: 'Next' }));
   await see(p, `${left === 1 ? '1 goal has' : `${left} goals have`} no owner yet. You can choose them now, or from Home afterwards.`, 'Check does not say how many goals have no owner');
@@ -3181,9 +3234,8 @@ journey('U53', ['WORKSPACE-ONE-PLACE', 'FEEDBACK-PAGE', 'LEAVE-WORKSPACE'], 'Wor
   await leave.waitFor();
   await h.click(leave.getByRole('button', { name: 'Leave the workspace' }));
   await see(leave, 'Choose who takes them over.', 'leaving without a handover is not explained');
-  await leave.getByLabel(/Who takes over your/).first().selectOption({ label: 'Tariq Haddad' });
-  const asks = leave.getByLabel(/open asks\?/);
-  if (await asks.count()) await asks.selectOption({ label: 'Tariq Haddad' });
+  await pickIn(leave, /^Who takes over your/, 'tariq', /Tariq Haddad/);
+  if (await leave.getByRole('button', { name: /open asks\?/ }).count()) await pickIn(leave, /open asks\?/, 'tariq', /Tariq Haddad/);
   await h.checkpoint('leave');
   await h.click(leave.getByRole('button', { name: 'Leave the workspace' }));
   await see(p, 'You’ve left', 'leaving is not confirmed');
@@ -3247,10 +3299,10 @@ journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works
   const kinds = await inbox.locator('.ibx-row .mk-item').count();
   const fbNew = await tabCount(inbox, 'New');
   await inbox.getByLabel('Kind').selectOption('all');
-  await inbox.getByLabel('Person').selectOption('Jun Park');
+  await pickIn(inbox, /^Person\b/, 'jun', /Jun Park/);
   await p.waitForTimeout(200);
   const jun = (await inbox.locator('.ibx-row').allInnerTexts()).every((x) => x.includes('Jun Park'));
-  await inbox.getByLabel('Person').selectOption('');
+  await pickIn(inbox, /^Person\b/, '', /^Anyone$/);
   h.set('finish', found === 1 && sixInHand === 6 && kinds === 0 && fbNew === 30 && jun, `search found ${found}; ${sixInHand} of 6 in hand; feedback filter left ${kinds} markups and counts ${fbNew}; person filter ${jun}`);
   // One at a time: keys on a computer (J moves, I marks in hand, W won't fix), Next on a phone; each opens the next.
   const before = await tabCount(inbox, 'New');
@@ -3324,7 +3376,7 @@ journey('U43', ['PERSON-LEFT', 'UNDO-REMOVE', 'REMOVE-ANYTHING'], 'An admin mark
   await see(dlg, 'Choose who takes them over.', 'marking him as left with no one chosen did not say what was missing');
   h.set('errors', !(await h.snapshot()).people.find((x) => x.id === 'mateo').leftAt, 'he was marked as left with no one taking over');
   await h.checkpoint('mark as left');
-  await dlg.getByLabel(/Who takes over Mateo’s \d+ goals?/).selectOption({ label: 'Marisol Duarte' });
+  await pickIn(dlg, /^Who takes over Mateo’s \d+ goals?/, 'marisol', /Marisol Duarte/);
   await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
   await see(p, 'Mateo Fernández is marked as left', 'no message that he left');
   h.set('attention', await p.locator('.toast-action').filter({ hasText: 'Undo' }).isVisible(), 'the message has no Undo');

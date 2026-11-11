@@ -17,7 +17,7 @@ What a search matches, the near miss offered when nothing does, and the one sear
 
 **One search per kind.** `search(rows, ask)` with `ask = { q, filters, sort, after, size }` gives `{ total, rows, next, near? }`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (`src/domain/query.ts`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
 
-**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the `Prefs` port.
+**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, its lead first, then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the `Prefs` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
@@ -34,6 +34,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | “Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”. | `yes; yes` |
 | Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”. | `rollback; kafka; none; none; queue wait; none; none` |
 | In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”. | `1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0:` |
+| In the demo workspace, Tunde’s people before typing (Build & Release, led by Pavel Novák). | `Tunde Bakare, Pavel Novák, then Build & Release A to Z` |
 | In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor. | `Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor` |
 | Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed. | `126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.` |
 | The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”. | `Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.` |
@@ -46,7 +47,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `page`, `suggest`, `withRecent`, `countLine`, `filterLine`, `filterText`, `noneFound`, `historyStep`
+- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `personRow`, `teamRow`, `rowsByIds`, `page`, `suggest`, `withRecent`, `countLine`, `filterLine`, `filterText`, `noneFound`, `historyStep`
 - [src/domain/query.ts](../../../src/domain/query.ts): `searchKey`
 
 ## Requirements
@@ -63,7 +64,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 5: a near miss (nearMiss) › chooses the commonest candidate
 - rule 7: a page of the answer › gives every row once, a page at a time, and says where the next starts
 - rule 6: suggestions before typing (suggest) › a person: you, your team A to Z, then those chosen lately; never someone who left
+- rule 6: suggestions before typing (suggest) › a person: their team lead comes straight after you, before the rest A to Z
 - rule 6: suggestions before typing (suggest) › keeps the newest twelve recents, without repeats
+- rows by id: what a closed picker shows › gives the same two lines a search does, in the order asked, someone who left included, and leaves out what it can’t find
 - rules 2 to 4: the count line, the filter line, none found and history › %j, %i, narrowed %s → “%s”
 - rules 2 to 4: the count line, the filter line, none found and history › says the filters in words
 - rules 2 to 4: the count line, the filter line, none found and history › says what found nothing

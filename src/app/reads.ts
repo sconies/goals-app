@@ -15,8 +15,8 @@ export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number): 
 }
 
 export function personRows(s: Snapshot): PersonRows {
-  const teams = new Map(s.teams.map((t) => [t.id, t.name]));
-  return { kind: 'person', people: live(s.people), teamName: (id) => teams.get(id) ?? '' };
+  const teams = new Map(s.teams.map((t) => [t.id, t]));
+  return { kind: 'person', people: live(s.people), teamName: (id) => teams.get(id)?.name ?? '', teamLead: (id) => teams.get(id)?.leadId ?? null };
 }
 
 export function teamRows(s: Snapshot): TeamRows {
