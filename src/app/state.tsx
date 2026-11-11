@@ -276,6 +276,9 @@ const wallClock = (clock: Clock) => () => {
   return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
 };
 
+/** Said when an action made in one workspace (an Undo pressed after switching) would save into another: nothing is saved. */
+export const ELSEWHERE = 'That was for another workspace, so nothing was changed. Open it to do it there.';
+
 /** Said when a save is tried with nobody signed in (outside the demo). */
 export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
 
@@ -510,11 +513,17 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
     const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
+    // An action made in one workspace (a toast's Undo, pressed after switching) never saves into another: this render's
+    // workspace must still be the one open, or nothing is saved and the person is told.
+    const save = (c: Commit) => {
+      if (loadedRef.current && loadedRef.current.ws !== ws.id) { toast(ELSEWHERE, 'error'); throw new Error(ELSEWHERE); }
+      return commit(c);
+    };
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       const c = out && 'commit' in out ? out.commit : (out as Commit | null);
-      if (c) await commit(c);
+      if (c) await save(c);
       return out;
     }
     const undoBy = (c: Commit, before: Snapshot) => () => { void act(() => R.undoRemoval(ax(), c, before)).then(() => toast('Undone')).catch(() => undefined); };
@@ -551,7 +560,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       if (name === 'planChanges' && (input as ActionInput<'planChanges'>).apply && !(out as ChangeSet).commit) throw new Error('These changes can’t be saved yet.');
       const c = commitOf(name, out, input);
       if (!c) return out as RunResult<N>;
-      await commit(c);
+      await save(c);
       if (name === 'markReviewed') {
         const n = (input as ActionInput<'markReviewed'>).goalIds.length;
         const review = sc.reviews.find((r) => r.id === (input as ActionInput<'markReviewed'>).reviewId);
@@ -599,12 +608,15 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!out) return;
         // At once, before anything else is recorded: off means nothing more is sent for this workspace.
         telemetry.setContext({ recording: on });
+        // At once in the ref too, so another switch before the next render reads this one.
+        workspacesNow.current = workspacesNow.current.map((w) => (w.id === wsId ? { ...w, recording: on } : w));
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
       },
       setModule: async (id, on) => {
         const out = await run('setModule', { moduleId: id, on });
         if (!out?.modulesOff) return;
         const off = out.modulesOff;
+        workspacesNow.current = workspacesNow.current.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w));
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
       },
       setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
