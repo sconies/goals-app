@@ -10,7 +10,8 @@
    5. The rules don't read the clock (AR1): no `new Date()` or `Date.now()` in src/domain or a module's rules*.ts. The
       time is a port (Clock); a rule takes `today` or `week`.
    6. New rules take what they need (AR4, docs/design/architecture.md 4.4): no file in src/domain or a module's rules*.ts
-      may take the whole workspace (`Snapshot`) as a parameter or field, except the files listed in
+      may take the whole workspace (`Snapshot`) as a parameter or field, take whole lists by another name (a
+      `Pick<Snapshot, …>` naming goals, checkIns, changes or requests), or cast something to `Snapshot`, except the files listed in
       scripts/whole-workspace.json, and those no more times than it says. The list may only shrink: src/app/reads.ts
       turns the loaded workspace into the rows a new rule reads.
 
@@ -67,6 +68,13 @@ const moduleOf = (rel) => /^src\/modules\/([^/]+)\//.exec(rel)?.[1] ?? null;
 const CLOCK = /\bnew\s+Date\s*\(\s*\)|\bDate\s*\.\s*now\s*\(/;
 /** Taking the whole workspace: a parameter or field typed Snapshot. */
 const WHOLE = /\b\w+\??\s*:\s*(?:Readonly<\s*)?Snapshot\b/g;
+/** Taking a whole list by another name: a Pick of Snapshot that names goals, check-ins, changes or requests. */
+const PICK = /\bPick<\s*Snapshot\s*,([^>]*)>/g;
+const LISTS = /['"](goals|checkIns|changes|requests)['"]/;
+/** Pretending something is the whole workspace: a cast to Snapshot. */
+const CAST = /\bas\s+(?:unknown\s+as\s+)?Snapshot\b/g;
+/** The code without its comments, strings kept (a Pick names its fields in strings). */
+const withoutComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).replace(/(^|[^:\\'"`])\/\/.*$/gm, (m, a) => a);
 /** A file whose code is rules: src/domain, and a module's rules*.ts. */
 const isRules = (f) => !isTest(f) && (f.startsWith('src/domain/') || /^src\/modules\/[^/]+\/rules[^/]*\.ts$/.test(f));
 
@@ -74,7 +82,11 @@ const isRules = (f) => !isTest(f) && (f.startsWith('src/domain/') || /^src\/modu
 export function wholeWorkspaceUses(root) {
   const out = {};
   for (const file of files(root, 'src').filter(isRules)) {
-    const n = [...codeOnly(fs.readFileSync(path.join(root, file), 'utf8')).matchAll(WHOLE)].length;
+    const raw = fs.readFileSync(path.join(root, file), 'utf8');
+    const code = withoutComments(raw);
+    const n = [...codeOnly(raw).matchAll(WHOLE)].length
+      + [...code.matchAll(PICK)].filter((m) => LISTS.test(m[1])).length
+      + [...codeOnly(raw).matchAll(CAST)].length;
     if (n) out[file] = n;
   }
   return out;
@@ -123,7 +135,7 @@ export function checkLayers(root) {
   const allowed = fs.existsSync(allowedFile) ? JSON.parse(fs.readFileSync(allowedFile, 'utf8')).files : {};
   for (const [file, n] of Object.entries(wholeWorkspaceUses(root))) {
     const may = allowed[file] ?? 0;
-    if (n > may) problems.push(`${file}: takes the whole workspace (Snapshot) ${n} time(s)${may ? `, more than the ${may} scripts/whole-workspace.json allows` : ''}; a new rule takes only the rows it reads (src/app/reads.ts makes them)`);
+    if (n > may) problems.push(`${file}: takes the whole workspace (Snapshot, a Pick of it naming goals, checkIns, changes or requests, or a cast to it) ${n} time(s)${may ? `, more than the ${may} scripts/whole-workspace.json allows` : ''}; a new rule takes only the rows it reads (src/app/reads.ts makes them)`);
   }
   return problems;
 }
