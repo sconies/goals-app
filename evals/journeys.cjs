@@ -3483,7 +3483,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   const file = path.join(OUT, `U46-${device}.xlsx`);
   await xlsx.saveAs(file);
   const book = await readWorkbook(file);
-  h.set('finish', ['Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes', 'README'].every((n) => book.some((s) => s.name === n)), `the workbook has ${book.map((s) => s.name).join(', ')}`);
+  h.set('finish', ['Start here', 'Goals', 'Plan', 'Check-ins', 'People', 'Results', 'Asks', 'Notes'].every((n) => book.some((s) => s.name === n)), `the workbook has ${book.map((s) => s.name).join(', ')}`);
   // In Excel: stop one goal (with a reason) and give another a new owner by email; a line break in a Why.
   const s0 = await h.snapshot();
   const goals = book.find((s) => s.name === 'Goals').rows;
