@@ -3024,7 +3024,8 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
   await p.waitForURL(/check-in\?start=1/, { timeout: 5000 }).catch(() => {});
   await p.locator('.ci-week').waitFor({ timeout: 5000 }).catch(() => {});
   h.set('logged', /of \d+$/.test((await p.locator('.ci-week').innerText().catch(() => '')).trim()), 'Home’s Start check-in does not open the first form of the week’s walk');
-  // Someone who owns no goal, at the address typed by hand, is told so.
+  // Someone who owns no goal, at the address typed by hand, is told so. (The demo's controls are on Home, not in a form.)
+  await p.goto(url('/'));
   await viewAs(p, 'Oskar');
   await p.goto(url('/check-in'));
   await see(p, 'You don’t own a goal in', 'Check-in does not say Oskar owns no goal');
