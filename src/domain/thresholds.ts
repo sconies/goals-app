@@ -9,6 +9,10 @@ export const RULES = {
   staleDays: 14,
   /** A milestone stage more than this many weeks late is off track. */
   lateWeeksOff: 2,
+  /** The wrap-up opens this many weeks before a cycle's last day (its last two weeks). */
+  wrapUpWeeksBefore: 2,
+  /** …and stays open this many weeks after it, for the last numbers and the owners' words. */
+  wrapUpWeeksAfter: 4,
 } as const;
 
 /** How many check-ins the trend looks back over: the latest and the two before it. */

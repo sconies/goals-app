@@ -1,9 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
 import type { Identity } from './ports';
 import { Activity } from './screens/Activity';
-import { DataTables } from './screens/DataTables';
 import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalEdit } from './screens/GoalEdit';
 import { GoalScreen } from './screens/GoalScreen';
@@ -12,23 +12,29 @@ import { Watching } from './screens/Watching';
 import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
-import { RetroGoal, WrapUp } from './screens/Retro';
-import { WorkspaceHome } from './screens/Workspace';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
 import { movedTo } from './domain/directory';
-import { Feedback } from './screens/Feedback';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
 import { Settings } from './screens/Settings';
-import { GoalPrint, ReviewPrint } from './screens/Print';
 import { MotionLayer } from './ui/Count';
 import { MotionLab } from './ui/MotionLab';
 import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
+
+// Screens a first visit never needs load when first opened, to keep the first download small (AX4; the bundle budget
+// is scripts/check-bundle.mjs).
+const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
+const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
+const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
+const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
+const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
+const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
+const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
 
 export function Routed() {
   const app = useApp();
@@ -42,6 +48,7 @@ export function Routed() {
       <MotionLab />
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
+      <Suspense fallback={null}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
@@ -95,6 +102,7 @@ export function Routed() {
         {modules.redirects.map(([from, to]) => <Route key={from} path={from} element={<Moved to={to} />} />)}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
       </ErrorBoundary>
     </Shell>
   );

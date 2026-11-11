@@ -2,10 +2,9 @@ import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from '
 import { Icon } from '../ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { periodLabel } from '../domain/year';
+import { periodNow, wrapUpOpenOn } from '../domain/cycle';
 import { attentionGroup, attentionList, splitAttention } from '../domain/attention';
 import { LEVEL_LABEL } from '../domain/format';
-import { wrapUpOpen } from '../domain/cycle';
 import type { Level } from '../domain/types';
 import { LABEL, worst } from '../domain/status';
 import { outcomeTrees } from '../domain/tree';
@@ -226,10 +225,10 @@ export function GoalsScreen() {
         <span className="goals-title">
           <h1 className="title-xl">{show === 'watching' ? 'Watching' : 'Goals'}</h1>
           {/* The week line breaks only between its parts, never inside one. */}
-          <span className="hint goals-period">{periodLabel(app.cycle, app.week).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
+          <span className="hint goals-period">{periodNow(app.cycle, app.today).split(' · ').map((part, i) => <Fragment key={i}>{i > 0 && ' · '}<span className="nb">{part}</span></Fragment>)}</span>
         </span>
         {/* New goal is a quiet link here (Lane, 9 Nov): people seldom make one, so it isn't the page's big button. The sidebar's New goal is one step from anywhere. */}
-        <span className="actions">{wrapUpOpen(app.cycle, app.week) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
+        <span className="actions">{wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">Wrap up</Link>}<Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
       </div>
       {/* Whose goals, as tabs; at the right of the same row, the Views menu (one meaning on every width). */}
       <div className="goals-toolbar">

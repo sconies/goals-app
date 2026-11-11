@@ -4,7 +4,7 @@
 import { checkInsFor, goalStatus, type GoalStatus } from './status';
 import { askText, answeredSince, isOverdue, openAsksFor, openFor } from './asks';
 import { firstDueWeek } from './progress';
-import { currentWeek } from './plan';
+import { currentWeek, hasEnded } from './plan';
 import { goalTrend } from './trend';
 import { ATTENTION_FLAGS, FLAG, LABEL, lower, type FlagKind } from './vocabulary';
 import type { Cycle, Decision, Goal, Snapshot } from './types';
@@ -80,7 +80,8 @@ export function flagsFor(goal: Goal, s: Snapshot, cycle: Cycle, today: Date): { 
   if (trend) add('trend', trend, 'risk');
   // A done goal is finished: how it was called on the way there is no longer news (re-review, 8 Nov, backlog T).
   if (status.greener && latest && status.status !== 'stale' && status.status !== 'done') add('greener', `Called ${LABEL[latest.status].toLowerCase()}; the numbers say ${LABEL[latest.calculated].toLowerCase()}. ${latest.greenerWhy}`, 'risk');
-  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
+  // Nothing is due once the cycle's last day is past (cycle-end rule 2).
+  if (week >= Math.max(1, firstDueWeek(goal, cycle)) && status.status !== 'done' && !hasEnded(cycle, today) && !checkInsFor(goal, s.checkIns).some((c) => c.week === week)) add('due', `Due before the review in week ${week}.`, 'info');
 
   flags.sort((a, b) => WEIGHT[b.kind] - WEIGHT[a.kind]);
   return { status, flags };
@@ -96,6 +97,20 @@ const HANDLED_ORDER: Handled['kind'][] = ['action', 'answered', 'noted', 'review
 const LOOKS: Partial<Record<Decision['kind'], Handled['kind']>> = { note: 'noted', acknowledge: 'reviewed' };
 
 /** Every look at a behind goal since its latest check-in, on or before today's date, in no particular order. */
+const byGoal = new WeakMap<Decision[], { n: number; last: Decision | undefined; index: Map<string, Decision[]> }>();
+/** A goal's decisions, in the order kept. Indexed once per list (and again if it grows), so asking for every goal stays
+    cheap at scale (AX4), as checkInsFor does for check-ins. */
+function decisionsFor(goalId: string, all: Decision[]): Decision[] {
+  let hit = byGoal.get(all);
+  if (!hit || hit.n !== all.length || hit.last !== all[all.length - 1]) {
+    const index = new Map<string, Decision[]>();
+    for (const d of all) { const l = index.get(d.goalId); if (l) l.push(d); else index.set(d.goalId, [d]); }
+    hit = { n: all.length, last: all[all.length - 1], index };
+    byGoal.set(all, hit);
+  }
+  return hit.index.get(goalId) ?? [];
+}
+
 function looksAt(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status: GoalStatus): Handled[] {
   if (status.status !== 'off' && status.status !== 'risk') return [];
   const latest = status.latest;
@@ -106,7 +121,7 @@ function looksAt(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, status: Goa
   // Records dated after today (a pinned demo clock) don't count yet; the time of day doesn't matter.
   const day = today.toISOString().slice(0, 10);
   const looks: Handled[] = [];
-  for (const d of s.decisions) {
+  for (const d of decisionsFor(goal.id, s.decisions)) {
     const kind = LOOKS[d.kind];
     if (!kind || d.goalId !== goal.id || d.at <= since || d.at.slice(0, 10) > day) continue;
     if (d.byId === goal.ownerId) continue;

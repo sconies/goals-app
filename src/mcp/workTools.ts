@@ -6,7 +6,7 @@ import type { Commit } from '../data/store';
 import * as A from '../domain/actions';
 import { activityFilter, parseActivity } from '../domain/activity';
 import { attentionList, splitAttention } from '../domain/attention';
-import { wrapUpOpen } from '../domain/cycle';
+import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
 import type { AskStatus, DisplayStatus } from '../domain/types';
@@ -151,7 +151,7 @@ export const WORK_TOOLS: ToolDef[] = [
         watching: d.watching ? { goals: d.watching.all.length, needAttention: d.watching.needs.map((a) => a.goal.title), beingHandled: d.watching.handled.map((a) => ({ title: a.goal.title, inHand: a.handled!.text })), noRecentUpdate: d.watching.quiet.length } : null,
         nextReview: d.next ? { id: d.next.id, name: d.next.name, date: d.next.date, day: d.next.weekday } : null,
       };
-      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpen(ctx.cycle, ctx.week) };
+      const data = { week: ctx.week, atAGlance: glance, checkInsDue: due, needsAttention: attention, beingHandled: handled, requestsForYou: requests, questionsOnYourGoals: questions, asksForAnUpdate: asks, yourActions: actions, yourReviews: reviews, wrapUpOpen: wrapUpOpenOn(ctx.cycle, ctx.today) };
       const text = [
         `Week ${ctx.week} for ${ctx.actor.name}.`,
         `${d.scope === 'mine' ? 'Your goals' : 'All goals'}: ${d.counts.map((c) => `${c.n} ${LABEL[c.status].toLowerCase()}`).join(', ') || 'none'}.${d.streak != null ? ` On-time streak: ${d.streak} ${d.streak === 1 ? 'week' : 'weeks'}.` : ''}${d.watching ? ` Watching ${d.watching.all.length}: ${d.watching.needs.length} need attention, ${d.watching.handled.length} ${lower(ATTENTION.handled)}.` : ''}${d.next ? ` Next review: ${d.next.name}, ${d.next.weekday} ${d.next.date}.` : ''}`,
@@ -300,8 +300,11 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const retros = ctx.snapshot.retros ?? [];
       const list = ctx.snapshot.goals.map((g) => { const r = retros.find((x) => x.goalId === g.id); return { id: g.id, title: g.title, owner: name(ctx, g.ownerId), wrappedUp: !!r, result: r?.result ?? null, learned: r?.learned ?? null, next: r?.next ?? null }; });
-      const open = wrapUpOpen(ctx.cycle, ctx.week);
-      return { data: { open, opensWeek: ctx.cycle.weeks - 1, goals: list }, text: `${open ? 'Wrap-up is open.' : `Wrap-up opens in week ${ctx.cycle.weeks - 1}.`} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.` };
+      // The wrap-up's days (cycle-end rule 1): it opens two weeks before the last day and closes four weeks after it.
+      const open = wrapUpOpenOn(ctx.cycle, ctx.today);
+      const d = cycleDates(ctx.cycle), state = cycleState(ctx.cycle, ctx.today);
+      const when = state === 'closed' ? `The wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : open ? `Wrap-up is open until ${dayWithYear(d.wrapUpCloses)}.` : `Wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`;
+      return { data: { open, opensWeek: ctx.cycle.weeks - 1, opens: d.wrapUpOpens, lastDay: d.lastDay, closes: d.wrapUpCloses, goals: list }, text: `${when} ${list.filter((g) => g.wrappedUp).length} of ${list.length} goals wrapped up.` };
     },
   },
 

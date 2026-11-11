@@ -4,8 +4,8 @@ import { OWNER_VIEW_LABEL } from '../domain/vocabulary';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { periodLabel, periodWord } from '../domain/year';
-import { RESULT_LABEL, suggestedResult, wrapUpOpen } from '../domain/cycle';
+import { periodWord } from '../domain/year';
+import { cycleDates, cycleState, dayWithYear, periodNow, RESULT_LABEL, suggestedResult, wrapUpOpenOn } from '../domain/cycle';
 import { MIN_LEARNED } from '../domain/actions';
 import { fmt, gapBeside, NO_VALUE } from '../domain/format';
 import { assessPosted } from '../domain/status';
@@ -26,7 +26,7 @@ export function WrapUp() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
-  const open = wrapUpOpen(app.cycle, app.week);
+  const open = wrapUpOpenOn(app.cycle, app.today);
   const w = periodWord(app.cycle);
   const retroOf = (g: Goal) => app.snapshot.retros.find((r) => r.goalId === g.id);
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
@@ -48,12 +48,14 @@ export function WrapUp() {
   return (
     <div className="page narrow">
       <div className="page-head">
-        <span className="eyebrow">{periodLabel(app.cycle, app.week)}</span>
+        <span className="eyebrow">{periodNow(app.cycle, app.today)}</span>
         <h1 className="title-xl">Wrap up the {w}</h1>
         <span className="hint">Each owner says how their goals landed and what they learned. Then next {w}’s goals start with the ones that carry on.</span>
       </div>
       {!open && (
-        <div className="calm">The wrap-up opens in week {app.cycle.weeks - 1}. {app.cycle.weeks - 1 - app.week === 1 ? 'That’s next week.' : `That’s in ${app.cycle.weeks - 1 - app.week} weeks.`}</div>
+        <div className="calm">{cycleState(app.cycle, app.today) === 'closed'
+          ? `The wrap-up closed on ${dayWithYear(cycleDates(app.cycle).wrapUpCloses)}. ${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}.`
+          : <>The wrap-up opens in week {app.cycle.weeks - 1}, on {dayWithYear(cycleDates(app.cycle).wrapUpOpens)}. {app.cycle.weeks - 1 - app.week === 1 ? 'That’s next week.' : `That’s in ${app.cycle.weeks - 1 - app.week} weeks.`}</>}</div>
       )}
 
       {open && mine.length > 0 && (

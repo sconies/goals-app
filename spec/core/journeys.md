@@ -82,6 +82,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U85 | A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan |  | `NEW-GOAL-TRUTH` | 26 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
 | U87 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet |  | `GOALS-MENUS` `GOAL-MAP` `SAVED-VIEWS` | 14 | `evals/journeys.cjs` |
+| U117 | The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days |  | `RESULTS` `YEAR` | 6 | `evals/journeys.cjs` |
 
 ## Platform checks
 
