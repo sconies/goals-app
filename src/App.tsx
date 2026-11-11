@@ -16,7 +16,6 @@ import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
 import { movedTo } from './domain/directory';
 import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
-import { Empty } from './ui/bits';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { Research } from './screens/Research';
@@ -35,6 +34,7 @@ const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default:
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
+const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
 
 export function Routed() {
@@ -88,6 +88,7 @@ export function Routed() {
         {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
         <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
         <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
+        <Route path="/workspace/cycles/next" element={<StartNext />} />
         <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />
         <Route path="/workspace/access" element={<WorkspaceHome section="access" />} />
         <Route path="/workspace/features" element={<WorkspaceHome section="features" />} />
@@ -131,10 +132,8 @@ function NotFound() {
   return (
     <div className="page narrow not-found">
       <h1 className="title-xl">Page not found</h1>
-      <Empty title="There’s nothing at this address">
-        <span className="muted">The link may be old, or mistyped. Everything is still reachable from Home and the sidebar.</span>
-        <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn" to="/help">Help</Link></div>
-      </Empty>
+      <p className="muted">There’s nothing at this address. The link may be old, or mistyped.</p>
+      <div className="row"><Link className="btn primary" to="/">Go to Home</Link><Link className="btn ghost" to="/help">Help</Link></div>
     </div>
   );
 }

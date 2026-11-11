@@ -187,6 +187,8 @@ export interface AppState {
   deleteNote(id: string): Promise<void>;
   /** Admins: delete a cycle no one has checked in to. */
   deleteCycle(id: string): Promise<void>;
+  /** Admins: undo starting the next cycle while nobody has used it (domain/removal undoStart). */
+  undoStart(cycleId: string): Promise<void>;
   /** Whoever imported, or an admin: put every row an import or bulk edit wrote back as it was. */
   undoImport(importId: string): Promise<{ restored: number; skipped: string[] }>;
   /** Admins, or whoever removed it: bring back something removed in the last 30 days. */
@@ -282,6 +284,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   // Outside the demo, a save needs someone signed in (or chosen): set as the snapshot is worked out below.
   const signedIn = useRef(mode === 'demo');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  // The workspaces as they are now, for an action run later from an older render (a toast's Undo): switching a feature
+  // off and pressing Undo must see it off, or the switch back reads as nothing to change.
+  const workspacesNow = useRef(workspaces);
+  workspacesNow.current = workspaces;
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
   const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
@@ -462,6 +468,16 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     // Worked out once per snapshot, when first asked for.
     let dups: Set<string> | null = null, hueMap: Map<string, number> | null = null;
     const dupTitles = () => (dups ??= duplicateTitles(sc.goals));
+    // Names someone else here also has, made once (N12): only those people need what tells them apart, so a name is
+    // looked up, not found by scanning everyone each time it is drawn.
+    let shared: { ids: Set<string>; twins: Set<string> } | undefined;
+    const sharedNames = () => {
+      if (shared) return shared;
+      const count = new Map<string, number>();
+      for (const x of sc.people) { const k = x.name.trim().toLowerCase(); count.set(k, (count.get(k) ?? 0) + 1); }
+      shared = { ids: new Set(sc.people.map((x) => x.id)), twins: new Set([...count].filter(([, n]) => n > 1).map(([k]) => k)) };
+      return shared;
+    };
     const hues = () => (hueMap ??= avatarHues([...people.values()]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     // The demo shows someone until a person is picked; outside it, nobody signed in can see the workspace (the picker
@@ -483,7 +499,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
     const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
-    const rx = (): RunContext => ({ ...ax(), workspace: ws, modules: MODULES });
+    const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
@@ -582,7 +598,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       },
       setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
-      personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
+      personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
       avatarHue: (id) => hues().get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
@@ -682,6 +698,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       deleteComment: async (id) => { await run('deleteComment', { commentId: id }); },
       deleteNote: async (id) => { await run('deleteNote', { noteId: id }); },
       deleteCycle: async (id) => { await run('deleteCycle', { cycleId: id }); },
+      undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
       recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, MODULE_RECORDS),

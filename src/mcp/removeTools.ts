@@ -196,6 +196,17 @@ export const REMOVE_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'undo_start_cycle',
+    title: 'Undo starting the next cycle',
+    description: 'Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['cycle_id'], properties: { cycle_id: str('The started cycle’s ID, from get_workspace.') } },
+    annotations: REMOVE,
+    async run(a, ctx) {
+      const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+      return save(ctx, R.undoStart(ax(ctx), String(a.cycle_id ?? '')), `${c?.name ?? 'The cycle'} was undone`);
+    },
+  },
+  {
     name: 'undo_import',
     title: 'Undo an import or bulk edit',
     description: 'Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since are skipped and listed. Import IDs are in get_activity (kind=imports).',

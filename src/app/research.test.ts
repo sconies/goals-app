@@ -9,6 +9,9 @@ describe('feedback sent from the demo', () => {
   it('reaches the research table with the screen, the persona and how they felt, and one id per visitor', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('VITE_SUPABASE_KEY', 'anon');
+    // Test files share their workers' modules (vitest.config.ts, isolate: false): if another file already loaded the real
+    // Supabase client, the mock above would never reach it and the insert would go to the network. Start afresh.
+    vi.resetModules();
     const { sendDemoFeedback } = await import('./research');
     expect(await sendDemoFeedback({ mood: 'bad', text: ' The cause buttons don’t fit my case ', path: '/check-in/head', persona: 'Maya Chen, Product lead' })).toBe(true);
     expect(await sendDemoFeedback({ mood: 'good', text: '', path: '/', persona: 'Maya Chen, Product lead' })).toBe(true);

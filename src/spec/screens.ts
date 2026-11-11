@@ -4,12 +4,13 @@
    has one, and none is left for a screen that's gone. Keyed by the file in src/screens, without .tsx. */
 export const MAIN_ACTION: Record<string, string> = {
   Home: 'The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.',
-  CheckInFlow: 'Post this week’s check-in, one goal at a time.',
+  CheckInFlow: 'On the week’s list (/check-in), start with the first goal due, or pick any; then post each check-in, one goal at a time.',
   QuickCheckIn: 'Post every row of the table that is ready, at once, and land on the check-in’s confirmation.',
   Research: 'Start the research session.',
   Review: 'Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.',
   Watching: 'Open a goal you watch that needs attention.',
   Retro: 'Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.',
+  StartNext: 'For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).',
   GoalsScreen: 'Find goals (search, filter, sort, lay them out) and open one.',
   GoalWizard: 'Publish the goal, one question a step.',
   GoalScreen: 'The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.',

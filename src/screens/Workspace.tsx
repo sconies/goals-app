@@ -18,14 +18,16 @@ import { useModules, type WorkspaceSection } from '../core/app';
 import { sectionsFor } from '../core/module';
 import { Avatar, Sheet } from '../ui/bits';
 import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
-import { canRestore, cycleStanding } from '../domain/removal';
+import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/removal';
 import { AccessTokens } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { wrapUpOpenOn } from '../domain/cycle';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, wrapUpOpenOn } from '../domain/cycle';
+import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
+import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
@@ -34,13 +36,13 @@ const NARROW = 720;
 /** The core's sections, in menu order. A module's sections follow the one they name in `after`, or come last. The
     landing section keeps the id `overview` (old links and modules name it); people read it as About (WR2). */
 const CORE: WorkspaceSection[] = [
-  { id: 'overview', label: 'About', summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
-  { id: 'cycles', label: 'Cycles', summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
-  { id: 'access', label: 'Access', summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
-  { id: 'features', label: 'Features', summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
+  { id: 'overview', label: CORE_SECTION_LABELS.overview, summary: 'What needs sorting out, then the facts about this workspace.', element: <AboutSection /> },
+  { id: 'cycles', label: CORE_SECTION_LABELS.cycles, summary: 'The workspace’s goal years: their dates, which one is running, and what can be done with each.', element: <CyclesSection /> },
+  { id: 'access', label: CORE_SECTION_LABELS.access, summary: 'Who the admins are, and MCP access: the tokens that let Claude or another AI tool act as someone here.', admins: true, element: <AccessSection /> },
+  { id: 'features', label: CORE_SECTION_LABELS.features, summary: 'The optional parts of Faro, each switched on or off for everyone here. Goals, check-ins, reviews and people are always on.', admins: true, element: <FeaturesSection /> },
   // Everyone can read what is recorded about them; only admins switch it (re-review, 8 Nov, backlog T).
-  { id: 'privacy', label: 'Privacy', summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
-  { id: 'removed', label: 'Recently removed', summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
+  { id: 'privacy', label: CORE_SECTION_LABELS.privacy, summary: 'What the app records about how it’s used here. Admins switch it on or off.', element: <PrivacySection /> },
+  { id: 'removed', label: CORE_SECTION_LABELS.removed, summary: 'Anything removed in the last 30 days, with Restore. Anyone who isn’t an admin sees what they removed.', element: <RemovedSection /> },
 ];
 
 /** Old anchors on the one-page Workspace, and the section each now is. */
@@ -52,6 +54,9 @@ export function useSections(): WorkspaceSection[] {
   const { screens } = useModules();
   return sectionsFor(app.viewer, CORE, screens.flatMap((m) => m.sections ?? []));
 }
+
+/** Every section's name, whoever is looking (a page's name, navigation rule 2): the core's, then the modules'. */
+export { useSectionNames } from './workspaceSections';
 
 interface Ctx { narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }
 const WsCtx = createContext<Ctx | null>(null);
@@ -268,9 +273,24 @@ function CyclesSection() {
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const anyCheckIn = app.snapshot.checkIns.length > 0;
+  // A next year set up from the wrap-up (cycle-end 2.4, 2.5): ready, opening on its week 1's Monday, undoable until used.
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const undo = later && startOf(app.full, later.id) ? canUndoStart(app.full, later.id) : null;
+  const [undoing, setUndoing] = useState(false);
+  const undoStart = async () => {
+    if (!later) return;
+    setUndoing(true);
+    try { await app.undoStart(later.id); app.toast(`${later.name} was undone. ${app.cycle.name} is as it was.`, 'success'); } catch { /* said by the toast */ } finally { setUndoing(false); }
+  };
   return (
     <>
       <SectionHead id="cycles">A cycle is a goal year: its goals, plans and check-ins.</SectionHead>
+      {later && undo?.ok && (
+        <section className="block note-card cycle-ready" aria-label={`${later.name} is ready`}>
+          <span className="small"><WarnMark /> <strong>{later.name} is ready.</strong> {cycleStanding(app.full, later.id).goals.toLocaleString('en-GB')} goals are set up. It opens for everyone on <strong>{dayWithYear(cycleDates(later).firstDay)}</strong>. Until then this is still {app.cycle.name}, week {Math.max(1, app.week)}.</span>
+          {admin && <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart()}>Undo</button>}
+        </section>
+      )}
       <section className="block cycles-block" aria-label="Cycles">
         <ul className="removed-list" aria-label="Cycles">
           {cycles.map((c) => {
@@ -278,10 +298,16 @@ function CyclesSection() {
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
             const open = current && wrapUpOpenOn(c, app.today);
+            const start = startOf(app.full, c.id);
+            const can = start ? canUndoStart(app.full, c.id) : null;
+            const next = nextCycleShape(c).name;
+            // Starting the next year isn't part of the wrap-up's weeks: it's offered from the day the wrap-up opens for as
+            // long as no later year exists, even once the wrap-up has closed (build review, 11 Nov).
+            const canStart = current && admin && !later && ['ending', 'ended', 'closed'].includes(cycleState(c, app.today));
+            const startLink = canStart ? <Link className="btn sm primary" to="/workspace/cycles/next">Start {next}</Link> : null;
             const action = !current ? null
-              : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
-              : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>
-              : anyCheckIn ? <Link className="btn sm" to="/retro">See the wrap-up</Link> : null;
+              : open ? <><Link className="btn sm" to="/retro">Open the wrap-up</Link>{startLink}</>
+              : <>{anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}</>;
             return (
               <li key={c.id} className="removed-row cycle-row">
                 <span className="removed-text cycle-when">
@@ -289,10 +315,11 @@ function CyclesSection() {
                   <span className="small">{line.when}</span>
                   <span className="hint">{line.counts}</span>
                   {current && <span className="hint">{yearLine(c, app.week, app.today, left).replace(/^.*?\.\s/, '')}</span>}
+                  {start && <span className="hint">Started by {app.person(start.actorId)?.name ?? 'an admin'} on {dayWithYear(start.at.slice(0, 10))}. {can?.ok ? 'It can be undone until someone checks in or changes a goal in it.' : `It can’t be undone now: ${can && !can.ok ? can.why : ''}.`}</span>}
                 </span>
                 <span className="team-actions">
                   {action}
-                  {admin && st.deletable && asking !== c.id && <button type="button" className="btn sm ghost" onClick={() => setAsking(c.id)} aria-label={`Delete the cycle ${c.name}`}>Delete…</button>}
+                  {admin && st.deletable && !start && asking !== c.id && <button type="button" className="btn sm ghost" onClick={() => setAsking(c.id)} aria-label={`Delete the cycle ${c.name}`}>Delete…</button>}
                 </span>
                 {asking === c.id && (
                   <span className="admin-confirm" role="group" aria-label={`Delete the cycle ${c.name}`}>
