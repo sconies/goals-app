@@ -27,6 +27,7 @@ Every core record stored and changed safely, and the one way many changes come i
 1. The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.
 2. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.
 3. A change set that blocks saves nothing; one that saves is undone by one undo.
+4. A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.
 
 ## Gaps in the kit
 

@@ -10,13 +10,20 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | Preview of the `journeys` branch | https://goals-app-git-journeys-lanehirschfield-5825s-projects.vercel.app |
 | Design plan (Claude Docs) | https://claude.ai/artifact/6XPyzprnhTVsBSziB4GVwP |
 | Repo | github.com/sconies/goals-app, working branch `journeys` |
-| Database | Supabase project `wlbetxkmrvwqfxvxntzl` (shared with another app's tables; leave those alone). Migrations 0001–0027 applied. CI applies new ones on merge |
+| Database | Supabase project `wlbetxkmrvwqfxvxntzl` (shared with another app's tables; leave those alone). Every migration in `supabase/migrations` is applied: CI applies new ones on merge |
 | Sign-in links | No longer used by Faro: the inbox is open with no sign-in since backlog O (8 Nov). Supabase, Authentication, URL Configuration. Site URL belongs to the Kerry Lane app (leave it). Redirect URLs list Faro's: `https://goals-app-puce-five.vercel.app/**` and `https://goals-app-*-lanehirschfield-5825s-projects.vercel.app/**` (added 7 Nov) |
 | Rules for working here | `CLAUDE.md` |
 | What to build next, in order | `docs/backlog.md` |
 | What Faro is, generated from the code | `llms.txt` and `spec/` (`npm run spec`; items 8a and 8b) |
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
+
+## Track 4 (architecture and feature switches), Wednesday 11 November, 13:10 UTC
+
+- **Merged:** AX1 (#122, migration 0038: a save can't change another workspace's rows), AX3 (#123, `Identity` passed in beside the store; no stand-in outside the demo; `src/adapters/signIn.ts`), AX10 (#124, true pages, a doc-paths test, MCP failures to standard error), AX7 (#126, the Supabase adapter tidied). **With this handover:** AX4 (#128, scale fixture `src/spec/scale.test.ts`, bundle budget `scripts/check-bundle.mjs` at 250 KB, lazy routes; the 10x summary 2.1 s to 0.4 s; first download 416 to 241 KB).
+- **0038 is live:** the migrate job had stopped at the fence check over Supabase's own tables in extensions, cron and net; #125 makes those a warning, and CI run 43026556856 on main applied `0038_workspace_check.sql`.
+- **Next for a fresh track-4 session, in order:** AX8 and AX9 (free now); then FT2, which waits for track 1's GL2 (#112) and FS4 (#117) to leave Home, Goals and the goal page; FT1, which waits for NV3 (#114) and OB2; SW1 and SW2 after FT2; AX2 after #111, #115, #117 and track 2's GE1; AX6 after AX2; AX5 after track 3's AS part 2. Lane's answers are recorded in `docs/design/round-2/README.md` and `round-3/README.md`; the build plans are `docs/design/feature-toggles/spec.md` section 11 and `docs/design/feature-switches/`.
+- **Habits that helped:** one worktree per item, but anything that changes `server/`, `src/domain` or an adapter the MCP server imports is finished in the main checkout (`npm run build:mcp`). Don't run heavy tests beside `evals:changed`: a loaded machine fails U20 on a timeout.
 
 ## State on Tuesday 10 November, evening
 

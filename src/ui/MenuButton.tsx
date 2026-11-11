@@ -11,18 +11,24 @@ export interface MenuItem {
   /** A quieter line under the label, and a number at the end (a tab's count). */
   hint?: string; count?: number | null;
   icon?: React.ReactNode;
+  /** A line that isn't a choice (why a menu has nothing to choose just now): said, never pressed. */
+  note?: boolean;
+  /** A hairline above this item, setting it apart from the ones before. */
+  rule?: boolean;
 }
 
 /**
  * A small menu behind one button, for actions that would otherwise crowd a row on a phone (saved views, the bulk
  * actions, Import and Export). Each item closes the menu.
  */
-export function MenuButton({ label, items, className, summary, icon, display, extra }: {
+export function MenuButton({ label, items, className, summary, icon, display, extra, markCurrent }: {
   label: string; items: MenuItem[]; className?: string; summary?: string; icon?: React.ReactNode;
   /** What the button says instead of its label (the current choice); the label still names the menu. */
   display?: React.ReactNode;
   /** More, after the items (a module's tools); pressing it closes the menu as an item does. */
   extra?: React.ReactNode;
+  /** The current item says "Current" in words, not by weight alone (the Goals menus: Views, Group, Layout). */
+  markCurrent?: boolean;
 }) {
   const menu = useRef<HTMLDetailsElement>(null);
   const close = () => { if (menu.current) menu.current.open = false; };
@@ -32,19 +38,32 @@ export function MenuButton({ label, items, className, summary, icon, display, ex
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
   }, []);
+  // Opened, the list stays on the screen: it hangs from the button's right edge, or its left one when that would run off.
+  const fit = () => {
+    const d = menu.current, list = d?.querySelector<HTMLElement>('.view-menu-list');
+    if (!d?.open || !list) return;
+    list.style.left = ''; list.style.right = '';
+    const r = list.getBoundingClientRect();
+    if (r.left < 8) { list.style.left = '0'; list.style.right = 'auto'; }
+    else if (r.right > window.innerWidth - 8) { list.style.left = 'auto'; list.style.right = '0'; }
+  };
   return (
-    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu}>
+    <details className={'view-menu' + (className ? ' ' + className : '')} ref={menu} onToggle={fit}>
       <summary className={'btn sm ' + (summary ?? 'ghost')} aria-label={icon ? label : undefined} title={icon ? label : undefined}>{icon ?? display ?? label}{!icon && <Icon name="chevron-down" size={12} className="menu-chev" />}</summary>
       <div className="view-menu-list" role="group" aria-label={label}>
         {items.map((it, i) => {
           const head = it.section && it.section !== items[i - 1]?.section ? <span className="menu-section">{it.section}</span> : null;
-          const body = it.hint || it.icon || it.count != null
-            ? <>{it.icon}<span className="menu-text"><span>{it.label}</span>{it.hint && <span className="hint">{it.hint}</span>}</span>{it.count != null && <span className="tabcount">{it.count}</span>}</>
+          const mark = markCurrent && it.current ? <span className="menu-current">Current</span> : null;
+          const body = it.hint || it.icon || it.count != null || mark
+            ? <>{it.icon}<span className="menu-text"><span>{it.label}</span>{it.hint && <span className="hint">{it.hint}</span>}</span>{it.count != null && <span className="tabcount">{it.count}</span>}{mark}</>
             : it.label;
           return (
             <Fragment key={(it.section ?? '') + it.label}>
               {head}
-              {it.to
+              {it.rule && <hr className="menu-rule" />}
+              {it.note
+                ? <span className="menu-note hint">{it.label}</span>
+                : it.to
                 ? <Link className="menuitem" to={it.to} onClick={close}>{body}</Link>
                 : <button type="button" className="menuitem" aria-current={it.current || undefined} onClick={() => { close(); it.onClick?.(); }}>{body}</button>}
             </Fragment>

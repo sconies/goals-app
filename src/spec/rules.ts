@@ -6,12 +6,13 @@
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { findPeople } from '../domain/people';
 import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
-import { scopeToCycle } from '../domain/cycle';
+import { cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
+import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
 import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
-import { currentWeek, firstWeekFrom, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
@@ -27,16 +28,21 @@ import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domai
 import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWord, STATUS_ORDER } from '../domain/vocabulary';
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
+import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
+import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import * as MET from '../domain/metrics';
-import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
-import { countLine, filterLine, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
+import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { CHECK_IN_MOMENT } from './conformance';
 import { checkIn, CYCLE, metric, MILESTONE, n, RANGE } from './examples';
+import { goalResult } from '../domain/story';
+import { quarterResults } from '../domain/year';
+import { weekProgress } from '../domain/progress';
 
 export interface Example {
   /** The situation, in words. */
@@ -457,7 +463,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 ### The Needs attention list
 
-\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
+\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the list bar's switch on the Map, Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
     examples: [
       { given: 'Gaps oldest first: −1, −2, −3; 1, 2, 3; −1, −2, −1; −3, −2, −1; only −1, −2; with "short of plan" required: 3, 2, 1.', then: 'worse, better, flat, better, flat, flat', run: () => [gapTrend([-1, -2, -3]), gapTrend([1, 2, 3]), gapTrend([-1, -2, -1]), gapTrend([-3, -2, -1]), gapTrend([-1, -2]), gapTrend([3, 2, 1], true)].join(', ') },
       { given: 'The 30→75 goal held at 33 in weeks 1, 2 and 3 while the plan moves on.', then: 'worse', run: () => goalTrend(g3075, CYCLE, [1, 2, 3].map((w) => ci('m', w, 33))).word },
@@ -634,6 +640,40 @@ For a range, better means further from the limit on its safe side.
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
+  /* ---------- a year's end (round 3, cycle end CY1) ---------- */
+  {
+    id: 'year-end',
+    title: 'A year’s end',
+    summary: 'A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year.',
+    code: [
+      { file: 'src/domain/cycle.ts', names: ['cycleDates', 'cycleState', 'wrapUpOpenOn', 'wrapUpOpen', 'wrapUpCycle', 'placeLine', 'periodNow', 'dayWithYear'] },
+      { file: 'src/domain/plan.ts', names: ['resultWeek', 'hasEnded'] },
+      { file: 'src/domain/thresholds.ts', names: ['RULES'] },
+    ],
+    tests: ['src/domain/cycleEnd.test.ts', 'src/domain/workspace.test.ts'],
+    reqs: ['RESULTS', 'YEAR'],
+    body: `
+**A cycle's days.** Week 0 is the week before week 1 (for starting numbers). A cycle's **first day** is week 1's Monday (\`startDate\` + 7 days); its **last day** is its last week's Sunday (\`startDate\` + (\`weeks\` + 1) × 7 − 1 days). The wrap-up **opens** on the Monday of week \`weeks − ${RULES.wrapUpWeeksBefore} + 1\` (its last ${RULES.wrapUpWeeksBefore} weeks) and **closes** ${RULES.wrapUpWeeksAfter} weeks after the last day.
+
+**Where it stands** on a day (\`cycleState\`): \`before\` its first day (week 0 included); \`running\` until the day before the wrap-up opens; \`ending\` until its last day; \`ended\` until the wrap-up closes; \`closed\` after. The clock decides, never a button: a year ends on its last day whether or not anyone starts the next. The frame says it in one line (\`placeLine\`): "2026 · week 46 · Q4"; "2026 · week 53, the last week"; "2026 has ended"; before week 1, "2027 starts Mon 4 Jan 2027".
+
+**The week results are judged at** (\`resultWeek\`) is the week by the calendar, held to 0…\`weeks + 1\`: the current week until the last day, then \`weeks + 1\`. A goal's result, its quarters and the last quarter's close read it, so a goal due in the last week gets its result, and Q4 closes on the numbers there are, the day after the year ends. Everything else keeps \`currentWeek\`, which stops at the last week: a check-in given after the end is dated the last week.
+
+**After the last day nothing in the cycle is due, late or out of date.** No check-in is due (no "due" flag, nothing on Home's check-in block), and no goal becomes "No recent update" for want of a check-in: each keeps the last status its owner gave.`,
+    examples: [
+      { given: 'The demo’s 2026: week 0 from Monday 22 December 2025, 53 weeks. Its days.', then: 'first 2025-12-29, last 2027-01-03, wrap-up 2026-12-21 to 2027-01-31', run: () => { const d = cycleDates({ startDate: '2025-12-22', weeks: 53 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up ${d.wrapUpOpens} to ${d.wrapUpCloses}`; } },
+      { given: '2027 (week 0 from Monday 28 December 2026, 52 weeks).', then: 'first 2027-01-04, last 2028-01-02, wrap-up 2027-12-20 to 2028-01-30', run: () => { const d = cycleDates({ startDate: '2026-12-28', weeks: 52 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up ${d.wrapUpOpens} to ${d.wrapUpCloses}`; } },
+      { given: '2026 on Sunday 20 December 2026, Monday 21 December, Monday 28 December, Monday 4 January 2027 and Monday 1 February 2027: its state, and the frame.', then: 'running 2026 · week 51 · Q4 / ending 2026 · week 52 · Q4 / ending 2026 · week 53, the last week / ended 2026 has ended / closed 2026 has ended', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; return ['2026-12-20', '2026-12-21', '2026-12-28', '2027-01-04', '2027-02-01'].map((d) => `${cycleState(y, at(d + 'T12:00:00Z'))} ${placeLine(y, at(d + 'T12:00:00Z'))}`).join(' / '); } },
+      { given: 'Is 2026’s wrap-up open on Sunday 20 December 2026, Monday 21 December, Sunday 31 January 2027 and Monday 1 February 2027?', then: 'no, yes, yes, no', run: () => ['2026-12-20', '2026-12-21', '2027-01-31', '2027-02-01'].map((d) => (wrapUpOpenOn({ startDate: '2025-12-22', weeks: 53 }, at(d + 'T12:00:00Z')) ? 'yes' : 'no')).join(', ') },
+      { given: '2027 seen on Monday 21 December 2026, before its week 1.', then: '2027 starts Mon 4 Jan 2027', run: () => placeLine({ id: 'y', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }, at('2026-12-21T12:00:00Z')) },
+      { given: 'A 13-week cycle from Monday 28 September 2026 (week 0).', then: 'first 2026-10-05, last 2027-01-03, wrap-up opens 2026-12-21', run: () => { const d = cycleDates({ startDate: '2026-09-28', weeks: 13 }); return `first ${d.firstDay}, last ${d.lastDay}, wrap-up opens ${d.wrapUpOpens}`; } },
+      { given: 'The week and the week results are judged at, on Sunday 3 January 2027 and Monday 4 January 2027, in 2026.', then: '53 53 / 53 54', run: () => { const y = { startDate: '2025-12-22', weeks: 53 } as never; return ['2027-01-03', '2027-01-04'].map((d) => `${currentWeek(y, at(d + 'T12:00:00Z'))} ${resultWeek(y, at(d + 'T12:00:00Z'))}`).join(' / '); } },
+      { given: 'G-37, 4 → 40 pairs due in week 53 of 2026, with 33 pairs in week 53. Its result and Q4 on Sunday 3 January 2027, then on Monday 4 January.', then: 'none, Q4: plan 40 pairs by week 53 / Not met: due week 53, Q4: 33 pairs against a plan of 40 pairs, 7 pairs short', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', unit: 'pairs' }); const cis = [checkIn('g37', 53, 33, { postedAt: '2026-12-29T10:00:00Z' })]; return ['2027-01-03', '2027-01-04'].map((d) => { const w = resultWeek(y, at(d + 'T12:00:00Z')); return `${goalResult(g, y, cis, w)?.text ?? 'none'}, ${quarterResults(g, y, cis, w)[3]!.text}`; }).join(' / '); } },
+      { given: 'The same goal with its last check-in in week 46 (posted 11 November 2026): its status, and whether its check-in is due, on Sunday 3 January 2027 and on Monday 11 January.', then: 'No recent update, due / On track, not due', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', ownerId: 'p', unit: 'pairs' }); const cis = [checkIn('g37', 46, 30, { postedAt: '2026-11-11T10:00:00Z' })]; return ['2027-01-03', '2027-01-11'].map((d) => { const t = at(d + 'T12:00:00Z'); return `${LABEL[goalStatus(g, y, cis, t).status]}, ${weekProgress('p', { goals: [g], checkIns: cis } as unknown as Snapshot, y, currentWeek(y, t), t).due.length ? 'due' : 'not due'}`; }).join(' / '); } },
+    ],
+    unclear: ['How long the wrap-up stays open after the year ends (four weeks) and how early it opens (two weeks) are choices, kept in RULES; the rebuild may tune them.'],
+  },
+
   /* ---------- the workspace (backlog WS) ---------- */
   {
     id: 'workspace',
@@ -650,7 +690,7 @@ For a range, better means further from the limit on its safe side.
     tests: ['src/domain/workspace.test.ts', 'src/domain/setupTruth.test.ts'],
     reqs: ['WORKSPACE-ONE-PLACE', 'WORKSPACE-ABOUT'],
     body: `
-**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its first and last days (its start date, then \`weeks × 7 − 1\` days on) and whether it is running (with its week), not started yet, or over; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
+**A cycle** (a goal year) says how many goals it has and how many check-ins were posted on them (removed ones don't count), and so whether it can be deleted: only when nobody has checked in to it **and** it isn't the only cycle. The only cycle always stays, so a new workspace's cycle says so rather than offering Delete. Each cycle shows its real first and last days (week 1's Monday to its last week's Sunday: \`cycleDates\`, rule “A year's end”) and whether it is running (with its week), ending (the wrap-up's weeks), ended (with its last day) or not begun; on Cycles as one word after its name (\`cycleLine\`), with its goals and check-ins (\"no check-ins yet\" for none).
 
 **A team's people** are everyone in it, and its lead even when the lead's own team is another; the lead counts once.
 
@@ -662,7 +702,7 @@ For a range, better means further from the limit on its safe side.
 
 **What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has ${ONLY_ADMIN_FROM} people or more; people with no email; people in no team; teams of ${LEAD_FROM} people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first ${NEEDS_SHOWN}; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
 
-**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; a cycle not started says when it starts.`,
+**The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (\`wrapUpOpen\`), or, once it's open, how many goals are still to wrap up; once the year's last day is past, when it ended and until when the wrap-up stays open; a cycle not begun says when its week 1 starts.`,
     examples: [
       { given: 'A new workspace: one cycle, no goals, no check-ins.', then: 'No goals and no check-ins yet; it’s the only cycle, so it stays', run: () => cycleStanding({ ...workspace([]), goals: [] }, CYCLE.id).says },
       { given: 'The same workspace with a second cycle nobody has checked in to.', then: 'No goals and no check-ins yet: it can be deleted', run: () => cycleStanding({ ...workspace([]), goals: [], cycles: [CYCLE, { ...CYCLE, id: 'c2', name: 'Next' }] }, 'c2').says },
@@ -677,8 +717,8 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, for Pat, who isn’t an admin.', then: 'nothing', run: () => workspaceNeeds(workspace([]), CYCLE, false).map((x) => x.id).join(', ') || 'nothing' },
       { given: 'The example’s name in the demo, and a workspace called “Growth” in the real app.', then: 'Platform Engineering (example data) / Growth', run: () => [workspaceName({ name: 'Example: Platform Engineering', kind: 'example' }, 'demo'), workspaceName({ name: 'Growth', kind: 'own' }, 'live')].map((w) => w.name + (w.kind ? ` (${w.kind})` : '')).join(' / ') },
       { given: 'Admins Hamid Rezaei, Amara Nwosu and Grace Achterberg; then 40 admins whose first two A to Z are Aiko Suzuki and Akosua Owusu.', then: 'Amara Nwosu, Grace Achterberg and Hamid Rezaei / Aiko Suzuki, Akosua Owusu and 38 others', run: () => [adminsLine(['Hamid Rezaei', 'Amara Nwosu', 'Grace Achterberg'].map((name) => ({ name, admin: true }))), adminsLine(['Aiko Suzuki', 'Akosua Owusu', ...Array.from({ length: 38 }, (_, i) => `Zed ${i}`)].map((name) => ({ name, admin: true })))].join(' / ') },
-      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; and for a 2027 cycle with nothing in it yet.', then: '2026 · running / Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet', run: () => { const a = cycleLine({ name: '2026', startDate: '2025-12-22', weeks: 53 }, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2027-01-04', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}`; } },
-      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), and on Tuesday 22 December (week 52) with 31 goals not wrapped up.', then: '2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)} / ${yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)}`; } },
+      { given: 'Cycles’ row for that year in week 46, with 126 goals and 3,200 check-ins; for a 2027 cycle (week 0 from Monday 28 December 2026) with nothing in it yet; and for 2026 on Monday 11 January 2027.', then: '2026 · running / Week 46 of 53 · 29 Dec 2025 to 3 Jan 2027 / 126 goals · 3,200 check-ins; 2027 · starts 4 Jan 2027 / 0 goals · no check-ins yet; 2026 · ended 3 Jan 2027 / 29 Dec 2025 to 3 Jan 2027 · 53 weeks', run: () => { const y = { name: '2026', startDate: '2025-12-22', weeks: 53 }; const a = cycleLine(y, true, 46, new Date('2026-11-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); const b = cycleLine({ name: '2027', startDate: '2026-12-28', weeks: 52 }, false, 46, new Date('2026-11-11T12:00:00Z'), { goals: 0, checkIns: 0 }); const c = cycleLine(y, true, 53, new Date('2027-01-11T12:00:00Z'), { goals: 126, checkIns: 3200 }); return `${a.title} / ${a.when} / ${a.counts}; ${b.title} / ${b.counts}; ${c.title} / ${c.when}`; } },
+      { given: 'A 53-week year starting Monday 22 December 2025: on Wednesday 11 November (week 46), on Tuesday 15 December (week 51), on Tuesday 22 December (week 52) with 31 goals not wrapped up, and on Monday 4 January 2027 with 88.', then: '2026, week 46 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 51 of 53. The wrap-up opens on 21 Dec 2026. / 2026, week 52 of 53. The wrap-up is open: 31 goals still to wrap up. / 2026 ended on Sun 3 Jan 2027. The wrap-up is open until Sun 31 Jan 2027: 88 goals still to wrap up.', run: () => { const c = { name: '2026', startDate: '2025-12-22', weeks: 53 }; return `${yearLine(c, 46, new Date('2026-11-11T12:00:00Z'), 30)} / ${yearLine(c, 51, new Date('2026-12-15T12:00:00Z'), 31)} / ${yearLine(c, 52, new Date('2026-12-22T12:00:00Z'), 31)} / ${yearLine(c, 53, new Date('2027-01-04T12:00:00Z'), 88)}`; } },
     ],
     unclear: ['When “You’re the only admin” starts to be said (five people) and when a team without a lead is (three people) are choices, not laws; the rebuild may tune them.', 'Leaving with no goals and no history still marks the person as left (they can be restored), unlike an admin deleting someone with no history.'],
   },
@@ -730,9 +770,9 @@ For a range, better means further from the limit on its safe side.
 **Getting started**, for one person, in this order, each left out when it doesn’t apply or is done. Whoever set it up: their first check-ins (goals they own with none); “Give {n} goals an owner” (the goals set-up left without one that they still own); “Add the people who own goals” while they’re alone, otherwise “Send your team the link” until they copy it; “Set up the first goal” while there are none. Anyone else: who set it up, when, and how many goals they were given; their first check-ins; and, owning none, the goals to see (until opened), to watch (until they watch one), and a goal of their own. Nothing at all when they hid it, ${DAY_ONE_DAYS} days after their first visit, in the example, or in a workspace more than ${NEW_WORKSPACE_DAYS} days old that they didn’t just join.`,
     examples: [
       { given: 'The counter on Check: a template; goals set up later.', then: 'Step 7 of 7 / Step 5 of 5', run: () => `${stepCounter('check', 'product')} / ${stepCounter('check', 'later')}` },
-      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneWs(['ana', 'ana', 'ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
-      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneWs(['ana', 'ben']), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
-      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneWs(['ana']), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
+      { given: 'Ana set up Field Operations today with Ben, gave Ben one goal and left two unowned; what Ana sees.', then: 'first-check-in, assign (Give 2 goals an owner.), invite', run: () => { const r = gettingStarted('ana', dayOneRows(dayOneWs(['ana', 'ana', 'ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE, unowned: ['g1', 'g2'] }, DAY_NOW, 'Thursday'); return r.map((x) => (x.id === 'assign' ? `assign (${x.says})` : x.id)).join(', '); } },
+      { given: 'Ben opens it for the first time.', then: 'Ana Silva set up Field Operations on 11 Nov and gave you 1 goal. / first-check-in', run: () => { const r = gettingStarted('ben', dayOneRows(dayOneWs(['ana', 'ben'])), DAY_WS, { firstSeenAt: DAY_MADE }, DAY_NOW, 'Thursday'); return `${r[0]!.says} / ${r.slice(1).map((x) => x.id).join(', ')}`; } },
+      { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneRows(dayOneWs(['ana'])), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
     ],
     unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
   },
@@ -878,14 +918,39 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     })(),
   },
 
+  /* ---------- a goal not born late (onboarding spec, rules 3 and 4; OB2) ---------- */
+  {
+    id: 'not-born-late',
+    title: 'A goal not born late',
+    summary: 'A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan.',
+    code: [{ file: 'src/domain/goal.ts', names: ['pastStage', 'stagesDoneAtSetUp', 'validateGoal'] }, { file: 'src/domain/checkin.ts', names: ['rebaseOffer', 'rebase', 'REBASE_WEEKS'] }, { file: 'src/domain/actions.ts', names: ['recordStagesDone'] }],
+    tests: ['src/domain/notBornLate.test.ts', 'evals/onboarding.eval.ts'],
+    reqs: ['NEW-GOAL-TRUTH'],
+    body: `
+**A stage already past (rule 3).** Setting up a new goal, a stage due before this week is *past*, and must be answered: *done* or *overdue*. Done: the goal is published with one check-in in the week of the latest stage said to be done, each of those stages done in its own due week (posted by whoever set it up, now, with the note "Recorded as already done when the goal was set up"). So none of them is late, and its quarter can read met. Overdue: published as it stands; the stage is late from the start. Changing an existing goal never asks. Only the goal's owner or an admin records it, and only before its first check-in.
+
+**A fresh start at the first check-in (rule 4).** Offered when all hold: a number to move; no check-in yet; set up at most ${REBASE_WEEKS} weeks ago; the number typed is valid, would not be on plan, and hasn't reached the target. Not for a number kept in range, stages, or a goal with any check-in. Taken, the goal's start becomes the number from this week (\`fromWeek\`), to the same target, due week and shape; hand-set plan numbers after this week are kept. It needs no reason, since no check-in had started; the change log says "Started the plan from {value} at the first check-in (was {start})". The check-in posted then is on plan.`,
+    examples: (() => {
+      const g = metric(5, 2, 'straight', { createdAt: '2026-11-09T09:00:00Z', unit: 'days', plan: { start: 5, target: 2, shape: 'straight', fromWeek: 10 } });
+      const offer = (v: number, created = 10) => { const o = rebaseOffer(g, CYCLE, 10, v, [], created); return o ? `offered (${o.start} → ${o.value})` : 'not offered'; };
+      return [
+        { given: 'Week 10: stages due weeks 12, 10 and 3. Which are past?', then: '3', run: () => [12, 10, 3].filter((w) => pastStage(w, 10)).join(', ') },
+        { given: 'Two stages, A due week 3 and B due week 7, set up in week 10 with A said to be done: the check-in recorded.', then: 'week 3, A done in week 3, B not done', run: () => { const c = stagesDoneAtSetUp(MILESTONE, ['a'], 'p', '2026-11-11T10:00:00Z', 'c')!; return `week ${c.week}, ${c.stages!.map((u) => (u.doneWeek != null ? `${u.stageId.toUpperCase()} done in week ${u.doneWeek}` : `${u.stageId.toUpperCase()} not done`)).join(', ')}`; } },
+        { given: 'Lead time, 5 days down to 2, set up in week 10, no check-in yet: its first number is 7; 5; 2; and 7 for a goal set up in week 1.', then: 'offered (5 → 7); not offered; not offered; not offered', run: () => [offer(7), offer(5), offer(2), offer(7, 1)].join('; ') },
+        { given: 'The same goal, started from 7 in week 10.', then: 'start 7, target 2, from week 10, straight', run: () => { const r = rebase(g, 7, 10); return r.kind === 'metric' ? `start ${r.plan.start}, target ${r.plan.target}, from week ${r.plan.fromWeek}, ${r.plan.shape}` : ''; } },
+      ];
+    })(),
+    unclear: ['How many weeks after set-up a first number may still restart the plan (four) is a choice, not a law.'],
+  },
+
   /* ---------- finding things (the app redesign, AR1) ---------- */
   {
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
-    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts'],
-    reqs: [],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
+    reqs: ['FIND-ANYWHERE'],
     body: `
 **What a search matches.** A row is found by its words, as one text; a search matches when every word typed starts a word of the row, ignoring case and accents. Words break at spaces and at \`/ - , . : ( )\`, so "CI/CD" is two words and "ci" finds it, "Lucía" is found by "lucia", and "back" doesn't find "Rollback". An empty search matches everything.
 
@@ -900,6 +965,8 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 **Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
+
+**Find, from anywhere.** One search across kinds: goals, people, teams, then a module's kinds (the metric library's metrics), never workspaces. Each kind is searched by its own rule above with 3 rows, and only the groups that found something are given, in that order, each with how many match in all ("Goals · 8", then "See all 8 goals"). People marked as left are found too, named "{name} (left)", after everyone here. A search that is one goal's key ("G-48", "g48", "48") puts that goal first and alone under Goals. When a kind finds nothing, its near miss is tried; when no kind finds anything, Find says "Nothing matches “{q}”." Before anything is typed it offers what was opened or chosen lately, up to 8, of any kind.
 
 **The seam.** Screens, pickers and the AI tools reach this through the \`Search\` port (\`src/ports/search.ts\`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.`,
     examples: (() => {
@@ -920,6 +987,12 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
         { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
         { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
+        { given: 'In the demo workspace, Find for “rhea”, “48” and “zzzz”: each group with its total and first rows.', then: 'goal 8: Lead time for changes, Pipeline queue wait (p90), Flaky test rate in the main pipelines; person 1: Rhea Kapoor; team 1: CI/CD / goal 1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / nothing', run: () => {
+          const at = new Date(CHECK_IN_MOMENT), wk = currentWeek(cycle(), at);
+          const rows = { goal: goalRows(demo!, cycle(), at, wk), person: personRows(demo!), team: teamRows(demo!) } as const;
+          return ['rhea', '48', 'zzzz'].map((q) => findAll(q, ['goal', 'person', 'team'], (k, a) => search(rows[k as keyof typeof rows], a)).map((g) => `${g.kind} ${g.total}: ${g.rows.map((r) => r.name).join(', ')}`).join('; ') || 'nothing').join(' / ');
+        } },
+        { given: 'Whole keys: “G-48”, “g48”, “48”, “rollback”.', then: 'G-48, G-48, G-48, none', run: () => ['G-48', 'g48', '48', 'rollback'].map((q) => keyOf(q) ?? 'none').join(', ') },
         { given: 'In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”.', then: '1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD', run: () => [find('person', 'tunde'), find('person', 'LUCIA'), find('team', 'rhea')].join(' / ') },
       ];
     })(),
@@ -927,26 +1000,36 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
   },
 ];
 
+/** The names the navigation examples read: a few of the demo's, as the rules look them up. */
+const NAV_GOALS: Record<string, { title: string; parent?: string }> = { 'G-1': { title: 'Lead time for changes' }, 'G-7': { title: 'Merge-to-deploy time', parent: 'G-1' } };
+const NAV_NAMES: PlaceNames = {
+  goal: (id) => NAV_GOALS[id]?.title ?? null, parent: (id) => NAV_GOALS[id]?.parent ?? null,
+  review: (id) => (id === 'weekly' ? 'Platform leadership weekly' : null), view: () => null, article: () => null,
+  person: (id) => (id === 'rhea' ? 'Rhea Kapoor' : null), team: () => null, section: (id) => (id === 'access' ? 'Access' : null),
+  module: (p) => (p === '/metrics/lead-time' ? 'Lead time for changes (metric)' : null),
+};
+
 RULE_LIST.push({
   id: 'navigation',
   title: 'Navigation: the menu, the lit item and a page’s name',
   summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
-  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'litTab', 'pageName', 'placeName', 'backTo', 'FIRST_PAGES', 'FORM'] }],
   tests: ['src/domain/navigation.test.ts'],
-  reqs: [],
+  reqs: ['NAV-WHERE', 'NAV-BACK'],
   body: `
 **The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
-**The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+**The lit item** (one at most): a goal opened in a review's walk (\`?review=\`) lights Reviews; Goals at a saved view's exact address lights that view instead of Goals; otherwise the item whose place the address is in: Home only at \`/\`; Check-in for a check-in and the table; Goals for every goal, its edit and print pages, and the wrap-up (\`/retro\`); New goal for New goal and its steps; People for People and Teams; Workspace for its sections but not set-up (\`/workspace/new\`); Help for Help and What's new; a module's item for its pages. \`/ready\`, \`/research\`, set-up and a page not found light nothing. **On a phone** the tab that holds the lit row is lit; a row in More lights More.
 
-**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address "Page not found". So six goals opened in turn give six titles.
 
-**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
+**The back link** ("‹ {where}", above the title) is never on a place's first page (Home, Check-in, Goals, Reviews, People, Teams, Activity, Data, Workspace, Settings, Help, Feedback, and a module's own), nor on a form, whose one way out is its closing control. Elsewhere it goes back to the last earlier page in the tab that isn't a form (check-in, the table, New goal, an edit, set-up, a wrap-up) and isn't this page (in a review's walk, the walk's other goals count as this page), named in the navigation's words: Home, Goals, "your goals" on Mine, a saved view's name, a goal's title, a review's name. Pressing it goes back that many entries, so the browser's Forward still works, and the browser's Back onto a form you left steps over it the same way. Arriving from outside, it goes to the page's parent: the goal a goal feeds (or Goals), the goal for its print page, the review for a goal in its walk and for its summary, Reviews, People, Teams, Help (for an article and What's new), Workspace for a section, a module's first page for its other pages; otherwise Home.`,
   examples: [
     { given: 'The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without.', then: 'home checkin goals reviews | people module:metrics activity data | new | workspace settings help feedback / home goals reviews | people module:metrics activity data | new | workspace settings help feedback', run: () => [true, false].map((o) => { const g = menuGroups(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]); return [g.work, g.lookup, g.make, g.you].map((x) => x.join(' ')).join(' | '); }).join(' / ') },
     { given: 'The phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals reviews / home goals reviews people', run: () => [phoneTabs(true), phoneTabs(false)].map((x) => x.join(' ')).join(' / ') },
-    { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
-    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
+    { given: 'The lit item at /goals/lead-mq, /goals/lead-mq?review=weekly, /goals/new, /retro, /teams/cicd, /whats-new and /research.', then: 'goals, reviews, new, goals, people, help, none', run: () => ['/goals/lead-mq', '/goals/lead-mq?review=weekly', '/goals/new', '/retro', '/teams/cicd', '/whats-new', '/research'].map((a) => { const [p = '/', q = ''] = a.split('?'); return litItem(p, q, menuRows(menuGroups(true))) ?? 'none'; }).join(', ') },
+    { given: 'The page’s name at /goals?scope=watching, /goals/G-1, its edit page, /goals/G-1?review=weekly, /check-in/G-1, /workspace/access, a module’s page for the metric “Lead time for changes”, and an unknown goal.', then: 'Goals / Lead time for changes / Change Lead time for changes / Lead time for changes · Platform leadership weekly / Check in: Lead time for changes / Access · Workspace / Lead time for changes (metric) / Goal not found', run: () => ['/goals?scope=watching', '/goals/G-1', '/goals/G-1/edit', '/goals/G-1?review=weekly', '/check-in/G-1', '/workspace/access', '/metrics/lead-time', '/goals/G-99'].map((a) => { const [p = '/', q = ''] = a.split('?'); return pageName(p, q, NAV_NAMES); }).join(' / ') },
+    { given: 'The back link: Goals on Mine → Lead time for changes; Goals → a goal → Edit → Save → the goal; a new tab on Merge-to-deploy time (which feeds Lead time for changes); a new tab on Lead time for changes; Settings from a goal; Home → Rhea’s page; a new tab on Rhea’s page.', then: '‹ your goals (1 back) / ‹ Goals (3 back) / ‹ Lead time for changes (/goals/G-1) / ‹ Goals (/goals) / none / ‹ Home (1 back) / ‹ People (/people)', run: () => ([['/goals/G-1', ['/goals?scope=mine']], ['/goals/G-1', ['/goals?scope=all', '/goals/G-1', '/goals/G-1/edit']], ['/goals/G-7', []], ['/goals/G-1', []], ['/settings', ['/goals/G-1']], ['/people/rhea', ['/']], ['/people/rhea', []]] as [string, string[]][]).map(([a, t]) => { const b = backTo(a, '', [...t, a].map((path) => ({ path })), NAV_NAMES); return b ? `‹ ${b.label} (${b.steps ? `${b.steps} back` : b.to})` : 'none'; }).join(' / ') },
   ],
 });
 

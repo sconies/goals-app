@@ -43,7 +43,7 @@ The core is everything outside `src/modules`. It offers these extension points, 
 | Home blocks | the `home.blocks` place | `src/screens/Home.tsx`, after Watching |
 | Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, before Activity |
 | Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |
-| Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' view bar, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
+| Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' Views menu and the phone's View sheet, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
 | The goal forms' "Measured by" field | the `goal.measure` place (backlog 0b, 8 Nov): given the goal as saved (null while new), the form's kind, unit and team, and `onChange(pick)`. The form saves the pick after the goal (`app.linkGoalMetric`, or `app.unlinkGoalMetric` for null); with no module in it, nothing renders and nothing extra is saved | `src/screens/GoalWizard.tsx` (after “How it’s measured”), `src/screens/GoalEdit.tsx` (after the name) |
 | A person's and a team's page in People | the `people.person` place (given the person) and the `people.team` place (given the team), app redesign WR1, 10 Nov: after the person's facts, and after the team's people. With no module in them, nothing renders | `src/screens/People.tsx` (`PersonPage`, `TeamPage`) |
 | A line in a goal's summary | the `goal.facts` place, given the goal: one short line each ("Measured by …") (GT1 and AR2) | `src/screens/GoalScreen.tsx`, the summary |
@@ -131,9 +131,5 @@ Faro's Supabase project (family-hq) also holds another app's real family data, s
   - the layers lint;
   - the CI job that runs the core without each module;
   - the three rules files that reached into the data layer: `Commit` now lives in `src/domain/commit.ts`.
-- **Still to move,** one at a time, markup first and reviews last:
-  - markup, which lives mostly in one folder;
-  - reviews, which touch about 90 files across nine folders;
-  - asks, Watching and the map.
-
-  Each move takes its screens, Help, tools and journeys into its folder.
+- **Next:** the metric library becomes a module with its own records and rules (AS part 2), the proof that a feature with records of its own can be added without editing the core.
+- **Core, and staying core** (architecture readiness review, 11 Nov): reviews, asks, Watching and the map. Moving reviews (about 90 files across nine folders) would teach a rebuild nothing the metric library won't. Markup lives mostly in one folder and may move when something needs it to.

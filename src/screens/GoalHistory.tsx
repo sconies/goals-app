@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { planAt, weekDates } from '../domain/plan';
+import { planAt, resultWeek, weekDates } from '../domain/plan';
 import { goalAsOf } from '../domain/goal';
 import { fmt } from '../domain/format';
 import { LABEL } from '../domain/status';
@@ -117,7 +117,7 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                 </thead>
                 <tbody>
                   {g.rows.map(({ goal, depth }) => {
-                    const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, app.week);
+                    const rs = quarterResults(goal, app.cycle, app.snapshot.checkIns, resultWeek(app.cycle, app.today));
                     return (
                       <tr key={goal.id}>
                         <th scope="row" className={'gt-goal' + (depth ? ' child' : '')} style={depth ? { paddingLeft: 12 + depth * 16 } : undefined}><Link to={'/goals/' + goal.id}>{goal.title}</Link> <TitleTell goal={goal} /></th>

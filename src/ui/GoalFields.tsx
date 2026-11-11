@@ -63,10 +63,10 @@ export function DueField({ label, options, choice, onChoose, dates, labelClass, 
   );
 }
 
-type Stage = { id: string; name: string; dueWeek: string };
+type Stage = { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' };
 
 /** Dated stages: "Stage" and "Due week" said once above the rows; an error sits under the first row it's about. */
-export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks, goalName }: {
+export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks, goalName, week }: {
   stages: Stage[];
   onChange: (stages: Stage[]) => void;
   onAdd: () => void;
@@ -77,6 +77,8 @@ export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks,
   weeks: number;
   /** Where several goals' stages share a screen (setting up a workspace), the goal each field belongs to. */
   goalName?: string;
+  /** This week, for a new goal: a stage due before it asks whether it is already done (onboarding spec, rule 3). */
+  week?: number;
 }) {
   const named = (what: string) => (goalName ? `${goalName}: ${what.charAt(0).toLowerCase()}${what.slice(1)}` : what);
   const edit = (id: string, patch: Partial<Stage>) => onChange(stages.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -84,7 +86,9 @@ export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks,
   const badName = !!error && !/week/.test(error);
   const used = (s: Stage) => !!(s.name.trim() || s.dueWeek.trim());
   const weekOk = (s: Stage) => { const w = Number(s.dueWeek.trim()); return s.dueWeek.trim() !== '' && Number.isInteger(w) && w >= 1 && w <= weeks; };
-  const bad = !error ? -1 : Math.max(0, badName ? stages.findIndex((s) => used(s) && !s.name.trim()) : stages.findIndex((s) => used(s) && !weekOk(s)));
+  const past = (s: Stage) => week != null && weekOk(s) && Number(s.dueWeek.trim()) < week;
+  const unanswered = !!error && /^Say whether/.test(error);
+  const bad = !error ? -1 : Math.max(0, unanswered ? stages.findIndex((s) => past(s) && !s.done) : badName ? stages.findIndex((s) => used(s) && !s.name.trim()) : stages.findIndex((s) => used(s) && !weekOk(s)));
   return (
     <div className="stages" role="group" aria-label="Stages">
       <div className="stage-head" aria-hidden="true"><span className={labelClass}>Stage</span><span className={labelClass}>Due week</span></div>
@@ -95,6 +99,21 @@ export function StageFields({ stages, onChange, onAdd, error, labelClass, weeks,
             <input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} aria-invalid={i === bad && !badName} value={s.dueWeek} onChange={(e) => edit(s.id, { dueWeek: e.target.value })} placeholder="Due week" />
             {stages.length > 1 ? <button type="button" className="iconbtn stage-remove" onClick={() => onChange(stages.filter((x) => x.id !== s.id))} aria-label={named('Remove stage ' + (i + 1))}><Icon name="close" /></button> : <span className="stage-remove" aria-hidden="true" />}
           </div>
+          {past(s) && (() => {
+            const w = Number(s.dueWeek.trim());
+            const ago = week! - w;
+            return s.done === 'yes'
+              ? <p className="stage-past small">Done in week {w}. <button type="button" className="linkish" onClick={() => edit(s.id, { done: '' })}>Change</button></p>
+              : (
+                <div className="stage-past" role="status">
+                  <span className="small">Week {w} was {ago} {ago === 1 ? 'week' : 'weeks'} ago. Is this stage already done?</span>
+                  <span className="row stage-past-do">
+                    <button type="button" className="btn sm" aria-pressed={false} onClick={() => edit(s.id, { done: 'yes' })}>Yes, done in week {w}</button>
+                    <button type="button" className="btn sm" aria-pressed={s.done === 'no'} onClick={() => edit(s.id, { done: 'no' })}>No, it’s overdue</button>
+                  </span>
+                </div>
+              );
+          })()}
           {i === bad && error && <FieldError>{error}</FieldError>}
         </div>
       ))}

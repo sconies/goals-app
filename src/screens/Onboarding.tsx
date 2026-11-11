@@ -27,6 +27,7 @@ import { Steps } from '../ui/bits';
 import { overHundredHint } from '../domain/goal';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { StageFields } from '../ui/GoalFields';
@@ -320,7 +321,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
       <div className="focus-top">
         <span className="small strong">Set up</span>
         <Steps at={counted ? counted.indexOf(SETUP_STEPS[d.step]!) + 1 : shownStep} of={counted?.length ?? 7} label={STEP_LABELS[d.step]} />
-        <button className="iconbtn" onClick={close} aria-label="Close and keep what you’ve typed"><Icon name="close" /></button>
+        <FormClose keeps onClose={close} />
       </div>
       <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); next(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. <button type="button" className="linkish tap-44" onClick={() => { clear(); window.location.reload(); }}>Start over</button></p>}

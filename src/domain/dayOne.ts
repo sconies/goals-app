@@ -2,7 +2,7 @@
    chosen, and "Getting started" on Home: for each person in a workspace's first weeks, what is true and what to do
    first, the second person included. Pure: what a person has done is passed in as `facts`, kept per person and
    workspace behind the Prefs port (src/ports/prefs.ts). */
-import type { Snapshot } from './types';
+import type { Change, Goal, Person } from './types';
 
 /** Set-up's steps, by the screen's id. */
 export type SetupStep = 'workspace' | 'you' | 'team' | 'start' | 'outcome' | 'goals' | 'check';
@@ -57,9 +57,21 @@ const shortDate = (iso: string) => { const d = new Date(iso); return `${d.getUTC
 const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
 
 /** Who set a workspace up: whoever its "Created …" change names, else its first admin. */
-export function creatorOf(s: Pick<Snapshot, 'changes' | 'people'>): string | null {
-  const made = s.changes.find((c) => c.entity === 'workspace' && c.action === 'created' && c.summary.startsWith('Created'));
-  return made?.actorId ?? s.people.find((p) => p.admin)?.id ?? null;
+export function creatorOf(changes: Pick<Change, 'entity' | 'action' | 'summary' | 'actorId'>[], people: Pick<Person, 'id' | 'admin'>[]): string | null {
+  const made = changes.find((c) => c.entity === 'workspace' && c.action === 'created' && c.summary.startsWith('Created'));
+  return made?.actorId ?? people.find((p) => p.admin)?.id ?? null;
+}
+
+/** What "Getting started" reads (AR4): made from the loaded workspace by src/app/reads.ts (`dayOneRows`). */
+export interface DayOneRows {
+  /** Who set the workspace up (`creatorOf`). */
+  creatorId: string | null;
+  people: Pick<Person, 'id' | 'name' | 'leftAt' | 'removedAt'>[];
+  goals: Pick<Goal, 'id' | 'ownerId' | 'removedAt' | 'stoppedAt'>[];
+  /** The goals with a check-in not removed. */
+  checkedIn: ReadonlySet<string>;
+  /** The people watching a goal (a watch not removed). */
+  watchers: ReadonlySet<string>;
 }
 
 /**
@@ -67,15 +79,15 @@ export function creatorOf(s: Pick<Snapshot, 'changes' | 'people'>): string | nul
  * 14 days after their first visit, in the example, or in a workspace more than 28 days old they didn't just join.
  * `ws` is the workspace's name, kind and when it was made; `due` the weekday the first check-ins are due by.
  */
-export function gettingStarted(viewerId: string, s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | 'watches' | 'changes'>, ws: { name: string; kind: string; createdAt: string }, facts: DayOneFacts, now: Date, due: string): DayOneRow[] {
+export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: string; kind: string; createdAt: string }, facts: DayOneFacts, now: Date, due: string): DayOneRow[] {
   if (ws.kind === 'example' || facts.hidden || !facts.firstSeenAt) return [];
   const t = now.getTime();
   if (t - Date.parse(facts.firstSeenAt) > DAY_ONE_DAYS * DAY) return [];
   const joinedLate = Date.parse(facts.firstSeenAt) - Date.parse(ws.createdAt) > NEW_WORKSPACE_DAYS * DAY;
   if (t - Date.parse(ws.createdAt) > NEW_WORKSPACE_DAYS * DAY && !joinedLate) return [];
-  const creator = creatorOf(s);
+  const creator = s.creatorId;
   const mine = s.goals.filter((g) => g.ownerId === viewerId && !g.removedAt && !g.stoppedAt);
-  const noCheckIn = mine.filter((g) => !s.checkIns.some((c) => c.goalId === g.id && !c.removedAt));
+  const noCheckIn = mine.filter((g) => !s.checkedIn.has(g.id));
   const rows: DayOneRow[] = [];
   const firstCheckIn = (): DayOneRow => ({ id: 'first-check-in', says: noCheckIn.length === 1 ? `Post your first check-in. It’s due by ${due}.` : `Post your first check-ins. They’re due by ${due}.`, action: 'Start check-in', to: '/check-in' });
   if (viewerId === creator) {
@@ -94,7 +106,7 @@ export function gettingStarted(viewerId: string, s: Pick<Snapshot, 'people' | 'g
   if (noCheckIn.length) rows.push(firstCheckIn());
   if (!mine.length) {
     if (!facts.sawGoals) rows.push({ id: 'see-goals', says: `See what ${ws.name} is working towards.`, action: 'See the goals', to: '/goals' });
-    if (!(s.watches ?? []).some((w) => w.personId === viewerId && !w.removedAt)) rows.push({ id: 'watch', says: 'Watch the goals you care about, and they’ll show here.', action: 'Find goals to watch', to: '/goals' });
+    if (!s.watchers.has(viewerId)) rows.push({ id: 'watch', says: 'Watch the goals you care about, and they’ll show here.', action: 'Find goals to watch', to: '/goals' });
     rows.push({ id: 'own-goal', says: 'Set up a goal of your own, in about 3 minutes.', action: 'New goal', to: '/goals/new' });
   }
   return rows;

@@ -11,7 +11,7 @@
    extension point: a module adds its own (AppModule `sections`, src/core/app.tsx). Old addresses
    (/workspace?inbox=1&markup=…, #people) lead to where they meant. */
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { useApp } from '../app/state';
 import { useModules, type WorkspaceSection } from '../core/app';
@@ -24,7 +24,7 @@ import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { wrapUpOpen } from '../domain/cycle';
+import { wrapUpOpenOn } from '../domain/cycle';
 import { useWidth } from '../ui/useWidth';
 import { movedTo } from '../domain/directory';
 
@@ -51,6 +51,12 @@ export function useSections(): WorkspaceSection[] {
   const app = useApp();
   const { screens } = useModules();
   return sectionsFor(app.viewer, CORE, screens.flatMap((m) => m.sections ?? []));
+}
+
+/** Every section's name, whoever is looking (a page's name, navigation rule 2): the core's, then the modules'. */
+export function useSectionNames(): Record<string, string> {
+  const { screens } = useModules();
+  return useMemo(() => Object.fromEntries([...CORE, ...screens.flatMap((m) => m.sections ?? [])].map((x) => [x.id, x.label])), [screens]);
 }
 
 interface Ctx { narrow: boolean; sections: WorkspaceSection[]; all: WorkspaceSection[] }
@@ -277,7 +283,7 @@ function CyclesSection() {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
-            const open = current && wrapUpOpen(c, app.week);
+            const open = current && wrapUpOpenOn(c, app.today);
             const action = !current ? null
               : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
               : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>
