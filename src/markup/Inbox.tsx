@@ -17,15 +17,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { WHATS_NEW } from '../help/whatsNew';
-import { timeAgo } from '../ui/bits';
+import { Sheet, timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
 import { searchNames } from '../app/search';
+import { CountLine, FilterLine, ListBar, ListSearch, NoneFound } from '../ui/ListBar';
+import { historyStep, type FilterPart, type ListChange } from '../domain/find';
 import { ConnectClaude } from './Connect';
 import { PartPath } from './Markup';
 import type { InboxFeedback } from './feedback';
 import type { InboxData } from './inboxData';
-import { NO_FILTER, PAGE_SIZE, TABS, filterChoices, filterItems, inboxItems, itemFor, itemIds, itemLine, itemParam, itemSize, nextAfter, pageOf, stepKey, tabCounts, tabOf, type InboxFilter, type InboxItem, type InboxTab } from './inboxList';
+import { PAGE_SIZE, TABS, filterChoices, filterItems, inboxItems, itemFor, itemIds, itemLine, itemParam, itemSize, nextAfter, pageOf, stepKey, tabCounts, tabOf, type InboxFilter, type InboxItem, type InboxTab } from './inboxList';
 import { MOOD_WORD, STATUS_WORD, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus, type StatusChange } from './model';
 import type { ListedMarkup, OpenedMarkup } from './ops';
 
@@ -52,6 +54,8 @@ interface Undo { done: string; run: () => Promise<void> }
 
 const isTab = (t: string | null): t is InboxTab => t === 'new' || t === 'in-hand' || t === 'closed';
 const DONE: Record<MarkupStatus, string> = { new: 'Marked new again', 'in-hand': 'Marked in hand', fixed: 'Marked fixed', 'wont-fix': 'Marked won’t fix' };
+/** The inbox's nouns, for the list bar's words. */
+const ITEMS = { thing: 'item', things: 'items' };
 const short = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
 
 export default function Inbox({ data, narrow, inPage = false }: { data: InboxData; narrow: boolean; /** On the Feedback page, whose heading names it: no heading of its own. */ inPage?: boolean }) {
@@ -61,7 +65,13 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
   const tab: InboxTab = isTab(tabParam) ? tabParam : 'new';
   // The open item, by its id (a markup's or a piece of feedback's): the address keeps it, so a link opens it.
   const open = params.get('item') ?? params.get('markup');
-  const [filter, setFilter] = useState<Omit<InboxFilter, 'tab'>>(NO_FILTER);
+  // What's searched and filtered is in the address (the list bar, find spec 2.1 and move 17): ?q=, ?kind=, ?page= (a
+  // page's name) and ?who=, so Back and a shared link show the same list.
+  const kindParam = params.get('kind');
+  const [fq, fpage, fwho] = [params.get('q') ?? '', params.get('page') ?? '', params.get('who') ?? ''];
+  const fkind: InboxFilter['kind'] = kindParam === 'markup' || kindParam === 'feedback' ? kindParam : 'all';
+  // The same object while the address says the same, so the lists below aren't rebuilt (and re-opened) every render.
+  const filter: Omit<InboxFilter, 'tab'> = useMemo(() => ({ q: fq, kind: fkind, page: fpage, person: fwho }), [fq, fkind, fpage, fwho]);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<Undo | null>(null);
@@ -83,8 +93,10 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
   const shown = pageOf(rows, page);
   const filtered = filter.kind !== 'all' || !!filter.page || !!filter.person || !!filter.q.trim();
 
+  // Both read the address as it is now, not as this render saw it: a change saved after an await (handling an item)
+  // must not put back a search or a filter cleared meanwhile.
   const go = (next: { tab?: InboxTab; item?: string | null }) => {
-    const p = new URLSearchParams(params);
+    const p = new URLSearchParams(window.location.search);
     p.delete('markup');
     if (next.tab !== undefined) { if (next.tab === 'new') p.delete('tab'); else p.set('tab', next.tab); }
     if (next.item !== undefined) { if (next.item) p.set('item', next.item); else p.delete('item'); }
@@ -159,7 +171,21 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setF = (patch: Partial<Omit<InboxFilter, 'tab'>>) => { setFilter((f) => ({ ...f, ...patch })); setPage(0); setSelected(new Set()); };
+  const setF = (patch: Partial<Omit<InboxFilter, 'tab'>>, change: ListChange = 'choice') => {
+    setParams(() => {
+      const n = new URLSearchParams(window.location.search);
+      const put = (k: string, v: string | undefined, none = '') => { if (v === undefined) return; if (v && v !== none) n.set(k, v); else n.delete(k); };
+      put('q', patch.q); put('kind', patch.kind, 'all'); put('page', patch.page); put('who', patch.person);
+      return n;
+    }, { replace: historyStep(change) === 'replace' });
+    setPage(0); setSelected(new Set());
+  };
+  const parts: FilterPart[] = [
+    ...(filter.kind !== 'all' ? [{ key: 'kind', label: 'Kind', values: [filter.kind === 'markup' ? 'Markups' : 'Feedback'] }] : []),
+    ...(filter.page ? [{ key: 'page', label: 'Page', values: [filter.page] }] : []),
+    ...(filter.person ? [{ key: 'person', label: 'From', values: [filter.person] }] : []),
+  ];
+  const clearFilters = () => setF({ kind: 'all', page: '', person: '' });
   const pickTab = (t: InboxTab) => { setPage(0); setSelected(new Set()); setBulkForm(null); setForm(null); go({ tab: t, item: null }); };
   const picked = rows.filter((r) => selected.has(r.key));
   const pickedCount = picked.reduce((n, r) => n + itemSize(r), 0);
@@ -196,23 +222,42 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
               </button>
             ))}
           </div>
+          {/* The list bar (FS2): the search; Kind inline on a computer; Page and From in Filters. */}
           <div className="ibx-filters" role="search" aria-label="Find in the inbox">
-            <label className="field ibx-search"><span className="sr">Search the inbox</span><input className="input" type="search" placeholder="Search the inbox" value={filter.q} onChange={(e) => setF({ q: e.target.value })} /></label>
-            {narrow && <button type="button" className="btn" aria-expanded={filters || filtered} onClick={() => setFilters((x) => !x)}>Filters{filter.kind !== 'all' || filter.page || filter.person ? ' · on' : ''}</button>}
-            {(!narrow || filters || filter.kind !== 'all' || !!filter.page || !!filter.person) && <>
-            <label className="field"><span className="sr">Kind</span>
-              <select className="input" value={filter.kind} onChange={(e) => setF({ kind: e.target.value as InboxFilter['kind'] })}>
-                <option value="all">All kinds</option><option value="markup">Markups</option><option value="feedback">Feedback</option>
-              </select>
-            </label>
-            <label className="field"><span className="sr">Page</span>
-              <select className="input" value={filter.page} onChange={(e) => setF({ page: e.target.value })}>
-                <option value="">Every page</option>{choices.pages.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </label>
-            <PickOne kind="person" label="Person" compact none="Anyone" source={senders} value={filter.person || null} onChange={(name) => setF({ person: name ?? '' })} />
-            </>}
+            <ListBar search={<ListSearch value={filter.q} label="Find feedback" placeholder="Find by what was said, who or which page" onSearch={(q, change) => setF({ q }, change)} />}>
+              {!narrow && (
+                <label className="field"><span className="sr">Kind</span>
+                  <select className="input" value={filter.kind} onChange={(e) => setF({ kind: e.target.value as InboxFilter['kind'] })}>
+                    <option value="all">Kind: every kind</option><option value="markup">Kind: markups</option><option value="feedback">Kind: feedback</option>
+                  </select>
+                </label>
+              )}
+              <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setFilters(true)}>{parts.length ? `Filters · ${parts.length}` : 'Filters'}</button>
+            </ListBar>
+            {!loading && rows.length > 0 && <CountLine things={ITEMS} n={rows.length} narrowed={filtered} order="newest first" />}
+            <FilterLine parts={parts} onRemove={(k) => setF(k === 'kind' ? { kind: 'all' } : k === 'page' ? { page: '' } : { person: '' })} onClear={clearFilters} />
           </div>
+          <Sheet open={filters} onClose={() => setFilters(false)} title="Filter feedback">
+            <div className="stack" style={{ gap: 'var(--s4)' }}>
+              {narrow && (
+                <label className="field"><span className="field-label">Kind</span>
+                  <select className="input" value={filter.kind} onChange={(e) => setF({ kind: e.target.value as InboxFilter['kind'] })}>
+                    <option value="all">Every kind</option><option value="markup">Markups</option><option value="feedback">Feedback</option>
+                  </select>
+                </label>
+              )}
+              <label className="field"><span className="field-label">Page</span>
+                <select className="input" value={filter.page} onChange={(e) => setF({ page: e.target.value })}>
+                  <option value="">Every page</option>{choices.pages.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+              <PickOne kind="person" label="From" none="Anyone" source={senders} value={filter.person || null} onChange={(name) => setF({ person: name ?? '' })} />
+              <div className="sheet-foot">
+                {parts.length > 0 && <button type="button" className="linkish small" onClick={clearFilters}>Clear filters</button>}
+                <button type="button" className="btn primary" onClick={() => setFilters(false)}>Show {rows.length} {rows.length === 1 ? ITEMS.thing : ITEMS.things}</button>
+              </div>
+            </div>
+          </Sheet>
         </>
       )}
 
@@ -223,7 +268,7 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
             <div className="ibx-listcol">
               {!rows.length ? (
                 <div className="ibx-empty" role="status">
-                  {filtered ? <><p className="strong">Nothing here matches.</p><button type="button" className="btn sm" onClick={() => setF(NO_FILTER)}>Clear the filters</button></>
+                  {filtered ? <NoneFound things={ITEMS} q={filter.q} filtered={parts.length > 0} onClearSearch={() => setF({ q: '' })} onClearFilters={clearFilters} />
                     : tab === 'new' ? <><p className="strong">Nothing new.</p><p className="hint">When someone marks up a screen or sends feedback, it arrives here.</p></>
                       : <p className="hint">{tab === 'in-hand' ? 'Nothing is in hand.' : 'Nothing is closed yet.'}</p>}
                 </div>

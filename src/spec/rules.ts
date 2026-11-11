@@ -4,8 +4,7 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
-import { findPeople } from '../domain/people';
-import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
+import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { scopeToCycle } from '../domain/cycle';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
@@ -97,7 +96,15 @@ const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkI
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
 let dir: Snapshot | null = null;
 const dirWs = (): Snapshot => dir!;
-const dirAsk = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(dirWs().people, dirWs().teams, a);
+/** People's ask, as its address has it, through the one search (finding things, rule 7): a page of 50, a page past the end the last. */
+const dirAsk = (a: { q?: string; teamId?: string; admins?: boolean; page?: number }) => {
+  const filters = { ...(a.teamId ? { team: a.teamId } : {}), ...(a.admins ? { admins: '1' } : {}) };
+  const rows = personRows(dirWs());
+  const pages = Math.max(1, Math.ceil(search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE }).total / DIRECTORY_PAGE));
+  const page = Math.min(Math.max(1, a.page ?? 1), pages);
+  const r = search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE, after: String((page - 1) * DIRECTORY_PAGE) });
+  return { total: r.total, page, pages, from: r.rows.length ? (page - 1) * DIRECTORY_PAGE + 1 : 0, to: (page - 1) * DIRECTORY_PAGE + r.rows.length, rows: r.rows };
+};
 
 /* ---------- the demo workspace, for the change engine's examples ---------- */
 let demo: Snapshot | null = null;
@@ -607,7 +614,6 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
       { file: 'src/domain/review.ts', names: ['sessionToDo'] },
-      { file: 'src/domain/people.ts', names: ['findPeople'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
@@ -619,7 +625,7 @@ For a range, better means further from the limit on its safe side.
 - the review **accepting the risk**: a note said in the session whose words are "${DECIDED['accept-risk'].label}: " and then the reason, at least ${MIN_ACCEPT_REASON} characters (\`acceptRisk\`; \`acceptedReason\` reads it back). It is a look, not a plan: the goal still needs attention;
 - or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
 
-**The people search** (\`findPeople\`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+**Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
 **Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
 
@@ -630,7 +636,7 @@ For a range, better means further from the limit on its safe side.
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
-      { given: 'Searching the demo workspace’s people for "", then for "kap".', then: 'nobody / Rhea Kapoor', run: () => { const team = (id: string) => demo!.teams.find((t) => t.id === id)?.name ?? ''; return `${findPeople(demo!.people, '', team).map((p) => p.name).join(', ') || 'nobody'} / ${findPeople(demo!.people, 'kap', team).map((p) => p.name).join(', ')}`; } },
+      { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
@@ -688,11 +694,11 @@ For a range, better means further from the limit on its safe side.
     id: 'directory',
     title: 'The directory: who People lists, what a search finds, and where old addresses lead',
     summary: 'People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead.',
-    code: [{ file: 'src/domain/directory.ts', names: ['findInDirectory', 'matchesWords', 'byName', 'findTeams', 'personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }],
+    code: [{ file: 'src/domain/directory.ts', names: ['personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }, { file: 'src/domain/find.ts', names: ['searchPeople', 'searchTeams', 'byName'] }],
     tests: ['src/domain/directory.test.ts'],
     reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'],
     body: `
-**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. With a search, those whose name it starts come first, then the rest A to Z: People, every person picker and Find share this one search (finding things, rule 7, through the Search port). ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
 
 **What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as \`teamPeople\` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
 
@@ -706,7 +712,7 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, page 9.', then: 'page 2: 51 to 97', run: () => { const r = dirAsk({ page: 9 }); return `page ${r.page}: ${r.from} to ${r.to}`; } },
       { given: 'Searching for “rhea”, “lucia” and “Romero”.', then: 'Rhea Kapoor / Lucía Romero / Lucía Romero', run: () => ['rhea', 'lucia', 'Romero'].map((q) => dirAsk({ q }).rows.map((p) => p.name).join(', ')).join(' / ') },
       { given: 'The CI/CD team’s people, and the admins.', then: '7 people / Amara Nwosu, Grace Achterberg, Hamid Rezaei', run: () => `${dirAsk({ teamId: 'cicd' }).total} people / ${dirAsk({ admins: true }).rows.map((p) => p.name).join(', ')}` },
-      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => findTeams(dirWs().teams, dirWs().people, 'rhea').map((t) => t.name).join(', ') },
+      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => search(teamRows(dirWs()), { q: 'rhea' }).rows.map((t) => t.name).join(', ') },
       { given: 'The lines beside Amara, Rhea and Oskar.', then: 'Admin · leads the team · no goals / Leads the team · 8 goals / No goals', run: () => ['amara', 'rhea', 'oskar'].map((id) => personLine({ snapshot: dirWs() }, id)).join(' / ') },
       { given: 'CI/CD’s summary.', then: 'led by Rhea Kapoor; 7 people; 17 goals', run: () => { const t = teamSummary({ snapshot: dirWs(), statusOf: (g) => goalStatus(g, dirWs().cycles[0]!, dirWs().checkIns, DIR_NOW).status }, 'cicd'); return `led by ${t.lead?.name}; ${t.people.length} people; ${t.goals.length} goals`; } },
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },

@@ -1870,14 +1870,14 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await h.fill(title, 'Staff engineer, DevEx');
   await h.click(p.getByRole('tab', { name: /Check-ins/ }));
   // Property filters: a goal from its list of values, and a number condition; then sort by a column.
-  await h.click(p.getByRole('button', { name: 'Filter', exact: true }));
+  await h.click(p.getByRole('button', { name: /^Filters/ }));
   let sheet = p.getByRole('dialog', { name: 'Add a filter' });
   await sheet.getByLabel('Property').selectOption('Goal');
   // With 126 goals the Goal filter starts as “contains”; “is” gives the list of goals to pick from.
   await sheet.getByLabel('Condition').selectOption('is');
   await h.click(sheet.getByLabel('Pull requests with AI-assisted review'));
   await h.click(sheet.getByRole('button', { name: 'Add filter' }));
-  await h.click(p.getByRole('button', { name: 'Filter', exact: true }));
+  await h.click(p.getByRole('button', { name: /^Filters/ }));
   sheet = p.getByRole('dialog', { name: 'Add a filter' });
   await sheet.getByLabel('Property').selectOption('Week');
   await sheet.getByLabel('Condition').selectOption('gte');
@@ -1888,9 +1888,12 @@ journey('U35', ['DATA-TABLES', 'CHANGE-LOG'], 'An admin corrects people, goals a
   await h.click(p.locator('.dtable thead').getByRole('button', { name: /^Week$/ }));
   const weekCol = (await p.locator('.dtable thead th').allInnerTexts()).findIndex((t) => /^Week/.test(t.trim()));
   const weeks = await p.locator('.dtable tbody tr').evaluateAll((trs, i) => trs.map((tr) => tr.querySelectorAll('td')[i]?.textContent ?? ''), weekCol);
-  h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /s=Week/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
+  h.set('progress', weeks.length > 0 && weeks.every((w, i) => Number(w) >= 38 && (i === 0 || Number(w) >= Number(weeks[i - 1]))) && /f=Goal/.test(p.url()) && /[?&]sort=week(&|$)/.test(p.url()), `filtered and sorted weeks: ${weeks.join(', ')}`);
   // A note the demo's generator gives this goal in weeks 41 and 44 (demo text varied in the 8 Nov review).
-  await h.fill(p.getByPlaceholder('Search check-ins'), 'No surprises');
+  await h.fill(p.getByRole('searchbox', { name: 'Find a row' }), 'No surprises');
+  await p.getByRole('searchbox', { name: 'Find a row' }).press('Enter');
+  await see(p.locator('.count-line'), / rows? match(es)?\./, 'Data does not count what the search matches');
+  await p.waitForFunction(() => [...document.querySelectorAll('input[aria-label^="Why, "]')].every((e) => e.value.includes('No surprises')), null, { timeout: 5000 }).catch(() => {});
   const why = p.getByLabel(/^Why, Pull requests with AI-assisted review, week/).first();
   await why.waitFor();
   const was = await why.inputValue();
@@ -2642,6 +2645,57 @@ journey('U64', ['LIST-BAR'], 'One list bar: on Activity and Help, a search that 
   await p.context().close();
 }, ['logged', 'one-action']);
 
+journey('U92', ['LIST-BAR', 'DATA-TABLES', 'FEEDBACK-INBOX'], 'One list bar on Data, Feedback and People: a search that matches is counted in the same words, one that finds nothing says so with Clear the search, a filter reads as words with Remove, the address holds the search, the filter and the sort (an old sort link is rewritten), a reload shows the same list and Back steps through it', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'grace'));
+  // Data: an old sort link opens sorted, and the address says it the new way.
+  await p.goto(url('/data?t=goals&s=Team~desc'));
+  const box = p.getByRole('searchbox', { name: 'Find a row' });
+  await box.waitFor();
+  await p.waitForTimeout(300);
+  h.set('parity', /[?&]sort=team\.desc(&|$)/.test(p.url()) && !/[?&]s=/.test(p.url()), `an old sort link stays ${p.url()}`);
+  await h.inView(box, 'entry', 'the search');
+  await h.fill(box, 'merge'); await box.press('Enter');
+  await see(p.locator('.count-line'), / rows? match(es)?\./, 'Data does not count what the search matches in the list bar’s words');
+  h.set('finish', /[?&]q=merge/.test(p.url()), `the search is not in the address (${p.url()})`);
+  await h.checkpoint('data search');
+  await p.reload();
+  await box.waitFor();
+  h.set('progress', (await box.inputValue()) === 'merge' && /match/.test(await p.locator('.count-line').innerText()), 'a reload lost the search');
+  await p.goBack();
+  await p.waitForTimeout(300);
+  h.set('errors', !/[?&]q=/.test(p.url()), `Back after a search leaves ${p.url()}`);
+  await p.goForward();
+  await h.fill(box, 'zzzz'); await box.press('Enter');
+  await see(p, 'No row matches “zzzz”.', 'a search that finds nothing is not said in the list bar’s words');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  // Feedback: search and a filter, in words, in the address.
+  await p.goto(url('/feedback'));
+  const fb = p.getByRole('searchbox', { name: 'Find feedback' });
+  await fb.waitFor();
+  await h.fill(fb, 'zzzz'); await fb.press('Enter');
+  await see(p, 'No item matches “zzzz”.', 'Feedback does not say what found nothing in the list bar’s words');
+  await h.click(p.getByRole('button', { name: 'Clear the search' }));
+  // Kind: inline on a computer, in Filters on a phone.
+  const sheet = p.getByRole('dialog', { name: 'Filter feedback' });
+  if (device === 'phone') await h.click(p.getByRole('button', { name: /^Filters/ }));
+  await (device === 'phone' ? sheet : p).getByRole('combobox', { name: 'Kind', exact: true }).selectOption('feedback');
+  if (device === 'phone') await h.click(sheet.getByRole('button', { name: /^Show \d+ items?$/ }));
+  const line = p.locator('.filter-line');
+  await see(line, 'Filtered by: Kind Feedback', 'the kind filter is not said in words');
+  h.set('attention', /[?&]kind=feedback/.test(p.url()), `the filter is not in the address (${p.url()})`);
+  await h.click(line.getByRole('button', { name: /^Remove the filter Kind/ }));
+  await line.waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  h.set('errors', !(await line.count()) && !/[?&]kind=/.test(p.url()), `Remove did not take the filter off (${p.url()})`);
+  // People: the one person search; a name the search starts comes first.
+  await p.goto(url('/people'));
+  const pb = p.getByRole('searchbox', { name: 'Find a person' });
+  await pb.waitFor();
+  await h.fill(pb, 'rhea'); await pb.press('Enter');
+  await see(p.locator('.count-line'), '1 person matches.', 'People does not find Rhea in the list bar’s words');
+  h.set('a11y', await p.locator('.count-line[role="status"]').isVisible(), 'the count line is not read out');
+  await p.context().close();
+}, ['logged', 'one-action']);
+
 journey('U66', ['LIST-BAR'], 'A near miss: Goals searched for “rolback” says no goal matches and shows the goals that match “rollback”, the field keeps what was typed, and Clear the search brings every goal back', 4, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/goals?scope=all'));
@@ -3282,28 +3336,37 @@ journey('U52', ['INBOX-TRIAGE', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone works
     && await see(rows.first(), '6 on this part').then(() => true, () => false), `New ${await tabCount(inbox, 'New')}, ${await rows.count()} rows on the page, the menu says “${menuSays}”`);
   await h.checkpoint('inbox of 75');
   // Search finds the folded row; it opens, and marking it in hand marks all 6.
-  await h.fill(inbox.getByLabel('Search the inbox'), 'week strip');
+  await h.fill(inbox.getByRole('searchbox', { name: 'Find feedback' }), 'week strip');
+  await see(inbox.locator('.count-line'), '1 item matches.', 'the inbox does not count what the search matches in the list bar’s words');
   await rows.first().waitFor();
   const found = await rows.count();
   await h.click(rows.first().locator('.ibx-open'));
   const detail = inbox.getByRole('article', { name: /^Markup: / });
   await see(detail, '6 on this part.', 'the folded row does not say it holds 6');
   await h.click(detail.getByRole('button', { name: 'Mark in hand (all 6)' }));
-  await see(inbox, 'Nothing here matches.', 'the folded row is still in New');
+  await see(inbox, 'No item matches “week strip”.', 'the folded row is still in New, or nothing found is not said in the list bar’s words');
   const sixInHand = db.markups.filter((m) => /week strip/.test(m.line) && m.status === 'in-hand').length;
-  await h.click(inbox.getByRole('button', { name: 'Clear the filters' }));
-  // Filters: feedback only, then one person.
+  await h.click(inbox.getByRole('button', { name: 'Clear the search' }));
+  // Filters: feedback only (inline on a computer, in Filters on a phone), then who sent it (in Filters), each in the address.
+  const sheet = p.getByRole('dialog', { name: 'Filter feedback' });
   if (phone) await h.click(inbox.getByRole('button', { name: /^Filters/ }));
-  await inbox.getByLabel('Kind').selectOption('feedback');
+  const kindIn = phone ? sheet : inbox;
+  await kindIn.getByRole('combobox', { name: 'Kind', exact: true }).selectOption('feedback');
   await p.waitForTimeout(200);
   const kinds = await inbox.locator('.ibx-row .mk-item').count();
   const fbNew = await tabCount(inbox, 'New');
-  await inbox.getByLabel('Kind').selectOption('all');
-  await pickIn(inbox, /^Person\b/, 'jun', /Jun Park/);
+  const kindLink = /[?&]kind=feedback/.test(p.url());
+  await kindIn.getByRole('combobox', { name: 'Kind', exact: true }).selectOption('all');
+  if (!phone) await h.click(inbox.getByRole('button', { name: /^Filters/ }));
+  await pickIn(sheet, /^From\b/, 'jun', /Jun Park/);
   await p.waitForTimeout(200);
-  const jun = (await inbox.locator('.ibx-row').allInnerTexts()).every((x) => x.includes('Jun Park'));
-  await pickIn(inbox, /^Person\b/, '', /^Anyone$/);
-  h.set('finish', found === 1 && sixInHand === 6 && kinds === 0 && fbNew === 30 && jun, `search found ${found}; ${sixInHand} of 6 in hand; feedback filter left ${kinds} markups and counts ${fbNew}; person filter ${jun}`);
+  const jun = (await inbox.locator('.ibx-row').allInnerTexts()).every((x) => x.includes('Jun Park')) && /[?&]who=Jun/.test(p.url());
+  await h.click(sheet.getByRole('button', { name: /^Show \d+ items?$/ }));
+  await see(inbox.locator('.filter-line'), 'Filtered by: From Jun Park', 'the person filter is not said in words');
+  await h.click(inbox.locator('.filter-line').getByRole('button', { name: /^Remove the filter From/ }));
+  await inbox.locator('.filter-line').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  await p.waitForTimeout(200);
+  h.set('finish', found === 1 && sixInHand === 6 && kinds === 0 && fbNew === 30 && jun && kindLink, `search found ${found}; ${sixInHand} of 6 in hand; feedback filter left ${kinds} markups and counts ${fbNew} (in the address: ${kindLink}); person filter ${jun}`);
   // One at a time: keys on a computer (J moves, I marks in hand, W won't fix), Next on a phone; each opens the next.
   const before = await tabCount(inbox, 'New');
   if (phone) {

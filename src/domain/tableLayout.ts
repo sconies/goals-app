@@ -117,7 +117,10 @@ export function parseLayout(params: string): TableLayout | null {
     const n = Number(w.slice(i + 1));
     if (i > 0 && Number.isFinite(n)) widths[w.slice(0, i)] = clampWidth(table, w.slice(0, i), n);
   }
-  return { table, cols: cols.length ? cols : null, widths, q: p.get('q') ?? '', filters: parseFilters(p), sort: parseSort(p) };
+  // The address names the sorted column in lower case: given back as the layout's own spelling where it names it.
+  const filters = parseFilters(p), linked = parseSort(p);
+  const named = linked ? [...cols, ...Object.keys(widths), ...filters.map((f) => f.col)].find((c) => c.toLowerCase() === linked.col.toLowerCase()) : undefined;
+  return { table, cols: cols.length ? cols : null, widths, q: p.get('q') ?? '', filters, sort: linked ? { ...linked, col: named ?? linked.col } : null };
 }
 
 /** A saved view of a data table, rather than of the Goals screen. */
@@ -128,7 +131,7 @@ export function layoutProblems(l: TableLayout | null, head?: readonly string[]):
   if (!l) return [`The table should be one of ${TABLE_ORDER.join(', ')}.`];
   const out: string[] = [];
   if (head) {
-    const unknown = [...(l.cols ?? []), ...Object.keys(l.widths), ...l.filters.map((f) => f.col), ...(l.sort ? [l.sort.col] : [])].filter((c) => !head.includes(c));
+    const unknown = [...(l.cols ?? []), ...Object.keys(l.widths), ...l.filters.map((f) => f.col), ...(l.sort ? [l.sort.col] : [])].filter((c) => !head.some((h) => h.toLowerCase() === c.toLowerCase()));
     if (unknown.length) out.push(`The ${TABLES[l.table].label} table has no ${unknown.length === 1 ? 'column' : 'columns'} called ${[...new Set(unknown)].map((c) => `“${c}”`).join(', ')}.`);
   }
   if ((l.cols ?? []).length > 400) out.push('That’s more columns than any table has.');

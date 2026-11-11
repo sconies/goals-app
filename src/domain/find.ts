@@ -145,13 +145,25 @@ export function searchGoals(r: GoalRows, ask: SearchAsk): FoundRow[] {
 /** A person's row: "{job title} · {team}" under the name. */
 export const personRow = (r: PersonRows, p: Person): FoundRow => ({ kind: 'person', id: p.id, name: p.name, detail: [p.role, p.teamId ? r.teamName(p.teamId) : ''].filter(Boolean).join(' · ') });
 
-/** People: name, job title and team; nobody marked as left; those whose name starts with the search first, then A to Z. */
+const collator = new Intl.Collator('en-GB', { sensitivity: 'base' });
+/** By name A to Z, ignoring case and accents; two people with one name by email, then ID, so they keep their places. */
+export const byName = (a: Pick<Person, 'name' | 'email' | 'id'>, b: Pick<Person, 'name' | 'email' | 'id'>) =>
+  collator.compare(a.name, b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id);
+
+/**
+ * People: name, job title and team; nobody marked as left; those whose name the search starts first, then by name A to
+ * Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+ * team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
+ */
 export function searchPeople(r: PersonRows, ask: SearchAsk): FoundRow[] {
   const team = (p: Person) => (p.teamId ? r.teamName(p.teamId) : '');
   const named = (p: Person) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+  const f = ask.filters ?? {};
+  const lead = f.team && f.team !== '-' ? r.teamLead?.(f.team) ?? null : null;
+  const inTeam = (p: Person) => !f.team || (f.team === '-' ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
   return r.people
-    .filter((p) => !p.leftAt && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
-    .sort((a, b) => Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name))
+    .filter((p) => !p.leftAt && !p.removedAt && inTeam(p) && (f.admins !== '1' || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
+    .sort((a, b) => Number(named(b)) - Number(named(a)) || byName(a, b))
     .map((p) => personRow(r, p));
 }
 
@@ -163,13 +175,13 @@ export function teamRow(r: TeamRows, t: Team): FoundRow {
   return { kind: 'team', id: t.id, name: t.name, detail: `${lead ? `Led by ${lead}` : 'No lead'} · ${n} ${n === 1 ? 'person' : 'people'}` };
 }
 
-/** Teams: the name and its lead's name; A to Z. */
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
 export function searchTeams(r: TeamRows, ask: SearchAsk): FoundRow[] {
   const here = r.people.filter((p) => !p.leftAt);
   const lead = (t: Team) => here.find((p) => p.id === t.leadId)?.name ?? '';
   return r.teams
     .filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id))
     .map((t) => teamRow(r, t));
 }
 
