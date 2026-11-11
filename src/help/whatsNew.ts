@@ -21,6 +21,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'check-in-queue',
+    date: '2026-11-11',
+    title: 'See your check-ins before you start',
+    points: [
+      'Check-in opens on the week’s list. Start with the first, or pick any.',
+      'Each goal says its status and what it last said; one you started and closed says Draft kept.',
+      'Start check-in on Home still goes straight into the first one.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'pages-name-themselves',
     date: '2026-11-11',
     title: 'Each page has its own name',
