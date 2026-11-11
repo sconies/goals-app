@@ -2,11 +2,13 @@
 
 11 November 2026. Round 2, area 2 (`docs/design/round-2/README.md`): starting a workspace, from the first screen to the first week. A design, not a build: no app code is changed. The build spec is `spec.md` beside this file. The wireframes in `wireframes/` are rendered from `mockups/` (`node docs/design/setup/mockups/build.cjs`) at 1440 and 390 px.
 
+**Revised 11 November, after Lane's decision that set-up no longer offers example goals:** the Goals step has three doors, nothing made up is written into a workspace, and what hung off the examples (owners chosen later, "example numbers") is gone.
+
 It builds on round 1 (`docs/design/onboarding`, items OB1–OB3; `docs/design/workspace`, WR1–WR4; `docs/design/navigation`, 2.5) and uses round 2's shared decisions without restating them: the field table and the three levels (**Must fix**, **Check**, fine) belong to `docs/design/import/spec.md`; the goal form to `docs/design/goal-entry`; the two switches to `docs/design/feature-toggles`.
 
 ## The idea in five lines
 
-1. **Welcome has an address and one job**: set up a workspace. The example and an invitation are the two doors under it.
+1. **Welcome has an address and one job**: set up a workspace. The demo and an invitation are the two doors under it.
 2. **Set-up is five steps that end in a workspace that is true on day one**: the workspace and you, how you'll work, people, goals, check.
 3. **"How you'll work" is asked once, in the open, with defaults**: the year, whether check-ins have a rhythm, whether the team holds reviews. Each answer shows its first date and is repeated in the same words on Workspace → About.
 4. **Every way of giving goals comes back to one list**, and every mistake is said where it was made, before the read-back, never after "Create workspace".
@@ -19,7 +21,7 @@ It builds on round 1 (`docs/design/onboarding`, items OB1–OB3; `docs/design/wo
 | Whoever brings Faro to a team | Find out what it is and start | Once | Welcome shows only while the shared database is empty; its main button opens the demo |
 | The same person | Say how the team works (year, rhythm, reviews) | Once, then rarely | A folded "Change" on the name step; the day can never be changed again |
 | The same person | Put the people in | Once, then now and then | Type, paste or upload: good for ten, sixteen screens for sixty on a phone |
-| The same person | Put the goals in: an example, their own, a spreadsheet, or later | Once | Four doors on two different steps; a spreadsheet's mistakes are found after "Create workspace" |
+| The same person | Put the goals in: their own, a spreadsheet, or later | Once | Templates of someone else's goals first; the spreadsheet door on another step; a spreadsheet's mistakes found after "Create workspace" |
 | The same person | Check what will be made, and take it back if wrong | Once | An honest Check; "Change" loses your place; no undo but deleting |
 | The same person | Tell the team | Once | A text link under a hint; the link is a bare address |
 | An invited teammate | Understand why they're here and what is theirs | Once | A bare "Who are you?"; then (OB3, built) a true first Home |
@@ -32,7 +34,7 @@ It builds on round 1 (`docs/design/onboarding`, items OB1–OB3; `docs/design/wo
 At `https://goals-app-puce-five.vercel.app/?store=browser&today=2026-11-11`, with every request to `supabase.co` blocked before the first navigation (nothing was written to the shared database), at 1440 × 900 and 390 × 844, with Playwright. The clock was moved with `today=` to 12, 13, 18, 19 and 26 November and 10 December.
 
 - **The first screen:** the live root with the database blocked; `/?store=browser`; `/workspace/new` and `/ready` with no workspace; `/demo`.
-- **Every path, end to end:** an example ("Engineering platform") with two teammates; "Set goals up later" alone; "Start blank" with a November year and a Wednesday review; the spreadsheet path with the app's own template unchanged, then with a typo'd team, an owner not on the People sheet, a missing Type column, missing owner columns, bad values (level "vp", target "one", a duplicate email), a workbook with no People sheet, a budget workbook, a stray CSV and a file that isn't a workbook.
+- **Every path, end to end:** a template ("Engineering platform") with two teammates; "Set goals up later" alone; "Start blank" with a November year and a Wednesday review; the spreadsheet path with the app's own template unchanged, then with a typo'd team, an owner not on the People sheet, a missing Type column, missing owner columns, bad values (level "vp", target "one", a duplicate email), a workbook with no People sheet, a budget workbook, a stray CSV and a file that isn't a workbook.
 - **The awkward cases:** Back, reload, closing and returning, "Start over", changing the name from Check, a one-person workspace, 63 pasted people with duplicates on a phone, the same name twice, a second workspace, an invitation to a workspace that doesn't exist.
 - **Afterwards:** `/ready`, the copied link, the second and third person's arrival, Home for the creator, a teammate with a goal and a teammate with none, on each date; Workspace → About, Cycles, Features, Privacy, Access; Reviews, People, Teams, Activity.
 
@@ -40,12 +42,12 @@ At `https://goals-app-puce-five.vercel.app/?store=browser&today=2026-11-11`, wit
 
 | Path | Steps | Fields that must be typed | Choices that must be made | Presses of Next |
 |---|---|---|---|---|
-| An example, you and two teammates | 7 | 4 (workspace name; your name, team, email) plus 2 per teammate | 1 (the starting point); owners optional | 7 |
+| A template ("Engineering platform"), you and two teammates | 7 | 4 (workspace name; your name, team, email) plus 2 per teammate | 1 (the starting point); owners optional | 7 |
 | Start blank | 7 | The same, plus the outcome's name, today and target | 1 | 7 |
 | Set goals up later | 5 | 4 | 1 | 5 |
 | A spreadsheet | 5 | 4, and the file | 2 (upload on step 3; "Goals from your spreadsheet" on step 4) | 5 |
 
-The app says "About 3 minutes" (`src/screens/Onboarding.tsx:140`). I did not time a person; a scripted run of the example path is 10 typed fields and 9 presses.
+The app says "About 3 minutes" (`src/screens/Onboarding.tsx:140`). I did not time a person; a scripted run of the template path is 10 typed fields and 9 presses.
 
 ### What set-up asks, and never asks
 
@@ -58,7 +60,7 @@ The app says "About 3 minutes" (`src/screens/Onboarding.tsx:140`). I did not tim
 | Recording | Step 1, a tick box with a 45-word hint (`Onboarding.tsx:355`) | Workspace → Privacy |
 | Admins | Step 3, a tick per person | Workspace → Access |
 | Team leads | Never (right: nobody is made a lead) | Teams |
-| Levels | Never: an example's outcome is a north star, the rest team goals | Goal edit |
+| Levels | Never: a template's outcome is a north star, the rest team goals | Goal edit |
 | Decimals | Never; worked out from the numbers typed (SU, #74) | Goal edit |
 
 ## Findings
@@ -97,7 +99,7 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 - By Friday 13 Nov the creator's Home says "Check-ins were due Thursday · 1 day late" in a workspace two days old.
 
 **W20. Set up late in the year, a workspace is given seven weeks and year-sized targets. Medium.**
-- On 11 Nov the January year has 7 weeks left. The example's goals run "12 deploys today → 30 deploys" and "All by week 53"; About says on day one "The wrap-up opens on 21 Dec 2026." Set-up says "you join it in week 46" and asks nothing. (The setup review of 8 Nov, item 3, asked to "consider offering a year that starts now".)
+- On 11 Nov the January year has 7 weeks left. About says on day one "The wrap-up opens on 21 Dec 2026." Set-up says "you join it in week 46" and asks nothing. (The setup review of 8 Nov, item 3, asked to "consider offering a year that starts now".) A template makes it worse (W24): its goals run "12 deploys today → 30 deploys" and "All by week 53".
 
 ### People
 
@@ -125,9 +127,16 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 **W22. A wrong file is "read". Low.**
 - A budget workbook: "Read wrong-file.xlsx: no people sheet." A file that isn't a workbook: "Couldn’t read broken.xlsx: Doesn't look like an `.xlsx` file" (the library's words, backticks and all).
 
-**W12. An example's goals are two steps and 21 fields. Medium.**
+**W24. A template fills a new workspace with someone else's goals, under your name. High.** (Added 11 Nov, after Lane's decision: "The easy onboarding by taking fake data isn't necessary any more. It doesn't make sense to just start a random platform engineering data set.")
+- Step 4 offers four templates before anything else: "Engineering platform", "Product team", "Customer support", "Sales" (`src/domain/templates.ts:27–63`). Choosing one fills an outcome and three goals with numbers nobody measured: "Lead time from commit to production" 5 → 2 days, "Deploys per week" 12 → 30, "Change failure rate" 18 → 10%, "Self-service environments live" (`pickTemplate`, `Onboarding.tsx:250–257`).
+- I set up "Field Operations", a field service team, and it was born with those four platform-engineering goals. The only word that they are made up is a hint on two steps: "Example numbers. Change them to yours." (`Onboarding.tsx:463`, `474`). Nothing marks them once the workspace exists.
+- The outcome is owned by whoever sets up; the rest start with no owner and are then created as theirs too (`Onboarding.tsx:111`). Check said "2 goals have no owner yet"; Activity records "Ana Silva created “Field Operations” with 3 people, 2 teams and 4 goals", as fact.
+- Day one then asks for work on fiction: "Post your first check-ins. They’re due by Thursday.", "3 check-ins to do", "Give 2 goals an owner." A true first number against a made-up start is what round 1's O8 found asking "Why is it behind?".
+- **Why it matters:** the first thing a team reads in its own workspace is not its own. The template's job was to show what a good goal looks like; it can do that without becoming the record.
+
+**W12. A template's goals are two steps and 21 fields. Medium. Retired with the templates.**
 - "What outcome are you after?" then "What feeds it?": three cards of seven fields each, 2,165 px at 390 px (round 1's F16 allows two screens). "Add a goal" stops at four ("Four is the most here…").
-- "Change the north star" and "Change the goals" on Check are 20 px tall.
+- "Change the north star" and "Change the goals" on Check are 20 px tall. (These links go with the templates' steps.)
 
 ### Check, and after
 
@@ -157,7 +166,7 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 
 **W16. From the day after the first Thursday the block is wrong, and after two weeks it drops unfinished work. High.**
 - Friday 13 Nov: "Post your first check-ins. They’re due by Thursday." six lines above "Check-ins were due Thursday · 1 day late". The row is given a weekday, not a date (`src/domain/dayOne.ts:80`).
-- 26 Nov, fifteen days after the first visit, the block is gone (`dayOne.ts:73`) with "Give 2 goals an owner." never done. Nothing else in the app remembers those goals: About has no "To sort out".
+- 26 Nov, fifteen days after the first visit, the block is gone (`dayOne.ts:73`) with "Give 2 goals an owner." never done. Nothing else in the app remembers those goals: About has no "To sort out". (This half goes with the templates: only they made goals with no owner chosen.)
 
 **W17. A teammate who owns nothing is sent to a review of goals nobody has reported on. Medium.**
 - Cara's first Home ends "Weekly review · 4 with nothing flagged to mark reviewed · Worst and stalest first, one at a time. [Open the review]", and her menu says "Reviews 1 to do", on a day when no goal has a check-in. (The deep review's U6, still live for this role.)
@@ -168,6 +177,8 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 **W23. Cycles gives the year an end the week numbers don't agree with. Low.**
 - "Week 46 of 53 · 22 Dec 2025 to 27 Dec 2026", where week 53 of 2026 is 28 Dec to 3 Jan (and round 1's rule 5 says so). The year has a week 0, so it is 54 weeks on the page's own arithmetic. I did not trace the cause.
 
+**What Lane's decision of 11 Nov retires.** With no example door: W24 is fixed by removal; W12 goes entirely; the second half of W16 (owners never chosen) cannot arise in a new workspace; W9's and W12's small links go with their steps. Still standing, with the same fixes: W8 (the spreadsheet door on the people step), W3, W11 (people are still chosen as owners, in the form and the import), W15, the first half of W16, W17, W18, W20.
+
 ### What works and is kept
 
 - **The draft** survives closing and reloading, with "Start over".
@@ -176,7 +187,7 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 - **Uploads add to what was typed** and can be undone ("added 3 people after the 1 you’d typed … Undo").
 - **Stages counted from the joining week**, with "Keep the weeks as typed".
 - **Check** in the app's own words, and **nothing saved before it**.
-- **OB3's day one**: "Ana Silva set up Field Operations on 11 Nov and gave you 1 goal."; owners asked per goal; "Hide this".
+- **OB3's day one**: "Ana Silva set up Field Operations on 11 Nov and gave you 1 goal."; "Hide this".
 - **About after set-up** has no nags on day one, Recording is as chosen, no team has a lead, Cycles says "no check-ins yet".
 
 ## The design
@@ -186,7 +197,7 @@ Severity: **High** (it misleads, loses work or blocks), **Medium**, **Low**. Evi
 - **Its own address, `/welcome`**, reachable with any number of workspaces. A browser that remembers no workspace, opening `/` without an invitation, goes there; it is never dropped into someone else's workspace.
 - **What it says Faro is:** Lane's headline, then two lines: "Faro keeps each outcome and the goals that move it in one place, each with an owner, a measure and a plan." "Owners keep them current. What’s slipping comes to you, with why and what’s being done about it."
 - **One primary action: "Set up a workspace"**, with "About 5 minutes. Nothing is saved until the last step."
-- **Two doors under it, as rows:** "Open the example" and "Join a workspace you were invited to" (which takes a pasted link).
+- **Two doors under it, as rows:** "Look around the demo" ("A made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.") and "Join a workspace you were invited to" (which takes a pasted link).
 - **A returning person** sees "Welcome back" and what this device remembers: each workspace with who they are in it and "Open" (the primary action is opening the last one), then any set-up left unfinished with "Carry on" and "Discard".
 
 ### Set-up's shape: five steps
@@ -202,7 +213,7 @@ The lead's spine had six (Name it, You, How you'll work, People, Goals, Check). 
 | 1 | The workspace and you | `/workspace/new/workspace` | Its name; your name, email and team | 4 fields (1 when you are known) |
 | 2 | How you'll work | `/workspace/new/how` | The year; check-ins; reviews; recording | Nothing: every answer has a default |
 | 3 | People | `/workspace/new/people` | Who is on it: type, paste or upload | Nothing: you can be alone |
-| 4 | Goals | `/workspace/new/goals` | An example, your own, a spreadsheet, or later | One choice |
+| 4 | Goals | `/workspace/new/goals` | Your own, a spreadsheet, or later | One choice |
 | 5 | Check | `/workspace/new/check` | The read-back; "Create workspace" | — |
 
 - **Every step is an address** (round 1's pattern, at last built); the browser's Back steps back and keeps everything; a reload stays put.
@@ -246,17 +257,31 @@ One calm screen; "Continue" with nothing touched is a good answer.
 
 ### Step 4, Goals (wireframes 4 and 5)
 
-- **Four doors in one group, with "Continue":** "Start from an example" (and which), "Add your own", "Import a spreadsheet", "Later".
-- **Every door returns to one list, "{n} goals so far"**: each goal one row (its level, numbers and owner) with "Change" and "Remove"; "Add another"; "Import a spreadsheet". "Three to five is plenty for a first week. Anyone can add more from New goal afterwards." There is no cap.
-- **An example** lands in the list at once, its outcome owned by you and the rest with "Choose an owner" (OB3's rule, kept), under the line "Example numbers. Change them to yours, or leave them and correct them at the first check-in."
-- **"Add your own" and "Change" open the goal-entry form** (the goal-entry area designs it). Set-up frames it: the head reads "Set up a workspace · Goal 3"; its last button is "Add this goal", which returns to the list with "Added “{goal}”." and "Add another" beside it.
+Set-up no longer offers example goals (Lane, 11 Nov). A workspace starts with real goals or none.
+
+- **Three doors in one group, with "Continue":** "Add your own", "Import a spreadsheet", "Later".
+- **"Add your own" is chosen to begin with.** It is the only door that needs nothing prepared and still leaves the workspace with something true in it, in about two minutes; an import needs a file; and "Later" as the default would steer people to an empty workspace, where nothing is due and the first week has nothing in it.
+- **The question:** "What are you working towards?" and under it "Add one now, bring them in a spreadsheet, or leave it to each owner. You can do more than one."
+- **Every door returns to one list, "{n} goals so far"**: each goal one row (its level, numbers and owner) with "Change" and "Remove"; "Add another"; "Import a spreadsheet". "One is enough to start, and three to five is plenty for a first week. Anyone can add more from New goal afterwards." (Reworded: with no ready-made set of four, "three to five" alone read as a quota to type.) There is no cap.
+- **Every goal in the list has an owner**, because the form and the import both require one. So nothing is "unowned", nothing is remembered for later, and Home never asks whoever set up to hand goals out. When every goal is yours and there are teammates, the list says once: "All {n} are yours. A teammate with a goal of their own has something to check in on."
+- **"Add your own" and "Change" open the goal-entry form** (the goal-entry area designs it). Set-up frames it: the head reads "Set up a workspace · Goal 3"; the owner starts as you; its last button is "Add this goal", which returns to the list with "Added “{goal}”." and "Add another" beside it.
 - **The import** is the import area's preview, opened inside set-up. Set-up adds four things: every row is new; the file's People sheet joins the people already entered (and an owner on neither is Must fix, with "Give it to someone here" and "Add {name} as a person"); a team not yet there is a Check; stages dated before this week are a Check ("Count their stages from this week" / "Keep the weeks as typed"). It ends "Use these 14 goals", back at the list, where "14 goals from goals-2026.xlsx · Remove these" undoes it.
 - **"Later"** goes on to Check with no goals.
+
+### What shows a newcomer a good goal, now that no example is put in
+
+The templates' one real job was to show what a good goal looks like before a team had one. Three things do that without fake data in the workspace:
+
+| Where | What it shows | Owned by |
+|---|---|---|
+| The goal form, as you type | Each type's card keeps its one example, and every field's hint is the field table's example for it ("%, days, hours, incidents"; "e.g. 30") | Goal entry ("No template gallery: field-table examples as hints") |
+| The import template | Two example rows on Goals and one on People, each marked **Example** in Action: recognised, counted and never imported | Import (C15) |
+| The demo | A whole made-up division with a year of goals, to look around. From the Goals step: "Not sure what a good goal looks like? See the goals in the demo. It opens beside this, and your set-up is kept." | Unchanged; never copied into a workspace |
 
 ### Step 5, Check: the read-back (wireframe 6)
 
 - "Create Field Operations?" and "Nothing is saved yet. This is what pressing the button makes."
-- **What will exist**, each a count and a sentence, each with "Change" that opens its step and comes straight back: people and teams (and "You’re the only admin. No team has a lead."); goals (how many, from where, who owns them, how many have no owner yet); check-ins; reviews; the year; recording.
+- **What will exist**, each a count and a sentence, each with "Change" that opens its step and comes straight back: people and teams (and "You’re the only admin. No team has a lead."); goals (how many, from where, who owns them); check-ins; reviews; the year; recording.
 - **What nobody has been told:** "Faro sends no email. Ben Carter and Cara Diaz won’t know about this until you send them the link, which is the next screen."
 - Nothing can reach Check with a Must fix; if a draft from before does, it is listed first, with a link to its row, and the button says why it won't act.
 
@@ -292,20 +317,20 @@ Round 1's "Getting started" block is kept and extended; it is headed **"Your fir
 | A line for the first review, a sentence until the day ("The first review is on Thursday 19 Nov, and you’re in it."), a button on it | W17 |
 | For whoever set it up, how the first check-ins are going: "3 of 4 first check-ins are in. Waiting on Ben." | W15 |
 | With no rhythm: "Post a first check-in on it, so everyone can see where it starts. There’s no date to meet." With no reviews: no review line | Shared decision 6 |
-| What is still undone when the block retires moves to About's "To sort out" | W16 |
+| Who has yet to arrive, when the block retires, moves to About's "To sort out" | W16 |
 | Nothing is "to review" until the first check-in day has passed | W17 |
 
 The whole week, by day and role, is a table in the spec (section 5).
 
 ### Workspace straight after set-up (wireframe 12)
 
-- **About agrees with set-up**, in the same words: a fact "How you work" ("Check-ins every week, by Thursday. A weekly review on Thursdays." with "Change"); "Set up: by Ana Silva on 11 Nov 2026, from the Engineering platform example."; People says who has yet to open it, with "Copy the invitation".
-- **"To sort out" in the first week** holds only what set-up left open (goals with no owner chosen; people with no email). "You’re the only admin" and "teams have no lead" wait until the workspace is a week old.
+- **About agrees with set-up**, in the same words: a fact "How you work" ("Check-ins every week, by Thursday. A weekly review on Thursdays." with "Change"); "Set up: by Ana Silva on 11 Nov 2026, with 3 goals added at set-up."; People says who has yet to open it, with "Copy the invitation".
+- **"To sort out" in the first week** is quiet: "You’re the only admin" and "teams have no lead" wait until the workspace is a week old, and who has yet to arrive is said from day 8.
 
 ### A second workspace, and the demo
 
 - **A second workspace:** the switcher's "Set up a new workspace" opens step 1 in focus mode with you filled in as a line ("Setting up as Ana Silva, ana@example.com, Field Ops. Change"), so step 1 is one field. A name you already use is a Check: "You already have a workspace called “Solo Lab”." → "Use it anyway" / change it. People offers a fourth way in: "Bring people from Solo Lab".
-- **The demo** is the example plus anything made there, all kept in the browser. The example says "Example data" beside its name everywhere (as now) and never shows "Your first week". A workspace made in the demo, or with `?store=browser`, says on Check and on `/ready` that it is "kept in this browser only", and offers no invitation.
+- **The demo** stays, as a separate place to look around: one made-up division, kept in the browser, marked "Example data" beside its name everywhere (as now), never showing "Your first week". Nothing in it can be copied into a workspace, and Welcome says so. A workspace made in the demo, or with `?store=browser`, says on Check and on `/ready` that it is "kept in this browser only", and offers no invitation.
 
 ### Roles (R1)
 
@@ -323,8 +348,8 @@ The whole week, by day and role, is a table in the spec (section 5).
 
 | Screen | Primary action | Everything else |
 |---|---|---|
-| Welcome, nothing on this device | **Set up a workspace** | The example; join by a link |
-| Welcome, returning | **Open** (the last workspace) | Carry on a draft; set up another; the example |
+| Welcome, nothing on this device | **Set up a workspace** | The demo; join by a link |
+| Welcome, returning | **Open** (the last workspace) | Carry on a draft; set up another; the demo |
 | Set-up, steps 1 to 4 | **Continue** | Back; Close and keep the draft |
 | Goals, inside a door | **Add this goal** / **Use these {n} goals** | Back to the list |
 | Check | **Create workspace** | "Change" on each line; Back |
@@ -342,7 +367,6 @@ The whole week, by day and role, is a table in the spec (section 5).
 | First row of "Your first week" | First check-ins, or the invitation when they own nothing | "{Admin} set up {ws}… and gave you {n} goals." | "{Admin} set up {ws} on {date}." | The same as a teammate |
 | Primary action on day one | Start check-in | Start check-in | See the goals | Start check-in, or See the goals |
 | Sees how the first check-ins are going | Yes | No | No | Yes |
-| Asked to choose owners | Yes | No | No | No |
 | About: "To sort out" | Yes | No | No | Only if an admin |
 
 ## The phone
@@ -350,7 +374,7 @@ The whole week, by day and role, is a table in the spec (section 5).
 - Every step is one column; "Continue" is fixed above the keyboard; the head is two lines and the "Close and keep the draft" button.
 - **Step 1** is four fields on one screen. **Step 2** is about 1.7 screens at 390 × 844 with every choice open, and needs no typing. **Step 5** is 1.3 screens.
 - **People on a phone:** "Paste people" is the way in, since nobody types sixty rows with a thumb. Each person is a two-line row; the count line and "Show only those" make sixty people one screen of what needs attention.
-- **Goals:** the four doors are one screen; the list is one row per goal with "Change" and "Remove" on a line of their own, 44 px high.
+- **Goals:** the three doors are one screen; the list is one row per goal with "Change" and "Remove" on a line of their own, 44 px high.
 - **Limits** (held by F19): at 390 × 844 and 360 × 800 each step's first field or choice and "Continue" are on the first screen with the keyboard closed; no step is taller than two screens with up to twelve people and five goals; every control is at least 44 px; nothing scrolls sideways; "Your first week" starts within 220 px of the top of Home.
 
 ## Wireframes
@@ -360,7 +384,7 @@ The whole week, by day and role, is a table in the spec (section 5).
 | 1 | Welcome: someone with nothing; a returning person with a draft | ![](wireframes/01-welcome-1440.png) | ![](wireframes/01-welcome-390.png) |
 | 2 | Step 2, "How you'll work" | ![](wireframes/02-how-you-work-1440.png) | ![](wireframes/02-how-you-work-390.png) |
 | 3 | Step 3, People, with a Must fix and two Checks; "Paste people" | ![](wireframes/03-people-1440.png) | ![](wireframes/03-people-390.png) |
-| 4 | Step 4, Goals: the four doors, and the list they come back to | ![](wireframes/04-goals-doors-1440.png) | ![](wireframes/04-goals-doors-390.png) |
+| 4 | Step 4, Goals: the three doors, and the list they come back to | ![](wireframes/04-goals-doors-1440.png) | ![](wireframes/04-goals-doors-390.png) |
 | 5 | The import inside set-up: what set-up adds | ![](wireframes/05-import-in-setup-1440.png) | ![](wireframes/05-import-in-setup-390.png) |
 | 6 | Step 5, Check: the read-back | ![](wireframes/06-check-1440.png) | ![](wireframes/06-check-390.png) |
 | 7 | The hand-off: the invitation; alone or a browser copy | ![](wireframes/07-ready-invite-1440.png) | ![](wireframes/07-ready-invite-390.png) |
@@ -370,7 +394,7 @@ The whole week, by day and role, is a table in the spec (section 5).
 | 11 | Home with no rhythm and no reviews; an empty workspace | ![](wireframes/11-home-no-rhythm-1440.png) | ![](wireframes/11-home-no-rhythm-390.png) |
 | 12 | Workspace → About straight after set-up | ![](wireframes/12-about-after-setup-1440.png) | ![](wireframes/12-about-after-setup-390.png) |
 
-Not redrawn: round 1's set-up goals step with owners (onboarding wireframe 5a), which becomes rows in wireframe 4's list; the switcher (workspace wireframe 11); Features (the toggles area).
+Not redrawn: round 1's set-up goals step with owners (onboarding wireframe 5a), which goes with the templates; the switcher (workspace wireframe 11); Features (the toggles area).
 
 ## What this changes in round 1
 
@@ -378,27 +402,29 @@ Not redrawn: round 1's set-up goals step with owners (onboarding wireframe 5a), 
 |---|---|---|
 | Onboarding spec 1 and 2.8: set-up is seven steps, `workspace, you, team, start, outcome, goals, check` | Five: `workspace, how, people, goals, check`. `you` joins `workspace`; `team` is `people`; `start`, `outcome` and `goals` are one step with sub-screens | W5, W8, W12 |
 | Onboarding rule 6, `setupSteps(choice)`: seven steps or five, "Step {n}" before a choice | Replaced by a fixed list (rule S1). No path skips a step | W19 |
-| Onboarding 2.8: an example's goals are edited as cards on two steps, owners chosen on the cards | They are rows in "goals so far"; a row's "Change" opens the goal-entry form; owners are chosen on the row. OB3's rule (the outcome is yours, the rest start empty, unowned ones become yours and are remembered) is unchanged | W12 |
+| Onboarding 2.8 and decision 4: a template's goals are edited as cards on two steps, and set-up asks who owns each | Gone, with the templates. OB3's owner-per-template-goal, the "No owner yet" choice, the remembered `unowned` ids and Home's "Give {n} goals an owner" are no longer needed: a goal typed or imported has its owner. The built code stays harmless for workspaces already made (spec, rule S4) | W24, W12; Lane, 11 Nov |
 | Onboarding 2.8: `/ready` unchanged but for its third line | `/ready`'s primary action is the invitation; its check-in button goes (Home's first row is that) | W4 |
 | Onboarding 2.9: the block is headed "Getting started" | "Your first week" | Round 2's words |
 | Onboarding rule 7: `first-check-in` says "due by {weekday}"; `invite` is done when copied; nothing after 14 days | Dated words by rule S4; `invite` follows who has opened the workspace; what is undone moves to About (rule S5); new rows `first-review` and `progress` | W15, W16 |
 | Onboarding 2.9: rows `invite` → "Send your team the link to {ws}." / "Copy the link" | "{Names} haven’t opened {ws} yet." / "Copy the invitation" | W15 |
 | Workspace spec 1: `/workspace/new` is "Set-up (unchanged)" | It redirects to the draft's step; set-up is always focus mode | W19 |
-| Workspace rule 3, `workspaceNeeds`: `only-admin` and `no-lead` fire from the first minute for a big enough workspace | Both wait until the workspace is 7 days old; new needs `unowned` and `not-arrived` (rule S5). The function gains `ws.createdAt` and the set-up leftovers | W16; round 1's own aim ("isn't told off for a choice set-up never offered") |
+| Workspace rule 3, `workspaceNeeds`: `only-admin` and `no-lead` fire from the first minute for a big enough workspace | Both wait until the workspace is 7 days old; a new need `not-arrived` (rule S5). The function gains `ws.createdAt` | W16; round 1's own aim ("isn't told off for a choice set-up never offered") |
 | Workspace 2.5: About's facts | Two more: "Set up" and "How you work" | W6 |
 | Workspace 2.12: the switcher's "Set up a new workspace" → `/workspace/new` | The same, landing on step 1 with you filled in | — |
 | Navigation 2.5 (3) and (4): set-up has "Close and keep the draft" and steps in the address | Unchanged; this is where they are built | W19 |
 | The first screen (not covered by round 1) | `/welcome`, `/join/<id>` | W1, W13 |
 
-Everything else in round 1 stands, in particular OB2's rules 3 and 4 (a goal not born late; re-basing at the first check-in), which are what make "leave the example numbers" safe.
+Everything else in round 1 stands, in particular OB2's rules 3 and 4 (a goal not born late; re-basing at the first check-in). They no longer have example numbers to make safe, and are kept for their own sake: a real goal typed in with last month's number meets the same question.
 
 ## Decisions for Lane
+
+Settled since the first draft (Lane, 11 Nov): set-up offers no example goals. Nothing below reopens it; the spec's "If Lane decides otherwise" says what an example as a fourth door would bring back.
 
 1. **How many steps.**
    - (a) Five: the workspace and you; how you'll work; people; goals; check. *Recommended.*
    - (b) Six: "You" keeps a step of its own.
 2. **Welcome's primary action.**
-   - (a) "Set up a workspace"; the example is the first door under it. *Recommended.*
+   - (a) "Set up a workspace"; the demo is the first door under it. *Recommended.*
    - (b) "Try the demo" stays primary, as you set it for the talk.
 3. **Welcome's words.**
    - (a) Keep your headline; two lines under it in place of the three points. *Recommended.*
@@ -425,3 +451,6 @@ Everything else in round 1 stands, in particular OB2's rules 3 and 4 (a goal not
 10. **Who may set up a workspace in the internal app** (a requirement, not built here).
     - (a) Anyone signed in; the platform may limit it to a directory group. *Recommended.*
     - (b) Only people in a named group.
+11. **Which door is chosen to begin with on the Goals step.**
+    - (a) "Add your own". *Recommended.*
+    - (b) None: the person must pick.

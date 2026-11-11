@@ -123,6 +123,7 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 .wk li{min-height:44px;padding:8px 14px}.wk .l1{font-weight:400}.wk .l1 b{font-weight:600}.wk li.on .l1 b:after{content:" · chosen";font-weight:400;color:var(--muted)}
 .yr{display:flex;gap:6px;padding:4px 14px 10px}.yr span{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;display:inline-flex;align-items:center;font-weight:600;color:var(--muted)}.yr span.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg);color:var(--fg)}
 .more{padding:10px 14px;border-top:1px solid var(--line-2);color:var(--muted);font-size:14px}
+.pword{font-weight:600;color:var(--muted)}
 .pair{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.pair>.field:first-child{flex:1 1 150px}.pair>.field:last-child{flex:2 1 280px}.pair .field>.input{flex:none}.pair .input,.pop .input,.scols .input{min-width:0}.pair>.field{min-width:0}.pkl .l1 span{font-weight:400}.fld span{min-width:0}
 @media (max-width:700px){
  .fhead .btn{width:100%}
@@ -136,8 +137,7 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 </style>
 <div class="state"><span class="label">(a) New goal, with goals not yet published</span>
 <div class="frame boxed"><div class="fhead"><div class="steps"><b>New goal</b><span>Step 1 of 4 · What</span></div><span class="btn sm">Close</span></div>
-<div class="panel" style="gap:0;margin-bottom:24px"><h3 style="margin-bottom:6px">Not published yet · 3</h3>
-<div class="drow"><span class="t"><b>Rollback rehearsed for every tier-1 service</b><span>Pavel asked you to set this up in Reliability weekly · by week 48</span></span><span class="btn">Set up the goal</span></div>
+<div class="panel" style="gap:0;margin-bottom:24px"><h3 style="margin-bottom:6px">Not published yet · 2</h3>
 <div class="drow"><span class="t"><b>Signed artifacts in staging</b><span>A number to move · stopped at step 3 of 4 · kept until 9 Dec</span></span><span class="row nowrap" style="gap:8px"><span class="btn">Carry on</span><a class="btn quiet">Discard</a></span></div>
 <div class="drow"><span class="t"><b>Untitled goal</b><span>Dated stages · stopped at step 3 of 4 · kept until 2 Dec</span></span><span class="row nowrap" style="gap:8px"><span class="btn">Carry on</span><a class="btn quiet">Discard</a></span></div></div>
 <h1 style="margin-bottom:20px">Or start a new one: what do you want to achieve?</h1>
@@ -149,8 +149,8 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 <li class="goal d0 "><span class="s"><span class="st risk"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 1.8a5.2 5.2 0 0 0 0 10.4z" fill="currentColor"/></svg>At risk</span></span><span class="t"><b>Contract tests between the top 40 service pairs</b><span>Fewer pairs covered than planned for three weeks.</span></span><span class="v"><b class="num">27 pairs</b>5 behind plan</span></li>
 <li class="goal d0 "><span class="s"><span class="st on"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="currentColor"/></svg>On track</span></span><span class="t"><b>Release artifacts signed and verified at deploy</b><span>On plan.</span></span><span class="v"><b class="num">82%</b>On plan</span></li>
 </ul>
-<p class="hint" style="margin-top:6px">Not published yet: <a>Signed artifacts in staging</a> · <a>Untitled goal</a> · 1 to set up for Pavel. <a>See all 3</a></p></div></div>
+<p class="hint" style="margin-top:6px">Not published yet: <a>Signed artifacts in staging</a> · <a>Untitled goal</a>. Only you can see these.</p></div></div>
 <div class="state"><span class="label">(c) After “Close and keep the draft”</span>
 <div class="toast" role="status"><span>Draft kept until 11 Dec. It’s under Goals, Mine.</span><a>Open it</a></div></div>
-<p class="note">Wireframe 7. Drafts. A person can have several goals not yet published; each says its kind, where it stopped and how long it is kept (30 days from the last change), and a goal someone asked them to set up heads the list. They are listed where a new goal starts and at the foot of Goals, Mine, never on Home. “Close and keep the draft” says where the draft went; with nothing typed the button reads “Close”. Today there is one unlisted draft per browser, and starting another goal throws it away (E11).</p></div></main></div>
+<p class="note">Wireframe 7. Drafts. A person can have several goals not yet published; each says its kind, where it stopped and how long it is kept (30 days from the last change), and only its author sees it (a goal others should see before it starts is proposed, wireframe 10). They are listed where a new goal starts and at the foot of Goals, Mine, never on Home. “Close and keep the draft” says where the draft went; with nothing typed the button reads “Close”. Today there is one unlisted draft per browser, and starting another goal throws it away (E11).</p></div></main></div>
 <div class="tabbar"><span class="">Home</span><span class="">Check-in</span><span class="cur">Goals</span><span class="">Reviews</span><span class="">More</span></div></html>

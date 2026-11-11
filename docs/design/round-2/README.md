@@ -109,7 +109,7 @@ The same shape as round 1: `README.md` (jobs by role and frequency; findings wit
 
 ## Part 2. What came back, reconciled
 
-Each area was walked, written and drawn by its own agent against Part 1, then reviewed here: every report read against the shared decisions, the wireframes looked at on both widths, and the places where two areas disagreed settled below. During the day Lane added three things, which are in: the metrics area; **dates in goal entry** (baseline, from and to, picked by year and week: goal-entry wireframe 8, GE9); and **every choice of a person, team, goal or metric is search-to-find** (goal-entry spec 2.14 and wireframe 9, on round 1's find-and-pick).
+Each area was walked, written and drawn by its own agent against Part 1, then reviewed here: every report read against the shared decisions, the wireframes looked at on both widths, and the places where two areas disagreed settled below. During the day Lane added these, which are in: **set-up no longer offers example goals** (the Goals step has three doors: your own, a spreadsheet, later; the demo stays a separate place to look, never copied into a workspace); **a goal can be proposed before it is active** (goal entry, GE10); the metrics area; **dates in goal entry** (baseline, from and to, picked by year and week: goal-entry wireframe 8, GE9); and **every choice of a person, team, goal or metric is search-to-find** (goal-entry spec 2.14 and wireframe 9, on round 1's find-and-pick).
 
 ### The answer on switches
 
@@ -169,6 +169,7 @@ Backlog-sized items in order. Effort as in round 1: **S** (under a day), **M** (
 | 8 | **IM3** The preview | What was read, counts by sheet, Must fix by kind, Check questions, the rows to fix as a file, "Leave these rows out" | M | IM2; FS1's pickers *held* (a fallback is given) | import |
 | 9 | **GE9** The three dates, picked | Baseline, From and To; the year-and-week picker, also for a stage's due week; the conversion rule; From and To in the sheet | M | GE1, GE2, OB1 *held*, IM1, FT1 | goal entry |
 | 10 | **GE3** The read-back | New goal's last step in sentences, with dates and what is due | S | GE1, GE2, OB1 *held*, FT1 | goal entry |
+| 10a | **GE10** A goal is proposed or active (Lane, 11 Nov) | The last step asks "Is it under way?"; a proposed goal is seen by everyone and held to nothing; "Make it active" with its dates read back; counted apart; a State column in the sheet; two nullable columns | M | GE1, GE3, GE9, IM1 | goal entry |
 | 11 | **ST1** Welcome and arrival | `/welcome`, `/join/<id>`, an invitation that opens the right workspace | S–M | Nothing | set-up |
 | 12 | **ST2** Set-up in five steps, each an address | Name and you; how you'll work; people; goals; check | M | NV2 if landed | set-up |
 | 13 | **ST3** How you'll work | The rhythm and reviews asked once, with first dates; two clear days before a first check-in; About says the same | M | FT1, FT2, ST2 | set-up |
@@ -176,13 +177,13 @@ Backlog-sized items in order. Effort as in round 1: **S** (under a day), **M** (
 | 15 | **IM4** Imported, Undo and past imports | One Undo per import; `/data/imports` from the change log | S–M | AR3 (merged); FS2 on Data *held* | import |
 | 16 | **IM5** The way in, with paste | The Import page's one action; paste from a spreadsheet; the header row found | S–M | IM1, IM3 | import |
 | 17 | **ST4** People, with the three levels | Count line, paste, duplicate emails, near names | S–M | IM2, IM3, FS1, ST2 | set-up |
-| 18 | **ST5** Goals in set-up: four doors, one list | An example, your own (the goal form), a spreadsheet, later | M | GE1 (the form usable outside `/goals/new`), OB1, OB2 *held*, ST2 | set-up |
+| 18 | **ST5** Goals in set-up: three doors, one list | Your own (the goal form), a spreadsheet, or later. No example goals (Lane, 11 Nov): the templates are removed | S–M | GE1 (the form usable outside `/goals/new`), OB1, OB2 *held*, ST2 | set-up |
 | 19 | **IM8** with **ST6** The import inside set-up | The preview in "every row is new" mode; people the file doesn't add | S–M + S–M | IM3, ST4, ST5 | import, set-up |
 | 20 | **ST7** The read-back, the invitation and Undo | Check in counts and sentences; "Copy the invitation"; undo a set-up nobody has joined | S–M | ST1, ST2, ST3 | set-up |
-| 21 | **ST8** Your first week | Dated rows for each person; nothing late in week one; unfinished work moves to About | M | OB3, WR2 (merged); ST1, ST3; FT1, FT2 | set-up |
+| 21 | **ST8** Your first week | Dated rows for each person; nothing late in week one; unfinished work moves to About | S–M | OB3, WR2 (merged); ST1, ST3; FT1, FT2 | set-up |
 | 22 | **IM6** Large files | Reading off the page's thread, progress, Stop, 50 rows at a time, the 5,000-row limit said first; the server job written as a platform requirement | M | IM3 | import |
 | 23 | **GE5** Add a goal from where you are | Under a goal, on a team's page, as a copy; "Adding several?" to the paste door | S–M | OB1 *held*, GE1, IM5 | goal entry |
-| 24 | **GE6** Agree a goal in a review; ask someone to set one up | A next step "Set up a goal: {name}" that opens the form filled in | S–M | GE5, FS1, FT2 | goal entry |
+| 24 | **GE6** Agree a goal in a review | The room proposes the goal; its owner makes it active (Lane, 11 Nov: decision 18). Built as part of GE10 where that lands first; "ask someone to set one up" is dropped | S | GE10, GE5, FS1, FT2 | goal entry |
 | 25 | **GE7** Several drafts, listed | Up to five, 30 days, on New goal and under Goals, Mine | S–M | OB1 *held*, NV2 | goal entry |
 | 26 | **IM7** Export | One sheet from Goals and from Data; file names | S | FS2 on Data *held* | import |
 | 27 | **IM9** MCP | `bulk_change`, `export`, `undo_import` with the same levels and a dry run | S | IM2, IM4 | import |
@@ -219,7 +220,7 @@ Two items cross tracks and set the pace: **IM2** (the levels) holds GE2, ST4 and
 
 - **Adds:** one entry, "RD2: redesign round 2", pointing here, after RD.
 - **Replaces:** SU's leftover ("No value yet" at set-up), the backlog's N leftovers on import questions, and round 1's "set-up's spreadsheet path, not covered".
-- **Changes in round 1, said in each area's "What this changes in round 1":** OB1's Check step becomes the read-back and its unit starts empty; OB3's seven steps become five and "Getting started" becomes "Your first week"; GT3's edit page gains "What will change"; ML2 loses "Use different ones" and gains "Which part"; ML3's Remove becomes Retire; ML1's "Lowest now / Highest" line becomes a spread that names no team. FS1 is unchanged, and four more items now wait on its held part.
+- **Changes in round 1, said in each area's "What this changes in round 1":** OB1's Check step becomes the read-back and its unit starts empty; OB3's seven steps become five, its owner-per-example-goal step goes with the examples, and "Getting started" becomes "Your first week"; GT3's edit page gains "What will change"; ML2 loses "Use different ones" and gains "Which part"; ML3's Remove becomes Retire; ML1's "Lowest now / Highest" line becomes a spread that names no team. FS1 is unchanged, and four more items now wait on its held part.
 - **Migrations:** import, goal entry and set-up need none. Toggles needs two columns on `okr_cycles` (FT1). Metrics needs seven columns and no table (MT2, MT3, MT4). The SQL is in each spec, written for the `faro` schema with its grants.
 - **For the internal platform, written as requirements, not built:** a server-side import job above 5,000 rows; invitations and sign-in; who may create a workspace; real connectors behind the number source; a log of exports.
 
@@ -296,6 +297,25 @@ One batch; the recommended answer is first. Each area's README has its own finer
     - (b) The first and second cuts (adds set-up and the edit page).
     - (c) Only IM0 and GE1 now, as fixes; the rest after the talk's feedback.
     - (d) Hold all of it.
+
+### Added after the answers (11 Nov)
+
+Two things Lane asked for after answering, and what his answer on decision 11 changed:
+
+- **Decision 11, "as today".** Anyone may add a goal for anyone at any level, at every door. So the form keeps its freedom and the import's refusal of such a row is what goes; the question for a non-admin and "Ask {name} to set it up" are dropped. GE1 is rewritten around this (goal entry E1).
+- **Set-up offers no example goals.** Built into ST2 and ST5 above.
+- **A goal can be proposed before it is active** (GE10, goal-entry spec and wireframe 10). Shown as the word "Proposed", never a shape; no status, nothing due, in no count. Its owner or an admin makes it active. Different from a draft (private) and from a goal that is committed but starts later.
+
+**Lane's answers (11 Nov): (a) on all six, 18 to 23.** So: a goal agreed in a review is proposed in the room and its owner makes it active (this replaces the answer on decision 10, and GE6's review half is built inside GE10); a goal added for someone else starts on "propose it"; its owner or an admin makes it active; there is no workspace setting; the proposer may change or withdraw their proposal until it is active; stages stay within the year and a range has no dates to pick, for now.
+
+As they were asked, recommended first (goal entry's README has the wording):
+
+18. **A goal agreed in a review**, now that Proposed exists: (a) the room proposes the goal itself; its owner makes it active. *Recommended; this reopens decision 10.* (b) Keep it a next step for its owner.
+19. **A goal added for someone else**: (a) starts on "propose it", changeable to active. *Recommended: it is the only guard left after decision 11.* (b) Starts active.
+20. **Who makes a proposed goal active**: (a) its owner or an admin, the right that already exists. *Recommended.* (b) Also the owner of the goal it feeds, or the team's lead (a new right).
+21. **Requiring proposals**: (a) no workspace setting; proposing is a choice at the last step. *Recommended.* (b) A setting under "How you work": new goals start as proposed.
+22. **The proposer who isn't the owner**: (a) may change or withdraw their own proposal until it is active. *Recommended.* (b) Only the owner or an admin.
+23. **Stages due next year, and a range goal's dates**: (a) not yet: stages stay within the year and a range applies from the week it is made active. *Recommended.* (b) Both now (rule and data changes).
 
 ## What was not covered
 

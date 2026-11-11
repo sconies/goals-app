@@ -82,9 +82,9 @@ The same-name question (`same-name`) is asked on step 2, once the team is known;
 OB1's 2.3 stands, with:
 
 - **Owner.** The label is "Owner · checks in weekly" with a weekly rhythm and "Owner" with none (round 2, decision 6). Everyone is selectable.
-  - Someone who is not an admin and chooses another person: under the field, `role="status"`: "Only an admin can add a goal for someone else. You can ask {name} to set it up: they’ll get this name and what it feeds, and add the numbers." The step's primary button becomes **"Ask {name} to set it up"**; "Continue" is not shown. Pressed: 2.8's next step is saved from the draft, the draft is discarded, and the person returns to where they came from with the toast "Asked {name} to set up “{goal}”." and "Undo" (which withdraws the ask and restores the draft). Before GE6 is built: OB1's "not selectable" line.
+  - Anyone may choose anyone (Lane, 11 Nov: as today). Choosing someone else adds one line under the field, `role="status"`: "{Name} will own it. After it is published, only {name} or an admin can change it." and, once GE10 is built, makes the last step's question start on "Not yet: propose it" (2.15). "Ask {name} to set it up" is dropped: it was the route a non-admin had to take, and nobody has to take it now. Proposing is how a goal is put in front of someone without committing them.
 - **Team.** Starts as the owner's team and follows the owner until changed by hand. Owner in no team: empty, and required (`team-empty`). Never the first team in the list.
-- **Questions on this step**: `owner-other-team`, `same-name`, `level-up` (under Level), `feeds-lower` (under Feeds into).
+- **Questions on this step**: `owner-other-team`, `same-name`, `feeds-lower` (under Feeds into). There is no question about the level: anyone may set any level (Lane, 11 Nov).
 
 ### 2.4 Step 3: how it's measured (`/goals/new/measure`)
 
@@ -143,9 +143,10 @@ Wireframe 3. Replaces OB1's 2.5 and today's sentence and rows.
 | First check-in | "Its first check-in is due by {weekday} {date}, then every week. The first number sets where it stands; the plan says {plan next week} for week {w+1}." Stages: "… then every week. It asks which stages are done." Range: "… It asks for this week’s number." | "It shows as “No check-in yet” until {you post \| {owner} posts} its first number. Nothing is due." |
 | Who sees it | Owner is the viewer: "Everyone in {ws} can see it." Otherwise: "{Owner} sees it on {their} Home the next time {they} open Faro. Faro doesn’t send email." | The same |
 | Reviews (only with Reviews on) | "It joins {review}, which walks {every north star \| every SVP goal \| “{tree}” and what feeds it}." Several: "It joins {a} and {b}." None: "It joins no review yet." | The same |
-| Taking it back | "Until its first check-in {you \| you or {owner}} can change anything, or delete it. After that, a change to the plan needs a reason." | The same |
+| Taking it back | Owner is the viewer: "Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason." Otherwise: "Only {owner} or an admin can change it once it is published. Until its first check-in they can change anything, or delete it." | The same |
 
-5. Foot: "Back" and **"Publish goal"**.
+5. With GE10: the question **"Is it under way?"** (2.15), a radio group: "Yes: publish it as active" and "Not yet: propose it". It starts on Yes, except when the owner is someone else, where it starts on "Not yet".
+6. Foot: "Back" and **"Publish goal"** ("Propose goal" when "Not yet" is chosen).
 
 **After "Publish goal"**: as today and OB1 (the goal's page with `?published=1`). When the draft came from `?from=<askId>`, the same save marks that next step done with the note "Set up as {key}" (rule 9).
 
@@ -260,7 +261,7 @@ Saved (rule 9), it is a next step: an ask of kind action, for the owner chosen, 
 
 Publishing the goal marks it done with "Set up as {key}", by the person who published, in the same save. The review's next "Last time" then reads "{Owner} set up {key} “{goal}”."
 
-**From New goal, without a review**: 2.3's "Ask {name} to set it up". The ask is on the goal the draft feeds; when it feeds nothing, the door is not offered and the line reads "Only an admin can add a goal for someone else. Choose what it feeds to ask {name} to set it up, or ask an admin." (an ask must belong to a goal: `Ask.goalIds`).
+**From New goal, without a review**: nothing. "Ask {name} to set it up" is dropped (2.3); with GE10, propose the goal for them instead (2.15).
 
 ### 2.9 Drafts
 
@@ -349,7 +350,7 @@ Common to every row below, from the find spec: closed, the choice as words with 
 
 | # | Choice | Where | Kind | Suggested before typing | "None" row | "Add as new" | A row that can't be chosen | Under "None match" | Can raise |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | Owner | New goal, who; the edit page (this is also the hand-over) | Person | You; then the goal's team (the team from `?team=`, the parent's team, or the team already chosen), its lead first; then people chosen lately. With no team known: the find spec's default | — | Never. Under the results, for an admin: "Not here? Add people on People." | Someone marked as left is not listed | "People are added on People, by an admin." | `owner-empty`; `owner-not-yours` (becomes "Ask {name} to set it up"); `owner-other-team` |
+| 1 | Owner | New goal, who; the edit page (this is also the hand-over) | Person | You; then the goal's team (the team from `?team=`, the parent's team, or the team already chosen), its lead first; then people chosen lately. With no team known: the find spec's default | — | Never. Under the results, for an admin: "Not here? Add people on People." | Someone marked as left is not listed | "People are added on People, by an admin." | `owner-empty`; `owner-other-team` |
 | 2 | Team | New goal, who; the edit page | Team | The owner's team; your team; teams you lead; chosen lately | — | No (an admin: "Add a team on Teams.") | — | "Teams are added on Teams, by an admin." | `team-empty` |
 | 3 | Feeds into | New goal, who; the edit page | Goal | OB1's rule 2: the goals one level above in the goal's team, worst first; those your goals already feed; opened lately | "Nothing: top of its own tree" | No | This goal and anything under it: "Feeds this goal already". A stopped goal is not listed | — | `feeds-loop`; `feeds-lower` |
 | 4 | Also helps | New goal, who; the edit page | Goal, several | The goals the parent feeds and its other feeders; your goals; opened lately | — (remove the rows) | No | The goal it feeds: "It already feeds this."; itself and its own tree | — | — |
@@ -358,7 +359,7 @@ Common to every row below, from the find spec: closed, the choice as words with 
 | 7 | Copy from a goal | New goal, step 1's foot | Goal | Your goals, newest first; your team's; opened lately. Stopped goals are listed, with "Stopped" | — | No | — | — | The line "“{what}” isn’t here any more…" for a parent that has gone |
 | 8 | Who will own it? | "Agree a new goal" in a review | Person | The owner of the goal on screen; the review's people, A to Z; you | — | Never | Left: not listed | As row 1 | "Choose who will own it." |
 | 9 | It will feed | "Agree a new goal" | Goal | The goal on screen; the goal it feeds; the goals in this review still to discuss | "Nothing: top of its own tree" | No | Stopped: not listed | — | — |
-| 10 | "Ask {name} to set it up" | New goal, who | No second choice: it is row 1's owner | — | — | — | — | — | Needs row 3 to be a goal (2.8) |
+| 10 | (dropped: "Ask {name} to set it up") | — | — | — | — | — | — | — | Lane, 11 Nov: anyone may add a goal for anyone |
 | 11 | A goal's owner | Set-up's outcome and goal cards | Person, among those typed on the steps before | You; then the others in the order typed | "No owner yet" (the feeders; OB3) | No: "Add people on the step before." with "Back" | — | The same line | — |
 | 12 | A person's team | Set-up's people rows (OB3; the set-up area's) | Team, among those typed | The teams typed so far | "Same as above" | "Add “{q}” as a new team" | — | The add row | The set-up spec's close-name question |
 | 13 | Who takes over | Stopping being a goal's owner by leaving, and "Mark as left" (`RemoveSheets.tsx`; the Workspace area's, listed because it re-owns goals) | Person | The team's lead; the team; you | — | Never | The person leaving | As row 1 | — |
@@ -368,6 +369,99 @@ Bulk edit's "Change owner" already uses the control. Data's Owner cell and Goals
 
 `suggest` (find spec, rule 6) takes a `context`; rows 1, 3, 4, 8 and 9 pass theirs (`{ teamId }`, `{ level, teamId }`, `{ parentId }`, `{ goalId, reviewId }`). That is the only thing goal entry asks of it, and its existing "In Feeds into" case shows the pattern.
 
+### 2.15 A goal that is proposed, not yet active (GE10)
+
+Wireframe 10. Lane, 11 Nov: "a feature to identify if a goal is active or if it is just proposed".
+
+**The rule.** A proposed goal is a real goal, with a key, that everyone in the workspace can see, and that nobody is yet held to. It is not judged: the status rules are never run on it, so it is never on track, at risk, off track, late or "No recent update"; nothing is due on it; and it is in no count of goals, no health line, no Needs attention, no review's agenda, no check-in, no wrap-up and no metric's comparison. It becomes active by one deliberate act, **"Make it active"**, by its owner or an admin.
+
+**The words**, one meaning each:
+
+| Word | Means |
+|---|---|
+| **Proposed** | The goal's state: visible, not judged, nothing due |
+| **Active** | Every other goal that isn't stopped. Said only where the two are set side by side (the last step's question, the State column, a filter); an active goal's row doesn't say "Active" |
+| **Propose** / "Propose goal" | Save a new goal as proposed |
+| **Make it active** | The act that starts it. Not "approve" (nobody is asked for permission) and not "start" (which From already means) |
+| **Withdraw** | Remove a proposed goal |
+
+**What it is not**
+
+| Thing | What it is | How Proposed differs, and what happens to it |
+|---|---|---|
+| A draft (2.9) | Unsaved, in the form, seen only by its author, kept 30 days | A proposed goal is saved, has a key and a page, and everyone sees it. Drafts stay. The drafts list loses its "asked you to set this up" row if decision 15 is taken |
+| Not started (README section 9; Lane's answer 8) | An active goal whose From is still to come: committed, with a date; "No check-in yet · starts week 50" | Proposed is not committed and has no start. They are two things; no "Planned" status |
+| "Not started" in week 0 (`status.ts:210`, the `planned` status word) | Every goal before the cycle's week 1 | Unchanged. A proposed goal in week 0 reads "Proposed" |
+| A goal agreed in a review (2.8) | As Lane answered on 11 Nov: a next step, "Set up a goal: {name}" | Recommended now (README, decision 15): the room proposes the goal itself. It is the "real unpublished goal" that needed a migration of its own before; Proposed already brings the column |
+| "Ask {name} to set it up" | Dropped (2.3) | Propose the goal for them |
+| A level above Team, or a goal for someone else | Allowed for anyone (Lane, 11 Nov) | Proposing is how to put such a goal in front of its would-be owner or a leader without committing them. For someone else the last step starts on "Not yet: propose it" (decision 16) |
+| Stopped | Was active, has history, ended with a reason | A proposed goal has no history to keep: it is withdrawn, not stopped |
+| Next year's goals while the year is prepared (cycle end CY2) | Active goals of a cycle that hasn't begun: "Not started" | A proposed goal carries as proposed (rule 14) |
+
+**The code today.** `Goal` has `removedAt` and `stoppedAt` and nothing else about its state (`types.ts:108–114`); `pending` is "a proposed plan change … kept for governance later" and is unused (`types.ts:104`). `goalStatus` gives every live goal a status: "Not started" in week 0, "No check-in yet" for 14 days, then "No recent update" (`status.ts:208–212`, `RULES.staleDays`). So a goal put in early, before anyone has agreed it, is counted, then flagged.
+
+**How it is shown**
+
+- **The word alone, "Proposed"**, in the muted text colour at the weight a status word has, in the place a status shape and word would be: first on a row, above the title on the goal's page. No shape, no capsule, no wash (the design rules: a state that isn't a status is a word).
+- Counts never mix: "126 goals, worst first. 4 proposed" (the second part a link); a team's page "17 goals this year · 2 proposed"; a person's "3 goals · 1 proposed".
+- The Map: a proposed goal is drawn only with the filter on, as a node with a dashed outline on every side and the word. The Board: no column unless the filter is on, then one column, "Proposed". The History layout: no row.
+- Find and find-and-pick: a proposed goal's row has "Proposed" where the status is.
+- An export: the State column says `proposed`; the worked-out Status column says "Proposed"; every other worked-out column is empty.
+
+**New goal's last step.** After "After you publish" (2.5):
+
+1. **"Is it under way?"**, two choices, each with its line:
+   - "Yes: publish it as active" · "It is judged against its plan from {this week | week {from}}, and check-ins are due." (no rhythm: "It is judged against its plan from this week.")
+   - "Not yet: propose it" · "Everyone can see it and comment. Nothing is due and it has no status until {you | {owner}} or an admin make{s} it active."
+2. With "Not yet" chosen, "After you publish" is replaced by **"After you propose it"**: "It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins." · "Its plan is kept as you typed it. When {you make | it is made} it active, the plan starts from that week unless {you | they} say otherwise." · for someone else: "{Owner} sees it on {their} Home as a proposal for {them}. Faro doesn’t send email." · the hint "You can change anything without giving a reason, or withdraw it."
+3. The primary button: **"Publish goal"** or **"Propose goal"**.
+4. A proposed goal may leave **how it is measured** unsaid: with "Not yet" chosen, step 3's required fields become optional (rule 14), and "Continue" on step 2 offers the link "Skip: say how it’s measured later". The read-back's What row then reads "How it’s measured isn’t said yet."
+
+**A proposed goal's page** (`/goals/<key>`), in the goal page's width, in this order:
+
+1. "Proposed" above the title; under the title "{key} · {owner}, {team} · proposed by {name} on {date}{ in {review}}".
+2. For whoever may make it active (rule 14): the primary **"Make it active"** (or **"Finish it"** when something required is missing, which opens `/goals/<key>/edit` at the first missing field); then "Change it" and "Withdraw it".
+   For the proposer who isn't the owner: no primary; "Change it" and "Withdraw it"; the line "{Owner} or an admin can make this active."
+   For anyone else: that line, and "Add a comment", "Ask {owner} a question", "Watch". No primary.
+3. One block in place of the summary, scorecard and chart: "Proposed, not yet active. Nothing is due and it has no status. It would {move from {baseline} to {target} over {n} weeks | stay at or under {limit} | hit {n} stages}{, and feed “{parent}” ({key})}." and the hint "The scorecard, the chart and History’s weeks start when it is made active." With nothing said: "How it’s measured isn’t said yet."
+4. "Next steps and asks", comments, "About this goal" and "What feeds it" as on any goal. History lists changes and comments, with no week rows.
+
+**"Make it active"** opens a block in place (a sheet on a phone):
+
+1. For a number goal: "Baseline" with "From" (the week picker), From starting as **this week** whatever was typed when it was proposed, and "Target" with "To" as typed. A range: nothing to choose. Stages: each stage with its Due, those now past outlined with OB2's question.
+2. The read-back, from rule 5 with today's date: "From {baseline} in week {from} ({dates}) to {target} by week {to} ({dates}): {n} weeks{, not the {m} you proposed}. Its first check-in is due by {weekday} {date}, then every week. It joins {review | no review yet}." (no rhythm: "Nothing is due.") When the proposer is someone else: "{Proposer} and its {n} watcher{s} see that it is active."
+3. Any Check the dates raise (`to-past`, `long-plan`, `stage-past`).
+4. **"Make it active"**; "Cancel".
+
+After: the goal's page as a new goal's (round 1's "No check-in yet" state, with "Post the first check-in"), the toast "“{goal}” is active." with "Undo", and one History line: "{Name} made it active, from week {n}."
+
+**Changing a proposed goal** is the edit page (2.6) with three differences: no reason is ever asked; "What will change" has no status or history clauses (each row is "{Field}: {old} becomes {new}."); and the type can be changed ("It’s proposed, so its type can still change."). Its owner, an admin and whoever proposed it may change it.
+
+**Withdrawing.** "Withdraw it" asks "Withdraw “{goal}”? It goes to Recently removed for 30 days." → "Withdraw it" / "Keep it". It is `deleteGoal`'s removal (a goal with no check-ins), so it has the toast's Undo and can be brought back from Recently removed. There is no "not taken up" state to keep: a withdrawn proposal is in Activity ("{Name} withdrew the proposal “{goal}”") and nowhere else.
+
+**Going stale.** A goal proposed `PROPOSED_ASK_WEEKS` (8) weeks ago or more adds one row to "Needs your response" on the Home of whoever may make it active (its owner; an admin only for their own): "“{goal}” has been proposed for {n} weeks. Make it active, or withdraw it." with "Open it". It is asked once and again every 8 weeks; "Not yet" beside it puts it off for 8 more. It is never a status, a count or a flag on the goal.
+
+**Back to proposed.** An active goal with no check-ins can be made proposed again by its owner or an admin: the goal's "…" menu, "Make it proposed again", with the confirm "It will have no status and nothing will be due until it is made active." A goal with a check-in can't: the item is absent, and the edit page's foot says "It has check-ins, so it can’t go back to proposed. Stop it instead."
+
+**Everywhere else**
+
+| Place | What a proposed goal does there |
+|---|---|
+| Goals (`/goals`) | Every scope lists active goals. The count line gains "· {n} proposed", a link that sets the filter `state=proposed` ("Filtered by: Proposed (Remove)"); the Filters sheet has "State: Active · Proposed · Stopped" (Active by default). With the filter on: "{n} proposed goals, newest first.", rows with the word, the key line "… · proposed {date | n weeks ago}{ by {name}}", and at the right what it would measure or "Not said yet". "Needs attention" never includes one |
+| A goal's "What feeds it" | Active feeders are listed and counted as today; under them "Proposed · {n}" and its rows. A proposed goal may feed an active one and an active one may feed a proposed one; neither counts in the other's health line. A goal that feeds a proposed goal shows "Feeds into {goal} · Proposed" |
+| "Feeds into" and "Also helps" pickers | Proposed goals are listed, with the word |
+| Home | The owner of a goal proposed **by someone else**, not yet opened: a row in "Needs your response": "{Name} proposed a goal for you{ in {review}}: “{goal}”." with "Open it" (it is the lead under the Home spec's `ask` rule, by the day it was proposed). The stale row above. "Your goals · {n}" counts active goals and adds "· {k} proposed" |
+| The check-in | Never offered; `/check-in/<id>` for one says "This goal is proposed, so there is nothing to check in. Make it active first." with the link |
+| Reviews | Not on an agenda and not counted in "{n} to discuss". Decision 15: "Propose a new goal" in the walk saves a proposed goal (name, who would own it, what it would feed; nothing else), and the next session's "Last time" reads "Proposed: {goal} ({key}). {Owner} hasn’t made it active yet." or "… {Owner} made it active on {date}." |
+| The wrap-up and the carry | Not in the wrap-up's list. `carryOf` gives "carry", and the copy in the new year is proposed, with its plan's weeks moved as GE9's rule moves them. The start page's read-back counts them apart: "{n} goals carry on · {k} proposed goals carry as proposed" |
+| Metrics | It can name its metric; the link is saved. The metric's page lists it under its goals table as "Proposed · {n}" with no numbers, and it is in no comparison |
+| Watching | It can be watched; a watcher sees "{Name} made “{goal}” active" on their Home's changes |
+| The rhythm switch | Nothing changes: nothing was due. Reviews off: the review rows and words are absent |
+| Find | Listed, with the word |
+| The phone | The word sits above the title on a row's first line; the goal's page stacks "Make it active", "Change it", "Withdraw it" full width; "Make it active" is a full sheet; the Goals count line wraps "· 4 proposed" onto its own line |
+
+**The sheet, the tools.** The Goals sheet gains **State** (the field table's row, section 3). `create_goal` and `update_goal` gain `state: "active" | "proposed"`; `find_goals` leaves proposed goals out unless `state` is given; a new tool `make_goal_active` (`goal_id`, optional `from`, `dry_run`) returns the same read-back. A tool's check-in on a proposed goal is refused in the check-in's words above.
+
 ## 3. The fields
 
 The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). "Need" is round 2's word. "Checked" is when the form looks: **L** on leaving the field, **C** on Continue, **P** on Publish or Save.
@@ -376,9 +470,9 @@ The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). 
 |---|---|---|---|---|---|---|---|
 | Name → Goal | Required | Text, 3 characters or more | Empty | "Requests triaged within 2 days" | L, C | `name-empty`, `name-short` | `same-name` |
 | How will you know it worked? → Type | Required | One of three | A number to move, shown chosen | — | — | — (a file: `word-unknown`) | — |
-| Owner → Owner, Owner email | Required | A person in the workspace | You | — | C, P | `owner-empty`, `owner-not-yours` | `owner-other-team` |
+| Owner → Owner, Owner email | Required | A person in the workspace | You | — | C, P | `owner-empty` | `owner-other-team`; `for-someone-else` (a file or a tool only, 2.15) |
 | Team → Team | Required | A team in the workspace | The owner's team | — | C | `team-empty` | — |
-| Level → Level | Required | Team, SVP, North star | OB1's rule 1 | — | C | `level-empty` (only when rule 1 gives none) | `level-up` |
+| Level → Level | Required | Team, SVP, North star | OB1's rule 1 | — | C | `level-empty` (only when rule 1 gives none) | — |
 | Feeds into → Feeds into, Feeds into key | Optional | A goal in this cycle | Nothing; said: "Feeds nothing." | — | C, P | `feeds-loop` | `feeds-lower` |
 | How much will it move “{parent}”? → Effect | Optional | A number, in the parent's unit | Empty | "3" | L, C | `not-number` | — |
 | Why do we expect it to help? → Why it helps | Optional | Text | Empty | — | — | — | — |
@@ -397,6 +491,7 @@ The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). 
 | Limit → Limit | Required for a range | A number | Empty | "12" | L, C | `limit-empty`, `not-number`, `has-words`, `too-precise` | `below-zero`, `over-100`, `billion` |
 | Warn this close → Margin | Optional | A number, zero or more | Empty: no early warning; said | "1" | L, C | `margin-negative`, `not-number`, `too-precise` | `margin-wide` |
 | Stages → Stages (`Name@48` or `Name@2026-W48`) | Required for stages: at least one | Each: a name, and a week of this goal year, picked | One empty row | "Threat model" | L, C | `stage-none`, `stage-name`, `stage-week`, `stage-twice` | `stage-past` |
+| Is it under way? → State (new column) | Optional | `active` or `proposed` (also read: "live", "draft", "proposal") | `active`; in the form, "Not yet" first when the owner is someone else | "proposed" | P | `word-unknown`: "State says “{raw}”. Use active or proposed."; `state-has-check-ins`: "“{goal}” has check-ins, so it can’t go back to proposed. Stop it instead." | `for-someone-else` (a file or a tool, once per file): "{n} of these goals {is \| are} for other people and would start as active. Is that what you mean?" → "Yes, active" / "No, start them as proposed" |
 | How it’s measured → Definition | Optional | Text | Empty | "Median hours to the first reply, from the help desk" | — | — | — |
 | Where the number comes from → Source | Optional | Text | Empty | "Jira intake board" | — | — | — |
 | Why is the plan changing? → Reason | Required for a plan change after check-ins | A sentence, 10 characters or more (`MIN_REASON`) | Empty | — | P | `reason-empty` | — |
@@ -428,7 +523,7 @@ A week is always shown with its dates and their year: "Week 48 · 23–29 Nov 20
 | `name-empty` | Name | "Give the goal a name." (today's) |
 | `name-short` | Name | "Give the goal a name of at least three characters." (today's) |
 | `owner-empty` | Owner | "Choose who owns it." |
-| `owner-not-yours` | Owner; top of Check; a file's row; a tool | "You can add goals you own. Ask an admin to add goals for other people." (today's, `changeset.ts:385`) |
+| (`owner-not-yours` is removed) | A file's row; a tool | The engine stops refusing "You can add goals you own. Ask an admin to add goals for other people." (`changeset.ts:385`): Lane's rule is that anyone may add a goal for anyone, at any level, at every door |
 | `team-empty` | Team | "Choose a team." (with an owner in none: "{Owner} isn’t in a team. Choose the team this goal is for.") |
 | `level-empty` | Level | "Choose a level." |
 | `feeds-loop` | Feeds into | "That link would make a loop: “{parent}” already feeds into this goal." |
@@ -467,7 +562,6 @@ A week is always shown with its dates and their year: "Week 48 · 23–29 Nov 20
 | `far-from-metric` | A metric with a latest number for the slice; Today (or a range's Limit) differs from it by more than a factor of 3 (the check-in's own ratio, `checkin.ts:122`) | "The latest “{metric}” for {slice} is {latest} (week {n}, from {key}). You’ve typed {value} as {today\|the limit}. Is {value} right?" | "Yes, {value} is right" / "Use {latest}" | Metric, slice, value | "You said {value} is right; the metric’s latest is {latest}." |
 | `same-name` | Another goal in this cycle, in the same team, with the same name (ignoring case, spaces and accents) | "{Team} already has a goal called “{title}” ({key}, owned by {name}). Is this a different goal?" | "Yes, it’s a different goal" / "No, open {key}" (keeps the draft) | Name, team | "{Team} already has “{title}” ({key}); this is a different goal." |
 | `owner-other-team` | The owner's team isn't the goal's team | "{Owner} is in {their team}, not {team}. Which team is this goal for?" | "Keep it in {team}" / "Move it to {their team}" | Owner, team | "{Owner} is in {their team}; the goal stays in {team}." |
-| `level-up` | The level is SVP or North star, the viewer isn't an admin, and it is new or raised | "{North star\|SVP} goals are reported at the top{, and join {review}}. Is this one?" | "Yes, it’s {a north star\|an SVP goal}" / "No, make it a Team goal" | Level | "You said it’s {a north star\|an SVP goal}." |
 | `feeds-lower` | The goal it feeds is at a lower level than its own | "{A north star\|An SVP goal} usually feeds {nothing\|a north star}, and “{parent}” is {a Team\|an SVP} goal. Is this link right?" | "Yes, it feeds that goal" / "No, it feeds nothing" | Level, parent | "You said it feeds “{parent}”, a {level} goal." |
 | `margin-wide` | A range whose margin is as large as the limit's distance from zero, or larger | "With a limit of {limit}{unit} and a warning {margin}{unit} away, it would almost always read at risk. Is {margin} right?" | "Yes, warn within {margin}{unit}" / "No, I’ll change it" | Limit, margin | "You said to warn within {margin}{unit}." |
 | `late-plan` | Weeks set by hand, and rule 12's `lateShare` is over 0.6 | "This plan leaves {pct}% of the change to the last {k} of {n} weeks. Is that the plan?" | "Yes, that’s the plan" / "No, I’ll change it" | The plan's points | "You said most of the change comes in the last {k} weeks." |
@@ -485,9 +579,7 @@ Consistent with R1 (`spec/requirements/internal/r1-sign-in-and-access.md`). Each
 
 | Thing | Member | Owner of the goal | Admin | Enforced by |
 |---|---|---|---|---|
-| New goal they will own | Yes | — | Yes | `planChanges` (R1: "Add a goal: anyone, for a goal they own"), through rule 7's `mayAddGoal` |
-| New goal owned by someone else | "Ask {name} to set it up" | — | Yes | `planChanges` ("an admin, for anyone"); the ask by `addAction` (anyone) |
-| Set SVP or North star | Yes, after `level-up` | Yes, after `level-up` | Yes | No rule exists; the question is not a right |
+| New goal, for themselves or anyone, at any level | Yes | — | Yes | No rule refuses it (Lane, 11 Nov). R1's row "Add a goal" becomes "Anyone, for anyone"; `changeset.ts:385` is removed; rule 7's `mayAddGoal` is always true and is kept only as the one place the rule is stated |
 | Open `/goals/<id>/edit` | The read view | The form | The form | `mayChangeGoal` (rule 7), which is `planChanges`' `canChange` |
 | Save changes; change unit or decimals | No | Yes | Yes | `planChanges` |
 | Hand it to someone else | No | Yes | Yes | `planChanges` (the owner is a field of the goal) |
@@ -501,7 +593,7 @@ Consistent with R1 (`spec/requirements/internal/r1-sign-in-and-access.md`). Each
 | Their own drafts | Yes | — | Their own | The `Prefs` port (per person) |
 | The carried-goal line | No | Yes | Yes | `mayChangeGoal` |
 
-With Reviews off (FT), "Agree a new goal", the read-back's review line and `level-up`'s "and join {review}" are absent. With the rhythm off, every "checks in weekly", "is due by" and "checks in from week" is absent.
+With Reviews off (FT), "Agree a new goal" and the read-back's review line are absent. With the rhythm off, every "checks in weekly", "is due by" and "checks in from week" is absent.
 
 ## 6. Rules for `src/domain`
 
@@ -523,7 +615,7 @@ Until IM1 lands, the same values live in `goalEntry.ts` as a table that IM1 repl
 
 ### Rule 2. What can't be saved: `goalMustFix(draft, ctx)`
 
-`ctx = { cycleWeeks, week, existing: Goal | null, checkIns: CheckIn[] (this goal's), actor: { id, admin }, ownerTeamId, loops: boolean, door: 'form' | 'setup' | 'table' }`. Returns `{ field, id, text }[]`, in the form's order. It contains today's `validateGoal` (which it replaces as the one entry; `validateGoal` stays as its inner part) and adds `owner-not-yours`, `team-empty`, `unit-empty`, `has-words`, `stage-twice`, `stage-done-removed`, `decimals-lose`, `feeds-loop`, `same-as-start`'s offer.
+`ctx = { cycleWeeks, week, existing: Goal | null, checkIns: CheckIn[] (this goal's), actor: { id, admin }, ownerTeamId, loops: boolean, door: 'form' | 'setup' | 'table' }`. Returns `{ field, id, text }[]`, in the form's order. It contains today's `validateGoal` (which it replaces as the one entry; `validateGoal` stays as its inner part) and adds `team-empty`, `unit-empty`, `has-words`, `stage-twice`, `stage-done-removed`, `decimals-lose`, `feeds-loop`, `same-as-start`'s offer.
 
 `decimalsFor(draft)`: the most decimal places typed in Today, Target and Limit (or Start and the stored numbers on an existing goal), at most 3; used when the person hasn't chosen.
 
@@ -541,7 +633,7 @@ Until IM1 lands, the same values live in `goalEntry.ts` as a table that IM1 repl
 | Today 10, target 10 | `same-as-start` |
 | Stages "Design"@48, "design "@50 | `stage-twice` on the second |
 | Stages "Design"@60 in a 53-week cycle (a file) | `stage-week`: "“Design” needs a due week between 1 and 53: it says “60”." |
-| Tunde, not an admin, owner Amara | `owner-not-yours` |
+| Tunde, not an admin, owner Amara, level North star | Nothing: allowed (Lane, 11 Nov) |
 | Grace, an admin, owner Amara | Nothing |
 | Owner in no team, team empty | `team-empty`, the longer words |
 | An existing goal with a check-in of 7.5, decimals 1 → 0 | `decimals-lose` |
@@ -561,8 +653,7 @@ It contains today's `planHint`, `overHundredHint`, `setupProblem` and `planQuest
 | 5 days → 2 days | Nothing |
 | A range, at most 12%, margin 20 | `margin-wide` |
 | A range, at most 12%, margin 1 | Nothing |
-| Tunde, level North star, parent a Team goal, owner himself | `level-up`, `feeds-lower` |
-| Amara (an admin), the same | `feeds-lower` only |
+| Tunde, level North star, parent a Team goal, owner himself | `feeds-lower` only |
 | An SVP goal feeding an SVP goal | Nothing |
 | Owner Amara (Office of the VP), team Build & Release | `owner-other-team` |
 | "Signed artifacts" in Build & Release, where G-73 has that name | `same-name` |
@@ -627,14 +718,15 @@ Returns `{ go: boolean, focus: field | null, says: string | null }`, giving 2.1'
 
 ### Rule 7. Who may, and saving: `src/domain/goalRights.ts` and `planGoal`
 
-- `mayAddGoal(actor, ownerId)`: the actor is the owner, or an admin. `mayChangeGoal(actor, goal)`: the actor owns it, or is an admin. `changeset.ts` uses these in place of its inline lines (385; `canChange`), so there is one statement of R1's two rows.
+- `mayAddGoal(actor, ownerId)`: always true (Lane, 11 Nov: anyone may add a goal for anyone, at any level). It exists so the rule is stated once; `changeset.ts` calls it where line 385 refused, so the form, a file and the tools agree by sharing it. `mayChangeGoal(actor, goal)`: the actor owns it, or is an admin (unchanged; with GE10, also whoever proposed a goal that is still proposed). `changeset.ts` uses it in place of its inline `canChange`, so there is one statement of R1's row.
 - `planGoal(x, { draft, goalId?, reason?, note?, answers, fromAskId? })` in `goalEntry.ts`: the form's one way to save. It refuses (`NotAllowed`, with section 4's words) unless the right holds, `goalMustFix` is empty, `unanswered` is empty, and a needed reason is given; then returns the commit: the goal from `buildGoal`, the change from `goalChange` with "Why", "Note for {name}" and one "Checked" diff per answer, and, with `fromAskId`, the ask marked done (rule 9).
 - A new action **`saveGoal`** in `src/app/actions.ts` runs it; `app.saveGoal` (`state.tsx:615`) calls the action. The form no longer commits by itself.
 - `undoGoalEdit(x, { goalId, before })`: allowed when the goal's latest change was made by the actor (or the actor is an admin), at most `EDIT_UNDO_MIN` (10) minutes ago, with no check-in or other change since, and `goalChange(now, before)` mirrors that change field for field. It returns the goal as `before` with the change "Undid a change: {fields}". `before` is held by the screen, in memory.
 
 | Given | Then |
 |---|---|
-| Tunde saves a goal owned by Amara | Refused: "You can add goals you own. Ask an admin to add goals for other people." |
+| Tunde saves a new goal owned by Amara, as a north star | Saved. The read-back said: "After you publish, only Amara or an admin can change it." The same row in a file or through `create_goal` saves too (today both refuse) |
+| Tunde then opens its edit page | The read view: "Amara Nwosu or an admin can change this." (unless it is proposed and he proposed it: rule 14) |
 | Rhea hands her goal to Tunde, then Undo two minutes later | Allowed: the owner is Rhea again; History has both lines |
 | The same, after Tunde has checked in | Refused: "It has changed since, so it can’t be undone here. {Owner} or an admin can change it." |
 | The same, eleven minutes later | Refused, the same words |
@@ -752,6 +844,44 @@ The data is unchanged: `MetricPlan.fromWeek`, `MetricPlan.endWeek` and `Stage.du
 | An export loaded back unchanged | "Nothing would change" |
 | A goal set up in week 46 of 2026 at 42, last number 36, carried into 2027 | Baseline 36, From week 0 of 2027 (week 53 of 2026), To the end of 2027 |
 
+### Rule 14. Proposed: `src/domain/proposed.ts` (new)
+
+- **Data.** `Goal` gains `proposedAt?: string | null` and `proposedBy?: Id | null` (section 12's migration). Set: the goal is proposed. Cleared (with `activatedAt` not kept: the change log has it): active.
+- `isProposed(goal)`: `!!goal.proposedAt && !goal.removedAt && !goal.stoppedAt`.
+- `judged(goals)`: those neither proposed nor stopped. **Every rule that leaves a stopped goal out of being judged leaves a proposed one out the same way**: the build finds each by `stoppedAt` (stats, attention, Home, the check-in queue, reviews' goals, the wrap-up, the streak, the metric module's comparison) and uses `judged`. A lint beside the others: `stoppedAt` is read in `src/domain` only inside `judged`, `isProposed`'s file and `removal.ts`.
+- `goalStatus` is not called for a proposed goal. `GoalSummary` gains `state: 'active' | 'proposed' | 'stopped'`; for `'proposed'` its `statusLabel` is "Proposed" and its status, gap, forecast and story are null. `DisplayStatus` gains nothing.
+- `goalCounts(goals)` → `{ active, proposed }`, and `countLine` (the find spec's rule 2) appends "{n} proposed" when it is above 0.
+- `proposedMustFix(draft, ctx)`: rule 2 with the type's own required fields optional. A goal proposed with none of them is stored as dated stages with no stages; `measureUnsaid(goal)` is true for a proposed goal in that shape and every screen says "How it’s measured isn’t said yet." (No column says a type is unknown, and none is added; to be checked: that `okr_goals` has no constraint requiring a stage.) The type may change while proposed.
+- `readyToActivate(goal, ctx)`: rule 2's full list is empty.
+- `mayActivate(actor, goal)`: `mayChangeGoal` (the owner, or an admin). `mayChangeGoal` is also true for `goal.proposedBy` while `isProposed(goal)`.
+- `activate(x, { goalId, fromWeek? })` → the commit: `proposedAt` and `proposedBy` cleared; a number goal's `fromWeek` set to `fromWeek ?? week` (and its plan's hand-set weeks dropped if they fall before it); the change "Made it active, from week {n}", with `undo` holding the goal as it was. Refused unless `mayActivate` and `readyToActivate`.
+- `backToProposed(x, goalId)`: allowed for `mayChangeGoal` when the goal has no check-in; sets `proposedAt` to now and `proposedBy` to the actor.
+- `withdraw(x, goalId)` is `deleteGoal` (the goal has no check-ins), allowed for `mayChangeGoal`; its change's summary is "Withdrew the proposal “{goal}”".
+- `proposalAsks(goals, viewer, week, seen)` → Home's rows: `for-you` (proposed by someone else, owner is the viewer, not yet opened) and `stale` (proposed `PROPOSED_ASK_WEEKS` = 8 weeks ago or more, viewer may activate, not put off). `seen` is from `Prefs`.
+- The carry (`carryOf`, cycle end's rule 5): a proposed goal is "carry", copied with `proposedAt` and `proposedBy` kept.
+- `planChanges`: a Goals row's State sets or clears `proposedAt` by the same rules (`state-has-check-ins`; making active through a file needs `readyToActivate`, else Must fix "“{goal}” can’t be made active yet: {what is missing}."). Check-ins rows for a proposed goal are Must fix.
+
+| Given (week 46, weekly, due Thursday) | Then |
+|---|---|
+| Tunde proposes "Signed artifacts in staging", 40% → 90%, From 46, To 53 | Saved with a key (G-132), `proposedAt` set; its row reads "Proposed"; `goalStatus` isn't run |
+| Goals, Mine, as Tunde, who has 2 active goals | "2 goals, worst first. 1 proposed" |
+| The workspace's health line and Needs attention | Unchanged by it |
+| Check-in queue; Thursday's "due" | It isn't there |
+| 14 days later | Still "Proposed": never "No recent update" |
+| Amara, in a review, proposes "Data-backed environments ready in under an hour" for Camille, feeding G-5, with nothing else | Saved as G-131, proposed by Amara; `measureUnsaid` true; Camille's Home: "Amara proposed a goal for you in Platform leadership weekly: “Data-backed environments ready in under an hour”." |
+| Camille opens G-131 | The button is "Finish it" (`readyToActivate` false) |
+| Amara opens it | "Change it" and "Withdraw it", no primary; "Camille Laurent or an admin can make this active." |
+| Oskar opens it | Comment, ask, watch; the same line |
+| Tunde makes G-132 active in week 48 | From becomes 48: "From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week." Its status is then "No check-in yet" |
+| The same, choosing From 46 | `from-past` is asked |
+| Undo, a minute later | Proposed again, From 46 |
+| Tunde posts a check-in, then tries "Make it proposed again" | Not offered; a file's State `proposed`: `state-has-check-ins` |
+| A goal proposed 9 weeks ago, its owner's Home | "“Rollback rehearsed for every tier-1 service” has been proposed for 9 weeks. Make it active, or withdraw it." |
+| Tunde, not an admin, publishes a goal owned by Amara as active | Allowed (Lane, 11 Nov); the last step started on "Not yet: propose it" and he changed it |
+| A file with 3 new goals for other people and no State | `for-someone-else`, once: "3 of these goals are for other people and would start as active. Is that what you mean?" |
+| 2026 ends with G-131 still proposed | It carries into 2027 as proposed; the start page says "1 proposed goal carries as proposed" |
+| An export, loaded back unchanged | "Nothing would change" (State is written for every goal) |
+
 ## 7. Extension points
 
 No new extension point.
@@ -766,14 +896,16 @@ No new extension point.
 
 | # | Requirements | Journey |
 |---|---|---|
-| U93 | GOAL-ENTRY-REQUIRED | A goal says what it needs: as Tunde, New goal; the measure step says "Everything here is needed unless it says optional." and Unit is empty; "Continue" with Unit empty and Target "30 mins" puts each Must fix under its field and "2 things to fix above: Unit and Target." above the button, focus on Unit; fixed, the decimals line reads "Kept as whole numbers, as you typed them."; 50 → 150 % asks the over-100 question and "Continue" waits ("Answer the question above, under Target."); answered, it goes on, and going back shows "You said 150% is right."; changing 150 to 160 asks again. Dated stages: two called "Design" and one with no week each get their own line. Choosing Amara as owner changes the button to "Ask Amara to set it up". The same faults typed into a Goals row on Data and sent to `create_goal` return the same words |
+| U93 | GOAL-ENTRY-REQUIRED | A goal says what it needs: as Tunde, New goal; the measure step says "Everything here is needed unless it says optional." and Unit is empty; "Continue" with Unit empty and Target "30 mins" puts each Must fix under its field and "2 things to fix above: Unit and Target." above the button, focus on Unit; fixed, the decimals line reads "Kept as whole numbers, as you typed them."; 50 → 150 % asks the over-100 question and "Continue" waits ("Answer the question above, under Target."); answered, it goes on, and going back shows "You said 150% is right."; changing 150 to 160 asks again. Dated stages: two called "Design" and one with no week each get their own line. Choosing Amara as owner says "Amara will own it. After it is published, only Amara or an admin can change it." and the goal can be published. The same faults typed into a Goals row on Data and sent to `create_goal` return the same words |
 | U94 | GOAL-ENTRY-REQUIRED, RHYTHM-OPTIONAL | Read back before it's saved: the Check step shows What, Who and where, Left as usual and You said as sentences; "After you publish" names Thursday 12 Nov and "the plan says 47% for week 47"; "Change" on Left as usual goes to the measure step and "Continue" returns; publishing lands on the goal with `?published=1`, and its History's first entry lists the answer under "Checked". With the rhythm off (FT) the step has no weekday and reads "Nothing is due."; with Reviews off there is no review line |
 | U95 | GOAL-EDIT-PREVIEW | A change says what it does: as Rhea on "Pipeline queue wait (p90)" the type line says why it can't change; changing the target shows "What will change" with the status clause and asks "Why is the plan changing?"; saving without a reason is a Must fix; handing it to Tunde adds the owner sentence, the team question and "A note for Tunde"; "Save 2 changes"; the toast's Undo puts both back and History shows both lines; saved again, Rhea sees the read view with "Tunde Bakare or an admin can change this." and no button; as Oskar the same. Unit min → hours says the numbers aren't converted. An unsaved edit, then the target changed as Grace, reopens with "Grace changed this goal…" |
-| U96 | GOAL-ADD-ANYWHERE | A goal starts where the thought does: "Add a goal that feeds this" under Lead time for changes opens step 1 with "It will feed … as an SVP goal in CI/CD, owned by you."; a team's page has "Add a goal for Build & Release" for its members; "Duplicate as a new goal" copies the type and unit and leaves the name and numbers empty; "Adding several?" opens the import's paste door. As Amara in a review's walk, "Agree a new goal" with a name, Camille and week 48 records "Set up a goal: …"; as Camille, Home shows it with "Set up the goal", which opens New goal filled in; publishing marks it done "Set up as G-…"; the review's "Last time" says so. Two goals left unpublished are both listed on New goal and named under Goals, Mine, with "kept until"; "Close and keep the draft" says where it went; a sixth is refused. With Reviews off the walk's choice is absent and "Ask {name} to set it up" still works |
+| U96 | GOAL-ADD-ANYWHERE | A goal starts where the thought does: "Add a goal that feeds this" under Lead time for changes opens step 1 with "It will feed … as an SVP goal in CI/CD, owned by you."; a team's page has "Add a goal for Build & Release" for its members; "Duplicate as a new goal" copies the type and unit and leaves the name and numbers empty; "Adding several?" opens the import's paste door. As Amara in a review's walk, "Agree a new goal" with a name, Camille and week 48 records "Set up a goal: …"; as Camille, Home shows it with "Set up the goal", which opens New goal filled in; publishing marks it done "Set up as G-…"; the review's "Last time" says so. Two goals left unpublished are both listed on New goal and named under Goals, Mine, with "kept until"; "Close and keep the draft" says where it went; a sixth is refused. With Reviews off the walk's choice is absent |
 
 | (next free; see below) | GOAL-DATES, FIND-AND-PICK | Dates are picked and people are found: as Tunde on the measure step, Baseline and Target each sit beside a week, "Week 46 · 9–15 Nov 2026 · This week" and "Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026"; opening To lists the three named weeks, then 2026 from week 47 and 2027; choosing "The end of Q1 2027" closes it as "Week 13 · 29 Mar–4 Apr 2027" and the line says it carries into 2027; typing "14 Dec" moves to week 51; the keyboard alone can choose a week. From set to week 40 asks whether it has been running; "No, start from this week" puts it back. Check reads "from 42 min in week 46 (9–15 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)". The goal's page and an export say the same weeks (`2026-W46`, `2027-W13`), and the export loads back as "Nothing would change". A stage's Due is the same picker. No number field for a week exists on any step or on the edit page. On the who step and the edit page Owner, Team, Feeds into and Also helps open find-and-pick with suggestions, "tun" finds Tunde, "g-41" finds a goal by its key; no `select` lists people, teams, goals or metrics anywhere in New goal, the edit page, "Agree a new goal" or set-up's cards |
 
-Round 2 gave goal entry U93 to U96; this fifth journey takes the next free number when it is built.
+| U134 | GOAL-PROPOSED | Proposed, then active: as Tunde, New goal's last step asks "Is it under way?"; "Not yet: propose it" turns the button to "Propose goal" and the block to "After you propose it"; the goal has a key and a page that says "Proposed" as a word with no status shape; Goals, Mine reads "2 goals, worst first. 1 proposed" and the link filters to it; it is not in Check-in, not in Needs attention, not in the health counts, and a fortnight later (the demo's clock moved) still says "Proposed". As Oskar its page has comment, ask and watch and "Tunde Bakare or an admin can make this active." As Tunde, "Change it" saves a new target with no reason asked; "Make it active" reads back From as this week with the first check-in's date; after it the page offers "Post the first check-in" and History says "made it active"; Undo returns it to proposed. As Tunde choosing Amara as owner, the question starts on "Not yet". As Amara in a review, "Propose a new goal" for Camille saves one with only a name; Camille's Home shows the proposal and her button is "Finish it". "Withdraw it" removes one, with Undo. An export has State; loaded back, nothing would change |
+
+Round 2 gave goal entry U93 to U96; the dates journey is U109 (round 2, Part 2), and U134 is the next free after round 3's.
 
 **Changed:** U2, U3, U84 (New goal: the unit, the levels, the read-back, the drafts list); U85 (the past-stage question is the shared block); the goal-edit journeys (the button's words; the reason's place); U5, U17, U86 (set-up's cards' words); the MCP journeys that read "Fix these and try again".
 
@@ -784,6 +916,7 @@ Round 2 gave goal entry U93 to U96; this fifth journey takes the next free numbe
 | F18 | Phone, 390 × 844 and 360 × 800: on each step of New goal and on the edit page, the first field and the primary button are on the first screen with the keyboard closed, and the "things to fix" line is visible above the button without scrolling; a question's answers are each at least 44 px high and full width; the read-back and "What will change" don't scroll sideways; "Save {n} changes" never covers a field; no step is taller than two screens; number fields have `inputmode="decimal"`, or the full number keyboard where rule 12's `mayBeNegative` is true |
 | N19 | One check at every door: for every worked example of rules 2 and 3, the form (`planGoal`), a Goals row through `planChanges`, set-up's card and `create_goal` give the same level and the same words; no goal can be saved by `app.saveGoal` that `planChanges` would refuse (the form's commit goes through the `saveGoal` action); and with 30,000 goals `goalChecks` reads at most the same-named goals the finder returns, never the whole list |
 | N12 (the pickers lint) | `scripts/pickers-left.json` loses `GoalWizard.tsx`, `GoalEdit.tsx` and `Onboarding.tsx` when FS1's second part lands; GE5 and GE6 add no entry. A new lint beside it: no `input` whose label or `aria-label` contains "week" takes a typed number in `src/screens` or `src/ui` outside `WeekPick.tsx` |
+| N29 | A proposed goal is judged nowhere: with one proposed goal added to the demo, every count, health line, attention list, Home lead, check-in queue, review agenda, wrap-up list, streak and metric comparison is identical to the same workspace without it, on every day of two weeks; and no screen draws a status shape beside the word "Proposed" |
 | P3, P4, P6 | Extended to the Must fix line, the Check block, the read-back, "What will change" and the drafts list: flat, no capsules, no edge stripes; neither level uses a status shape; the warning mark is the app's own, 14 px |
 
 ### Unit tests
@@ -796,6 +929,7 @@ One file per rule with every worked example. `roundtrip.test.ts` gains: a goal m
 - `GOAL-EDIT-PREVIEW`: "Changing a goal shows, before it is saved, what will change and what that does to its status, history and who may act; it can be undone; a person who may not change it is told who can."
 - `GOAL-ADD-ANYWHERE`: "A goal can be started from the goal it feeds, a team, a copy of another goal or a review, always in the same form with what is known filled in; a goal agreed in a review is a next step until its owner sets it up; unfinished goals are listed and kept."
 
+- `GOAL-PROPOSED`: "A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin."
 - `GOAL-DATES`: "A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools."
 
 Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Close" with nothing typed).
@@ -807,6 +941,7 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | Article | Change |
 |---|---|
 | `goals-new` | What a goal needs, by type (made from the field table); Must fix and Check; the read-back; starting from a parent, a team or a copy; drafts; asking someone to set one up |
+| `goal-proposed` (new; route `/goals/:goalId` for a proposed goal, and the last step of `goals-new`) | What proposed means; who makes it active and what that starts; changing and withdrawing; where proposed goals are listed |
 | `goal-edit` | What will change; the reason; what can't change and why; Undo; who may |
 | `reviews` | "Agree a new goal", and what its owner then sees |
 | `home` | A goal you were asked to set up |
@@ -825,6 +960,7 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | GE6 | `goal-agreed` | "Agree a goal in a review" | "Name it and its owner in the room; they set it up afterwards." "You can also ask someone to set up a goal from New goal." |
 | GE7 | `goal-drafts` | "Unfinished goals are kept and listed" | "Up to five, for 30 days, under Goals, Mine and on New goal." |
 | GE9 | `goal-dates-picked` | "Pick a goal's weeks, with their dates" | "A number goal now says its baseline, From and To." "Choose each week from a list that shows its dates and year: this year or next." "Spreadsheets write weeks as 2026-W46; old files still load." |
+| GE10 | `goal-proposed` | "Propose a goal before it starts" | "New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due." "Its owner or an admin makes it active when it is agreed." "Proposed goals are counted apart, and listed under Goals with the Proposed filter." |
 | GE8 | `goal-carried` | "A carried goal says what was assumed" | "After a new cycle starts, each carried goal says where it starts and asks you to check its dates." |
 
 ## 10. If Lane decides otherwise
@@ -832,9 +968,8 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | Decision | Other answer | What changes |
 |---|---|---|
 | 1 | (b) A real unpublished goal | Rule 9 and the prefix go. `Goal` gains `proposed: { by, at } | null`; a migration adds the column in `faro` (written for `faro_owner`, with its grants, per `supabase/README.md`); every list, count, status rule and export must leave proposed goals out or label them; "Agree it" creates the goal with a name, owner and parent only, exempt from rule 2's type fields until "Set up". About an M item more, and it should be designed with R6c |
-| 1 | (c) New goal inside the review | 2.8's block is replaced by a link "Add a goal now" → `/goals/new?parent=<goal>&review=<id>`, returning to the walk; rule 9 stays only for "Ask {name} to set it up" |
-| 2 | (b) Admins only | `level-up` goes; rule 7 gains `maySetLevel(actor, level)`, used by `planChanges` (a new refusal: "Only an admin can make a goal SVP or North star. It will be a Team goal; ask an admin to raise it."); the Level field shows the two as not selectable with those words; R1's table gains a row |
-| 2 | (c) Unasked | `level-up` goes; the read-back still names the reviews |
+| 1 | (c) New goal inside the review | 2.8's block is replaced by a link "Add a goal now" → `/goals/new?parent=<goal>&review=<id>`, returning to the walk; rule 9 goes |
+| 2, 8 | Settled by Lane on 11 Nov (round 2's decision 11, answer (c)): anyone may set any level and any owner | Nothing to build beyond removing `changeset.ts:385`; `level-up` and "Ask {name}" are not built |
 | 3 | (b) Must fix | `feeds-lower` becomes a Must fix in rule 2: "{A north star} can’t feed “{parent}”, a {Team} goal. Choose a goal at a higher level, or nothing."; the picker shows such goals as not selectable (OB1's wording). Existing links are left as they are and questioned on the edit page |
 | 3 | (c) Nothing | `feeds-lower` goes |
 | 4 | (b) Optional, asked once | `unit-empty` becomes a Check: "No unit. Is this a plain count, like 12?" → "Yes, a plain count" / "No, I’ll add one" |
@@ -846,12 +981,18 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | 6 | No Undo for a hand-over | `undoGoalEdit` refuses when the owner changed and the actor is no longer the owner or an admin; the toast for such a save has no Undo and "What will change" adds "This can’t be undone by you." |
 | 7 | (b) One draft, listed | Rule 10's limit is 1; "Or start a new one" asks "Discard “{name}”?" first; the rest stands |
 | 7 | (c) As today | 2.9 and rule 10 are dropped except the patch for edits and the toast after closing |
-| 8 | (b) A lead may add for their team | `mayAddGoal(actor, ownerId, ctx)` gains "or the actor leads the owner's team"; `planChanges` passes the teams; R1's table changes; 2.3's "Ask {name}" shows only outside the lead's team |
 | 9 | (b) Not kept | The "Checked" diffs are left out of the change |
 | 10 | (b) Two dates | `MetricPlan` gains `baselineWeek?: number` (whether that is a migration depends on how a plan is stored; not checked here); the measure step gains "Baseline as of" as a third picker; `planAt` holds the baseline flat from `baselineWeek` to `fromWeek`; `from-past` is asked of the baseline's week instead |
 | 11 | (b) Stages next year | The stage picker offers next year; `validateGoal`'s limit (`goal.ts:104`) becomes rule 13's furthest week; `nextCycle` moves a stage with a week in the new cycle to that week and spreads only those without one; the quarter results ignore stages beyond the cycle (they do: they filter by quarter) |
 | 12 | (b) A range's "Applies from" | `RangePlan` gains `fromWeek?: number`; the range step gains the picker; status ignores numbers before it. A data change |
 | 13 | (b) Dates | From and To hold the week's Monday (`2026-11-09`); `readWeekCode` also reads a date. (c) No new columns: rule 13's `weekCode` is used on screens only and row 15 of the README's rules table is dropped |
+| 15 | Keep Lane's 11 Nov answer (a next step) | 2.8 and rule 9 are built as written; 2.15's Reviews row and `for-you` in a review are dropped; the drafts list keeps its "asked you to set this up" row; wireframe 5 goes back to the next step |
+| 16 | A goal for someone else starts active, like any other | The last step's question always starts on Yes; `for-someone-else` is dropped |
+| 16 | A goal for someone else must be proposed | The Yes choice is absent when the owner is someone else and the viewer isn't an admin. This is a rule against Lane's 11 Nov answer; not recommended |
+| 17 | The owner of the goal it feeds, or a team's lead, may also make it active | `mayActivate` gains them; R1 gains a row. New rights |
+| 18 | A workspace setting | "How you work" gains the row **New goals**: "A new goal starts as active or proposed, as its author chooses." / "New goals start as proposed; their owner or an admin makes them active." with "Change" (`/workspace/features/new-goals`; `Cycle.newGoals: 'either' \| 'proposed'`, one more column in the settings migration; the read-back before saving: "From now, a new goal starts as proposed. The {n} active goals stay active."). With it set, the last step has no question and the button is "Propose goal" |
+| 19 | The proposer may not change or withdraw | `mayChangeGoal` loses its proposed clause; the proposer's page is everyone else's |
+| — | No migration | `proposedAt` and `proposedBy` are kept in the unused `pending` column (jsonb, `types.ts:104`) as `{ kind: 'goal', byId, at }`. Two traps then need fixing first: the edit page writes `pending: null` on every save (`GoalEdit.tsx:89`) and the carry does too (`cycle.ts:123`), either of which would make a proposed goal active without a word |
 | 14 | (b) "Planned" | A sixth status word and shape: the design rules, the vocabulary, the status rules, every list's counts and the sheet's words all change. Not recommended |
 
 ## 11. Build plan
@@ -860,21 +1001,48 @@ Backlog-sized items. Effort: **S** (under a day), **M** (a release), **S–M** b
 
 | # | Item | What | Effort | Depends on |
 |---|---|---|---|---|
-| GE1 | **The form runs the engine's rules, and says what it needs** | Rules 1, 2, 4, 7 (`goalRights`, `planGoal`, the `saveGoal` action; not Undo), 12's `numberAsTyped`; 2.1 items 1, 2 and 4; the unit and decimals of 2.4; the stage rows' own errors; `planChanges` and set-up's cards call rule 2 (2.10's words); 2.12's "Must fix"; U93 (its Must fix half), N19 | S–M | Nothing in round 1: it can be built on today's step order. IM1 for the table's home (until then the values sit in `goalEntry.ts`); to be agreed with IM before it merges, since it changes what a file's row is refused for |
+| GE1 | **The form and the engine run one set of rules, and say what a goal needs** (the doors agree on Lane's rule: anyone may add a goal for anyone at any level, so the engine's refusal at `changeset.ts:385` goes and the form's freedom stays; changing a goal stays with its owner and admins) | Rules 1, 2, 4, 7 (`goalRights`, `planGoal`, the `saveGoal` action; not Undo), 12's `numberAsTyped`; 2.1 items 1, 2 and 4; the unit and decimals of 2.4; the stage rows' own errors; `planChanges` and set-up's cards call rule 2 (2.10's words); 2.12's "Must fix"; U93 (its Must fix half), N19 | S–M | Nothing in round 1: it can be built on today's step order. IM1 for the table's home (until then the values sit in `goalEntry.ts`); to be agreed with IM before it merges, since it changes what a file's row is refused for |
 | GE2 | **Questions in place** | Rule 3; 2.1 item 3; section 4's Checks; answers in the draft and in History; `planChanges` and the tools carry every question | S–M | GE1. OB2 (#103) for `stage-past`, which becomes the shared block (merge OB2 first). IM2 (the import's levels) for the preview's side. `wrong-side` and `far-from-metric` wait for ML2 |
 | GE3 | **The read-back** | Rule 5; 2.5; `reviewsJoining`; U94 | S | GE1, GE2. OB1 for the steps' addresses ("Change" goes to them; without OB1 it sets the step as today). FT for the rhythm and Reviews switches (until then: weekly, and on) |
 | GE4 | **Change a goal: what will change, and Undo** | Rule 6, rule 7's `undoGoalEdit`, rule 10's patch; 2.6 whole; U95 | M | GT3's edit page (sections, one exit); FS1's pickers in GoalEdit; GE1, GE2 |
 | GE5 | **Add a goal from where you are** | Rule 8; 2.1 item 5; 2.2 item 7; 2.7; the first half of U96 | S–M | OB1 (the who step and its level rule); GE1. WR1 (merged) for the team's page; GT1 (merged) for "What feeds it". The import's paste door for "Adding several?" (until then the link goes to `/data/import`) |
-| GE6 | **Agree a goal in a review; ask someone to set one up** | Rule 9; 2.3's "Ask {name}"; 2.8; the review half of U96 | S–M | GE5 (`?from=`); FS1 (the pickers); GT1 (merged: "Next steps and asks"); FT1 (Reviews off) |
+| GE6 | **Agree a goal in a review** (as Lane chose on 11 Nov: a next step. If he takes README decision 15, this becomes part of GE10 and rule 9 is not built) | Rule 9; 2.8; the review half of U96 | S–M | GE5 (`?from=`); FS1 (the pickers); GT1 (merged: "Next steps and asks"); FT1 (Reviews off) |
 | GE7 | **Several drafts, listed** | Rule 10; 2.1 item 6; 2.9; the drafts half of U96 | S–M | OB1 (steps in the address); AR1's `Prefs` port (merged); NV2 (one exit) |
 | GE8 | **A carried goal says what was assumed** | Rule 11; 2.11 | S | GE4 (the link's target); OB2 (the re-base it leans on) |
 
 | GE9 | **The three dates, picked** | Rule 13 (`weeks.ts`, `notStarted`, the carry fix); 2.13's `WeekPick`; "Baseline, From, Target, To" on the measure step and the edit page; a stage's Due; `from-past`, `to-past`, `long-plan` and the three date Must fixes; the read-back's and the goal page's sentences; the sheet's From and To columns and the tools' `from` and `to`; the fifth journey; `GOAL-DATES` | M | GE1 and GE2 (the levels). OB1 (it replaces OB1's "By when?" and its stage select, so build after OB1 or as part of it). OB2 (the past-stage question it sits beside). IM1 for the two new columns. FT for "nothing due" where the rhythm is on |
 
-**Find-and-pick.** No new item: it is FS1's second part (track 1's held work: the pickers in GoalWizard, GoalEdit, set-up's owners and who takes over). **GE1, GE4, GE5 and GE6 need it**: GE1's who step ("Ask {name} to set it up" hangs off the owner's picker), GE4's Owner, Team, Feeds into and Also helps, GE5's "Copy from a goal", GE6's two choices in a review. Each passes its `context` to `suggest` (2.14) and adds no select. GE1's other parts (the rights, what is needed, the numbers) do not wait for it.
+| GE10 | **Proposed, not yet active** | 2.15; rule 14 (`proposed.ts`, `judged` and its lint, `activate`, `backToProposed`, `proposalAsks`); the migration (section 12); the last step's question; the proposed page; "Make it active"; Goals' count line and State filter; State in the sheet and the tools; U134, N29; `GOAL-PROPOSED` | M | GE1 (one way to save), GE3 (the read-back it extends), GE9 (From at activation). GL1 and FS2 (merged: the count line and filter line). IM1 (the State column). Cycle end's CY4 for the carry (before it, a proposed goal is carried by `nextCycle` with its two fields kept). Home's HM items for the two rows (before them, "Needs your response" as built) |
 
-**Order:** FS1's second part and OB2 → GE1 → GE2 → OB1 → GE9 → GE3 → GE5 → GE7, with GT3's edit page → GE4 → GE8 beside them once GE2 is in, and GE6 after GE5. GE1 is first because it closes E1, which lets anyone publish a north star for anyone today; it is also the smallest.
+**What GE10 moves.** GE3: the last step gains "Is it under way?". GE4: the edit page's proposed mode (no reason, no status clauses, the type can change). GE5: unchanged. GE6: if decision 15 is taken it shrinks to S and is built inside GE10 ("Propose a new goal" in the walk; rule 9, `?from=` and "Set up the goal" are not built). GE7: the drafts list holds drafts only. GE9: `activate` sets From; `notStarted` is unchanged and separate. GE8: its line also covers "carried as proposed".
 
-**About six releases:** three M-sized (GE4, GE9, and GE1 with GE2 together), the rest S or S–M.
+**Find-and-pick.** No new item: it is FS1's second part (track 1's held work: the pickers in GoalWizard, GoalEdit, set-up's owners and who takes over). **GE1, GE4, GE5 and GE6 need it**: GE1's who step (the owner's line hangs off the owner's picker), GE4's Owner, Team, Feeds into and Also helps, GE5's "Copy from a goal", GE6's two choices in a review. Each passes its `context` to `suggest` (2.14) and adds no select. GE1's other parts (the rights, what is needed, the numbers) do not wait for it.
+
+**Order:** FS1's second part and OB2 → GE1 → GE2 → OB1 → GE9 → GE3 → GE10 → GE5 → GE7, with GT3's edit page → GE4 → GE8 beside them once GE2 is in, and GE6 after GE5. GE1 is first because it closes E1, which lets anyone publish a north star for anyone today; it is also the smallest.
+
+**About seven releases:** four M-sized (GE4, GE9, GE10, and GE1 with GE2 together), the rest S or S–M.
 
 **This replaces** nothing in round 1's plan; it adds to the "one goal" track after OB1 and GT3. **For the rebuild kit:** GE1's stage notes say the form, the file and the tools share `goalMustFix` and `goalChecks`, and that these belong in stage 1's conformance data beside the status rules; GE6's say "Agree a new goal" is the seed of R6c's draft-and-propose and should not be copied as a text prefix.
+
+## 12. The migration (GE10 only)
+
+One file, `supabase/migrations/0040_goal_proposed.sql` (or the next free number: cycle end names 0038 and the settings 0039). Every other item in this spec needs none. Read `supabase/README.md` first: it runs as `faro_owner` with `search_path` faro, so plain names land in `faro`.
+
+```sql
+-- A goal that is proposed, not yet active (goal entry GE10). Null: active.
+alter table okr_goals add column if not exists proposed_at timestamptz;
+alter table okr_goals add column if not exists proposed_by text;
+
+-- Proposed and stopped never hold together; a proposer is named with the time.
+alter table okr_goals drop constraint if exists okr_goals_proposed_ok;
+alter table okr_goals add constraint okr_goals_proposed_ok
+  check ((proposed_at is null or stopped_at is null) and (proposed_by is null or proposed_at is not null));
+```
+
+- **Safe to run twice** (`if not exists`; the constraint is dropped and added again); one transaction.
+- **No grant** is written because none is needed: the columns are on a table whose grants and row rules already cover every column. No new table, function or policy.
+- **No redirect**: `public`'s views of `okr_goals` are fixed `select *` views from 0035 and won't show the columns, so GE10 ships only where the app reads through `faro` (it does since 0c; this must be merged after, or with, 0c2).
+- `src/data/rows.ts` writes the two columns only when set (as it does `stopped_at`), so a database without them takes an active goal's row unchanged. `okr_upsert` takes its columns from the rows it is given (migration 0011), so the commit function needs no change; the settings spec makes the same check, and it should be made once for both.
+- The archive (`okr_goals` rows of removed goals) needs nothing: a withdrawn proposal keeps `proposed_at`, and bringing it back returns it proposed.
+- Not checked here: whether a constraint on `okr_goals` requires a milestone goal to have a stage (rule 14 stores a proposal with nothing measured as stages with none). If one does, this file relaxes it for rows where `proposed_at is not null`.
+
