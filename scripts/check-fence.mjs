@@ -24,6 +24,14 @@ export const FARO_ROLE = 'faro_owner';
 /** The platform's own schemas (Postgres's and Supabase's), where another app's code doesn't live. */
 const PLATFORM = ['pg_catalog', 'information_schema', 'auth', 'storage', 'extensions', 'graphql', 'graphql_public', 'realtime', '_realtime',
   'vault', 'pgsodium', 'pgsodium_masks', 'pgbouncer', 'supabase_functions', 'supabase_migrations', 'net', 'cron', 'pgtle', '_analytics'];
+/** Platform schemas whose tables Supabase opens to everyone (PUBLIC) by default, and which only Supabase's own admin
+    role can close: pg_stat_statements' views, pg_cron's job lists (their row rules show a role only its own jobs) and
+    pg_net's queue. Reachable that way, they are a warning; granted to the Faro role (or a role it is in), a failure. */
+const SHARED = ['extensions', 'cron', 'net'];
+/** Whether a table's grants name the connected role, or a role it is in, rather than only everyone (PUBLIC). */
+const granted = (c) => `exists (select 1 from aclexplode(coalesce(${c}.relacl, acldefault('r', ${c}.relowner))) a
+         where a.grantee <> 0 and pg_has_role(current_user, a.grantee, 'member')
+           and a.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'))`;
 const notPlatform = (col) => `${col} <> 'faro' and ${col} not in (${PLATFORM.map((s) => `'${s}'`).join(', ')}) and ${col} not like 'pg\\_%'`;
 
 /** What the fence looks like from the connected role. `query(sql)` returns rows. */
@@ -76,7 +84,13 @@ export async function fenceReport(query) {
      where s.nspname <> 'faro' and s.nspname not in ('pg_catalog', 'information_schema') and s.nspname not like 'pg\\_%'
        and c.relkind in ('r', 'p', 'v', 'm', 'f')
        and coalesce(obj_description(c.oid, 'pg_class'), '') <> 'faro: redirect'
-       and has_table_privilege(current_user, c.oid, 'select, insert, update, delete, truncate')`);
+       and has_table_privilege(current_user, c.oid, 'select, insert, update, delete, truncate')
+       and (s.nspname not in (${SHARED.map((x) => `'${x}'`).join(', ')}) or ${granted('c')})`);
+  const [{ n: shared }] = await query(`
+    select count(*)::int as n
+      from pg_class c join pg_namespace s on s.oid = c.relnamespace
+     where s.nspname in (${SHARED.map((x) => `'${x}'`).join(', ')}) and c.relkind in ('r', 'p', 'v', 'm', 'f')
+       and has_table_privilege(current_user, c.oid, 'select, insert, update, delete, truncate') and not ${granted('c')}`);
   const problems = [];
   if (me.owner !== me.role) problems.push(`${me.role} doesn't own the faro schema (${me.owner} does): run supabase/manual/faro-role.sql.`);
   if (me.super) problems.push(`${me.role} is a superuser.`);
@@ -87,7 +101,8 @@ export async function fenceReport(query) {
   if (foreign) problems.push(`${s(foreign, 'thing', 'things')} in faro ${foreign === 1 ? 'belongs' : 'belong'} to another role: run supabase/manual/faro-role.sql again.`);
   if (rules) problems.push(`${s(rules, 'row rule', 'row rules')} outside faro ${rules === 1 ? 'calls' : 'call'} a function in faro: apply migration 0037 as postgres.`);
   if (jobs) problems.push(`${s(jobs, 'pg_cron job runs', 'pg_cron jobs run')} Faro's code as another role.`);
-  const warnings = cron.visible ? [] : [`${me.role} can't see pg_cron's jobs (it can't make any either); a job postgres schedules is checked while CI still runs as postgres.`];
+  const warnings = shared ? [`${s(shared, 'table', 'tables')} in Supabase's own schemas (${SHARED.join(', ')}) ${shared === 1 ? 'is' : 'are'} open to every role by the platform's default, ${me.role} included; only Supabase's admin role can close ${shared === 1 ? 'it' : 'them'}.`] : [];
+  if (!cron.visible) warnings.push(`${me.role} can't see pg_cron's jobs (it can't make any either); a job postgres schedules is checked while CI still runs as postgres.`);
   return { state: problems.length ? 'leaks' : 'fenced', role: me.role, owner: me.owner, outside: n, definer, rules, foreign, jobs, problems, warnings };
 }
 

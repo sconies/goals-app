@@ -126,6 +126,22 @@ describe('Faro fenced off in a shared database', () => {
     expect((await report('faro_owner')).state).toBe('fenced');
   });
 
+  it('warns, but passes, when a Supabase schema opens a table to everyone by default; fails when it is granted to the Faro role', async () => {
+    await db.exec(`create schema if not exists net; create table net.http_request_queue (id int);
+      grant all on net.http_request_queue to public;`);
+    try {
+      const open = await report('faro_owner');
+      expect(open.state).toBe('fenced');
+      expect(open.warnings.join(' ')).toMatch(/1 table in Supabase's own schemas .* open to every role/);
+      await db.exec('grant select on net.http_request_queue to faro_owner');
+      const leak = await report('faro_owner');
+      expect(leak.state).toBe('leaks');
+      expect(leak.problems).toEqual(['faro_owner may read or write 1 table outside the faro schema.']);
+    } finally {
+      await db.exec('drop table net.http_request_queue; drop schema net');
+    }
+  });
+
   it('exports every Faro table, and resets the shared app in one step as the Faro role, keeping the inbox', async () => {
     await db.exec(`insert into faro.okr_workspaces (id, name, kind) values ('ws-a', 'A', 'own'), ('ws-b', 'B', 'own');
       insert into faro.okr_teams (id, workspace_id, name, objective) values ('t1', 'ws-a', 'Team', ''), ('t2', 'ws-b', 'Team', '');
