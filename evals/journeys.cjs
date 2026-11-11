@@ -327,7 +327,11 @@ async function answerChecks(p) {
     await p.waitForTimeout(50);
   }
 }
-const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
+const journey = (id, reqs, title, budget, fn, na = []) => {
+  // Each id once: a second journey with the same id runs in every shard and is counted as one (issue #150).
+  if (J.some((j) => j.id === id)) throw new Error(`Two journeys are called ${id}: give the newer one the next free number`);
+  J.push({ id, reqs, title, budget, fn, na });
+};
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
   // Rhea: two goals due. Image slimming is on plan (number, post, next: three interactions); the new CI cost goal comes
@@ -3532,7 +3536,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
 
 // GL2 (goals spec, 2.1, 2.3, 2.4): Layout and Views are menus on every width; the head and the bar don't move between
 // layouts; on the Map, Group and Sort can't be used and the bar's search goes to a goal; a phone has one View sheet.
-journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
+journey('U135', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
   const phone = await phoneBar(p);
