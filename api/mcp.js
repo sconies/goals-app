@@ -8587,6 +8587,13 @@ function searchGoals(r, ask) {
 		sort: query.sort ?? "worst"
 	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
+/** A person's row: "{job title} · {team}" under the name. */
+var personRow = (r, p) => ({
+	kind: "person",
+	id: p.id,
+	name: p.name,
+	detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
+});
 /**
 * People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
 * names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
@@ -8595,27 +8602,28 @@ function searchPeople(r, ask) {
 	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
 	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
 	const left = ask.filters?.left === "too";
-	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => ({
-		kind: "person",
-		id: p.id,
-		name: p.leftAt ? `${p.name} (left)` : p.name,
-		detail: [p.role, team(p)].filter(Boolean).join(" · ")
-	}));
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name)).map((p) => p.leftAt ? {
+		...personRow(r, p),
+		name: `${p.name} (left)`
+	} : personRow(r, p));
 }
-/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
-function searchTeams(r, ask) {
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+function teamRow(r, t) {
 	const here = r.people.filter((p) => !p.leftAt);
-	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? null;
-	const people = (t) => {
-		const n = here.filter((p) => p.teamId === t.id).length;
-		return `${n} ${n === 1 ? "person" : "people"}`;
-	};
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t) ?? ""}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({
+	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+	const n = here.filter((p) => p.teamId === t.id).length;
+	return {
 		kind: "team",
 		id: t.id,
 		name: t.name,
-		detail: `${lead(t) ? `Led by ${lead(t)}` : "No lead"} · ${people(t)}`
-	}));
+		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
+	};
+}
+/** Teams: the name and its lead's name; A to Z. */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => a.name.localeCompare(b.name)).map((t) => teamRow(r, t));
 }
 function searchWorkspaces(r, ask) {
 	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
@@ -8660,8 +8668,41 @@ function search(rows, ask) {
 	} : page([], ask);
 }
 /**
+* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+* left out.
+*/
+function rowsByIds(rows, ids) {
+	const found = (id) => {
+		switch (rows.kind) {
+			case "goal": {
+				const s = rows.summaries.find((x) => x.goal.id === id);
+				return s ? goalRow(s) : null;
+			}
+			case "person": {
+				const p = rows.people.find((x) => x.id === id && !x.removedAt);
+				return p ? personRow(rows, p) : null;
+			}
+			case "team": {
+				const t = rows.teams.find((x) => x.id === id);
+				return t ? teamRow(rows, t) : null;
+			}
+			case "workspace": {
+				const w = rows.workspaces.find((x) => x.id === id);
+				return w ? {
+					kind: "workspace",
+					id: w.id,
+					name: w.name,
+					detail: w.detail
+				} : null;
+			}
+		}
+	};
+	return ids.map(found).filter((r) => !!r);
+}
+/**
 * Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
-* then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
 * worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
 * when the rest would fill the list. Nobody marked as left; nothing it can't find.
 */
@@ -8684,7 +8725,8 @@ function suggest(rows, viewerId, recents) {
 			const all = searchPeople(rows, { q: "" });
 			const by = new Map(all.map((r) => [r.id, r]));
 			const me = rows.people.find((p) => p.id === viewerId);
-			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
+			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
 		}
 		case "team": {
 			const all = searchTeams(rows, { q: "" });
@@ -9137,11 +9179,12 @@ function goalRows(s, cycle, today, week) {
 	};
 }
 function personRows(s) {
-	const teams = new Map(s.teams.map((t) => [t.id, t.name]));
+	const teams = new Map(s.teams.map((t) => [t.id, t]));
 	return {
 		kind: "person",
 		people: live(s.people),
-		teamName: (id) => teams.get(id) ?? ""
+		teamName: (id) => teams.get(id)?.name ?? "",
+		teamLead: (id) => teams.get(id)?.leadId ?? null
 	};
 }
 function teamRows(s) {
@@ -9188,6 +9231,18 @@ function localSearch(rows, finders = {}) {
 			if (own) return search(own(), ask);
 			const f = finders[kind];
 			if (f) return f(ask);
+			throw new UnknownKind(kind);
+		},
+		async byIds(kind, ids) {
+			const own = rows[kind];
+			if (own) return rowsByIds(own(), ids);
+			const f = finders[kind];
+			if (f) return f.byIds ? f.byIds(ids) : ids.map((id) => ({
+				kind,
+				id,
+				name: id,
+				detail: ""
+			}));
 			throw new UnknownKind(kind);
 		},
 		async suggest(kind, viewerId, recents) {
@@ -11102,7 +11157,7 @@ var CORE_ARTICLES = [
 					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
 					"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-					"Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+					"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
 					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
 					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
 					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
@@ -11115,7 +11170,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device and remembers the answer. Choose Not you? in the person menu to change it."]
+				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it."]
 			}
 		],
 		routes: ["/workspace/new", "/ready"],
@@ -11158,7 +11213,7 @@ var CORE_ARTICLES = [
 		}, {
 			heading: "How to use it",
 			list: [
-				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.",
+				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.",
 				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
 				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
@@ -11913,10 +11968,11 @@ var CORE_ARTICLES = [
 			{
 				heading: "Choosing someone or something",
 				list: [
-					"Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).",
+					"Wherever you choose a person, a team or a goal (a goal’s owner, team, what it feeds and what it also helps; who takes part in a review; a next step’s owner; who takes over when someone leaves; an owner in Data or in set-up; who sent feedback), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal), or what nothing means there, such as “Nothing: top of its own tree”.",
 					"Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.",
 					"Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.",
-					"Someone marked as left is never offered."
+					"Someone marked as left is never offered. A goal that can’t be chosen is still listed, greyed, with the reason: a goal already under this one can’t be what it feeds (“Feeds this goal already”).",
+					"On a phone the list opens as a full screen of its own, with Close at the top."
 				]
 			},
 			{
@@ -11990,7 +12046,7 @@ var CORE_ARTICLES = [
 				"Choose New goal. Name it the way your team would say it.",
 				"Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
 				"For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.",
-				"Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.",
+				"Say what it feeds into by typing a few of its words or its key (or choose Nothing: top of its own tree) and, optionally, why it is expected to help. Type a name to find its team and its owner. Set its level: Team, SVP or North star, for goals reported at major reviews.",
 				"Check and publish. The owner is then offered the first check-in.",
 				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
@@ -12042,7 +12098,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Open the goal and choose Edit.",
-				"Change the title, definition, data source, owner, level, what it feeds and what it also helps.",
+				"Change the title, definition, data source, owner, level, what it feeds and what it also helps. The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.",
 				"Plan by week shows the numbers week by week; type over any week.",
 				"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.",
 				"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.",
@@ -12258,7 +12314,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.",
 					"A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.",
-					"Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses."
+					"Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell."
 				]
 			},
 			{
@@ -13051,7 +13107,7 @@ var CORE_ARTICLES = [
 					"Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.",
 					"Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.",
 					"Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.",
-					"Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person. On a phone the filters are under Filters.",
+					"Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person (type a name to find them). On a phone the filters are under Filters.",
 					"On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.",
 					"On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.",
 					"Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.",
@@ -13304,6 +13360,25 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "find-and-pick-everywhere",
+		date: "2026-11-11",
+		title: "Every owner, team and goal is found by typing",
+		points: [
+			"Setting up or editing a goal, its owner, team, what it feeds and what it also helps are now a search, with you and your team suggested first, your team’s lead straight after you.",
+			"The same goes for an owner or a team in Data, who takes over when someone leaves, the owners in set-up, the person filter on Feedback, “Who are you?” (and Not you?), and anyone beyond the demo’s role cards.",
+			"A goal already under the one you’re editing is listed, greyed, with why it can’t feed it.",
+			"On a phone the list of matches opens as a full screen, not half of one."
+		],
+		articles: [
+			"finding",
+			"new-goal",
+			"edit-goal",
+			"data",
+			"inbox",
+			"demo"
+		]
+	},
 	{
 		id: "check-in-queue",
 		date: "2026-11-11",

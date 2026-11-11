@@ -1,4 +1,4 @@
-import { countLine, filterLine, historyStep, nearMiss, noneFound, oneEditApart, page, suggest, textMatches, withRecent, wordsOf, type FoundRow } from './find';
+import { rowsByIds, countLine, filterLine, historyStep, nearMiss, noneFound, oneEditApart, page, suggest, textMatches, withRecent, wordsOf, type FoundRow } from './find';
 
 describe('rule 1: does text match (textMatches)', () => {
   const row = 'Rollback in under five minutes G-48 Tunde Bakare Build & Release Team Off track';
@@ -58,11 +58,26 @@ describe('rule 6: suggestions before typing (suggest)', () => {
     expect(suggest(rows, 'rhea', []).map((r) => r.id)).toEqual(['rhea', 'ann', 'zed']);
     expect(suggest(rows, 'rhea', [{ kind: 'person', id: 'dan' }, { kind: 'goal', id: 'g1' }, { kind: 'person', id: 'gone' }]).map((r) => r.id)).toEqual(['rhea', 'ann', 'zed', 'dan']);
   });
+  it('a person: their team lead comes straight after you, before the rest A to Z', () => {
+    expect(suggest({ ...rows, teamLead: () => 'zed' }, 'rhea', []).map((r) => r.id)).toEqual(['rhea', 'zed', 'ann']);
+    expect(suggest({ ...rows, teamLead: () => 'zed' }, 'ann', []).map((r) => r.id)).toEqual(['ann', 'zed', 'rhea']);
+  });
   it('keeps the newest twelve recents, without repeats', () => {
     let r: { kind: string; id: string }[] = [];
     for (let i = 0; i < 15; i++) r = withRecent(r, { kind: 'person', id: `p${i % 13}` });
     expect(r.length).toBe(12);
     expect(r[0]).toEqual({ kind: 'person', id: 'p1' });
+  });
+});
+
+describe('rows by id: what a closed picker shows', () => {
+  const person = (id: string, name: string, teamId: string | null, leftAt: string | null = null) => ({ id, name, role: 'Engineer', initials: '', teamId, admin: false, leftAt });
+  const rows = { kind: 'person' as const, people: [person('rhea', 'Rhea Kapoor', 'ci'), person('gone', 'Al Gone', 'ci', '2026-01-01')], teamName: () => 'CI/CD' };
+  it('gives the same two lines a search does, in the order asked, someone who left included, and leaves out what it can’t find', () => {
+    expect(rowsByIds(rows, ['gone', 'nobody', 'rhea'])).toEqual([
+      { kind: 'person', id: 'gone', name: 'Al Gone', detail: 'Engineer · CI/CD' },
+      { kind: 'person', id: 'rhea', name: 'Rhea Kapoor', detail: 'Engineer · CI/CD' },
+    ]);
   });
 });
 

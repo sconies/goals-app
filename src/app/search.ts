@@ -7,7 +7,8 @@ import { localSearch } from '../adapters/localSearch';
 import { withRecent, type Recent } from '../domain/find';
 import type { Prefs } from '../ports/prefs';
 import type { Search } from '../ports/search';
-import { searchRows } from './reads';
+import { personRows, searchRows, teamRows } from './reads';
+import type { Snapshot } from '../domain/types';
 import { useApp } from './state';
 import { useModules } from '../core/app';
 
@@ -27,3 +28,12 @@ export function recentsOf(p: Prefs, ws: string, person: string): Recent[] { retu
 
 /** Remembers a choice or a visit, for the suggestions in every picker and Find. */
 export function remember(p: Prefs, ws: string, person: string, r: Recent) { p.set(ws, person, 'recents', withRecent(recentsOf(p, ws, person), r)); }
+
+/** A search over a workspace that isn't open yet (set-up's draft people): people and teams only. */
+export function searchOver(s: Snapshot): Search { return localSearch({ person: () => personRows(s), team: () => teamRows(s) }); }
+
+/** A search over names alone (the inbox's senders, from every workspace): each name is its own id. */
+export function searchNames(names: string[]): Search {
+  const people = names.map((n) => ({ id: n, name: n, role: '', initials: '', teamId: null, admin: false }));
+  return localSearch({ person: () => ({ kind: 'person', people, teamName: () => '' }) });
+}

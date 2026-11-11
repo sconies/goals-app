@@ -5,7 +5,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { recentsOf, remember, usePrefs, useSearch } from '../app/search';
 import { useApp } from '../app/state';
-import { latestOnly, type FoundRow, type SearchKind } from '../ports/search';
+import { latestOnly, type FoundRow, type Search, type SearchKind } from '../ports/search';
+import type { Person } from '../domain/types';
 import { Avatar, StatusWord } from './bits';
 
 /** The words for each kind: its name, the field's placeholder when nothing is chosen, and the search's placeholder. */
@@ -38,18 +39,41 @@ export interface PickProps {
   invalid?: boolean;
   /** A chosen row that can't be removed (a review's creator, say). */
   keep?: (id: string) => boolean;
+  /** In a table cell or a filter row: the label is for screen readers only (the column or the row says it), and the
+      choice is one line of words with Change. */
+  compact?: boolean;
+  /** The chosen one's words, when the caller already has them (a Data cell's name): shown closed without asking the
+      Search port, so a table of pickers doesn't ask once per cell. */
+  shown?: string;
   /** Offered first, before anything is typed, each with a note ("who owns this goal"), then the usual suggestions. */
   first?: { id: string; note: string }[];
 }
 
 /** One person chosen, or none: Pick for the common case. */
-export function PickOne({ value, onChange, ...p }: Omit<PickProps, 'value' | 'onChange' | 'several'> & { value: string | null; onChange: (id: string | null) => void }) {
-  return <Pick {...p} value={value ? [value] : []} onChange={(ids) => onChange(ids[0] ?? null)} />;
+export function PickOne({ value, onChange, source, ...p }: Omit<PickProps, 'value' | 'onChange' | 'several'> & { value: string | null; onChange: (id: string | null) => void; source?: PickSource }) {
+  const one = { ...p, value: value ? [value] : [], onChange: (ids: string[]) => onChange(ids[0] ?? null) };
+  return source ? <PickFrom {...one} source={source} /> : <Pick {...one} />;
 }
 
-export function Pick({ kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, first = [] }: PickProps) {
+/** Where a picker asks and who for: the open workspace's Search port, or (in set-up, before there is one) a draft's. */
+export interface PickSource {
+  search: Search;
+  viewerId: string;
+  ws: string;
+  /** A person, for the avatar on their row. */
+  person?: (id: string) => Person | undefined;
+}
+
+export function Pick(p: PickProps) {
   const app = useApp();
   const search = useSearch();
+  return <PickFrom {...p} source={{ search, viewerId: app.viewer.id, ws: app.ws.id, person: app.person }} />;
+}
+
+/** A picker that asks the source it is given: set-up's people, before the workspace exists. */
+export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, shown, first = [] }: PickProps & { source: PickSource }) {
+  const { search, viewerId, ws } = source;
+  const app = { viewer: { id: viewerId }, ws: { id: ws } };
   const prefs = usePrefs();
   const ask = useMemo(() => latestOnly(search), [search]);
   const id = useId();
@@ -61,6 +85,9 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
   const [failed, setFailed] = useState(false);
   const [at, setAt] = useState(0);
   const [tries, setTries] = useState(0);
+  /** The rows of what's chosen (and offered first), by id, as the Search port words them. */
+  const [known, setKnown] = useState<Record<string, FoundRow>>({});
+  const firstIds = first.map((f) => f.id);
   const wrap = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLInputElement>(null);
@@ -74,9 +101,8 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
     const shown = (r: FoundRow[]) => r.filter((x) => !hide.includes(x.id));
     (typed
       ? ask(kind, { q, size: SHOWN }).then((a) => { if (a && live) { setRows(shown(a.rows)); setTotal(a.total - (a.rows.length - shown(a.rows).length)); } })
-      : search.suggest(kind, app.viewer.id, recentsOf(prefs, app.ws.id, app.viewer.id)).then((r) => {
+      : Promise.all([search.suggest(kind, app.viewer.id, recentsOf(prefs, app.ws.id, app.viewer.id)), firstIds.length ? search.byIds(kind, firstIds) : []]).then(([r, lead]) => {
         if (!live) return;
-        const lead = first.map((f) => rowFor(app, kind, f.id)).filter((x): x is FoundRow => !!x);
         const all = shown([...lead, ...r.filter((x) => !lead.some((l) => l.id === x.id))]).slice(0, 6);
         setRows(all); setTotal(all.length);
       })
@@ -85,6 +111,15 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, q, kind, search, tries]);
+
+  // What's chosen, in the words a search gives it: asked of the Search port by id, never read from the workspace here.
+  useEffect(() => {
+    if (!value.length || shown !== undefined) return;
+    let live = true;
+    search.byIds(kind, value).then((rs) => { if (live) setKnown((k) => ({ ...k, ...Object.fromEntries(rs.map((r) => [r.id, r])) })); }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, search, value.join(' ')]);
 
   // Closing on a click elsewhere keeps what was chosen.
   useEffect(() => {
@@ -100,6 +135,7 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
     if ('none' in o) { onChange([]); close(); return; }
     if (refuse?.(o)) return;
     remember(prefs, app.ws.id, app.viewer.id, { kind: o.kind, id: o.id });
+    setKnown((k) => ({ ...k, [o.id]: o }));
     if (several) { onChange(value.includes(o.id) ? value.filter((x) => x !== o.id) : [...value, o.id]); return; }
     onChange([o.id]);
     close();
@@ -119,30 +155,30 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
     }
   };
   const optId = (i: number) => `${id}-o${i}`;
-  const chosen = value.map((v) => rowFor(app, kind, v)).filter((r): r is FoundRow => !!r);
+  const chosen = value.map((v) => known[v]).filter((r): r is FoundRow => !!r);
   const count = typed ? (total === 0 ? 'None match' : `${total} ${total === 1 ? 'matches' : 'match'}`) : '';
 
   return (
-    <div className={'field pick' + (open ? ' open' : '')} ref={wrap}>
-      <span className="field-label" id={`${id}-l`}>{label}</span>
+    <div className={'field pick' + (open ? ' open' : '') + (compact ? ' compact' : '')} ref={wrap}>
+      <span className={compact ? 'sr' : 'field-label'} id={`${id}-l`}>{label}</span>
       {hint && <span className="hint">{hint}</span>}
       {several && chosen.length > 0 && (
         <ul className="pick-chosen" aria-labelledby={`${id}-l`}>
           {chosen.map((r) => (
-            <li key={r.id} className="pick-row"><RowText row={r} you={r.id === app.viewer.id} />
+            <li key={r.id} className="pick-row"><RowText person={source.person} row={r} you={r.id === app.viewer.id} />
               {!keep?.(r.id) && <button type="button" className="linkish" aria-label={`Remove ${r.name}`} onClick={() => onChange(value.filter((x) => x !== r.id))}>Remove</button>}
             </li>
           ))}
         </ul>
       )}
-      {!several && chosen[0] ? (
+      {!several && (chosen[0] || (shown !== undefined && value[0])) ? (
         <div className={'pick-field' + (invalid ? ' invalid' : '')}>
-          <RowText row={chosen[0]} you={chosen[0].id === app.viewer.id} />
-          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0].name}. Change`} onClick={() => setOpen((o) => !o)}>Change</button>
+          {compact || !chosen[0] ? <span className="pick-name">{chosen[0]?.name ?? shown}</span> : <RowText person={source.person} row={chosen[0]} you={chosen[0].id === app.viewer.id} />}
+          <button type="button" className="linkish" ref={opener} aria-expanded={open} aria-label={`${label}: ${chosen[0]?.name ?? shown}. Change`} onClick={() => setOpen((o) => !o)}>Change</button>
         </div>
       ) : (
         <button type="button" className={'input pick-open' + (invalid ? ' invalid' : '')} ref={opener} aria-expanded={open} aria-labelledby={`${id}-l ${id}-b`} onClick={() => setOpen((o) => !o)}>
-          <span id={`${id}-b`}>{several && chosen.length ? `Add another ${w.thing}` : `Choose a ${w.thing}`}</span>
+          <span id={`${id}-b`}>{several && chosen.length ? `Add another ${w.thing}` : !several && none ? none : `Choose a ${w.thing}`}</span>
         </button>
       )}
       {open && (
@@ -169,7 +205,7 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
                     <li key={'none' in o ? '_none' : o.id} id={optId(i)} role="option" aria-selected={on} aria-disabled={no ? true : undefined}
                       className={'pick-row option' + (i === at ? ' active' : '') + (no ? ' refused' : '')}
                       onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setAt(i)} onClick={() => choose(o)}>
-                      {'none' in o ? <span className="pick-text"><span className="pick-name">{none}</span></span> : <RowText row={o} you={o.id === app.viewer.id} why={no} note={!typed ? first.find((f) => f.id === o.id && f.note !== 'you')?.note : undefined} />}
+                      {'none' in o ? <span className="pick-text"><span className="pick-name">{none}</span></span> : <RowText person={source.person} row={o} you={o.id === app.viewer.id} why={no} note={!typed ? first.find((f) => f.id === o.id && f.note !== 'you')?.note : undefined} />}
                       {several && on && <span className="pick-tick">Chosen</span>}
                     </li>
                   );
@@ -186,9 +222,8 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
 }
 
 /** A row's two lines: a goal's status (shape and word) and title; a person's avatar and name; then line 2. */
-export function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean; why?: string | null; note?: string }) {
-  const app = useApp();
-  const p = row.kind === 'person' ? app.person(row.id) : undefined;
+export function RowText({ row, you, why, note, person }: { row: FoundRow; you?: boolean; why?: string | null; note?: string; person?: (id: string) => Person | undefined }) {
+  const p = row.kind === 'person' ? person?.(row.id) : undefined;
   return (
     <span className="pick-text">
       <span className="pick-name">
@@ -199,27 +234,4 @@ export function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean;
       <span className="pick-detail hint">{why ?? row.detail}</span>
     </span>
   );
-}
-
-/** The row for something already chosen, in the same words a search would give. */
-export function rowFor(app: ReturnType<typeof useApp>, kind: string, id: string): FoundRow | null {
-  if (kind === 'person') {
-    const p = app.person(id);
-    if (!p) return null;
-    const team = p.teamId ? app.team(p.teamId)?.name ?? '' : '';
-    return { kind, id, name: p.name, detail: [p.role, team].filter(Boolean).join(' · ') };
-  }
-  if (kind === 'team') {
-    const t = app.team(id);
-    if (!t) return null;
-    const lead = app.person(t.leadId)?.name;
-    const n = app.snapshot.people.filter((p) => p.teamId === t.id && !p.leftAt).length;
-    return { kind, id, name: t.name, detail: `${lead ? `Led by ${lead}` : 'No lead'} · ${n} ${n === 1 ? 'person' : 'people'}` };
-  }
-  if (kind === 'goal') {
-    const g = app.goal(id);
-    if (!g) return null;
-    return { kind, id, name: g.title, detail: [g.key, app.person(g.ownerId)?.name, app.team(g.teamId)?.name].filter(Boolean).join(' · '), status: app.statusOf(g).status, key: g.key ?? null };
-  }
-  return { kind, id, name: id, detail: '' };
 }

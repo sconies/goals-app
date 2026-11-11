@@ -28,6 +28,7 @@ import {
   type DataTable, type TableLayout,
 } from '../domain/tableLayout';
 import { Icon } from '../ui/Icon';
+import { PickOne } from '../ui/Pick';
 import { LABEL as STATUS_WORD } from '../domain/vocabulary';
 
 type Tab = DataTable;
@@ -45,6 +46,17 @@ const EDITABLE: Record<Tab, (col: string) => boolean> = {
 };
 const NAME = Object.fromEntries(TABLE_ORDER.map((t) => [t, TABLES[t].name])) as Record<Tab, string>;
 /** IDs and keys: set quietly, in the ID face. */
+/** Cells with a fixed set of answers (blank first), in the one format's words (domain/columns), so what's chosen reads back the same. */
+const FIXED_CHOICES: Record<string, string[]> = {
+  Level: ['', ...Object.values(LEVEL_WORDS.word)],
+  Plan: ['', ...Object.values(SHAPE_WORDS.word)],
+  'Must stay': ['', ...Object.values(BOUND_WORDS.word)],
+  Admin: ['', 'yes'],
+  Call: ['', ...(['on', 'risk', 'off', 'done'] as const).map((k) => STATUS_WORD[k])],
+  Cause: ['', ...new Set(Object.values(CAUSE_WORDS.word))],
+  Recovery: ['', ...Object.values(RECOVERY_WORDS.word)],
+};
+
 const ID_COLS = ['ID', 'Key', 'Goal key', 'Goal keys', 'Email', 'Owner email', 'Posted by email', 'Feeds into key'];
 
 const text = (v: Cell | undefined) => (v == null ? '' : String(v));
@@ -175,19 +187,12 @@ export function DataTables() {
   }, []);
   const { headRef, dragging, dragged, startDrag, startResize, resizeKey } = useColumnMoves(tab, order, (cols) => setLay({ cols }), widthOf, setWidth);
 
-  // Choices for the cells that have a fixed set of answers; the engine checks the rest.
-  // The words come from the one format's columns (domain/columns), so what's chosen here reads back the same.
-  const options: Record<string, string[]> = {
-    Owner: app.snapshot.people.map((p) => p.name),
-    'Owner email': app.snapshot.people.map((p) => p.email ?? '').filter(Boolean),
-    Team: ['', ...app.snapshot.teams.map((t) => t.name)],
-    Level: Object.values(LEVEL_WORDS.word),
-    Plan: Object.values(SHAPE_WORDS.word),
-    'Must stay': Object.values(BOUND_WORDS.word),
-    Admin: ['', 'yes'],
-    Call: ['', ...(['on', 'risk', 'off', 'done'] as const).map((k) => STATUS_WORD[k])],
-    Cause: ['', ...new Set(Object.values(CAUSE_WORDS.word))],
-    Recovery: ['', ...Object.values(RECOVERY_WORDS.word)],
+  // A person or a team is found and picked (find-and-pick, find spec 2.3 move 8): the cell keeps the name (or email) the
+  // one format reads back. Cells with a fixed set of answers are FIXED_CHOICES; the engine checks the rest.
+  const pickOf: Record<string, { kind: 'person' | 'team'; idOf: (v: string) => string | null; valueOf: (id: string) => string; none?: string; refuse?: (id: string) => string | null }> = {
+    Owner: { kind: 'person', idOf: (v) => app.snapshot.people.find((p) => p.name === v)?.id ?? null, valueOf: (id) => app.person(id)?.name ?? '' },
+    'Owner email': { kind: 'person', idOf: (v) => app.snapshot.people.find((p) => p.email === v)?.id ?? null, valueOf: (id) => app.person(id)?.email ?? '', refuse: (id) => (app.person(id)?.email ? null : 'No email yet') },
+    Team: { kind: 'team', idOf: (v) => app.snapshot.teams.find((t) => t.name === v)?.id ?? null, valueOf: (id) => app.team(id)?.name ?? '', none: 'No team' },
   };
 
   const [cs, setCs] = useState<ChangeSet | null>(null);
@@ -341,11 +346,15 @@ export function DataTables() {
                       </td>
                     );
                   }
-                  const opts = options[c];
+                  const choices = FIXED_CHOICES[c];
+                  const pick = pickOf[c];
                   return (
                     <td key={c} style={sized(w)} className={'dcell' + kind + (changed != null ? ' edited' : '')} title={changed != null ? `Was: ${original || '(empty)'}` : undefined}>
-                      {opts && (opts.includes(value) || value === '')
-                        ? <select aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)}>{(opts.includes('') ? opts : ['', ...opts]).map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
+                      {pick && (value === '' || pick.idOf(value))
+                        ? <PickOne kind={pick.kind} label={label} compact shown={value} value={pick.idOf(value)} none={pick.none} refuse={pick.refuse && ((row) => pick.refuse!(row.id))}
+                          onChange={(id) => edit(tab, r.key, c, id ? pick.valueOf(id) : '', original)} />
+                        : choices && (choices.includes(value) || value === '')
+                        ? <select aria-label={label} value={value} onChange={(e) => edit(tab, r.key, c, e.target.value, original)}>{choices.map((o) => <option key={o} value={o}>{o || '—'}</option>)}</select>
                         : <input aria-label={label} value={value} placeholder={na?.text} title={c === NAME[tab] ? value : na?.why} onChange={(e) => edit(tab, r.key, c, e.target.value, original)} />}
                     </td>
                   );

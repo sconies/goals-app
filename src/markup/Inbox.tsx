@@ -19,6 +19,8 @@ import { useApp } from '../app/state';
 import { WHATS_NEW } from '../help/whatsNew';
 import { timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { PickOne } from '../ui/Pick';
+import { searchNames } from '../app/search';
 import { ConnectClaude } from './Connect';
 import { PartPath } from './Markup';
 import type { InboxFeedback } from './feedback';
@@ -73,6 +75,10 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
   const rows = useMemo(() => filterItems(all, { ...filter, tab }), [all, filter, tab]);
   const counts = useMemo(() => tabCounts(all, filter), [all, filter]);
   const choices = useMemo(() => filterChoices(all), [all]);
+  // Who sent something, found by typing (find-and-pick): the senders come from every workspace, so the picker asks a
+  // search over their names, not this workspace's people.
+  const sendersSearch = useMemo(() => searchNames(choices.people), [choices.people]);
+  const senders = { search: sendersSearch, viewerId: app.viewer.name, ws: 'inbox' };
   const openRow = open ? rows.find((r) => itemIds(r).includes(open)) : undefined;
   const shown = pageOf(rows, page);
   const filtered = filter.kind !== 'all' || !!filter.page || !!filter.person || !!filter.q.trim();
@@ -204,11 +210,7 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
                 <option value="">Every page</option>{choices.pages.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </label>
-            <label className="field"><span className="sr">Person</span>
-              <select className="input" value={filter.person} onChange={(e) => setF({ person: e.target.value })}>
-                <option value="">Anyone</option>{choices.people.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </label>
+            <PickOne kind="person" label="Person" compact none="Anyone" source={senders} value={filter.person || null} onChange={(name) => setF({ person: name ?? '' })} />
             </>}
           </div>
         </>

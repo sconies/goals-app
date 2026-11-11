@@ -1074,7 +1074,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, U63
+- **Journeys and checks:** F11, U63, U91
 
 ### FIND-ANYWHERE
 

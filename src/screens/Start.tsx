@@ -6,12 +6,16 @@ import { periodNow } from '../domain/cycle';
 import { firstReview, weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { WEEKLY_REVIEW } from '../domain/importer';
-import { Avatar } from '../ui/bits';
+import { PickOne } from '../ui/Pick';
+import { useSearch } from '../app/search';
 
 /** Until sign-in comes with SSO, people say who they are once per workspace on this device. */
 export function WhoAreYou() {
   const app = useApp();
-  const [q, setQ] = useState('');
+  // Find-and-pick (find spec, move 14): your name is found by typing, never chosen from a list of everyone. Nobody is
+  // "you" yet, so nothing is suggested before typing.
+  const search = useSearch();
+  const source = { search, viewerId: '', ws: app.ws.id, person: app.person };
   // Signed in, but nobody here has that sign-in's email (R1, rule 2): only an admin can add them.
   if (!app.canChooseViewer) return (
     <div className="focus">
@@ -24,33 +28,16 @@ export function WhoAreYou() {
       </div>
     </div>
   );
-  const found = app.snapshot.people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()));
-  const groups = [...app.snapshot.teams.map((t) => [t.name, found.filter((x) => x.teamId === t.id)] as const), ['No team', found.filter((x) => !x.teamId || !app.team(x.teamId))] as const].filter(([, l]) => l.length);
   return (
     <div className="focus">
       <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
         <div className="stack" style={{ gap: 'var(--s2)' }}>
           <span className="eyebrow">{app.ws.name}</span>
           <h1 className="title-xl">Who are you?</h1>
-          <span className="hint">Pick your name. This device remembers it; sign-in comes later with your company login.</span>
+          <span className="hint">Type your name to find it. This device remembers it; sign-in comes later with your company login.</span>
         </div>
-        {app.snapshot.people.length > 8 && (
-          <label className="field"><span className="sr">Find your name</span><input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find your name" aria-label="Find your name" /></label>
-        )}
-        {groups.map(([p, list]) => (
-          <section key={p} className="stack" style={{ gap: 'var(--s2)' }}>
-            <span className="field-label">{p}</span>
-            <div className="optlist">
-              {list.map((x) => (
-                <button key={x.id} className="opt" onClick={() => app.setViewer(x.id)}>
-                  <span className="row" style={{ gap: 'var(--s3)' }}><Avatar p={x} size="sm" />{x.name}</span>
-                  <span className="hint">{x.role}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-        {!found.length && <p className="hint">No one by that name. Ask whoever set up {app.ws.name} to add you.</p>}
+        <PickOne kind="person" label="Your name" source={source} value={null} onChange={(id) => id && app.setViewer(id)} />
+        <p className="hint">Not listed? Ask whoever set up {app.ws.name} to add you.</p>
       </div>
     </div>
   );

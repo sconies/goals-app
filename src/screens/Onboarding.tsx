@@ -1,10 +1,10 @@
 /* Setting up a workspace: from nothing to an outcome, the goals feeding it and the people who own them,
    one question per screen, in about three minutes. A template fills it in so it's never blank. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
-import { usePrefs } from '../app/search';
+import { searchOver, usePrefs } from '../app/search';
 import { setupSteps, type SetupStep } from '../domain/dayOne';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
@@ -31,11 +31,15 @@ import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { StageFields } from '../ui/GoalFields';
+import { PickOne, type PickSource } from '../ui/Pick';
 import { FaroLogo } from '../ui/Brand';
 import { PROTOTYPE_LINE } from '../help/about';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string }
+/** Set-up's owner picker: a search over the draft's people, and the names a goal row keeps. */
+interface OwnerPick { source: PickSource; idOf: (name: string) => string | null; nameOf: (id: string) => string }
+
 interface SetupDraft {
   step: number;
   name: string;
@@ -184,7 +188,17 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   // Said on the row and never blocking: a name someone else here also has (the email tells them apart, backlog N).
   const personNote = (i: number) => { const at = filled.indexOf(i); return at < 0 ? undefined : (result.notes ?? []).find((x) => x.table === 'People' && x.row === at + 3)?.message; };
   const meEmail = normalEmail(me.email);
-  const owners = [d.me, ...d.people].filter((p) => p.name.trim()).map((p) => p.name.trim());
+  // Owners are found and picked from the people typed or uploaded so far (find spec 2.3, move 15's set-up), by name: the
+  // workspace doesn't exist yet, so the picker asks a search over the draft's people.
+  const draftPeople = result.snapshot.people;
+  const peopleKey = draftPeople.map((p) => `${p.id}\t${p.name}\t${p.role}\t${p.teamId}`).join('\n');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ownerSearch = useMemo(() => searchOver(result.snapshot), [peopleKey]);
+  const owners: OwnerPick = {
+    source: { search: ownerSearch, viewerId: draftPeople.find((p) => normalEmail(p.email ?? '') === meEmail)?.id ?? draftPeople[0]?.id ?? '', ws: 'setup' },
+    idOf: (name) => draftPeople.find((p) => p.name === name.trim())?.id ?? null,
+    nameOf: (id) => draftPeople.find((p) => p.id === id)?.name ?? '',
+  };
   const unownedTitles = new Set(d.template === 'file' || d.template === 'later' ? [] : d.goals.filter((g) => g.title.trim() && !g.owner.trim()).map((g) => g.title.trim()));
   const prefs = usePrefs();
   const skipGoalSteps = d.template === 'file' || d.template === 'later';
@@ -543,7 +557,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, ownerHint }: { ownerHint?: string; g: GoalRow; owners: string[]; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
   const titleIssue = errors?.title;
   const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
@@ -587,9 +601,7 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
           <input className="input" value={g.definition ?? ''} onChange={(e) => onChange({ definition: e.target.value })} aria-label={name + ': how it’s measured'} placeholder={headline ? 'e.g. People who used it at least once in the week, from product analytics' : 'e.g. Median hours to the first reply, from the help desk'} />
         </label>
       )}
-      <label className="field"><span className="field-label">Owner</span>
-        <select className="input" value={g.owner} onChange={(e) => onChange({ owner: e.target.value })}>{!headline && <option value="">No owner yet</option>}{owners.map((o) => <option key={o} value={o}>{o}</option>)}</select>
-      </label>
+      <PickOne kind="person" label="Owner" source={owners.source} value={owners.idOf(g.owner)} none={headline ? undefined : 'No owner yet'} onChange={(id) => onChange({ owner: id ? owners.nameOf(id) : '' })} />
       {ownerHint && <span className="hint">{ownerHint}</span>}
       {issue && !any && <span className="hint tone-off field-error" role="alert">{issue}</span>}
     </div>
