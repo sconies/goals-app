@@ -41071,17 +41071,16 @@ function tokenFeedback(db, hash) {
 	};
 }
 // src/adapters/supabase/server.ts
-function supabaseDeps(origin, env = process.env) {
+function supabaseDeps(origin, env = process.env, client) {
 	const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
 	const key = env.VITE_SUPABASE_KEY;
 	if (!url || !key) throw new Error("The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).");
-	const db = faroClient(url, key);
+	const db = client ?? faroClient(url, key);
 	const store = new SupabaseStore(url, key, db);
 	let seen = null;
 	return {
 		async findToken(hash) {
-			let { data, error } = await db.rpc("okr_token_find", { hash });
-			if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) ({data, error} = await db.from("okr_api_tokens").select("*").eq("token_hash", hash).is("revoked_at", null));
+			const { data, error } = await db.rpc("okr_token_find", { hash });
 			if (error) throw new Error("The goals database didn’t answer. Try again in a moment.");
 			const row = (data ?? [])[0];
 			if (!row) return null;
@@ -41097,9 +41096,8 @@ function supabaseDeps(origin, env = process.env) {
 		},
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
-		async touch(id, at) {
-			const { error } = seen ? await db.rpc("okr_token_touch", { hash: seen }) : { error: { message: "no hash" } };
-			if (error) await db.from("okr_api_tokens").update({ last_used_at: at }).eq("id", id);
+		async touch() {
+			if (seen) await db.rpc("okr_token_touch", { hash: seen });
 		},
 		issueToken: (ws, c) => store.issueToken(ws, c),
 		markups: (hash) => markupOps({

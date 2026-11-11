@@ -4,7 +4,9 @@
    functions (migration 0024), markup pictures are read by their public address (migration 0031), and it records a span
    per tool call in the telemetry tables (migration 0022) when the workspace records. It never uses
    SUPABASE_SERVICE_ROLE_KEY, the key that passes every rule in the whole shared database. To run the endpoint on
-   another platform, write the same Deps from your own adapters. */
+   another platform, write the same Deps from your own adapters; it is done when it passes the endpoint's contract
+   (src/ports/contracts/deps.ts), as this one does on a stand-in client (src/adapters/deps.test.ts). */
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { faroClient } from './client';
 import { SupabaseStore } from './goalsStore';
 import { tokenFromRow, type TokenRow } from '../../data/rows';
@@ -16,22 +18,19 @@ import { picturesOpen, tokenMarkups } from './markups';
 import { feedbackOps } from '../../markup/feedback';
 import { tokenFeedback } from './feedback';
 
-export function supabaseDeps(origin: string, env: Record<string, string | undefined> = process.env): Deps {
+export function supabaseDeps(origin: string, env: Record<string, string | undefined> = process.env, client?: SupabaseClient): Deps {
   const url = env.SUPABASE_URL ?? env.VITE_SUPABASE_URL;
   // The public key, by the one name the browser uses too, so no other key can be picked up by mistake.
   const key = env.VITE_SUPABASE_KEY;
   if (!url || !key) throw new Error('The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).');
-  const db = faroClient(url, key);
+  const db = client ?? faroClient(url, key);
   const store = new SupabaseStore(url, key, db);
   // The hash of the token this request came with, to note when it was used.
   let seen: string | null = null;
   return {
-    // Through okr_token_find (migration 0024); before it, from the table.
+    // Through okr_token_find (migration 0024): the table itself is closed to the public key.
     async findToken(hash) {
-      let { data, error } = await db.rpc('okr_token_find', { hash });
-      if (error && /okr_token_find|PGRST202|Could not find the function/.test(`${error.code} ${error.message}`)) {
-        ({ data, error } = await db.from('okr_api_tokens').select('*').eq('token_hash', hash).is('revoked_at', null));
-      }
+      const { data, error } = await db.rpc('okr_token_find', { hash });
       // A database fault is not a bad token: say so, rather than telling the person their token is wrong.
       if (error) throw new Error('The goals database didn’t answer. Try again in a moment.');
       const row = ((data ?? []) as TokenRow[])[0];
@@ -45,10 +44,8 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
     },
     load: (ws) => store.load(ws),
     commit: (ws, c) => store.commit(ws, c),
-    async touch(id, at) {
-      const { error } = seen ? await db.rpc('okr_token_touch', { hash: seen }) : { error: { message: 'no hash' } };
-      if (error) await db.from('okr_api_tokens').update({ last_used_at: at }).eq('id', id);
-    },
+    // Through okr_token_touch (migration 0024), which stamps the time itself. A failure here never stops the answer.
+    async touch() { if (seen) await db.rpc('okr_token_touch', { hash: seen }); },
     issueToken: (ws, c) => store.issueToken(ws, c),
     // The inbox's tools, for any token, through the database's functions for it (no new secret). Pictures are read by
     // their public address (migration 0031).

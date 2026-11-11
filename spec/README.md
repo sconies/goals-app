@@ -11,6 +11,7 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | Part | What it holds |
 |---|---|
 | [core/data-model.md](core/data-model.md) | Every record and field, with the comment written beside it in `src/domain/types.ts`, and the database tables |
+| [core/schema.sql](core/schema.sql) | The database as it is after every migration, read back from Postgres: tables, constraints, indexes, functions, triggers and access, in one file to read |
 | [core/vocabulary.md](core/vocabulary.md) | Every word for a state: its code, label, meaning and the rule that decides it (`src/domain/vocabulary.ts`) |
 | [core/rules/](core/rules/README.md) | Every core rule in plain words, with worked examples (run against the code by the spec’s own test) and the tests that check it |
 | [core/screens.md](core/screens.md) | Each core screen: its route, purpose, named parts, main action and the AI tools that do the same |
