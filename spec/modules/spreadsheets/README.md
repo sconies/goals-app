@@ -18,15 +18,16 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Workspace sections | none |
 | Database tables | none |
 | AI tools | `export`, `export_table` |
-| Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`) |
+| Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`), “Every column, and what it needs” (`columns`) |
 | Outside its folder | none |
 
 ## Requirements
 
-- `EXPORT`: Goals export as one Excel workbook with every sheet (Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and a README), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens.
+- `EXPORT`: Goals export as one Excel workbook with every sheet (a Start here sheet that says what each column means and which a new row must have, then Goals, Plan, Check-ins, People, Results, Asks, Notes and Metrics), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens.
 - `BULK-IMPORT`: A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet.
 - `IMPORT-ACTIONS`: A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams. Tests: `evals/format.eval.ts`.
-- `SPREADSHEETS-ON-DATA`: Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the blank template (every sheet’s headers and README, no rows), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). Tests: `evals/modules.eval.ts`.
+- `SPREADSHEETS-ON-DATA`: Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template (a Start here sheet, then the columns a person fills in on Goals, Plan, Check-ins and People, required headers in bold, and example rows that are never imported), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). Tests: `evals/modules.eval.ts`.
+- `FIELD-TABLE`: Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from. Tests: `src/domain/fieldTable.test.ts`.
 
 ## Journeys and checks
 
@@ -36,6 +37,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | `evals/journeys.cjs` |
 | U46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | `evals/journeys.cjs` |
 | U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on, or Undo straight after switching it off, brings it all back | `evals/journeys.cjs` |
+| U87 | What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
@@ -44,6 +46,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 
 - **Importing from a spreadsheet** (`import`): Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 - **Exporting** (`export`): Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.
+- **Every column, and what it needs** (`columns`): For every column of Goals, Plan, Check-ins and People: whether a new row must have it, its format, an example, and what happens when it’s left empty.
 
 ## Rules, conformance and rebuild stage
 
