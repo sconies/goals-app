@@ -163,7 +163,8 @@ describe('Privacy: nothing anyone types', () => {
     expect(b.bodies.length).toBeGreaterThan(0);
     const all = b.bodies.map((x) => x.body).join('\n');
     expect(all).not.toContain('Zebra');
-    expect(all).not.toContain('7319');
+    // The number on its own: random trace and span ids are hex, and one of them can hold these four digits.
+    expect(all).not.toMatch(/(?<![0-9a-f])7319(?![0-9a-f])/i);
     expect(all).not.toContain('DevEx');
     const as = await assistant('rhea');
     await as.call('add_comment', { goal_id: 'ns-lead', text: SECRET });
