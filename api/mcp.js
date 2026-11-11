@@ -17,6 +17,15 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
+// server/log.ts
+/** Writes the failure to standard error and returns its reference. Never throws. */
+function logFailure(where, e) {
+	const reference = `err_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+	try {
+		console.error(`[faro mcp] ${where} failed (${reference}):`, e instanceof Error ? e.stack ?? e.message : e);
+	} catch {}
+	return reference;
+}
 // src/domain/plan.ts
 /** Days between two ISO dates or timestamps, by calendar date in UTC. */
 function daysBetween(fromIso, to) {
@@ -18400,12 +18409,14 @@ async function serve(req, deps) {
 			headers: CORS
 		});
 	} catch (e) {
+		const reference = logFailure("A request", e);
 		res = json({
 			jsonrpc: "2.0",
 			id: body?.id ?? null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}, 500);
 	}
@@ -41089,12 +41100,14 @@ var handler = async (req) => {
 	try {
 		return await serve(req, supabaseDeps(new URL(req.url).origin));
 	} catch (e) {
+		const reference = logFailure("The MCP endpoint", e);
 		return new Response(JSON.stringify({
 			jsonrpc: "2.0",
 			id: null,
 			error: {
 				code: -32603,
-				message: e instanceof Error ? e.message : String(e)
+				message: e instanceof Error ? e.message : String(e),
+				data: { reference }
 			}
 		}), {
 			status: 500,

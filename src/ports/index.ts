@@ -1,6 +1,6 @@
 /* The outside parts (backlog 8c): every dependency on the world outside Faro's own code sits behind one of these
    interfaces, and each has a contract test any replacement must pass (src/ports/contracts/). To move Faro onto another
-   platform, write an adapter for each part you swap and run its contract on it (spec/rebuild/stage-6-adapters.md).
+   platform, write an adapter for each part you swap and run its contract on it (spec/rebuild/adapters.md).
 
    | Part              | Interface        | Adapters today                                                           |
    | The goals store   | Store            | browser (data/store.ts), Supabase, plain Postgres (src/adapters/)       |
