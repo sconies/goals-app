@@ -523,3 +523,7 @@ Held items: round 1's FS1 pickers and FS2's list bar on Data are held until Thur
 Order: IM0; IM1; IM2; IM3; then IM4, IM5 and IM7 in any order; IM6; IM8; IM9. Each item adds its part of `spec/`, its conformance rows (every worked example in sections 4 and 6) and updates the spreadsheets module's rebuild stage; IM2 and IM6 run the stage's drill.
 
 **For the rebuild kit:** the field table and section 4's kinds are stage 2's conformance data (a row per kind: input row, level, sentence). The stage note says the rebuild runs this engine on the server (R-L1, R-L3) and treats the browser preview as advice.
+
+## 14. Reconciled with goal entry and metrics
+
+After the five areas were reviewed together, a few rows of section 3 were settled differently: Unit (no default; empty is a Check at every door), the warning margin (none by default), two stages with one name (Must fix), new columns From and To (`2026-W46`), Also helps and Guardrail on Goals, and the Metrics sheet loading back. The table is in [`../round-2/README.md`](../round-2/README.md), "Where two areas disagreed, and what stands"; read section 3 with it on top.

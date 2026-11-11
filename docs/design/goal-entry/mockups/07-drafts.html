@@ -111,6 +111,19 @@ table{border-collapse:collapse;width:100%;background:var(--surface);border:1px s
 .drow:first-of-type{border-top:0}.drow .t{flex:1 1 260px;min-width:0}.drow .t b{display:block;font-weight:600}.drow .t span{color:var(--muted);font-size:14px}
 .kind{display:flex;gap:12px;flex-wrap:wrap}.kind>div{flex:1 1 170px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px 14px}
 .kind>div.sel{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}.kind b{display:block}.kind span{font-size:14px;color:var(--muted)}
+/* Round 1's find-and-pick look (docs/design/find/mockups/build.cjs), reused unchanged. */
+.pkl{margin:0;padding:0;list-style:none}.pkl li{display:flex;gap:12px;align-items:center;padding:10px 14px;min-height:56px}.pkl li+li{border-top:1px solid var(--line-2)}
+.pkl .pt{flex:1;min-width:0;display:flex;flex-direction:column}.pkl .l1{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;font-weight:600}.pkl .l2{color:var(--muted);font-size:14px;line-height:20px}
+.pkl li.cur{outline:2px solid var(--fg);outline-offset:-2px;border-radius:8px}.pkl li.dis .l1>b{color:var(--muted)}.pkl li.act{min-height:44px}.pkl li.act .l1{font-weight:600;color:var(--accent-text)}
+.pop{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:6px}.pop .in{padding:12px}.pop .in .input{min-width:0}
+.pop .stat{padding:2px 14px 8px;color:var(--muted);font-size:14px}.pop .lab{padding:8px 14px 6px;font-size:12px;font-weight:600;color:var(--muted)}
+.fld{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.fld a{font-weight:600}
+/* The week picker: a plain list of weeks under a year, with a few named weeks first. No grid of days. */
+.wk li{min-height:44px;padding:8px 14px}.wk .l1{font-weight:400}.wk .l1 b{font-weight:600}.wk li.on .l1 b:after{content:" · chosen";font-weight:400;color:var(--muted)}
+.yr{display:flex;gap:6px;padding:4px 14px 10px}.yr span{min-height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;display:inline-flex;align-items:center;font-weight:600;color:var(--muted)}.yr span.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg);color:var(--fg)}
+.more{padding:10px 14px;border-top:1px solid var(--line-2);color:var(--muted);font-size:14px}
+.pair{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.pair>.field:first-child{flex:1 1 150px}.pair>.field:last-child{flex:2 1 280px}.pair .field>.input{flex:none}.pair .input,.pop .input,.scols .input{min-width:0}.pair>.field{min-width:0}.pkl .l1 span{font-weight:400}.fld span{min-width:0}
 @media (max-width:700px){
  .fhead .btn{width:100%}
  .ffoot .btn{flex:1}

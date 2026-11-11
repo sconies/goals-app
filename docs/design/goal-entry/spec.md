@@ -73,7 +73,7 @@ In order:
 4. "Name it the way your team would say it". Must fix: `name-empty`, `name-short` (section 4).
 5. "How will you know it worked?": the three cards, as today. "Move a number" starts chosen (a default the person can see).
 6. Foot: **"Continue"**.
-7. Under the foot, one quiet line: "Adding several? Paste a table or import a file" (→ the import's paste door, `docs/design/import/spec.md`; until IM builds it, → `/data/import`) "· Like one you have? Open it and choose “Duplicate as a new goal”."
+7. Under the foot, one quiet line: "Adding several? Paste a table or import a file" (→ the import's paste door, `docs/design/import/spec.md`; until IM builds it, → `/data/import`) "· Like one you have? Copy from a goal" (find-and-pick, goal; choosing one goes to `/goals/new/what?like=<key>`).
 
 The same-name question (`same-name`) is asked on step 2, once the team is known; on step 1 the note for a same name in **another** team stays as OB1 words it.
 
@@ -94,12 +94,12 @@ OB1's 2.4 stands (Measured by first; today and target side by side; the folded p
 
 1. "Measured by" (ML2), as OB1.
 2. **Unit**: a text field, **empty**, placeholder from the table's example ("%, days, hours, incidents"). Required unless a metric supplies it. It sits before the numbers when no metric is chosen (the number fields show it after themselves as it is typed).
-3. "Today (week {w})" and "Target (week {due})".
+3. Two rows, each a number and a week (2.13; wireframe 8): **"Baseline"** with **"From"**, then **"Target"** with **"To"**. Under Baseline, the hint "The number in the week the plan runs from." From starts as this week ("This week"); To as the goal year's last week ("The end of {year}"). Under the two rows, one line from rule 13's `spanSays`: "{n} weeks." and, when To is past this goal year, "It runs past the end of {year} and carries into {next year} with this plan."; when From is still to come, "It starts in week {w} ({dates}). Until then nothing is due, and it reads “No check-in yet · starts week {w}”." OB1's "By when?" and its labels "Today (week {w})" and "Target (week {due})" go.
 4. **Decimals**: no field. One line under the numbers, once either is valid: "Kept as whole numbers, as you typed them." / "Kept to 1 decimal place, as you typed them." with "Change" (which shows the choice "Whole numbers · 1 · 2 · 3 decimal places"). It is worked out by rule 2's `decimalsFor`.
-5. "By when?", "How will progress come?", the chart, "Adjust the plan week by week", as OB1.
+5. "How will progress come?", the chart, "Adjust the plan week by week", as OB1.
 6. "How it’s measured · optional" and "Where the number comes from · optional" (with no metric).
 
-Must fix here: `unit-empty`, `start-empty`, `target-empty`, `not-number`, `has-words`, `too-precise`, `same-as-start`, `plan-point`. Questions: `below-zero`, `over-100`, `hundredfold`, `billion`, `wrong-side`, `far-from-metric`, `late-plan`.
+Must fix here: `unit-empty`, `start-empty`, `target-empty`, `not-number`, `has-words`, `too-precise`, `same-as-start`, `plan-point`. Questions: `below-zero`, `over-100`, `hundredfold`, `billion`, `wrong-side`, `far-from-metric`, `late-plan`, `from-past`, `to-past`, `long-plan`.
 
 `same-as-start` offers the way out: under Target, the Must fix and one button, "Keep it at {value}{unit} or under" (or "… or over", by the metric's direction; with no metric two buttons). Pressed: the type becomes a number to keep in range with that limit, and the step redraws.
 
@@ -108,14 +108,15 @@ Must fix here: `unit-empty`, `start-empty`, `target-empty`, `not-number`, `has-w
 1. Measured by; Unit (as above).
 2. "Must stay": "At most" / "At least" ("At most" chosen).
 3. "Limit".
-4. "Warn this close · optional": empty. Hint: "How near the limit counts as at risk, in {unit}. Left empty, it warns only once the limit is crossed."
-5. Decimals' line; "How it’s measured · optional".
+4. No dates to choose. One line: "It applies from the week it is published (week {w}, {dates}) to the end of {year}."
+5. "Warn this close · optional": empty. Hint: "How near the limit counts as at risk, in {unit}. Left empty, it warns only once the limit is crossed."
+6. Decimals' line; "How it’s measured · optional".
 
 Must fix: `unit-empty`, `limit-empty`, `not-number`, `has-words`, `too-precise`, `margin-negative`. Questions: `below-zero`, `over-100`, `margin-wide`, `far-from-metric`.
 
 **Dated stages**
 
-OB1's rows ("Stage {n}", "Due" as a list of weeks with dates, "Earlier…"). Under the heading: "At least one stage, each with a name and the week it’s due. This is week {w}." Each fault is under its own row and field: `stage-none`, `stage-name`, `stage-week`, `stage-twice`. Rows are kept in the order typed; on "Continue", if they are not in date order they are put in order and one line says so, `role="status"`: "Put in date order." Question: `stage-past` (OB2's, unchanged).
+OB1's rows, with "Due" as the week picker (2.13), listing this goal year; weeks before this one are in the same list, above it, and raise OB2's question. Under the heading: "At least one stage, each with a name and the week it’s due. This is week {w}, {dates}." Each fault is under its own row and field: `stage-none`, `stage-name`, `stage-week`, `stage-twice`. Rows are kept in the order typed; on "Continue", if they are not in date order they are put in order and one line says so, `role="status"`: "Put in date order." Question: `stage-past` (OB2's, unchanged).
 
 ### 2.5 Step 4: check (`/goals/new/check`): the read-back
 
@@ -127,12 +128,12 @@ Wireframe 3. Replaces OB1's 2.5 and today's sentence and rows.
 
 | Row | Sentence |
 |---|---|
-| What | A number to move: "A number to move: from {start} today to {target} by week {due} ({dates}), {shape words}. {Higher\|Lower} is better." Shape words: "the same amount each week" / "slowly at first, faster near the end" / "in a few jumps" / "with the weeks’ numbers set by hand". |
+| What | A number to move: "A number to move: from {baseline} in week {from} ({dates}) to {target} by week {to} ({dates}), {shape words}. {Higher\|Lower} is better." Dates always carry their year; a week of another goal year is "week 13 of 2027". Shape words: "the same amount each week" / "slowly at first, faster near the end" / "in a few jumps" / "with the weeks’ numbers set by hand". |
 | | A number to keep in range: "A number to keep in range: at or {under\|over} {limit}{unit}. {It warns within {margin}{unit} of the limit. \| It warns only once the limit is crossed.}" |
 | | Dated stages: "Dated stages: {n} stage{s}, the last due week {w} ({dates})." then, when any: "1 stage is already done." / "1 stage is already overdue." (OB2) |
 | Who and where | "{Owner’s full name} owns it, in {team}. It’s {a\|an} {level} goal and feeds “{parent}” ({key})." / "… and feeds nothing: it’s at the top of its own tree." With also-helps: "It also helps “{a}” and “{b}”." Guardrail: "It’s a guardrail." |
 | Measured by | Number goals only. "{metric}, for {team \| the whole company}." / "No metric: “{description}”." / "No metric, and not described yet." |
-| Left as usual | Every default not changed, as short sentences in the field table's order: "Whole numbers." "Due at year end." "Steady." "No early warning." "Feeds nothing." "Not a guardrail." "Helps no other goal." Omitted when nothing was defaulted. "Change" goes to the first of them. |
+| Left as usual | Every default not changed, as short sentences in the field table's order: "Whole numbers." "From this week to the end of {year}." "Steady." "No early warning." "Feeds nothing." "Not a guardrail." "Helps no other goal." Omitted when nothing was defaulted. "Change" goes to the first of them. |
 | You said | One sentence per answered Check (section 4's "Read-back" column). No "Change" (the question's own line on its step has it). Omitted when none. |
 
 4. **After you publish**, one block, from rule 5:
@@ -165,7 +166,7 @@ Wireframe 4. GT3's 2.7 stands (focus mode; one exit; the four sections with anch
 1. **What it is** (`#definition`): Name; "Measured by" (the `goal.measure` place); "How it’s measured"; "Where the number comes from". Then one line, not a field:
    - With check-ins: "{The type, as a sentence starting with a capital}. The type can’t change: {n} check-in{s} {was|were} judged as {a number against a plan \| a number against a limit \| stages done or not}. To measure it another way, stop this goal and add a new one."
    - With none: "{Type}. The type can’t change. This goal has no check-ins, so you can delete it and add it again another way:" and the link "Duplicate as a new goal".
-2. **Plan and target** (`#plan`): the type's fields as on New goal's step 3. Start is labelled "Start" (and "· from week {fromWeek}" when not 0). Unit and Decimals are one line, "{unit}, {places}." with "Change"; changed, they are fields.
+2. **Plan and target** (`#plan`): the type's fields as on New goal's step 3: "Baseline" with "From", "Target" with "To", each week in the picker (2.13). Changing From or To after check-ins is a plan change (today's `planChanged`), so it needs the reason. Unit and Decimals are one line, "{unit}, {places}." with "Change"; changed, they are fields.
 3. **Who and where** (`#owner`): Owner, Team, Level, Feeds into, how much and why (with a parent), Also helps. The same questions as New goal's step 2.
 4. **More details** (`#more`): "It’s a guardrail".
 5. **What will change** (`#changes`): absent until something differs from the goal as saved. Then:
@@ -177,7 +178,7 @@ Wireframe 4. GT3's 2.7 stands (focus mode; one exit; the four sections with anch
 | Change | Sentence |
 |---|---|
 | Name | "Name: “{old}” becomes “{new}”. Its key, {key}, and its links stay." |
-| Start, target, due week, shape, a hand-set week (before any check-in) | "{Field}: {old} becomes {new}." |
+| Baseline, target, From, To, shape, a hand-set week (before any check-in) | "{Field}: {old} becomes {new}." A week is said with its dates: "To: week 53 (28 Dec 2026–3 Jan 2027) becomes week 13 of 2027 (29 Mar–4 Apr 2027). It now carries into 2027." |
 | The same, after check-ins | "{Field}: {old} becomes {new}. From this week it is judged against the new plan: week {w} would read {new status}{, not {old status}}. Weeks {first} to {w−1} and the closed quarters keep the plan of their day, and the old plan stays on the chart, dotted." (the status clause is "and still reads {status}" when it doesn't change; with no check-in this week the clause is left out) |
 | Limit, must stay, margin, after check-ins | "{Field}: {old} becomes {new}. From this week it is judged against the new limit: week {w} would read {status}{, not {old}}. Earlier weeks keep the limit of their day." |
 | Stages, after check-ins | "Stages: {“X” moves from week a to week b \| “X” is added, due week b \| “X” is removed}. {k} stage{s} already done stay{s} done." A removed stage that was done: Must fix `stage-done-removed`. |
@@ -246,7 +247,7 @@ Wireframe 5. Only with Reviews on does the first door exist.
 2. "What should the goal be called?" (required; the name's two Must fix lines).
 3. "Who will own it?": find-and-pick, person; starts as the owner of the goal on screen (required: "Choose who will own it.").
 4. "It will feed": find-and-pick, goal; starts as the goal on screen; first row "Nothing: top of its own tree".
-5. "Set up by": the weeks from this one to the cycle's last, each with its dates; starts as the review's next session's week.
+5. "Set up by": the week picker (2.13), from this week to the goal year's last; starts as the review's next session's week.
 6. **"Agree it"**; "Cancel".
 
 Saved (rule 9), it is a next step: an ask of kind action, for the owner chosen, on the goal it will feed (or the goal on screen when it feeds nothing), in this review's session, due that week, whose text is "Set up a goal: {name}". The walkthrough then shows it as it shows any next step, and counts the goal as decided (`decide.ts`'s rule: it is a next step with an owner and a date).
@@ -307,6 +308,66 @@ It goes when the owner saves the plan, posts a check-in, or presses "It’s righ
 - `GOAL_FIELDS` gains `also_helps_ids`, `guardrail` and `effect` once the field table has their columns (IM1).
 - `create_goal` no longer fills in `owner` before the engine sees the row; rule 2 gives the token's person as the default and says so in the result ("Owner: {name}, as nobody else was named.").
 
+### 2.13 The week picker
+
+Wireframe 8. One control (`src/ui/WeekPick.tsx`, new) for From, To, a stage's Due and "Set up by". It replaces `DueField` and the stage rows' number field (`src/ui/GoalFields.tsx`). It holds a week counted from the cycle's start, as the data does; everything it shows comes from rule 13.
+
+**Closed.** A button that reads as a field: "Week {n} · {dates with year}" (another goal year's week: "Week 13 · 29 Mar–4 Apr 2027"; the year is always in the dates). Nothing chosen: "Choose a week". Under it one line, from `weekIs`: "This week" / "Next week" / "{k} weeks ago" / "In {k} weeks" / "The end of {quarter}" / "The end of {year}" / "The start of {year}"; the most specific that applies.
+
+**Open.** A panel under the field, as wide as the field and at least 360 px; on a phone a full sheet titled by the field's label, with "Close".
+
+1. A text field, focused: placeholder "Type a week or a date: 50, 14 Dec". Rule 13's `readWeek` turns what is typed into a week and moves the list to it; what can't be read: "“{q}” isn’t a week or a date. Try 50, or 14 Dec.", `role="status"`.
+2. Up to three named weeks, each a row of two parts, "{name}" and "Week {n} · {dates}":
+
+| Field | Named weeks |
+|---|---|
+| To | "The end of this quarter" (left out when it is also the year's end); "The end of {year}"; "The end of Q1 {next year}"; then "The end of {next year}" if fewer than three |
+| From | "This week"; "The start of this quarter"; "The start of {year}" |
+| A stage's Due; Set up by | "This week"; "The end of this quarter"; "The end of {year}" |
+
+3. The label "Or choose a week"; the goal years offered, as a row of choices (two or three); then the chosen year's weeks, each "Week {n} · {dates}", with "· this week", "· the end of {quarter}" and "· chosen" where they apply. The list scrolls inside the panel (8 rows visible) and opens at the chosen week, else at this week.
+4. A last line saying what the list leaves out and why: "“To” comes after “From”: 2026 lists weeks 47 to 53." / "A stage is due within 2026."
+
+**What each field offers**
+
+| Field | From | To |
+|---|---|---|
+| From | The first week of the previous goal year | The last week of the next goal year |
+| To | The week after From | The last week of the next goal year |
+| A stage's Due | Week 1 of this goal year | Its last week (decision 11) |
+| Set up by | This week | This goal year's last week |
+
+**Keys.** `role="listbox"` behind a button with `aria-haspopup`. Up and Down: one week. Page Up and Page Down: four weeks. Home and End: the year's first and last. Left and Right: the year before and after. Enter chooses and closes; Escape closes and returns focus; typing goes to the text field. A named week is reached with Up from the first week of the list.
+
+**States.** Disabled when the goal is stopped. A Must fix (a file's week that doesn't exist; a stage with no week) outlines the closed field and sits under it.
+
+### 2.14 Every choice in goal entry, and how it is made
+
+**The rule.** No select of everything survives anywhere in goal entry. A person, a team, a goal or a metric is always chosen with round 1's find-and-pick (`docs/design/find/spec.md`, 2.3, rules 1, 5, 6 and 7; `src/ui/Pick.tsx`), which this spec does not change. Short fixed lists stay plain controls: the type (three cards), the level (three), how progress comes (three), must stay (two), a metric's "For" (two: the goal's team, or the whole company), "It’s a guardrail" (a tick box), and the week picker (2.13).
+
+Common to every row below, from the find spec: closed, the choice as words with "Change" (several: rows with "Remove" and "Add another goal"); the placeholder "Choose a {thing}"; open, up to six suggestions under "Suggested", then "{n} match" and up to 50 rows; a row is Find's two lines (person: name, then "{job title} · {team}"; team: name, then "Led by {name} · {n} people"; goal: status and title, then "{key} · {owner} · {team}"; metric: name, then "{unit} · {lower|higher} is better · owned by {name} · {n} goals"); none found: "None match “{q}”."; the search failing: "Couldn’t search just now." with "Try again". Matching is the find spec's rule 1: the words on the row by word starts, ignoring case and accents; a goal also by its key ("G-48", "g48"); a person also by a whole email address.
+
+| # | Choice | Where | Kind | Suggested before typing | "None" row | "Add as new" | A row that can't be chosen | Under "None match" | Can raise |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Owner | New goal, who; the edit page (this is also the hand-over) | Person | You; then the goal's team (the team from `?team=`, the parent's team, or the team already chosen), its lead first; then people chosen lately. With no team known: the find spec's default | — | Never. Under the results, for an admin: "Not here? Add people on People." | Someone marked as left is not listed | "People are added on People, by an admin." | `owner-empty`; `owner-not-yours` (becomes "Ask {name} to set it up"); `owner-other-team` |
+| 2 | Team | New goal, who; the edit page | Team | The owner's team; your team; teams you lead; chosen lately | — | No (an admin: "Add a team on Teams.") | — | "Teams are added on Teams, by an admin." | `team-empty` |
+| 3 | Feeds into | New goal, who; the edit page | Goal | OB1's rule 2: the goals one level above in the goal's team, worst first; those your goals already feed; opened lately | "Nothing: top of its own tree" | No | This goal and anything under it: "Feeds this goal already". A stopped goal is not listed | — | `feeds-loop`; `feeds-lower` |
+| 4 | Also helps | New goal, who; the edit page | Goal, several | The goals the parent feeds and its other feeders; your goals; opened lately | — (remove the rows) | No | The goal it feeds: "It already feeds this."; itself and its own tree | — | — |
+| 5 | Measured by | New goal, measure; the edit page | Metric (ML2) | Metrics in the form's unit; metrics the team's goals use; chosen lately | "No metric" | "Add “{q}” as a new metric" (ML2's small form) | With a unit already typed, a metric in another: "In hours; this goal is in min" | The add row | `wrong-side`; `far-from-metric` |
+| 6 | "For" | Under Measured by | Plain: two choices | — | — | — | — | — | — |
+| 7 | Copy from a goal | New goal, step 1's foot | Goal | Your goals, newest first; your team's; opened lately. Stopped goals are listed, with "Stopped" | — | No | — | — | The line "“{what}” isn’t here any more…" for a parent that has gone |
+| 8 | Who will own it? | "Agree a new goal" in a review | Person | The owner of the goal on screen; the review's people, A to Z; you | — | Never | Left: not listed | As row 1 | "Choose who will own it." |
+| 9 | It will feed | "Agree a new goal" | Goal | The goal on screen; the goal it feeds; the goals in this review still to discuss | "Nothing: top of its own tree" | No | Stopped: not listed | — | — |
+| 10 | "Ask {name} to set it up" | New goal, who | No second choice: it is row 1's owner | — | — | — | — | — | Needs row 3 to be a goal (2.8) |
+| 11 | A goal's owner | Set-up's outcome and goal cards | Person, among those typed on the steps before | You; then the others in the order typed | "No owner yet" (the feeders; OB3) | No: "Add people on the step before." with "Back" | — | The same line | — |
+| 12 | A person's team | Set-up's people rows (OB3; the set-up area's) | Team, among those typed | The teams typed so far | "Same as above" | "Add “{q}” as a new team" | — | The add row | The set-up spec's close-name question |
+| 13 | Who takes over | Stopping being a goal's owner by leaving, and "Mark as left" (`RemoveSheets.tsx`; the Workspace area's, listed because it re-owns goals) | Person | The team's lead; the team; you | — | Never | The person leaving | As row 1 | — |
+| 14 | From, To, a stage's Due, Set up by | The measure step; the edit page; the review | Plain: the week picker | — | — | — | — | — | 2.13; `from-past`, `to-past`, `long-plan`, `stage-past` |
+
+Bulk edit's "Change owner" already uses the control. Data's Owner cell and Goals' "In the tree of" are the import's and the Goals page's.
+
+`suggest` (find spec, rule 6) takes a `context`; rows 1, 3, 4, 8 and 9 pass theirs (`{ teamId }`, `{ level, teamId }`, `{ parentId }`, `{ goalId, reviewId }`). That is the only thing goal entry asks of it, and its existing "In Feeds into" case shows the pattern.
+
 ## 3. The fields
 
 The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). "Need" is round 2's word. "Checked" is when the form looks: **L** on leaving the field, **C** on Continue, **P** on Publish or Save.
@@ -326,15 +387,16 @@ The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). 
 | Measured by (ML2) | Optional | A metric, or "No metric" | Nothing chosen | — | — | — | `wrong-side`, `far-from-metric` |
 | Unit → Unit | Required for a number and a range | Text, up to 20 characters, no digits only | Empty (a metric fills it) | "%, days, hours, incidents" | L, C | `unit-empty` | — |
 | Decimals → Decimals | Optional | 0 to 3 | Worked out: the most places typed in Today, Target, Limit, at most 3; said | — | L (on a number) | `too-precise`, `decimals-range` (a file) | — |
-| Today (week {w}) → Start | Required for a number | A number | Empty | "42" at the goal's decimals | L, C | `start-empty`, `not-number`, `has-words`, `too-precise` | `below-zero`, `over-100`, `hundredfold`, `billion`, `far-from-metric` |
-| Target (week {due}) → Target | Required for a number | A number, not equal to Today | Empty | "30" | L, C | `target-empty`, `not-number`, `has-words`, `too-precise`, `same-as-start` | The same, and `wrong-side` |
-| By when? → Due week | Optional | A week after this one; shown with its dates | The cycle's last week; said: "Due at year end." | — | — | In a file: today's two lines (`changeset.ts:421`, `426`) | — |
+| Baseline → Start (a file may head it "Baseline") | Required for a number | A number | Empty | "42" at the goal's decimals | L, C | `start-empty`, `not-number`, `has-words`, `too-precise` | `below-zero`, `over-100`, `hundredfold`, `billion`, `far-from-metric` |
+| Target → Target | Required for a number | A number, not equal to the baseline | Empty | "30" | L, C | `target-empty`, `not-number`, `has-words`, `too-precise`, `same-as-start` | The same, and `wrong-side` |
+| From → From (new: `2026-W46`), Plan from week (kept: a number from the cycle's start) | Optional | A week, picked; in a file a year and week, or the number | This week; said: "This week" | "2026-W46" | L, C | `week-unknown`, `week-beyond` | `from-past` |
+| To → To (new: `2027-W13`), Due week (kept) | Optional | A week after From, picked | The goal year's last week; said: "The end of {year}" | "2026-W53" | L, C | `to-before-from`, `week-unknown`, `week-beyond` | `to-past`, `long-plan` |
 | How will progress come? → Plan | Optional | Steady, back-loaded, in steps | Steady, shown chosen | — | — | — | — |
 | The plan week by week → the Plan sheet | Optional | A number per week | From the shape | — | L | `plan-point` | `late-plan` |
 | Must stay → Must stay | Required for a range | At most, at least | At most, shown chosen | — | — | — | — |
 | Limit → Limit | Required for a range | A number | Empty | "12" | L, C | `limit-empty`, `not-number`, `has-words`, `too-precise` | `below-zero`, `over-100`, `billion` |
 | Warn this close → Margin | Optional | A number, zero or more | Empty: no early warning; said | "1" | L, C | `margin-negative`, `not-number`, `too-precise` | `margin-wide` |
-| Stages → Stages | Required for stages: at least one | Each: a name, and a week from 1 to the cycle's last | One empty row | "Threat model" | L, C | `stage-none`, `stage-name`, `stage-week`, `stage-twice` | `stage-past` |
+| Stages → Stages (`Name@48` or `Name@2026-W48`) | Required for stages: at least one | Each: a name, and a week of this goal year, picked | One empty row | "Threat model" | L, C | `stage-none`, `stage-name`, `stage-week`, `stage-twice` | `stage-past` |
 | How it’s measured → Definition | Optional | Text | Empty | "Median hours to the first reply, from the help desk" | — | — | — |
 | Where the number comes from → Source | Optional | Text | Empty | "Jira intake board" | — | — | — |
 | Why is the plan changing? → Reason | Required for a plan change after check-ins | A sentence, 10 characters or more (`MIN_REASON`) | Empty | — | P | `reason-empty` | — |
@@ -353,7 +415,9 @@ The rows the goal form needs in the field table (`src/domain/columns.ts`, IM1). 
 | `12%` | `days` | Must fix `has-words` |
 | `abc`, `1.2.3`, `12-` | Any | Must fix `not-number` |
 
-A week is always shown with its dates: "Week 48 · 23–29 Nov" in a list, "week 53 (28 Dec–3 Jan 2027)" in a sentence.
+A week is always shown with its dates and their year: "Week 48 · 23–29 Nov 2026" in a field, "Week 48 · 23–29 Nov" in a list under its year, "week 53 (28 Dec 2026–3 Jan 2027)" in a sentence, `2026-W53` in a file.
+
+**From and To in a file.** The export writes all four columns (From, Plan from week, To, Due week), so an old reader and a new one both work. On import each pair is read by the rule Owner and Owner email follow: a column that says what the goal says now is ignored, and the one that differs counts; both differing and disagreeing is a Must fix ("From says 2026-W46 and Plan from week says 40. Change just one of them."). A file with only the old columns loads as today. `roundtrip.test.ts` holds.
 
 ## 4. The words
 
@@ -385,6 +449,9 @@ A week is always shown with its dates: "Week 48 · 23–29 Nov" in a list, "week
 | `stage-twice` | The second row's name | "Two stages are called “{name}”. Give each its own name, such as “{name} review”." |
 | `stage-done-removed` | The edit page | "“{stage}” was done in week {n}, so it can’t be removed. Rename it, or leave it." |
 | `decimals-lose` | The edit page | "{k} check-in{s} {has|have} more decimal places than {places} (week{s} {list, up to three}). Keep {current places}, or correct those check-ins first." |
+| `to-before-from` | A file or a tool (the picker can't make it) | "To (week {n}, {dates}) isn’t after From (week {m}, {dates}). The plan has to run forwards." (replaces `changeset.ts:426`'s words) |
+| `week-unknown` | A file or a tool | "{Field} says “{raw}”. Write a year and a week, like 2026-W46, or the week’s number." A week the year doesn't have: "{year} has {k} weeks. Use {year}-W{k}, or {year+1}-W01." |
+| `week-beyond` | Everywhere | "{Field} can be as late as week {k} of {next year} ({dates}), the end of next year." / "From can be as early as week 1 of {last year}." |
 | `reason-empty` | The edit page | "Say why, in a sentence. It goes in the goal’s History{, and its {n} watcher{s} see{s} the change flagged}." |
 
 **Check.** Each has the question, the two answers (the first is the one that keeps what was typed), what it is keyed on, and its sentence on the read-back.
@@ -404,6 +471,9 @@ A week is always shown with its dates: "Week 48 · 23–29 Nov" in a list, "week
 | `feeds-lower` | The goal it feeds is at a lower level than its own | "{A north star\|An SVP goal} usually feeds {nothing\|a north star}, and “{parent}” is {a Team\|an SVP} goal. Is this link right?" | "Yes, it feeds that goal" / "No, it feeds nothing" | Level, parent | "You said it feeds “{parent}”, a {level} goal." |
 | `margin-wide` | A range whose margin is as large as the limit's distance from zero, or larger | "With a limit of {limit}{unit} and a warning {margin}{unit} away, it would almost always read at risk. Is {margin} right?" | "Yes, warn within {margin}{unit}" / "No, I’ll change it" | Limit, margin | "You said to warn within {margin}{unit}." |
 | `late-plan` | Weeks set by hand, and rule 12's `lateShare` is over 0.6 | "This plan leaves {pct}% of the change to the last {k} of {n} weeks. Is that the plan?" | "Yes, that’s the plan" / "No, I’ll change it" | The plan's points | "You said most of the change comes in the last {k} weeks." |
+| `from-past` | From is before this week (a new goal, or From changed on the edit page) | "Week {n}{ of {year}} was {k} week{s} ago. Has this been running since then? The plan would expect {plan now} by this week." | "Yes, it was {baseline} in week {n}" / "No, start from this week" (sets From to this week) | From, baseline, target, To | "You said it has been running since week {n} ({dates})." |
+| `to-past` | To is before this week | "Week {n} has already passed. Was the target due then?" | "Yes, it was due in week {n}" / "No, I’ll choose a later week" | To | "You said the target was due in week {n}." |
+| `long-plan` | To is more than 53 weeks after From | "This plan runs {k} weeks, to week {n} of {year}. Is that right?" | "Yes, {k} weeks" / "No, I’ll change it" | From, To | "You said the plan runs {k} weeks." |
 | `direction`, `far-from-plan` | The edit page: today's `planQuestion` | Today's words (`goal.ts:137`, `146`) | Today's "Yes, …" / "No, I’ll change it" | As today | — |
 
 - Several checks on one field are all shown, in this table's order.
@@ -526,14 +596,14 @@ Returns `{ go: boolean, focus: field | null, says: string | null }`, giving 2.1'
 
 | Given (11 Nov 2026, week 46, due Thursday) | Then |
 |---|---|
-| Tunde's "Signed artifacts in staging", 40% → 90% by week 53, steady, Team, feeds G-41 | What: "A number to move: from 40% today to 90% by week 53 (28 Dec–3 Jan 2027), the same amount each week. Higher is better." After: "Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47." |
+| Tunde's "Signed artifacts in staging", 40% → 90% by week 53, steady, Team, feeds G-41 | What: "A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better." After: "Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47." |
 | The same, published on Friday 13 Nov | "… due by Thursday 19 Nov …; the plan says 47% for week 47." |
 | The same, rhythm none | "It shows as “No check-in yet” until you post its first number. Nothing is due." and no weekday anywhere |
 | Owner Amara, by an admin | "Amara sees it on her Home the next time she opens Faro. Faro doesn’t send email." |
 | A North star, Reviews on, "Platform leadership weekly" walks every north star | "It joins Platform leadership weekly, which walks every north star." |
 | Reviews off | No review line |
 | A range at most 12%, no margin | "A number to keep in range: at or under 12%. It warns only once the limit is crossed." |
-| One stage, due week 50 | "Dated stages: 1 stage, the last due week 50 (7–13 Dec)." (never "1 stages") |
+| One stage, due week 50 | "Dated stages: 1 stage, the last due week 50 (7–13 Dec 2026)." (never "1 stages") |
 | Nothing defaulted | No "Left as usual" row |
 
 ### Rule 6. What a change does: `whatWillChange(before, after, ctx)`
@@ -635,6 +705,53 @@ Why a prefix and not a field: an ask is stored in columns (`okr_requests`), so a
 | `mayBeNegative('%', [10, 5])` | False |
 | `mayBeNegative('net change', [])` | True |
 
+### Rule 13. Years and weeks: `src/domain/weeks.ts` (new)
+
+The data is unchanged: `MetricPlan.fromWeek`, `MetricPlan.endWeek` and `Stage.dueWeek` stay whole numbers counted from the cycle's start (week 0 is the week before week 1). These functions convert; they read a `Cycle`'s `startDate` and `weeks` and nothing else, and use `year.ts`'s `goalYear` and `yearWeeks`.
+
+- `yearWeek(cycle, n)` → `{ year, week, monday }`: for 1 ≤ n ≤ `cycle.weeks`, the cycle's year and n. For n > `cycle.weeks`, the next goal year and n − `cycle.weeks` (and so on, using that year's own length). For n ≤ 0, the previous goal year: week `P + n`, where `P` is its length. A goal year's `year` is the calendar year of its week 1's Thursday; in a goal year that starts in January, `year` and `week` are the ISO week date.
+- `cycleWeek(cycle, { year, week })` → n, the inverse; `null` when that year has no such week.
+- `weekCode(cycle, n)` → `"2026-W46"`. `readWeekCode(cycle, raw)` reads `2026-W46`, `2026W46`, `2026-46`, `W46` and `46` (the last two in the cycle's own year, as today's numbers are) → n, or the problem `week-unknown`.
+- `readWeek(cycle, week, raw, shownYear)` for the picker's text field: a number is that week of the year shown; "14 Dec", "14/12" or "14 December 2026" is the week holding that day (the next such day when no year is typed); "2027 5" is week 5 of 2027.
+- `weekSays(cycle, n, form)`: `'field'` "Week 46 · 9–15 Nov 2026"; `'row'` "Week 46 · 9–15 Nov"; `'sentence'` "week 46 (9–15 Nov 2026)" in the cycle's own goal year and "week 13 of 2027 (29 Mar–4 Apr 2027)" in another. It replaces the bare uses of `weekDates`, which keeps its job of formatting the days.
+- `weekIs(cycle, n, week)`: 2.13's one line.
+- `weekChoices(cycle, week, field, from?)` → `{ named, years: { year, weeks: n[] }[] }`: 2.13's lists and limits. The furthest week is the last of the next goal year (`cycle.weeks + yearWeeks(next)`); `changeset.ts:421`'s limit of 104 becomes this.
+- `spanSays(cycle, from, to, week)`: 2.4's line.
+- `notStarted(goal, week)` in `plan.ts`: a number goal whose `fromWeek` is after `week`. Where it is true, the goal is not due for a check-in and not late (the rhythm's rule consults it), and its summary line gains "· starts week {n}".
+- `nextCycle` (`cycle.ts:133`): a number goal that restarts from its last number takes `fromWeek: 0` in the new cycle. (Today it keeps the old `fromWeek`; read from the code, to be confirmed by this rule's first test.)
+
+| Given (cycle 2026: starts Monday 22 Dec 2025, 53 weeks; today Wed 11 Nov 2026, week 46) | Then |
+|---|---|
+| `yearWeek(46)` | 2026, week 46, Monday 9 Nov 2026; "Week 46 · 9–15 Nov 2026"; `2026-W46` |
+| `yearWeek(53)` | 2026, week 53; "Week 53 · 28 Dec 2026–3 Jan 2027"; `2026-W53` |
+| `yearWeek(54)` | 2027, week 1; "Week 1 · 4–10 Jan 2027"; `2027-W01` |
+| `yearWeek(66)` | 2027, week 13; in a sentence "week 13 of 2027 (29 Mar–4 Apr 2027)" |
+| `yearWeek(105)` | 2027, week 52 (27 Dec 2027–2 Jan 2028): the furthest To |
+| `yearWeek(1)` | 2026, week 1; "Week 1 · 29 Dec 2025–4 Jan 2026" |
+| `yearWeek(0)` | 2025, week 52 (22–28 Dec 2025); `2025-W52` |
+| `yearWeek(-12)` | 2025, week 40 (29 Sep–5 Oct 2025) |
+| `cycleWeek({ 2027, 13 })` | 66 |
+| `cycleWeek({ 2027, 53 })` | null: "2027 has 52 weeks. Use 2027-W52, or 2028-W01." |
+| `readWeekCode("2026-W46")`, `("46")`, `("W46")` | 46 |
+| `readWeekCode("2027-W01")` | 54 |
+| `readWeek("14 Dec")` | 51 (14–20 Dec 2026) |
+| `readWeek("3 Jan")` | 53 (the next 3 January is in week 53 of 2026) |
+| `readWeek("5")` with 2027 shown | 58 |
+| A goal year starting in April (week 1 holds April's first Thursday) | `year` is that April's; week 40 is the fortieth of that year, not ISO week 40; the code is still `{year}-W40`, and the README sheet says weeks are the goal year's |
+| `weekChoices` for To, From 46 | Named: "The end of 2026" (53), "The end of Q1 2027" (66), "The end of 2027" (105). 2026: 47 to 53. 2027: 54 to 105 |
+| `weekChoices` for To in week 30, From 30 | Named: "The end of this quarter" (39), "The end of 2026" (53), "The end of Q1 2027" (66) |
+| `weekChoices` for From | Named: "This week" (46), "The start of this quarter" (40), "The start of 2026" (1). 2025: −51 to 0. 2026: 1 to 53. 2027: 54 to 105 |
+| `spanSays(46, 66)` | "20 weeks. It runs past the end of 2026 and carries into 2027 with this plan." |
+| `spanSays(50, 53)` in week 46 | "3 weeks. It starts in week 50 (7–13 Dec 2026). Until then nothing is due, and it reads “No check-in yet · starts week 50”." |
+| Baseline 42, target 30, From 40, To 66, week 46 | `from-past`: "Week 40 was 6 weeks ago. Has this been running since then? The plan would expect 39 min by this week." |
+| The same, answered "No, start from this week" | From 46 |
+| From −12 | `from-past`: "Week 40 of 2025 was 58 weeks ago. …" |
+| From 30, To 93 (week 40 of 2027) | `long-plan`: "This plan runs 63 weeks, to week 40 of 2027. Is that right?" |
+| A file: From `2026-W46`, To `2026-W40` | `to-before-from`: "To (week 40, 28 Sep–4 Oct 2026) isn’t after From (week 46, 9–15 Nov 2026). The plan has to run forwards." |
+| A file from an old export: Plan from week 46, Due week 53, no From or To | Loads as today |
+| An export loaded back unchanged | "Nothing would change" |
+| A goal set up in week 46 of 2026 at 42, last number 36, carried into 2027 | Baseline 36, From week 0 of 2027 (week 53 of 2026), To the end of 2027 |
+
 ## 7. Extension points
 
 No new extension point.
@@ -654,6 +771,10 @@ No new extension point.
 | U95 | GOAL-EDIT-PREVIEW | A change says what it does: as Rhea on "Pipeline queue wait (p90)" the type line says why it can't change; changing the target shows "What will change" with the status clause and asks "Why is the plan changing?"; saving without a reason is a Must fix; handing it to Tunde adds the owner sentence, the team question and "A note for Tunde"; "Save 2 changes"; the toast's Undo puts both back and History shows both lines; saved again, Rhea sees the read view with "Tunde Bakare or an admin can change this." and no button; as Oskar the same. Unit min → hours says the numbers aren't converted. An unsaved edit, then the target changed as Grace, reopens with "Grace changed this goal…" |
 | U96 | GOAL-ADD-ANYWHERE | A goal starts where the thought does: "Add a goal that feeds this" under Lead time for changes opens step 1 with "It will feed … as an SVP goal in CI/CD, owned by you."; a team's page has "Add a goal for Build & Release" for its members; "Duplicate as a new goal" copies the type and unit and leaves the name and numbers empty; "Adding several?" opens the import's paste door. As Amara in a review's walk, "Agree a new goal" with a name, Camille and week 48 records "Set up a goal: …"; as Camille, Home shows it with "Set up the goal", which opens New goal filled in; publishing marks it done "Set up as G-…"; the review's "Last time" says so. Two goals left unpublished are both listed on New goal and named under Goals, Mine, with "kept until"; "Close and keep the draft" says where it went; a sixth is refused. With Reviews off the walk's choice is absent and "Ask {name} to set it up" still works |
 
+| (next free; see below) | GOAL-DATES, FIND-AND-PICK | Dates are picked and people are found: as Tunde on the measure step, Baseline and Target each sit beside a week, "Week 46 · 9–15 Nov 2026 · This week" and "Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026"; opening To lists the three named weeks, then 2026 from week 47 and 2027; choosing "The end of Q1 2027" closes it as "Week 13 · 29 Mar–4 Apr 2027" and the line says it carries into 2027; typing "14 Dec" moves to week 51; the keyboard alone can choose a week. From set to week 40 asks whether it has been running; "No, start from this week" puts it back. Check reads "from 42 min in week 46 (9–15 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)". The goal's page and an export say the same weeks (`2026-W46`, `2027-W13`), and the export loads back as "Nothing would change". A stage's Due is the same picker. No number field for a week exists on any step or on the edit page. On the who step and the edit page Owner, Team, Feeds into and Also helps open find-and-pick with suggestions, "tun" finds Tunde, "g-41" finds a goal by its key; no `select` lists people, teams, goals or metrics anywhere in New goal, the edit page, "Agree a new goal" or set-up's cards |
+
+Round 2 gave goal entry U93 to U96; this fifth journey takes the next free number when it is built.
+
 **Changed:** U2, U3, U84 (New goal: the unit, the levels, the read-back, the drafts list); U85 (the past-stage question is the shared block); the goal-edit journeys (the button's words; the reason's place); U5, U17, U86 (set-up's cards' words); the MCP journeys that read "Fix these and try again".
 
 ### F and N checks
@@ -662,6 +783,7 @@ No new extension point.
 |---|---|
 | F18 | Phone, 390 × 844 and 360 × 800: on each step of New goal and on the edit page, the first field and the primary button are on the first screen with the keyboard closed, and the "things to fix" line is visible above the button without scrolling; a question's answers are each at least 44 px high and full width; the read-back and "What will change" don't scroll sideways; "Save {n} changes" never covers a field; no step is taller than two screens; number fields have `inputmode="decimal"`, or the full number keyboard where rule 12's `mayBeNegative` is true |
 | N19 | One check at every door: for every worked example of rules 2 and 3, the form (`planGoal`), a Goals row through `planChanges`, set-up's card and `create_goal` give the same level and the same words; no goal can be saved by `app.saveGoal` that `planChanges` would refuse (the form's commit goes through the `saveGoal` action); and with 30,000 goals `goalChecks` reads at most the same-named goals the finder returns, never the whole list |
+| N12 (the pickers lint) | `scripts/pickers-left.json` loses `GoalWizard.tsx`, `GoalEdit.tsx` and `Onboarding.tsx` when FS1's second part lands; GE5 and GE6 add no entry. A new lint beside it: no `input` whose label or `aria-label` contains "week" takes a typed number in `src/screens` or `src/ui` outside `WeekPick.tsx` |
 | P3, P4, P6 | Extended to the Must fix line, the Check block, the read-back, "What will change" and the drafts list: flat, no capsules, no edge stripes; neither level uses a status shape; the warning mark is the app's own, 14 px |
 
 ### Unit tests
@@ -673,6 +795,8 @@ One file per rule with every worked example. `roundtrip.test.ts` gains: a goal m
 - `GOAL-ENTRY-REQUIRED`: "Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back."
 - `GOAL-EDIT-PREVIEW`: "Changing a goal shows, before it is saved, what will change and what that does to its status, history and who may act; it can be undone; a person who may not change it is told who can."
 - `GOAL-ADD-ANYWHERE`: "A goal can be started from the goal it feeds, a team, a copy of another goal or a review, always in the same form with what is known filled in; a goal agreed in a review is a next step until its owner sets it up; unfinished goals are listed and kept."
+
+- `GOAL-DATES`: "A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools."
 
 Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Close" with nothing typed).
 
@@ -700,6 +824,7 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | GE5 | `goal-from-here` | "Add a goal from where you are" | "Under a goal: Add a goal that feeds this." "On a team's page, or as a copy of a goal you have." |
 | GE6 | `goal-agreed` | "Agree a goal in a review" | "Name it and its owner in the room; they set it up afterwards." "You can also ask someone to set up a goal from New goal." |
 | GE7 | `goal-drafts` | "Unfinished goals are kept and listed" | "Up to five, for 30 days, under Goals, Mine and on New goal." |
+| GE9 | `goal-dates-picked` | "Pick a goal's weeks, with their dates" | "A number goal now says its baseline, From and To." "Choose each week from a list that shows its dates and year: this year or next." "Spreadsheets write weeks as 2026-W46; old files still load." |
 | GE8 | `goal-carried` | "A carried goal says what was assumed" | "After a new cycle starts, each carried goal says where it starts and asks you to check its dates." |
 
 ## 10. If Lane decides otherwise
@@ -723,6 +848,11 @@ Reworded: `NEW-GOAL-STEPS` (the Check step is the read-back), `NAV-FORMS` ("Clos
 | 7 | (c) As today | 2.9 and rule 10 are dropped except the patch for edits and the toast after closing |
 | 8 | (b) A lead may add for their team | `mayAddGoal(actor, ownerId, ctx)` gains "or the actor leads the owner's team"; `planChanges` passes the teams; R1's table changes; 2.3's "Ask {name}" shows only outside the lead's team |
 | 9 | (b) Not kept | The "Checked" diffs are left out of the change |
+| 10 | (b) Two dates | `MetricPlan` gains `baselineWeek?: number` (whether that is a migration depends on how a plan is stored; not checked here); the measure step gains "Baseline as of" as a third picker; `planAt` holds the baseline flat from `baselineWeek` to `fromWeek`; `from-past` is asked of the baseline's week instead |
+| 11 | (b) Stages next year | The stage picker offers next year; `validateGoal`'s limit (`goal.ts:104`) becomes rule 13's furthest week; `nextCycle` moves a stage with a week in the new cycle to that week and spreads only those without one; the quarter results ignore stages beyond the cycle (they do: they filter by quarter) |
+| 12 | (b) A range's "Applies from" | `RangePlan` gains `fromWeek?: number`; the range step gains the picker; status ignores numbers before it. A data change |
+| 13 | (b) Dates | From and To hold the week's Monday (`2026-11-09`); `readWeekCode` also reads a date. (c) No new columns: rule 13's `weekCode` is used on screens only and row 15 of the README's rules table is dropped |
+| 14 | (b) "Planned" | A sixth status word and shape: the design rules, the vocabulary, the status rules, every list's counts and the sheet's words all change. Not recommended |
 
 ## 11. Build plan
 
@@ -739,8 +869,12 @@ Backlog-sized items. Effort: **S** (under a day), **M** (a release), **S–M** b
 | GE7 | **Several drafts, listed** | Rule 10; 2.1 item 6; 2.9; the drafts half of U96 | S–M | OB1 (steps in the address); AR1's `Prefs` port (merged); NV2 (one exit) |
 | GE8 | **A carried goal says what was assumed** | Rule 11; 2.11 | S | GE4 (the link's target); OB2 (the re-base it leans on) |
 
-**Order:** OB2 → GE1 → GE2 → OB1 → GE3 → GE5 → GE7, with GT3's edit page → GE4 → GE8 beside them once GE2 is in, and GE6 after GE5. GE1 is first because it closes E1, which lets anyone publish a north star for anyone today; it is also the smallest.
+| GE9 | **The three dates, picked** | Rule 13 (`weeks.ts`, `notStarted`, the carry fix); 2.13's `WeekPick`; "Baseline, From, Target, To" on the measure step and the edit page; a stage's Due; `from-past`, `to-past`, `long-plan` and the three date Must fixes; the read-back's and the goal page's sentences; the sheet's From and To columns and the tools' `from` and `to`; the fifth journey; `GOAL-DATES` | M | GE1 and GE2 (the levels). OB1 (it replaces OB1's "By when?" and its stage select, so build after OB1 or as part of it). OB2 (the past-stage question it sits beside). IM1 for the two new columns. FT for "nothing due" where the rhythm is on |
 
-**About five releases:** two M-sized (GE4, and GE1 with GE2 together), the rest S or S–M.
+**Find-and-pick.** No new item: it is FS1's second part (track 1's held work: the pickers in GoalWizard, GoalEdit, set-up's owners and who takes over). **GE1, GE4, GE5 and GE6 need it**: GE1's who step ("Ask {name} to set it up" hangs off the owner's picker), GE4's Owner, Team, Feeds into and Also helps, GE5's "Copy from a goal", GE6's two choices in a review. Each passes its `context` to `suggest` (2.14) and adds no select. GE1's other parts (the rights, what is needed, the numbers) do not wait for it.
+
+**Order:** FS1's second part and OB2 → GE1 → GE2 → OB1 → GE9 → GE3 → GE5 → GE7, with GT3's edit page → GE4 → GE8 beside them once GE2 is in, and GE6 after GE5. GE1 is first because it closes E1, which lets anyone publish a north star for anyone today; it is also the smallest.
+
+**About six releases:** three M-sized (GE4, GE9, and GE1 with GE2 together), the rest S or S–M.
 
 **This replaces** nothing in round 1's plan; it adds to the "one goal" track after OB1 and GT3. **For the rebuild kit:** GE1's stage notes say the form, the file and the tools share `goalMustFix` and `goalChecks`, and that these belong in stage 1's conformance data beside the status rules; GE6's say "Agree a new goal" is the seed of R6c's draft-and-propose and should not be copied as a text prefix.

@@ -12,6 +12,8 @@ It covers every way one goal is made or changed by hand: **New goal**, **the edi
 4. **A change says what it will do** to status, history and who may act, before it is saved; and it can be undone.
 5. **A goal starts where the thought does**: under the goal it feeds, on a team's page, from a copy, or in a review, where it is agreed in ten seconds and set up properly by its owner afterwards.
 
+Two additions from Lane on 11 Nov are folded in: **the dates are named and picked** (section 9 of the design, E14) and **every person, team, goal and metric is found by typing** (section 10, E15).
+
 ## The jobs people come to do
 
 | Who | Job | How often | Today |
@@ -127,6 +129,22 @@ That speed is worth keeping. What is wrong is that the defaults are silent and t
 **E13. The form has fields the sheet and the AI tools lack. Low.**
 - "Also helps" and "It’s a guardrail" are in the form (`GoalDraft`, `goal.ts:20`) and in no column of the Goals sheet (`columns.ts:184`); the AI tools also lack the effect. For the field table to be the form, it needs these rows (a note for the import area).
 
+### Dates, and choosing
+
+**E14. A number goal has three dates, and the form lets a person choose none of them clearly. High** (Lane, 11 Nov: "The baseline date, from and to, need to be clearer… you should be able to pick to and from years and weeks").
+- **To.** New goal, step 2, week 46: "By when?" is plain text, "Year end · due week 53, 28 Dec–3 Jan 2027", because `dueOptions` offers only the year's end and the quarter ends still to come (`dueOptions` in `src/domain/year.ts`), and in Q4 that is one. No other week can be chosen. The engine takes any week up to 104 (`changeset.ts:421`), so a file can do what the form can't.
+- **From.** It can't be chosen at all. A new goal's plan starts "this week" without saying so except in a label, "Today (week 46)" (`GoalWizard.tsx:202`, `goal.ts:183`); the edit page shows "Start (min)" with no week (`GoalEdit.tsx:147`). The engine takes any week from −104 to 104 ("Plan from week", `changeset.ts:414`).
+- **The baseline's date.** The data holds one week for both "when the start number was true" and "when the plan starts" (`MetricPlan.fromWeek`, `types.ts:59`). No screen says that they are the same thing.
+- **No year.** Weeks are counted from the cycle's start and shown as bare numbers: "week 53", "Due week" (`GoalFields.tsx:95`), "Week 13". The year is added to a date only when the week falls outside the cycle's own year (`weekDates`, `plan.ts:213`). Week 53 exists in 2026 and not in 2027; the next cycle's week 1 is this cycle's week 54, and nothing shows either.
+- **Stages** take a typed week from 1 to 53 only (`goal.ts:104`): a stage can't be due next year. **A range** has no dates at all.
+- **Carrying over** (read from the code, not run): a number goal carried into the next cycle keeps its "plan from week" (`cycle.ts:133` copies the plan and changes only the start), so one set up in week 46 of 2026 would have a flat plan until week 46 of 2027.
+- In the sheet, "Plan from week" and "Due week" are numbers "counted from the cycle's start" (`columns.ts:199`), which only mean something beside the cycle they came from.
+
+**E15. Every choice of a person, a team or a goal is still a list of everything. High** (round 1's O1 and S3; Lane, 11 Nov: "these should be search to find pickers").
+- New goal, step 3, walked on 11 Nov: "Owner · checks in weekly" is a select of 97 people in directory order, "Feeds into" one of 127 goals, "Team" one of 14. The edit page has the same three and a fourth, "Add a goal it also helps…" (123 goals).
+- FS1 built the control (`src/ui/Pick.tsx`; bulk edit uses it), but its second part is held: `scripts/pickers-left.json` still allows 3 selects in `GoalWizard.tsx`, 4 in `GoalEdit.tsx`, 1 in `Onboarding.tsx` and 2 in `RemoveSheets.tsx`.
+- At company size these are selects of 15,000 and 30,000.
+
 ### What works and is kept
 
 - **Three typed answers for the simplest goal**, one question a step, a card per type.
@@ -146,10 +164,10 @@ One row per field, in the shared field table (`docs/design/import/spec.md`; in c
 | | Fields | Starts as |
 |---|---|---|
 | **Required** for every goal | Name · Type · Owner · Team · Level | Type: a number to move. Owner: you. Team: the owner's. Level: Team (or one below what it feeds). Each is shown, never silent |
-| **Required for a number to move** | Unit · Today · Target | Empty |
+| **Required for a number to move** | Unit · Baseline · Target | Empty |
 | **Required for a number to keep in range** | Unit · Must stay · Limit | Must stay: at most |
 | **Required for dated stages** | At least one stage; each stage's name and due week | One empty row |
-| Optional, with the default said | Decimals (worked out from what you type) · By when (the cycle's end) · How progress comes (steady) · Warn this close (no early warning) · Feeds into (nothing) · How much, and why it helps · Also helps (none) · Guardrail (no) · Measured by / How it’s measured · Where the number comes from | As said |
+| Optional, with the default said | Decimals (worked out from what you type) · From (this week) · To (the goal year's end) · How progress comes (steady) · Warn this close (no early warning) · Feeds into (nothing) · How much, and why it helps · Also helps (none) · Guardrail (no) · Measured by / How it’s measured · Where the number comes from | As said |
 | Worked out | Key · the plan week by week · which way is better · status and everything after it | By Faro |
 
 **How a step says it.** A step where most fields are needed says once, under its heading, "Everything here is needed unless it says optional." and marks the optional ones "· optional". A step with one needed field says nothing. A default that was taken is a sentence with "Change" ("Kept as whole numbers, as you typed them."), not a filled-in field that looks typed (wireframe 1).
@@ -172,10 +190,10 @@ One row per field, in the shared field table (`docs/design/import/spec.md`; in c
 
 New goal's last step. A title, then rows of sentences, each with "Change" to its step:
 
-- **What**: "A number to move: from 40% today to 90% by week 53 (28 Dec–3 Jan 2027), the same amount each week. Higher is better."
+- **What**: "A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better."
 - **Who and where**: "Tunde Bakare owns it, in Build & Release. It’s a Team goal and feeds “…” (G-41)."
 - **Measured by**: the metric, or "No metric" and the description.
-- **Left as usual**: every default taken, in one line: "Whole numbers. Due at year end. Not a guardrail. Helps no other goal."
+- **Left as usual**: every default taken, in one line: "Whole numbers. From this week to the end of 2026. Not a guardrail. Helps no other goal."
 - **You said**: each Check answered.
 
 Then one block, **After you publish**:
@@ -212,7 +230,7 @@ Then one block, **After you publish**:
 |---|---|---|---|
 | "Add a goal that feeds this" | Under a goal's "What feeds it" | `/goals/new?parent=<id>` | Feeds into; the level one below |
 | "Add a goal for {team}" | A team's page, beside "See its {n} goals" | `/goals/new?team=<id>` | Team |
-| "Duplicate as a new goal" | A goal's "…" menu; the edit page's foot | `/goals/new?like=<id>` | Type, unit, decimals, shape, team, level, what it feeds, how it's measured, the stages' names. Not the name, the numbers, the dates or the owner |
+| "Duplicate as a new goal"; "Copy from a goal" | A goal's "…" menu and the edit page's foot; New goal's step 1, which finds the goal by typing | `/goals/new?like=<id>` | Type, unit, decimals, shape, team, level, what it feeds, how it's measured, the stages' names. Not the name, the numbers, the dates or the owner |
 | "Set up the goal" | A next step that asks for a goal (below) | `/goals/new?from=<askId>` | Name, owner, what it feeds |
 | "Adding several? Paste a table or import a file" | The foot of New goal's step 1 | The import's paste door (`docs/design/import`) | — |
 
@@ -244,6 +262,73 @@ New goal offers no gallery. Each type's card keeps its one example; every field'
 ### 8. The AI tools say the same
 
 `create_goal`, `update_goal`, `set_plan_numbers` and `bulk_change` already run the engine. Round 2 makes their answers the same two levels in the same words: "Not saved. Must fix: …" lists what the form would put under fields; "Not saved. Check with the person first: …" lists every question, not only the direction one, and `confirm: true` answers them. Today's "Read as:" notes that are really questions move up a level. The tools gain the form's missing fields (also helps, guardrail, effect) once the field table has their rows.
+
+### 9. The three dates, named once and picked (wireframe 8)
+
+**The words.** A number to move has two numbers and two weeks, said the same on every screen, in the sheet and by the tools:
+
+| Word | Is | Today's names |
+|---|---|---|
+| **Baseline** | The number the plan starts at | "Today (week 46)", "Start", the sheet's Start |
+| **From** | The week the baseline was true, and the plan starts | Not shown; the sheet's "Plan from week" |
+| **Target** | The number to reach | Target |
+| **To** | The week the target is due | "By when?", "When it’s due", "Due week" |
+
+- **The baseline's date and From are one date**, as in the data. A plan is a line from a known number in a known week; a baseline measured in week 40 with a plan that "starts" in week 46 is a plan that expected nothing for six weeks, which nobody means. So the form asks for one week and, when it is in the past, asks the question that matters (below).
+- In a sentence: "From 42 min in week 46 (9–15 Nov 2026) to 30 min by week 13 (29 Mar–4 Apr 2027)". A week is never shown without its dates, and the dates always carry their year.
+- Stages keep "Due". A range has no dates to choose: "It applies from the week it is published (week 46, 9–15 Nov 2026) to the end of 2026."
+
+**Picking.** One control, the week picker, for From, To, a stage's Due and a review's "Set up by":
+
+- **Closed**: the week as words, "Week 46 · 9–15 Nov 2026", and under it what that week is: "This week", "6 weeks ago", "The end of 2026", "The end of Q1 2027".
+- **Open**: a panel under the field (a full sheet on a phone).
+  1. A field to type in: "Type a week or a date: 50, 14 Dec". "50" goes to week 50 of the year shown; "14 Dec" to the week that holds it; "2027 5" to week 5 of 2027.
+  2. Named weeks, up to three. For To: "The end of this quarter", "The end of {year}", "The end of Q1 {next year}". For From: "This week", "The start of this quarter", "The start of {year}". For a stage: "This week", "The end of this quarter", "The end of {year}".
+  3. "Or choose a week": the years as a short row of choices ("2026", "2027"), then that year's weeks as a plain list, each "Week 13 · 29 Mar–4 Apr", with the quarter ends and "this week" marked. The list opens at the chosen week.
+- **Defaults, shown not silent**: From is this week; To is the goal year's last week. Both are filled in and say what they are.
+- **What it offers**: To lists only weeks after From. From lists back to the first week of last year; From and To both run forward to the last week of next year. A stage lists this goal year (decision 11).
+- **Keys**: it is a listbox. Up and Down move a week, Page Up and Page Down four weeks, Home and End to the year's first and last, Left and Right change the year, Enter chooses, Escape closes; typing goes to the field.
+- **No calendar of days.** A goal is planned and checked by the week; a grid of days would offer 365 choices where 53 exist, and invite a day nobody will be held to. The dates are shown so the week is unmistakable; they aren't chosen.
+- It is one of round 1's "short fixed lists", which stay plain (find spec, section 4): at most 53 rows under a year.
+
+**Years.** The data keeps what it has: weeks counted from the cycle's start (`fromWeek`, `endWeek`, a stage's `dueWeek`). The picker shows a goal year and its week; one rule converts each way (`spec.md`, rule 13). In a goal year that starts in January, the year and week are the ISO ones.
+
+| Shown | Held (cycle 2026, which has 53 weeks) |
+|---|---|
+| Week 46 of 2026 · 9–15 Nov 2026 | 46 |
+| Week 53 of 2026 · 28 Dec 2026–3 Jan 2027 | 53 |
+| Week 1 of 2027 · 4–10 Jan 2027 | 54 |
+| Week 13 of 2027 · 29 Mar–4 Apr 2027 | 66 |
+| Week 52 of 2025 · 22–28 Dec 2025 | 0 |
+| Week 40 of 2025 | −12 |
+
+- **To beyond this goal year is allowed**, as the engine allows today (up to week 104), and is said, not asked: "It runs past the end of 2026 and carries into 2027 with this plan." It was chosen from a list under "2027"; asking again would be nagging.
+- **Nothing in the data changes.** Two rules do: carrying a goal over must move From with the cycle (E14's last point), and a goal whose From is still to come must not be due (below). Stages next year would need two more (decision 11).
+
+**The levels on dates** (exact words in `spec.md`, section 4):
+
+| Case | Level | What happens |
+|---|---|---|
+| To on or before From | Must fix | It can't be picked. In a file or a tool: "To (week 40, 28 Sep–4 Oct 2026) isn’t after From (week 46, 9–15 Nov 2026)." |
+| A week that doesn't exist ("2027-W53") | Must fix | "2027 has 52 weeks. Use 2027-W52, or 2028-W01." |
+| From in the past | Check | "Week 40 was 6 weeks ago. Has this been running since then? The plan would expect 39 min by this week." → "Yes, it was 42 min in week 40" / "No, start from this week". Round 1's re-base at the first check-in still applies afterwards |
+| From before this goal year | Check | The same question, with the year: "Week 40 of 2025 was 58 weeks ago…" |
+| To in the past (only possible when From is) | Check | "Week 44 has already passed. Was the target due then?" → "Yes, it was due in week 44" / "No, I’ll choose a later week" |
+| A plan longer than a year | Check | "This plan runs 63 weeks, to week 40 of 2027. Is that right?" |
+| To beyond this goal year | Fine, and said | The line above |
+| From in the future | Fine, and said | "It starts in week 50 (7–13 Dec 2026). Until then nothing is due, and it reads “No check-in yet · starts week 50”." No new status word: the five stay five |
+
+**The sheet.** "Start" stays (a file may also head it "Baseline"). Beside "Plan from week" and "Due week", which stay and still load, the sheet gains **"From"** and **"To"** as a year and a week, `2026-W46`. A stage may be written `Design@2026-W48` as well as `Design@48`. Where a number and a year-week disagree, the one that was changed counts (the rule Owner and Owner email already follow), so an old file loads as it did and an export loaded back still changes nothing.
+
+**On the edit page** From and To are part of "Plan and target", with the same control; changing either after check-ins is a plan change and needs the reason. "What will change" says it with dates: "To: week 53 (28 Dec 2026–3 Jan 2027) becomes week 13 of 2027 (29 Mar–4 Apr 2027). It now carries into 2027."
+
+### 10. Search to find, for every person, team, goal and metric (wireframe 9)
+
+**The rule: no list of everything survives anywhere in goal entry.** Every choice of a person, a team, a goal or a metric is round 1's find-and-pick (`docs/design/find/spec.md`, 2.3 and rule 6), unchanged: closed, the choice as words with "Change"; open, a search with up to six suggestions first, then results with a count as you type, the same two-line rows as Find, arrow keys and Enter, a full sheet on a phone. Short fixed lists stay plain: the type, the level, how progress comes, must stay, "For" (a metric's two slices), and the week picker.
+
+What goal entry adds is only what each use needs, set out in one table in `spec.md` (2.14): the suggestions that fit the place (the goal's team with its lead first when choosing an owner for a team's goal; the goal on screen and the review's people in a review; the people typed so far in set-up), the "none" rows ("Nothing: top of its own tree", "No metric", "No owner yet"), where "add as new" is offered (a metric; a team in set-up; never a person), what is matched (a name by word starts, a goal's key such as G-48, a whole email address), and which Must fix or Check a choice can raise once made.
+
+New goal's step 1 gains one more use: "Like one you have? Copy from a goal" finds the goal to copy by typing.
 
 ## Each screen's one primary action
 
@@ -277,7 +362,9 @@ Every line is enforced by a rule that exists (`spec.md`, section 5): adding and 
 - Each step is one column; the foot ("Back", "Continue") is fixed above the keyboard; the count of things to fix sits just above it, so it is seen without scrolling.
 - A question's two answers stack, each 44 px high, full width.
 - **Numbers** open the decimal keypad. Where a number may be below zero (the unit isn't a share, a time or money, or the person has already said a negative is right) the field opens the full number keyboard instead, since the iPhone's decimal keypad has no minus. To be checked on a device.
-- **Stages**: each is a block, the name and then "Due", a list of weeks with their dates ("Week 48 · 23–29 Nov"); no bare week numbers.
+- **Stages**: each is a block, the name and then "Due", the week picker; no bare week numbers.
+- **The week picker** is a full sheet titled by its field: the type-in field, the named weeks, the years as two or three buttons, then the weeks, each row 44 px. **Baseline and From**, and **Target and To**, stack as number then week.
+- **Find-and-pick** is a full sheet, as round 1 has it.
 - **The plan week by week** is a sheet, one row per week ("Week 47 · 16–22 Nov", then the field), not a table.
 - **The read-back**: each row's "Change" is beside its label; "After you publish" is the last thing before the foot.
 - **The edit page**: the section links scroll sideways inside themselves (round 1); "Save {n} changes" is full width and never covers a field.
@@ -294,6 +381,10 @@ Every line is enforced by a rule that exists (`spec.md`, section 5): adding and 
 | 5 | A goal agreed in a review, and what its owner then sees | ![](wireframes/05-agreed-in-a-review-1440.png) | ![](wireframes/05-agreed-in-a-review-390.png) |
 | 6 | New goal from a parent goal; "Adding several?" | ![](wireframes/06-from-a-parent-and-several-1440.png) | ![](wireframes/06-from-a-parent-and-several-390.png) |
 | 7 | Drafts: on New goal, on Goals, and after closing | ![](wireframes/07-drafts-1440.png) | ![](wireframes/07-drafts-390.png) |
+| 8 | The three dates: closed, "To" open, a From in the past, and a stage | ![](wireframes/08-dates-picked-1440.png) | ![](wireframes/08-dates-picked-390.png) |
+| 9 | Search to find: the owner picker open and typing; the other choices closed | ![](wireframes/09-search-to-find-1440.png) | ![](wireframes/09-search-to-find-390.png) |
+
+Wireframes 1 to 5 were redrawn on 11 Nov to say dates the new way (Baseline, From, To; weeks with their year).
 
 Round 1's wireframes for the steps' order, the pickers, the past-stage question and the first check-in (`docs/design/onboarding/wireframes`) stand and are not redrawn.
 
@@ -317,6 +408,13 @@ For the lead to reconcile with the import area's field table. Each is a change t
 | 12 | Who may add a goal for someone else | The engine: admins. The form: anyone | The form asks the engine; no rule changes | Must fix |
 | 13 | "Also helps", "Guardrail", and the effect in the AI tools | Form only | Rows in the field table | — |
 | 14 | Unit or decimals on an existing goal | Import only | Also on the edit page; after check-ins the unit is a plan change (a reason) | — |
+| 15 | From and To in the sheet | "Plan from week", "Due week": numbers counted from the cycle's start | Kept and still loaded; "From" and "To" added as `2026-W46`; where they disagree the one changed counts. A stage may be `Name@2026-W48` | — |
+| 16 | The header "Start" | Start | Also read as "Baseline"; the form says Baseline | — |
+| 17 | From in the past; To in the past; a plan over a year long | Accepted | Questions | Check |
+| 18 | A goal whose From is still to come | Due for a check-in like any other | Nothing due until its From week (a rule beside the rhythm's) | — |
+| 19 | A number goal carried into a new cycle | Keeps its "plan from week" | From becomes the new cycle's week 0 (read from `cycle.ts:133`; to be confirmed by a test) | — |
+| 20 | To on or before From; a week that doesn't exist | The first is refused in today's words; the second is read as a number | Both Must fix, with dates | Must fix |
+| 21 | How far ahead a plan may run | Week 104 from the cycle's start (week 51 of 2027) | The last week of the next goal year (week 52 of 2027), so "The end of 2027" can be chosen | Must fix beyond it |
 
 Formats, unchanged but now stated per field: a number is digits with an optional decimal point or comma, thousands separators allowed, a sign in front; a week is a whole number shown with its dates; a name is 3 characters or more.
 
@@ -339,7 +437,10 @@ Formats, unchanged but now stated per field: a number is digits with an optional
 | Goal spec 2.1 and the "…" menu | "What feeds it"; Share, Copy, Print, Change, Stop | Adds "Add a goal that feeds this" and "Duplicate as a new goal" |
 | Navigation spec 2.5 | "Close and keep the draft" on New goal | With nothing typed it reads "Close"; after it, a toast says where the draft is |
 | Metrics spec 2.4 (ML2) | The pick passes the metric and its slice | The pick also passes which way is better and the metric's latest number for that slice, so two questions can be asked. No screen of ML2 changes |
-| Find spec | — | Nothing changes |
+| Onboarding spec 2.4, "Today (week {w})", "Target (week {due})", "By when?" | Labels with a week; "By when?" as today | "Baseline" with "From", "Target" with "To", each week picked (section 9). "By when?" goes |
+| Onboarding spec 2.4, a stage's "Due" | A select of the weeks left, with "Earlier…" | The week picker; "Earlier…" is its 2026 list above this week. The past-stage question is unchanged |
+| Find spec, FS1 | The control, and every select of everything replaced; its second part (GoalWizard, GoalEdit, set-up's owners, who takes over) is held | **Nothing in FS1 changes.** GE1, GE4, GE5 and GE6 now state that they need its second part, and every new choice they add is born as find-and-pick (the pickers lint already refuses a new select). `scripts/pickers-left.json` covers the goal-entry places that exist: `GoalWizard.tsx` (owner, team, feeds into), `GoalEdit.tsx` (owner, team, feeds into, also helps), `Onboarding.tsx` (a goal's owner), `RemoveSheets.tsx` (who takes over). It can't list what isn't built: the review's "Who will own it?" and "It will feed", and "Copy from a goal". Not checked: whether the selects in `src/ui/NextStepSheet.tsx` and `Review.tsx` (a next step's "who") are fixed lists, as the lint takes them to be |
+| Find spec, section 4 (what stays plain) | Weeks, levels, sort orders | The week picker is the "weeks" entry, now with a year |
 
 ## For the rebuild (spec only)
 
@@ -386,3 +487,20 @@ One batch; the recommended answer is first. `spec.md`, section 10, says what cha
 9. **Check answers in a goal's History.**
    - (a) Kept, as one line with the goal's creation or change. *Recommended.*
    - (b) Not kept.
+10. **The baseline's date and From.**
+    - (a) One date: From is the week the baseline was true and the plan starts, as the data holds it. *Recommended.*
+    - (b) Two dates: "Baseline as of" and "From" (needs a new field on a plan, and a rule for the weeks between them).
+11. **Stages due next year.**
+    - (a) Not yet: a stage is due within this goal year, and the picker says so; allow it when carrying over is reworked. *Recommended: no rule changes.*
+    - (b) Allow it now (two rule changes: `validateGoal`'s limit, and carrying over must keep a chosen week instead of spreading stages evenly).
+12. **A range's dates.**
+    - (a) None to choose: it applies from the week it is published to the goal year's end, and says so. *Recommended.*
+    - (b) "Applies from" as a picked week (a new field on a range).
+13. **How the sheet writes a week.**
+    - (a) `2026-W46` in new From and To columns, beside the week numbers, which still load. *Recommended.*
+    - (b) The week's Monday as a date (`2026-11-09`); spreadsheets tend to reformat dates.
+    - (c) Week numbers only, as today.
+14. **A goal that hasn't started yet.**
+    - (a) "No check-in yet · starts week 50", and nothing due until then. *Recommended: no sixth status.*
+    - (b) A new status word, "Planned".
+
