@@ -141,6 +141,7 @@ export const INTERNAL: InternalRequirement[] = [
       'The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).',
       'Every rule in the access table is checked in `src/domain/actions.ts`, `src/domain/removal.ts`, `src/domain/asks.ts` and the change engine (`src/domain/changeset.ts`), by the app and the MCP server alike, before anything is saved. The database doesn’t check them.',
       'The public key can still write to most tables (not tokens; it can only add markups and feedback). Tokens are made in the database by `okr_token_create` and found by hash (`okr_token_find`, migration 0024).',
+      'Every grant, row rule and `security definer` function the database has today is listed in one place, read from the database after every migration and each marked “demo access: replace”: [access today](../../rebuild/access-today.md). It ends with the two shapes that replace them: a membership rule on each table, and a definer function that checks who is calling before it does anything.',
       'Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/adapters/supabase/goalsStore.ts`).',
       'Faro’s inbox is open on purpose (backlog O, migration 0031): anyone, with no sign-in, reads every markup and piece of feedback and their pictures (a public-read bucket nobody can list), and changes a status through the one status rule, recorded as the person using the app and undoable; any token reaches it through MCP. There is no builder sign-in and no builder token in the app any more (the builders list and builder tokens from migrations 0024 and 0029 are left in the database, unused). The internal app keeps rule 6 as written.',
       'Markups today are reports about the app; sending one about a goal (3a) is not built yet.',
@@ -312,6 +313,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download passes a stated size (`scripts/check-bundle.mjs`, 250 KB compressed), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {

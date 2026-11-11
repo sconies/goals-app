@@ -21,6 +21,8 @@ What a search matches, the near miss offered when nothing does, and the one sear
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
+**Find, from anywhere.** One search across kinds: goals, people, teams, then a module's kinds (the metric library's metrics), never workspaces. Each kind is searched by its own rule above with 3 rows, and only the groups that found something are given, in that order, each with how many match in all ("Goals · 8", then "See all 8 goals"). People marked as left are found too, named "{name} (left)", after everyone here. A search that is one goal's key ("G-48", "g48", "48") puts that goal first and alone under Goals. When a kind finds nothing, its near miss is tried; when no kind finds anything, Find says "Nothing matches “{q}”." Before anything is typed it offers what was opened or chosen lately, up to 8, of any kind.
+
 **The seam.** Screens, pickers and the AI tools reach this through the `Search` port (`src/ports/search.ts`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.
 
 ## Worked examples
@@ -37,6 +39,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor. | `Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor` |
 | Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed. | `126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.` |
 | The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”. | `Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.` |
+| In the demo workspace, Find for “rhea”, “48” and “zzzz”: each group with its total and first rows. | `goal 8: Lead time for changes, Pipeline queue wait (p90), Flaky test rate in the main pipelines; person 1: Rhea Kapoor; team 1: CI/CD / goal 1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / nothing` |
+| Whole keys: “G-48”, “g48”, “48”, “rollback”. | `G-48, G-48, G-48, none` |
 | In the demo workspace: people for “tunde” and “LUCIA”; teams for “rhea”. | `1: Tunde Bakare / 1: Lucía Romero / 1: CI/CD` |
 
 ## Not self-explanatory
@@ -46,11 +50,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `page`, `suggest`, `withRecent`, `countLine`, `filterLine`, `filterText`, `noneFound`, `historyStep`
+- [src/domain/find.ts](../../../src/domain/find.ts): `textMatches`, `wordsOf`, `fold`, `oneEditApart`, `nearMiss`, `search`, `searchGoals`, `searchPeople`, `searchTeams`, `goalWords`, `goalRow`, `page`, `suggest`, `withRecent`, `countLine`, `filterLine`, `filterText`, `noneFound`, `historyStep`, `findAll`, `findAllAsync`, `keyOf`, `FIND_KINDS`, `FIND_SIZE`
 - [src/domain/query.ts](../../../src/domain/query.ts): `searchKey`
 
 ## Requirements
 
+- `FIND-ANYWHERE`: Anything can be found from any page by name or key: the sidebar's Find (a field with its key), the phone's top bar Find and Ctrl K (Cmd K) open one search across goals, people, teams and a module's kinds (metrics), in that order, three rows a group with its count and “See all {n} {things}”; a goal's key alone puts that goal first; Enter opens the first row, rows are links and Escape closes. Before typing it lists what was opened lately; people marked as left are found as “(left)”; nothing from another workspace.
 
 ## Tests that check it
 
@@ -72,3 +77,14 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/adapters/parts.test.ts](../../../src/adapters/parts.test.ts)
 
 _None tagged with these requirements._
+
+### [src/adapters/findAll.test.ts](../../../src/adapters/findAll.test.ts)
+
+- rule 8: Find across kinds (findAll) › reads a whole key however it is typed
+- rule 8: Find across kinds (findAll) › finds nothing for nothing typed
+- rule 8: Find across kinds (findAll) › puts a key’s goal first and alone in Goals
+- rule 8: Find across kinds (findAll) › gives the groups that found something, in order, three rows each with their totals
+- rule 8: Find across kinds (findAll) › never looks in workspaces, and a kind it isn’t given is left out
+- rule 8: Find across kinds (findAll) › finds someone marked as left, and says so
+- rule 8: Find across kinds (findAll) › tries a near miss per kind
+- rule 8: Find across kinds (findAll) › finds nothing for nonsense

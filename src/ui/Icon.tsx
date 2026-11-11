@@ -1,7 +1,8 @@
 /* The app's own icons: 16px line drawings in the nav's style (design rule 3: no glyph characters as icons). */
-export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check' | 'settings' | 'sidebar-collapse' | 'sidebar-expand' | 'print' | 'grip' | 'download' | 'help';
+export type IconName = 'close' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'arrow-right' | 'arrow-up' | 'arrow-down' | 'trend-down' | 'minus' | 'plus' | 'back' | 'switch' | 'check-circle' | 'alert' | 'chevron-up' | 'more' | 'check' | 'settings' | 'sidebar-collapse' | 'sidebar-expand' | 'print' | 'grip' | 'download' | 'help' | 'search';
 
 const PATHS: Record<IconName, string> = {
+  search: 'M7 2.75a4.25 4.25 0 1 0 0 8.5 4.25 4.25 0 0 0 0-8.5zM10.2 10.2l3.3 3.3',
   help: 'M8 1.75a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5zM6.15 6.3a1.9 1.9 0 1 1 2.65 1.75c-.5.22-.8.62-.8 1.15v.35M8 11.2v.2',
   grip: 'M6 4v.1M10 4v.1M6 8v.1M10 8v.1M6 12v.1M10 12v.1',
   download: 'M8 2.5v7.5M4.75 6.75 8 10l3.25-3.25M3 13.25h10',
