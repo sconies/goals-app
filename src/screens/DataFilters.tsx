@@ -1,14 +1,8 @@
-/* Data's filters: one line per filter for its chip, and the sheet that adds or changes one. */
+/* Data's filters: the sheet that adds one (the list bar's "Another column": a column, a condition, a value). */
 import { useState } from 'react';
-import { describeFilter, NO_VALUE, OP_LABEL, OPS, SEP, type ColumnKind, type Op, type PropFilter } from '../domain/tableFilter';
+import { NO_VALUE, OP_LABEL, OPS, SEP, type ColumnKind, type Op, type PropFilter } from '../domain/tableFilter';
 import { Sheet } from '../ui/bits';
 
-/** A filter as one short line for its chip: the first two values, then how many more. The full text is in the editor. */
-export const shortFilter = (f: PropFilter) => {
-  const vs = f.value.split(SEP).filter(Boolean);
-  if ((f.op !== 'is' && f.op !== 'isNot') || vs.length <= 2) return describeFilter(f);
-  return `${f.col} ${OP_LABEL[f.op]} ${vs.slice(0, 2).join(', ')} +${vs.length - 2}`;
-};
 /** Add or change one filter: a column, a condition that suits it, and a value. */
 export function FilterEditor({ head, kinds, values, start, onSave, onClose }: { head: string[]; kinds: Record<string, ColumnKind>; values: (col: string) => string[]; start?: PropFilter; onSave: (f: PropFilter) => void; onClose: () => void }) {
   const [col, setCol] = useState(start?.col ?? head.find((c) => kinds[c] === 'choice') ?? head[0] ?? '');

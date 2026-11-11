@@ -82,6 +82,15 @@ export function searchContract(name: string, make: () => Promise<Search>) {
       expect((await search.suggest('goal', 'tunde', [])).map((r) => r.id).slice(0, 2).sort()).toEqual(['cfr-contract', 'lead-rollback']);
     });
 
+    it('gives the rows for things already chosen by id, in the words a search gives, someone marked as left included', async () => {
+      expect(await search.byIds('person', ['oskar', 'rhea', 'nobody'])).toEqual([
+        expect.objectContaining({ kind: 'person', id: 'oskar', name: 'Oskar Lindgren' }),
+        (await search.search('person', { q: 'rhea' })).rows[0],
+      ]);
+      expect((await search.byIds('goal', ['lead-rollback']))[0]).toEqual((await search.search('goal', { q: 'G-10' })).rows[0]);
+      expect((await search.byIds('team', ['cicd']))[0]).toMatchObject({ name: 'CI/CD', detail: 'Led by Rhea Kapoor · 7 people' });
+    });
+
     it('may offer a near miss when nothing matches, and says nothing when nothing is near', async () => {
       const a = await search.search('goal', { q: 'rolback' });
       if (a.near !== undefined) { expect(a.near).toBe('rollback'); expect(a.rows.map((r) => r.id)).toContain('lead-rollback'); }

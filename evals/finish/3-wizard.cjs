@@ -118,8 +118,9 @@ module.exports = {
       const sum = await box(p.locator('.disclose > summary'));
       if (sum.h < 44) f(`(3) the data source disclosure is ${sum.h}px tall`);
       // (21) Team and Owner stacked 24px apart
-      const [team, owner] = [await box(p.locator('.fit-pair select').nth(0)), await box(p.locator('.fit-pair select').nth(1))];
-      const teamField = await box(p.locator('.fit-pair > .field').first()); const ownerField = await box(p.locator('.fit-pair > .field').nth(1));
+      // Team and Owner are find-and-pick fields (FS1): their boxes are the fields themselves.
+      const [team, owner] = [await box(p.locator('.fit-pair > .field').nth(0)), await box(p.locator('.fit-pair > .field').nth(1))];
+      const teamField = team; const ownerField = owner;
       if (owner.y > team.y + 1 && ownerField.y - teamField.b < 23.5) f(`(21) stacked Team and Owner are ${ownerField.y - teamField.b}px apart`);
       // (27) the guardrail box on the column's edge, level with the first line
       const cb = await box(p.locator('.check input')); const lab = await box(p.locator('.check span')); const c1 = await col(p);
@@ -282,8 +283,9 @@ module.exports = {
     {
       const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
       await toNumbers(p); await cont(p);
-      const feeds = await p.getByLabel('Feeds into').inputValue().catch(() => null);
-      if (feeds !== '') f(`new goal: Feeds into starts as “${feeds}”, not empty`);
+      // Feeds into is find-and-pick (FS1): with nothing chosen its field says what nothing means.
+      const feeds = await p.getByRole('button', { name: /^Feeds into\b/ }).first().innerText().catch(() => null);
+      if (feeds?.trim() !== 'Nothing: top of its own tree') f(`new goal: Feeds into starts as “${feeds}”, not empty`);
       await cont(p);
       const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
       if (!/Feeds nothing · CI\/CD team · Rhea Kapoor/.test(fits)) f(`new goal: Where it fits reads “${fits}”`);

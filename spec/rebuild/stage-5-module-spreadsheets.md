@@ -13,18 +13,20 @@ Download the goals as an Excel workbook or CSV files, and load changes back from
 
 ## What to build
 
-Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Tools for it on Data and Goals.
+Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Tools for it on Data and Goals, and Help’s table of every column.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/spreadsheets/README.md#what-it-adds-to-the-core).
 
 ## Exit criteria
 
-1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA` (words in [its section](../modules/spreadsheets/README.md#requirements)).
-2. Its journeys and checks can be done: U19, U20, U46, U48, F7, F8, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
-3. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged.
+1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE` (words in [its section](../modules/spreadsheets/README.md#requirements)).
+2. Its journeys and checks can be done: U19, U20, U46, U48, U87, F7, F8, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
+3. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.
 4. A workbook with one wrong row saves nothing, and the preview names the row and the problem.
+5. The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.
+6. The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).
 
 ## Gaps in the kit
 
-- The spreadsheet format (every sheet, column and how each is read) is in docs/export-format.md, which is not in the kit yet.
-- No conformance rows for a download or a load yet, so nothing scores this stage; its journeys are Faro’s own eval scripts.
+- The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.
+- No conformance rows for a download or a load yet, beyond the field table's worked examples, so nothing scores this stage; its journeys are Faro’s own eval scripts.

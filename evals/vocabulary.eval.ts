@@ -65,6 +65,7 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/ui/ChangeItem.tsx', word: 'Action', why: 'Reads the stored change-log field “Action” to show what was said.' },
   { file: 'src/screens/CheckInFlow.tsx', word: 'Done', why: 'The button that closes the “why better than the numbers” sheet: finished with this sheet, not a status.' },
   { file: 'src/screens/DataLayout.tsx', word: 'Done', why: 'The button that closes the column layout sheet, not a status.' },
+  { file: 'src/screens/GoalsScreen.tsx', word: 'Done', why: 'The button that closes the phone’s View sheet (goals spec, 2.4), not a status.' },
   { file: 'src/screens/Watching.tsx', word: 'Done', why: 'The button that finishes changing what you watch, not a status.' },
   { file: 'src/ui/Pick.tsx', word: 'Done', why: 'The button that closes a picker where several can be chosen (find-and-pick), not a status.' },
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },
@@ -178,11 +179,11 @@ describe('one meaning for every status word', () => {
     const attention = articleText(articleById('needs-attention')!);
     expect(attention).toContain(ATTENTION.needs.long);
     for (const k of ['decision', 'no-path', 'missed-path', 'trend', 'greener', 'due'] as const) expect(attention, k).toContain(`${FLAG[k].label}: ${FLAG[k].long}`);
-    // The workbook's README defines every word an export uses, in the vocabulary's words.
+    // The workbook's Start here sheet defines every word an export uses, in the vocabulary's words.
     const today = new Date('2026-11-05T12:00:00Z');
     const s = seed(today), cycle = s.cycles[0]!, week = currentWeek(cycle, today);
     const x = { ws: { id: 'w', name: 'Example' }, snapshot: s, cycle, week, today };
-    const readme = workbook(x).find((t) => t.name === 'README')!.rows;
+    const readme = workbook(x).find((t) => t.name === 'Start here')!.rows;
     for (const k of ['on', 'risk', 'off', 'stale', 'done'] as const) expect(readme.some((r) => r[1] === STATUS[k].label && r[2] === STATUS[k].long), k).toBe(true);
     for (const k of ['completed', 'late', 'missed'] as const) expect(readme.some((r) => r[1] === RESULT[k].label && r[2] === RESULT[k].long), k).toBe(true);
     // The JSON keeps the codes machines read, with the words people read beside them, and defines both.
@@ -287,10 +288,12 @@ describe('one Needs attention', () => {
     });
   }
 
-  it(A('the map’s “Only what needs attention” is the Goals filter itself, not a status filter of its own'), () => {
+  it(A('on the map, what needs attention is the list bar’s switch, the Goals filter itself, not a filter of the map’s own'), () => {
     const screen = withoutComments(read('src/screens/GoalsScreen.tsx'));
-    expect(screen).toContain('attention={query.attention}');
+    const map = withoutComments(read('src/screens/GoalMap.tsx'));
     expect(screen).not.toMatch(/\['off', 'risk', 'stale'\]/);
+    expect(screen).toContain('<GoalMap goals={mapGoals}');
+    expect(map).not.toMatch(/attention/i);
   });
 
   it(A('a link or saved view from before still opens the goals it meant: needs=no-recovery is No path to green'), () => {

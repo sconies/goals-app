@@ -11,7 +11,7 @@ import { useModules } from '../core/app';
 import { findAllAsync, type FoundGroup } from '../domain/find';
 import type { FoundRow } from '../ports/search';
 import { Icon } from './Icon';
-import { RowText, rowFor } from './Pick';
+import { RowText } from './Pick';
 
 /** The core's kinds as Find names them and where each opens; a module's come from its finder. */
 const CORE: Record<string, { thing: string; things: string; group: string; open: (id: string) => string; all: string }> = {
@@ -62,11 +62,20 @@ export function Find({ onClose }: { onClose: () => void }) {
   }, [q, search, tries]);
 
   // Before typing: what this person opened or chose lately, of any kind Find knows.
-  const lately = useMemo(() => recentsOf(prefs, app.ws.id, app.viewer.id)
-    .filter((r) => !!CORE[r.kind])
-    .map((r) => rowFor(app, r.kind, r.id))
-    .filter((r): r is FoundRow => !!r)
-    .slice(0, LATELY), [prefs, app]);
+  // Their rows are asked of the Search port by id, in its own words, as a closed picker's are.
+  const [lately, setLately] = useState<FoundRow[]>([]);
+  useEffect(() => {
+    const recent = recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => !!CORE[r.kind]);
+    const kindsUsed = [...new Set(recent.map((r) => r.kind))];
+    let live = true;
+    Promise.all(kindsUsed.map((k) => search.byIds(k, recent.filter((r) => r.kind === k).map((r) => r.id))))
+      .then((lists) => {
+        const byKey = new Map(lists.flat().map((r) => [`${r.kind}:${r.id}`, r] as const));
+        if (live) setLately(recent.map((r) => byKey.get(`${r.kind}:${r.id}`)).filter((r): r is FoundRow => !!r).slice(0, LATELY));
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [prefs, app.ws.id, app.viewer.id, search]);
 
   const options: Option[] = typed
     ? (groups ?? []).flatMap((g) => {
@@ -118,7 +127,7 @@ export function Find({ onClose }: { onClose: () => void }) {
     return (
       <li key={o.key} role="presentation">
         <Link to={o.to} id={optId(i)} role="option" aria-selected={i === at} tabIndex={-1} className={'pick-row option find-row' + (i === at ? ' active' : '') + (o.all ? ' find-all' : '')} onMouseEnter={() => setAt(i)} onClick={() => open(o)}>
-          {o.row ? <RowText row={o.row} you={o.row.kind === 'person' && o.row.id === app.viewer.id} /> : <span className="pick-text"><span className="pick-name">{o.all}</span></span>}
+          {o.row ? <RowText person={app.person} row={o.row} you={o.row.kind === 'person' && o.row.id === app.viewer.id} /> : <span className="pick-text"><span className="pick-name">{o.all}</span></span>}
         </Link>
       </li>
     );

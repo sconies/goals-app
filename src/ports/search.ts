@@ -22,6 +22,11 @@ export interface Search {
   search(kind: SearchKind, ask: SearchAsk): Promise<SearchAnswer>;
   /** Rows to offer before anything is typed (find spec, rule 6): up to 6, for this person, with what they chose lately. */
   suggest(kind: SearchKind, viewerId: string, recents: Recent[]): Promise<FoundRow[]>;
+  /**
+   * The rows for things already chosen, by id, in the same words a search gives and in the order asked: what a closed
+   * picker shows. Finds someone marked as left (a choice already made); leaves out an id it can't find.
+   */
+  byIds(kind: SearchKind, ids: string[]): Promise<FoundRow[]>;
   /** The kinds it answers, core first. */
   kinds(): SearchKind[];
 }

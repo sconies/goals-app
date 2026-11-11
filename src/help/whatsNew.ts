@@ -21,6 +21,105 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'mcp-goal-scopes',
+    date: '2026-11-11',
+    title: 'Your AI assistant finds goals the way your Goals tabs do',
+    points: [
+      'Ask Claude (or another AI tool on MCP) for your goals, your team’s or the ones you watch, and it finds the same goals as Mine, My team and Watching on Goals.',
+      'If you have no team or own no goals, it says so instead of guessing.',
+    ],
+    articles: ['ai-assistants', 'goals'],
+  },
+  {
+    id: 'feature-undo',
+    date: '2026-11-11',
+    title: 'Undo brings a feature back',
+    points: [
+      'Switching a feature off and pressing Undo straight away now switches it back on, everywhere it was. Before, the message said it was back on while it stayed off.',
+      'Undo after turning recording on or off works the same way.',
+    ],
+    articles: ['features'],
+  },
+  {
+    id: 'one-list-bar-data-feedback',
+    date: '2026-11-11',
+    title: 'Data and Feedback search and filter like every other list',
+    points: [
+      'Data and Feedback now have the same bar as Goals, Activity and People: the line under it counts what matches, filters read as words with Remove, and a search that finds nothing says so with Clear the search.',
+      'Their search, filters and sort are in the address, so Back steps through them and a shared link shows the same list. Old Data links still open sorted as they were.',
+      'People and Teams find through the same search as every picker, so a name you type comes first everywhere.',
+    ],
+    articles: ['finding', 'data', 'inbox', 'people'],
+  },
+  {
+    id: 'find-and-pick-everywhere',
+    date: '2026-11-11',
+    title: 'Every owner, team and goal is found by typing',
+    points: [
+      'Setting up or editing a goal, its owner, team, what it feeds and what it also helps are now a search, with you and your team suggested first, your team’s lead straight after you.',
+      'The same goes for an owner or a team in Data, who takes over when someone leaves, the owners in set-up, the person filter on Feedback, “Who are you?” (and Not you?), and anyone beyond the demo’s role cards.',
+      'A goal already under the one you’re editing is listed, greyed, with why it can’t feed it.',
+      'On a phone the list of matches opens as a full screen, not half of one.',
+    ],
+    articles: ['finding', 'new-goal', 'edit-goal', 'data', 'inbox', 'demo'],
+  },
+  {
+    id: 'check-in-queue',
+    date: '2026-11-11',
+    title: 'See your check-ins before you start',
+    points: [
+      'Check-in opens on the week’s list. Start with the first, or pick any.',
+      'Each goal says its status and what it last said; one you started and closed says Draft kept.',
+      'Start check-in on Home still goes straight into the first one.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'pages-name-themselves',
+    date: '2026-11-11',
+    title: 'Each page has its own name',
+    points: [
+      'A goal’s browser tab says the goal’s name. Goals is called Goals on every tab.',
+      'One back link on each page, which agrees with your browser’s Back button. A place’s first page, such as Settings, has none.',
+      'A form has one way out, in words: “Close and keep the draft”, or “Close without saving”, which asks first if you typed something.',
+      'Settings has links to its parts under the title, with the one you’re in lit.',
+    ],
+    articles: ['getting-around', 'settings'],
+  },
+  {
+    id: 'goals-view-menus',
+    date: '2026-11-11',
+    title: 'Layouts have names',
+    points: [
+      'Layout and Views are menus, the same on a computer and a phone. Views holds your saved views, Save this view, Copy link and Export these goals.',
+      'On the Map, the search at the top finds a goal and takes you to it.',
+      'On a phone, View opens one sheet with the layout, the grouping and your saved views.',
+      'Filters finds the goal whose tree you want by typing its name or key, instead of a list of every goal.',
+    ],
+    articles: ['goals', 'goal-map', 'goals-filters'],
+  },
+  {
+    id: 'field-table',
+    date: '2026-11-11',
+    title: 'What every column needs, in one place',
+    points: [
+      'Help has a table of every column: required or not, its format, an example.',
+      'The template’s first sheet is the same table, and its example rows are never imported.',
+      'Import says what a new goal, check-in and person must have before you choose a file.',
+    ],
+    articles: ['columns', 'import', 'export'],
+  },
+  {
+    id: 'round-trip-exact',
+    date: '2026-11-11',
+    title: 'An export loaded straight back changes nothing',
+    points: [
+      'A plan with decimal places could read as changed. It doesn’t now.',
+      'Nor does a goal whose stages were moved into a new order.',
+    ],
+    articles: ['import', 'export'],
+  },
+  {
     id: 'year-ends',
     date: '2026-11-11',
     title: 'A year ends on its last day',
