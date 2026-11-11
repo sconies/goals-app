@@ -22,8 +22,15 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #110 FS3: Find from anywhere | 1 | 1 | 0 | 4 |
 | #126 AX7: the Supabase adapter, tidied | 4 | 0 | 0 | 1 |
 | #128 AX4: a scale fixture and two budgets in CI | 4 | 0 | 1 | 0 |
+| #127 CY1: a year ends on its last day | 5 | 1 | 0 | 2 |
+| #131 AX8: the kit shows the database as it is | 4 | 0 | 1 | 2 |
 
-**Open, of high severity:** #110 finding 1 (a goal's status in Find and in the picker is a word with no shape). Sent to track 1 at 13:55 UTC.
+**Open, of high severity:**
+
+- #110 finding 1: a goal's status in Find and in the picker is a word with no shape. Sent to track 1 at 13:55 UTC.
+- #127 finding 1: once the wrap-up has closed, no screen lets an admin start the next year. Sent to track 5 at 14:20 UTC.
+
+Medium and low findings were sent to each track in one batch: track 4 at 14:00 UTC (#122 to #128) and again after #131; tracks 1, 2 and 5 after #131.
 
 ## Pull requests
 
@@ -114,3 +121,34 @@ The scale test is sound: the 10x workspace has ids of its own per copy, the limi
 - Suggested fix: sum the entry and every `modulepreload` in `dist/index.html` (or follow the entry's static imports), set the limit at today's real figure (about 410 KB), and correct the three sentences. The lazy routes are worth keeping; the next real saving is whatever keeps `changeset` and most of `state` out of a first visit.
 
 Nothing else found.
+
+### #127 CY1: a year ends on its last day (track 5, merged 13:45 UTC)
+
+Read against `docs/design/cycle-end/spec.md` rules 1 and 2, and opened as U117 does (the example copied into a workspace of its own, so 2026 stays 2026) on 11 Jan and 5 Feb 2027. The dates and states match every worked example in rule 1; `resultWeek` is rule 2's formula, and every caller of `goalResult` and `quarterResults` now uses it (checked one by one), so no two screens disagree about a result. After the last day nothing is due, late or out of date on Home, Goals, Check-in or a goal. The rules are pure and take the day passed in. What's new, the guide, the rule page, the requirement and U117 are there.
+
+**1. High. Once the wrap-up has closed, no screen lets an admin start the next year.** Sent to track 5 when found.
+
+- Where: `src/screens/Retro.tsx:105` shows "Start next year" only while `wrapUpOpenOn` is true, which is false from the day after `wrapUpCloses` (four weeks after the last day). `src/screens/Workspace.tsx:280-284` then offers only "See the wrap-up"; Home's admin card and Goals' "Wrap up" are gone too.
+- Reproduced as an admin on 5 Feb 2027: Cycles reads "2026 · ended 3 Jan 2027 … See the wrap-up"; `/retro` reads "The wrap-up closed on Sun 31 Jan 2027." and has no button; the frame says "2026 has ended". On 11 Jan the same pages show "Start it". Before CY1 the wrap-up, and with it the start, stayed open for as long as nobody started the next year, so this is new: a workspace that is four weeks late stays in an ended year for good.
+- The rule and the screens disagree: `startNextCycle` and `saveRetro` (`src/domain/actions.ts:291`, `:306`) still test `wrapUpOpen(x.cycle, x.week)`, and the week stops at the last one, so both are allowed for ever. The `start_next_cycle` AI tool still works after the close, and a wrap-up can still be saved through the tools though the page says it has closed.
+- No eval reaches the `closed` state: U117 stops at 11 Jan.
+- Suggested fix: starting the next year is not part of the wrap-up's window. Offer it whenever the current cycle is ending, ended or closed and no later cycle exists; make `saveRetro` and the page use one test for whether a wrap-up can still be saved; add 5 Feb to U117. CY2 rebuilds the start page and can carry this if it is the next merge.
+
+**2. Low. "Getting started" still says a first check-in is due after the year has ended.** Someone who first opens the workspace after its last day, owning a goal with no check-in, reads "Post your first check-in. It's due by Thursday." beside "2026 has ended: nothing more is due" (`src/domain/dayOne.ts`, the `first-check-in` row; seen on 11 Jan as Rhea). `dayOneRows` could carry whether the cycle has ended.
+
+**3. Low. A goal's page still forecasts an ended year.** On 11 Jan, G-1 reads "Will it hit 24? Very unlikely · likely 37 hours by year end", in the future tense, eight days after the end. The spec's 2.6 and CY7 say how a goal's page reads once ended; worth making sure one of them owns this line.
+
+### #131 AX8: the kit shows the database as it is (track 4, merged 13:48 UTC)
+
+`spec/core/schema.sql` and `spec/rebuild/access-today.md` are read back from PGlite after every migration by `npm run spec`, so they cannot drift from the migrations. `Deps` has a contract that runs in memory, on plain Postgres and on Supabase's adapter over a stand-in client. The token fallbacks removed from `supabaseDeps` were for databases before 0024.
+
+**1. Medium. The access page leaves out grants on single columns, so three ways to write are missing from the page that says it lists them all.**
+
+- Where: `src/spec/schema.ts` reads a table's grants only (`relacl`); a grant on columns lives on the column.
+- Checked on PGlite after every migration: `okr_feedback` is listed as "Granted to nobody … Functions only" in spirit, but `anon` may insert seven of its columns directly (0026), and an insert as `anon` passes the permission check; `okr_markups` is listed as "anon: select, insert; authenticated: select", but both may update six of its columns. The page shows the row rules for these ("demo: add", "markups: anyone triages") beside a grant list that says they can't be used.
+- Why it matters: the page says "Read this page, not the migrations, for the access surface". A team that does so misses that feedback can be written, and markups changed, without going through a function.
+- Suggested fix: add `pg_attribute.attacl` (or `information_schema.column_privileges`) to the query, shown as "anon: insert (7 columns)", and a test that the page's grants for `okr_feedback` include insert.
+
+**2. Low. `postgresDeps` keeps the last token's hash in one variable** (`src/adapters/postgres/server.ts:14`), so a server that makes one `Deps` and serves two requests at once stamps the wrong token as used. Supabase's does the same but is made per request (`server/vercel.ts`). The file is "the one to copy": say "make one per request", or key `touch` by the token id it is given.
+
+**3. Low. The contract's "notes a token as used" asserts only that nothing throws** (`src/ports/contracts/deps.ts`), so a `touch` that does nothing passes. Reading `lastUsedAt` back from `load` would make it a test.
