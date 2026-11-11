@@ -526,7 +526,7 @@ How a goal ended the cycle, in its owner's words, and what happens to it next.
 
 ## Where they are stored
 
-One Postgres database (Supabase). Each table holds one kind of record for every workspace (a `workspace_id` column), created by the migration named. `src/adapters/supabase/goalsStore.ts` maps rows to the records above; `src/data/rows.ts` does the field-by-field conversion.
+One Postgres database (Supabase). Each table holds one kind of record for every workspace (a `workspace_id` column), created by the migration named. `src/adapters/supabase/goalsStore.ts` maps rows to the records above; `src/data/rows.ts` does the field-by-field conversion. Every table, column, constraint, index and function as the database holds them after every migration: [schema.sql](schema.sql); who may read and change each: [access today](../rebuild/access-today.md).
 
 | Table | First created by |
 |---|---|

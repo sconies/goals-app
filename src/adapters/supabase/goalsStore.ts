@@ -4,15 +4,17 @@ import { upgradeAsks } from '../../domain/asks';
 import { withKeys } from '../../domain/goalKey';
 import type { Snapshot, Workspace } from '../../domain/types';
 import {
-  changeFromRow, changeToRow, checkInFromRow, checkInToRow, cycleFromRow, cycleToRow, decisionFromRow, decisionToRow, goalFromRows, goalToRows, requestFromRow, requestToRow, type RequestRow,
-  personFromRow, personToRow, teamFromRow, teamToRow, workspaceFromRow, workspaceToRow,
-  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type GoalRow, type PersonRow, type StageRow, type TeamRow, type WorkspaceRow, type WatchRow, type ReviewRow, watchFromRow, reviewFromRow, watchToRow, reviewToRow, type RetroRow, retroFromRow, retroToRow, type FeedbackRow, feedbackFromRow, feedbackToRow, type TokenRow, tokenFromRow, tokenToRow, type ViewRow, viewFromRow, viewToRow, commitPayload, loadModules } from '../../data/rows';
+  changeFromRow, changeToRow, checkInFromRow, commitPayload, cycleFromRow, decisionFromRow, feedbackFromRow, goalFromRows, loadModules, personFromRow,
+  requestFromRow, retroFromRow, reviewFromRow, teamFromRow, teamToRow, tokenFromRow, viewFromRow, watchFromRow, workspaceFromRow, workspaceToRow,
+  type ChangeRow, type CheckInRow, type CycleRow, type DecisionRow, type FeedbackRow, type GoalRow, type PersonRow, type RequestRow,
+  type RetroRow, type ReviewRow, type StageRow, type TeamRow, type TokenRow, type ViewRow, type WatchRow, type WorkspaceRow } from '../../data/rows';
 import { EXAMPLE, StaleError, type Commit, type Store } from '../../data/store';
-import { hasModuleRows, moduleRows, type DbRow, type ModuleRecords } from '../../domain/records';
+import { hasModuleRows, type DbRow, type ModuleRecords } from '../../domain/records';
 import { MODULE_RECORDS } from '../../core/records';
 
-/** A database function that isn't there yet: its migration hasn't been applied. */
+/** A database function that isn't there: the database is missing migrations. Said apart from a request that failed. */
 const missing = (error: { code?: string; message: string }) => error.code === 'PGRST202' || /Could not find the function|function .* does not exist/i.test(error.message);
+const MISSING = (fn: string) => `The database has no ${fn}: apply the migrations in supabase/migrations.`;
 
 /** Requests give up after this long, so a dead connection shows an error instead of loading forever. */
 export const TIMEOUT_MS = 12_000;
@@ -55,11 +57,6 @@ export class SupabaseStore implements Store {
     }
   }
 
-  private async must(p: PromiseLike<{ error: { message: string } | null }>, what: string) {
-    const { error } = await p;
-    if (error) throw new Error(`${what}: ${error.message}`);
-  }
-
   async workspaces(): Promise<Workspace[]> {
     const { data, error } = await this.db.from('okr_workspaces').select('*').order('created_at');
     if (error) throw new Error('Workspaces: ' + error.message);
@@ -73,16 +70,12 @@ export class SupabaseStore implements Store {
       this.all<GoalRow>('okr_goals', ws), this.all<StageRow>('okr_stages', ws), this.all<CheckInRow>('okr_check_ins', ws),
       this.all<DecisionRow>('okr_decisions', ws), this.all<ChangeRow>('okr_changes', ws),
       this.all<WatchRow>('okr_watches', ws), this.all<ReviewRow>('okr_reviews', ws), this.all<RetroRow>('okr_retros', ws),
-      // Feedback and tokens are read through functions since migration 0024 (the tables can't be read with the public
-      // key); before it, from the tables. Tokens arrive with migration 0010; until then the app works without them.
-      this.viaRpc<FeedbackRow>('okr_feedback_list', ws, 'okr_feedback').catch(() => [] as FeedbackRow[]),
-      this.viaRpc<TokenRow>('okr_token_list', ws, 'okr_api_tokens').catch(() => [] as TokenRow[]),
-      // Saved views arrive with migration 0016; until then there are none.
-      this.all<ViewRow>('okr_views', ws).catch(() => [] as ViewRow[]),
-      // Requests arrive with migration 0017; until then they're read from each goal's latest check-in.
-      this.all<RequestRow>('okr_requests', ws).catch(() => null),
-      // Each feature module's own tables, as it declares them (domain/records); a table its migration hasn't made yet has none.
-      loadModules(this.records, (table) => this.all<DbRow>(table, ws).catch(() => null)),
+      // Feedback and tokens are read through functions (the tables can't be read with the public key). Any read that
+      // fails fails the load: an empty list would look like a workspace with none.
+      this.listed<FeedbackRow>('okr_feedback_list', ws), this.listed<TokenRow>('okr_token_list', ws),
+      this.all<ViewRow>('okr_views', ws), this.all<RequestRow>('okr_requests', ws),
+      // Each feature module's own tables, as it declares them (domain/records).
+      loadModules(this.records, (table) => this.all<DbRow>(table, ws)),
     ]);
     if (!cycles.length) throw new Error('This workspace has no cycle yet.');
     // Questions, actions and asks for an update saved before one ask model (migration 0023 converts them) read as asks.
@@ -90,7 +83,6 @@ export class SupabaseStore implements Store {
       teams: teams.map(teamFromRow),
       people: people.map(personFromRow),
       cycles: cycles.map(cycleFromRow),
-      // Until migration 0021 gives every goal its key, keys are worked out the same way on each read.
       goals: withKeys(goals.sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)).map((g) => goalFromRows(g, stages))),
       checkIns: checkIns.map(checkInFromRow),
       decisions: decisions.map(decisionFromRow),
@@ -101,159 +93,64 @@ export class SupabaseStore implements Store {
       feedback: feedback.map(feedbackFromRow),
       tokens: tokens.map(tokenFromRow),
       views: views.map(viewFromRow),
-      ...(requests ? { requests: requests.map(requestFromRow) } : {}),
+      requests: requests.map(requestFromRow),
       ...(modules ? { modules } : {}),
     });
   }
 
-  /** A workspace's rows from a database function that returns them (migration 0024), or from the table before it. */
-  private async viaRpc<T>(fn: string, ws: string, table: string): Promise<T[]> {
+  /** A workspace's rows from a database function that returns them. */
+  private async listed<T>(fn: string, ws: string): Promise<T[]> {
     const { data, error } = await this.db.rpc(fn, { ws });
-    if (!error) return (data ?? []) as T[];
-    if (missing(error)) return this.all<T>(table, ws);
-    throw new Error(`${table}: ${error.message}`);
+    if (error) throw new Error(missing(error) ? MISSING(fn) : `${fn}: ${error.message}`);
+    return (data ?? []) as T[];
   }
 
-  /** Runs a database function; null when it isn't there yet (its migration hasn't been applied). */
-  private async rpc(fn: string, args: Record<string, unknown>, what: string): Promise<'missing' | void> {
-    const { error } = await this.db.rpc(fn, args);
-    if (!error) return;
-    if (missing(error)) return 'missing';
+  /** Runs a database function: one call, one transaction. */
+  private async rpc<T = unknown>(fn: string, args: Record<string, unknown>, what: string): Promise<T> {
+    const { data, error } = await this.db.rpc(fn, args);
+    if (!error) return data as T;
+    if (missing(error)) throw new Error(MISSING(fn));
     if (/stale: /.test(error.message)) throw new StaleError(error.message.replace(/^.*stale: /, ''));
-    throw new Error(`${what}: ${error.message}`);
+    throw new Error(`${what}: ${error.message.replace(/^.*?: /, '')}`);
   }
 
-  /** Saves in one transaction (okr_commit), refusing it if something it was based on has changed since. Revoking a
-      token goes through okr_token_revoke (migration 0024), with its change-log entry, in its own transaction. */
+  /** Saves in one call and one transaction (okr_commit), refused if something it was based on has changed since.
+      Revoking a token is its own save, through okr_token_revoke with its change-log entry; a new token comes through
+      issueToken, never a save. */
   async commit(ws: string, c: Commit) {
     if (c.tokens?.length) {
-      const by = c.changes[0]?.actorId ?? '';
-      const done: string[] = [];
-      for (const t of c.tokens) {
-        // A new token reaches a save only before migration 0024 (issueToken's fallback): okr_commit writes it then.
-        if (!t.revokedAt) continue;
-        const change = c.changes.find((x) => x.entityId === t.personId && x.diffs.some((d) => d.field === 'AI assistant token'));
-        const r = await this.rpc('okr_token_revoke', { ws, token_id: t.id, by_id: by, change: change ? changeToRow(ws, change) : null }, 'Revoking the token');
-        if (r === 'missing') break;
-        done.push(t.id);
-        if (change) c = { ...c, changes: c.changes.filter((x) => x !== change) };
-      }
-      if (done.length) c = { ...c, tokens: c.tokens!.filter((t) => !done.includes(t.id)) };
-      if (!c.tokens?.length && Object.entries(c).every(([k, v]) => k === 'expect' || k === 'tokens' || (k === 'modules' ? !hasModuleRows(c.modules) : Array.isArray(v) ? !v.length : v === undefined))) return;
-    }
-    if ((await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c, this.records) }, 'Saving')) !== 'missing') {
-      // Before migration 0020, okr_commit saves teams but can't remove one or rename the workspace: finish those here.
-      // Afterwards they've already happened, and doing them again changes nothing.
-      await this.teamsAndName(ws, c);
+      const [t, ...more] = c.tokens;
+      const change = c.changes.find((x) => x.entityId === t!.personId && x.diffs.some((d) => /token/i.test(d.field)));
+      const rest = Object.entries(c).some(([k, v]) => !['tokens', 'changes', 'expect'].includes(k) && (k === 'modules' ? hasModuleRows(c.modules) : Array.isArray(v) ? v.length : v !== undefined));
+      if (!t!.revokedAt || more.length || rest || c.changes.some((x) => x !== change)) throw new Error('Saving the token: revoke one token at a time, on its own; make one with issueToken.');
+      await this.rpc('okr_token_revoke', { ws, token_id: t!.id, by_id: change?.actorId ?? '', change: change ? changeToRow(ws, change) : null }, 'Revoking the token');
       return;
     }
-    await this.legacyCommit(ws, c);
+    await this.rpc('okr_commit', { ws, payload: commitPayload(ws, c, this.records) }, 'Saving');
   }
 
   /** A new AI assistant token: the database makes the secret, keeps only its hash, logs the change and returns it once
-      (okr_token_create, migration 0024). Before that migration, the secret is made here and saved with the rest. */
+      (okr_token_create). */
   async issueToken(ws: string, c: Commit): Promise<string> {
     const t = c.tokens?.[0];
     if (!t || c.tokens!.length !== 1) throw new Error('Saving the token: one token at a time.');
     const change = c.changes[0];
-    const { data, error } = await this.db.rpc('okr_token_create', { ws, token: { id: t.id, person_id: t.personId, name: t.name, created_by: t.createdBy }, change: change ? changeToRow(ws, change) : null });
-    if (!error) return data as string;
-    if (!missing(error)) throw new Error(`Saving the token: ${error.message.replace(/^.*?: /, '')}`);
-    const { hashToken, newToken } = await import('../../mcp/token');
-    const secret = newToken();
-    await this.commit(ws, { ...c, tokens: [{ ...t, tokenHash: await hashToken(secret) }] });
-    return secret;
+    return this.rpc<string>('okr_token_create', { ws, token: { id: t.id, person_id: t.personId, name: t.name, created_by: t.createdBy }, change: change ? changeToRow(ws, change) : null }, 'Saving the token');
   }
 
-  private async teamsAndName(ws: string, c: Commit) {
-    if (c.removeTeams?.length) await this.must(this.db.from('okr_teams').delete().eq('workspace_id', ws).in('id', c.removeTeams), 'Removing the team');
-    if (c.workspace) await this.must(this.db.from('okr_workspaces').update({ name: c.workspace.name }).eq('id', ws), 'Renaming the workspace');
-  }
-
-  /** The save before migration 0011: one request per table, not in a transaction. Used only until 0011 is applied. */
-  private async legacyCommit(ws: string, c: Commit) {
-    if (c.cycles?.length) await this.must(this.db.from('okr_cycles').upsert(c.cycles.map((x) => cycleToRow(ws, x))), 'Saving the cycle');
-    if (c.teams?.length) await this.must(this.db.from('okr_teams').upsert(c.teams.map((t) => teamToRow(ws, t))), 'Saving the team');
-    if (c.people?.length) await this.must(this.db.from('okr_people').upsert(c.people.map((p) => personToRow(ws, p))), 'Saving people');
-    for (const g of c.goals ?? []) {
-      const { goal, stages } = goalToRows(ws, g);
-      await this.must(this.db.from('okr_goals').upsert(goal), 'Saving the goal');
-      if (g.kind === 'milestone') {
-        const keep = stages.map((s) => s.id);
-        let del = this.db.from('okr_stages').delete().eq('goal_id', g.id);
-        if (keep.length) del = del.not('id', 'in', `(${keep.map((k) => `"${k}"`).join(',')})`);
-        await this.must(del, 'Removing stages');
-        if (stages.length) await this.must(this.db.from('okr_stages').upsert(stages), 'Saving stages');
-      }
-    }
-    if (c.checkIns?.length) await this.must(this.db.from('okr_check_ins').upsert(c.checkIns.map((x) => checkInToRow(ws, x))), 'Saving the check-in');
-    if (c.reviews?.length) await this.must(this.db.from('okr_reviews').upsert(c.reviews.map((x) => reviewToRow(ws, x))), 'Saving the review');
-    if (c.feedback?.length) await this.must(this.db.from('okr_feedback').insert(c.feedback.map((x) => feedbackToRow(ws, x))), 'Sending feedback');
-    if (c.retros?.length) await this.must(this.db.from('okr_retros').upsert(c.retros.map((x) => retroToRow(ws, x))), 'Saving the retro');
-    if (c.decisions?.length) await this.must(this.db.from('okr_decisions').upsert(c.decisions.map((x) => decisionToRow(ws, x))), 'Saving the decision');
-    if (c.watches?.length) await this.must(this.db.from('okr_watches').upsert(c.watches.map((x) => watchToRow(ws, x))), 'Watching');
-    if (c.tokens?.length) await this.must(this.db.from('okr_api_tokens').upsert(c.tokens.map((x) => tokenToRow(ws, x))), 'Saving the token');
-    if (c.views?.length) await this.must(this.db.from('okr_views').upsert(c.views.map((x) => viewToRow(ws, x))), 'Saving the view');
-    if (c.requests?.length) await this.must(this.db.from('okr_requests').upsert(c.requests.map((x) => requestToRow(ws, x))), 'Saving the request');
-    await this.eachModuleTable(ws, c, (table, rows) => this.must(this.db.from(table).upsert(rows), 'Saving'));
-    for (const id of c.unwatch ?? []) await this.must(this.db.from('okr_watches').delete().eq('id', id), 'Stopping watching');
-    await this.teamsAndName(ws, c);
-    if (c.changes.length) await this.must(this.db.from('okr_changes').insert(c.changes.map((x) => changeToRow(ws, x))), 'Logging the change');
-  }
-
-  /** Each declared module record's rows in a save or a workspace, by table, in the order the modules declare them. */
-  private async eachModuleTable(ws: string, c: Pick<Commit, 'modules'>, write: (table: string, rows: DbRow[]) => Promise<void>) {
-    for (const m of this.records) for (const def of m.records) {
-      const rows = moduleRows<never>(c, m.module, def.key);
-      if (rows.length) await write(def.table, rows.map((r) => def.toRow(ws, r)));
-    }
-  }
-
-  private async insertAll(ws: string, s: Snapshot) {
-    const chunk = async <T>(table: string, rows: T[], what: string) => {
-      for (let i = 0; i < rows.length; i += 500) await this.must(this.db.from(table).insert(rows.slice(i, i + 500) as object[]), what);
-    };
-    // Teams and people point at each other: add teams without leads, then people, then the leads.
-    await chunk('okr_teams', s.teams.map((t) => teamToRow(ws, t, false)), 'Adding teams');
-    await chunk('okr_people', s.people.map((p) => personToRow(ws, p)), 'Adding people');
-    await this.must(this.db.from('okr_teams').upsert(s.teams.map((t) => teamToRow(ws, t))), 'Setting team leads');
-    await chunk('okr_cycles', s.cycles.map((c) => cycleToRow(ws, c)), 'Adding the cycle');
-    const rows = s.goals.map((g) => goalToRows(ws, g));
-    await chunk('okr_goals', rows.filter((r) => !r.goal.parent_id).map((r) => r.goal), 'Adding goals');
-    await chunk('okr_goals', rows.filter((r) => r.goal.parent_id).map((r) => r.goal), 'Adding input goals');
-    await chunk('okr_stages', rows.flatMap((r) => r.stages), 'Adding stages');
-    await chunk('okr_check_ins', s.checkIns.map((c) => checkInToRow(ws, c)), 'Adding check-ins');
-    await chunk('okr_reviews', s.reviews.map((r) => reviewToRow(ws, r)), 'Adding reviews');
-    await chunk('okr_decisions', s.decisions.map((d) => decisionToRow(ws, d)), 'Adding decisions');
-    await chunk('okr_watches', s.watches.map((w) => watchToRow(ws, w)), 'Adding watches');
-    await chunk('okr_retros', (s.retros ?? []).map((r) => retroToRow(ws, r)), 'Adding retros');
-    if (s.requests?.length) await chunk('okr_requests', s.requests.map((r) => requestToRow(ws, r)), 'Adding requests');
-    await this.eachModuleTable(ws, s, (table, rows) => chunk(table, rows, 'Adding'));
-    await chunk('okr_changes', s.changes.map((c) => changeToRow(ws, c)), 'Adding the change log');
-  }
-
+  /** A new workspace and everything in it, in one transaction (okr_create_workspace). */
   async createWorkspace(w: Workspace, data: Snapshot) {
-    const payload = { ...commitPayload(w.id, { ...data, changes: data.changes }, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
-    if ((await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace')) !== 'missing') return;
-    await this.must(this.db.from('okr_workspaces').insert(workspaceToRow(w)), 'Creating the workspace');
-    await this.insertAll(w.id, data);
+    const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
+    await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace');
   }
 
   async resetExample(): Promise<Snapshot> {
     throw new Error('Only the demo has an example to reset.');
   }
 
-  /** Removes a workspace and everything in it. The tables don't cascade from the workspace, so children go first. */
+  /** Removes a workspace and everything in it, in one transaction (okr_delete_workspace). */
   async deleteWorkspace(ws: string) {
     if (ws === EXAMPLE.id) throw new Error('The example can’t be deleted.');
-    if ((await this.rpc('okr_delete_workspace', { ws }, 'Deleting the workspace')) !== 'missing') return;
-    // People and teams point at each other; clear those links before deleting either.
-    await this.must(this.db.from('okr_teams').update({ lead_id: null }).eq('workspace_id', ws), 'Unlinking teams');
-    await this.must(this.db.from('okr_goals').update({ parent_id: null }).eq('workspace_id', ws), 'Unlinking goals');
-    for (const t of ['okr_requests', 'okr_views', 'okr_api_tokens', 'okr_feedback', 'okr_retros', 'okr_watches', 'okr_decisions', 'okr_check_ins', 'okr_stages', 'okr_changes', 'okr_reviews', 'okr_goals', 'okr_cycles', 'okr_people', 'okr_teams']) {
-      await this.must(this.db.from(t).delete().eq('workspace_id', ws), 'Deleting the workspace');
-    }
-    await this.must(this.db.from('okr_workspaces').delete().eq('id', ws), 'Deleting the workspace');
+    await this.rpc('okr_delete_workspace', { ws }, 'Deleting the workspace');
   }
-
 }

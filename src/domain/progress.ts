@@ -1,6 +1,6 @@
 /* Small, honest progress signals: this week's check-ins and the on-time streak.
    They count only what the owner did themselves, as the research recommends. */
-import { firstWeekFrom, weekDate } from './plan';
+import { firstWeekFrom, hasEnded, weekDate } from './plan';
 import { goalStatus } from './status';
 import type { Cycle, Goal, Snapshot } from './types';
 
@@ -21,7 +21,8 @@ export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: 
   const done = goals.filter((g) => s.checkIns.some((c) => c.goalId === g.id && c.week === week));
   // Week 0 is the baseline week: the first check-ins are due in week 1, and a goal set up after this week's review starts next week.
   const upcoming = goals.filter((g) => !done.includes(g) && firstDueWeek(g, cycle) > week);
-  return { goals, done, upcoming, due: week < 1 ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
+  // Once the cycle's last day is past, nothing in it is due (cycle-end rule 2).
+  return { goals, done, upcoming, due: week < 1 || hasEnded(cycle, today) ? [] : goals.filter((g) => !done.includes(g) && !upcoming.includes(g)) };
 }
 
 /**

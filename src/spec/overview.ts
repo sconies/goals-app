@@ -10,6 +10,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 /** The rule pages under spec/core/rules/, in reading order: [file, title, what it decides]. */
 export const RULE_PAGES: [string, string, string][] = [
   ['weeks-and-plans', 'Weeks and plans', 'which week it is, and what the plan says a number should be'],
+  ['year-end', 'A year’s end', 'a cycle’s real first and last days; after the last day results close and nothing is due or out of date'],
   ['status', 'A goal’s status', 'what the numbers say, and the official status (the owner’s call unless stale)'],
   ['projection', 'The projection', 'where a number lands by its due week, as a range'],
   ['check-in', 'What a check-in must say', 'what is needed before a check-in can be posted'],

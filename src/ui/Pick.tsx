@@ -186,7 +186,7 @@ export function Pick({ kind, label, value, onChange, several = false, none, refu
 }
 
 /** A row's two lines: a goal's status (shape and word) and title; a person's avatar and name; then line 2. */
-function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean; why?: string | null; note?: string }) {
+export function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean; why?: string | null; note?: string }) {
   const app = useApp();
   const p = row.kind === 'person' ? app.person(row.id) : undefined;
   return (
@@ -202,7 +202,7 @@ function RowText({ row, you, why, note }: { row: FoundRow; you?: boolean; why?: 
 }
 
 /** The row for something already chosen, in the same words a search would give. */
-function rowFor(app: ReturnType<typeof useApp>, kind: string, id: string): FoundRow | null {
+export function rowFor(app: ReturnType<typeof useApp>, kind: string, id: string): FoundRow | null {
   if (kind === 'person') {
     const p = app.person(id);
     if (!p) return null;

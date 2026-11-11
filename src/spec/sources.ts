@@ -179,6 +179,8 @@ export function coreRoutes(r: Repo): Route[] {
   const app = read(r, 'src/App.tsx');
   const from = new Map<string, string>();
   for (const m of app.matchAll(/import \{([^}]+)\} from '\.\/(screens\/\w+)'/g)) for (const n of m[1]!.split(',')) from.set(n.trim(), `src/${m[2]}.tsx`);
+  // Screens loaded when first opened: const X = lazy(() => import('./screens/File').then((m) => ({ default: m.X }))).
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/(screens\/\w+)'\)/g)) from.set(m[1]!, `src/${m[2]}.tsx`);
   return [...app.matchAll(/<Route path="([^"]+)" element=\{<(\w+)/g)].filter((m) => m[1] !== '*' && from.has(m[2]!)).map((m) => ({ path: m[1]!, component: m[2]!, file: from.get(m[2]!)! }));
 }
 

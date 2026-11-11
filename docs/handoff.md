@@ -10,7 +10,7 @@ What the internal team needs to take Faro onto the company's platform, and how f
 |---|---|---|
 | What Faro does, generated from the code | `llms.txt`, `spec/` | Complete for the core and both modules; can't drift (CI) |
 | The rules, with worked examples | `spec/core/rules/`, `spec/modules/*/rules.md` | Complete |
-| Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard; the check-in rule has examples but no rows yet (8g) |
+| Expected results for every demo goal in every week | `spec/conformance/` | Status, flags, projection, scorecard, what a check-in must say, find and navigation |
 | The rebuild kit, stage by stage | `spec/rebuild/` | Stage 1 (the rules) has a drill: 100% from the kit alone, 8 Nov. Stages 2 to 5 are outlines, checked by hand |
 | What the platform must add | `spec/requirements/internal/` | R1 sign-in and access, R2 single sign-on, R3 time zones, R4 scale and safety, R6a the organisation, R6b delegates, R6c the planning round, each with acceptance checks |
 | The ports at company scale | `spec/rebuild/ports-at-scale.md` | A sketch: the query and command ports that replace the demo-scale goals store, and how its contract tests carry across. Neither port is built |
@@ -39,14 +39,14 @@ The goals store's interface (`Store`) loads a whole workspace and saves rows its
 Every outside part sits behind one interface in `src/ports/`, with a contract test any replacement must pass (backlog 8c). Supabase is imported only by its adapters, `src/adapters/supabase/`, and the layers lint keeps it so. The goals store is proven twice: the Supabase adapter and a plain-Postgres one pass the same contract. Step by step: `spec/rebuild/adapters.md`.
 
 - [ ] **The goals store:** `Store` (`src/data/store.ts`). Adapters: browser (the demo), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`). Write one for the company's database to get Faro running there until `storeContract` passes; for the whole company, build towards the query and command ports instead (step 2).
-- [ ] **The database itself**, if you keep Postgres: `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase's roles and its storage and auth schemas), then the 33 migrations in `supabase/migrations`. 44 functions hold real logic (`okr_write` and `okr_commit` for saves, tokens, the inbox, telemetry); every adapter calls them. They check only that rows belong to the workspace and that goal and review versions haven’t moved: the rules, the actor, the time and the change-log entry come from the caller (the browser today), which R1 and R4 say must move to your server: the command port is how (step 2). Supabase's roles (`anon`, `authenticated`) and row rules become your service's checks.
+- [ ] **The database itself**, if you keep Postgres: `src/adapters/postgres/bootstrap.sql` once (stand-ins for Supabase's roles and its storage and auth schemas), then every migration in `supabase/migrations`, in order (from 0035 they live in the `faro` schema: `supabase/README.md`). Their functions hold real logic (`okr_write` and `okr_commit` for saves, tokens, the inbox, telemetry); every adapter calls them. They check only that rows belong to the workspace (what each row says, where a row already stored is kept, and a milestone's stages through their goal; 0038) and that goal and review versions haven’t moved: the rules, the actor, the time and the change-log entry come from the caller (the browser today), which R1 and R4 say must move to your server: the command port is how (step 2). Supabase's roles (`anon`, `authenticated`) and row rules become your service's checks.
 - [ ] **Markups and feedback:** `MarkupStore` (`src/markup/ops.ts`) and `FeedbackStore` (`src/markup/feedback.ts`); Supabase's are in `src/adapters/supabase/`. Contracts: `markupContract`, `feedbackContract`.
 - [ ] **Files** for markup pictures: `Files` (`src/ports/index.ts`); Supabase Storage's is `src/adapters/supabase/files.ts`. Contract: `filesContract`.
-- [ ] **Who is viewing:** `Identity`. Today the "Who are you?" picker (`src/adapters/local.ts`); your sign-in replaces it (step 4).
+- [ ] **Who is viewing:** `Identity`, passed to the app beside the store in `src/main.tsx`. Today the "Who are you?" picker (`src/adapters/local.ts`); your sign-in replaces it with an `Identity` that has no `choose` (`src/adapters/signIn.ts` is the shape; step 4). Outside the demo nobody signed in saves nothing.
 - [ ] **The clock:** `Clock`. The system's, or a fixed one for demos and tests.
 - [ ] **The AI tools' endpoint:** everything it needs is its `Deps` (`server/mcp.ts`); Supabase's are in `src/adapters/supabase/server.ts`, picked in `server/vercel.ts`. No contract of its own yet.
 - [ ] **Research and telemetry:** `src/app/research.ts` (through `src/adapters/supabase/research.ts`), `src/telemetry/` (sends to Supabase's REST address, no client library). Keep, swap for the company's analytics, or drop (`spec/requirements/internal/observability.md`).
-- [ ] **A number source** for metrics that fill themselves in: `NumberSource`, with one demo source (`src/adapters/demo/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
+- [ ] **A number source** for metrics that fill themselves in: `NumberSource`, with one demo source (`src/modules/metrics/numbers.ts`, "CI analytics", the build-time metric). Real connectors are yours: one per system a metric names as its source, each passing `numberSourceContract`. Nothing on screen reads one yet.
 
 ### 4. Build what the platform must add
 
@@ -74,10 +74,9 @@ Every outside part sits behind one interface in `src/ports/`, with a contract te
 
 ## What Faro still has to do before this is easy
 
-In backlog order:
+In backlog order (8g and 0c are done: drill 1's gaps are closed, and Faro keeps to its own schema, `faro`, in a shared project rather than a project of its own):
 
-1. **8g:** close drill 1's gaps, so the spec carries the scorecard's exact words and the check-in rule has conformance rows.
-2. **0c:** Faro's own database project, so nothing it does can touch another app's data.
-3. **11:** the full drill. A fresh team or session rebuilds the whole of Faro, stage by stage, from the kit alone.
+1. **AX:** the architecture readiness review's items (`docs/reviews/2026-11-11-architecture-readiness.md`): every change through the dispatcher (AX2), the query port's first cut (AX5), a stale save run again (AX6), the database as it is in the kit (AX8), browser state behind the ports (AX9).
+2. **11:** the full drill. A fresh team or session rebuilds the whole of Faro, stage by stage, from the kit alone.
 
-This page is written by hand. Keep it in step when one of those items ships.
+This page is written by hand. Keep it in step when one of those items ships; `src/docPaths.test.ts` checks that every file it names exists.

@@ -21,6 +21,27 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'year-ends',
+    date: '2026-11-11',
+    title: 'A year ends on its last day',
+    points: [
+      'Results and the last quarter close by themselves on the day after the year’s last day, and nothing is due, late or out of date after the year has ended.',
+      'Cycles gives each year’s real first and last day: 2026 runs from 29 Dec 2025 to 3 Jan 2027. It says when a year is ending, and when it ended.',
+      'The place line at the top says “2026 · week 53, the last week”, then “2026 has ended”.',
+    ],
+    articles: ['wrap-up', 'workspace-cycles'],
+  },
+  {
+    id: 'find-anywhere',
+    date: '2026-11-11',
+    title: 'Find, from anywhere',
+    points: [
+      'Press Ctrl K (Cmd K on a Mac), or Find in the sidebar, and type a name or a key like G-48.',
+      'Goals, people and teams that match come in groups, three each, with “See all” for the rest. On a phone, Find is in the top bar.',
+    ],
+    articles: ['finding'],
+  },
+  {
     id: 'not-born-late',
     date: '2026-11-11',
     title: 'A new goal doesn’t start out late',

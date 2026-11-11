@@ -3,6 +3,7 @@
    Each tool call is recorded as a SERVER span (src/telemetry/server.ts), joined to the caller's trace when the request
    carries a W3C traceparent header, with CLIENT spans for the database work inside it. They're sent at the end of the
    request, only when the workspace records, and a failure to send never changes the answer. */
+import { logFailure } from './log';
 import type { Commit } from '../src/data/store';
 import { applyCommit, EXAMPLE, newId, withExpectations } from '../src/data/store';
 import { currentCycle, scopeToCycle } from '../src/domain/cycle';
@@ -165,7 +166,8 @@ export async function serve(req: Request, deps: Deps): Promise<Response> {
     await deps.touch(found.token.id, now.toISOString()).catch(() => undefined);
     res = out ? json(out) : new Response(null, { status: 202, headers: CORS });
   } catch (e) {
-    res = json({ jsonrpc: '2.0', id: (body as { id?: unknown })?.id ?? null, error: { code: -32603, message: e instanceof Error ? e.message : String(e) } }, 500);
+    const reference = logFailure('A request', e);
+    res = json({ jsonrpc: '2.0', id: (body as { id?: unknown })?.id ?? null, error: { code: -32603, message: e instanceof Error ? e.message : String(e), data: { reference } } }, 500);
   }
   await sendSpans(deps, spans.rows, found.workspaceId, ctx);
   return res;
