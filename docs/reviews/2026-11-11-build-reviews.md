@@ -35,13 +35,25 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #148 Track 1 handover | 1 | 0 | 0 | 0 |
 | #141 Undo brings a feature back | planning | 1 | 1 | 0 |
 | #116 find_goals takes a scope | 1 | 0 | 2 | 0 |
+| #137, #161 Handovers | planning, 4 | 0 | 0 | 0 |
+| #140 Goal page: modules' sections sit inside About | 2 | 0 | 0 | 0 |
+| #133 CY2: starting the next year only prepares it | 5 | 1 | 8 | 3 |
+| #156 CK1: one way to save a check-in | 1 | 0 | 0 | 1 |
+| #157 Two fixes: status shapes in Find, Settings scrolls | 1 | 0 | 0 | 0 |
+| #154 AX9: browser state behind the ports; review fixes | 4 | 0 | 5 | 3 |
+| #160 CK2: the levels in a check-in | 1 | 0 | 3 | 4 |
+| #164 Migration 0039: a module's records | 3 | 0 | 0 | 3 |
+| #163 Two journeys called U87 | 3 | 0 | 0 | 0 |
 
-**Open, of high severity:**
+**High findings, and where each stands**
 
-- #110 finding 1: a goal's status in Find and in the picker is a word with no shape. Sent to track 1 at 13:55 UTC.
-- #127 finding 1: once the wrap-up has closed, no screen lets an admin start the next year. Sent to track 5 at 14:20 UTC.
-- #113 finding 1: on a computer, Settings can't be scrolled to its foot. Sent to track 1 at 19:15 UTC.
-- #141 finding 1: Undo pressed after switching workspace saves into the workspace now open. Sent to track 4 at 19:25 UTC.
+| Finding | Sent | Now |
+|---|---|---|
+| #110: a goal's status in Find and the picker is a word with no shape | Track 1, 13:55 UTC | **Fixed** by #157; seen on screen at 12 by 12, and P3/P4 now open Find |
+| #127: once the wrap-up has closed, no screen lets an admin start the next year | Track 5, 14:20 UTC | **Fixed** by #133: the start is offered from the day the wrap-up opens, with no end; U117 covers 5 Feb |
+| #113: on a computer, Settings can't be scrolled to its foot | Track 1, 19:15 UTC | **Fixed** by #157; seen reaching 870 of 870, and a journey scrolls it |
+| #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Open** |
+| #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -313,3 +325,102 @@ The tool calls `scopesFor`; `api/mcp.js` is the built output; a wrong scope is r
 **1. Medium (read). A Goals link's `scope=` is ignored by `query`.** `src/mcp/tools.ts:211` parses the link with `parseQuery`, which has no scope; only the `scope` argument is read (`:234-238`). First reader, as Tariq: `{ scope: 'mine' }` gives 3 goals, `{ query: 'scope=mine' }` gives 126. Every Goals address now carries `scope=`, and the description promises "the query of a shared Goals link".
 
 **2. Medium (first reader). The facts the scope rule reads are written twice** (`src/app/reads.ts:37-44`, and the same object inline at `src/screens/GoalsScreen.tsx:55-60`); the copies already differ on removed goals, with no visible effect today.
+
+### #137 and #161 Handovers; #140 Goal page: modules' sections sit inside About (merged 18:27, 20:04 and 18:30 UTC)
+
+The two handovers are `docs/handover.md` only. #140 moves the `goal.sections` place from its own slot before Activity into About, after the facts, as the goal spec's section 5 has it; the place's comment and the module's README say the same. Nothing found.
+
+### #133 CY2: starting the next year only prepares it (track 5, merged 18:31 UTC)
+
+Read against `docs/design/cycle-end/spec.md`, rules 3, 4, 7 and 9 and screens 2.4, 2.5 and 2.10, and run on the example copied into a workspace of its own on 22 Dec 2026 and 2, 11 Jan and 5 Feb 2027.
+
+**It closes #127's high.** The next year can be started from the day the wrap-up opens (Mon 21 Dec 2026) with no end date while no later year exists; the rule and `startPage` agree on every date tried; Cycles, the wrap-up page, Home's admin card and the start page all offer it on 5 Feb; U117 now asserts that. `saveRetro` and the wrap-up page now use one test.
+
+**1. High (code facts read; the run is the first reader's). Once the next year is current, the old year's wrap-up can't be reached or saved, though every page promises it for four weeks after the year ends.** Sent to track 5 when confirmed.
+
+- Where: `saveRetro` tests only the current cycle (`src/domain/actions.ts:292-296`). Rule 3's `writable` isn't built, and `wrapUpCycle` (`src/domain/cycle.ts:141`) is called by no screen and no action.
+- Reproduced: start 2027 on 22 Dec; on 11 Jan `/retro` is 2027's ("The wrap-up opens in week 51, on Mon 20 Dec 2027"), 2026's row on Cycles has no action, and `saveRetro` on a 2026 goal is refused. Starting on 11 Jan does the same at once, a moment after Cycles said "open until Sun 31 Jan 2027: 126 goals still to wrap up". The start page gives no warning.
+- Against rule 6's example: "Started on Mon 11 Jan 2027 instead: 2027 is current at once; the 2026 wrap-up stays open until Sun 31 Jan 2027".
+- Fix: build `writable`; the wrap-up page, Home's admin card and `saveRetro` act on `wrapUpCycle(cycles, today)` when it isn't the current cycle.
+
+**2. Medium (first reader). Undo of the start is allowed by the rule but offered nowhere once the new year is current.** The banner with the button is keyed on a later cycle existing (`src/screens/Workspace.tsx:277-291`); the row still says "It can be undone until…"; the toast has no Undo, though 2.4 says "with Undo".
+
+**3. Medium (read; measured by the first reader). The "2027 is ready" banner's warning mark has no size:** `WarnMark` (`src/ui/bits.tsx:28`) is an SVG with no width, and `.cycle-ready` gives it none. It measured 767px square at 1440 and 324px at 390. No eval opens Cycles in that state.
+
+**4. Medium (first reader). The read-back can disagree with the start.** `startPage` is handed the unscoped workspace and counts removed check-ins (`src/domain/startYear.ts:44`); the action doesn't. With one removed "done" check-in the page says 107 carry and the start makes 108. Rule 7 says they agree by construction.
+
+**5. Medium (first reader). After an early start the copies are frozen at the start day**, while the page says "so the last check-ins and the wrap-up carry on". `recarry` is CY4's; the sentence shipped now. A goal wrapped up as "stop" a week later is still live in the new year.
+
+**6. Medium (first reader). Before a year's first week Goals prints "Week 0 of 52 · Q1 (Jan–Mar) · 2027"**, which 2.10 lists under "Never" (`periodNow`, `src/domain/cycle.ts:161`, has no case for it). U115 reads Home only.
+
+**7. Medium (first reader). The start page is named "Page not found"** when opened directly (`src/domain/navigation.ts:187-189`), with "Back to Home"; Home's admin card links straight to it.
+
+**8. Medium (first reader). "When can the next year be started" is written five times** (`actions.ts:319`, `startYear.ts:40` and `:58`, `Workspace.tsx:306`, `Retro.tsx:92`, `Home.tsx:327`), and the second-start sentence already differs between two of them.
+
+**9. Medium (first reader). Evals:** nothing calls `undo_start_cycle`; the dry run is asserted only by a phrase the old refusal also matched.
+
+**Low (first reader).** The wrap-up page's start card says "Everyone stays in 2026 until Sun 3 Jan 2027" after that day. An undone year restored from Recently removed comes back as an ordinary cycle that can be deleted. The start page leaves out several of 2.4's lines without a note.
+
+### #156 CK1: one way to save a check-in (track 1, merged 19:13 UTC)
+
+The readiness review's finding 2, for the check-in. The first reader ran the old `state.tsx` logic against the new `postCheckIn` for all 126 demo goals in week 46, 5,266 cases of draft and actor: no difference in the check-in, the change-log entries, or the asks raised, changed or withdrawn. Who may check in is one line in the engine for sheet rows and screen posts (`src/domain/changeset.ts:644`); the action is in the table and the access table; two presses save one check-in; a refused save keeps what was typed; `api/mcp.js` is the built output.
+
+**Low.** The screen's post loop repeats two week checks and their words from the sheet loop in the same function (`changeset.ts:773-774` and `:711-712`).
+
+Not this PR's: the walk stops an admin checking in for someone else ("Only Rhea Kapoor checks in on this goal"), where the rule and R1's table say owner or admin.
+
+### #157 Two fixes: status shapes in Find, and Settings scrolls to the end (track 1, merged 19:24 UTC)
+
+Fixes this log's two highs for track 1. Re-run on main at 1440: every `.pick-status` shape in Find is 12 by 12; Settings scrolls to 870 of 870 with "Leave" lit. P3/P4 now open Find and fail a shape under 8px; a journey scrolls Settings to its foot. Nothing found. The picker's rows share the style; P3/P4 still don't open a picker.
+
+### #154 AX9: browser state behind the ports; the build reviews of track 4's batch and AX8 (track 4, merged 19:38 UTC)
+
+**The earlier findings (first reader, each checked against main):**
+
+| Earlier finding | Now |
+|---|---|
+| #128: the bundle budget measured the entry only | Fixed for the demo: the script sums the entry and every preload (429 KB against a limit of 430). See finding 4 for the real app |
+| #122: 0038 doesn't check what a row points at | In words: the kit now says references across workspaces are the server's to refuse |
+| #123: "can look but can't save" | The kit and the guide now say nothing is shown, and the page is rendered in a test. See finding 5 |
+| #131: the access page left out column grants | Fixed: "anon: insert (7 columns)" and the markups' update, with a test |
+| #124, #125: two pages' old sentences | Fixed |
+| #131: one variable for the last token; a contract case that asserted nothing | Fixed |
+| #126: the two adapters disagreed on a token saved with other rows | Fixed, and tested |
+
+No migration file was edited; the one line under `supabase/` is the README's.
+
+**1. Medium (first reader). The storage lint's list doesn't have to shrink.** `scripts/check-layers.mjs:165` fails only when a file uses storage more than its count; a file listed at 10 and using it once keeps nine in hand.
+
+**2. Medium (first reader). Ordinary spellings pass the lint:** a use inside a template literal, after a string holding `//`, in JSX after an apostrophe, `window['localStorage']`, and any `.jsx` or `.mts` file. Nothing in `src` does this today. `index.html:19` reads `localStorage` where the lint never looks and the kit's table doesn't list it.
+
+**3. Medium (first reader). Nothing tests the new `clock`, and the entry point can't pass one** (`src/App.tsx:113-116` has no such prop). With a stopped clock, which the kit calls the Clock for the demo and the evals, the reload on focus never fires (`src/app/state.tsx:452`).
+
+**4. Medium (first reader, measured). The budget still leaves out what the real app downloads before it draws:** with Supabase configured, `src/main.tsx:67` awaits the store's chunk and the client's (58 KB compressed) before the first render, and neither is a preload. About 488 KB against a check that says 429.
+
+**5. Medium (read). The "not in this workspace" page is still untrue for two causes and still a dead end** (`src/adapters/signIn.ts:13-14`, `src/screens/Start.tsx:21-31`): two people sharing the email, or the only match marked as left, read "no one here has the email you signed in with".
+
+**Also, older than this PR, in the two lines it rewrote (read; first reader ran it).** In UTC+13 and UTC+14 the real app stamps every record a day ahead: `src/app/state.tsx:507` rounds the gap between wall-clock time written as UTC and the clock, which is the zone's offset, and 13 hours rounds to one day. Auckland: real 2026-11-11T21:41Z, stamped 2026-11-12T21:41Z. Medium; for track 4 as the owner of the stamp.
+
+**Low (first reader).** The lint counts names, not uses. The kit's table leaves out the demo visitor's id, the day-one facts and the picker's keys. "Every record's stamp comes from the Clock" is wider than the code (a markup's status time).
+
+### #160 CK2: the levels in a check-in (track 1, merged 20:10 UTC)
+
+No threshold is written twice; every status shape on both screens has a size and its word; the new blocks have a full outline, no stripe, no capsule; nothing scrolls sideways; the new buttons are 44px on a phone.
+
+**1. Medium (first reader). An answer given in the table isn't kept in History**, though the requirement and Help say it is. The table keeps answers in the screen only (`src/screens/QuickCheckIn.tsx:54`, `:96-99`) and the engine writes `Asked` for screen posts only (`src/domain/changeset.ts:646`). The same answer on the walk saves it.
+
+**2. Medium (first reader). The Check's words use a second copy of the number formatter**, so a value of 1 reads "1 hours" (`src/domain/checkin.ts:313` restates `fmt` without its singular).
+
+**3. Medium (first reader). `checkInLevels` returns only the number's Must fix**, where rule 2 lists `evaluate`'s codes, and the table still draws its Must fix as a hint line, not the block CK2 names (`checkin.ts:306-322`, `QuickCheckIn.tsx:163`).
+
+**Low (first reader).** The Must fix block says the value twice ("“0.415” 0.415 has 3 decimal places…"). Two wordings differ from rule 2's table. `reached()` is a fourth copy of "has the number reached its target". No eval covers the table's Check.
+
+### #164 Migration 0039: a module's records (track 3, merged 20:13 UTC)
+
+Run by this reviewer on PGlite with every migration, as `anon`. Faro-only; safe to run twice; the new table's one grant (select to `anon`) is written out and `anon` can't write the list; no redirect in `public`. A table not on the list stops the save ("a save can't write to okr_people"); a module's row that says another workspace, or names an id stored under another, is refused under both the new key and the old ones; `okr_delete_workspace` still clears the metric library's rows. The old `metrics` and `goal_metrics` keys still save, so it is safely one merge ahead of the code that sends `modules`.
+
+**Low.** A save carrying both the old `metrics` key and `modules.okr_metrics` keeps the old key's rows and silently drops the others (the two are joined with `||`, right side winning). The pending code sends only `modules`. `"modules": null` fails with "cannot call jsonb_object_keys on an array". Deleting a workspace relies on each module's tables cascading from the workspace; the README could say so beside "adds them to that list".
+
+### #163 Two journeys called U87 (track 3, merged 20:21 UTC)
+
+Closes #130's finding 5: Goals' menus journey is U135, and `journey()` now refuses a repeated id. Nothing found.
