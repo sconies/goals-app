@@ -88,26 +88,27 @@
 .map-node.found { outline: 3px solid var(--accent); outline-offset: 3px; }
 .map-node.found.selected { outline-width: 2px; }
 /* Find a goal: a search box over the map, top left, with its matches in a list under it. */
-.map-find { position: absolute; top: 12px; left: 12px; z-index: 6; width: min(280px, calc(100% - 92px)); }
-.map-find input { width: 100%; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--fg); font: inherit; font-size: 0.8125rem; }
-.map-find-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; width: max(100%, 320px); max-width: calc(100vw - 32px); max-height: 320px; overflow: auto; margin: 0; padding: 4px; list-style: none; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); }
-.map-find-list li { display: flex; gap: 8px; align-items: baseline; min-height: 36px; padding: 8px 10px; border-radius: 6px; font-size: 0.8125rem; cursor: pointer; }
-.map-find-list li[aria-selected="true"] { background: var(--surface-3); }
-.map-find-list .map-find-key { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
-.map-find-list .map-find-none { color: var(--muted); cursor: default; }
+/* On the Map, the list bar's search lists the goals it finds under the field; choosing one goes to it (goals spec, 2.3). */
+.filter-search:has(.bar-find-list) { position: relative; }
+.bar-find-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; width: max(100%, 320px); max-width: calc(100vw - 32px); max-height: 320px; overflow: auto; margin: 0; padding: 4px; list-style: none; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); }
+.bar-find-list li { display: flex; gap: 8px; align-items: baseline; min-height: 36px; padding: 8px 10px; border-radius: 6px; font-size: 0.8125rem; cursor: pointer; }
+.bar-find-list li[aria-selected="true"] { background: var(--surface-3); }
+.bar-find-list .bar-find-key { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-find-list .bar-find-none { color: var(--muted); cursor: default; }
 /* The longer words on a wide screen; narrower, the same choices in fewer words, so the key and the tools share a row
    at 1280 and the map keeps its height (Map 16). */
 .map-short { display: none; }
 @media (max-width: 1599px) { .map-long { display: none; } .map-short { display: inline; } }
-/* A phone: two rows of controls above the map: the two switches; the framing and fold (Map 22). */
+/* A phone: two rows of controls above the map: Troubled trees and the fold; then the framing, the whole width (Map 22).
+   (Needs attention is the list bar's switch, above: GL2.) */
 @media (max-width: 640px) {
   .map-tools { gap: 8px; }
   .map-tools .check { order: 1; }
-  .map-frame { order: 2; flex: 1 1 0; }
-  .map-tools .map-fold { order: 3; min-width: 0; flex: 0 0 auto; }
-  .map-tools > .btn.ghost { order: 4; }
+  .map-tools .map-fold { order: 2; min-width: 0; flex: 0 0 auto; margin-left: auto; }
+  .map-tools > .btn.ghost { order: 3; }
+  .map-frame { order: 4; flex: 1 1 100%; }
 }
-@media (pointer: coarse) { .map-find input, .map-find-list li { min-height: 44px; } }
+@media (pointer: coarse) { .bar-find-list li { min-height: 44px; } }
 
 /* The walkthrough card: its first quiet button starts on the card's text edge (Map 27). */
 

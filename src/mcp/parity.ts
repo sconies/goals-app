@@ -82,6 +82,7 @@ export const SCREENS: Record<string, Entry> = {
   GoalWizard: ['create_goal'],
   GoalEdit: ['update_goal', 'set_plan_numbers'],
   CheckInFlow: ['post_check_in', 'link_request'],
+  CheckInQueue: ['get_my_work', 'post_check_in'],
   QuickCheckIn: ['bulk_change', 'post_check_in'],
   Respond: ['answer_request', 'mark_action_done', 'ask_question', 'list_requests'],
   Inspect: ['get_review', 'review_call', 'edit_call', 'delete_comment'],

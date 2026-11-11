@@ -19,6 +19,8 @@ import { canMarkDone } from '../domain/asks';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
+import { BackLink } from '../ui/BackLink';
 import { Pick } from '../ui/Pick';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
 import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
@@ -231,7 +233,7 @@ export function ReviewHome() {
 
   return (
     <div className="page narrow review-home" data-part="Review">
-      <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
+      <BackLink />
       <section className="hero">
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={64} counts="reviewed" label={reviewedLabel(s)} />
         <div className="hero-body">
@@ -341,6 +343,9 @@ export function ReviewEdit() {
   const [r, setDraft, clearDraft, restored] = useDraft<ReviewT>(`${app.ws.id}:review:${reviewId ?? 'new'}`, () => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Something typed (now, or kept from before): closing asks first (navigation spec 2.5).
+  const [start] = useState(() => JSON.stringify(r));
+  const dirty = restored || JSON.stringify(r) !== start;
   const set = (p: Partial<ReviewT>) => setDraft(p);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const covered = useMemo(() => goalsIn(r.scope, app.snapshot.goals), [r.scope, app.snapshot.goals]);
@@ -362,7 +367,7 @@ export function ReviewEdit() {
     <div className="focus review-edit">
       <div className="focus-top">
         <h1 className="focus-title">{existing ? 'Change review' : 'Set up a review'}</h1>
-        <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving"><Icon name="close" /></button>
+        <FormClose keeps={false} dirty={dirty} onClose={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. Close to throw these changes away.</p>}
