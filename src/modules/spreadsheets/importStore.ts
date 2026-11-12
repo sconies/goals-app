@@ -4,7 +4,8 @@
 import { useSyncExternalStore } from 'react';
 import type { Answer, Answers, IssueLevel } from '../../domain/problemLevels';
 import type { RowRef } from '../../domain/leaveOut';
-import type { ReadTables } from '../../domain/sheets';
+import type { ReadTables, Tables } from '../../domain/sheets';
+import type { RowProblem } from './rowsFile';
 
 /** What an answered question said, so its closed line reads "{what was asked}: {answer}" after its group has gone. */
 export interface Said { title: string; label: string; level: IssueLevel }
@@ -23,9 +24,11 @@ export interface ImportState {
   carried: number;
   /** Why the preview isn't there: a reload lost the file. */
   lost: boolean;
+  /** The import just saved, while the file is still in memory: Imported offers its left-out rows as a download. */
+  done: { importId: string; tables: Tables; rows: RowProblem[] } | null;
 }
 
-const EMPTY: ImportState = { read: null, name: '', answers: {}, said: {}, reason: '', leftOut: [], asNew: false, carried: 0, lost: false };
+const EMPTY: ImportState = { read: null, name: '', answers: {}, said: {}, reason: '', leftOut: [], asNew: false, carried: 0, lost: false, done: null };
 let state: ImportState = EMPTY;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
