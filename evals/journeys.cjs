@@ -4698,7 +4698,7 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   // Goals, filtered to the metric (ML2): the filter line says so, and its one goal opens.
   await p.waitForURL(/\/demo\/goals\?.*metric=/);
   await see(p, 'Measured by Pipeline queue wait (p90)', 'Goals filtered to the metric does not say so in its filter line');
-  await h.click(p.locator('main').getByRole('link', { name: 'Pipeline queue wait (p90)', exact: true }).first());
+  await h.click(p.locator('main a', { hasText: 'Pipeline queue wait (p90)' }).first());
   await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)/);
   await p.locator('.goal-bar').waitFor();
   // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
@@ -4741,7 +4741,7 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
     await p.waitForURL(/\/goals\/new\/check(\?|$)/);
     const read = (await p.locator('.review-rows').innerText()).replace(/\s+/g, ' ');
     await h.click(p.getByRole('button', { name: 'Publish goal' }));
-    await p.waitForURL(/\/demo\/goals\/[^/?]+\?published=1/);
+    await p.waitForURL(/\/demo\/goals\/[^/?]+\?.*published=1/);
     return read;
   };
   await start('Shorter runner queues');

@@ -43,7 +43,8 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
       const same = link && link.metricId === metric.id && link.teamId === slice;
       pick = same ? undefined : {
         action: 'linkGoalMetric', input: (g) => ({ goalId: g.id, metricId: metric.id, teamId: slice }),
-        says: measuredBySays(metric, slice ? team?.name ?? null : null), blocks: problems.errors[0],
+        // Check's row is labelled "Measured by" already: its value is the rest of the sentence.
+        says: measuredBySays(metric, slice ? team?.name ?? null : null).replace(/^Measured by /, ''), blocks: problems.errors[0],
       };
     } else if (link) pick = { action: 'unlinkGoalMetric', input: (g) => ({ goalId: g.id }) };
     onChange(pick);
