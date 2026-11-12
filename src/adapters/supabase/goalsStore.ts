@@ -32,8 +32,6 @@ const timedFetch: typeof fetch = (input, init) => {
 /** Shared records in Supabase's okr_ tables (in Faro's own schema, faro, since migration 0035), one workspace at a time. Seeds the example the first time it is empty. */
 export class SupabaseStore implements Store {
   readonly kind = 'supabase' as const;
-  /** The real app's data. The example lives in the demo, in each visitor's browser. */
-  readonly hasExample = false;
   private readonly db: SupabaseClient;
 
   /** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
@@ -142,10 +140,6 @@ export class SupabaseStore implements Store {
   async createWorkspace(w: Workspace, data: Snapshot) {
     const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.rpc('okr_create_workspace', { w: workspaceToRow(w), payload }, 'Creating the workspace');
-  }
-
-  async resetExample(): Promise<Snapshot> {
-    throw new Error('Only the demo has an example to reset.');
   }
 
   /** Removes a workspace and everything in it, in one transaction (okr_delete_workspace). */

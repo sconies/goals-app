@@ -104,7 +104,7 @@ Anyone can comment on a goal; comments show in the goal’s activity and are log
 Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line.
 
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U138
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
 
 ## Status rules
 
@@ -227,7 +227,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1, U111, U138
+- **Journeys and checks:** U1, U111, U142
 
 ### UPDATE-ANYTIME
 
@@ -241,7 +241,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 Only the goal's owner can post its check-in.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U9
+- **Journeys and checks:** U9, U141
 
 ## Goals
 
@@ -552,14 +552,14 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U1, U2, U9
+- **Journeys and checks:** U1, U2, U9, U141
 
 ### ADMIN
 
 Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14, U60
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 

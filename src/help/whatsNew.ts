@@ -34,6 +34,36 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in'],
   },
   {
+    id: 'polish-map-wait',
+    date: '2026-11-12',
+    title: 'The map opens without a flash',
+    points: [
+      'Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.',
+      'It says so only when drawing takes long enough to notice.',
+    ],
+    articles: ['goal-map'],
+  },
+  {
+    id: 'your-goals-worst-first',
+    date: '2026-11-12',
+    title: 'Your goals, worst first',
+    points: [
+      'On Home, the goals you own that have nothing flagged are listed worst first, then by name, as Goals lists them.',
+      'Home and Goals now read their lists and counts the same way, so the numbers on each agree.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'polish-no-check-in-for',
+    date: '2026-11-12',
+    title: 'No check-in offered that can’t be posted',
+    points: [
+      'A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.',
+      'The owner checks in from the button on the goal’s bar, as before.',
+    ],
+    articles: ['goal-page', 'check-in'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',

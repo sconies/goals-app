@@ -5,7 +5,7 @@ import { isLevel, levelName } from './levels';
 import { weekDate } from './plan';
 import { quarterOf } from './year';
 import type { Change, Cycle, Level, Snapshot } from './types';
-import { VIA_LABEL, VIA_MCP_BEFORE } from './changeset';
+import { VIA_LABEL, VIA_MCP_BEFORE } from './via';
 import { textMatches } from './find';
 
 export type ActivityKind = 'checkins' | 'plans' | 'goals' | 'reviews' | 'comments' | 'people' | 'imports' | 'ai' | 'cycle';
