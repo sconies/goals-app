@@ -5,7 +5,8 @@
    (app/state.tsx `run`) for a call to its server and changes no screen. No screens, storage or network here. */
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
-import type { Answers, PostMode, Via } from '../domain/changeset';
+import { withProposed } from '../domain/proposed';
+import type { Answers, CheckInPost, PostMode, Via } from '../domain/changeset';
 
 /*
  * The change engine (domain/changeset: check-ins, plan and goal edits, bulk edits, spreadsheets) is a large module a
@@ -21,12 +22,25 @@ export async function loadEngine(): Promise<Engine> { return (engine ??= await i
     during its first render. */
 export function setEngine(e: Engine) { engine ??= e; }
 /** The actions that need the change engine. */
-const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn']);
+// Making a proposed goal active, or proposed again (GE10), comes with the engine too (domain/proposedActions).
+const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn', 'activate']);
+/*
+ * Goal entry's rules (domain/goalEntry: what a goal needs, its questions, `planGoal`) load the same way: on the first
+ * save, or when the browser is idle after the first screen (`loadGoalEntry`). New goal, the edit page and set-up carry
+ * them in their own chunks already.
+ */
+type GoalEntry = typeof import('../domain/goalEntry');
+let goalEntry: GoalEntry | null = null;
+export async function loadGoalEntry(): Promise<GoalEntry> { return (goalEntry ??= await import('../domain/goalEntry')); }
+const entry = (): GoalEntry => { if (!goalEntry) throw new Error('Goal entry hasn’t loaded yet: call ready() first.'); return goalEntry; };
 /** Loads what an action needs before it runs: the dispatcher calls it first. */
-export async function ready(name: string): Promise<void> { if (NEEDS_ENGINE.has(name)) await loadEngine(); }
+export async function ready(name: string): Promise<void> {
+  if (NEEDS_ENGINE.has(name)) await loadEngine();
+  if (name === 'saveGoal') await loadGoalEntry();
+}
 const eng = (): Engine => { if (!engine) throw new Error('The change engine hasn’t loaded yet: call ready() first.'); return engine; };
 import type { Draft } from '../domain/checkin';
-import { planGoal, type SaveGoalInput } from '../domain/goalEntry';
+import type { SaveGoalInput } from '../domain/goalEntry';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
@@ -47,7 +61,7 @@ const gone = (what: string): never => { throw new A.NotAllowed(`That ${what} no 
 
 /** A goal by id or key: this cycle's, then any cycle's, then one stopped (its page still opens). */
 const goalOf = (x: RunContext, id: string): Goal =>
-  findGoal(x.snapshot.goals, id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? gone('goal');
+  findGoal(withProposed(x.snapshot), id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? gone('goal');
 const askOf = (x: RunContext, id: string) => A.findAsk(x, id) ?? gone('ask');
 const reviewOf = (x: RunContext, id: string): Review => x.snapshot.reviews.find((r) => r.id === id) ?? gone('review');
 const callOf = (x: RunContext, id: string) => A.findAsk(x, id) ?? x.snapshot.decisions.find((d) => d.id === id) ?? gone('note');
@@ -61,13 +75,17 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
  */
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
-  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number } }) =>
-    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
+  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number }; posts?: CheckInPost[] }) =>
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
-  postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) =>
-    eng().postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),
+  postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) => {
+    const goalId = goalOf(x, i.goalId).id;
+    return eng().postCheckIn(x, { goalId, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason });
+  },
   /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. */
-  saveGoal: (x: RunContext, i: SaveGoalInput) => planGoal(x, i),
+  saveGoal: (x: RunContext, i: SaveGoalInput) => entry().planGoal(x, i),
+  /* A proposed goal (GE10, rule 14): made active by its owner or an admin. */
+  activate: (x: RunContext, i: { goalId: string; fromWeek?: number }) => eng().activate(x, { goalId: goalOf(x, i.goalId).id, fromWeek: i.fromWeek }),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),

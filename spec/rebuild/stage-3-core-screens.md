@@ -12,7 +12,8 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 
 ## What to read
 
-- [The screens](../core/screens.md): each core route, its purpose, named parts and one main action.
+- [The screens](../core/screens.md): each core route, its purpose, named parts and one main action, and its fields, states and buttons; then the views and overlays with no route of their own.
+- [The design rules](../core/design-rules.md): the look. [The Help guide](../core/help-guide.md): what each screen is for and who can, in full.
 - [The journeys](../core/journeys.md): what people do end to end, the most steps each may take, and the ease test.
 - [The requirements](../core/requirements.md): each one, with the screens and Help article that cover it.
 - [The vocabulary](../core/vocabulary.md): where each word may appear. A status is always a shape and a word.
@@ -71,6 +72,5 @@ Stage 3’s drill scores the parts of the screens that are rules of the viewer, 
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
 - The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. The drill scores the screens’ words that are rules, not the screens: there is no portable journey runner yet.
-- The design rules (`docs/design-rules.md`) and the look are not in the kit; a heading or button whose words are worked out when it shows isn’t listed (the screens page says so).
-- The Help guide’s articles are summarised on the screens page, not given in full.
+- The look is in [the design rules](../core/design-rules.md) and the Help guide in full in [the Help guide](../core/help-guide.md); each screen’s fields, states and buttons are read from Faro’s markup ([the screens](../core/screens.md)), with words worked out when it shows written “…” and the conditions a button shows under as Faro’s code writes them. Each screen has two pictures (390 and 1440 wide) of Faro as it is; they are taken by hand with `npm run spec:shots`, so a change to a screen can leave its picture a step behind until the next run.
 - Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.

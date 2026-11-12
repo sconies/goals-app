@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
+import { isProposed } from '../domain/proposed';
+import { NOTHING_TO_CHECK_IN } from '../domain/proposedActions';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
 import { MIN_CORRECT_REASON, CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
@@ -98,6 +100,8 @@ function Flow({ goalId }: { goalId?: string }) {
   if (!queue.length) return <AllDone first />;
   if (index >= queue.length) return <AllDone />;
   if (!goal) return <div className="page narrow"><Empty title="That goal doesn’t exist"><Link className="btn" to="/">Home</Link></Empty></div>;
+  // A proposed goal has nothing due (GE10): never offered, and said so when opened by its address.
+  if (isProposed(goal)) return <div className="page narrow"><Empty title={NOTHING_TO_CHECK_IN}><Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link></Empty></div>;
   if (goal.ownerId !== app.viewer.id) {
     const owner = app.person(goal.ownerId);
     return (

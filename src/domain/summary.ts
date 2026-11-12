@@ -14,6 +14,9 @@ import { NO_REASON } from './checkin';
 
 export interface GoalSummary {
   goal: Goal;
+  /** Active, proposed (domain/proposed: never judged) or stopped. For a proposed goal the status rules are never run:
+      `statusLabel` is "Proposed", and its status, gap, forecast and story say nothing (status reads 'none', not shown). */
+  state?: 'active' | 'proposed' | 'stopped';
   owner: string;
   team: string;
   level: string;
@@ -96,6 +99,7 @@ export function summarise(goal: Goal, s: Snapshot, cycle: Cycle, today: Date, we
   };
 }
 
+/** Every goal's summary. Judged goals only: a proposed goal's is domain/proposedSummary's (its status rules are never run). */
 export function summariseAll(goals: Goal[], s: Snapshot, cycle: Cycle, today: Date, week: number): GoalSummary[] {
   return goals.map((g) => summarise(g, s, cycle, today, week));
 }

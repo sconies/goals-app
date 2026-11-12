@@ -440,13 +440,19 @@ journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is th
   let p = h.use(await newPage(device, 'hamid'));
   await p.goto(url('/goals/ci-docker'));
   await p.locator('.goal-bar').waitFor();
+  const s0 = await h.snapshot();
   await h.checkpoint('goal');
+  // What an admin comes to see is there: the goal's status, on its bar.
+  h.set('attention', await p.locator('.goal-bar .bar-status').isVisible(), 'the goal has no status on its bar');
   await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
   const menu = p.getByRole('group', { name: 'More about this goal' });
   await h.inView(menu.getByRole('link', { name: 'Change this goal' }), 'entry', 'Change this goal');
   if (await menu.getByRole('link', { name: /^Check in for/ }).count()) fail('an admin is offered a check-in that only the owner may post');
   h.set('errors', true);
+  // Nothing refused, so nothing half-saved: Hamid's visit wrote nothing to the log.
+  const s1 = await h.snapshot();
   await p.context().close();
+  h.set('logged', s1.changes.length === s0.changes.length && s1.checkIns.length === s0.checkIns.length, `Hamid's visit changed the log (${s0.changes.length} to ${s1.changes.length} entries)`);
   // The owner's own way in is on the bar, and it opens her check-in.
   p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ci-docker'));
@@ -458,7 +464,8 @@ journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is th
   if (await p.getByText(/checks in on this goal/).isVisible().catch(() => false)) fail('the owner’s check-in is refused');
   h.set('finish', true);
   await p.context().close();
-});
+  // Two pages and one action each: no steps to count, so no progress to show.
+}, ['progress']);
 
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
@@ -1748,26 +1755,28 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   // Export: a workbook, and JSON another tool can read.
   await h.click(await exportButton(h, p));
   await h.checkpoint('export');
-  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /Excel workbook/ }))]);
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
+  // The other formats are one click away (import spec 2.9).
+  await h.click(p.getByRole('button', { name: 'Other formats' }));
   const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .json' }))]);
   const data = JSON.parse(fs.readFileSync(await json.path(), 'utf8'));
   const [md] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .md' }))]);
   const brief = fs.readFileSync(await md.path(), 'utf8');
   const s = await h.snapshot();
-  h.set('finish', /\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, 'the workbook was not saved');
+  h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, `the workbook was not saved as …-goals-all-{date}.xlsx: ${xlsx.suggestedFilename()}`);
   h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
   await p.context().close();
 }, ['errors']);
 
 journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'mateo'));
-  // Spreadsheets live on Data (the spreadsheets module): its menu opens Import.
+  // Spreadsheets live on Data (the spreadsheets module): Export, a menu, and Import, a link (import spec 2.9).
   await p.goto(url('/data'));
   const menu = p.locator('.data-export > summary');
-  await h.inView(menu, 'entry', 'Spreadsheets on Data');
-  h.set('parity', (await menu.innerText()).trim() === 'Spreadsheets', `Data's menu says “${(await menu.innerText()).trim()}”`);
-  await h.click(menu);
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
+  const link = p.locator('.data-tools .data-import');
+  await h.inView(link, 'entry', 'Import on Data');
+  h.set('parity', (await menu.innerText()).trim() === 'Export' && (await link.innerText()).trim() === 'Import', `Data's tools say “${(await menu.innerText()).trim()}” and “${(await link.innerText()).trim()}”`);
+  await h.click(link);
   await p.waitForURL(/\/data\/import/);
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await h.checkpoint('import');
@@ -2232,7 +2241,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
   await see(p, /\d+ needs? attention: /, 'the attention filter does not show in the count');
   await h.click(await exportButton(h, p));
-  const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
+  const scope = p.getByRole('dialog', { name: 'Export', exact: true }).getByLabel(/shown now: /);
   h.set('attention', await scope.isChecked().catch(() => false), 'a filtered export does not start from what is shown');
   await p.keyboard.press('Escape');
   await h.checkpoint('map attention');
@@ -4345,12 +4354,13 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await direct.scrollIntoViewIfNeeded();
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
   await h.click(direct);
-  const sheet = p.getByRole('dialog', { name: 'Export goals' });
+  const sheet = p.getByRole('dialog', { name: 'Export', exact: true });
   await sheet.waitFor();
   await see(sheet, 'Results', 'the workbook does not say it has every sheet');
-  await see(sheet, 'CSV files', 'the zipped CSVs are not offered beside the workbook');
+  await h.click(sheet.getByRole('button', { name: 'Other formats' }));
+  await see(sheet, 'CSV files, zipped', 'the zipped CSVs are not offered behind Other formats');
   await h.checkpoint('export choices');
-  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(sheet.getByRole('button', { name: /Excel workbook/ }))]);
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(sheet.getByRole('button', { name: 'Export .xlsx' }))]);
   const file = path.join(OUT, `U46-${device}.xlsx`);
   await xlsx.saveAs(file);
   const book = await readWorkbook(file);
@@ -4370,8 +4380,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.keyboard.press('Escape');
   // Load it back on Data's Import: exactly those two changes, the stop shown as such, before anything is saved.
   await p.goto(url('/data'));
-  await h.click(p.locator('.data-export > summary'));
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
+  await h.click(p.locator('.data-tools .data-import'));
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
@@ -4943,7 +4952,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and, its last step started on “Not yet: propose it” and changed to “Yes”, the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4981,6 +4990,10 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
   // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
   // beside the “Published” toast.
+  // A goal for someone else starts on “Not yet: propose it” (GE10, decision 16): published as active, it is chosen.
+  const underWay = p.getByRole('group', { name: 'Is it under way?' });
+  h.set('finish', await underWay.getByRole('radio', { name: /Not yet: propose it/ }).isChecked(), 'a goal for Amara doesn’t start on “Not yet: propose it”');
+  await h.click(underWay.getByRole('radio', { name: /Yes: publish it as active/ }));
   await p.route('**/assets/**', async (r) => { await new Promise((res) => setTimeout(res, 1200)); await r.continue().catch(() => {}); });
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   const mixed = new Set();
@@ -5267,6 +5280,90 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   const made = snap.goals.find((g) => g.title === 'Signed artifacts in staging');
   const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
   h.set('logged', !!checked && /Which team is this goal for\?/.test(checked.from) && checked.to === 'Keep it in CI/CD', 'History doesn’t keep the answer as Checked');
+  await p.context().close();
+}, []);
+
+/* GE10: a goal that is proposed, not yet active (goal entry 2.15, rule 14). */
+journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '40');
+  await h.fill(p.getByLabel(/^Target$/), '90');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  const question = p.getByRole('group', { name: 'Is it under way?' });
+  await see(p, 'Is it under way?', 'the last step doesn’t ask whether the goal is under way');
+  await h.click(question.getByRole('radio', { name: /Not yet: propose it/ }));
+  await see(p, 'After you propose it', '“Not yet” doesn’t turn the block to “After you propose it”');
+  await h.inView(p.getByRole('button', { name: 'Propose goal' }), 'entry', 'Propose goal');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  const page = p.locator('.goal-proposed');
+  await page.waitFor();
+  h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'the proposed goal’s page doesn’t say “Proposed” above the title');
+  h.set('a11y', (await page.locator('.status-shape').count()) === 0, 'a proposed goal’s page draws a status shape');
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.id === id);
+  h.set('logged', !!made && !!made.proposedAt && /^G-\d+$/.test(made.key ?? ''), 'the proposed goal was saved without a key or without proposedAt');
+  // Goals, Mine counts it apart, and the link lists it.
+  await p.goto(on('/goals?scope=mine'));
+  const line = p.locator('.goals-line').first();
+  await line.waitFor();
+  h.set('attention', /· 1 proposed/.test(await line.innerText()), `Goals, Mine reads “${await line.innerText()}”, not “· 1 proposed”`);
+  await h.click(line.getByRole('link', { name: '1 proposed' }));
+  await see(p, '1 proposed goal, newest first.', 'the proposed link doesn’t list it');
+  await see(p, 'Filtered by: Proposed', 'the proposed list doesn’t say its filter');
+  h.set('a11y', (await p.locator('.proposed-rows .status-shape').count()) === 0, 'a proposed row draws a status shape');
+  // Nothing to check in, and a fortnight later still proposed.
+  await p.goto(on('/check-in/' + id));
+  await see(p, 'This goal is proposed, so there is nothing to check in. Make it active first.', 'the check-in of a proposed goal doesn’t say so');
+  await p.goto(on('/goals/' + id, '2026-11-25'));
+  await page.waitFor();
+  h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // As Oskar: comment, ask and watch, and who can make it active.
+  await p.goto(on('/'));
+  await viewAs(p, 'Oskar', h);
+  await p.goto(on('/goals/' + id));
+  await page.waitFor();
+  await see(page, 'Tunde Bakare or an admin can make this active.', 'Oskar isn’t told who can make it active');
+  for (const b of ['Add a comment', 'Ask Tunde a question']) h.set('finish', await page.getByRole('button', { name: b }).first().isVisible(), `Oskar has no “${b}”`);
+  h.set('finish', (await page.getByRole('button', { name: 'Make it active' }).count()) === 0, 'Oskar can make it active');
+  // As Tunde: Make it active reads back From as this week and the first check-in's day.
+  await p.goto(on('/'));
+  await viewAs(p, 'Tunde', h);
+  await p.goto(on('/goals/' + id));
+  await page.waitFor();
+  await h.click(page.getByRole('button', { name: 'Make it active' }).first());
+  const block = p.locator('.make-active');
+  await block.waitFor();
+  const says = (await block.locator('.make-active-says').innerText()).replace(/\s+/g, ' ');
+  h.set('finish', says.startsWith('From 40% in week 46 (9–15 Nov 2026) to 90% by week 53') && says.includes('Its first check-in is due by Thursday 12 Nov, then every week.'), `Make it active reads “${says}”`);
+  await h.click(block.getByRole('button', { name: 'Make it active' }));
+  // Once active it is a new goal's page: no check-in yet, nothing proposed about it.
+  await see(p, 'No check-in yet', 'once active, the page doesn’t read as a new goal’s (No check-in yet)');
+  h.set('finish', (await page.count()) === 0, 'once active, the page still says Proposed');
+  const undo = p.locator('.toast-action').filter({ hasText: 'Undo' }).first();
+  h.set('errors', await undo.isVisible(), 'making it active has no Undo');
+  await h.click(undo);
+  await page.waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('errors', await page.isVisible(), 'Undo didn’t return it to proposed');
+  // Withdraw it: gone, with Undo.
+  await h.click(page.getByRole('button', { name: 'Withdraw it' }).first());
+  await see(p, 'It goes to Recently removed for 30 days.', 'Withdraw doesn’t say where it goes');
+  await h.click(p.getByRole('alertdialog', { name: 'Withdraw the proposal' }).getByRole('button', { name: 'Withdraw it' }));
+  await p.waitForURL(/\/goals(\?|$)/);
+  await see(p, 'Withdrew the proposal', 'withdrawing doesn’t say so');
   await p.context().close();
 }, []);
 
@@ -5768,11 +5865,10 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await see(p, `Saved 15 changes from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
   await h.checkpoint('imported');
-  // Data → Spreadsheets → Past imports: the import by its file's name.
+  // Data → Import → All {n} past imports: the import by its file's name.
   await p.goto(url('/data'));
-  const menu = p.locator('.data-export').first();
-  await h.click(menu);
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Past imports' }));
+  await h.click(p.locator('.data-tools .data-import'));
+  await h.click(p.getByRole('link', { name: /^All \d+ past imports?$/ }));
   await p.waitForURL(/\/data\/imports/);
   await see(p, `u90-${device}.xlsx`, 'Past imports does not list the import by its file');
   // Rhea posts a check-in on one of the imported goals.

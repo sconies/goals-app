@@ -2,13 +2,14 @@
    is an address (/goals/new/<step>), so the browser's Back steps back and a reload stays put; the draft is kept on every
    change and picked up where it stopped. People, teams and goals are found by typing (find-and-pick), never chosen from
    a list of everything. The level, the suggestions for "Feeds into" and the plan's note are rules (src/domain/newGoal). */
+import '../styles/notes/proposed.css';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
-import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
+import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, proposedMustFix, unsaidDraft, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
 import { focusQuestion } from '../ui/questionInView';
 import { fmt } from '../domain/format';
@@ -16,7 +17,11 @@ import { placesText } from '../domain/numbers';
 import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
 import { NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
-import { readBack, reviewsJoining } from '../domain/readBack';
+import { readBack, reviewsJoining, underWay } from '../domain/readBack';
+import { measureEmpty } from '../domain/proposed';
+
+/** The fields that say how a goal is measured: optional, all together, while it is proposed (rule 14). */
+const MEASURE_FIELDS: string[] = ['start', 'target', 'limit', 'stages'];
 import { worstFirst } from '../domain/order';
 import type { GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
@@ -48,7 +53,7 @@ const SHAPES: [PlanShape, string, string][] = [
 const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 /** What New goal keeps in its draft beyond the goal: where it stopped, and what was chosen by hand rather than followed. */
-type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers; measureKept?: string };
+type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers; measureKept?: string; state?: 'active' | 'proposed' };
 
 /** /goals/new (and /goals/new/<step>): a draft's step, or the first. */
 export function GoalWizard() {
@@ -120,11 +125,16 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const goal: WizardDraft = { ...d, level: level ?? d.level };
   // What can't be saved (goal entry, rule 2): the same rule and words as the edit page, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
-  const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
+  // "Is it under way?" (GE10): chosen on Check; until then a goal for someone else starts on "Not yet" (decision 16).
+  const state = d.state ?? (d.ownerId && d.ownerId !== app.viewer.id ? 'proposed' : 'active');
+  const proposing = state === 'proposed';
+  const fix: MustFix[] = (proposing ? proposedMustFix : goalMustFix)({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
   const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
-  const live: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
+  // Proposed with nothing measured yet (rule 14): nothing about its numbers is asked.
+  const asked = proposing && measureEmpty(goal) ? { ...goal, ...unsaidDraft(goal) } : goal;
+  const live: GoalCheck[] = goalChecks({ ...asked, level: (level ?? '') as Level }, checksContext(asked, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
   }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published, actor: app.viewer }));
   // Pressing Publish freezes the questions as they were: the save puts the new goal among the team's goals before it
@@ -146,7 +156,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const errorOf = (f: GoalField) => (showsFor(f) ? fix.find((x) => x.field === f) : undefined);
   const showErr = (f: GoalField) => { const e = errorOf(f); return e ? <FieldError id={`${f}-fix`}>{e.text}</FieldError> : null; };
   const invalid = (f: GoalField) => !!errorOf(f);
-  const optional = (f: GoalField) => (formNeed(f, d.kind) === 'optional' ? <span className="muted" style={{ fontWeight: 400 }}> · optional</span> : null);
+  // Proposed, how it's measured may wait: the type's own required fields read optional (rule 14).
+  const optional = (f: GoalField) => (formNeed(f, d.kind) === 'optional' || (proposing && MEASURE_FIELDS.includes(f)) ? <span className="muted" style={{ fontWeight: 400 }}> · optional</span> : null);
   const gate = stepState(step, stepErrors(step), checks, answers);
   // Answering: yes keeps what was typed; no changes it, at once where the answer says how, or is an answer too (a stage
   // overdue), or leaves it to the person, at the field. Change asks an answered question again.
@@ -238,13 +249,14 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       // own weeks, in the same save, so the goal isn't born late (OB2's rule 3). What measures it (the goal.measure place)
       // is saved in the same commit, so the link sees the new goal.
       const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
-      const g = await app.saveGoal(draft, null, { answers, metric, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
+      const { state: _s, ...rest } = draft;
+      const g = await app.saveGoal(rest, null, { answers, metric, state, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       setPublished(g.id);
       // The page and the toast together: the page's code is (almost always) here already.
       await loadGoalPage();
       nav('/goals/' + g.id + '?published=1', { replace: true });
-      app.toast(`Published “${g.title}”`);
+      app.toast(proposing ? `Proposed “${g.title}”` : `Published “${g.title}”`);
     } catch {
       frozen.current = null;
       setSaving(false);
@@ -284,8 +296,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: alsoHelps.map((g) => g.title),
     metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: true,
     reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
-    wsName: app.ws.name,
+    wsName: app.ws.name, state,
   }) : null;
+  const choices = underWay({ owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, rhythm: 'weekly', week, from: d.kind === 'metric' ? span.from : undefined });
 
   return (
     <div className="focus goal-form" ref={top}>
@@ -496,11 +509,22 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 </li>
               ))}
             </ul>
+            {/* Is it under way? (GE10): published as active, or proposed: seen by everyone, nothing due, no status. */}
+            <fieldset className="under-way" aria-labelledby="under-way">
+              <legend className="small strong" id="under-way">Is it under way?</legend>
+              {(['active', 'proposed'] as const).map((k) => (
+                <label key={k} className="check under-way-choice">
+                  <input type="radio" name="under-way" checked={state === k} onChange={() => set({ state: k })} />
+                  <span className="menu-text"><span className="strong">{choices[k].label}</span><span className="small muted">{choices[k].line}</span></span>
+                </label>
+              ))}
+            </fieldset>
             <section className="after-publish" aria-labelledby="after-publish">
-              <h2 className="small strong" id="after-publish">After you publish</h2>
+              <h2 className="small strong" id="after-publish">{proposing ? 'After you propose it' : 'After you publish'}</h2>
               {read.after.map((t) => <p key={t} className="small">{t}</p>)}
+              {read.hint && <p className="hint">{read.hint}</p>}
             </section>
-            {saving || published ? null : [0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
+            {saving || published ? null : [0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; {proposing ? 'proposing' : 'publishing'} takes you to it.</div>
               : [0, 1, 2].some((i) => stepOpen(i).length) ? <div className="note-bad small">A question is still to answer; publishing takes you to it.</div> : null}
           </>
         )}
@@ -509,7 +533,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         <div className="focus-foot nav-foot">
           {step > 0 && <button type="button" className="btn" onClick={back}>Back</button>}
           <span style={{ flex: 1 }} />
-          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? 'Published' : saving ? 'Saving…' : step < 3 ? 'Continue' : 'Publish goal'}</button>
+          {/* Proposed, how it's measured can be said later: straight from Who and where to Check (2.15, item 4). */}
+          {step === 1 && proposing && <button type="button" className="linkish skip-measure" onClick={() => go(3)}>Skip: say how it’s measured later</button>}
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? (proposing ? 'Proposed' : 'Published') : saving ? 'Saving…' : step < 3 ? 'Continue' : proposing ? 'Propose goal' : 'Publish goal'}</button>
         </div>
       </form>
     </div>

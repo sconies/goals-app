@@ -132,6 +132,11 @@
       "text": "A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools."
     },
     {
+      "id": "GOAL-PROPOSED",
+      "area": "Goals",
+      "text": "A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
@@ -269,12 +274,12 @@
     {
       "id": "SPREADSHEETS-ON-DATA",
       "area": "Data",
-      "text": "Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template (a Start here sheet, then the columns a person fills in on Goals, Plan, Check-ins and People, required headers in bold, and example rows that are never imported), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets)."
+      "text": "Spreadsheets live on Data: Export saves the open table as laid out (.xlsx or .csv, saying how many rows and columns and which key columns are added so it loads back) or opens Everything…, the one Export; Import, beside it, opens /data/import, which offers the template (a Start here sheet, then the columns a person fills in on Goals, Plan, Check-ins and People, required headers in bold, and example rows that are never imported) and shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets)."
     },
     {
       "id": "EXPORT",
       "area": "Data",
-      "text": "Goals export as one Excel workbook with every sheet (a Start here sheet that says what each column means and which a new row must have, then Goals, Plan, Check-ins, People, Results, Asks, Notes and Metrics), the same sheets as zipped CSVs, one table as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. Exports agree with the screens."
+      "text": "Export is one sheet with one button, Export .xlsx: one Excel workbook with every sheet (a Start here sheet that says what each column means and which a new row must have, then Goals, Plan, Check-ins, People, Results, Asks, Notes and Metrics). Under Other formats: the same sheets as zipped CSVs, one sheet as a CSV, JSON with a stated format and each goal’s plan and check-ins, and a Markdown brief for AI chats. Everything in the cycle, or just the current view. The file’s name says what it holds (workspace, what, all or the view or as-shown, date) and is shown before saving. Exports agree with the screens."
     },
     {
       "id": "BULK-IMPORT",
