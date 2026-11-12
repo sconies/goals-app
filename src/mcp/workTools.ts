@@ -22,6 +22,7 @@ import { weekProgress } from '../domain/progress';
 import { workbook } from '../domain/export';
 import { choosableColumns, isDataTable, isTableView, layoutProblems, MAX_WIDTH, parseLayout, TABLE_ORDER, TABLES, type DataTable, type TableLayout } from '../domain/tableLayout';
 import { findGoal, isKey } from '../domain/goalKey';
+import { withProposed } from '../domain/proposed';
 import type { AskKind, Level, Retro, Review, Watch } from '../domain/types';
 import { ARTICLES, GROUPS, articleById, articleText, searchGuide, type Article } from '../help/guide';
 import { newsDate, newsSince } from '../help/whatsNew';
@@ -54,7 +55,7 @@ async function save(ctx: McpContext, c: Commit | null, done: string, nothing: st
 const name = (ctx: McpContext, id: string | null | undefined) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? '—';
 /** A goal by its ID or its key (G-12). */
 const goalOf = (ctx: McpContext, id: unknown) => {
-  const g = findGoal(ctx.snapshot.goals, String(id ?? ''));
+  const g = findGoal(withProposed(ctx.snapshot), String(id ?? ''));
   if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };
