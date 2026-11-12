@@ -1047,7 +1047,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   const state = await p.context().storageState();
   const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => x.name !== 'goals-app-workspace' && !x.name.startsWith('goals-app-viewer:')) })) } });
   const q = await other.newPage();
-  await q.goto(link + '&today=' + TODAY);
+  await q.goto(link + (link.includes('?') ? '&' : '?') + 'today=' + TODAY);
   await q.locator('.side:visible, .tabbar:visible').first().waitFor();
   const remembered = await q.waitForFunction((id) => localStorage.getItem('goals-app-workspace') === id && id, wsId, { timeout: 8000 }).then((x) => x.jsonValue(), () => null);
   const opened = (await q.locator('.ws-switch:visible, .ws-switch-top:visible').first().innerText().catch(() => '')).trim();
