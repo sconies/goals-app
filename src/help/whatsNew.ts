@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'past-imports',
+    date: '2026-11-12',
+    title: 'Past imports, each with Undo',
+    points: [
+      'Data lists every import, who made it and what it changed: Spreadsheets, then Past imports.',
+      'Undo says first which rows have changed since, and why they will stay.',
+      'Saving an import ends on a page that says what was saved, with Undo beside it.',
+      'In Activity an import is one entry, its changes folded under it.',
+    ],
+    articles: ['past-imports', 'import'],
+  },
+  {
     id: 'goal-dates-picked',
     date: '2026-11-12',
     title: 'Pick a goal’s weeks, with their dates',

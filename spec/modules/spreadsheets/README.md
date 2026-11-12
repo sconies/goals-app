@@ -11,7 +11,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Extension point | What |
 |---|---|
 | Needs | none |
-| Routes | `/data/import`, `/data/import/check`, `/data/import/check/changes` |
+| Routes | `/data/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`, `/data/imports` |
 | Old addresses | `/import` → `/data/import` |
 | Navigation | none |
 | Places on core screens | `data.tools`, `goals.tools`, `help.article` |
@@ -19,7 +19,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Database tables | none |
 | Its own records | none |
 | AI tools | `export`, `export_table` |
-| Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`), “Every column, and what it needs” (`columns`) |
+| Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`), “Every column, and what it needs” (`columns`), “Past imports and Undo” (`past-imports`) |
 | Outside its folder | none |
 
 ## Requirements
@@ -31,6 +31,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 - `FIELD-TABLE`: Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from. Tests: `src/domain/fieldTable.test.ts`.
 - `IMPORT-LEVELS`: Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused. Tests: `src/domain/problemLevels.test.ts`, `evals/format.eval.ts`.
 - `IMPORT-PREVIEW`: Before anything is saved an import says which sheets and columns it read and which it did not, then counts by sheet, then what must be fixed, then its questions, then the changes on request with before and after and every default it used. Saving is all or nothing unless the person chooses to leave named rows out. Tests: `src/domain/importPreview.test.ts`, `src/domain/roundtrip.test.ts`.
+- `IMPORT-UNDO`: Every import, bulk edit and bulk change through MCP is one line in Past imports and one entry in Activity, and can be undone as a whole by whoever made it or an admin. Undo says beforehand which rows have changed since and will stay. Tests: `evals/remove.eval.ts`.
 
 ## Journeys and checks
 
@@ -44,6 +45,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U88 | One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none” | `evals/journeys.cjs` |
 | U89 | Out and back in: the workbook loaded straight back reads “Nothing would change”; with Status edited on two rows it says those cells differ and Faro never reads them; a column nothing reads is named in the file line; a file exported from another workspace asks before anything else, and its rows can be added as new goals | `evals/journeys.cjs` |
 | U94 | Who may import what: as Tunde, a workbook with his own target changed and Rhea’s changed gives one group “1 row changes a goal you don’t own” with “Leave these rows out”, and a People row changed gives the admins-only group; both left out, his change saves and Rhea’s goal is as it was | `evals/journeys.cjs` |
+| U90 | Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes” | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
 | F17 | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
@@ -54,6 +56,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 - **Importing from a spreadsheet** (`import`): Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 - **Exporting** (`export`): Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.
 - **Every column, and what it needs** (`columns`): For every column of Goals, Plan, Check-ins and People: whether a new row must have it, its format, an example, and what happens when it’s left empty.
+- **Past imports and Undo** (`past-imports`): Every import, bulk edit and change through MCP in one list, newest first, each with who made it, how, what it changed, and Undo.
 
 ## Rules, conformance and rebuild stage
 

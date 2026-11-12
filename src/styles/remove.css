@@ -36,10 +36,13 @@
 .comment-edit { display: grid; gap: var(--s2); margin-top: var(--s1); }
 .ci-remove { grid-column: 1 / -1; margin-top: var(--s2); }
 
-/* ---------- Undo this import, on its Activity entry ---------- */
+/* ---------- Undo this import (import spec 2.6): its button, the undone line, and the sheet's list of rows kept ---------- */
 .import-undo { align-self: flex-start; margin-top: var(--s1); }
 .import-undone { align-self: flex-start; }
-.import-undo-ask { display: grid; gap: var(--s2); margin-top: var(--s1); }
+.import-entry-tools { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s1); }
+.undo-kept { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
+.undo-kept li { padding: var(--s2) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.undo-kept li:last-child { border-bottom: 0; }
 
 /* ---------- ending a review ---------- */
 .end-review .btn { margin-top: var(--s2); }

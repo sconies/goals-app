@@ -8450,12 +8450,20 @@ function undoStart(x, cycleId) {
 		})]
 	};
 }
-/**
-* Undo an import or bulk edit: whoever made it, or an admin. Every row it wrote is put back as it was: a goal or
-* check-in it added is deleted, one it changed gets its earlier version back, as do people and asks. A row changed by
-* anything since is left alone and listed in `skipped`.
-*/
-function undoImport(x, importId) {
+/** Why a row changed since, from the latest change that touched it (spec 2.6's sentences). */
+function keptReason(rows, c, of) {
+	const who = rows.people.find((p) => p.id === c.actorId)?.name ?? "Someone";
+	const on = onDay(c.at);
+	if (c.entity === "check-in" && (c.action === "posted" || c.action === "created")) {
+		const week = rows.checkIns.find((v) => v.id === c.entityId)?.week;
+		return `${who} posted a check-in${week != null ? ` for week ${week}` : ""} on ${on}`;
+	}
+	if (of === "check-in") return c.action === "removed" ? `The check-in was deleted on ${on}` : `The check-in was corrected on ${on}`;
+	const field = c.diffs.find((d) => d.field !== "Via")?.field;
+	return field ? `Its ${field.toLowerCase()} was changed on ${on}` : `It was changed on ${on}`;
+}
+/** What undoing an import would do, worked out once for undoImport and undoPreview. */
+function undoPlan(x, importId) {
 	const full = fullOf(x);
 	const entry = importEntry(full, importId);
 	if (!entry) no$1("There’s no import with that ID.");
@@ -8465,15 +8473,25 @@ function undoImport(x, importId) {
 	const u = entry.undo;
 	const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
 	const since = full.changes.filter((c) => c.at > entry.at && !own.has(c.id) && c.id !== entry.id);
-	const touched = (entity, id) => since.some((c) => c.entity === entity && c.entityId === id);
+	const latest = (f) => {
+		for (let i = since.length - 1; i >= 0; i--) if (f(since[i])) return since[i];
+	};
+	const touchedBy = (entity, id) => latest((c) => c.entity === entity && c.entityId === id);
 	const skipped = [];
+	const keep = (name, c, of, reason) => skipped.push({
+		name,
+		reason: reason ?? keptReason(full, c, of),
+		at: c.at,
+		by: c.actorId
+	});
 	const goals = [], checkIns = [], people = [], requests = [];
 	const changes = [];
 	for (const { id, before } of u.goals) {
 		const cur = full.goals.find((g) => g.id === id);
 		if (!cur || cur.removedAt && (!before || before.removedAt)) continue;
-		if (touched("goal", id) || !before && since.some((c) => c.goalId === id)) {
-			skipped.push(`${cur.title}: changed since`);
+		const by = touchedBy("goal", id) ?? (!before ? latest((c) => c.goalId === id) : void 0);
+		if (by) {
+			keep(cur.title, by, "goal");
 			continue;
 		}
 		goals.push(before ? {
@@ -8497,8 +8515,9 @@ function undoImport(x, importId) {
 		const cur = full.checkIns.find((c) => c.id === id);
 		if (!cur || cur.removedAt) continue;
 		const goal = full.goals.find((g) => g.id === cur.goalId);
-		if (touched("check-in", id)) {
-			skipped.push(`${goal?.title ?? "A goal"}, week ${cur.week}: changed since`);
+		const by = touchedBy("check-in", id);
+		if (by) {
+			keep(`${goal?.title ?? "A goal"}, week ${cur.week}`, by, "check-in");
 			continue;
 		}
 		checkIns.push(before ? asBefore(cur, before) : {
@@ -8518,14 +8537,24 @@ function undoImport(x, importId) {
 	for (const { id, before } of u.people) {
 		const cur = full.people.find((p) => p.id === id);
 		if (!cur || cur.removedAt) continue;
-		if (touched("person", id)) {
-			skipped.push(`${cur.name}: changed since`);
+		const by = touchedBy("person", id);
+		if (by) {
+			keep(cur.name, by, "person");
 			continue;
 		}
 		const added = (gid) => u.goals.some((v) => v.id === gid && !v.before);
-		if (!before && (since.some((c) => c.actorId === id) || full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id)))) {
-			skipped.push(`${cur.name}: has history since`);
-			continue;
+		if (!before) {
+			const acted = latest((c) => c.actorId === id);
+			const owns = full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id));
+			if (acted || owns) {
+				skipped.push({
+					name: cur.name,
+					reason: `${cur.name} has made changes since`,
+					at: acted?.at ?? entry.at,
+					by: id
+				});
+				continue;
+			}
 		}
 		people.push(before ? asBefore(cur, before) : {
 			...cur,
@@ -8544,8 +8573,9 @@ function undoImport(x, importId) {
 	for (const { id, before } of u.reviews ?? []) {
 		const cur = (full.reviews ?? []).find((r) => r.id === id);
 		if (!cur || !before) continue;
-		if (touched("review", id)) {
-			skipped.push(`The review “${cur.name}”: changed since`);
+		const by = touchedBy("review", id);
+		if (by) {
+			keep(`The review “${cur.name}”`, by, "other");
 			continue;
 		}
 		reviews.push({
@@ -8573,12 +8603,18 @@ function undoImport(x, importId) {
 	if (home) {
 		for (const list of [goals, people]) for (const r of list) if (r.teamId && removeTeams.includes(r.teamId)) r.teamId = home;
 	}
-	for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push(`The team ${full.teams.find((t) => t.id === id).name}: has goals or people since`);
+	for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push({
+		name: `The team ${full.teams.find((t) => t.id === id).name}`,
+		reason: "It has goals or people since",
+		at: entry.at,
+		by: entry.actorId
+	});
 	for (const { id, before } of u.requests) {
 		const cur = asksOf(full).find((r) => r.id === id);
 		if (!cur) continue;
-		if (touched("request", id)) {
-			skipped.push(`An ask on ${full.goals.find((g) => g.id === cur.goalIds[0])?.title ?? "a goal"}: changed since`);
+		const by = touchedBy("request", id);
+		if (by) {
+			keep(`An ask on ${full.goals.find((g) => g.id === cur.goalIds[0])?.title ?? "a goal"}`, by, "other");
 			continue;
 		}
 		const back = before ?? (cur.status === "open" ? {
@@ -8602,7 +8638,7 @@ function undoImport(x, importId) {
 		}, ...skipped.length ? [{
 			field: "Skipped",
 			from: "—",
-			to: skipped.join("; ")
+			to: skipped.map(keptText).join("; ")
 		}] : []]
 	}));
 	return {
@@ -8618,6 +8654,22 @@ function undoImport(x, importId) {
 			...removeTeams.length ? { removeTeams } : {},
 			changes
 		}
+	};
+}
+/**
+* Undo an import or bulk edit: whoever made it, or an admin. Every row it wrote is put back as it was: a goal or
+* check-in it added is deleted, one it changed gets its earlier version back, as do people and asks. A row changed by
+* anything since is left alone and listed in `skipped`, with why, when and by whom (rule 9).
+*/
+function undoImport(x, importId) {
+	return undoPlan(x, importId);
+}
+/** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
+function undoPreview(x, importId) {
+	const out = undoPlan(x, importId);
+	return {
+		restores: out.restored,
+		skipped: out.skipped
 	};
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
@@ -8790,7 +8842,7 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
 	init_copies();
@@ -8798,6 +8850,7 @@ var init_removal = __esmMin((() => {
 	init_asks();
 	init_status();
 	init_tableLayout();
+	init_changeset();
 	init_vocabulary();
 	init_records();
 	no$1 = (msg) => {
@@ -8845,6 +8898,12 @@ var init_removal = __esmMin((() => {
 	importEntry = (s, importId) => s.changes.find((c) => c.action === "imported" && c.entityId === importId);
 	importUndone = (s, importId) => s.changes.some((c) => c.action === "undone" && c.entityId === importId);
 	canUndoImport = (s, entry, actor) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
+	onDay = (iso) => new Date(iso).toLocaleDateString("en-GB", {
+		day: "numeric",
+		month: "short",
+		timeZone: "UTC"
+	});
+	keptText = (k) => `${k.name}: ${k.reason}`;
 	REMOVED_LABEL = {
 		left: "Person who left",
 		person: "Person",
@@ -9281,6 +9340,20 @@ function describe(cs) {
 		c.left && `${plural$1(c.left, "person", "people")} ${lower({ label: LEFT })}`
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
+}
+/** The import summary's File and Rows diffs (rule 9): "654 changed, 397 unchanged, 5 left out". */
+function fileDiffs(file, changed, unchanged, left) {
+	if (!file?.name) return [];
+	const out = left + (file.leftOut ?? 0);
+	return [{
+		field: "File",
+		from: "—",
+		to: file.name
+	}, {
+		field: "Rows",
+		from: "—",
+		to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ""}`
+	}];
 }
 function planChanges(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
@@ -11248,7 +11321,7 @@ function planChanges(input) {
 				field: "Via",
 				from: "—",
 				to: VIA_LABEL[via]
-			}],
+			}, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
 			undo: {
 				goals: ordered.map((g) => ({
 					id: g.id,
@@ -12535,7 +12608,6 @@ function localSearch(rows, finders = {}) {
 	};
 }
 // src/domain/export.ts
-init_changeset();
 init_goal();
 init_asks();
 init_levels();
@@ -13848,6 +13920,7 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 init_levels();
 init_plan();
 init_year();
+init_changeset();
 init_find();
 var ACTIVITY_KINDS = [
 	["checkins", "Check-ins"],
@@ -14216,7 +14289,8 @@ var help$2 = [
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
 					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
 					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
-					"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
+					"Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.",
+					"Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay."
 				]
 			},
 			{
@@ -14242,12 +14316,14 @@ var help$2 = [
 			"/data/import",
 			"/import",
 			"/data/import/check",
-			"/data/import/check/changes"
+			"/data/import/check/changes",
+			"/data/import/done/:importId"
 		],
 		screens: [
 			"Import",
 			"Check",
-			"Changes"
+			"Changes",
+			"Imported"
 		],
 		reqs: [
 			"BULK-IMPORT",
@@ -14290,11 +14366,57 @@ var help$2 = [
 		],
 		related: [
 			"columns",
+			"past-imports",
 			"export",
 			"data",
 			"keys",
 			"removing"
 		]
+	},
+	{
+		id: "past-imports",
+		title: "Past imports and Undo",
+		summary: "Every import, bulk edit and change through MCP in one list, newest first, each with who made it, how, what it changed, and Undo.",
+		group: "data",
+		after: "import",
+		sections: [
+			{
+				heading: "The list",
+				list: [
+					"On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
+					"Find one by its file, by who made it or by what it changed. Open one to see what it saved.",
+					"In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own."
+				]
+			},
+			{
+				heading: "What Undo puts back",
+				list: [
+					"Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again and someone it marked as left comes back.",
+					"Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.",
+					"When every row has changed since, there is nothing left to undo, and it says so.",
+					"Once undone, the line says when and by whom, and Undo is gone."
+				]
+			},
+			{
+				heading: "Who can",
+				text: ["Whoever made the import, or an admin. Everyone else sees the list without Undo."]
+			}
+		],
+		routes: ["/data/imports"],
+		screens: ["PastImports"],
+		reqs: ["IMPORT-UNDO", "CHANGE-LOG"],
+		keywords: [
+			"past imports",
+			"undo",
+			"undo import",
+			"import history",
+			"bulk edit",
+			"mcp",
+			"put back",
+			"changed since",
+			"activity"
+		],
+		related: ["import", "removing"]
 	},
 	{
 		id: "export",
@@ -16901,6 +17023,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "past-imports",
+		date: "2026-11-12",
+		title: "Past imports, each with Undo",
+		points: [
+			"Data lists every import, who made it and what it changed: Spreadsheets, then Past imports.",
+			"Undo says first which rows have changed since, and why they will stay.",
+			"Saving an import ends on a page that says what was saved, with Undo beside it.",
+			"In Activity an import is one entry, its changes folded under it."
+		],
+		articles: ["past-imports", "import"]
+	},
+	{
 		id: "goal-dates-picked",
 		date: "2026-11-12",
 		title: "Pick a goal’s weeks, with their dates",
@@ -18754,7 +18888,9 @@ var _virtual_faro_modules_default = [{
 	routes: [
 		"/data/import",
 		"/data/import/check",
-		"/data/import/check/changes"
+		"/data/import/check/changes",
+		"/data/import/done/:importId",
+		"/data/imports"
 	],
 	redirects: [["/import", "/data/import"]],
 	navigation: [],
@@ -18767,6 +18903,7 @@ var _virtual_faro_modules_default = [{
 	aiTools: ["export", "export_table"],
 	help: [
 		"import",
+		"past-imports",
 		"export",
 		"columns"
 	],
@@ -18777,7 +18914,8 @@ var _virtual_faro_modules_default = [{
 		"SPREADSHEETS-ON-DATA",
 		"FIELD-TABLE",
 		"IMPORT-LEVELS",
-		"IMPORT-PREVIEW"
+		"IMPORT-PREVIEW",
+		"IMPORT-UNDO"
 	],
 	journeys: [
 		"U19",
@@ -18788,6 +18926,7 @@ var _virtual_faro_modules_default = [{
 		"U88",
 		"U89",
 		"U94",
+		"U90",
 		"F7",
 		"F8",
 		"F17",
@@ -18796,7 +18935,7 @@ var _virtual_faro_modules_default = [{
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column.",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
 			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
@@ -18806,9 +18945,10 @@ var _virtual_faro_modules_default = [{
 			"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
 			"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
 			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
-			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\")."
+			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
+			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
-		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
 }];
 // src/core/module.ts
@@ -21625,15 +21765,37 @@ var REMOVE_TOOLS = [
 	{
 		name: "undo_import",
 		title: "Undo an import or bulk edit",
-		description: "Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since are skipped and listed. Import IDs are in get_activity (kind=imports).",
+		description: "Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since stay as they are and are listed with why. With dry_run, nothing is saved: it says how many rows would go back and which would stay, so you can tell the person first. Import IDs are in get_activity (kind=imports).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			required: ["import_id"],
-			properties: { import_id: str$3("The import’s ID (imp_…), from get_activity.") }
+			properties: {
+				import_id: str$3("The import’s ID (imp_…), from get_activity."),
+				dry_run: {
+					type: "boolean",
+					description: "Say what Undo would do without saving anything."
+				}
+			}
 		},
 		annotations: REMOVE,
 		async run(a, ctx) {
+			const kept = (k) => ({
+				row: k.name,
+				reason: k.reason,
+				at: k.at
+			});
+			if (a.dry_run === true) {
+				const p = undoPreview(ax$1(ctx), String(a.import_id ?? ""));
+				return {
+					data: {
+						restores: p.restores,
+						skipped: p.skipped.map(kept),
+						saved: false
+					},
+					text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
+				};
+			}
 			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
 			await ctx.save({
 				...out.commit,
@@ -21645,9 +21807,9 @@ var REMOVE_TOOLS = [
 			return {
 				data: {
 					restored: out.restored,
-					skipped: out.skipped
+					skipped: out.skipped.map(kept)
 				},
-				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.join("; ")}.` : ""}`
+				text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? "row" : "rows"} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(keptText).join("; ")}.` : ""}`
 			};
 		}
 	}
