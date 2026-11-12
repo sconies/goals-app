@@ -3039,7 +3039,7 @@ function answerOf(d) {
 		byId: a.answeredBy ?? ""
 	};
 }
-var isHealthy, tier, dayText, reviewedText;
+var isHealthy, tier, dayText, reviewedText, canSpeakFor, speakRefusal;
 var init_review = __esmMin((() => {
 	init_attention();
 	init_vocabulary();
@@ -3056,6 +3056,8 @@ var init_review = __esmMin((() => {
 	});
 	reviewedText = (s) => `${s.done} of ${s.total} reviewed`;
 	ASK_KIND.action.label;
+	canSpeakFor = (r, p) => p.admin || r.people.includes(p.id);
+	speakRefusal = (r) => `Only people in ${r.name}, or an admin, can speak for it.`;
 }));
 // src/domain/decide.ts
 var ACCEPT, acceptNote;
@@ -6414,6 +6416,7 @@ function askQuestion(x, goal, text, opts = {}) {
 	if (t.length < 2) no$2("Write the question.");
 	if (goal.ownerId === x.actor.id) no$2("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
+	if (review && !canSpeakFor(review, x.actor)) no$2(speakRefusal(review));
 	const { ask, change } = raiseAsk({
 		kind: "question",
 		goalIds: [goal.id],
@@ -6437,6 +6440,7 @@ function addAction(x, goal, text, opts = {}) {
 	if (!x.snapshot.people.some((p) => p.id === who)) no$2("The person for the action isn’t in this workspace.");
 	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$2(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
+	if (review && !canSpeakFor(review, x.actor)) no$2(speakRefusal(review));
 	const { ask, change } = raiseAsk({
 		kind: "action",
 		goalIds: [goal.id],
@@ -6514,6 +6518,7 @@ function withdrawRequest(x, r, goal) {
 * until answered or done like any other ask.
 */
 function reviewCall(x, goal, review, kind, note, extra = {}) {
+	if (!canSpeakFor(review, x.actor)) no$2(speakRefusal(review));
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
@@ -6562,7 +6567,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 }
 /**
 * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
-* as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
+* as a note whose words start "We accept the risk:" (decide.ts reads it back). Someone in the review, or an admin (RV7).
 */
 function acceptRisk(x, goal, review, reason, week) {
 	if (reason.trim().length < 5) no$2("Say why the review accepts the risk.");
@@ -16263,7 +16268,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Anyone can set up a review or join one. Someone in the review, whoever set it up, or an admin can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
+				text: ["Anyone can set up a review, and everyone can read every review. Only people in a review, or an admin, speak for it: mark goals reviewed, add a note, accept a risk, and ask a question or agree a next step in it. Anyone can still ask a question or agree a next step on a goal’s own page. Someone not in a review is told who can add them: someone in it, whoever set it up, or an admin, who can change it. Whoever set it up, or an admin, can end it. Whoever said something, or an admin, can correct it."]
 			}
 		],
 		routes: [
@@ -16284,7 +16289,8 @@ var CORE_ARTICLES = [
 			"INSPECT-ACT",
 			"REVIEW-LIST-STATE",
 			"REVIEW-AGENDA",
-			"EXCEPTIONS-FIRST"
+			"EXCEPTIONS-FIRST",
+			"REVIEW-SPEAK"
 		],
 		keywords: [
 			"review",
@@ -17507,6 +17513,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "review-who-speaks",
+		date: "2026-11-12",
+		title: "Only people in a review, or an admin, decide in it",
+		points: [
+			"Marking goals reviewed, notes, accepting a risk, and questions and next steps raised in a review are for the people in it, or an admin, in the app and through AI assistants alike.",
+			"Everyone can still read every review, and ask a question or agree a next step on a goal’s own page.",
+			"A review you’re not in says who can add you, instead of offering a Join button that didn’t work."
+		],
+		articles: ["reviews"]
+	},
 	{
 		id: "export-one-button",
 		date: "2026-11-12",

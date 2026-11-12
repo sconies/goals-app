@@ -151,6 +151,7 @@ Checks that Lane’s review notes stay fixed.
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-OWNER` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
 | N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
+| N25 | Who may speak for a review: a non-member reads and is told who can add them; a member and an admin speak | `REVIEW-SPEAK` | `evals/notes/13-review-speak.cjs` |
 | N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 
 ## The ease test

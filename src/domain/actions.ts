@@ -16,7 +16,7 @@ import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
 import { answerAsk, asksOf, canAnswer, canMarkDone, canWithdraw, editAsk, linkRequest as linked, markDone, openUpdateAsk, raiseAsk, UPDATE_ASK, updateAskText, withdrawAsk } from './asks';
-import { sessionWeek } from './review';
+import { canSpeakFor, sessionWeek, speakRefusal } from './review';
 import { checkInsFor } from './status';
 import { clampWidth, isTableView, layoutParams, layoutProblems, parseLayout, type TableLayout } from './tableLayout';
 import type { ApiToken, Ask, Cycle, Decision, Goal, Level, Person, Retro, Review, SavedView, Snapshot, Watch } from './types';
@@ -90,6 +90,7 @@ export function askQuestion(x: ActionContext, goal: Goal, text: string, opts: { 
   if (t.length < 2) no('Write the question.');
   if (goal.ownerId === x.actor.id) no('It’s your own goal: there’s no one to ask. Comment instead.');
   const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : undefined;
+  if (review && !canSpeakFor(review, x.actor)) no(speakRefusal(review));
   const { ask, change } = raiseAsk({ kind: 'question', goalIds: [goal.id], askedBy: x.actor.id, recipientId: goal.ownerId, ask: t, reviewId: review?.id ?? null, week: opts.week ?? null, summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf(x, goal.ownerId) ?? 'the owner'} a question` }, x.now, x.newId);
   return { requests: [ask], changes: [change] };
 }
@@ -102,6 +103,7 @@ export function addAction(x: ActionContext, goal: Goal, text: string, opts: { as
   if (!x.snapshot.people.some((p) => p.id === who)) no('The person for the action isn’t in this workspace.');
   if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no(`The due week is between 1 and ${x.cycle.weeks}.`);
   const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : undefined;
+  if (review && !canSpeakFor(review, x.actor)) no(speakRefusal(review));
   const { ask, change } = raiseAsk({ kind: 'action', goalIds: [goal.id], askedBy: x.actor.id, recipientId: who, ask: t, dueWeek: opts.dueWeek ?? null, reviewId: review?.id ?? null, week: opts.week ?? null, summary: review ? `Agreed an action in ${review.name}` : 'Agreed an action' }, x.now, x.newId);
   change.diffs.splice(1, 0, { field: 'Who', from: '—', to: nameOf(x, who) ?? '—' });
   return { requests: [ask], changes: [change] };
@@ -162,6 +164,7 @@ export type CallKind = 'acknowledge' | 'note' | 'ask' | 'action';
  * until answered or done like any other ask.
  */
 export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: CallKind, note: string, extra: { week?: number; assigneeId?: string | null; dueWeek?: number | null } = {}): Commit {
+  if (!canSpeakFor(review, x.actor)) no(speakRefusal(review));
   const text = note.trim();
   const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
   if (kind === 'ask') {
@@ -179,7 +182,7 @@ export function reviewCall(x: ActionContext, goal: Goal, review: Review, kind: C
 
 /**
  * The review accepts the risk on a goal behind (deep review P2): no action for now, with a reason, said in the session
- * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
+ * as a note whose words start "We accept the risk:" (decide.ts reads it back). Someone in the review, or an admin (RV7).
  */
 export function acceptRisk(x: ActionContext, goal: Goal, review: Review, reason: string, week: number): Commit {
   if (reason.trim().length < MIN_ACCEPT_REASON) no('Say why the review accepts the risk.');
