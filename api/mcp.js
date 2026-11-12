@@ -2181,6 +2181,135 @@ var init_numbers = __esmMin((() => {
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
 }));
+// src/domain/format.ts
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+function unitFor(n, unit) {
+	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
+function fmt(v, g) {
+	const n = fixed(v, g.decimals);
+	if (!g.unit) return n;
+	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
+}
+/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+function nowText(g, a) {
+	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
+}
+/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
+function fmtDiff(v, g) {
+	const n = fixed(Math.abs(v), g.decimals);
+	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
+	return g.unit ? n + " " + unitFor(n, g.unit) : n;
+}
+/**
+* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
+* 0–100% (`share`); the range never says less than nothing or more than everything.
+*/
+function rangeText(p, g, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
+	if (lo === hi) return lo;
+	const bare = (v) => fixed(clamp(v), g.decimals);
+	return `${bare(p.low)}–${hi}`;
+}
+function kindLabel(g) {
+	if (g.kind === "milestone") return "Hit dated stages";
+	if (g.kind === "range") return "Keep a number in range";
+	return "Move a number";
+}
+function targetText(g) {
+	if (g.kind === "metric") return fmt(g.plan.target, g);
+	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
+	const last = g.stages[g.stages.length - 1];
+	return last ? "All by week " + last.dueWeek : "No stages";
+}
+/** Short words for the gap against plan, and its tone for colour. */
+function gapText(g, a) {
+	if (a.calc === "planned") return {
+		short: LABEL.planned,
+		long: "It starts this week",
+		tone: "stale"
+	};
+	if (a.calc === "none") return {
+		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
+		long: LABEL.none,
+		tone: "stale"
+	};
+	if (a.kind === "metric" && g.kind === "metric") {
+		const actual = a.actual;
+		if (a.ratio == null) return {
+			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
+			long: "No change planned yet",
+			tone: a.behind ? "risk" : "on"
+		};
+		const pct = Math.round(a.ratio * 100);
+		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
+		return {
+			short: gapPhrase(better, fmtDiff(better, g)),
+			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
+			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
+		};
+	}
+	if (a.kind === "range") {
+		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
+		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
+		if (a.calc === "off") return {
+			short: `${side} the ${lim} limit, 2 weeks running`,
+			long: "The guardrail has been breached two weeks running",
+			tone: "off"
+		};
+		if (a.out) return {
+			short: `${side} the ${lim} limit`,
+			long: "The guardrail was breached this week; two weeks running makes it off track",
+			tone: "risk"
+		};
+		if (a.previousOut) return {
+			short: `Back inside the ${lim} limit`,
+			long: "Over the limit last week, back inside this week",
+			tone: "risk"
+		};
+		if (a.near) return {
+			short: `Near the ${lim} limit`,
+			long: "Inside the warning margin, not yet breached",
+			tone: "risk"
+		};
+		return {
+			short: `Inside the ${lim} limit`,
+			long: "Inside the limit",
+			tone: "on"
+		};
+	}
+	if (a.kind === "milestone") {
+		if (a.calc === "done") return {
+			short: GAP.reached.label,
+			long: "Every stage is done",
+			tone: "on"
+		};
+		const first = a.late[0];
+		if (first) return {
+			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
+			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
+			tone: a.calc === "off" ? "off" : "risk"
+		};
+		return {
+			short: STAGE.planned.label,
+			long: "Every stage " + STAGE.planned.label.toLowerCase(),
+			tone: "on"
+		};
+	}
+	return {
+		short: "",
+		long: "",
+		tone: "stale"
+	};
+}
+var NO_VALUE$1, weekLabel;
+var init_format = __esmMin((() => {
+	init_numbers();
+	init_vocabulary();
+	NO_VALUE$1 = "No value yet";
+	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
+}));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
 function unchangedStory(draft, reason, path) {
@@ -2347,7 +2476,7 @@ function checkInLevels(goal, week, draft, own) {
 	const last = previousFor(own, week).number;
 	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
 	const n = parseNumber(draft.value);
-	const u = (v) => fixed(v, goal.decimals) + (goal.unit === "%" ? "%" : goal.unit ? " " + goal.unit : "");
+	const u = (v) => fmt(v, goal);
 	if (p?.block) mustFix.push({
 		field: "This week’s number",
 		says: p.text
@@ -2379,6 +2508,7 @@ var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_COD
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
+	init_format();
 	init_numbers();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
@@ -2423,135 +2553,6 @@ var init_checkin = __esmMin((() => {
 		from: c.question,
 		to: said(c)
 	}));
-}));
-// src/domain/format.ts
-/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
-function unitFor(n, unit) {
-	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
-}
-function fmt(v, g) {
-	const n = fixed(v, g.decimals);
-	if (!g.unit) return n;
-	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
-}
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
-function nowText(g, a) {
-	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
-}
-/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
-function fmtDiff(v, g) {
-	const n = fixed(Math.abs(v), g.decimals);
-	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	return g.unit ? n + " " + unitFor(n, g.unit) : n;
-}
-/**
-* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
-* 0–100% (`share`); the range never says less than nothing or more than everything.
-*/
-function rangeText(p, g, share = false) {
-	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
-	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
-	if (lo === hi) return lo;
-	const bare = (v) => fixed(clamp(v), g.decimals);
-	return `${bare(p.low)}–${hi}`;
-}
-function kindLabel(g) {
-	if (g.kind === "milestone") return "Hit dated stages";
-	if (g.kind === "range") return "Keep a number in range";
-	return "Move a number";
-}
-function targetText(g) {
-	if (g.kind === "metric") return fmt(g.plan.target, g);
-	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
-	const last = g.stages[g.stages.length - 1];
-	return last ? "All by week " + last.dueWeek : "No stages";
-}
-/** Short words for the gap against plan, and its tone for colour. */
-function gapText(g, a) {
-	if (a.calc === "planned") return {
-		short: LABEL.planned,
-		long: "It starts this week",
-		tone: "stale"
-	};
-	if (a.calc === "none") return {
-		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
-		long: LABEL.none,
-		tone: "stale"
-	};
-	if (a.kind === "metric" && g.kind === "metric") {
-		const actual = a.actual;
-		if (a.ratio == null) return {
-			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
-			long: "No change planned yet",
-			tone: a.behind ? "risk" : "on"
-		};
-		const pct = Math.round(a.ratio * 100);
-		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
-		return {
-			short: gapPhrase(better, fmtDiff(better, g)),
-			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
-			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
-		};
-	}
-	if (a.kind === "range") {
-		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
-		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
-		if (a.calc === "off") return {
-			short: `${side} the ${lim} limit, 2 weeks running`,
-			long: "The guardrail has been breached two weeks running",
-			tone: "off"
-		};
-		if (a.out) return {
-			short: `${side} the ${lim} limit`,
-			long: "The guardrail was breached this week; two weeks running makes it off track",
-			tone: "risk"
-		};
-		if (a.previousOut) return {
-			short: `Back inside the ${lim} limit`,
-			long: "Over the limit last week, back inside this week",
-			tone: "risk"
-		};
-		if (a.near) return {
-			short: `Near the ${lim} limit`,
-			long: "Inside the warning margin, not yet breached",
-			tone: "risk"
-		};
-		return {
-			short: `Inside the ${lim} limit`,
-			long: "Inside the limit",
-			tone: "on"
-		};
-	}
-	if (a.kind === "milestone") {
-		if (a.calc === "done") return {
-			short: GAP.reached.label,
-			long: "Every stage is done",
-			tone: "on"
-		};
-		const first = a.late[0];
-		if (first) return {
-			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
-			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
-			tone: a.calc === "off" ? "off" : "risk"
-		};
-		return {
-			short: STAGE.planned.label,
-			long: "Every stage " + STAGE.planned.label.toLowerCase(),
-			tone: "on"
-		};
-	}
-	return {
-		short: "",
-		long: "",
-		tone: "stale"
-	};
-}
-var NO_VALUE$1, weekLabel;
-var init_format = __esmMin((() => {
-	init_numbers();
-	init_vocabulary();
-	NO_VALUE$1 = "No value yet";
-	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
 }));
 // src/domain/trend.ts
 /**
@@ -15512,6 +15513,7 @@ var CORE_ARTICLES = [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
 					"Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.",
+					"A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.",
 					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
 					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
 					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
@@ -17603,6 +17605,17 @@ var WHATS_NEW = [
 		title: "Large files are checked much faster",
 		points: ["A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.", "Import still says up front how large a file can be: up to 5,000 rows is comfortable."],
 		articles: ["import"]
+	},
+	{
+		id: "table-check-in-answers",
+		date: "2026-11-12",
+		title: "The table check-in keeps your answers",
+		points: [
+			"When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.",
+			"A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.",
+			"Questions about a number use the goal’s unit properly: 1 hour, not 1 hours."
+		],
+		articles: ["check-in-table", "check-in"]
 	},
 	{
 		id: "export-one-button",
