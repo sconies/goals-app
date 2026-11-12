@@ -11,11 +11,11 @@ import { LEFT, STOPPED } from '../../domain/vocabulary';
 import { ListBar, ListSearch } from '../../ui/ListBar';
 import { PlanDiff, planWeeks } from '../../ui/Preview';
 import { useImportPlan } from './importPlan';
+import { PAGE } from '../../domain/importLimits';
 import { importStore } from './importStore';
 import { leftRowsOf } from './rowsFile';
 import './import.css';
 
-const PAGE = 50;
 type Show = 'all' | 'added' | 'changed' | 'stopped';
 const SHOW_OF = (x: Item): Show => (['new goal', 'check-in', 'new person'].includes(x.kind) ? 'added' : ['stop goal', 'delete goal', 'person left'].includes(x.kind) ? 'stopped' : 'changed');
 const WHAT: Record<Item['kind'], string> = {

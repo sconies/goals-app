@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-faster',
+    date: '2026-11-12',
+    title: 'Large files are checked much faster',
+    points: [
+      'A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.',
+      'Import still says up front how large a file can be: up to 5,000 rows is comfortable.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'assistant-goals-link-tab',
     date: '2026-11-12',
     title: 'A pasted Goals link keeps its tab',
