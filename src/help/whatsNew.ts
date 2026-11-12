@@ -34,6 +34,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'publish-one-outcome',
+    date: '2026-11-12',
+    title: 'Publishing a goal says one thing',
+    points: [
+      'Pressing Publish goal no longer shows a question still to answer, a stuck “Saving…” and “Published” all at once.',
+      'Once it is published, the goal’s page opens with the “Published” note, and it opens sooner.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'goal-read-back',
+    date: '2026-11-12',
+    title: 'Read your goal back before it’s published',
+    points: [
+      'The last step says, in sentences, what you typed and what was left as usual.',
+      'It says when the first check-in is due and how long you can still delete it.',
+      'It names the reviews that will walk the goal, and who sees it if it’s someone else’s.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'import-way-in',
     date: '2026-11-12',
     title: 'Paste rows, and headers that are nearly right',
