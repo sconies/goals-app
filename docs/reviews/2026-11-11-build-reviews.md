@@ -57,6 +57,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #177 Undoing an import puts deleted, stopped and left rows back for good | 4 | 0 | 0 | 0 |
 | #179 Carried copies stay true after every save (review of #152) | 5 | 1 | 1 | 0 |
 | #145 IM2: problem levels | 3 | 1 | 6 | 5 |
+| #135 History: an ask counts under Reviews by its own reviewId | 1 | 0 | 0 | 0 |
+| #180 A parent and its child moving in one save are written once (review of #179) | 5 | 0 | 0 | 0 |
+| #181 Set-up never leaves a row out quietly; the grid takes a decimal comma (review of #145) | 3 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -72,8 +75,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #152: after an early start, "Stop" then "Carry it on" makes a second copy under a new key | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
-| #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Open** |
-| #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Open** |
+| #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Fixed** by #180; the reproduction re-run in both orders: no record twice, and the child's copy returns under its parent |
+| #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -616,3 +619,15 @@ Read first by a separate reviewing session, in the engine (throwaway tests again
 - No browser journey covers the answer buttons; finding 7 sits in that gap.
 
 **Checked and fine.** The same row gives the same Check through spreadsheet, table, bulk and MCP. The preview's count matches what is saved. Exact duplicates and unknown names are Must fix. `problemLevels.ts` is pure, and screens and tools call the engine. No stripes, pills or emoji; Check is the warning mark plus the word. Help, What's new, the requirement and the spec rows are there. **Unconfirmed:** whether `replaces-others` blocks the bulk grid, and renaming in the data tables.
+
+### #135 History: an ask counts under Reviews by its own reviewId (track 1, merged 03:17 UTC, 12 Nov)
+
+`historyKind` (`src/domain/goalPage.ts:566-573`) now places an ask by its own `reviewId`, where it used to look for the review's name in the entry's sentence, so renaming a review moves none of its past asks. The screen passes the goal's asks of every status (`src/screens/GoalScreen.tsx:855`). Read, with its unit test. No finding.
+
+### #180 A parent and its child moving in one save are written once (track 5, merged 04:24 UTC, 12 Nov)
+
+Fixes #179's high and medium. `withRecarry` folds the save and each goal's result into the rows the next goal reads, and returns each record once (`src/domain/recarry.ts:84-118`). Re-run with this review's probe, parent first and child first: stopping both in one save gives no repeated record and both copies leave; carrying both in one save brings back the same two copies, the child under its parent. No finding.
+
+### #181 Set-up never leaves a row out quietly; the grid takes a decimal comma (track 3, merged 04:33 UTC, 12 Nov)
+
+Fixes #145's high and its medium 2. In set-up a Check that stopped its row from being built now blocks, with its question as the message (`src/domain/importer.ts:107-115`); the decimal-comma question is no longer asked of numbers typed on screen (`src/domain/changeset.ts:62-64`, `:1047`). Re-run: the goals template with "Ben Ortz", and with Type "metrc", each now returns one blocking issue for that row. A journey covers the grid. No finding. #145's mediums 3 to 7 stay open with track 3.
