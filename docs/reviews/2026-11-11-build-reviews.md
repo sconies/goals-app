@@ -44,6 +44,12 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #160 CK2: the levels in a check-in | 1 | 0 | 3 | 4 |
 | #164 Migration 0039: a module's records | 3 | 0 | 0 | 3 |
 | #163 Two journeys called U87 | 3 | 0 | 0 | 0 |
+| #142 CF1: levels read from one place | 5 | 0 | 5 | 0 |
+| #167 Help loads when opened | 4 | 0 | 1 | 2 |
+| #139 AS part 2: the metric library as a module with its own records | 3 | 1 (older) | 1 | 3 |
+| #168 Goals rewrites its address only while on Goals | planning | 0 | 0 | 1 |
+| #170 Last year's wrap-up stays open once the next year is current | 5 | 0 | 0 | 0 |
+| #172 Review fixes for #154 and #141 | 4 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -52,8 +58,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #110: a goal's status in Find and the picker is a word with no shape | Track 1, 13:55 UTC | **Fixed** by #157; seen on screen at 12 by 12, and P3/P4 now open Find |
 | #127: once the wrap-up has closed, no screen lets an admin start the next year | Track 5, 14:20 UTC | **Fixed** by #133: the start is offered from the day the wrap-up opens, with no end; U117 covers 5 Feb |
 | #113: on a computer, Settings can't be scrolled to its foot | Track 1, 19:15 UTC | **Fixed** by #157; seen reaching 870 of 870, and a journey scrolls it |
-| #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Open** |
-| #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Open** |
+| #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Open**; re-run on main after #172 at 00:10 UTC on 12 Nov, same result |
+| #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Fixed** by #170 (read, with its new unit tests; not re-run on screen) |
+| Met in #139, older: on the database stores, Undo after a removal doesn't bring the record back | Track 4, 23:56 UTC | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -424,3 +431,61 @@ Run by this reviewer on PGlite with every migration, as `anon`. Faro-only; safe 
 ### #163 Two journeys called U87 (track 3, merged 20:21 UTC)
 
 Closes #130's finding 5: Goals' menus journey is U135, and `journey()` now refuses a repeated id. Nothing found.
+
+### #142 CF1: levels read from one place (track 5, merged 22:02 UTC)
+
+Read against `docs/design/workspace-settings/spec.md`, 2.1. For the default levels every answer is what it was: the first reader compared the old constants with the new functions over the demo's 126 goals (labels, rank, the `level=` address on Goals and Activity, Sort: Level both ways, Find's words, the Map's order, the Level column out) with no difference. An unknown level sorts last and throws nothing. `levels.ts` is pure. All findings are the first reader's; none bites until a cycle has levels of its own (CF2).
+
+**1. Medium. Half the callers ask for the defaults, not the cycle's levels**, so a cycle with its own levels would get two answers: `parseQuery('level=lv-1,svp')` drops the live `lv-1`; Find's words say "SVP" where the table says "Division"; Sort: Level orders them differently (`src/domain/query.ts:69`, `:178`, `:199`, `:221`; `find.ts:135`; `activity.ts:46`; `map.ts:87`; `export.ts:352`; `src/mcp/tools.ts:89`). The rule page says every rule reads the one place.
+
+**2. Medium. Levels are still named outside `levels.ts` where the lint can't see:** `watchWhat` builds a label from the id (`src/domain/actions.ts:258`: "every svp goal"), the tools print raw ids and write "north-star, svp, team" in their descriptions, and "North stars, then SVP, then team goals" is written twice.
+
+**3. Medium. The new lint has no test that it can fail, and misses `==`, `case 'team':`, `['team'].includes(g.level)`, a comparison over two lines, and any code after `://` on a line** (`scripts/check-settings.mjs:37`).
+
+**4. Medium. Departures from 2.1 with no note:** no `useLevels()`; `watch` takes an id only; unknown ids in an address are dropped silently; the goal page's Level row still reads ", reported at major reviews".
+
+**5. Medium. No eval for the one visible change** (the level tag with no fill), which the spec's section 9 asks P6 for.
+
+### #167 Help loads when opened (track 4, merged 22:22 UTC)
+
+The entry and its ten preloads come to 366 KB compressed against a limit of 370 (first reader's build). Help's titles, focus, Back and the unread dot are right at both widths; the guide's text is only in Help's own file; `api/mcp.js` is unchanged.
+
+**1. Medium (first reader, on the dev server). Offline, "Help with this page" replaces the whole app with the browser's error page**: a failed import counts as stale code and reloads (`src/telemetry/staleCode.ts:10-17`), and the reload has nothing to load. The link is on every page. Skip the reload when the browser says it is offline.
+
+**Low (first reader).** On a slow connection the link shows nothing for the wait (`Suspense fallback={null}`). A change to `vite.helpIndex.ts` alone runs no journey (`evals/touches.cjs`).
+
+### #139 AS part 2: the metric library as a module with its own records (track 3, merged 22:34 UTC)
+
+The readiness review's finding 13: a feature with records of its own, added without editing the core. The first reader ran save, link, unlink, relink, remove and restore on the browser store, plain Postgres and the Supabase adapter, reading each back the same; the payload carries `modules.okr_metrics` and `modules.okr_goal_metrics` and neither old key; 0039 shipped a merge ahead. The build without the module succeeds, and with it switched off the 13 metrics and 12 links survive other saves and come back when it is switched on. `npm run lint:layers` passes; the core names no metric table; the goal forms call `app.run`.
+
+**1. High, and older than this PR (re-run by this reviewer). On the database stores, Undo after a removal doesn't bring the record back.** Sent to track 4, as the owner of the save path, when confirmed.
+
+- Why: a row loaded with `removed_at` null has no `removedAt` key (`src/data/rows.ts:11-12`); Undo puts back the row as it was (`src/domain/removal.ts:633-640`; for a module's rows `src/domain/records.ts:194-205`, new here); `set()` drops undefined keys (`rows.ts:10`); and `okr_upsert` updates only the columns a payload carries (`supabase/migrations/0011_transactional_saves.sql:24-39`). `removed_at` keeps the removal's time.
+- Re-run on PGlite with `PostgresStore`: `deleteGoal`, commit, `undoRemoval`, commit, load: the goal still has `removedAt`. The same on `BrowserStore` gives it back. The first reader ran a metric, its link and an unlink on Postgres and the Supabase adapter with the same result.
+- On the real app the record would come back on screen with "Undid: …" in the log, and go again at the next reload. It stays in Recently removed, where Restore writes an explicit null, so nothing is lost for good.
+- No test sees it: the contract restores only with an explicit null (`src/ports/contracts/store.ts:137`), the Undo tests run on `applyCommit`, and the journeys run in the demo.
+- Fix: explicit nulls for the removal's fields on every restored row, and a contract case: remove, Undo with the row as loaded, load.
+
+**2. Medium (first reader). The core's new records code has no unit test of its own** (`src/domain/records.ts`: `applyModuleRows`, `mergeModuleRows`, `carryModules`, `moduleRowsBefore`, `removedModuleRows`), and the PR adds no eval; the module's manifest lists no journeys and no requirements.
+
+**Low (first reader).** The browser store neither migrates nor reads the old shape (metrics on the snapshot itself); no build on main ever saved one there. With the Metric library switched off, Recently removed still lists a removed metric and restores it. `readTables` now calls the app's own Metrics sheet unknown.
+
+### #168 Goals rewrites its address only while it is still on Goals (planning session, merged 22:36 UTC)
+
+The guard is right and stops nothing it shouldn't (first reader: Back fired 0 to 44 ms after opening Goals, 24 tries a width, never pulled back).
+
+**Low (first reader).** Deleting a view still rewrites another page's address if the person leaves before the save answers (`src/screens/GoalFilters.tsx:139`).
+
+### #170 Last year's wrap-up stays open once the next year is current (track 5, merged 23:16 UTC)
+
+Closes #133's high and several of its mediums. Read, not re-run on screen: `saveRetro` now tests the goal's own year (`src/domain/actions.ts`), the wrap-up page and Home read `wrapUpScope` (`src/app/reads.ts`), which gives last year while its wrap-up is open; new unit tests cover 11 Jan (saves, in 2026) and 5 Feb (refused, with the closing date). The same PR gives `periodNow` its "starts Mon 4 Jan 2027" case, names the start page, filters removed check-ins from the read-back, and puts "when can the next year be started" in one function. Nothing found on reading.
+
+### #172 Review fixes for #154 and #141 (track 4, merged 23:49 UTC)
+
+Read, with its tests: the storage lint now needs exact counts and reads `index.html`; the stamp moves by whole days only when today is pinned, with a test; `App` takes a clock, and the reload on focus runs on the page's own time; the bundle check counts what the real app loads before it draws (426 KB, limit 430); the "can't open yet" page says which of four reasons; feature switches save one at a time (#141's medium).
+
+**It does not close #141's high.** Re-run on main after this PR: switch Spreadsheets off in the example, change workspace, press Undo: "Spreadsheets is back on.", the example still off, and "Switched on Spreadsheets" in the other workspace's log.
+
+### #152 CY4: the carry rule (track 5, merged 23:09 UTC)
+
+Being read; to follow.
