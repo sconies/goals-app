@@ -1186,6 +1186,7 @@ const CORE_ARTICLES: Article[] = [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.',
         'Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.',
+        'The same goes for saving: if the part of Faro that saves a check-in or a change hasn’t loaded, Post check-in tells you so instead of doing nothing. Offline, try again once you’re back online; online, it reloads the page, or offers Reload, and keeps what you typed.',
         'Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
       { heading: 'On your home screen', list: [

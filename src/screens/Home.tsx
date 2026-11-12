@@ -424,7 +424,8 @@ function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
 }
 
 /** Your goals, as the query port is asked for them: every goal you own. */
-function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId] } }), [viewerId]); }
+/** Your goals, worst first (as What's new and Help say), then by title. */
+function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId], sort: 'worst' as const } }), [viewerId]); }
 
 /** The week at a glance, its goal counts from the query port (AX5): yours, or every goal when you own none. */
 function useDashboard(): Dashboard {

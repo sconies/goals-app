@@ -25,6 +25,7 @@ import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './Goal
 import { MenuButton } from '../ui/MenuButton';
 import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { useGoalCounts, useGoalList } from '../app/goals';
+import { scopeFacts } from '../app/reads';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
 import { goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
@@ -49,13 +50,8 @@ export function GoalsScreen() {
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   // Whose goals (the scope), how they're arranged (the group) and the Needs attention switch (goals spec, rules 1–3).
   const prefs = usePrefs();
-  const scopeFacts = useMemo(() => ({
-    goals: app.snapshot.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })),
-    viewerId: app.viewer.id,
-    teams: app.snapshot.teams.filter((t) => t.id === app.viewer.teamId || t.leadId === app.viewer.id).map((t) => ({ id: t.id, name: t.name })),
-    watched: new Set(watchedGoals(app.viewer.id, app.snapshot).map((g) => g.id)),
-  }), [app.snapshot, app.viewer.id, app.viewer.teamId]);
-  const { tabs: scopeTabs, opens } = scopesFor(scopeFacts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
+  const facts = useMemo(() => scopeFacts(app.snapshot, app.viewer), [app.snapshot, app.viewer]);
+  const { tabs: scopeTabs, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
   const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
   // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
   // A filter naming a team, person or goal the workspace doesn't have is dropped, and the page says so (spec 2.1, item 7).
@@ -119,8 +115,7 @@ export function GoalsScreen() {
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
   // Through the query port (AX5): the scope's goals that match, in the query's order, or its near miss's.
-  const among = useMemo(() => [...inScope], [inScope]);
-  const found = useGoalList(refined ? { query, among } : null);
+  const found = useGoalList(refined ? { query, scope } : null);
   const ranked = refined ? (found?.rows.map((r) => r.goal.id) ?? []) : null;
   const near = found?.near ?? null;
   // Saved views and what can be done with this one: the Views menu, or the phone's View sheet (goals spec, 2.1, 2.4).
@@ -174,8 +169,8 @@ export function GoalsScreen() {
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
   // The switch's count (rule 3): the scope's goals needing attention, after the search and filters.
-  const rowsInScope = useGoalList({ query: EMPTY_QUERY, among })?.rows ?? [];
-  const switchCount = useGoalCounts({ query, among })?.attention ?? 0;
+  const rowsInScope = useGoalList({ query: EMPTY_QUERY, scope })?.rows ?? [];
+  const switchCount = useGoalCounts({ query, scope })?.attention ?? 0;
   const shownIds = new Set(shown.map((g) => g.id));
   const line = goalsLine(rowsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
   const linkNote = moved?.text ?? null;

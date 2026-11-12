@@ -17,7 +17,7 @@ import { goalsContract } from '../ports/contracts/goals';
 import { asOf, type ConformanceWorkspace } from '../spec/conformance';
 import conformanceJson from '../../spec/conformance/workspace.json';
 import { prefsContract, searchContract, searchContractWorkspace } from '../ports/contracts/search';
-import { goalRows, searchRows } from '../app/reads';
+import { goalRows, scopeFacts, searchRows } from '../app/reads';
 import { currentWeek } from '../domain/plan';
 import { CHECK_IN_MOMENT } from '../spec/conformance';
 import { freshPostgres } from './postgres/testDb';
@@ -97,9 +97,10 @@ searchContract('over the workspace in this browser', async () => {
 // The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
 const conf = conformanceJson as unknown as ConformanceWorkspace;
 const builtFor = new Date(conf.builtFor);
-goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s) => {
+goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s, viewer) => {
   const rows = goalRows(s, conf.cycle, builtFor, currentWeek(conf.cycle, builtFor));
-  return localGoals(() => rows);
+  const person = s.people.find((p) => p.id === viewer);
+  return localGoals(() => rows, () => scopeFacts(s, { id: viewer, teamId: person?.teamId ?? null }));
 });
 const prefsStorage = memory();
 prefsContract('in this browser', () => browserPrefs('faro-prefs:', () => prefsStorage));
