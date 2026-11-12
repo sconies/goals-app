@@ -87,6 +87,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #193 AX5, first part: the query port and its contract | 4 | 0 | 4 | 5 |
 | #213 Board and Table drawn in place after a layout switch | polish | 0 | 0 | 0 |
 | #221 GE10 migration 0041: proposed_at and proposed_by | 2 | 0 | 0 | 0 |
+| #169 HM1: Home asks first, and is quiet when quiet | 1 | 0 | 5 | 6 |
 | #216 KT1: the handoff kit's small errors | planning | 0 | 0 | 0 |
 | #222 The workspace boundary: admins-only triage and Start over, the switcher | polish | 0 | 3 | 4 |
 | #227 Check-ins are the owner's (R1) | polish | 1 | 4 | 4 |
@@ -1001,3 +1002,27 @@ Read first by the same reviewing session; nothing here was re-run by this review
 - In Feedback a member is told "only an admin" three times on one screen, and `src/markup/feedback.ts:3` still says anyone triages.
 
 **Checked and fine.** A member sees no triage controls and the shortcut keys do nothing; an admin's change offers Undo. Both MCP tools refuse a member's status change in the same words. Start over and Delete are hidden from a member. The landing line names the person and role, once, and not when nothing changed. No frame was seen acting as the previous workspace's person.
+
+### #169 HM1: Home asks first, and is quiet when quiet (track 1, merged 17:26 UTC, 12 Nov)
+
+Read first by a separate reviewing session, with a rule probe over all 97 demo people on many dates and on screen at 1440 and 390; nothing here was re-run by this reviewer. No high finding. For the ordinary week the rule holds: one primary action or none, never a lead to an empty page, nobody with something due given the quiet line, and Home's counts equal Goals' and the sidebar's.
+
+**1. Medium. "Nothing is asked of you today." sits directly above "Needs your response".** The lead has no candidate for asks (that is HM2), and `quietLine` (`src/domain/home.ts:210-226`) does not look at them. Amara on 11 Nov sees the quiet sentence above two asks, one waiting since 4 Aug. Fix: until HM2, don't say nothing is asked while asks wait.
+
+**2. Medium. On a phone the lead's line and the quiet line's second line are cut to one line with an ellipsis.** `src/styles/finish/home-watching.css:231-234` was written for the old list of titles; HM1 puts whole sentences there. At 390, "Check-ins for week 46 are due by Thursday 12 …" loses "You have 7 to do".
+
+**3. Medium. After the year ends, people in a review get a "Not held yet" lead that never goes away, with a false sentence.** `src/app/reads.ts:80-81` keeps the last week's session with no test for the year having ended, and `home.ts:183` says "Hold it now, or it closes when next week starts". Four people have it while the wrap-up is open and 19 once it has closed. The old Home also led with this review; the sentence and the warning mark are new.
+
+**4. Medium. An admin's Home no longer says the year is ending or offers to start the next one.** The admin card was removed as the spec lists, and its replacement is HM7, not built. Grace on 28 Dec, 6 Jan and 10 Feb sees only the quiet line. The demo's year ends on 3 Jan.
+
+**5. Medium. With two reviews on the same day, the second is nowhere on Home that day.** The "This week" cell takes the single next review, which is the lead's own and so is dropped (`src/screens/Home.tsx:240-243`), while the sidebar says "Reviews 2 to do".
+
+**Lows.**
+- Your goals with nothing flagged are still listed in stored order, and What's new still says worst first (`src/help/whatsNew.ts:73-75`). This is #193's finding, still open; the guide's words are now true.
+- Home still summarises the snapshot itself beside the port, and asks the port for counts nothing draws (`Home.tsx:78-81`, `:269-276`; read).
+- Restatements: a second version of the sidebar's "review to do" test, of the on-time test, and of the day and month names (read).
+- The check-in lead and the cell both say the same review is today.
+- Nothing tests `homeFacts` at the year's end or with two reviews; N26 covers 9 to 22 Nov only (read).
+- The line under the greeting says "Example: Platform Engineering" where the spec wants the workspace's name alone.
+
+**Checked and fine.** All 97 people on 9 to 15 Nov, weeks 2, 3, 47, 52 and 53, after the year ends, after the wrap-up closes and with 2027 started. Each lead's button opens a page with something to do. For all 86 owners the counts add up and every status link lists that many. `home.ts` is pure and the screen only draws it. No stripes, emoji or pills; at most one primary button and none when quiet; no sideways scroll; no layout shift on load.
