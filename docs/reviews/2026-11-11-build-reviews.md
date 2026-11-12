@@ -53,6 +53,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #172 Review fixes for #154 and #141 | 4 | 0 | 0 | 0 |
 | #166 An action made in one workspace never saves into another | 4 | 0 | 0 | 2 |
 | #175 Undo after a removal stays undone on the database stores | 4 | 1 | 0 | 1 |
+| #144 ML1: the metric library as a place, and a page per metric | 3 | 0 | 4 | 10 |
 
 **High findings, and where each stands**
 
@@ -537,3 +538,29 @@ Fixes the older high met in #139, for Undo from a toast. `asBefore` (`src/domain
 - Fix: pass each `before` through `asBefore(cur, before)` in `undoImport`, and add an import that deletes, stops and marks as left to the store contract case.
 
 **2. Low (read). `asBefore` works from a list of field names** (`REMOVAL_FIELD`). A removal field added later under another name (a view's `deletedAt` is covered; `revokedAt` or `withdrawnAt` would not be) falls back to the old fault with nothing to flag it. Clearing every key the removed record has and the earlier one lacks would need no list.
+
+### #144 ML1: the metric library as a place, and a page per metric (track 3, merged 01:46 UTC, 12 Nov)
+
+Read first by a separate reviewing session, in the demo at 1440 and 390 and in the code; findings 1 and 7 were then read again by this reviewer. No high finding. The four mediums share a cause: ML1 shipped screens and links whose other half is planned for ML2 or ML3.
+
+**1. Medium (re-read). "No metric yet. Choose one" leads to a form with no way to choose one.** `src/modules/metrics/MetricPlaces.tsx:33` links to the goal's edit form, but no module registers the `goal.measure` place the forms wait for (`src/core/module.ts:22`). As rhea, `/goals/dep-gates` shows the line and the form it opens has no "Measured by". It shows to owners and admins on every number goal without a metric: 114 of the demo's 126. Fix: hide the line until ML2 registers the place, or bring that forward.
+
+**2. Medium (first reader). Changing a metric's unit while goals use it saves with no question and leaves the pages disagreeing.** `saveMetric` (`src/modules/metrics/rules.ts:191-201`) never looks at the links, though `linkProblems` (`:231`) refuses the same pairing when linking. Lead time for changes, hours to days: the metric's page says "days" over rows in hours. Fix: warn or refuse through `linkProblems` until ML3's confirm.
+
+**3. Medium (first reader). "Put it back" restores a removed metric without its goals and says nothing.** `Metrics.tsx:304`, `:330`; the spec's 2.2 says the links come back. After it: "Goals measured by it · 0", and the goal offers finding 1's dead link. Undo straight after the removal does restore the link. Fix: restore the links removed in the same save, or say so.
+
+**4. Medium (first reader). The add and change form throws away what was typed on Close, Cancel or Back.** `Metrics.tsx:379`, `:404`, `:446`; no use of `src/app/drafts.ts`, which the other focus forms use, and the spec's 2.3 says "Close and keep the draft".
+
+**Lows (first reader unless marked).**
+- "See goals in {unit}" always lands on an empty list: `rulesLibrary.ts:81` searches Goals for the unit, which the search does not read.
+- The empty library has two primary "Add a metric" buttons (`Metrics.tsx:124`, `:165`).
+- `/metrics/100%25` crashes the page (re-read): `metricAt` (`rulesLibrary.ts:36`) decodes a part the router has already decoded.
+- "Choose an owner" (`?field=owner`) does not focus the Owner field (`Metrics.tsx:359-364`).
+- A metric's page is titled "Metrics" and its form "Change a metric" (`app.tsx:55-56`); the spec wants the metric's name.
+- At 390, the Filters sheet's tick boxes are 40px high and the goal and owner links in a metric's goals block 17px.
+- The Remove sheet can say "No goal uses it" while the removal unlinks a stopped goal: the sheet counts live goals of the running cycle (`reads.ts:19-21`), the removal every link (`rules.ts:210`).
+- The lowest-and-highest line names slices, so two goals for one team read "Lowest now: CI/CD… Highest: CI/CD…" (`rulesLibrary.ts:193`).
+- Evals: nothing that changes a metric has a journey. U81 is read-only; the form, remove, Undo, Put it back, filters and the empty library are uncovered until ML3's U83.
+- Restatements: "The whole company" typed out beside `COMPANY`; `Metrics.tsx:88` reworks `liveLinks`; `scripts/drill.mjs` hard-codes key columns the module's conformance already declares.
+
+**Checked and fine.** The core imports no module, and saves go through `app.run`. Row and page statuses agree on six dates, and the screens and both AI tools share the same reads. Permissions hold for a non-owner. Design rules hold at both sizes. The module's 51 unit tests, the spec check, `check-rebuild` and the drill (100%) pass. The build leaves the rebuild stage out of `dist` while the spec and MCP builds still see it.
