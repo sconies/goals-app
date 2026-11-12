@@ -51,6 +51,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #152 CY4: the carry rule, and what comes with a goal | 5 | 3 | 6 | 3 |
 | #170 Last year's wrap-up stays open once the next year is current | 5 | 0 | 0 | 0 |
 | #172 Review fixes for #154 and #141 | 4 | 0 | 0 | 0 |
+| #166 An action made in one workspace never saves into another | 4 | 0 | 0 | 2 |
+| #175 Undo after a removal stays undone on the database stores | 4 | 1 | 0 | 1 |
 
 **High findings, and where each stands**
 
@@ -59,9 +61,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #110: a goal's status in Find and the picker is a word with no shape | Track 1, 13:55 UTC | **Fixed** by #157; seen on screen at 12 by 12, and P3/P4 now open Find |
 | #127: once the wrap-up has closed, no screen lets an admin start the next year | Track 5, 14:20 UTC | **Fixed** by #133: the start is offered from the day the wrap-up opens, with no end; U117 covers 5 Feb |
 | #113: on a computer, Settings can't be scrolled to its foot | Track 1, 19:15 UTC | **Fixed** by #157; seen reaching 870 of 870, and a journey scrolls it |
-| #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Open**; re-run on main after #172 at 00:10 UTC on 12 Nov, same result |
+| #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Fixed** by #166; re-run on screen at 01:10 UTC on 12 Nov: the Undo is refused, says so once, and neither workspace changes |
 | #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Fixed** by #170 (read, with its new unit tests; not re-run on screen) |
-| Met in #139, older: on the database stores, Undo after a removal doesn't bring the record back | Track 4, 23:56 UTC | **Open** |
+| Met in #139, older: on the database stores, Undo after a removal doesn't bring the record back | Track 4, 23:56 UTC | **Fixed** by #175 for Undo from a toast (read; its new store contract case passes on all four stores) |
+| #175: undoing an import or bulk edit that deleted or stopped a goal, or marked someone as left, has the same fault and was not fixed | Track 4, 01:15 UTC, 12 Nov | **Open** |
 | #152: after an early start, "Stop" then "Carry it on" makes a second copy under a new key | Track 5, 00:35 UTC, 12 Nov | **Open** |
 | #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Open** |
 | #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Open** |
@@ -515,3 +518,22 @@ The three highs are all in `recarry`, which keeps a copy true when the year was 
 **9. Medium (first reader). Tests:** nothing covers `recarry`'s add path, the parent and child links, the tools' path, a deleted or restored check-in, a plan change, `stopGoal`, or Undo after `recarry`. `src/domain/startYear.ts:48-54` restates `carryExtras`' filters to count.
 
 **Low (first reader).** `byRecarry` tells its own changes from a person's by the sentence. `saveRetro` says "It already has check-ins in 2027" when the copy was only edited. No demo goal is of the `keep` kind.
+
+### #166 An action made in one workspace never saves into another (track 4, merged 00:39 UTC, 12 Nov)
+
+Fixes #141's high. `act` and `run` now save through `save` (`src/app/state.tsx:535-538`), which refuses when the render's workspace is no longer the one loaded. Re-run on screen with the earlier script: Spreadsheets off in the example, switch to a second workspace, press Undo. One toast, "That was for another workspace, so nothing was changed. Open it to do it there."; the second workspace's log is empty and the example still has the feature off. The workspaces ref is updated at once in `setRecording` and `setModule` (#141's medium). `src/app/undoElsewhere.test.tsx` covers the refusal.
+
+**1. Low (read). Two saves still go straight to `commit`:** `saveGoal` (`src/app/state.tsx:693`) and `applyChanges` (`:717`). No toast holds either today, so no path was found; they are the only two left outside the check.
+
+**2. Low (seen). The toast keeps its Undo button after the switch**, though pressing it can now only be refused. Dropping toasts' actions on a switch would be kinder.
+
+### #175 Undo after a removal stays undone on the database stores (track 4, merged 00:49 UTC, 12 Nov)
+
+Fixes the older high met in #139, for Undo from a toast. `asBefore` (`src/domain/records.ts:198-209`) sets to null every removal field the removal set and the earlier record lacked; `undoRemoval` and `moduleRowsBefore` use it. The new store contract case removes a goal, marks a person as left and removes a module row, undoes each, and passes on the browser, both Supabase wirings and plain Postgres.
+
+**1. High (re-run by this reviewer). Undoing an import or bulk edit has the same fault and was not touched.** `undoImport` (`src/domain/removal.ts:479`, `:487`, `:497`) saves each record's `before` from the import's log entry as it stands. A goal that was live before has no `removedAt`, `stoppedAt` or `stopReason` key there, and a person has no `leftAt`, so the database keeps the removal's values.
+- Reproduced on plain Postgres (PGlite) with an import entry in `planChanges`' shape that deleted one goal and stopped another: after `undoImport` and a load, the first still has `removedAt` and the second still has `stoppedAt` and its reason. In the browser store both come back clean.
+- The same lines put back people (marked as left by a People row's Action) and, further down, reviews; those were read, not run.
+- Fix: pass each `before` through `asBefore(cur, before)` in `undoImport`, and add an import that deletes, stops and marks as left to the store contract case.
+
+**2. Low (read). `asBefore` works from a list of field names** (`REMOVAL_FIELD`). A removal field added later under another name (a view's `deletedAt` is covered; `revokedAt` or `withdrawnAt` would not be) falls back to the old fault with nothing to flag it. Clearing every key the removed record has and the earlier one lacks would need no list.
