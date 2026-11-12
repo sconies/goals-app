@@ -75,6 +75,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #201 Backlog: NR | planning | 0 | 0 | 0 |
 | #197 Goal entry review fixes | 2 | 0 | 0 | 0 |
 | #195 IM4: past imports | 3 | 0 | 4 | 7 |
+| #192 New goal: #129's review, mediums 1 to 3 and 6 | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -833,3 +834,7 @@ Read first by a separate reviewing session, on screen at 1440, 390 and 360 and w
 - The rule page says MCP says "Nothing left to undo"; the tool says "Undo would put back 0 rows" and then marks the import undone (read).
 
 **Checked and fine.** Undo twice, by a non-author, and of an old import are refused. The sheet, the toast and the store agree. Rows changed since are skipped and named, never overwritten. A person marked as left and a goal deleted by a row's Action come back whole, with links, reviews and asks. `asBefore` is used for every kind with removal fields. The screen and `undo_import` call the same rule. The Undo is confirmed in a sheet that says what it will do; no stripes, pills or emoji. **Unconfirmed:** a goal added by an import and then watched or carried into next year.
+
+### #192 New goal: Continue after a Change on Check, focus mode, Check's values in full (track 2, merged 14:24 UTC, 12 Nov)
+
+Takes the last two of #129's mediums still open after #197. Continue now goes to the later step that no longer holds, with its faults shown (`src/screens/GoalWizard.tsx`, `go`), and Check's values wrap in full (`src/styles/finish/wizard.css`, `.rr-value`). F16 also fails if the tab bar or sidebar shows on any step. Read, not re-run on screen. No finding.
