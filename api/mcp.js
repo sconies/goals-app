@@ -8576,6 +8576,7 @@ var init_removal = __esmMin((() => {
 	init_asks();
 	init_status();
 	init_tableLayout();
+	init_changeset();
 	init_vocabulary();
 	init_records();
 	no$1 = (msg) => {
@@ -12285,7 +12286,6 @@ function localSearch(rows, finders = {}) {
 	};
 }
 // src/domain/export.ts
-init_changeset();
 init_goal();
 init_asks();
 init_levels();
@@ -13595,6 +13595,7 @@ function goalScorecard(goal, cycle, checkIns, week, stale) {
 init_levels();
 init_plan();
 init_year();
+init_changeset();
 init_find();
 var ACTIVITY_KINDS = [
 	["checkins", "Check-ins"],

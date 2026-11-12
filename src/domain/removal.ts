@@ -14,6 +14,7 @@ import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
+import { VIA_LABEL } from './changeset';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
@@ -587,7 +588,7 @@ export function importName(entry: Change): string {
   const file = entry.diffs.find((d) => d.field === 'File')?.to;
   if (file) return file;
   const via = entry.diffs.find((d) => d.field === 'Via')?.to;
-  return via === 'Data tables' ? 'Bulk edit on Data' : via === 'Bulk edit' ? 'Bulk edit on Goals' : via === 'MCP' ? 'Changes through MCP' : via === 'Check-in' ? 'A corrected check-in' : 'A spreadsheet';
+  return via === VIA_LABEL.table ? 'Bulk edit on Data' : via === VIA_LABEL.bulk ? 'Bulk edit on Goals' : via === VIA_LABEL.mcp ? 'Changes through MCP' : via === VIA_LABEL.form ? 'A corrected check-in' : 'A spreadsheet';
 }
 /** What an import changed, in words: its summary after the colon ("3 goals changed, 2 check-ins added"). */
 export const importCounts = (entry: Change) => entry.summary.replace(/^[^:]*:\s*/, '');

@@ -4113,14 +4113,15 @@ journey('U45', ['IMPORT-UNDO', 'BULK-EDIT'], 'Undo an import: every row back as 
   await undo.waitFor();
   await h.inView(undo, 'entry', 'Undo this import');
   await h.click(undo);
-  // It asks first, and says what happens to rows changed since.
-  await see(p, 'Rows changed since are skipped and listed', 'it does not say what happens to rows changed since');
+  // It asks first, and says which row stays because it changed since, and why.
+  const sheet = p.getByRole('dialog');
+  await see(sheet, '1 row goes back to how it was on', 'it does not say how many rows go back');
+  await see(sheet, 'The check-in was corrected on', 'it does not say what happens to rows changed since');
   h.set('errors', !(await h.snapshot()).changes.some((c) => c.action === 'undone'), 'it undid the import before it was confirmed');
   await h.checkpoint('undo import');
-  await h.click(p.getByRole('button', { name: 'Undo the import' }));
-  await see(p, 'Undid the import: 1 row put back; 1 skipped', 'the message does not say what was put back and skipped');
-  await see(p, 'skipped as changed since', 'Activity does not list the skipped row');
-  await see(p, 'Undone', 'the import is not marked undone');
+  await h.click(sheet.getByRole('button', { name: 'Undo 1 row' }));
+  await see(p, 'Undone: 1 row put back.', 'the message does not say what was put back');
+  await see(p, 'Undone on', 'the import is not marked undone');
   await h.checkpoint('undone');
   const s1 = await h.snapshot();
   const posted = (id) => s1.checkIns.filter((c) => c.goalId === id && c.week === NOW && s1.changes.some((x) => x.importId === imp && x.entityId === c.id));
@@ -5281,6 +5282,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   const sheet = p.getByRole('dialog');
   await see(sheet, '14 rows go back to how they were on', 'the Undo sheet does not say how many rows go back');
   await see(sheet, `Rhea Kapoor posted a check-in for week ${NOW}`, 'the Undo sheet does not name Rhea’s check-in');
+  h.set('attention', await sheet.getByRole('list', { name: 'Rows that stay as they are' }).isVisible(), 'the rows that stay are not listed apart');
   await h.checkpoint('undo sheet');
   await h.click(sheet.getByRole('button', { name: 'Undo 14 rows' }));
   await see(p, 'Undone: 14 rows put back.', 'the undo does not say it was done');

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPlatformOrg } from '../data/platformOrg/generate';
 import { applyCommit } from '../data/store';
 import { foldImports } from './activity';
-import { planChanges, type Rec } from './changeset';
+import { planChanges, VIA_LABEL, type Rec } from './changeset';
 import { currentWeek } from './plan';
 import { importCounts, importName, keptText, pastImports, undoImport, undoPreview } from './removal';
 import type { Change } from './types';
@@ -36,8 +36,8 @@ describe('undoing an import (rule 9)', () => {
 
   it('names a bulk change by where it was made', () => {
     const base = { id: 'c', at: '', actorId: 'amara', goalId: null, entity: 'workspace', entityId: 'imp', action: 'imported', summary: 'Bulk edit: x' } as const;
-    expect(importName({ ...base, diffs: [{ field: 'Via', from: '—', to: 'Data tables' }] })).toBe('Bulk edit on Data');
-    expect(importName({ ...base, diffs: [{ field: 'Via', from: '—', to: 'MCP' }] })).toBe('Changes through MCP');
+    expect(importName({ ...base, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL.table }] })).toBe('Bulk edit on Data');
+    expect(importName({ ...base, diffs: [{ field: 'Via', from: '—', to: VIA_LABEL.mcp }] })).toBe('Changes through MCP');
   });
 
   it('says beforehand what Undo does, and a row changed since stays, with who and when', () => {
