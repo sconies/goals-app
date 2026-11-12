@@ -80,6 +80,18 @@ describe('database schema', () => {
     expect([w.rows[0]!.n, r.rows[0]!.n]).toEqual([s.watches.length, s.reviews.length]);
   });
   it('refuses a metric goal without a plan', () => reject(`insert into okr_goals (id, cycle_id, team_id, owner_id, title, kind, io) values ('m2', 'cycle', 'cicd', 'rhea', 'No plan', 'metric', 'input')`));
+  it('keeps a range between two bounds: between needs a lower bound below the limit, one-sided ranges none (0042)', async () => {
+    const add = (id: string, bound: string, limit: number, lower: number | null) => db.query(
+      `insert into faro.okr_goals (id, cycle_id, team_id, owner_id, title, kind, io, headline, unit, decimals, range_bound, range_limit, range_margin, range_lower, level)
+       select $1, cycle_id, team_id, owner_id, 'Range ' || $1, 'range', io, false, '%', 2, $2, $3, 0, $4, level from faro.okr_goals where kind = 'range' limit 1`, [id, bound, limit, lower]);
+    await add('rb-ok', 'between', 99.95, 99.5);
+    await expect(add('rb-none', 'between', 99.95, null)).rejects.toThrow(/okr_goals_range_lower_ok/);
+    await expect(add('rb-upside', 'between', 99.5, 99.95)).rejects.toThrow(/okr_goals_range_lower_ok/);
+    await expect(add('rb-side', 'atMost', 99.5, 98)).rejects.toThrow(/okr_goals_range_lower_ok/);
+    await expect(add('rb-what', 'around', 99.5, null)).rejects.toThrow(/okr_goals_range_bound_ok/);
+    await db.exec(readFileSync(join(dir, '0042_range_between.sql'), 'utf8'));
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conrelid = 'faro.okr_goals'::regclass and pg_get_constraintdef(oid) like '%range_bound%' and pg_get_constraintdef(oid) not like '%range_limit%' and pg_get_constraintdef(oid) not like '%range_lower%'`)).rows[0]!.n).toBe(1);
+  });
 });
 
 describe('other causes and demo feedback (0019)', () => {
