@@ -32,6 +32,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 - `IMPORT-LEVELS`: Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused. Tests: `src/domain/problemLevels.test.ts`, `evals/format.eval.ts`.
 - `IMPORT-PREVIEW`: Before anything is saved an import says which sheets and columns it read and which it did not, then counts by sheet, then what must be fixed, then its questions, then the changes on request with before and after and every default it used. Saving is all or nothing unless the person chooses to leave named rows out. Tests: `src/domain/importPreview.test.ts`, `src/domain/roundtrip.test.ts`.
 - `IMPORT-UNDO`: Every import, bulk edit and bulk change through MCP is one line in Past imports and one entry in Activity, and can be undone as a whole by whoever made it or an admin. Undo says beforehand which rows have changed since and will stay. Tests: `evals/remove.eval.ts`.
+- `IMPORT-LARGE`: The import states its size limits before a file is chosen, checks a large file without freezing the page and shows progress, never draws more than a page of rows, and refuses to save more than it can save safely, with a way through. Saving tens of thousands of rows is a server-side job (R-L1 to R-L6).
 
 ## Journeys and checks
 

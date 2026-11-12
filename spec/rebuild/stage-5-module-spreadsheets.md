@@ -20,7 +20,7 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 
 ## Exit criteria
 
-1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-UNDO` (words in [its section](../modules/spreadsheets/README.md#requirements)).
+1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-UNDO`, `IMPORT-LARGE` (words in [its section](../modules/spreadsheets/README.md#requirements)).
 2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, U90, U95, U96, F7, F8, F17, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
 3. Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.
 4. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.
