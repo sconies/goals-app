@@ -47,6 +47,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['past-imports', 'import'],
   },
   {
+    id: 'goal-dates-picked',
+    date: '2026-11-12',
+    title: 'Pick a goal’s weeks, with their dates',
+    points: [
+      'A number goal now says its baseline, From and To.',
+      'Choose each week from a list that shows its dates and year: this year or next.',
+      'A goal whose From is still to come isn’t due until then: it reads “No check-in yet · starts week 50”.',
+      'Spreadsheets write weeks as 2026-W46; old files still load.',
+    ],
+    articles: ['new-goal', 'edit-goal', 'import'],
+  },
+  {
     id: 'import-preview',
     date: '2026-11-12',
     title: 'A clearer check before an import is saved',
