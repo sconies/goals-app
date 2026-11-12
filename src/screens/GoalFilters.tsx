@@ -183,7 +183,9 @@ function SearchBox({ value, onSearch, find }: { value: string; onSearch: (text: 
   const flush = (t: string) => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     const words = t.trim().slice(0, 200);
-    if (words === latest.current) return;
+    // Compared with what the address will say once what the box has sent arrives, not what it says now: emptied
+    // just after Enter, the address can already hold the words while this screen hasn't seen them yet.
+    if (words === (sent.current.length ? sent.current[sent.current.length - 1] : latest.current)) return;
     sent.current.push(words);
     write.current(words);
   };
