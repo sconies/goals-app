@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'question-in-view',
+    date: '2026-11-12',
+    title: 'A question about a number is where you can see it',
+    points: [
+      'In New goal and Change a goal, a question raised as you type, such as a target over 100%, now scrolls into view, on a phone too. The cursor stays where you are typing.',
+      'Continue or Save changes with a question open takes you straight to it.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
     id: 'import-headers-steadier',
     date: '2026-11-12',
     title: 'Import reads your headers more carefully',
