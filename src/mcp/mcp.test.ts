@@ -94,6 +94,10 @@ describe('MCP server', () => {
     expect(ids(await call('find_goals', {}))).toEqual(all);
     // A scope narrows the other filters, and they narrow it.
     expect(ids(await call('find_goals', { scope: 'team', status: 'off' })).every((id) => team.includes(id))).toBe(true);
+    // A Goals link's scope= is read too (build review of #116); the scope argument wins over it.
+    expect(ids(await call('find_goals', { query: 'scope=mine' }))).toEqual(ids(await call('find_goals', { scope: 'mine' })));
+    expect(ids(await call('find_goals', { query: '/goals?scope=team&status=off' }))).toEqual(ids(await call('find_goals', { scope: 'team', status: 'off' })));
+    expect(ids(await call('find_goals', { query: 'scope=mine', scope: 'all' }))).toEqual(all);
   });
 
   it('says why a scope someone doesn’t have finds nothing, and refuses a scope that doesn’t exist', async () => {
@@ -105,8 +109,9 @@ describe('MCP server', () => {
     for (const g of s.goals) if (g.ownerId === 'oskar') g.ownerId = 'amara';
     const mine = await call('find_goals', { scope: 'mine' });
     expect(mine.structuredContent!.goals).toEqual([]);
-    expect(mine.content[0]!.text).toBe('No goals match: you own no goals this year.');
-    expect((await call('find_goals', { scope: 'team' })).content[0]!.text).toBe('No goals match: you’re in no team and lead none.');
+    expect(mine.structuredContent!.why).toBe('You own no goals this year.');
+    expect(JSON.parse(mine.content[0]!.text)).toEqual(mine.structuredContent);
+    expect((await call('find_goals', { scope: 'team' })).structuredContent!.why).toBe('You’re in no team and lead none.');
     const nope = await call('find_goals', { scope: 'everyone' });
     expect(nope.isError).toBe(true);
     expect(nope.content[0]!.text).toMatch(/mine, team, watching or all/);
@@ -211,6 +216,22 @@ describe('MCP server', () => {
     const saved = (await call('bulk_change', { ...rows, apply: true })).structuredContent!.created as Created;
     for (const x of saved) expect(data().goals.find((g) => g.id === x.id)?.key).toBe(x.key);
     expect(new Set(saved.map((x) => x.key)).size).toBe(2);
+  });
+
+  it('answers every list the same way, filtered or not: its data as JSON, as structured content and as text (MCP load, 12 Nov)', async () => {
+    const { rpc, call } = await setup('amara');
+    const asks: [string, object][] = [['find_goals', {}], ['find_goals', { text: 'deploy' }], ['find_goals', { text: 'zzzz nothing' }], ['find_goals', { status: 'off' }], ['get_activity', { limit: 5 }], ['list_requests', { status: 'all' }]];
+    // Every list_ tool, as the server lists them, so a new one is held to the same shape.
+    const names = ((await rpc('tools/list')).body.result.tools as { name: string }[]).map((t) => t.name).filter((n) => n.startsWith('list_'));
+    for (const n of names) asks.push([n, {}]);
+    for (const [name, args] of asks) {
+      const r = await call(name, args);
+      if (r.isError) continue; // an inbox this test server hasn't got
+      expect(r.structuredContent, name).toBeDefined();
+      expect(JSON.parse(r.content[0]!.text), `${name} ${JSON.stringify(args)}`).toEqual(r.structuredContent);
+    }
+    const all = await call('find_goals', {}), some = await call('find_goals', { text: 'deploy' });
+    expect(Object.keys(some.structuredContent!)).toEqual(Object.keys(all.structuredContent!));
   });
 
   it('[REVIEW-DECIDE] decides in a review and adds a next step, as the app does', async () => {

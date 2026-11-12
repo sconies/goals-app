@@ -7,7 +7,7 @@ A stage already past when a goal is set up is asked about, and one said to be do
 
 ## The rule
 
-**A stage already past (rule 3).** Setting up a new goal, a stage due before this week is *past*, and must be answered: *done* or *overdue*. Done: the goal is published with one check-in in the week of the latest stage said to be done, each of those stages done in its own due week (posted by whoever set it up, now, with the note "Recorded as already done when the goal was set up"). So none of them is late, and its quarter can read met. Overdue: published as it stands; the stage is late from the start. Changing an existing goal never asks. Only the goal's owner or an admin records it, and only before its first check-in.
+**A stage already past (rule 3).** Setting up a new goal, a stage due before this week is *past*, and must be answered: *done* or *overdue*. Done: the goal is published with one check-in in the week of the latest stage said to be done, each of those stages done in its own due week (posted by whoever set it up, now, with the note "Recorded as already done when the goal was set up"). So none of them is late, and its quarter can read met. That check-in is a check-in like any other, so only the goal's owner records it (R1; an admin loading a workbook is the exception): someone setting up a goal for someone else is still asked, the question adds "Mateo marks done stages at the first check-in.", and the goal is published without it. Overdue: published as it stands; the stage is late from the start. Changing an existing goal never asks. Only the goal's owner or an admin records it, and only before its first check-in.
 
 **A fresh start at the first check-in (rule 4).** Offered when all hold: a number to move; no check-in yet; set up at most 4 weeks ago; the number typed is valid, would not be on plan, and hasn't reached the target. Not for a number kept in range, stages, or a goal with any check-in. Taken, the goal's start becomes the number from this week (`fromWeek`), to the same target, due week and shape; hand-set plan numbers after this week are kept. It needs no reason, since no check-in had started; the change log says "Started the plan from {value} at the first check-in (was {start})". The check-in posted then is on plan.
 
@@ -32,6 +32,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `goalMustFix`
 - [src/domain/checkin.ts](../../../src/domain/checkin.ts): `rebaseOffer`, `rebase`, `REBASE_WEEKS`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `recordStagesDone`
+- [src/domain/goalRights.ts](../../../src/domain/goalRights.ts): `MARKS_STAGES`
 
 ## Requirements
 
@@ -49,6 +50,20 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - re-basing at the first check-in (rule 4) › is offered when the first number is off the plan
 - re-basing at the first check-in (rule 4) › isn’t offered on plan, at the target, too long after set-up, or after a check-in
 - re-basing at the first check-in (rule 4) › starts the plan from the number, to the same target, due week and shape
+
+### [src/domain/setUpCheckIn.test.ts](../../../src/domain/setUpCheckIn.test.ts)
+
+- a set-up check-in is the owner’s too › the form: Oskar creates Mateo’s goal with a stage done; it is published with no check-in on it
+- a set-up check-in is the owner’s too › the form: an admin creating it is the same (not one of the two admin doors)
+- a set-up check-in is the owner’s too › the form: Mateo creating his own records it, with him as author
+- a set-up check-in is the owner’s too › the stage question says who marks it, when the person entering isn’t the owner
+- a set-up check-in is the owner’s too › a sheet, a bulk change and MCP: the row’s “They’re done” records nothing for someone else, and the question says so
+- a set-up check-in is the owner’s too › a workbook an admin loads still brings stages done in (one of the two admin doors)
+- a set-up check-in is the owner’s too › recordStagesDone: only the owner (no admin exception)
+- deleting a check-in and undoing an import ask the same rule › the owner deletes their latest check-in; an admin can’t
+- deleting a check-in and undoing an import ask the same rule › the owner deletes one an admin loaded onto their goal; a previous owner can’t delete theirs
+- deleting a check-in and undoing an import ask the same rule › an admin can’t undo the owner’s correction of a check-in; the owner can
+- deleting a check-in and undoing an import ask the same rule › an admin still undoes a workbook they loaded (the workbook door)
 
 ### [evals/onboarding.eval.ts](../../../evals/onboarding.eval.ts)
 

@@ -34,6 +34,133 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['any-device', 'home'],
   },
   {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'goal-proposed',
+    date: '2026-11-12',
+    title: 'Propose a goal before it starts',
+    points: [
+      'New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.',
+      'Its owner or an admin makes it active when it is agreed.',
+      'Proposed goals are counted apart, and listed under Goals with the Proposed filter.',
+    ],
+    articles: ['goal-proposed', 'new-goal', 'goals', 'columns'],
+  },
+  {
+    id: 'batch-refs',
+    date: '2026-11-12',
+    title: 'Build a whole tree of goals in one file',
+    points: [
+      'A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.',
+      'A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.',
+      'Two new goals with the same name stay two goals when each row has its own Ref.',
+    ],
+    articles: ['import', 'ai-assistants'],
+  },
+  {
+    id: 'import-faster',
+    date: '2026-11-12',
+    title: 'Large files are checked much faster',
+    points: [
+      'A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.',
+      'Import still says up front how large a file can be: up to 5,000 rows is comfortable.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'assistant-goals-link-tab',
+    date: '2026-11-12',
+    title: 'A pasted Goals link keeps its tab',
+    points: [
+      'Give an AI assistant a Goals link and it finds the goals the link shows: a link to Mine finds your goals, not everyone’s.',
+      'Asking for a tab in words (“my team’s goals”) still wins over the link’s.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
+    id: 'table-check-in-answers',
+    date: '2026-11-12',
+    title: 'The table check-in keeps your answers',
+    points: [
+      'When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.',
+      'A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.',
+      'Questions about a number use the goal’s unit properly: 1 hour, not 1 hours.',
+    ],
+    articles: ['check-in-table', 'check-in'],
+  },
+  {
+    id: 'export-one-button',
+    date: '2026-11-12',
+    title: 'Export is one button',
+    points: [
+      'Excel by default; other formats one click away.',
+      'File names say what’s in them: all, the view’s name, or as-shown.',
+      'On Data, Export and Import sit side by side. Past imports and the template are on the Import page.',
+    ],
+    articles: ['export', 'data'],
+  },
+  {
+    id: 'data-feedback-search-words',
+    date: '2026-11-12',
+    title: 'Data and Feedback search the way Goals does',
+    points: [
+      'Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.',
+      'On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched.',
+    ],
+    articles: ['data', 'feedback'],
+  },
+  {
+    id: 'check-ins-owners-words',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s, said everywhere',
+    points: [
+      'Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.',
+      'A check-in an admin loaded is headed with the admin’s name, not as what the owner said.',
+      'One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.',
+      'An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused.',
+    ],
+    articles: ['requests', 'goal-page', 'inbox'],
+  },
+  {
+    id: 'mcp-lists-one-shape',
+    date: '2026-11-12',
+    title: 'AI tools get every list in one shape',
+    points: [
+      'Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.',
+      'The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
+    id: 'quarters-before-set-up',
+    date: '2026-11-12',
+    title: 'Quarters before a goal existed are not judged',
+    points: [
+      'A goal set up part way through the year no longer shows the quarters that ended before it as Not met. They say Not applicable, with the week it was set up.',
+      'Those quarters are in no count of met or not met, and no longer raise “Last quarter not met” on the goal or in the overview.',
+    ],
+    articles: ['history', 'status'],
+  },
+  {
+    id: 'set-up-check-in-owners',
+    date: '2026-11-12',
+    title: 'Stages already done are the owner’s to mark',
+    points: [
+      'Setting up a goal for someone else, a stage already past is still asked about, and the question says they mark done stages at their first check-in. The goal is published without a check-in on it.',
+      'Delete this check-in is for the goal’s owner, whoever posted it.',
+      'Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction.',
+    ],
+    articles: ['new-goal', 'removing'],
+  },
+  {
     id: 'mcp-new-goal-keys',
     date: '2026-11-12',
     title: 'AI tools hear each new goal’s key',

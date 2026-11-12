@@ -8,7 +8,7 @@ An owner, their manager or an admin names a delegate who checks in and answers a
 
 ## Why
 
-In Faro only a goal’s owner or an admin may check in on it. When the owner is on leave the goal goes quiet: after 14 days it shows No recent update, asks for an update wait, and the leader’s count fills with goals nobody is reporting on. An admin can check in instead, but the change log then says the admin did it, with nothing to say for whom or why.
+In Faro only a goal’s owner may check in on it (Lane, 12 Nov); an admin may only bring check-ins in from a workbook, or correct a past one in Data’s tables. When the owner is on leave the goal goes quiet: after 14 days it shows No recent update, asks for an update wait, and the leader’s count fills with goals nobody is reporting on. Nobody can check in for them, and an admin’s workbook says the admin did it, with nothing to say for whom or why.
 
 A delegate keeps the weekly loop going without moving the goal: the owner is still accountable, and the record says who reported.
 
