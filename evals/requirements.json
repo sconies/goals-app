@@ -1086,6 +1086,12 @@
       "use": "copy"
     },
     {
+      "id": "IMPORT-LARGE",
+      "area": "Data",
+      "text": "The import states its size limits before a file is chosen, checks a large file without freezing the page and shows progress, never draws more than a page of rows, and refuses to save more than it can save safely, with a way through. Saving tens of thousands of rows is a server-side job (R-L1 to R-L6).",
+      "use": "copy"
+    },
+    {
       "id": "MODULES",
       "area": "Architecture",
       "text": "Faro is a small core with named extension points (routes, navigation, Home blocks, goal-page sections, settings, places on core screens, database tables, AI tools, Help articles, requirements and journeys) and feature modules, one folder each with a module.json a generator can read, saying what it adds and what it needs. An admin switches each module on or off for a workspace on Workspace, Features (migration 0030): off, it leaves every screen, its AI tools refuse, and what needs it goes off too; nothing it saved is lost, and each switch is logged. CI builds Faro with each module left out and runs the core journeys, and a lint keeps src/domain free of database, screen and network code and the core from importing a module.",

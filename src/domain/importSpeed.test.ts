@@ -3,7 +3,7 @@
    is checked in about the time it takes to read, and a file of thousands of rows costs about what its rows do. The limits
    are N18's for the whole check in a browser on CI; the engine alone is well inside them. Lower them as it gets leaner;
    never raise them to make a change pass. */
-import { planChanges, records, type ChangeInput, type Rec } from './changeset';
+import { planChanges, planChangesInChunks, records, type ChangeInput, type PlanProgress, type Rec } from './changeset';
 import { workbook } from './export';
 import { currentWeek } from './plan';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -68,5 +68,33 @@ describe('rule 10: a large file is checked in about the time it takes to read', 
     const g = cs.groups.filter((x) => x.kind === 'near-ref' && x.column === 'Team');
     expect(g).toHaveLength(1);
     expect(g[0]!.count).toBe(14);
+  });
+});
+
+describe('rule 10: planChangesInChunks reports every 500 rows, and ends where planChanges does', () => {
+  it('yields its progress every chunk, counting up, with what it has found so far', () => {
+    const tables = newRows(2000);
+    const seen: PlanProgress[] = [];
+    let m = 0;
+    const run = planChangesInChunks(input(s0, tables, { newId: (p) => `${p}_c${++m}` }));
+    let step = run.next();
+    while (!step.done) { seen.push(step.value); step = run.next(); }
+    expect(seen.map((p) => p.done)).toEqual([500, 1000, 1500, 2000]);
+    expect(seen.every((p) => p.total === 2000)).toBe(true);
+    expect(seen[1]!.added).toBe(1000);
+    expect(seen.at(-1)!.added).toBeGreaterThanOrEqual(1000);
+    m = 0;
+    const once = planChanges(input(s0, tables, { newId: (p) => `${p}_c${++m}` }));
+    expect({ ...step.value, commit: null }).toEqual({ ...once, commit: null });
+    expect(step.value.counts).toEqual(once.counts);
+  });
+
+  it('counts a Must fix as it finds it', () => {
+    const tables = newRows(1000);
+    for (const r of tables.goals!) r.owner = '';
+    const run = planChangesInChunks(input(s0, tables));
+    let last: PlanProgress | null = null;
+    for (let s = run.next(); !s.done; s = run.next()) last = s.value;
+    expect(last!.mustFix).toBeGreaterThanOrEqual(500);
   });
 });

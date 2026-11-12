@@ -19,6 +19,9 @@ const ALLOWED = new Set([
   'src/screens/BulkEdit.tsx',
   'src/modules/spreadsheets/Changes.tsx',
   'src/modules/spreadsheets/Check.tsx',
+  // The import's worker (its own bundle), and what runs it, loaded with the preview.
+  'src/modules/spreadsheets/checkRun.ts',
+  'src/modules/spreadsheets/worker.ts',
 ]);
 
 function sources(dir: string): string[] {
