@@ -5013,9 +5013,13 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await from.focus();
   await p.keyboard.press('Enter');
   await p.locator('.weekpick.open').getByRole('textbox').waitFor();
+  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
   await p.keyboard.press('ArrowDown');
+  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
   for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
+  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
   await p.keyboard.press('Enter');
+  await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
   const q = p.locator('.level-check').filter({ hasText: 'Week 40 was 5 weeks ago. Has this been running since then?' });
   // It sits right under From, where the week was just chosen.
