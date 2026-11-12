@@ -5,9 +5,12 @@ import path from 'node:path';
 import { buildSpec } from './build';
 import { MORE_RULE_PAGES, RULE_PAGES, systemOverview } from './overview';
 import { RULE_LIST, wrongExamples } from './rules';
-import { MAIN_ACTION } from './screens';
+import { MAIN_ACTION, OTHER_VIEWS, SHOTS, WIDTHS, shotFile } from './screens';
+import { screenFacts } from './screenFacts';
+import { ARTICLES } from '../help/guide';
 import { checks, coreRoutes, requirements } from './sources';
 import { HEADERS } from './conformance';
+import { thresholdClashes } from './thresholds';
 
 const root = path.resolve(__dirname, '../..');
 
@@ -22,7 +25,7 @@ describe('the spec', () => {
     const walk = (rel: string) => { for (const e of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) { const p = `${rel}/${e.name}`; if (e.isDirectory()) walk(p); else onDisk.push(p); } };
     walk('spec');
     const stale = Object.entries(want).filter(([f, text]) => !fs.existsSync(path.join(root, f)) || fs.readFileSync(path.join(root, f), 'utf8') !== text).map(([f]) => f);
-    expect({ stale, extra: onDisk.filter((f) => !(f in want)) }).toEqual({ stale: [], extra: [] });
+    expect({ stale, extra: onDisk.filter((f) => !(f in want) && !/^spec\/core\/screens\/[^/]+\.jpg$/.test(f)) }).toEqual({ stale: [], extra: [] });
   }, 60_000);
 
   it('says the same overview in llms.txt as the AI assistant’s describe_system', () => {
@@ -34,11 +37,61 @@ describe('the spec', () => {
     expect(Object.keys(MAIN_ACTION).sort()).toEqual(screens);
   });
 
+  /* The screens a rebuild can draw (kit review, 12 Nov, gap 3): fields, states and buttons, the look and the Help. */
+  describe('gives every screen enough to rebuild it', () => {
+    const r = { root };
+    it('lists every file in src/screens as a route’s screen or a view with no route, and each view’s article exists', () => {
+      const routed = new Set(coreRoutes(r).map((x) => x.file));
+      const viewed = new Set(OTHER_VIEWS.map((v) => v.file));
+      const loose = fs.readdirSync(path.join(root, 'src/screens')).filter((f) => f.endsWith('.tsx')).map((f) => `src/screens/${f}`).filter((f) => !routed.has(f) && !viewed.has(f));
+      expect(loose).toEqual([]);
+      expect(OTHER_VIEWS.filter((v) => v.help && !ARTICLES.some((a) => a.id === v.help)).map((v) => v.name)).toEqual([]);
+      for (const v of OTHER_VIEWS) expect(() => screenFacts(r, v.file, v.component), v.name).not.toThrow();
+    });
+
+    it('reads a screen’s fields, states and buttons, and who sees each, from its markup', () => {
+      const goal = screenFacts(r, 'src/screens/GoalScreen.tsx');
+      expect(goal.buttons).toContainEqual(expect.objectContaining({ words: 'Post the first check-in', kind: 'primary', when: expect.arrayContaining(['isOwner']) }));
+      expect(goal.states).toContainEqual(expect.objectContaining({ kind: 'empty', words: 'This goal doesn’t exist', when: '!goal' }));
+      expect(goal.fields).toContainEqual(expect.objectContaining({ name: 'Your reply', kind: 'textarea' }));
+      expect(screenFacts(r, 'src/App.tsx', 'NotFound').buttons.map((b) => [b.words, b.kind])).toEqual([['Go to Home', 'primary'], ['Help', 'link']]);
+      expect(screenFacts(r, 'src/telemetry/react.tsx', 'ErrorBoundary').states.map((x) => x.words)).toContain('Something went wrong on this page');
+    });
+
+    it('has a picture of every core screen at both widths, and every picture it names is there', () => {
+      expect(Object.keys(MAIN_ACTION).filter((n) => !SHOTS[n])).toEqual([]);
+      expect(Object.keys(SHOTS).filter((n) => !(n in MAIN_ACTION) && !OTHER_VIEWS.some((v) => v.name === n) && n !== 'Find')).toEqual([]);
+      const missing = Object.keys(SHOTS).flatMap((n) => WIDTHS.map((w) => `spec/core/screens/${shotFile(n, w)}`)).filter((f) => !fs.existsSync(path.join(root, f)));
+      expect(missing, 'run npm run spec:shots').toEqual([]);
+    });
+
+    it('carries the design rules and every Help article in full', async () => {
+      const spec = await buildSpec(root);
+      expect(spec['spec/core/design-rules.md']).toContain(fs.readFileSync(path.join(root, 'docs/design-rules.md'), 'utf8').split('\n## Banned')[1]!.split('\n## Every')[0]);
+      const guide = spec['spec/core/help-guide.md']!;
+      expect(ARTICLES.filter((a) => !guide.includes(`### ${a.title}\n`) || !a.sections.every((s) => guide.includes(`#### ${s.heading}`))).map((a) => a.id)).toEqual([]);
+      for (const f of ['spec/README.md', 'llms.txt']) for (const page of ['core/design-rules.md', 'core/help-guide.md']) expect(spec[f], `${f} links ${page}`).toContain(page);
+    }, 60_000);
+  });
+
   /* The kit's small errors (kit review, 12 Nov, gap 10): each once tripped a reader in the first hour. */
   describe('has none of the errors a reader trips on first', () => {
     const r = { root };
     let spec: Record<string, string>;
     beforeAll(async () => { spec = await buildSpec(root); }, 60_000);
+
+    it('gives one number for each named threshold, the code’s, on every page', () => {
+      const pages = Object.fromEntries(Object.entries(spec).filter(([p]) => /\.(md|txt)$/.test(p)));
+      expect(thresholdClashes(pages)).toEqual([]);
+      expect(thresholdClashes({ 'x.md': 'On track at 90%; no recent update after 21 days; no check-in for 2 weeks or more.' })).toEqual([
+        'x.md: “On track at 90%” gives 90 for on track (RULES.onTrack), the code says 95',
+        'x.md: “no recent update after 21 days” gives 21 for no recent update (RULES.staleDays), the code says 14',
+      ]);
+    });
+
+    it('says what each rule decides in llms.txt in the rule page’s own words', () => {
+      expect(RULE_PAGES.filter(([id, , what]) => RULE_LIST.find((r) => r.id === id)?.summary !== what).map(([id]) => id)).toEqual([]);
+    });
 
     it('writes every check’s title as words, never as the code that makes it', () => {
       expect(checks(r).filter((c) => !c.title || /\$\{|\(\[\^|`/.test(c.title)).map((c) => `${c.id}: ${c.title}`)).toEqual([]);

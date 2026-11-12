@@ -3,14 +3,16 @@
    the preview and the changes list, so both say the same. */
 // The change engine, for this screen's previews (src/app/engineReady.ts).
 import '../../app/engineReady';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useApp } from '../../app/state';
 import type { ChangeSet } from '../../domain/changeset';
+import { CHUNK } from '../../domain/importLimits';
 import { leaveOut, type DependentRow, type IsNew, type RowRef } from '../../domain/leaveOut';
 import { normalEmail } from '../../domain/people';
 import type { Rec, Tables } from '../../domain/sheets';
 import type { Snapshot } from '../../domain/types';
-import { useImport, type ImportState } from './importStore';
+import { startCheck } from './checkRun';
+import { useImport, type CheckRun, type ImportState } from './importStore';
 
 const drop = (rows: Rec[] | undefined, cols: string[]) => rows?.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !cols.includes(k))) as Rec);
 /** A file from another workspace, its rows added as new (other-workspace, "Add its rows as new goals"): keys and IDs go. */
@@ -41,7 +43,15 @@ export interface ImportPlan {
   /** The change set to save: `cs` with the reason typed for plan changes, worked out once, when saving (#191 review:
       the reason is kept out of the preview's inputs, so typing it doesn't re-check the whole file on every key). */
   toSave: () => ChangeSet | null;
+  /** A large file, checked in the worker (backlog IM6): its progress, and whether the change set is still being made
+      (or re-made after an answer). A small one is checked at once, as before, and has no run. */
+  run: CheckRun | null;
+  /** The tables the engine checks: the file's, without the rows left out. */
+  tables: Tables | null;
 }
+
+/** Every row in a file's tables. */
+export const rowsIn = (t: Tables) => (t.goals?.length ?? 0) + (t.plan?.length ?? 0) + (t.checkIns?.length ?? 0) + (t.people?.length ?? 0);
 
 export function useImportPlan(): ImportPlan {
   const app = useApp();
@@ -52,9 +62,18 @@ export function useImportPlan(): ImportPlan {
   const tables = out?.tables ?? base;
   const left = [...st.leftOut, ...(out?.also ?? [])];
   const file = { name: st.name, leftOut: left.length };
-  const cs = useMemo(() => (tables && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', '', false, st.answers, file) : null),
+  // A file of more than a chunk's rows is checked in the worker (rule 10): the page stays usable and shows progress.
+  const big = !!tables && rowsIn(tables) > CHUNK;
+  const now = useMemo(() => (tables && !big && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', '', false, st.answers, file) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tables, otherWorkspace, st.answers, st.name, left.length, app]);
+    [tables, big, otherWorkspace, st.answers, st.name, left.length, app]);
+  useEffect(() => {
+    if (!tables || !big || otherWorkspace) return;
+    startCheck({ tables, answers: st.answers, name: st.name, left: left.length, snapshot: app.snapshot }, () => app.changeInput(tables, 'spreadsheet', st.answers, file));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tables, big, otherWorkspace, st.answers, st.name, left.length, app.snapshot]);
+  const run = big && !otherWorkspace ? st.run : null;
+  const cs = run ? run.cs : now;
   const toSave = () => (cs && tables && cs.needsReason && st.reason.trim() ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, file) : cs);
-  return { st, base, left, also: out?.also ?? [], cs, otherWorkspace, toSave };
+  return { st, base, left, also: out?.also ?? [], cs, otherWorkspace, toSave, run, tables };
 }

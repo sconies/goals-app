@@ -125,6 +125,11 @@ interface GoalBase {
   stoppedAt?: string | null;
   stoppedBy?: Id | null;
   stopReason?: string | null;
+  /** Proposed, not yet active (goal entry GE10, rule 14; domain/proposed): visible to everyone, never judged, nothing
+      due. Set when proposed; cleared (null) when made active. Never set with stoppedAt. */
+  proposedAt?: string | null;
+  /** Who proposed it: set only with proposedAt. While it is proposed they may change or withdraw it too. */
+  proposedBy?: Id | null;
 }
 
 export interface PendingChange {
@@ -377,6 +382,12 @@ export interface Snapshot {
    * Deleted records are in neither; they're read from the whole snapshot (Recently removed).
    */
   archive?: Archive;
+  /**
+   * Set when a snapshot is scoped (domain/cycle scopeToCycle): this cycle's proposed goals (domain/proposed). Kept out
+   * of `goals`, as stopped goals are, so no count, status, check-in, review or wrap-up ever judges one; the places that
+   * list them (Goals with its filter, Find, their own page, the sheet and the tools) read them from here.
+   */
+  proposed?: Goal[];
 }
 
 export interface Archive {

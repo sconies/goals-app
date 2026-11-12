@@ -14,15 +14,19 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | [core/schema.sql](core/schema.sql) | The database as it is after every migration, read back from Postgres: tables, constraints, indexes, functions, triggers and access, in one file to read |
 | [core/vocabulary.md](core/vocabulary.md) | Every word for a state: its code, label, meaning and the rule that decides it (`src/domain/vocabulary.ts`) |
 | [core/rules/](core/rules/README.md) | Every core rule in plain words, with worked examples (run against the code by the spec’s own test) and the tests that check it |
-| [core/screens.md](core/screens.md) | Each core screen: its route, purpose, named parts, main action and the AI tools that do the same |
+| [core/screens.md](core/screens.md) | Each core screen, and each view and overlay with no route of its own: its route, purpose, named parts, main action, the AI tools that do the same, and its fields, states and buttons (with who sees each) |
+| [core/design-rules.md](core/design-rules.md) | The look: what is banned, what we do instead, and how each kind of page uses the room it has |
+| [core/help-guide.md](core/help-guide.md) | Every Help article in full: what each screen is for, how to use it and who can |
 | [core/journeys.md](core/journeys.md) | The core journeys and checks, the requirements each covers, and where each is driven |
 | [core/requirements.md](core/requirements.md) | Every core requirement, linked to its code, its Help article, its tests and its journeys |
 | [core/export-format.md](core/export-format.md) | The spreadsheet format: every sheet and column of the export, the set-up template and the import, how each is read back, its words, the JSON and the brief |
+| [core/actions.md](core/actions.md) | Every action a person can take, as the command port runs it: its input, its result, who may and the words it refuses with |
+| [core/tools.md](core/tools.md) | Every AI tool the MCP server offers: its input schema, what it gives back, its refusals and the actions it does the same as |
 | [core/import-issues.md](core/import-issues.md) | Every kind of issue a spreadsheet can raise: its level, what raises it, what it says and the answers it takes, and every other spelling of a column or a word |
 | [modules/](modules/README.md) | One section per feature module, from its `module.json` |
 | [conformance/](conformance/README.md) | The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself |
 | [rebuild/](rebuild/README.md) | The rebuild kit: the stages of a rebuild with entry and exit criteria, and the drill harness that scores stage 1 |
-| [requirements/internal/](requirements/internal/README.md) | What the internal app must do that Faro doesn’t build (sign-in and access, single sign-on, time zones, scale and safety, the organisation, delegates, the planning round), each with acceptance checks and its nearest rebuild stage |
+| [requirements/internal/](requirements/internal/README.md) | What the internal app must do that Faro doesn’t build (sign-in and access, single sign-on, time zones, scale and safety, notifications and the weekly habit, the organisation, delegates, the planning round, retention and privacy, audit, observability, accessibility), each with acceptance checks and its nearest rebuild stage |
 
 ## Reading order for a rebuild of the core rules
 

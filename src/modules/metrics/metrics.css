@@ -76,3 +76,15 @@
   .metric-goals td { padding: 1px 0; border: 0; }
   .metric-goals td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
 }
+
+/* MT1: the form's unit and decimal places side by side, the "can be said later" group, the foot's two lines. */
+.metric-form .metric-unit-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s3); align-items: start; }
+@media (max-width: 560px) { .metric-form .metric-unit-row { grid-template-columns: 1fr; } }
+.metric-form .metric-later { border: 0; margin: 0; padding: 0; min-width: 0; }
+.metric-form .metric-later legend { padding: 0; margin-bottom: var(--s2); }
+.metric-form .metric-foot p { margin: 0; }
+.metric-form .metric-count { font-weight: 600; }
+.metric-form .metric-still { color: var(--fg-2); }
+.metric-form .level-check .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.metric-form .level-check .level-actions .btn { min-height: 44px; }
+@media (max-width: 560px) { .metric-form .level-check .level-actions { flex-direction: column; } .metric-form .level-check .level-actions .btn { width: 100%; } }
