@@ -20453,6 +20453,11 @@ var INTERNAL_PAGES = [
 		"15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key"
 	],
 	[
+		"r5-notifications-and-habits",
+		"R5. Notifications and the weekly habit",
+		"asks, one reminder and a weekly digest in set words, check-in from a notification, never shame, streaks that forgive, the habit measure, a role per workspace"
+	],
+	[
 		"r6a-organisation",
 		"R6a. The organisation",
 		"teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company"
@@ -20468,9 +20473,24 @@ var INTERNAL_PAGES = [
 		"next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then"
 	],
 	[
-		"observability",
-		"Observability, as an idea",
-		"not a requirement: what Faro records today, and what the internal app might take from it"
+		"r7-retention-and-privacy",
+		"R7. Data retention, privacy and erasure",
+		"what is personal, how long each record is kept, leavers, seeing everything held about you, erasure"
+	],
+	[
+		"r8-audit",
+		"R8. Audit",
+		"a record of who did what that no one can change, with exports and token use, kept 7 years"
+	],
+	[
+		"r9-observability",
+		"R9. Observability and service levels",
+		"the signals sent to the company’s tools, the service levels promised, and what pages the on-call person"
+	],
+	[
+		"r10-accessibility",
+		"R10. Accessibility",
+		"WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow"
 	]
 ];
 function systemOverview() {
