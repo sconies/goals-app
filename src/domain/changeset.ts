@@ -17,7 +17,7 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_CORRECT_REASON, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
@@ -55,7 +55,7 @@ export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
 export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
-export const MIN_CORRECT_REASON = 10;
+export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
 /** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,
