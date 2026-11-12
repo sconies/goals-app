@@ -47,7 +47,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
           <span className="eyebrow">{lead.warn && <WarnMark />}{lead.eyebrow}</span>
           <h2 className="hero-title">{lead.title}</h2>
           <span className="muted">{lead.line}</span>
-          <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
+          <div className="row"><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
           {lead.also && <Link className="linkish small" to={lead.also.to}>{lead.also.label}</Link>}
         </div>
       </section>
@@ -59,7 +59,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
       <div className="hero-body">
         <h2 className="hero-title">{quiet.sentence}</h2>
         {quiet.line && <span className="muted">{quiet.line}</span>}
-        {quiet.buttons.length > 0 && <div className="row" style={{ marginTop: 8 }}>{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
+        {quiet.buttons.length > 0 && <div className="row">{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
       </div>
     </section>
   );
