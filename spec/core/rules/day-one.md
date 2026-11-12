@@ -36,7 +36,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Requirements
 
 - `DAY-ONE`: In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone.
-- `ONBOARDING`: An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
+- `ONBOARDING`: Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
 
 ## Tests that check it
 
@@ -51,3 +51,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - getting started (rule 7) › a goal given an owner leaves the assign count
 - getting started (rule 7) › nothing 15 days on, when hidden, or in the example
 - getting started (rule 7) › asks for no first check-in once the year has ended (cycle-end rule 2)
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › the invitation is /join/<workspace>, under /demo in the demo (rule S9)
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › reads the workspace an address invites to: /join/<id>, or the old /?workspace=<id>
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › takes a pasted invitation to this site, and says what isn’t one
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › says one true line under each name, and who set it up, on the arrival (2.8)
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › a person has arrived once the log has their arrival; whoever set it up has (rule S4)
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › logs the arrival once, as the person who arrived, and changes no record
+- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) › says where a set-up left unfinished stopped (Welcome, 2.1)
