@@ -16,20 +16,26 @@ The core in a few lines:
 - [Start here](spec/README.md): how the spec is organised, and what it marks as not self-explanatory
 - [The data model](spec/core/data-model.md): every record and field, and the database tables
 - [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it
-- [Weeks and plans](spec/core/rules/weeks-and-plans.md): which week it is, and what the plan says a number should be
-- [A year’s end](spec/core/rules/year-end.md): a cycle’s real first and last days; after the last day results close and nothing is due or out of date
-- [A goal’s status](spec/core/rules/status.md): what the numbers say, and the official status (the owner’s call unless stale)
-- [The projection](spec/core/rules/projection.md): where a number lands by its due week, as a range
-- [What a check-in must say](spec/core/rules/check-in.md): what is needed before a check-in can be posted
-- [Numbers and names](spec/core/rules/numbers-and-names.md): a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart
-- [Levels](spec/core/rules/levels.md): which levels a goal can have, what each is called, which is untagged, and how they sort
-- [Flags, the trend and needs attention](spec/core/rules/flags.md): why a goal is flagged, and whether it needs attention
-- [The scorecard](spec/core/rules/scorecard.md): vs plan, since last week, to target, and how likely it is to hit
-- [The change engine](spec/core/rules/change-engine.md): spreadsheets, bulk edits and changes through MCP, checked by the same rules
-- [Every core rule](spec/core/rules/README.md), the ten above and 24 more: [The field table](spec/core/rules/field-table.md), [Kinds, levels and near misses](spec/core/rules/import-levels.md), [What an import read, and leaving rows out](spec/core/rules/import-preview.md), [The header row, and headers that are nearly right](spec/core/rules/import-header.md), [Undoing an import, and past imports](spec/core/rules/import-undo.md), [Deciding in a review](spec/core/rules/review-decide.md), [Starting the next year](spec/core/rules/start-next-year.md), [The carry rule, and what comes with a goal](spec/core/rules/carry.md), [The workspace: cycles, teams, names, leaving and what needs attention](spec/core/rules/workspace.md), [The directory: who People lists, what a search finds, and where old addresses lead](spec/core/rules/directory.md), [Day one: set-up’s steps and “Getting started”](spec/core/rules/day-one.md), [The goal map](spec/core/rules/map.md), [Acting on a goal: its buttons, and next steps and asks](spec/core/rules/goal-act.md), [A goal’s history](spec/core/rules/goal-history.md), [Who a comment reaches](spec/core/rules/comment-reach.md), [Goal entry](spec/core/rules/goal-entry.md), [Years and weeks](spec/core/rules/years-and-weeks.md), [New goal](spec/core/rules/new-goal.md), [The read-back](spec/core/rules/read-back.md), [A goal not born late](spec/core/rules/not-born-late.md), [Finding things](spec/core/rules/finding.md), [Navigation: the menu, the lit item and a page’s name](spec/core/rules/navigation.md), [The Goals page: whose goals, how they are grouped, and the switch](spec/core/rules/goals-page.md), [Home: what is asked of you today](spec/core/rules/home.md)
-- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action
+- [Weeks and plans](spec/core/rules/weeks-and-plans.md): Which week it is, and what a goal’s plan says its number should be in any week.
+- [A year’s end](spec/core/rules/year-end.md): A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year.
+- [A goal’s status](spec/core/rules/status.md): What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale.
+- [The projection](spec/core/rules/projection.md): Where a number lands by its due week if the recent trend holds: the likeliest value and a range around it.
+- [What a check-in must say](spec/core/rules/check-in.md): What a check-in needs before it can be posted, and the record it becomes.
+- [Numbers and names](spec/core/rules/numbers-and-names.md): How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.
+- [Levels](spec/core/rules/levels.md): Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place.
+- [Flags, the trend and needs attention](spec/core/rules/flags.md): Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled.
+- [The scorecard](spec/core/rules/scorecard.md): The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target.
+- [The change engine](spec/core/rules/change-engine.md): The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.
+- [Every core rule](spec/core/rules/README.md), the ten above and 26 more: [The field table](spec/core/rules/field-table.md), [Kinds, levels and near misses](spec/core/rules/import-levels.md), [What an import read, and leaving rows out](spec/core/rules/import-preview.md), [The header row, and headers that are nearly right](spec/core/rules/import-header.md), [Undoing an import, and past imports](spec/core/rules/import-undo.md), [Deciding in a review](spec/core/rules/review-decide.md), [Starting the next year](spec/core/rules/start-next-year.md), [The carry rule, and what comes with a goal](spec/core/rules/carry.md), [The workspace: cycles, teams, names, leaving and what needs attention](spec/core/rules/workspace.md), [The directory: who People lists, what a search finds, and where old addresses lead](spec/core/rules/directory.md), [Day one: set-up’s steps and “Getting started”](spec/core/rules/day-one.md), [Welcome and the invitation](spec/core/rules/welcome.md), [The goal map](spec/core/rules/map.md), [Acting on a goal: its buttons, and next steps and asks](spec/core/rules/goal-act.md), [A goal’s history](spec/core/rules/goal-history.md), [Who a comment reaches](spec/core/rules/comment-reach.md), [Goal entry](spec/core/rules/goal-entry.md), [Years and weeks](spec/core/rules/years-and-weeks.md), [New goal](spec/core/rules/new-goal.md), [The read-back](spec/core/rules/read-back.md), [Proposed goals](spec/core/rules/proposed.md), [A goal not born late](spec/core/rules/not-born-late.md), [Finding things](spec/core/rules/finding.md), [Navigation: the menu, the lit item and a page’s name](spec/core/rules/navigation.md), [The Goals page: whose goals, how they are grouped, and the switch](spec/core/rules/goals-page.md), [Home: what is asked of you today](spec/core/rules/home.md)
+- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action, and its fields, states and buttons (with who sees each); the views and overlays with no route of their own
+- [The design rules](spec/core/design-rules.md): the look, what is banned and what we do instead
+- [The Help guide](spec/core/help-guide.md): every Help article in full
 - [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them
 - [The requirements](spec/core/requirements.md): each one, linked to its code and tests
+- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back
+- [The actions](spec/core/actions.md): every change a person can make, as the command port runs it: input, result, who may and refusals
+- [The AI tools](spec/core/tools.md): every MCP tool’s input schema, what it gives back, its refusals and the actions it does the same as
+- [Every issue a spreadsheet can raise](spec/core/import-issues.md): each kind’s level, trigger, sentence and answers, and every column’s other spellings
 
 ## Conformance data
 
@@ -49,10 +55,15 @@ The core in a few lines:
 - [R2. Company single sign-on](spec/requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
 - [R3. Time zones](spec/requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
 - [R4. Scale and safety](spec/requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [R5. Notifications and the weekly habit](spec/requirements/internal/r5-notifications-and-habits.md): asks, one reminder and a weekly digest in set words, check-in from a notification, never shame, streaks that forgive, the habit measure, a role per workspace
 - [R6a. The organisation](spec/requirements/internal/r6a-organisation.md): teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company
 - [R6b. Delegates](spec/requirements/internal/r6b-delegates.md): someone named to check in and answer asks for an owner while they are away, recorded as acting for them
 - [R6c. The planning round](spec/requirements/internal/r6c-planning-round.md): next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then
-- [Observability, as an idea](spec/requirements/internal/observability.md): not a requirement: what Faro records today, and what the internal app might take from it
+- [R7. Data retention, privacy and erasure](spec/requirements/internal/r7-retention-and-privacy.md): what is personal, how long each record is kept, leavers, seeing everything held about you, erasure
+- [R8. Audit](spec/requirements/internal/r8-audit.md): a record of who did what that no one can change, with exports and token use, kept 7 years
+- [R9. Observability and service levels](spec/requirements/internal/r9-observability.md): the signals sent to the company’s tools, the service levels promised, and what pages the on-call person
+- [R10. Accessibility](spec/requirements/internal/r10-accessibility.md): WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow
+- [R11. Large imports, a server-side job](spec/requirements/internal/r11-large-imports.md): an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)
 
 ## Feature modules
 

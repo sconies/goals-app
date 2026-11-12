@@ -17,6 +17,7 @@ import { answeredDiffs, MIN_REASON, stepState as fixLine, unanswered } from './c
 import { fieldNeedOf, type Required } from './columns';
 import { buildGoal, decimalsFor, draftOf, pastStage, planChanged, planQuestion, stagesDoneAtSetUp, withPoints, type GoalDraft } from './goal';
 import { findGoal, nextKey } from './goalKey';
+import { isProposed, measureEmpty, withProposed } from './proposed';
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { fold } from './find';
 import { FAR_RATIO, groupDigits, notNumberText, numberAsTyped, parseNumber, placesText, typedDecimals, usuallyPositive } from './numbers';
@@ -36,13 +37,13 @@ import type { CheckIn, Goal, GoalKind, Level, MetricGoal, Person, Team } from '.
 /* ---------- rule 1: what a field needs ---------- */
 
 /** The goal's fields as the form names them (GoalDraft's keys), in the form's order: the order Must fix is listed in. */
-export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
+export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'lower', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
 export type GoalField = (typeof GOAL_FIELDS)[number];
 
 /** Each form field's column in the field table (FIELDS.goals): what its need is read from. */
 const COLUMN: Partial<Record<GoalField, string>> = {
   title: 'Goal', kind: 'Type', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'Effect', unit: 'Unit', decimals: 'Decimals',
-  start: 'Start', fromWeek: 'Plan from week', target: 'Target', endWeek: 'Due week', points: 'Plan', bound: 'Must stay', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
+  start: 'Start', fromWeek: 'Plan from week', target: 'Target', endWeek: 'Due week', points: 'Plan', bound: 'Must stay', lower: 'Limit', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
 };
 /** Fields the form always shows holding a value (a default the person can see), so they are required there, whatever
     an empty cell gives in a file: the type, the owner's team, the level, which side a range keeps to, and a plan's From
@@ -61,11 +62,13 @@ export function fieldNeed(required: Required, kind: GoalKind): Need {
 }
 
 /** The fields only some types of goal have: a unit and decimals for a number, the plan for a number to move, and so on. */
-const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], fromWeek: ['metric'], target: ['metric'], endWeek: ['metric'], points: ['metric'], bound: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
+const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], fromWeek: ['metric'], target: ['metric'], endWeek: ['metric'], points: ['metric'], bound: ['range'], lower: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
 
 /** Rule 1, for a field of the form: "· optional" is said after the label of each field whose need is optional. */
 export function formNeed(field: GoalField, kind: GoalKind): Need {
   if (KIND_ONLY[field] && !KIND_ONLY[field]!.includes(kind)) return 'not-asked';
+  // A range between two numbers asks for both, as it asks for the limit.
+  if (field === 'lower') return formNeed('limit', kind);
   if (ALWAYS_SET.includes(field)) return 'required';
   if (field === 'decimals') return 'worked';
   if (field === 'alsoHelps' || field === 'guardrail') return 'optional';
@@ -83,7 +86,7 @@ export const STEP_SAYS = 'Everything here is needed unless it says optional.';
 /* ---------- rule 2: what can't be saved ---------- */
 
 export type MustFixId =
-  | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty'
+  | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty' | 'lower-empty' | 'lower-not-below'
   | 'not-number' | 'has-words' | 'too-precise' | 'decimals-range' | 'same-as-start' | 'plan-point' | 'margin-negative'
   | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose'
   | 'to-before-from' | 'week-unknown' | 'week-beyond';
@@ -191,7 +194,11 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       }
     }
     if (d.kind === 'range') {
-      number('limit', d.limit, ['limit-empty', 'Enter the limit.']);
+      // Between two numbers: both, the lower one below the upper one (the limit).
+      const between = d.bound === 'between';
+      const lo = between ? number('lower', d.lower, ['lower-empty', 'Enter the lower number.']) : null;
+      const hi = number('limit', d.limit, ['limit-empty', between ? 'Enter the upper number.' : 'Enter the limit.']);
+      if (lo != null && hi != null && lo >= hi) add('lower', 'lower-not-below', `The lower number (${withUnit(groupDigits(String(lo)), d.unit)}) must be below the upper one (${withUnit(groupDigits(String(hi)), d.unit)}).`);
       const m = number('margin', d.margin, null);
       if (m != null && m < 0) add('margin', 'margin-negative', 'Enter a warning margin of zero or more, or leave it empty.');
     }
@@ -286,6 +293,8 @@ export interface ChecksContext {
   /** The owner's name when the person entering the goal may not record its set-up check-in (goalRights
       mayPostCheckIn): a stage already past is still asked, and the question says the owner marks it. */
   marksStages?: string;
+  /** The goal is being proposed (rule 14): it has no check-ins, so a stage already past is asked when it is made active. */
+  proposing?: boolean;
 }
 
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
@@ -319,7 +328,7 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
   const read = (v: string) => { if (!v.trim()) return null; const r = numberAsTyped(v, d.unit); return 'problem' in r ? null : r.n; };
 
   // A stage already past at set-up (OB2's rule 3): done in its own week, or overdue. Either answer is an answer.
-  if (d.kind === 'milestone' && !ctx.existing && ctx.door !== 'table') {
+  if (d.kind === 'milestone' && !ctx.existing && !ctx.proposing && ctx.door !== 'table') {
     d.stages.forEach((st, i) => {
       const w = parseNumber(st.dueWeek);
       if (!st.name.trim() || w == null || !Number.isInteger(w) || w < 1 || w > ctx.cycleWeeks || !pastStage(w, ctx.week)) return;
@@ -336,7 +345,7 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     if (!unit && (!ctx.existing || ctx.existing.kind === 'milestone' || ctx.existing.unit.trim())) {
       ask({ id: 'no-unit', field: 'unit', key: '', question: 'This number has no unit. Is it a plain count?', yes: 'Yes, a plain count', no: 'No, I’ll add one', readBack: 'You said it is a plain count, with no unit.' });
     }
-    const fields: [GoalField, string, number | null][] = d.kind === 'metric' ? [['start', 'number today', read(d.start)], ['target', 'target', read(d.target)]] : [['limit', 'limit', read(d.limit)]];
+    const fields: [GoalField, string, number | null][] = d.kind === 'metric' ? [['start', 'number today', read(d.start)], ['target', 'target', read(d.target)]] : [...(d.bound === 'between' ? [['lower', 'lower limit', read(d.lower)] as [GoalField, string, number | null]] : []), ['limit', 'limit', read(d.limit)]];
     const given = fields.filter((f): f is [GoalField, string, number] => f[2] != null);
     const key = given.map((f) => f[2]).join('|');
     const neg = given.find(([, , n]) => n < 0);
@@ -373,8 +382,9 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     ask({ id: 'feeds-lower', field: 'parentId', key: `${d.level}|${d.parentId}`, question: `${capital(aLevel(ctx.levels, d.level, top))} usually feeds ${feeds}, and “${ctx.parent.title}” is ${aLevel(ctx.levels, ctx.parent.level, false)}. Is this link right?`, yes: 'Yes, it feeds that goal', no: 'No, it feeds nothing', noDoes: { parentId: '', effect: '', whyHelps: '' }, readBack: `You said it feeds “${ctx.parent.title}”, ${aLevel(ctx.levels, ctx.parent.level, false)}.` });
   }
   if (d.kind === 'range') {
-    const limit = read(d.limit), margin = read(d.margin);
-    if (limit != null && margin != null && margin > 0 && margin >= Math.abs(limit)) ask({ id: 'margin-wide', field: 'margin', key: `${limit}|${margin}`, question: `With a limit of ${said(limit)} and a warning ${said(margin)} away, it would almost always read at risk. Is ${groupDigits(String(margin))} right?`, yes: `Yes, warn within ${said(margin)}`, no: 'No, I’ll change it', readBack: `You said to warn within ${said(margin)}.` });
+    const limit = read(d.limit), margin = read(d.margin), lower = d.bound === 'between' ? read(d.lower) : null;
+    // Between two numbers: warning margins that meet in the middle would always read at risk.
+    if (limit != null && margin != null && margin > 0 && (lower != null ? lower < limit && 2 * margin >= limit - lower : margin >= Math.abs(limit))) ask({ id: 'margin-wide', field: 'margin', key: `${limit}|${margin}`, question: `With a limit of ${said(limit)} and a warning ${said(margin)} away, it would almost always read at risk. Is ${groupDigits(String(margin))} right?`, yes: `Yes, warn within ${said(margin)}`, no: 'No, I’ll change it', readBack: `You said to warn within ${said(margin)}.` });
   }
   if (d.kind === 'metric') {
     const s = read(d.start), t = read(d.target);
@@ -452,7 +462,7 @@ export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: s
 
 /** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named.
     `savedAs`: the id a new goal's draft has been saved under, once it has (it is then not asked about itself). */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'> & { savedAs?: string | null; actor?: Pick<Person, 'id' | 'admin'> }): ChecksContext {
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate' | 'proposing'> & { savedAs?: string | null; actor?: Pick<Person, 'id' | 'admin'> }): ChecksContext {
   const { savedAs, actor, ...rest } = base;
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   // Someone creating a goal for someone else can't record its set-up check-in (R1): the question says who will.
@@ -484,7 +494,7 @@ export const checkedDiffs = (d: GoalDraft, checks: readonly GoalCheck[], answers
 export const STEP_FIELDS: GoalField[][] = [
   ['title', 'kind'],
   ['ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail'],
-  ['unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'],
+  ['unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'lower', 'limit', 'margin', 'stages', 'definition', 'source'],
   [],
 ];
 /** The fields the step of a goal of `kind` shows: the number fields only for a number, the stages only for stages. */
@@ -495,7 +505,7 @@ export function stepFields(step: number, kind: GoalKind): GoalField[] {
 /** A field's label in the line above the button. */
 export const FIELD_LABEL: Partial<Record<GoalField, string>> = {
   title: 'Name', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'How much it moves', unit: 'Unit', decimals: 'Decimals',
-  start: 'Baseline', fromWeek: 'From', target: 'Target', endWeek: 'To', points: 'The plan', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
+  start: 'Baseline', fromWeek: 'From', target: 'Target', endWeek: 'To', points: 'The plan', lower: 'Lower limit', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
 };
 
 /**
@@ -544,6 +554,9 @@ export interface SaveGoalInput {
   /** A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the
       stages the draft says are done (answered yes to stage-past). */
   stagesDone?: string[];
+  /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
+      changed keeps its state: it is made active by domain/proposed activate, never by a save. */
+  state?: 'active' | 'proposed';
 }
 
 /** The words for a plan change with no reason (section 4, `reason-empty`). */
@@ -558,7 +571,9 @@ export const REASON_EMPTY = 'Say why, in a sentence. It goes in the goal’s His
  */
 export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit | null; goal: Goal } {
   const s = x.snapshot;
-  const existing = i.goalId ? findGoal(s.goals, i.goalId) ?? null : null;
+  // This cycle's goals with its proposed ones (domain/proposed): a proposed goal is found, changed and linked to like any.
+  const goals = withProposed(s);
+  const existing = i.goalId ? findGoal(goals, i.goalId) ?? null : null;
   if (i.goalId && !existing) throw new NotAllowed('That goal no longer exists. Reload to see the latest.');
   const ownerOf = (id: string) => s.people.find((p) => p.id === id);
   if (existing && !mayChangeGoal(x.actor, existing)) throw new NotAllowed(`Only ${ownerOf(existing.ownerId)?.name ?? 'its owner'} (its owner) or an admin can change “${existing.title}”.`);
@@ -566,41 +581,65 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const owner = ownerOf(i.draft.ownerId);
   if (i.draft.ownerId && !owner) throw new NotAllowed('That person isn’t in this workspace any more. Choose who owns it.');
   if (i.draft.teamId && !s.teams.some((t) => t.id === i.draft.teamId)) throw new NotAllowed('That team isn’t here any more. Choose a team.');
-  const parent = i.draft.parentId ? findGoal(s.goals, i.draft.parentId) : undefined;
+  const parent = i.draft.parentId ? findGoal(goals, i.draft.parentId) : undefined;
   if (i.draft.parentId && !parent) throw new NotAllowed('The goal it feeds isn’t here any more. Choose another, or nothing.');
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
-  const fix = goalMustFix(i.draft, {
+  // Proposed (rule 14): the type's own required fields are optional, all together; no reason is ever asked.
+  const proposing = existing ? isProposed(existing) : i.state === 'proposed';
+  const fix = (proposing ? proposedMustFix : goalMustFix)(i.draft, {
     cycleWeeks: x.cycle.weeks, week: x.week, existing, checkIns, door: 'form', startDate: x.cycle.startDate,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null } : null, parent: parent ? { title: parent.title } : null,
-    loops: !!(existing && parent && makesLoop(existing.id, parent.id, s.goals)),
+    loops: !!(existing && parent && makesLoop(existing.id, parent.id, goals)),
   });
   if (fix.length) throw new NotAllowed(`Not saved. Must fix: ${fix.map((f) => f.text).join(' ')}`);
-  const checks = goalChecks(i.draft, checksContext(i.draft, {
-    person: ownerOf, team: (id) => s.teams.find((t) => t.id === id), goal: (id) => findGoal(s.goals, id), sameNamed: sameNamedIn(s.goals),
-  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', actor: x.actor, levels: x.cycle, startDate: x.cycle.startDate, metric: i.draft.kind !== 'metric' ? null : i.metric !== undefined ? i.metric : existing ? goalMeasureOf(x.records, s, existing.id) : null }));
+  // A proposal that says nothing yet of how it is measured is stored as dated stages with none (rule 14): nothing about
+  // its numbers is asked.
+  const draft = proposing && measureEmpty(i.draft) ? unsaidDraft(i.draft) : i.draft;
+  const checks = goalChecks(draft, checksContext(draft, {
+    person: ownerOf, team: (id) => s.teams.find((t) => t.id === id), goal: (id) => findGoal(goals, id), sameNamed: sameNamedIn(goals),
+  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', proposing, actor: x.actor, levels: x.cycle, startDate: x.cycle.startDate, metric: i.draft.kind !== 'metric' ? null : i.metric !== undefined ? i.metric : existing ? goalMeasureOf(x.records, s, existing.id) : null }));
   const answers: GoalAnswers = i.confirm ? Object.fromEntries(checks.map((c) => [c.slot, c.key])) : i.answers ?? {};
   const open = unanswered(checks, answers);
   if (open.length) throw new NotAllowed(`Not saved. Check with the person first: ${open.map((c) => c.question).join(' ')}`);
 
   const places = decimalsFor(i.draft)!;
-  const built = buildGoal({ ...i.draft, decimals: String(places), margin: i.draft.margin.trim() || '0' }, x.cycle, { id: existing?.id ?? x.newId('goal'), createdAt: existing?.createdAt ?? x.now }, existing, checkIns.length > 0, x.week);
-  // A new goal takes the workspace's next key; a goal being changed keeps its own (buildGoal keeps it).
-  const goal: Goal = existing ? { ...built, pending: null } : { ...built, key: nextKey(s.goals, s.keysIssued) };
-  const needsReason = !!existing && checkIns.length > 0 && planChanged(existing, goal);
+  const built = buildGoal({ ...draft, decimals: String(places), margin: draft.margin.trim() || '0' }, x.cycle, { id: existing?.id ?? x.newId('goal'), createdAt: existing?.createdAt ?? x.now }, existing, checkIns.length > 0, x.week);
+  // A new goal takes the workspace's next key; a goal being changed keeps its own (buildGoal keeps it), and its proposal.
+  const state = proposing ? { proposedAt: existing?.proposedAt ?? x.now, proposedBy: existing?.proposedBy ?? x.actor.id } : {};
+  const goal: Goal = existing ? { ...built, pending: null, ...state } : { ...built, key: nextKey(s.goals, s.keysIssued), ...state };
+  const needsReason = !proposing && !!existing && checkIns.length > 0 && planChanged(existing, goal);
   if (needsReason && (i.reason ?? '').trim().length < MIN_REASON) throw new NotAllowed(REASON_EMPTY);
 
-  const lookup: Lookup = { person: ownerOf, goal: (id) => (id === goal.id ? goal : s.goals.find((g) => g.id === id)), teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id };
+  const lookup: Lookup = { person: ownerOf, goal: (id) => (id === goal.id ? goal : goals.find((g) => g.id === id)), teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id };
   const change = goalChange(existing, goal, lookup, x.actor.id, x.now, x.newId('chg'));
   if (!change) return { commit: null, goal: existing ?? goal };
   if (i.reason?.trim()) change.diffs.push({ field: 'Why', from: '—', to: i.reason.trim() });
   // Each question answered is kept with the change, as "Checked": the question, then the answer (section 4).
-  change.diffs.push(...checkedDiffs(i.draft, checks, answers));
+  change.diffs.push(...checkedDiffs(draft, checks, answers));
   // Stages already done at set-up go in the same save as the goal, so it is never seen late in between (OB2's rule 3).
   const said = i.stagesDone ?? (i.draft.kind === 'milestone' ? i.draft.stages.filter((st) => st.done === 'yes').map((st) => st.id) : []);
   // Only a stage already past can be done at set-up: one due later would be a check-in dated ahead of this week.
   const doneIds = goal.kind === 'milestone' ? said.filter((id) => goal.stages.some((st) => st.id === id && pastStage(st.dueWeek, x.week))) : [];
   // It is a check-in, so the owner's (R1): someone creating the goal for someone else publishes it without one.
-  const done = !existing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
+  // A proposal has no check-ins (rule 14): its stages already done are asked about when it is made active.
+  const done = !existing && !proposing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
   return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : [])], ...(done ? { checkIns: [done] } : {}) }, goal };
 }
+
+/* ---------- rule 14: a proposed goal (GE10; domain/proposed) ---------- */
+
+/** The Must fix that only say a type's required field is empty: optional while a goal is proposed. */
+const MEASURE_REQUIRED = new Set<MustFix['id']>(['start-empty', 'target-empty', 'limit-empty', 'lower-empty', 'stage-none']);
+
+/**
+ * Rule 2 for a proposed goal: the type's own required fields are optional, all together. A draft that says nothing of
+ * how it is measured saves (as dated stages with none); one that says part of it is judged as any goal is.
+ */
+export function proposedMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
+  const all = goalMustFix(d, ctx);
+  return measureEmpty(d) ? all.filter((f) => !MEASURE_REQUIRED.has(f.id)) : all;
+}
+
+/** The draft a proposed goal with nothing measured is stored as. */
+export const unsaidDraft = (d: GoalDraft): GoalDraft => ({ ...d, kind: 'milestone', stages: [] });

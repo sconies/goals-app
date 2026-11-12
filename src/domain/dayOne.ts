@@ -113,3 +113,31 @@ export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: stri
   }
   return rows;
 }
+
+/* ---------- Welcome and the arrival (set-up spec ST1: 2.1, 2.8, rules S4 and S9) ---------- */
+
+/**
+ * Rule S4's `arrived`: a person has arrived when the log has their arrival (a change on the person, `acknowledged`,
+ * written once when they first choose their name on the arrival screen). Whoever set the workspace up has arrived.
+ * It reads the log as it is: no column and no new action word, so no migration.
+ */
+export function arrived(personId: string, changes: Pick<Change, 'entity' | 'action' | 'entityId' | 'summary' | 'actorId'>[], people: Pick<Person, 'id' | 'admin'>[]): boolean {
+  return creatorOf(changes, people) === personId || changes.some((c) => c.entity === 'person' && c.action === 'acknowledged' && c.entityId === personId);
+}
+
+/** The arrival's entry in the log, as rule S4 words it. */
+export const arrivalSummary = (name: string, ws: string) => `${name} opened ${ws} for the first time`;
+
+/** Rule S9's link: the address an invitation opens, `{origin}{/demo}/join/{id}`. */
+export const inviteLink = (origin: string, mode: string, wsId: string) => `${origin}${mode === 'demo' ? '/demo' : ''}/join/${encodeURIComponent(wsId)}`;
+
+/**
+ * The workspace an address invites someone to, if any: `/join/<id>` (under `/demo` in the demo), or the link `/ready`
+ * copied before, `/?workspace=<id>`, which now leads to `/join/<id>`.
+ */
+export function invitedTo(pathname: string, search: string): string | null {
+  const m = /^(?:\/demo)?\/join\/([^/?#]+)\/?$/.exec(pathname);
+  if (m) { try { return decodeURIComponent(m[1]!); } catch { return m[1]!; } }
+  const q = new URLSearchParams(search).get('workspace');
+  return q || null;
+}

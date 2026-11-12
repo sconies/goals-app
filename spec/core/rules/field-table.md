@@ -19,11 +19,13 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | ID | Leave empty | Faro’s own | goal_hzde4g | Faro gives a new goal its own |
 | Goal | Required | Text, 3 characters or more | Deploy lead time | Must fix: a new goal needs a name |
 | Action | Optional | Stop, Delete or Example | Stop | The row adds or changes the goal |
+| Ref | Optional | Text, each row its own | top | Other rows name it by Goal or Key instead |
 | Level | Optional | north star, svp or team | team | team |
 | Team | Optional | A team’s name | Platform | The owner’s team |
 | Owner | Required (or Owner email) | A name only one person has | Ben Ortiz | Owner email says who; with neither, Must fix |
 | Owner email | Required (or Owner) | An email | ben.ortiz@example.com | Owner says who; with neither, Must fix |
 | Type | Optional | metric, range or milestone | metric | Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later |
+| State | Optional | active or proposed | proposed | As it is |
 | Unit | Optional | Text | days | No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts. On a row already here, empty clears it |
 | Decimals | Optional | 0, 1, 2 or 3 | 1 | The most decimal places typed in Start, Target or Limit, up to 3 |
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |
@@ -33,12 +35,13 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Plan from week | Optional | A whole number of weeks from the cycle’s start | 46 | This week (0 when setting up a workspace) |
 | To | Optional | A year and a week, after From | 2026-W53 | The cycle’s last week |
 | Due week | Optional | A whole number, after Plan from week; a date in the cycle is read as its week | 53 | The cycle’s last week. On a row already here, empty clears it |
-| Limit | Required for a range goal | A number | 5 | Must fix for a range goal |
-| Must stay | Optional | at most or at least | at most | at most |
+| Limit | Required for a range goal | A number, or two (99.5–99.95, 99.5 to 99.95) | 5 | Must fix for a range goal |
+| Must stay | Optional | at most, at least or between | at most | at most |
 | Margin | Optional | A number, zero or more | 0.5 | No warning margin (0) |
 | Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name) | Design@48; Pilot@52 | Must fix for a stages goal |
 | Feeds into | Optional | A goal’s name | Deploy lead time | It feeds nothing. On a row already here, empty clears it |
 | Feeds into key | Optional | A goal’s key | G-1 | It feeds nothing. On a row already here, empty clears it |
+| Feeds into ref | Optional | The Ref of another row in this file | top | Feeds into or Feeds into key says what it feeds |
 | Why it helps | Optional | Text | Fewer failed deploys mean fewer rollbacks | Nothing said. On a row already here, empty clears it |
 | Effect | Optional | A number, in the fed goal’s unit | 1 | Nothing said. On a row already here, empty clears it |
 | Source | Optional | Text | CI dashboard | Nothing said. On a row already here, empty clears it |
@@ -68,6 +71,7 @@ Worked out: none.
 | Goal key | Required (or Goal ID, or Goal) | G- and a number | G-14 | Goal ID or Goal says which goal; with none of them, Must fix |
 | Goal ID | Required (or Goal key, or Goal) | Faro’s own | goal_hzde4g | Goal key or Goal says which goal |
 | Goal | Required (or Goal key, or Goal ID) | The goal’s exact name, when only one goal has it | Pipeline queue wait (p90) | Goal key or Goal ID says which goal |
+| Goal ref | Optional | The Ref of a row on Goals in this file | top | Goal key, Goal ID or Goal says which goal |
 | Week | Required | A whole number from 1 to this week; a date in the cycle is read as its week | 46 | Must fix |
 | Value | Required for a number or range goal | A number, at the goal’s decimal places | 6 | Must fix for a number or range goal |
 | Stages | Required for a stages goal | “Pilot: done week 6; Rollout: expected week 9” | Pilot: done week 6 | Must fix for a stages goal |

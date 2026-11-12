@@ -6,7 +6,7 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { Place } from '../core/app';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { useSeen } from '../app/goalSeen';
@@ -23,7 +23,7 @@ const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
-import { isYear, quarterOf, quarterResults } from '../domain/year';
+import { isYear, quarterLabel, quarterOf, quarterResults } from '../domain/year';
 import { ASK_KIND_LABEL, asksOf, canWithdraw, openUpdateAsk } from '../domain/asks';
 import { goalsIn, watchOf, watchScope } from '../domain/review';
 import { NextStepSheet } from '../ui/NextStepSheet';
@@ -34,7 +34,8 @@ import {
 } from '../domain/goalPage';
 import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
 import { Avatar, Chip, Empty, LevelTag, Sheet, StatusShape, timeAgo, WarnMark } from '../ui/bits';
-import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList, type Scrub } from '../ui/charts';
+import { MetricChart, QuarterMark, quarterWords, StageList, type Scrub } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { PlanTable } from '../ui/PlanTable';
 import { ReviewBar, ReviewCallBar, useReview } from './Inspect';
 import { GoalRow, WatchButton } from '../ui/goalRows';
@@ -50,12 +51,15 @@ import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 import { ArchivedGoalScope } from '../app/state';
+import { isProposed } from '../domain/proposed';
+
+const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 import { canDeleteCheckIn } from '../domain/removal';
 import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
 import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
 import { LifeMark } from '../ui/LifeMark';
 import { NO_REASON } from '../domain/checkin';
-import { ASK_STATUS, GAP, LABEL as WORD_OF, lower, QUARTER, STATUS } from '../domain/vocabulary';
+import { ASK_STATUS, GAP, LABEL as WORD_OF, lower, STATUS } from '../domain/vocabulary';
 
 export function GoalScreen() {
   const app = useApp();
@@ -65,6 +69,8 @@ export function GoalScreen() {
   const [replay, setReplay] = useState(0);
   useEffect(() => { const on = () => setReplay((n) => n + 1); window.addEventListener('goals-replay', on); return () => window.removeEventListener('goals-replay', on); }, []);
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
+  // A proposed goal has its own page (GE10): no status, no scorecard, no chart; loaded only when one is opened.
+  if (isProposed(goal)) return <Suspense fallback={null}><ProposedGoal key={goal.id + ':' + app.viewer.id} goal={goal} /></Suspense>;
   // A stopped goal keeps its page, as it stood, marked Stopped (domain/removal). Always inside the scope, so stopping
   // the goal or undoing it carries on with the same page rather than mounting a new one.
   return <ArchivedGoalScope goalId={goal.id}><GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} /></ArchivedGoalScope>;
@@ -539,7 +545,7 @@ function StepRowItem({ goal, x, open, focus, onOpen, onDone }: { goal: Goal; x: 
 }
 
 /** Ask the owner a question (goal spec, 2.6): an ask that stays open on their Home until it's answered. */
-function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
+export function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const app = useApp();
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   const [text, setText] = useState('');
@@ -834,7 +840,7 @@ function QuarterStrip({ goal }: { goal: Goal }) {
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
             <span className="q-head"><span className="strong">{r.quarter.label} <span className="hint nowrap">{r.quarter.months}</span></span>
-              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : r.before ? 'Not applicable' : 'None due'}</span></span>
+              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{quarterLabel(r, now)}</span></span>
             {r.kind !== 'none' || r.before ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
           </li>
         ))}
@@ -938,7 +944,7 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
  * nothing of anyone. Someone who needs the owner to respond asks a question instead: the same words, as an ask that stays
  * open on the owner's Home until they answer it (one way to ask).
  */
-function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) {
+export function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) {
   const app = useApp();
   // What's typed is kept as a draft: Cancel closes the box and keeps it, as other drafts are kept (goal spec, 2.2).
   const [draft, keep, clear] = useDraft<{ text: string }>(`${app.ws.id}:comment:${goal.id}`, () => ({ text: '' }));

@@ -3,10 +3,11 @@ import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { asksOf } from '../domain/asks';
+import { isProposed } from '../domain/proposed';
 import { currentWeek, planAt } from '../domain/plan';
 import { applyQuery, parseQuery } from '../domain/query';
 import { summariseAll } from '../domain/summary';
-import type { ApiToken, MetricGoal, Snapshot } from '../domain/types';
+import type { ApiToken, MetricGoal, RangeGoal, Snapshot } from '../domain/types';
 import { hashToken, newToken } from './protocol';
 
 // Monday of week 45, before this week's check-ins.
@@ -89,11 +90,15 @@ describe('MCP server', () => {
     const { watchedGoals } = await import('../domain/review');
     expect(ids(await call('find_goals', { scope: 'watching' }))).toEqual(watchedGoals('tariq', s).filter((g) => !g.stoppedAt).map((g) => g.id).sort());
     // All: every goal in the running cycle; no scope is All.
-    const all = ids(await call('find_goals', { scope: 'all' }));
+    const all = ids(await call('find_goals', { scope: 'all', limit: 200 }));
     expect(all.length).toBe(running.length);
-    expect(ids(await call('find_goals', {}))).toEqual(all);
+    expect(ids(await call('find_goals', { limit: 200 }))).toEqual(all);
     // A scope narrows the other filters, and they narrow it.
     expect(ids(await call('find_goals', { scope: 'team', status: 'off' })).every((id) => team.includes(id))).toBe(true);
+    // A Goals link's scope= is read too (build review of #116); the scope argument wins over it.
+    expect(ids(await call('find_goals', { query: 'scope=mine' }))).toEqual(ids(await call('find_goals', { scope: 'mine' })));
+    expect(ids(await call('find_goals', { query: '/goals?scope=team&status=off' }))).toEqual(ids(await call('find_goals', { scope: 'team', status: 'off' })));
+    expect(ids(await call('find_goals', { query: 'scope=mine', scope: 'all', limit: 200 }))).toEqual(all);
   });
 
   it('says why a scope someone doesn’t have finds nothing, and refuses a scope that doesn’t exist', async () => {
@@ -209,9 +214,80 @@ describe('MCP server', () => {
     const dry = (await call('bulk_change', rows)).structuredContent!.created as Created;
     expect(dry.map((x) => x.key)).toEqual(dry.map((x) => x.key).filter((k) => /^G-\d+$/.test(k ?? '')));
     expect(dry).toHaveLength(2);
+    // A dry run gives no ID: the save makes its own (#242's review).
+    expect(dry.map((x) => x.id)).toEqual([null, null]);
     const saved = (await call('bulk_change', { ...rows, apply: true })).structuredContent!.created as Created;
     for (const x of saved) expect(data().goals.find((g) => g.id === x.id)?.key).toBe(x.key);
     expect(new Set(saved.map((x) => x.key)).size).toBe(2);
+  });
+
+  it('creates and changes a range between two numbers (lower and limit)', async () => {
+    const { call, data } = await setup('amara');
+    const made = await call('create_goal', { type: 'range', title: 'API uptime', owner: 'Mateo Fernández', unit: '%', decimals: 2, lower: 99.5, limit: 99.95, margin: 0.1 });
+    expect(made.isError).toBe(false);
+    const g = data().goals.find((x) => x.title === 'API uptime')!;
+    expect(g.kind === 'range' && g.range).toEqual({ bound: 'between', lower: 99.5, limit: 99.95, margin: 0.1 });
+    // A lower bound alone keeps the upper one; at most drops the lower.
+    expect((await call('update_goal', { goal_id: g.id, lower: 99.6 })).isError).toBe(false);
+    expect(data().goals.find((x) => x.id === g.id)!).toMatchObject({ range: { bound: 'between', lower: 99.6, limit: 99.95 } });
+    expect((await call('update_goal', { goal_id: g.id, must_stay: 'at least', limit: 99.5 })).isError).toBe(false);
+    expect(data().goals.find((x) => x.id === g.id)!).toMatchObject({ range: { bound: 'atLeast', limit: 99.5, margin: 0.1 } });
+    expect((data().goals.find((x) => x.id === g.id) as RangeGoal).range.lower).toBeUndefined();
+    // Lower at or above the upper is goal entry's Must fix.
+    const bad = await call('create_goal', { type: 'range', title: 'Error budget left', owner: 'Mateo Fernández', unit: '%', lower: 5, limit: 2 });
+    expect(bad.content[0]!.text).toContain('The lower number (5%) must be below the upper one (2%).');
+  });
+
+  it('names the key the database stored, not the one the request asked for (#242’s review)', async () => {
+    const { call, data, deps } = await setup('amara');
+    // Another goal takes the next key between this request's load and its save: the database gives the new goal the
+    // one after (migration 0021), as okr_goal_key does.
+    const commit = deps.commit;
+    let stored: Record<string, string> = {};
+    deps.commit = async (ws, c) => {
+      const used = new Set(data().goals.map((g) => g.key));
+      const next = () => { let n = Math.max(...[...used].map((k) => Number(String(k).slice(2)) || 0)) + 1; while (used.has(`G-${n}`)) n++; return `G-${n}`; };
+      used.add(next()); // the other goal's
+      stored = {};
+      const goals = (c.goals ?? []).map((g) => (data().goals.some((o) => o.id === g.id) ? g : (() => { const key = next(); used.add(key); stored[g.id] = key; return { ...g, key }; })()));
+      await commit(ws, { ...c, goals });
+    };
+    deps.goalKeys = async (_ws, ids) => Object.fromEntries(ids.filter((id) => stored[id]).map((id) => [id, stored[id]!]));
+    const one = await call('create_goal', { type: 'metric', title: 'Runbooks with an owner', owner: 'Mateo Fernández', unit: '%', start: 20, target: 90 });
+    const made = data().goals.find((g) => g.title === 'Runbooks with an owner')!;
+    const said = (one.structuredContent!.created as { key: string }[])[0]!.key;
+    expect(said).toBe(made.key);
+    expect(one.content[0]!.text).toContain(`New goal: ${made.key} · ${made.id}`);
+  });
+
+  it('lists no new goals when a bulk_change is refused (#242’s review)', async () => {
+    const { call } = await setup('amara');
+    const r = await call('bulk_change', { goals: [{ Goal: 'Alerts with an owner', Owner: 'Nobody At All', Type: 'metric', Unit: '%', Start: 10, Target: 80 }] });
+    expect(r.isError).toBe(true);
+    expect(r.structuredContent!.created).toEqual([]);
+  });
+
+  it('lists find_goals a page at a time, compactly, with the same keys every time (#249’s review)', async () => {
+    const { call, data } = await setup('amara');
+    const running = data().goals.filter((g) => !g.stoppedAt && !g.removedAt && !isProposed(g)).length;
+    const first = await call('find_goals', {});
+    const d = first.structuredContent! as { total: number; offset: number; goals: { id: string }[]; more: string | null; why: string | null };
+    expect(d.total).toBe(running);
+    expect(d.goals).toHaveLength(50);
+    expect(d.more).toBe(`${running - 50} more: call again with offset 50.`);
+    expect(d.why).toBeNull();
+    // Compact: no indent, and the demo's 126 goals no longer come back in one 81k answer.
+    expect(first.content[0]!.text).not.toContain('\n');
+    expect(first.content[0]!.text.length).toBeLessThan(40_000);
+    const second = (await call('find_goals', { offset: 50 })).structuredContent! as typeof d;
+    expect(second.goals.map((g) => g.id)).not.toContain(d.goals[0]!.id);
+    const last = (await call('find_goals', { offset: 100, limit: 200 })).structuredContent! as typeof d;
+    expect(last.goals).toHaveLength(running - 100);
+    expect(last.more).toBeNull();
+    // Nothing found says why, with the same keys as a full answer.
+    const none = (await call('find_goals', { text: 'zzzz nothing' })).structuredContent! as typeof d;
+    expect(Object.keys(none)).toEqual(Object.keys(d));
+    expect(none.why).toMatch(/^No goal matches/);
   });
 
   it('answers every list the same way, filtered or not: its data as JSON, as structured content and as text (MCP load, 12 Nov)', async () => {

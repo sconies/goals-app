@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { CheckInQueue } from './CheckInQueue';
 import { useApp } from '../app/state';
+import { isProposed } from '../domain/proposed';
+import { NOTHING_TO_CHECK_IN } from '../domain/proposedActions';
 import { periodWord, quarterOf, isYear } from '../domain/year';
 import { checkInDraftKey, checkInStepKey, useDraft } from '../app/drafts';
 import { MIN_CORRECT_REASON, CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, stepState, unanswered, MIN_PATH, MIN_REASON, numberCheck, parseNumber, previousFor, rebase, rebaseOffer, rebaseWhy, REASON_CODES, saidWhen, VALUE_CODES, type Draft, type Evaluation } from '../domain/checkin';
@@ -9,19 +11,20 @@ import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
-import { fmt, gapText, targetText, weekLabel } from '../domain/format';
+import { fmt, gapText, staysText, targetText, weekLabel } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
-import { MetricChart, RangeChart } from '../ui/charts';
+import { MetricChart } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import { CheckBlock, MustFixBlock, MustFixLine } from '../ui/Levels';
 import { draftFor } from '../domain/goal';
 import { useMark } from '../telemetry/react';
-import { NO_REASON } from '../domain/checkin';
+import { NO_REASON, resumeWalk, type KeptWalk } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
 import { RULES } from '../domain/thresholds';
 
@@ -43,6 +46,10 @@ export function CheckInFlow() {
 /** Where the week's queue is kept for this tab, so a reload keeps "2 of 2" (deep review U8). */
 const queueKey = (ws: string, viewer: string, week: number) => `goals-app-checkin-queue:${ws}:${viewer}:${week}`;
 
+/** The week's walk, kept for this tab (the queue and the goals posted in it). */
+const readWalk = (key: string): unknown => { try { return JSON.parse(sessionStorage.getItem(key) ?? 'null'); } catch { return null; } };
+const writeWalk = (key: string, walk: KeptWalk) => { try { sessionStorage.setItem(key, JSON.stringify(walk)); } catch { /* storage blocked */ } };
+
 /** What the one-table check-in hands over when it lands here: the goals it posted, and how many rows it kept back. */
 export interface FromTable { posted: string[]; kept: number }
 
@@ -57,19 +64,24 @@ function Flow({ goalId }: { goalId?: string }) {
   const correcting = !!goalId && new URLSearchParams(location.search).get('correct') === '1';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
+  const walkKey = queueKey(app.ws.id, app.viewer.id, app.week);
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
     if (goalId) return { queue: [goalId], start: 0 };
     const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.map((g) => g.id);
-    const key = queueKey(app.ws.id, app.viewer.id, app.week);
     let kept: unknown = null;
-    try { kept = JSON.parse(sessionStorage.getItem(key) ?? 'null'); } catch { /* storage blocked */ }
-    if (due.length && Array.isArray(kept) && due.every((id) => kept.includes(id))) {
-      const q = kept as string[];
-      return { queue: q, start: Math.max(0, q.findIndex((id) => due.includes(id))) };
-    }
-    try { if (due.length) sessionStorage.setItem(key, JSON.stringify(due)); } catch { /* storage blocked */ }
-    return { queue: due, start: 0 };
+    kept = readWalk(walkKey);
+    const { walk, start: at } = resumeWalk(due, kept);
+    if (due.length) writeWalk(walkKey, walk);
+    return { queue: walk.queue, start: at };
   });
+  // A goal posted in this walk stays in it, so a reload still says "2 of 2".
+  const walked = (id: string) => {
+    if (goalId) return;
+    try {
+      const k = readWalk(walkKey) as KeptWalk | null;
+      if (k && Array.isArray(k.walked) && !k.walked.includes(id)) writeWalk(walkKey, { ...k, walked: [...k.walked, id] });
+    } catch { /* storage blocked */ }
+  };
   const [index, setIndex] = useState(start);
   const [justPosted, setJustPosted] = useState<CheckIn | null>(null);
   const [updated, setUpdated] = useState(false);
@@ -89,6 +101,8 @@ function Flow({ goalId }: { goalId?: string }) {
   if (!queue.length) return <AllDone first />;
   if (index >= queue.length) return <AllDone />;
   if (!goal) return <div className="page narrow"><Empty title="That goal doesn’t exist"><Link className="btn" to="/">Home</Link></Empty></div>;
+  // A proposed goal has nothing due (GE10): never offered, and said so when opened by its address.
+  if (isProposed(goal)) return <div className="page narrow"><Empty title={NOTHING_TO_CHECK_IN}><Link className="btn primary" to={'/goals/' + goal.id}>Open the goal</Link></Empty></div>;
   if (goal.ownerId !== app.viewer.id) {
     const owner = app.person(goal.ownerId);
     return (
@@ -104,7 +118,7 @@ function Flow({ goalId }: { goalId?: string }) {
   const next = () => { setJustPosted(null); setIndex((i) => i + 1); };
   return (
     <>
-    {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { setNoData(false); next(); }} />}
+    {noData && <NoDataSheet goal={goal} onClose={() => setNoData(false)} onDone={() => { walked(goal.id); setNoData(false); next(); }} />}
     <div className="focus ci">
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
@@ -118,7 +132,7 @@ function Flow({ goalId }: { goalId?: string }) {
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
+        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { walked(goal.id); setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
     </div>
     </>
@@ -460,7 +474,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
         <section className="qsection" aria-label="This week">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="qtitle">{goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'}</h2>
-            {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : 'stay at or above the limit'})` : ''}</span>}
+            {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : goal.range.bound === 'atLeast' ? 'stay at or above the limit' : `stay ${staysText(goal)}`})` : ''}</span>}
             {goal.source && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {

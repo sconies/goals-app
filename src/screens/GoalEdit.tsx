@@ -5,7 +5,8 @@ import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
-import { checksContext, goalChecks, goalMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
+import { isProposed } from '../domain/proposed';
+import { checksContext, goalChecks, goalMustFix, proposedMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
 import { goalMeasureOf } from '../domain/records';
@@ -77,7 +78,8 @@ function EditSheet({ goal }: { goal: Goal }) {
   // What can't be saved (goal entry, rule 2): the same rule and words as New goal, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
   const parentG = app.goal(d.parentId);
-  const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
+  // A proposed goal may still leave how it's measured unsaid (rule 14).
+  const fix = (isProposed(goal) ? proposedMustFix : goalMustFix)(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
   const errors: Partial<Record<GoalField, string>> = {};
   for (const f of fix) errors[f.field] ??= f.text;
   const err = (k: GoalField) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
@@ -216,18 +218,20 @@ function EditSheet({ goal }: { goal: Goal }) {
             </>
           )}
           {goal.kind === 'range' && (
-            <div className="limits">
+            <div className={'limits' + (d.bound === 'between' ? ' between' : '')}>
               <div className="field limits-bound"><span className="field-label" id="bound">Must stay</span>
                 <div className="seg full" role="group" aria-labelledby="bound">
                   <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
+                  <button type="button" aria-pressed={d.bound === 'between'} onClick={() => set({ bound: 'between' })}>Between</button>
                 </div>
               </div>
-              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              {d.bound === 'between' && <label className="field"><span className="field-label">Lower limit</span><input className="input" inputMode="decimal" data-field="lower" value={d.lower} onChange={(e) => set({ lower: e.target.value })} aria-invalid={tried && !!errors.lower} />{err('lower')}</label>}
+              <label className="field"><span className="field-label">{d.bound === 'between' ? 'Upper limit' : 'Limit'}</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
               <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
-          {goal.kind === 'range' && <>{questions('unit')}{questions('limit')}{questions('margin')}</>}
+          {goal.kind === 'range' && <>{questions('unit')}{questions('lower')}{questions('limit')}{questions('margin')}</>}
           {goal.kind === 'milestone' && (
             <StageFields stages={d.stages} cycle={cycle} week={week} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />

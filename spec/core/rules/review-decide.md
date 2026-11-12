@@ -22,6 +22,15 @@ A goal behind leaves a review with a next step (an owner and a week) or an accep
 
 **To do** (`sessionToDo`): a person's session counts as something to do (the Reviews count, Home's main action) when it is this week's, not held, and either its day has come or a goal in it has been checked in on. So a workspace set up this morning doesn't say a review is to do.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A decision’s due week, when it has one, is 0 to 53. (`okr_decisions_due_week_check`)
+- A review is held every 1 to 13 weeks. (Its set-up screen offers 1, 2 or 4; the rule allows any of 1 to 13.) (`okr_reviews_every_weeks_check`; the code holds it too, in `src/domain/actions.ts`)
+- A review’s day is a day of the week, 0 to 6. (The app’s rule asks for Monday to Friday, 0 to 4.) (`okr_reviews_weekday_check`; the code holds it too, in `src/domain/actions.ts`)
+- A review has a name. (`okr_reviews_name_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

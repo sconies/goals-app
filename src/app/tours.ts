@@ -69,7 +69,8 @@ export const TOURS: Tour[] = [
   {
     id: 'brief', title: 'Get the leader’s brief', role: 'Leader', personId: 'amara', start: '/goals', module: 'spreadsheets',
     steps: [
-      { say: 'Export these goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: '.views-menu > summary, .goals-phone-switch .view-open' }, doneWhen: { text: 'Export goals' } },
+      { say: 'Export these goals: for Excel, for other tools, or as a brief to read or paste into an AI chat.', target: { selector: '.views-menu > summary, .goals-phone-switch .view-open' }, doneWhen: { text: 'Export .xlsx' } },
+      { say: 'Excel is the usual export. The brief is one of the other formats: open them.', target: { selector: '.export-others' }, doneWhen: { selector: '.export-list' } },
       // Done on doing it (the brief copied or saved), not on the word "Brief", which the sheet already shows.
       { say: 'Copy the brief, or save it. It leads with the decisions waiting on people, then each goal that’s off and its story.', target: { selector: '.export-list .opt', text: 'Brief for an AI chat' }, doneWhen: { text: /Brief (copied|saved)/ } },
       { say: 'The same brief is what an AI assistant reads through the app’s MCP server.' },
@@ -78,8 +79,7 @@ export const TOURS: Tour[] = [
   {
     id: 'import', title: 'Import from a spreadsheet', role: 'Goal owner', personId: 'mateo', start: '/data', module: 'spreadsheets',
     steps: [
-      { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. Spreadsheets live on Data: open Spreadsheets.', target: { selector: '.data-export > summary', text: 'Spreadsheets' }, doneWhen: { text: 'Import a spreadsheet…' } },
-      { say: 'Everything in and out is here: the table as laid out, the whole workbook, a blank template. Choose Import a spreadsheet.', target: { selector: '.data-export .menuitem', text: 'Import a spreadsheet' }, doneWhen: { route: /^\/data\/import/ } },
+      { say: 'Goals, plan numbers and past weeks can come from a spreadsheet. On Data, Export takes them out and Import brings them in: choose Import.', target: { selector: '.data-tools .data-import' }, doneWhen: { route: /^\/data\/import/ } },
       { say: 'Download the workbook, change it in Excel, then choose it here. Every change is shown before anything is saved, and checked with the app’s own rules.', target: { selector: '.steps-list' } },
     ],
   },

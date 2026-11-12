@@ -5,7 +5,7 @@ import { usePrefs } from '../app/search';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
-import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
+import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
 import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
@@ -46,7 +46,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
           <span className="eyebrow">{lead.warn && <WarnMark />}{lead.eyebrow}</span>
           <h2 className="hero-title">{lead.title}</h2>
           <span className="muted">{lead.line}</span>
-          <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
+          <div className="row"><Link className="btn primary big-btn" to={lead.action.to}>{lead.action.label}</Link></div>
           {lead.also && <Link className="linkish small" to={lead.also.to}>{lead.also.label}</Link>}
         </div>
       </section>
@@ -58,7 +58,7 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
       <div className="hero-body">
         <h2 className="hero-title">{quiet.sentence}</h2>
         {quiet.line && <span className="muted">{quiet.line}</span>}
-        {quiet.buttons.length > 0 && <div className="row" style={{ marginTop: 8 }}>{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
+        {quiet.buttons.length > 0 && <div className="row">{quiet.buttons.map((b) => <Link key={b.to} className="btn" to={b.to}>{b.label}</Link>)}</div>}
       </div>
     </section>
   );
@@ -341,7 +341,7 @@ function GettingStarted() {
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
   const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today) }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
   if (!rows.length) return null;
-  const invite = `${location.origin}${app.mode === 'demo' ? '/demo' : ''}/?workspace=${encodeURIComponent(app.ws.id)}`;
+  const invite = inviteLink(location.origin, app.mode, app.ws.id);
   return (
     <section className="block getting-started" aria-labelledby="getting-started" data-part="Getting started">
       <h2 className="block-title" id="getting-started">Getting started</h2>

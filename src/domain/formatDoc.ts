@@ -100,7 +100,7 @@ export function exportFormatMarkdown(modules: readonly ModuleSheet[] = []): stri
     '    "team": "…", "owner": "…", "ownerId": "…", "ownerEmail": "… or null", "feedsIntoId": "… or null", "whyItHelps": "…", "source": "…", "definition": "…",',
     '    // metric:    "unit", "decimals", "plan": { start, target, shape, fromWeek, dueWeek, setByHand, byWeek: [{ week, value }] },',
     '    //            "earlierPlans": [{ untilWeek, start, target, shape }]  (each applied to the weeks before untilWeek)',
-    '    // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast", limit, margin }',
+    '    // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast | between", lower (between only), limit, margin }',
     '    // milestone: "stages": [{ id, name, dueWeek }]',
     '    // stopped:   "stopped": { at, by, reason }',
     `    "now": { "status": "${Object.keys(STATUS).join(' | ')}", "statusLabel": "…", "statusMeaning": "…", "value": 29.4, "text": "29.4 days",`,

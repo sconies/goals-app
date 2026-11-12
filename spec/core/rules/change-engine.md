@@ -9,13 +9,17 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 `planChanges(input)` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
 
-**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from `src/domain/columns.ts`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't `sameAsWritten`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
+**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [the export format](../export-format.md) (generated from `src/domain/columns.ts`), and every kind of issue it raises in [the issue kinds](../import-issues.md). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't `sameAsWritten`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
 
 **One way to save a check-in** (`postCheckIn`): the check-in screens post through the same judgement, with the draft the form holds and a mode that says how it meets the week's own. `new` is refused when the week has a check-in ("Week 45 already has a check-in. Check in again, or correct it."); `again` adds a second beside it ("Checked in again for week 45: …"); `correct` replaces the week's newest, or adds a week that has none, and needs a reason of at least 10 characters, kept as the entry's first difference ("Why corrected") and summed up as "Corrected week 44: 60% is now 61%" or "Added week 44 later: 61%". A week that has passed takes only `correct`. A correction keeps when the record it replaces was posted, so it never turns a late week into an on-time one, nor the reverse; a correction that changes nothing is refused ("Nothing is different from what week 44 already says."). A post that isn't a correction is no import: no Via mark and no import to undo (Delete this check-in takes it back). A correction is an import of one, undone with the import.
 
+**A batch names its own rows** (backlog BT). A Goals row's **Ref** is a label of the file's own, kept nowhere: **Feeds into ref** on another Goals row, and **Goal ref** on a Check-ins row, name the goal that row adds or changes, so one file (or one `bulk_change`) builds a whole tree, with numbers, before any new goal has a key. A Ref on two rows is Must fix on both (and neither row saves); a ref that no row has, or that names a row that can't be saved, is Must fix on the row that uses it. A row with its own Ref is its own goal, even beside another new row of the same name. An empty ref says nothing: the other columns say what a goal feeds, so an export (where both are empty) loads back unchanged. Leaving a new goal out leaves out the rows that name it by Ref, as by name.
+
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
+
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (`src/domain/importSpeed.test.ts`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in `src/domain/importLimits.ts`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB. `planChangesInChunks(input)` is the same engine a chunk at a time: it yields how far it has got (rows read, and what they would add, change and must fix) every 500 rows, so the import's worker can report progress and stop between chunks; `planChanges` runs it to the end. A file that would change more than 5,000 rows is checked, not saved, and split into parts (`splitTables` in `src/domain/splitFile.ts`): people first, each goal with its plan and check-ins, a goal before the goals that feed into it, and a goal larger than a part on its own.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
@@ -25,7 +29,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
+| A file of 6,000 new goals, the 6,000th feeding into the first; each part holds at most 5,000 rows. | `2 parts: 5,000 and 1,000 rows; the first goal in part 1` |
+| The engine run a chunk at a time over 1,200 new goals. | `progress at 500 and 1,000 rows of 1,200` |
 | A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
+| Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid. | `mid feeds top, leaf feeds mid` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
 | Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence, so anyone reading week 44 later knows.` |
@@ -103,6 +110,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
 - the levels in a check-in (rules 2 and 3) › says why the button does nothing
 - the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
+- the levels in a check-in (rules 2 and 3) › keeps an answer given in the table check-in in History, as the form does (build review of #160)
+- the levels in a check-in (rules 2 and 3) › writes a number in a question with the app’s formatter: 1 hour, not 1 hours (build review of #160)
 
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 
@@ -129,3 +138,12 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - removing, archiving and undoing › ends a review that was held, deletes one that never was, and edits and removes comments and notes
 - removing, archiving and undoing › undoes an import: every row back as it was, rows changed since skipped and listed
 - removing, archiving and undoing › round trip: removes and restores every kind of record, leaving nothing orphaned or lost
+
+### [src/domain/importSpeed.test.ts](../../../src/domain/importSpeed.test.ts)
+
+- rule 10: a large file is checked in about the time it takes to read › checks ${k.toLocaleString('en-GB')} new rows within ${ms / 1000} s
+- rule 10: a large file is checked in about the time it takes to read › checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change
+- rule 10: a large file is checked in about the time it takes to read › costs about what its rows do: five times the rows, well under twenty-five times the time
+- rule 10: a large file is checked in about the time it takes to read › says fourteen rows with one typo once, as one group, among thousands
+- rule 10: planChangesInChunks reports every 500 rows, and ends where planChanges does › yields its progress every chunk, counting up, with what it has found so far
+- rule 10: planChangesInChunks reports every 500 rows, and ends where planChanges does › counts a Must fix as it finds it

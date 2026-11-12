@@ -40,7 +40,7 @@ module.exports = {
         check(seen.primaries <= 1, `${at}: ${seen.primaries} primary buttons`);
         if (seen.lead === 'none') {
           check(seen.primaries === 0, `${at}: nothing is asked, but Home has a primary button`);
-          check(/Nothing is asked of you today\.| in for week \d+\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
+          check(/Nothing is asked of you today\.| in for week \d+\.|(One ask waits|\d+ asks wait) for your response\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
         } else check(seen.primaries === 1 && seen.bottom != null && seen.bottom <= seen.fold, `${at}: the lead’s button (${seen.lead}) is not in the first screen (${Math.round(seen.bottom ?? -1)}px, fold ${Math.round(seen.fold)}px)`);
         check(!/\b0 weeks\b|None you’re in|You’re all set/.test(seen.text), `${at}: Home says something it no longer says`);
         const bad = seen.hrefs.filter((x) => /^\/goals(\?)?$/.test(x.replace(/[?&]today=[\d-]+/, '')) || /[?&]show=/.test(x));

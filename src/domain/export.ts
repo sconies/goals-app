@@ -2,6 +2,8 @@
    brief in Markdown (to paste into any AI chat). Pure functions; the app turns them into files.
    The workbook and the CSVs are the one spreadsheet format (domain/columns.ts): every sheet and column is defined there
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
+import { proposedSummary } from './proposedSummary';
+import { isProposed } from './proposed';
 import { planHistoryOf } from './goal';
 import { asksOf, isOverdue } from './asks';
 import { isEveryday, levelName } from './levels';
@@ -10,7 +12,7 @@ import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { weekCode } from './weeks';
 import { answerOf, saidIn } from './review';
 import { needsAttention, type Handled } from './attention';
-import { summariseAll, type GoalSummary } from './summary';
+import { summarise, type GoalSummary } from './summary';
 import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
@@ -42,9 +44,12 @@ export const CHECKIN_EXPORT_COLUMNS = CHECK_INS.columns.map((c) => c.header);
  */
 function prepare(x: ExportInput, withStopped = false) {
   const a = withStopped && !x.goals ? x.snapshot.archive : undefined;
-  const s: Snapshot = a?.goals.length ? { ...x.snapshot, goals: [...x.snapshot.goals, ...a.goals], checkIns: [...x.snapshot.checkIns, ...a.checkIns], decisions: [...x.snapshot.decisions, ...a.decisions] } : x.snapshot;
+  // A whole-cycle export carries proposed goals too, with State proposed and no worked-out numbers (GE10).
+  const base: typeof x.snapshot = withStopped && !x.goals && x.snapshot.proposed?.length ? { ...x.snapshot, goals: [...x.snapshot.goals, ...x.snapshot.proposed] } : x.snapshot;
+  const s: Snapshot = a?.goals.length ? { ...base, goals: [...base.goals, ...a.goals], checkIns: [...base.checkIns, ...a.checkIns], decisions: [...base.decisions, ...a.decisions] } : base;
   const goals = x.goals ?? s.goals;
-  const sums = summariseAll(goals, s, x.cycle, x.today, x.week);
+  // A proposed goal's summary never runs the status rules (domain/proposedSummary).
+  const sums = goals.map((g) => (isProposed(g) ? proposedSummary(g, s, x.cycle, x.week) : summarise(g, s, x.cycle, x.today, x.week)));
   const c = contextOf(x, s);
   return { goals, sums, name: c.name, s, c };
 }
@@ -192,9 +197,10 @@ export function toJson(x: ExportInput) {
             byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
           earlierPlans: planHistoryOf(g).map((v) => ({ untilWeek: v.untilWeek, start: v.plan.start, target: v.plan.target, shape: v.plan.shape })),
         } : {}),
-        ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound === 'atMost' ? 'atMost' : 'atLeast', limit: g.range.limit, margin: g.range.margin } } : {}),
+        ...(g.kind === 'range' ? { unit: g.unit, decimals: g.decimals, range: { mustStay: g.range.bound, ...(g.range.bound === 'between' ? { lower: g.range.lower } : {}), limit: g.range.limit, margin: g.range.margin } } : {}),
         ...(g.kind === 'milestone' ? { stages: g.stages.map((st) => ({ id: st.id, name: st.name, dueWeek: st.dueWeek })) } : {}),
         ...(g.stoppedAt ? { stopped: { at: g.stoppedAt, by: name(g.stoppedBy ?? '') || null, reason: g.stopReason ?? null } } : {}),
+        ...(s.state === 'proposed' ? { state: 'proposed' } : {}),
         now: { status: s.status, statusLabel: g.stoppedAt ? STOPPED : s.statusLabel, statusMeaning: MEANING[s.status], value: s.nowValue, text: s.now, planThisWeek: s.planNow, gap: s.gap, lastCheckInWeek: s.lastWeek, forecast: s.forecast,
           projection: s.projection && g.kind === 'metric' ? { likeliest: Number(s.projection.value.toFixed(g.decimals)), low: Number(s.projection.low.toFixed(g.decimals)), high: Number(s.projection.high.toFixed(g.decimals)), byWeek: s.projection.week, fittedWeeks: [s.projection.from, s.projection.to] } : null },
         story: { since: s.story.since, where: s.story.where, outlook: s.story.outlook, whyItsOff: s.story.why, recoveryPlan: s.story.doing, byWhen: s.story.byWhen, needs: s.story.needs, nextStep: s.story.next, warnings: s.story.warnings, warningKinds: s.story.flags, feeds: s.story.feeds },
