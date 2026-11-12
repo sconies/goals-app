@@ -400,7 +400,7 @@ No arguments.
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;
@@ -566,7 +566,7 @@ No arguments.
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;
@@ -5600,7 +5600,7 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;

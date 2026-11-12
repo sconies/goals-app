@@ -10,6 +10,9 @@ export const ROWS_READ_MAX = 30_000;
 export const BYTES_READ_MAX = 20 * 1024 * 1024;
 /** The most rows one import saves; a file that changes more is checked, not saved, and offered in parts. */
 export const CHANGES_SAVE_MAX = 5000;
+/** Rows the engine checks between two progress reports (rule 10), and the most a file has and is still checked at once
+    on the page: a larger one is checked in the import's worker. */
+export const CHUNK = 500;
 /** Rows drawn at a time: the changes list and a group's rows show this many, then "Show 50 more". */
 export const PAGE = 50;
 
