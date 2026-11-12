@@ -4,6 +4,8 @@
 
 What the real core rules give for every goal in every week of the demo workspace. A rebuild proves its rules by reading the same workspace and producing the same rows: every row, every column. `src/spec/conformance.test.ts` recomputes them from `workspace.json` with Faro’s own rules and fails on any difference, so these files always say what the code does.
 
+The ports’ contracts are here too, as cases any build runs through a small shim: [the port contracts](contracts/README.md).
+
 ## The input: workspace.json
 
 The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week goal year starting 2025-12-22), built for 2026-11-05T12:00:00.000Z (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches, and, under `modules`, the records of the modules that add rows here (metrics). Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under `requests` (the stored table’s name).
