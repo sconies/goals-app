@@ -106,9 +106,10 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalWizard.tsx](../../src/screens/GoalWizard.tsx)
 
-- `/goals/new` (`GoalWizard`): A new goal takes a few short steps: what you want to achieve, the type, the numbers or stages, and where it fits. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new/:step` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 
-- **Named parts:** “You have a goal you didn’t publish”, “What do you want to achieve?”, “Where does it fit?”, “Does this read right?”
+- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`

@@ -589,16 +589,17 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.fill(p.getByLabel(/Name it the way/), 'MTTR for P1 incidents');
   await h.checkpoint('step 1');
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  // Who and where (OB1): the owner is Mateo already; feeding a north star makes it SVP by itself (rule 1).
+  await see(p, 'Whose is it, and where does it fit?');
+  await pickIn(p, /^Feeds into\b/, 'restore', /Mean time to restore service/);
+  h.set('progress', (await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'SVP' }).getAttribute('aria-pressed')) === 'true', 'feeding a north star does not make the goal SVP');
+  await h.checkpoint('step 2');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
   await h.fill(p.getByLabel(/^Today \(week/), '90');
   await h.fill(p.getByLabel(new RegExp(`Target \\(week ${WEEKS}\\)`)), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
-  await h.checkpoint('step 2');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, 'Where does it fit?');
-  await pickIn(p, /^Feeds into\b/, 'restore', /Mean time to restore service/);
-  await h.click(p.getByRole('button', { name: 'SVP' }));
   await h.checkpoint('step 3');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'Does this read right?');
@@ -1533,6 +1534,9 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   // With one possible date (the year end) it is said, not offered as a one-button choice (fit and finish F3, 8).
   const due = p.getByText(/^Year end · due week \d+/);
   await h.inView(due, 'entry', 'when the target is due');
@@ -1540,13 +1544,13 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '20');
   await h.fill(p.getByLabel(/^Target \(week/), '90');
-  // The plan is a table of numbers, with the shape's defaults; type over one.
+  // The plan is a table of numbers, with the shape's defaults, folded under the chart (OB1); type over one.
+  await h.click(p.getByText('Adjust the plan week by week'));
   const row = p.getByLabel(/^Plan for week \d+/).first();
   await row.waitFor();
   h.set('attention', (await p.getByLabel(/^Plan for week \d+/).count()) >= 3 && /\d/.test(await row.inputValue()), 'the plan table has no default numbers');
   await h.fill(row, '30');
   await h.checkpoint('plan table');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'with plan numbers set by hand', 'the summary says the plan was set by hand');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
@@ -1801,10 +1805,12 @@ journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its 
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Runbooks with an owner');
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '20');
   await h.fill(p.getByLabel(/^Target \(week/), '90');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await see(p, 'is published', 'publishing does not offer the first check-in');
@@ -1937,6 +1943,9 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await p.goto(url('/goals/new'));
   await h.fill(p.getByLabel(/Name it the way/), 'Coverage of runbooks');
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '0');
   await h.fill(p.getByLabel(/^Target \(week/), '150');
@@ -2037,14 +2046,15 @@ journey('U33', ['EXCEPTIONS-FIRST', 'STORY', 'SAVED-VIEWS', 'ONE-ASK'], 'A leade
   // One press for the goals that need attention, on any screen (the switch, goals spec 2.1).
   await h.click(p.locator('.attention-switch:visible'));
   await see(p, /\d+ need attention: /, 'the Needs attention switch did not narrow the goals');
-  // New goal with one left unpublished: asked first, not dropped into its last step.
+  // New goal with one left unpublished: picked up where it stopped, saying so, with "Start a new one" (OB1).
   await p.goto(url('/goals/new'));
   await h.fill(p.getByRole('textbox').first(), 'Half-written goal');
   await p.goto(url('/goals?scope=all'));
   await p.goto(url('/goals/new'));
-  await see(p, 'You have a goal you didn’t publish', 'New goal reopens the old draft without asking');
-  await h.click(p.getByRole('button', { name: 'Start another goal' }));
-  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start another goal kept the old draft');
+  await see(p, 'Picked up the goal you hadn’t published.', 'New goal reopens the old draft without saying so');
+  await h.click(p.getByRole('button', { name: 'Start a new one' }));
+  await h.click(p.getByRole('button', { name: 'Discard it' }));
+  h.set('finish', (await p.getByRole('textbox').first().inputValue()) === '', 'Start a new one kept the old draft');
   await p.context().close();
 }, ['entry', 'progress', 'errors']);
 
@@ -4599,6 +4609,62 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
+journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order people think: what, then who and where (Tunde as owner, his team, Team level, his team’s SVP goals suggested for “Feeds into”, one chosen by typing, “Also helps” set), then how it’s measured, then Check reads it all back; each step is an address, the browser’s Back steps back with the numbers kept, a reload stays put and says the draft was picked up, and no select lists people, teams or goals', 16, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await see(p, 'What do you want to achieve?');
+  await h.progressShown('wizard');
+  // Continue with no name stays on step 1 and says why.
+  await p.getByRole('button', { name: /Continue/ }).click();
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'name' }).isVisible() && /\/goals\/new\/what(\?|$)/.test(p.url()), 'an empty name is not explained, or the step moved on');
+  await h.fill(p.getByLabel(/Name it the way/), 'Release notes drafted automatically');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await see(p, 'Whose is it, and where does it fit?');
+  h.set('entry', /Tunde/.test(await p.getByRole('button', { name: /^Owner · checks in weekly: .*Change$/ }).getAttribute('aria-label'))
+    && /Build & Release/.test(await p.getByRole('button', { name: /^Team: .*Change$/ }).getAttribute('aria-label'))
+    && (await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).getAttribute('aria-pressed')) === 'true', 'the owner, team and level don’t start as Tunde, Build & Release and Team');
+  // Before typing, "Feeds into" suggests his team's SVP goals.
+  await h.click(p.getByRole('button', { name: /^Feeds into\b/ }));
+  const panel = p.locator('.pick.open');
+  await panel.getByRole('option').nth(1).waitFor();
+  const offered = await panel.getByRole('option').allInnerTexts();
+  h.set('attention', /Merge-to-deploy time/.test(offered.slice(1, 7).join('\n')), `“Feeds into” doesn’t suggest Build & Release’s SVP goals first: ${offered.slice(0, 4).join(' | ')}`);
+  await h.fill(panel.getByRole('combobox'), 'feature flag');
+  await panel.getByRole('option', { name: /Releases behind a feature flag/ }).waitFor();
+  await p.keyboard.press('Enter');
+  await pickIn(p, /^Also helps\b/, 'merge-to-deploy', /Merge-to-deploy time/);
+  await p.locator('.pick.open').getByRole('button', { name: 'Done' }).click();
+  await h.checkpoint('who and where');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel('Unit'), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '10');
+  await h.fill(p.getByLabel(/^Target \(week/), '80');
+  await h.checkpoint('measure');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(p, 'Does this read right?');
+  const read = await p.locator('.review-rows').innerText();
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
+  await p.goBack();
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  const kept = await p.getByLabel(/^Target \(week/).inputValue();
+  await p.reload();
+  await see(p, 'Picked up the goal you hadn’t published.', 'a reload does not say the draft was picked up');
+  h.set('finish', kept === '80' && (await p.getByLabel(/^Today \(week/).inputValue()) === '10' && /\/goals\/new\/measure(\?|$)/.test(p.url()), 'Back or a reload lost the step or its numbers');
+  // Close and keep the draft; New goal picks it up at the same step.
+  await p.getByRole('button', { name: 'Close and keep the draft' }).click();
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  // No select anywhere on the steps lists people, teams or goals.
+  const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((x) => x.options.length)));
+  h.set('a11y', big <= 60, `a select lists ${big} options`);
+  await p.context().close();
+}, ['logged']);
+
 /* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
 journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'oskar'));
@@ -4660,6 +4726,9 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.fill(p.getByLabel(/Name it the way/), 'Kafka cut-over plan');
   await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  // Rhea leads a team with SVP goals, so she is asked the level (OB1, rule 1).
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
   await h.fill(p.getByLabel('Stage 1: due week'), '1');
   await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
@@ -4668,7 +4737,6 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
   await see(p, 'Done in week 1.');
   await h.checkpoint('stages');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, '1 stage is already done.', 'Check does not say the stage is done');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
@@ -4683,10 +4751,11 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await see(p, 'What do you want to achieve?');
   await h.fill(p.getByLabel(/Name it the way/), 'Lead time for the payments API');
   await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'days');
   await h.fill(p.getByLabel(/^Today \(week/), '5');
   await h.fill(p.getByLabel(/^Target \(week/), '2');
-  await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);

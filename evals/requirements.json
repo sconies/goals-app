@@ -117,6 +117,11 @@
       "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained."
     },
     {
+      "id": "NEW-GOAL-STEPS",
+      "area": "Goals",
+      "text": "New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."

@@ -80,6 +80,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U78 | An ask is said once on a goal, under Next steps and asks, with the one button each person may press |  | `GOAL-ASK-ONCE` `ONE-ASK` | 6 | `evals/journeys.cjs` |
 | U79 | A goal’s history shows the weeks it missed, tells reviews from changes, and can be linked to |  | `GOAL-HISTORY` | 6 | `evals/journeys.cjs` |
 | U80 | Watch and comments say what they do before you do them; an owner has no Watch, and About says why |  | `GOAL-SAYS` | 10 | `evals/journeys.cjs` |
+| U84 | New goal in the order people think: what, then who and where (Tunde as owner, his team, Team level, his team’s SVP goals suggested for “Feeds into”, one chosen by typing, “Also helps” set), then how it’s measured, then Check reads it all back; each step is an address, the browser’s Back steps back with the numbers kept, a reload stays put and says the draft was picked up, and no select lists people, teams or goals |  | `NEW-GOAL-STEPS` `FIND-AND-PICK` | 16 | `evals/journeys.cjs` |
 | U85 | A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan |  | `NEW-GOAL-TRUTH` | 26 | `evals/journeys.cjs` |
 | U86 | Day one is true for both: set up a workspace from a template with a teammate, giving him one goal and leaving the rest unowned; Check says how many have no owner; Home says what is left (first check-ins, owners, the link); the teammate is told who set it up and what is his; Hide this removes the block |  | `DAY-ONE` `ONBOARDING` | 24 | `evals/journeys.cjs` |
 | U91 | Picking everywhere else: editing a goal, its owner, team, the goal it feeds and the goals it also helps are found by typing; a goal under it is shown but can’t be chosen to feed it, in the rule’s words; a Data owner cell is picked the same way; no select on either page lists everyone |  | `FIND-AND-PICK` | 12 | `evals/journeys.cjs` |
@@ -120,6 +121,7 @@ Per-area checks from the fit-and-finish reports.
 | F10 | People, Teams and About on a phone: the first person and the first fact near the top, short Teams rows with no buttons, nothing scrolls sideways | `PEOPLE-DIRECTORY` `WORKSPACE-ABOUT` `FIT-AND-FINISH` | `evals/finish/10-people.cjs` |
 | F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
+| F16 | New goal fits a phone: first field and Continue on the first screen, no step over two screens, 44 px controls (F16) | `NEW-GOAL-STEPS` `GOAL-CREATE` | `evals/finish/11-new-goal-phone.cjs` |
 | N12 | Held at company size: ${SIZE.people.toLocaleString('en-GB')} people, ${SIZE.teams.toLocaleString('en-GB')} teams and ${SIZE.goals.toLocaleString('en-GB')} goals; no select of everything, pickers within ${PICKER_MS} ms, list bars within ${LIST_MS} ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
 
 ## Review notes

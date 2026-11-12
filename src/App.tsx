@@ -74,6 +74,7 @@ export function Routed() {
         <Route path="/retro/:goalId" element={<RetroGoal />} />
         <Route path="/goals" element={<GoalsScreen />} />
         <Route path="/goals/new" element={<GoalWizard />} />
+        <Route path="/goals/new/:step" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
         <Route path="/goals/:goalId/print" element={<GoalPrint />} />
