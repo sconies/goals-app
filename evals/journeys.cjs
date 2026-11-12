@@ -4599,6 +4599,59 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
+/* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
+journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await navTo(h, p, 'Metrics');
+  await p.waitForURL(/\/demo\/metrics(\?|$)/);
+  await p.locator('.metric-row').first().waitFor();
+  const find = p.getByPlaceholder('Find by name, unit, owner or meaning');
+  await h.inView(find, 'entry', 'Find a metric');
+  const count = (await p.locator('.count-line').innerText()).trim();
+  h.set('progress', count === '13 metrics, A to Z.' && (await p.locator('.metric-row .metric-name').first().innerText()) === 'Change failure rate', `the library’s count line says “${count}”`);
+  await h.checkpoint('library');
+  await h.fill(find, 'queue');
+  await see(p, /^\d+ metrics? match(es)?\.$/, 'a search for “queue” does not say how many match');
+  await see(p.locator('.metric-row'), 'Pipeline queue wait (p90)', 'a search for “queue” does not find Pipeline queue wait (p90)');
+  h.set('attention', /[?&]q=queue/.test(p.url()), `the search is not in the address: ${p.url()}`);
+  await h.click(p.locator('.metric-row', { hasText: 'Pipeline queue wait (p90)' }));
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  await see(p.locator('.metric-meaning'), /\w{12,}/, 'the metric’s page does not say what it means');
+  // Its goal, side by side: status as shape and word, For, now, target with its week, and against plan.
+  const row = p.locator('.metric-goals tbody tr').first();
+  const cells = (await row.innerText()).replace(/\s+/g, ' ');
+  const shaped = await row.locator('.mg-status svg[data-status]').count();
+  h.set('finish', shaped === 1 && /Off track|At risk|On track|No recent update/.test(cells) && /CI\/CD/.test(cells) && /\d+ min/.test(cells) && /by (year end|week \d+)/.test(cells) && /plan|limit/.test(cells), `its goals table row says “${cells}”`);
+  await h.checkpoint('metric');
+  const changes = async () => (await p.getByRole('link', { name: /^(Change this metric|Say what it means|Choose an owner)/ }).count()) + (await p.getByRole('button', { name: /^Remove this metric/ }).count());
+  let offered = await changes();
+  const seeIt = p.getByRole('link', { name: 'See its goal' });
+  await h.inView(seeIt, 'entry', 'See its goal');
+  await h.click(seeIt);
+  await p.waitForURL(/\/demo\/goals\/lead-ci-time/);
+  await p.locator('.goal-bar').waitFor();
+  // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
+  await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
+  await p.goBack();
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  await p.goto(url('/metrics/lead-time'));
+  await p.getByRole('heading', { level: 1, name: 'Lead time for changes' }).waitFor();
+  offered += await changes();
+  await see(p, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
+  h.set('errors', offered === 0, `a member was offered ${offered} controls that change a metric`);
+  // Every old address of Wednesday's Metrics page under Data lands where the spec's table says, without a history entry.
+  const old = [['/data/metrics', /\/demo\/metrics\?today=/], ['/data/metrics?m=metric_lead-time', /\/demo\/metrics\/lead-time\?today=/], ['/data/metrics?m=metric_lead-time&edit', /\/demo\/metrics\/lead-time\/edit\?today=/], ['/data/metrics?new', /\/demo\/metrics\/new\?today=/]];
+  const wrong = [];
+  for (const [from, to] of old) {
+    await p.goto(url(from));
+    await p.locator('main h1, .focus h1').first().waitFor();
+    if (!to.test(p.url())) wrong.push(`${from} → ${p.url()}`);
+  }
+  h.set('logged', !wrong.length, `old addresses: ${wrong.join('; ')}`);
+  await p.context().close();
+}, []);
+
 journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.

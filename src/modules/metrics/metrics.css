@@ -1,0 +1,76 @@
+/* The metric library (ML1, src/modules/metrics/Metrics.tsx and MetricPlaces.tsx). Reading width 880 px; hairline-divided
+   rows that are links; status as shape plus word; the warning mark for what a metric needs; no capsules, no edges. */
+.page.metrics-page, .page.metric-page { --page-max: 880px; }
+.metric-head { align-items: flex-start; }
+.metrics-title { align-items: center; gap: var(--s3); }
+
+.metrics-page .list-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.metrics-page .list-bar-row .list-search { flex: 2 1 260px; }
+.metric-filter-menus { flex-wrap: wrap; gap: var(--s2); }
+
+.metric-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.metric-list > li { border-bottom: 1px solid var(--line-2); }
+.metric-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); align-items: start; padding: 12px var(--s2); color: inherit; text-decoration: none; }
+.metric-row:hover { background: var(--surface-2); }
+.metric-row:hover .metric-name { text-decoration: underline; }
+.metric-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.metric-name { font-weight: 600; }
+.metric-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding-top: 2px; text-align: right; }
+.metric-side .metric-counts { justify-content: flex-end; }
+.metric-none { color: var(--muted); }
+.metric-needs { display: inline-flex; align-items: center; gap: 6px; color: var(--risk-fg); }
+.metric-needs svg { width: 14px; height: 14px; flex: none; }
+.metric-pages { align-items: center; gap: var(--s3); }
+
+.metric-prose { margin: 0; white-space: pre-line; }
+.metric-summary { margin: 0; color: var(--muted); }
+
+/* A metric's goals side by side: a table on a computer; on a phone each goal is a short block of its own. */
+.metric-goals { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.metric-goals th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.metric-goals td { padding: 10px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+.metric-goals tr.is-off td { background: var(--off-wash); }
+.metric-goals .mg-status { white-space: nowrap; }
+.metric-goals .mg-status > span { display: inline-flex; align-items: center; gap: 6px; }
+.metric-goals .mg-status svg { width: 14px; height: 14px; }
+.metric-goals .mg-goal a { font-weight: 550; }
+.metric-goals .gkey-text { display: block; }
+
+.metric-facts { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: var(--s4); row-gap: var(--s3); margin: 0; }
+.metric-facts dt { font-size: 0.75rem; line-height: 1.375rem; font-weight: 600; color: var(--muted); }
+.metric-facts dd { margin: 0; }
+
+.metric-need-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.metric-need { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2); padding: 10px var(--s2); border-bottom: 1px solid var(--line-2); }
+
+/* On a goal's page, a person's and a team's (the module's places). */
+.goal-measured-by { margin: 0; }
+/* The one-line bar once scrolled, and a phone's summary, stay short: the section below says it (N2, N9). */
+.goal-bar.compact .goal-measured-by { display: none; }
+@media (max-width: 760px) { .goal-measured-by { display: none; } }
+.metric-block { gap: var(--s2); }
+.metric-block p { margin: 0; }
+.metric-mini { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.metric-mini > li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); padding: 8px var(--s2); border-bottom: 1px solid var(--line-2); }
+
+@container page (max-width: 620px) {
+  .metric-row { grid-template-columns: minmax(0, 1fr); }
+  .metric-side { align-items: flex-start; text-align: left; }
+  .metric-side .metric-counts { justify-content: flex-start; }
+  .metrics-page .list-bar-row { flex-wrap: nowrap; }
+  .metrics-page .list-bar-row .list-search { flex: 1 1 auto; min-width: 0; }
+  .metrics-page .list-bar-row > .btn { flex: none; }
+  /* The first metric within 300 px of the top (F15): the count line and the list sit close under the bar. */
+  .metrics-page .count-line, .metrics-page .metric-list { margin-top: calc(-1 * var(--s3)); }
+  .metric-head { flex-direction: column; }
+  .metric-facts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .metric-facts dd { margin-bottom: var(--s2); }
+  /* Each goal a block: status and title, then its numbers as "label value" lines. Nothing scrolls sideways. */
+  .metric-goals, .metric-goals tbody, .metric-goals tr, .metric-goals td { display: block; width: 100%; }
+  .metric-goals thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .metric-goals tr { padding: 10px var(--s2); border-bottom: 1px solid var(--line-2); }
+  .metric-goals tr.is-off { background: var(--off-wash); }
+  .metric-goals tr.is-off td { background: none; }
+  .metric-goals td { padding: 1px 0; border: 0; }
+  .metric-goals td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
+}
