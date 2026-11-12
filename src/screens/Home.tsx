@@ -11,7 +11,7 @@ import { attentionList, attentionOrder, splitAttention } from '../domain/attenti
 import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan } from '../domain/home';
 import { weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText, nextSessionWeek, pastText, sessionDate, upcomingSessionWeek, watchedGoals } from '../domain/review';
-import { weekDates } from '../domain/plan';
+import { hasEnded, weekDates } from '../domain/plan';
 import { placeLine } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { ATTENTION, LABEL } from '../domain/vocabulary';

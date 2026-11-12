@@ -107,6 +107,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
     asks: openForPerson(viewerId, s).length,
   };
+}
+
 /** The year a wrap-up page is for (cycle-end rule 3): the current one; or, once the next year is current, the year
     before while its wrap-up is still open, so it can be finished until the day it closes. */
 export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, week: number, today: Date): { cycle: Cycle; snapshot: Snapshot; week: number; earlier: boolean } {
