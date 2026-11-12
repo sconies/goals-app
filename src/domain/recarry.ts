@@ -1,10 +1,12 @@
-/* Keeping a carried copy true after the start (cycle-end rule 6): the part of starting the next year that runs on every
-   check-in and wrap-up, apart from the start page's words (domain/startYear) so it stays small. Pure. */
+/* Keeping a carried copy true after the start (cycle-end rule 6): run after every save, by the app (app/state commit)
+   and the AI tools (the MCP server's save); domain/copies holds the two tests other rules need. Pure. */
 import { carries, carryCopy, carryExtras, carryKind } from './carry';
 import type { Commit } from './commit';
 import { laterCycle } from './cycle';
 import type { Ask, Change, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
 import { hasModuleRows, rowsLeaving, type ModuleRecords, type ModuleRows } from './records';
+import { copyUntouched } from './copies';
+import { mergeCommits } from './actions';
 
 /** The rows recarry reads: the cycles, goals, check-ins, change log and wrap-ups, and what comes with a goal. */
 export interface CarryRows { cycles: Cycle[]; goals: Goal[]; checkIns: CheckIn[]; changes: Change[]; retros?: Retro[]; watches?: Watch[]; requests?: Ask[]; reviews?: Review[]; modules?: ModuleRows }
@@ -85,30 +87,10 @@ export function withRecarry(full: CarryRows, c: Commit, x: { now: string; actorI
     if (!goal) continue;
     const retro = (c.retros ?? []).find((r) => r.goalId === id);
     const re = recarry(goal, full, { checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id), ...(retro ? { retro } : {}) }, x);
-    if (re) out = merge(out, re);
+    if (re) out = mergeCommits(out, re);
   }
   return out;
 }
-
-/** Two commits as one save: their records and changes side by side (as domain/actions mergeCommits). */
-function merge(a: Commit, b: Commit): Commit {
-  const out: Record<string, unknown> = { ...a };
-  const was = a as unknown as Record<string, unknown>;
-  for (const [k, v] of Object.entries(b)) {
-    if (Array.isArray(v)) out[k] = [...((was[k] as unknown[] | undefined) ?? []), ...v];
-    else if (k === 'modules' && v && was[k]) out[k] = mergeModules(was[k] as ModuleRows, v as ModuleRows);
-    else out[k] = v;
-  }
-  return out as unknown as Commit;
-}
-const mergeModules = (a: ModuleRows, b: ModuleRows): ModuleRows => {
-  const out: ModuleRows = { ...a };
-  for (const [m, keys] of Object.entries(b)) { out[m] = { ...(out[m] ?? {}) }; for (const [k, rows] of Object.entries(keys)) out[m][k] = [...(out[m][k] ?? []), ...rows]; }
-  return out;
-};
-
-/** A change recarry made on its own (not a person's), so it doesn't count as using the copy. */
-export const byRecarry = (summary: string) => /now starts from where it ended in |now starts from .*’s final number$|carries on into |, so it left /.test(summary);
 
 /** Whether a removed copy was taken out by recarry: its latest change says so. */
 function leftByRecarry(g: Goal, full: { changes: Pick<Change, 'goalId' | 'at' | 'summary'>[] }): boolean {
@@ -130,9 +112,3 @@ function sameCopy(a: Goal, b: Goal): boolean {
   return JSON.stringify(norm(plain(a))) === JSON.stringify(norm(plain(b)));
 }
 const SKIP = new Set(['version', 'createdAt', 'updatedAt']);
-
-/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. */
-export function copyUntouched(copy: Goal, full: { checkIns: Pick<CheckIn, 'goalId' | 'removedAt'>[]; changes: Pick<Change, 'goalId' | 'at' | 'summary'>[] }): boolean {
-  if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
-  return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
-}

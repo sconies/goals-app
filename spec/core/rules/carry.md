@@ -30,7 +30,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Where it lives
 
 - [src/domain/carry.ts](../../../src/domain/carry.ts): `carryCopy`, `carryExtras`, `finalNumber`
-- [src/domain/recarry.ts](../../../src/domain/recarry.ts): `recarry`, `withRecarry`, `copyUntouched`, `byRecarry`
+- [src/domain/recarry.ts](../../../src/domain/recarry.ts): `recarry`, `withRecarry`
+- [src/domain/copies.ts](../../../src/domain/copies.ts): `copyUntouched`, `byRecarry`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `saveRetro`
 
 ## Requirements

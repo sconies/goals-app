@@ -4108,209 +4108,15 @@ var init_cycle = __esmMin((() => {
 	];
 	RESULT_LABEL = labels(OWNER_VIEW);
 }));
-// src/domain/recarry.ts
-/**
-* Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle changes
-* (a check-in, a wrap-up, its plan, stopped, removed or back), its kind is worked out again and, **only while its copy
-* is untouched** (no check-in in it, no change to it by a person since the start), the copy's plan or stages are
-* replaced, the copy and what came with it leave (it now finishes or stops; its children's copies lose it as parent),
-* or the copy comes back (the one taken out, same ID and key) or is added, with what comes with it and its children's
-* copies under it again. Nothing when the copy has been used, a person removed it, or there is no later cycle. `extra`
-* is what the change is about to save.
-*/
-function recarry(goal, full, extra, x) {
-	const cycle = full.cycles.find((c) => c.id === goal.cycleId);
-	const later = cycle && laterCycle(full.cycles, cycle);
-	if (!cycle || !later || !goal.key) return null;
-	const copies = full.goals.filter((g) => g.cycleId === later.id && g.key === goal.key);
-	const live = copies.find((g) => !g.removedAt);
-	const left = live ? void 0 : copies.filter((g) => g.removedAt && leftByRecarry(g, full)).sort((a, b) => (b.removedAt ?? "").localeCompare(a.removedAt ?? ""))[0];
-	if (live && !copyUntouched(live, full)) return null;
-	if (!live && copies.length && !left) return null;
-	const extraIds = new Set((extra.checkIns ?? []).map((c) => c.id));
-	const checkIns = [...full.checkIns.filter((c) => !extraIds.has(c.id)), ...extra.checkIns ?? []].filter((c) => !c.removedAt);
-	const retro = extra.retro !== void 0 ? extra.retro : (full.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
-	const kind = goal.stoppedAt || goal.removedAt ? "stop" : carryKind(goal, {
-		cycle,
-		checkIns,
-		retro
-	}).kind;
-	const log = (summary, id) => ({
-		id: x.newId("chg"),
-		at: x.now,
-		actorId: x.actorId,
-		goalId: id,
-		entity: "goal",
-		entityId: id,
-		action: "edited",
-		summary,
-		diffs: []
-	});
-	const keyOf = (id) => id ? full.goals.find((g) => g.id === id)?.key : void 0;
-	const copyOf = (key) => key ? full.goals.find((g) => g.cycleId === later.id && !g.removedAt && g.key === key) : void 0;
-	if (carries(kind)) {
-		const id = live?.id ?? left?.id ?? x.newId("goal");
-		const helps = (goal.alsoHelps ?? []).map((h) => copyOf(keyOf(h))?.id).filter((h) => !!h);
-		const made = carryCopy(goal, {
-			old: cycle,
-			next: later,
-			checkIns,
-			id,
-			parentId: live ? live.parentId : copyOf(keyOf(goal.parentId))?.id ?? null,
-			now: live?.createdAt ?? left?.createdAt ?? x.now,
-			alsoHelps: live ? live.alsoHelps ?? [] : helps
-		});
-		if (live) {
-			if (sameCopy(made, live)) return null;
-			return {
-				goals: [{
-					...made,
-					version: live.version
-				}],
-				changes: [log(`${goal.title} in ${later.name} now starts from where it ended in ${cycle.name}`, id)]
-			};
-		}
-		const children = full.goals.filter((c) => c.cycleId === later.id && !c.removedAt && !c.parentId && c.key).flatMap((c) => {
-			const original = full.goals.find((o) => o.cycleId === cycle.id && o.key === c.key && o.parentId === goal.id);
-			return original ? [{
-				...c,
-				parentId: id,
-				effect: original.effect ?? null
-			}] : [];
-		});
-		const extras = carryExtras(/* @__PURE__ */ new Map([[goal.id, id]]), full, x.newId, x.records);
-		return {
-			goals: [left ? {
-				...made,
-				version: left.version,
-				removedAt: null,
-				removedBy: null
-			} : made, ...children],
-			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
-			watches: extras.watches,
-			requests: extras.requests,
-			reviews: extras.reviews,
-			changes: [log(`${goal.title} carries on into ${later.name}${left ? " again" : ""}`, id)]
-		};
-	}
-	if (!live) return null;
-	const gone = {
-		removedAt: x.now,
-		removedBy: x.actorId
-	};
-	const leaving = rowsLeaving(full.modules, /* @__PURE__ */ new Set([live.id]), x.records ?? [], gone);
-	const orphans = full.goals.filter((c) => c.cycleId === later.id && !c.removedAt && c.parentId === live.id).map((c) => ({
-		...c,
-		parentId: null,
-		effect: null
-	}));
-	return {
-		goals: [{
-			...live,
-			...gone
-		}, ...orphans],
-		watches: (full.watches ?? []).filter((w) => w.ref === live.id && !w.removedAt).map((w) => ({
-			...w,
-			...gone
-		})),
-		...hasModuleRows(leaving) ? { modules: leaving } : {},
-		requests: (full.requests ?? []).filter((r) => r.goalIds.includes(live.id)).map((r) => ({
-			...r,
-			goalIds: r.goalIds.filter((g) => g !== live.id)
-		})),
-		reviews: (full.reviews ?? []).filter((r) => r.scope.goals.includes(live.id) || r.scope.trees.includes(live.id)).map((r) => ({
-			...r,
-			scope: {
-				...r.scope,
-				goals: r.scope.goals.filter((g) => g !== live.id),
-				trees: r.scope.trees.filter((g) => g !== live.id)
-			}
-		})),
-		changes: [log(`${goal.title} ${kind === "stop" ? "stops" : "finishes"} in ${cycle.name}, so it left ${later.name}`, live.id)]
-	};
-}
-/**
-* Keeps every carried copy true after any save (cycle-end rule 6), in one place for the app and the AI tools: for each
-* goal of a year that has a later cycle that the save touches (the goal itself, a check-in or a wrap-up), `recarry`
-* with what the save is about to write. A save that adds or removes a cycle (starting a year, its Undo) is left alone.
-*/
-function withRecarry(full, c, x) {
-	if (c.cycles?.length || !full.cycles.some((v) => !v.removedAt && laterCycle(full.cycles, v))) return c;
-	const ids = /* @__PURE__ */ new Set([
-		...(c.goals ?? []).map((g) => g.id),
-		...(c.checkIns ?? []).map((ci) => ci.goalId),
-		...(c.retros ?? []).map((r) => r.goalId)
-	]);
-	let out = c;
-	for (const id of ids) {
-		const goal = (c.goals ?? []).find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
-		if (!goal) continue;
-		const retro = (c.retros ?? []).find((r) => r.goalId === id);
-		const re = recarry(goal, full, {
-			checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id),
-			...retro ? { retro } : {}
-		}, x);
-		if (re) out = merge(out, re);
-	}
-	return out;
-}
-/** Two commits as one save: their records and changes side by side (as domain/actions mergeCommits). */
-function merge(a, b) {
-	const out = { ...a };
-	const was = a;
-	for (const [k, v] of Object.entries(b)) if (Array.isArray(v)) out[k] = [...was[k] ?? [], ...v];
-	else if (k === "modules" && v && was[k]) out[k] = mergeModules(was[k], v);
-	else out[k] = v;
-	return out;
-}
-/** Whether a removed copy was taken out by recarry: its latest change says so. */
-function leftByRecarry(g, full) {
-	const last = full.changes.filter((c) => c.goalId === g.id).sort((a, b) => b.at.localeCompare(a.at))[0];
-	return !!last && /, so it left /.test(last.summary);
-}
-/** Whether two copies say the same, whatever order their fields are in or how a store wrote an empty one. */
-function sameCopy(a, b) {
-	const norm = (v) => {
-		if (Array.isArray(v)) return v.map(norm);
-		if (v && typeof v === "object") {
-			const o = v;
-			return Object.fromEntries(Object.keys(o).sort().filter((k) => !SKIP.has(k)).map((k) => [k, norm(o[k])]).filter(([, x]) => x != null && !(Array.isArray(x) && !x.length)));
-		}
-		return v;
-	};
-	const plain = (g) => g.kind === "metric" ? {
-		...g,
-		plan: {
-			...g.plan,
-			fromWeek: g.plan.fromWeek ?? 0
-		}
-	} : g;
-	return JSON.stringify(norm(plain(a))) === JSON.stringify(norm(plain(b)));
-}
+// src/domain/copies.ts
 /** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. */
 function copyUntouched(copy, full) {
 	if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
 	return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
 }
-var mergeModules, byRecarry, SKIP;
-var init_recarry = __esmMin((() => {
-	init_carry();
-	init_cycle();
-	init_records();
-	mergeModules = (a, b) => {
-		const out = { ...a };
-		for (const [m, keys] of Object.entries(b)) {
-			out[m] = { ...out[m] ?? {} };
-			for (const [k, rows] of Object.entries(keys)) out[m][k] = [...out[m][k] ?? [], ...rows];
-		}
-		return out;
-	};
+var byRecarry;
+var init_copies = __esmMin((() => {
 	byRecarry = (summary) => /now starts from where it ended in |now starts from .*’s final number$|carries on into |, so it left /.test(summary);
-	SKIP = /* @__PURE__ */ new Set([
-		"version",
-		"createdAt",
-		"updatedAt"
-	]);
 }));
 // src/domain/people.ts
 /**
@@ -6232,6 +6038,14 @@ function saveRetro(x, goal, v) {
 	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$2(`It already has check-ins in ${later.name}. Stop it there instead.`);
 	return own;
 }
+/** Two commits as one save: their records and changes side by side. */
+function mergeCommits(a, b) {
+	if (!b) return a;
+	const out = { ...a };
+	const was = a;
+	for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...was[k] ?? [], ...v] : k === "modules" ? applyModuleRows(was[k], v) : v;
+	return out;
+}
 /**
 * Admins: set up the next cycle with the goals that carry on (cycle-end rule 6). It can be started from the day this
 * cycle's wrap-up opens, and only once; it opens for everyone on its own week 1's Monday (`currentCycle`), so starting
@@ -6773,7 +6587,7 @@ var init_actions = __esmMin((() => {
 	init_records();
 	init_cycle();
 	init_carry();
-	init_recarry();
+	init_copies();
 	init_people();
 	init_goal();
 	init_changes();
@@ -7410,7 +7224,7 @@ function undoStart(x, cycleId) {
 		...w,
 		...gone
 	}));
-	const modules = mergeRows(rowsUndone(full.modules, u.modules ?? [], gone), rowsLeaving(full.modules, added, x.records ?? [], gone));
+	const modules = applyModuleRows(rowsUndone(full.modules, u.modules ?? [], gone), rowsLeaving(full.modules, added, x.records ?? [], gone)) ?? {};
 	const asks = new Map(u.requests.map((r) => r.before).filter((r) => !!r).map((r) => [r.id, r]));
 	for (const r of full.requests ?? []) if (r.goalIds.some((id) => added.has(id)) && !asks.has(r.id)) asks.set(r.id, r);
 	const requests = [...asks.values()].map((r) => {
@@ -7773,21 +7587,9 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-/** Two sets of module rows as one, the later row for an id winning. */
-function mergeRows(a, b) {
-	const out = { ...a };
-	for (const [m, keys] of Object.entries(b)) {
-		out[m] = { ...out[m] ?? {} };
-		for (const [k, rows] of Object.entries(keys)) {
-			const ids = new Set(rows.map((r) => r.id));
-			out[m][k] = [...(out[m][k] ?? []).filter((r) => !ids.has(r.id)), ...rows];
-		}
-	}
-	return out;
-}
 var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
-	init_recarry();
+	init_copies();
 	init_actions();
 	init_asks();
 	init_status();
@@ -11181,6 +10983,186 @@ function applyCommit(s, c) {
 	};
 }
 var newId = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+// src/domain/recarry.ts
+init_carry();
+init_cycle();
+init_records();
+init_copies();
+init_actions();
+/**
+* Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle changes
+* (a check-in, a wrap-up, its plan, stopped, removed or back), its kind is worked out again and, **only while its copy
+* is untouched** (no check-in in it, no change to it by a person since the start), the copy's plan or stages are
+* replaced, the copy and what came with it leave (it now finishes or stops; its children's copies lose it as parent),
+* or the copy comes back (the one taken out, same ID and key) or is added, with what comes with it and its children's
+* copies under it again. Nothing when the copy has been used, a person removed it, or there is no later cycle. `extra`
+* is what the change is about to save.
+*/
+function recarry(goal, full, extra, x) {
+	const cycle = full.cycles.find((c) => c.id === goal.cycleId);
+	const later = cycle && laterCycle(full.cycles, cycle);
+	if (!cycle || !later || !goal.key) return null;
+	const copies = full.goals.filter((g) => g.cycleId === later.id && g.key === goal.key);
+	const live = copies.find((g) => !g.removedAt);
+	const left = live ? void 0 : copies.filter((g) => g.removedAt && leftByRecarry(g, full)).sort((a, b) => (b.removedAt ?? "").localeCompare(a.removedAt ?? ""))[0];
+	if (live && !copyUntouched(live, full)) return null;
+	if (!live && copies.length && !left) return null;
+	const extraIds = new Set((extra.checkIns ?? []).map((c) => c.id));
+	const checkIns = [...full.checkIns.filter((c) => !extraIds.has(c.id)), ...extra.checkIns ?? []].filter((c) => !c.removedAt);
+	const retro = extra.retro !== void 0 ? extra.retro : (full.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
+	const kind = goal.stoppedAt || goal.removedAt ? "stop" : carryKind(goal, {
+		cycle,
+		checkIns,
+		retro
+	}).kind;
+	const log = (summary, id) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actorId,
+		goalId: id,
+		entity: "goal",
+		entityId: id,
+		action: "edited",
+		summary,
+		diffs: []
+	});
+	const keyOf = (id) => id ? full.goals.find((g) => g.id === id)?.key : void 0;
+	const copyOf = (key) => key ? full.goals.find((g) => g.cycleId === later.id && !g.removedAt && g.key === key) : void 0;
+	if (carries(kind)) {
+		const id = live?.id ?? left?.id ?? x.newId("goal");
+		const helps = (goal.alsoHelps ?? []).map((h) => copyOf(keyOf(h))?.id).filter((h) => !!h);
+		const made = carryCopy(goal, {
+			old: cycle,
+			next: later,
+			checkIns,
+			id,
+			parentId: live ? live.parentId : copyOf(keyOf(goal.parentId))?.id ?? null,
+			now: live?.createdAt ?? left?.createdAt ?? x.now,
+			alsoHelps: live ? live.alsoHelps ?? [] : helps
+		});
+		if (live) {
+			if (sameCopy(made, live)) return null;
+			return {
+				goals: [{
+					...made,
+					version: live.version
+				}],
+				changes: [log(`${goal.title} in ${later.name} now starts from where it ended in ${cycle.name}`, id)]
+			};
+		}
+		const children = full.goals.filter((c) => c.cycleId === later.id && !c.removedAt && !c.parentId && c.key).flatMap((c) => {
+			const original = full.goals.find((o) => o.cycleId === cycle.id && o.key === c.key && o.parentId === goal.id);
+			return original ? [{
+				...c,
+				parentId: id,
+				effect: original.effect ?? null
+			}] : [];
+		});
+		const extras = carryExtras(/* @__PURE__ */ new Map([[goal.id, id]]), full, x.newId, x.records);
+		return {
+			goals: [left ? {
+				...made,
+				version: left.version,
+				removedAt: null,
+				removedBy: null
+			} : made, ...children],
+			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
+			watches: extras.watches,
+			requests: extras.requests,
+			reviews: extras.reviews,
+			changes: [log(`${goal.title} carries on into ${later.name}${left ? " again" : ""}`, id)]
+		};
+	}
+	if (!live) return null;
+	const gone = {
+		removedAt: x.now,
+		removedBy: x.actorId
+	};
+	const leaving = rowsLeaving(full.modules, /* @__PURE__ */ new Set([live.id]), x.records ?? [], gone);
+	const orphans = full.goals.filter((c) => c.cycleId === later.id && !c.removedAt && c.parentId === live.id).map((c) => ({
+		...c,
+		parentId: null,
+		effect: null
+	}));
+	return {
+		goals: [{
+			...live,
+			...gone
+		}, ...orphans],
+		watches: (full.watches ?? []).filter((w) => w.ref === live.id && !w.removedAt).map((w) => ({
+			...w,
+			...gone
+		})),
+		...hasModuleRows(leaving) ? { modules: leaving } : {},
+		requests: (full.requests ?? []).filter((r) => r.goalIds.includes(live.id)).map((r) => ({
+			...r,
+			goalIds: r.goalIds.filter((g) => g !== live.id)
+		})),
+		reviews: (full.reviews ?? []).filter((r) => r.scope.goals.includes(live.id) || r.scope.trees.includes(live.id)).map((r) => ({
+			...r,
+			scope: {
+				...r.scope,
+				goals: r.scope.goals.filter((g) => g !== live.id),
+				trees: r.scope.trees.filter((g) => g !== live.id)
+			}
+		})),
+		changes: [log(`${goal.title} ${kind === "stop" ? "stops" : "finishes"} in ${cycle.name}, so it left ${later.name}`, live.id)]
+	};
+}
+/**
+* Keeps every carried copy true after any save (cycle-end rule 6), in one place for the app and the AI tools: for each
+* goal of a year that has a later cycle that the save touches (the goal itself, a check-in or a wrap-up), `recarry`
+* with what the save is about to write. A save that adds or removes a cycle (starting a year, its Undo) is left alone.
+*/
+function withRecarry(full, c, x) {
+	if (c.cycles?.length || !full.cycles.some((v) => !v.removedAt && laterCycle(full.cycles, v))) return c;
+	const ids = /* @__PURE__ */ new Set([
+		...(c.goals ?? []).map((g) => g.id),
+		...(c.checkIns ?? []).map((ci) => ci.goalId),
+		...(c.retros ?? []).map((r) => r.goalId)
+	]);
+	let out = c;
+	for (const id of ids) {
+		const goal = (c.goals ?? []).find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
+		if (!goal) continue;
+		const retro = (c.retros ?? []).find((r) => r.goalId === id);
+		const re = recarry(goal, full, {
+			checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id),
+			...retro ? { retro } : {}
+		}, x);
+		if (re) out = mergeCommits(out, re);
+	}
+	return out;
+}
+/** Whether a removed copy was taken out by recarry: its latest change says so. */
+function leftByRecarry(g, full) {
+	const last = full.changes.filter((c) => c.goalId === g.id).sort((a, b) => b.at.localeCompare(a.at))[0];
+	return !!last && /, so it left /.test(last.summary);
+}
+/** Whether two copies say the same, whatever order their fields are in or how a store wrote an empty one. */
+function sameCopy(a, b) {
+	const norm = (v) => {
+		if (Array.isArray(v)) return v.map(norm);
+		if (v && typeof v === "object") {
+			const o = v;
+			return Object.fromEntries(Object.keys(o).sort().filter((k) => !SKIP.has(k)).map((k) => [k, norm(o[k])]).filter(([, x]) => x != null && !(Array.isArray(x) && !x.length)));
+		}
+		return v;
+	};
+	const plain = (g) => g.kind === "metric" ? {
+		...g,
+		plan: {
+			...g.plan,
+			fromWeek: g.plan.fromWeek ?? 0
+		}
+	} : g;
+	return JSON.stringify(norm(plain(a))) === JSON.stringify(norm(plain(b)));
+}
+var SKIP = /* @__PURE__ */ new Set([
+	"version",
+	"createdAt",
+	"updatedAt"
+]);
 // src/modules/metrics/sheet.ts
 init_columns();
 init_rules();
@@ -22314,7 +22296,6 @@ var SpanCollector = class {
 };
 // server/mcp.ts
 init_cycle();
-init_recarry();
 init_plan();
 /** The longest the end of a request waits for its spans to be stored. */
 var TELEMETRY_WAIT_MS = 1500;

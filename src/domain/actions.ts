@@ -6,11 +6,11 @@ import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
-import { hasModuleRows, type ModuleRecords } from './records';
+import { applyModuleRows, hasModuleRows, type ModuleRecords, type ModuleRows } from './records';
 import type { Lookup } from './changes';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, RESULT_LABEL, startFromLine, wrapUpOpenOn } from './cycle';
 import { carryExtras, startReadBack } from './carry';
-import { copyUntouched } from './recarry';
+import { copyUntouched } from './copies';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
@@ -326,7 +326,7 @@ export function mergeCommits(a: Commit, b: Commit | null): Commit {
   if (!b) return a;
   const out: Record<string, unknown> = { ...a };
   const was = a as unknown as Record<string, unknown>;
-  for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...((was[k] as unknown[] | undefined) ?? []), ...v] : v;
+  for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...((was[k] as unknown[] | undefined) ?? []), ...v] : k === 'modules' ? applyModuleRows(was[k] as ModuleRows | undefined, v as ModuleRows) : v;
   return out as unknown as Commit;
 }
 

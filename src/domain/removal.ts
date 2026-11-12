@@ -8,14 +8,14 @@
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
 import type { Commit } from './commit';
-import { byRecarry } from './recarry';
+import { byRecarry } from './copies';
 import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, type ModuleRecords, type ModuleRows } from './records';
+import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -440,7 +440,7 @@ export function undoStart(x: ActionContext, cycleId: string): Commit {
   // Everything in the cycle goes, the start's copies and any recarry added later, with what came with them.
   const added = new Set([...u.goals.map((g) => g.id), ...full.goals.filter((g) => g.cycleId === cycleId).map((g) => g.id)]);
   const watches = (full.watches ?? []).filter((w) => ((u.watches ?? []).includes(w.id) || added.has(w.ref)) && !w.removedAt).map((w) => ({ ...w, ...gone }));
-  const modules = mergeRows(rowsUndone(full.modules, u.modules ?? [], gone), rowsLeaving(full.modules, added, x.records ?? [], gone));
+  const modules = applyModuleRows(rowsUndone(full.modules, u.modules ?? [], gone), rowsLeaving(full.modules, added, x.records ?? [], gone)) ?? {};
   const asks = new Map(u.requests.map((r) => r.before).filter((r): r is Ask => !!r).map((r) => [r.id, r]));
   for (const r of full.requests ?? []) if (r.goalIds.some((id) => added.has(id)) && !asks.has(r.id)) asks.set(r.id, r);
   const requests = [...asks.values()].map((r) => { const now = (full.requests ?? []).find((v) => v.id === r.id); return now ? { ...now, goalIds: now.goalIds.filter((id) => !added.has(id)) } : r; });
@@ -669,15 +669,3 @@ export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot)
   return out;
 }
 
-/** Two sets of module rows as one, the later row for an id winning. */
-function mergeRows(a: ModuleRows, b: ModuleRows): ModuleRows {
-  const out: ModuleRows = { ...a };
-  for (const [m, keys] of Object.entries(b)) {
-    out[m] = { ...(out[m] ?? {}) };
-    for (const [k, rows] of Object.entries(keys)) {
-      const ids = new Set((rows as { id: string }[]).map((r) => r.id));
-      out[m][k] = [...(out[m][k] ?? []).filter((r) => !ids.has((r as { id: string }).id)), ...rows];
-    }
-  }
-  return out;
-}

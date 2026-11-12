@@ -844,7 +844,8 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
     code: [
       { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
-      { file: 'src/domain/recarry.ts', names: ['recarry', 'withRecarry', 'copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'withRecarry'] },
+      { file: 'src/domain/copies.ts', names: ['copyUntouched', 'byRecarry'] },
       { file: 'src/domain/actions.ts', names: ['saveRetro'] },
     ],
     tests: ['src/domain/startYear.test.ts'],
