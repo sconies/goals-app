@@ -14481,6 +14481,13 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "undo-stays-put",
+		date: "2026-11-12",
+		title: "Undo stays in its own workspace",
+		points: ["Pressing Undo after switching to another workspace no longer changes the one you switched to. It says the Undo was for another workspace, and changes nothing.", "Open that workspace again to undo it there."],
+		articles: ["features"]
+	},
+	{
 		id: "cant-open-why",
 		date: "2026-11-11",
 		title: "When you can’t open a workspace, it says why",
