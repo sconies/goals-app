@@ -6,7 +6,7 @@ import { useApp } from '../app/state';
 import { periodNow } from '../domain/cycle';
 import { firstReview, weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
-import { WEEKLY_REVIEW } from '../domain/importer';
+import { WEEKLY_REVIEW } from '../domain/via';
 import { PickOne } from '../ui/Pick';
 import { useSearch } from '../app/search';
 import type { NoEntry } from '../ports';

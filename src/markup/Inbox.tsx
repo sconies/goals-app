@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { NEWS } from '../help/lookup';
+import { NEWS } from '../help/newsIndex';
 import { Sheet, timeAgo } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PickOne } from '../ui/Pick';
