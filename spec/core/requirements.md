@@ -241,7 +241,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 Only the goal's owner can post its check-in.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U9, U137
+- **Journeys and checks:** U9, U141
 
 ## Goals
 
@@ -263,19 +263,19 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 
 ### NEW-GOAL-STEPS
 
-New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything.
+New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything.
 
-- **Rule:** [New goal](rules/new-goal.md)
+- **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
-- **Journeys and checks:** F16, U84
+- **Journeys and checks:** F16, U84, U137
 
 ### GOAL-ENTRY-REQUIRED
 
 Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
 
-- **Rule:** [Goal entry](rules/goal-entry.md)
+- **Rule:** [Goal entry](rules/goal-entry.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
-- **Journeys and checks:** U93
+- **Journeys and checks:** U93, U137
 
 ### GOAL-DATES
 
@@ -552,14 +552,14 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U1, U2, U9, U137
+- **Journeys and checks:** U1, U2, U9, U141
 
 ### ADMIN
 
 Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14, U60, U137
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 

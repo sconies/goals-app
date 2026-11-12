@@ -33,6 +33,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page', 'check-in'],
   },
   {
+    id: 'goal-read-back',
+    date: '2026-11-12',
+    title: 'Read your goal back before it’s published',
+    points: [
+      'The last step says, in sentences, what you typed and what was left as usual.',
+      'It says when the first check-in is due and how long you can still delete it.',
+      'It names the reviews that will walk the goal, and who sees it if it’s someone else’s.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'import-way-in',
     date: '2026-11-12',
     title: 'Paste rows, and headers that are nearly right',

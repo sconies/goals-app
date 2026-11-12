@@ -283,7 +283,8 @@ export interface ChecksContext {
 }
 
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
-function aLevel(levels: LevelsOf, l: Level, top: boolean): string {
+/** "a Team goal", "an SVP goal", "a north star": a level with its article (rule 3's feeds-lower; the read-back, rule 5). */
+export function aLevel(levels: LevelsOf, l: Level, top: boolean): string {
   const name = levelName(levels, l);
   const said = top ? name.charAt(0).toLowerCase() + name.slice(1) : `${name} goal`;
   return (/^[aeiou]/i.test(said) || /^[AEFHILMNORSX][A-Z]/.test(said) ? 'an ' : 'a ') + said;
