@@ -60,6 +60,8 @@ export interface MeasurePick {
   says?: string;
   /** Why it can't be saved with the goal as typed (a unit that differs): the form stops on its step and says so. */
   blocks?: string;
+  /** What measures it, for goal entry's questions (rule 3's wrong-side): its name and which way is better. */
+  metric?: { name: string; direction: 'lower' | 'higher' };
 }
 
 export interface ModuleRoute {

@@ -45,6 +45,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
         action: 'linkGoalMetric', input: (g) => ({ goalId: g.id, metricId: metric.id, teamId: slice }),
         // Check's row is labelled "Measured by" already: its value is the rest of the sentence.
         says: measuredBySays(metric, slice ? team?.name ?? null : null).replace(/^Measured by /, ''), blocks: problems.errors[0],
+        metric: { name: metric.name, direction: metric.direction },
       };
     } else if (link) pick = { action: 'unlinkGoalMetric', input: (g) => ({ goalId: g.id }) };
     onChange(pick);

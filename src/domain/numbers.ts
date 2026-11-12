@@ -134,14 +134,3 @@ export function farOutside(n: number, lo: number, hi: number): boolean {
   return n < Math.min(lo, hi) - FAR_OUTSIDE * width || n > Math.max(lo, hi) + FAR_OUTSIDE * width;
 }
 
-/** A plan's start and target (or a range's limit) worth questioning as typed, or null. Asked, never refused. */
-export function setupProblem(unit: string, start: number | null, target: number | null): string | null {
-  const nums = [start, target].filter((x): x is number => x != null);
-  if (nums.some((x) => x < 0) && usuallyPositive(unit)) return `Below zero${unit.trim() ? ' ' + unit.trim() : ''}. Fine for a change or a balance; otherwise check the sign.`;
-  if (start != null && target != null && start !== 0 && target !== 0 && Math.sign(start) === Math.sign(target)) {
-    const r = Math.abs(target / start);
-    if (r >= FAR_RATIO || r <= 1 / FAR_RATIO) return `The target is ${r >= 1 ? 'over ' + FAR_RATIO + ' times' : 'under a ' + FAR_RATIO + 'th of'} the start (${groupDigits(String(start))} to ${groupDigits(String(target))}). Is that right?`;
-  }
-  if (nums.some((x) => Math.abs(x) >= 1e9)) return 'That’s a billion or more. Is it right?';
-  return null;
-}

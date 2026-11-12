@@ -1,9 +1,10 @@
 /* New goal's own rules (onboarding spec, section 4, rules 1, 2 and 5; OB1): the level a new goal starts at, the goals
    "Feeds into" suggests before anything is typed, and the plan table's one sentence for this goal. Pure: plans come from
-   plan.ts, weeks from year.ts, the order from order.ts. Nothing here decides who may add what (that is planChanges). */
+   plan.ts, weeks from year.ts, the order from order.ts. Nothing here decides who may add what (domain/goalRights), and a
+   link to a lower level is a question, not a refusal (domain/goalEntry, rule 3's feeds-lower). */
 import { weekDates } from './plan';
 import { isYear, quarters } from './year';
-import { everydayLevel, isEveryday, levelIds, levelName, levelRank, type LevelsOf } from './levels';
+import { everydayLevel, isEveryday, levelIds, levelRank, type LevelsOf } from './levels';
 import type { Cycle, Goal, Level, Team } from './types';
 
 /** The four steps of New goal, in order, each an address under /goals/new (onboarding spec, 1). */
@@ -34,18 +35,6 @@ export function startLevel(levels: LevelsOf, ownerId: string, teams: Pick<Team, 
   if (parent) return below(levels, parent.level);
   const led = new Set(teams.filter((t) => t.leadId === ownerId).map((t) => t.id));
   return goals.some((g) => led.has(g.teamId) && !isEveryday(levels, g.level)) ? null : everydayLevel(levels);
-}
-
-/** Whether a goal at `parent`'s level can be fed by one at `level`: only from a level below (today's rule, said in the list). */
-export function canFeed(levels: LevelsOf, level: Level, parent: Pick<Goal, 'level'>): boolean {
-  return levelRank(levels, parent.level) < levelRank(levels, level);
-}
-
-/** The words for a goal "Feeds into" can't take: "A Team goal can’t feed a Team goal." Null when it can. */
-export function feedRefusal(levels: LevelsOf, level: Level, parent: Pick<Goal, 'level'>): string | null {
-  // "an" before a vowel, or before an acronym said with a vowel sound first (an SVP goal, an MVP goal).
-  const a = (l: Level) => { const n = levelName(levels, l); return (/^[aeiou]/i.test(n) || /^[AEFHILMNORSX][A-Z]/.test(n) ? 'an' : 'a') + ' ' + n; };
-  return canFeed(levels, level, parent) ? null : `${a(level).replace(/^a/, 'A')} goal can’t feed ${a(parent.level)} goal.`;
 }
 
 /** Most suggestions "Feeds into" offers before anything is typed. */

@@ -243,6 +243,10 @@ select.input { padding-right: 28px; }
 /* A field with a Must fix has a full outline, not only a red border. */
 .input[aria-invalid="true"] { outline: 1px solid var(--off-mark); outline-offset: 0; }
 .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+/* Goal entry's questions (2.1, item 3): each answer at least 44px high; on a phone, a full-width row each. Answered, one line. */
+.goal-form .level-check .level-actions .btn { min-height: 44px; }
+@media (max-width: 560px) { .goal-form .level-check .level-actions { flex-direction: column; } .goal-form .level-check .level-actions .btn { width: 100%; } }
+.check-said { margin: 0; color: var(--fg-2); }
 .level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
 .foot-says { margin: var(--s2) 0 0; }
 /* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */

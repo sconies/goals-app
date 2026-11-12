@@ -70,6 +70,27 @@ function shapeProgress(shape, week, weeks) {
 	}
 	return w / weeks;
 }
+/**
+* Goal entry, rule 12: the share of a plan's whole change that falls in its last quarter of weeks (rounded up), from 0
+* to 1, with `k` that many weeks of `n`. A steady plan of 7 weeks leaves about 0.29 to its last 2; from 10, the weeks
+* 10, 10, 10, 10, 9, 8 and then 5 leave 0.8. Zero for a plan with no change.
+*/
+function lateShare(plan, weeks) {
+	const end = planEnd(plan, weeks);
+	const n = end - Math.min(plan.fromWeek ?? 0, end - 1);
+	const k = Math.max(1, Math.ceil(n / 4));
+	const whole = plan.target - plan.start;
+	if (!whole) return {
+		share: 0,
+		k,
+		n
+	};
+	return {
+		share: Math.max(0, Math.min(1, (plan.target - planAt(plan, end - k, weeks)) / whole)),
+		k,
+		n
+	};
+}
 function planAt(plan, week, weeks) {
 	const end = planEnd(plan, weeks);
 	const from = Math.min(plan.fromWeek ?? 0, end - 1);
@@ -1907,7 +1928,7 @@ function mayChangeGoal(actor, goal) {
 }
 var init_goalRights = __esmMin((() => {}));
 // src/domain/levels.ts
-var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, levelRank, LEVEL_WORDS, EVERYDAY_WORD;
+var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
 	DEFAULT_LEVELS = [
 		{
@@ -1934,10 +1955,12 @@ var init_levels = __esmMin((() => {
 	levelName = (c, id) => levelDef(c, id)?.name ?? id;
 	everydayLevel = (c) => levelIds(c).at(-1) ?? "team";
 	isEveryday = (c, id) => id === everydayLevel(c);
+	isTop = (c, id) => hasLevels(c) && levelIds(c)[0] === id;
 	levelRank = (c, id) => {
 		const i = levelIds(c).indexOf(id);
 		return i < 0 ? levelIds(c).length : i;
 	};
+	hasLevels = (c) => levelsOf$1(c).length >= 2;
 	LEVEL_WORDS = {
 		what: "Level",
 		word: {
@@ -2097,17 +2120,6 @@ function farOutside(n, lo, hi) {
 	const width = Math.abs(hi - lo);
 	if (!width) return false;
 	return n < Math.min(lo, hi) - 2 * width || n > Math.max(lo, hi) + 2 * width;
-}
-/** A plan's start and target (or a range's limit) worth questioning as typed, or null. Asked, never refused. */
-function setupProblem(unit, start, target) {
-	const nums = [start, target].filter((x) => x != null);
-	if (nums.some((x) => x < 0) && usuallyPositive(unit)) return `Below zero${unit.trim() ? " " + unit.trim() : ""}. Fine for a change or a balance; otherwise check the sign.`;
-	if (start != null && target != null && start !== 0 && target !== 0 && Math.sign(start) === Math.sign(target)) {
-		const r = Math.abs(target / start);
-		if (r >= 100 || r <= 1 / 100) return `The target is ${r >= 1 ? "over 100 times" : "under a 100th of"} the start (${groupDigits(String(start))} to ${groupDigits(String(target))}). Is that right?`;
-	}
-	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
-	return null;
 }
 var UNIT_SAME, PLACES, placesText, exampleNumber, notNumberText, asWritten$1, fixed, usuallyPositive;
 var init_numbers = __esmMin((() => {
@@ -2373,11 +2385,11 @@ var init_checkin = __esmMin((() => {
 		"value-impossible"
 	];
 	reached = (goal, n) => goal.kind === "metric" && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
-	unanswered = (checks, answers) => checks.filter((c) => answers?.[c.id] !== c.key);
-	answeredDiffs = (checks, answers) => checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({
-		field: "Asked",
+	unanswered = (checks, answers) => checks.filter((c) => answers?.[c.slot ?? c.id] !== c.key);
+	answeredDiffs = (checks, answers, field = "Asked", said = (c) => c.yes) => checks.filter((c) => answers?.[c.slot ?? c.id] === c.key).map((c) => ({
+		field,
 		from: c.question,
-		to: c.yes
+		to: said(c)
 	}));
 }));
 // src/domain/format.ts
@@ -3106,15 +3118,6 @@ function decimalsFor(d) {
 	const typed = d.kind === "metric" ? [d.start, d.target] : d.kind === "range" ? [d.limit] : [];
 	return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
-/**
-* Checks worth making on a goal's numbers as typed: asked beside the field, never refused (backlog N). Over 100% first
-* (overHundredHint), then a negative time, money or percentage, a target a hundred times the start, or a billion or more.
-*/
-function planHint(d) {
-	if (d.kind === "metric") return overHundredHint(d.unit, d.start, d.target) ?? setupProblem(d.unit, parseNumber(d.start), parseNumber(d.target));
-	if (d.kind === "range") return setupProblem(d.unit, parseNumber(d.limit), null);
-	return null;
-}
 function planQuestion(before, after) {
 	if (before?.kind !== "metric" || after.kind !== "metric" || !planChanged(before, after)) return null;
 	const was = before.plan, now = after.plan;
@@ -3265,16 +3268,6 @@ function replanned(existing, plan, started, week) {
 		rebaselinedWeek: week,
 		planHistory: next
 	};
-}
-/**
-* A percentage goal planned past 100% is either growth (fine) or a share like coverage that can't pass 100% (a mistake).
-* Only the person setting it up knows which, so ask, in the same words everywhere a goal is set.
-*/
-function overHundredHint(unit, start, target) {
-	if (unit.trim() !== "%") return null;
-	const s = parseNumber(start), t = parseNumber(target);
-	if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
-	return "Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.";
 }
 /**
 * Rule 3. The stages answered "done" at set-up, as one check-in in the week of the latest of them: each done in its own
@@ -4170,6 +4163,10 @@ function sameNameNote(p, people, teamName) {
 	if (!twin) return null;
 	const where = twin.teamId ? teamName(twin.teamId) : twin.role;
 	return `${twin.name}${where ? ` (${where})` : ""} is already here. That’s fine: their email tells you apart, and Faro shows a team or job title beside the name.`;
+}
+/** Every other goal with this title (compared without case or outer spaces): New goal names them as links (OB1). */
+function sameTitleGoals(title, id, goals) {
+	return title.trim() ? goals.filter((g) => g.id !== id && norm$2(g.title) === norm$2(title)) : [];
 }
 /** The warning when a new goal's title is one another goal already has: allowed (two teams can both "Reduce latency"). */
 function sameTitleNote(title, id, goals, teamName) {
@@ -7224,7 +7221,6 @@ function goalMustFix(d, ctx) {
 			if (name) seen.set(fold$2(name).replace(/\s+/g, " "), name);
 			const w = parseNumber(s.dueWeek);
 			if (!(w != null && Number.isInteger(w) && w >= 1 && w <= ctx.cycleWeeks)) add("stages", "stage-week", s.dueWeek.trim() ? `“${name || "This stage"}” needs a due week between 1 and ${ctx.cycleWeeks}: it says “${s.dueWeek.trim()}”.` : name ? `Choose the week “${name}” is due.` : "Choose the week this stage is due.", { row: i });
-			else if (ctx.door === "form" && !ctx.existing && pastStage(w, ctx.week) && !s.done) add("stages", "stage-past", "Say whether this stage is done.", { row: i });
 		}
 		if (ctx.existing?.kind === "milestone") {
 			const kept = new Set(d.stages.filter((s) => s.name.trim()).map((s) => s.id));
@@ -7237,7 +7233,244 @@ function goalMustFix(d, ctx) {
 	}
 	return out.sort((a, b) => GOAL_FIELDS$1.indexOf(a.field) - GOAL_FIELDS$1.indexOf(b.field));
 }
-var GOAL_FIELDS$1, withUnit;
+/** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
+function aLevel(levels, l, top) {
+	const name = levelName(levels, l);
+	const said = top ? name.charAt(0).toLowerCase() + name.slice(1) : `${name} goal`;
+	return (/^[aeiou]/i.test(said) || /^[AEFHILMNORSX][A-Z]/.test(said) ? "an " : "a ") + said;
+}
+/**
+* Rule 3. What is asked before a goal is saved: possible, but unlikely. In section 4's order, each only once the fields it
+* is about have no Must fix. The same at every door (the form, set-up's cards, a Goals row, the AI tools). A goal already
+* saved isn't asked again about what it already says: only what a change makes new.
+*/
+function goalChecks(d, ctx) {
+	const raw = checksOf(d, ctx);
+	if (!ctx.existing) return raw;
+	const was = new Set(checksOf(draftOf(ctx.existing), {
+		...ctx,
+		existing: null,
+		mustFix: [],
+		sameNamed: ctx.sameNamed?.filter((g) => g.id !== ctx.existing.id)
+	}).map((c) => `${c.slot}=${c.key}`));
+	return raw.filter((c) => !was.has(`${c.slot}=${c.key}`));
+}
+function checksOf(d, ctx) {
+	const out = [];
+	const fixed = new Set((ctx.mustFix ?? []).map((m) => m.field));
+	const ask = (c) => {
+		if (!fixed.has(c.field)) out.push({
+			slot: c.id,
+			...c
+		});
+	};
+	const unit = d.unit.trim();
+	const said = (n) => withUnit(groupDigits(String(n)), unit);
+	const read = (v) => {
+		if (!v.trim()) return null;
+		const r = numberAsTyped(v, d.unit);
+		return "problem" in r ? null : r.n;
+	};
+	if (d.kind === "milestone" && !ctx.existing && ctx.door !== "table") d.stages.forEach((st, i) => {
+		const w = parseNumber(st.dueWeek);
+		if (!st.name.trim() || w == null || !Number.isInteger(w) || w < 1 || w > ctx.cycleWeeks || !pastStage(w, ctx.week)) return;
+		const ago = ctx.week - w;
+		ask({
+			id: "stage-past",
+			slot: `stage-past:${st.id}`,
+			field: "stages",
+			row: i,
+			key: String(w),
+			question: `Week ${w} was ${ago} week${ago === 1 ? "" : "s"} ago. Is this stage already done?`,
+			yes: `Yes, done in week ${w}`,
+			no: "No, it’s overdue",
+			noAnswers: true,
+			readBack: st.done === "no" ? `“${st.name.trim()}” isn’t done: it’s overdue since week ${w}.` : `Done in week ${w}.`
+		});
+	});
+	if (d.kind !== "milestone") {
+		if (!unit && (!ctx.existing || ctx.existing.kind === "milestone" || ctx.existing.unit.trim())) ask({
+			id: "no-unit",
+			field: "unit",
+			key: "",
+			question: "This number has no unit. Is it a plain count?",
+			yes: "Yes, a plain count",
+			no: "No, I’ll add one",
+			readBack: "You said it is a plain count, with no unit."
+		});
+		const given = (d.kind === "metric" ? [[
+			"start",
+			"number today",
+			read(d.start)
+		], [
+			"target",
+			"target",
+			read(d.target)
+		]] : [[
+			"limit",
+			"limit",
+			read(d.limit)
+		]]).filter((f) => f[2] != null);
+		const key = given.map((f) => f[2]).join("|");
+		const neg = given.find(([, , n]) => n < 0);
+		if (neg && usuallyPositive(unit)) ask({
+			id: "below-zero",
+			field: neg[0],
+			key: `${key}|${unit}`,
+			question: `${said(neg[2])} is below zero. That’s fine for a change or a balance. Is it right here?`,
+			yes: `Yes, ${said(neg[2])} is right`,
+			no: "No, I’ll change it",
+			readBack: `You said ${said(neg[2])} is right.`
+		});
+		const over = unit === "%" ? given.find(([, , n]) => n > 100) : void 0;
+		if (over) ask({
+			id: "over-100",
+			field: over[0],
+			key,
+			question: `The ${over[1]} is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is ${groupDigits(String(over[2]))}% right?`,
+			yes: `Yes, ${groupDigits(String(over[2]))}% is right`,
+			no: "No, I’ll change it",
+			readBack: `You said ${groupDigits(String(over[2]))}% is right.`
+		});
+		const s = d.kind === "metric" ? read(d.start) : null, t = d.kind === "metric" ? read(d.target) : null;
+		if (s != null && t != null && s !== 0 && t !== 0 && Math.sign(s) === Math.sign(t)) {
+			const r = Math.abs(t / s);
+			if (r >= 100 || r <= 1 / 100) ask({
+				id: "hundredfold",
+				field: "target",
+				key: `${s}|${t}`,
+				question: `The target (${said(t)}) is ${r >= 1 ? `over 100 times` : "under a hundredth of"} where it starts (${said(s)}). Is that right?`,
+				yes: `Yes, ${said(s)} to ${said(t)} is right`,
+				no: "No, I’ll change it",
+				readBack: `You said ${said(s)} to ${said(t)} is right.`
+			});
+		}
+		if (ctx.metric && s != null && t != null && s !== t && ctx.metric.direction === "lower" === t > s) {
+			const better = ctx.metric.direction;
+			ask({
+				id: "wrong-side",
+				field: "target",
+				key: `${ctx.metric.name}|${s}|${t}`,
+				question: `“${ctx.metric.name}” is better ${better}, but the target (${said(t)}) is ${t > s ? "above" : "below"} today (${said(s)}). Is that the plan?`,
+				yes: `Yes, this goal lets it ${t > s ? "rise" : "fall"} to ${said(t)}`,
+				no: "No, I’ll change the numbers",
+				readBack: `You said the target is right though “${ctx.metric.name}” is better ${better}.`
+			});
+		}
+		const big = given.find(([, , n]) => Math.abs(n) >= 1e9);
+		if (big) ask({
+			id: "billion",
+			field: big[0],
+			key: String(big[2]),
+			question: `${said(big[2])} is a billion or more. Is it right?`,
+			yes: "Yes, it’s right",
+			no: "No, I’ll change it",
+			readBack: `You said ${said(big[2])} is right.`
+		});
+	}
+	const twin = d.title.trim() && d.teamId && ctx.team ? sameTitleGoals(d.title, ctx.existing?.id ?? null, [...ctx.sameNamed ?? []])[0] : void 0;
+	if (twin && ctx.team) ask({
+		id: "same-name",
+		field: "teamId",
+		key: `${fold$2(d.title).replace(/\s+/g, " ")}|${ctx.team.id}`,
+		question: `${ctx.team.name} already has a goal called “${twin.title}” (${twin.key}, owned by ${twin.ownerName}). Is this a different goal?`,
+		yes: "Yes, it’s a different goal",
+		no: `No, open ${twin.key}`,
+		opens: twin.id,
+		readBack: `${ctx.team.name} already has “${twin.title}” (${twin.key}); this is a different goal.`
+	});
+	if (ctx.owner?.teamId && ctx.owner.teamName && ctx.team && d.teamId && ctx.owner.teamId !== d.teamId) {
+		const first = ctx.owner.name.split(" ")[0];
+		ask({
+			id: "owner-other-team",
+			field: "teamId",
+			key: `${d.ownerId}|${d.teamId}`,
+			question: `${first} is in ${ctx.owner.teamName}, not ${ctx.team.name}. Which team is this goal for?`,
+			yes: `Keep it in ${ctx.team.name}`,
+			no: `Move it to ${ctx.owner.teamName}`,
+			noDoes: { teamId: ctx.owner.teamId },
+			readBack: `${first} is in ${ctx.owner.teamName}; the goal stays in ${ctx.team.name}.`
+		});
+	}
+	if (ctx.parent && d.parentId && d.level && levelRank(ctx.levels, ctx.parent.level) > levelRank(ctx.levels, d.level)) {
+		const top = isTop(ctx.levels, d.level);
+		const up = levelIds(ctx.levels)[levelRank(ctx.levels, d.level) - 1];
+		const feeds = !up ? "nothing" : aLevel(ctx.levels, up, isTop(ctx.levels, up));
+		ask({
+			id: "feeds-lower",
+			field: "parentId",
+			key: `${d.level}|${d.parentId}`,
+			question: `${capital(aLevel(ctx.levels, d.level, top))} usually feeds ${feeds}, and “${ctx.parent.title}” is ${aLevel(ctx.levels, ctx.parent.level, false)}. Is this link right?`,
+			yes: "Yes, it feeds that goal",
+			no: "No, it feeds nothing",
+			noDoes: {
+				parentId: "",
+				effect: "",
+				whyHelps: ""
+			},
+			readBack: `You said it feeds “${ctx.parent.title}”, ${aLevel(ctx.levels, ctx.parent.level, false)}.`
+		});
+	}
+	if (d.kind === "range") {
+		const limit = read(d.limit), margin = read(d.margin);
+		if (limit != null && margin != null && margin > 0 && margin >= Math.abs(limit)) ask({
+			id: "margin-wide",
+			field: "margin",
+			key: `${limit}|${margin}`,
+			question: `With a limit of ${said(limit)} and a warning ${said(margin)} away, it would almost always read at risk. Is ${groupDigits(String(margin))} right?`,
+			yes: `Yes, warn within ${said(margin)}`,
+			no: "No, I’ll change it",
+			readBack: `You said to warn within ${said(margin)}.`
+		});
+	}
+	if (d.kind === "metric") {
+		const s = read(d.start), t = read(d.target);
+		const typed = Object.entries(d.points).filter(([, v]) => v.trim() !== "" && parseNumber(v) != null);
+		if (s != null && t != null && s !== t && typed.length) {
+			const late = lateShare(lateShapeOf(d, s, t, ctx), ctx.cycleWeeks);
+			if (late.share > .6) ask({
+				id: "late-plan",
+				field: "points",
+				key: typed.map(([w, v]) => `${w}:${v.trim()}`).join(","),
+				question: `This plan leaves ${Math.round(late.share * 100)}% of the change to the last ${late.k} of ${late.n} weeks. Is that the plan?`,
+				yes: "Yes, that’s the plan",
+				no: "No, I’ll change it",
+				readBack: `You said most of the change comes in the last ${late.k} weeks.`
+			});
+		}
+		if (ctx.existing?.kind === "metric" && s != null && t != null) {
+			const after = {
+				...ctx.existing,
+				plan: lateShapeOf(d, s, t, ctx)
+			};
+			const q = planQuestion(ctx.existing, after);
+			if (q) ask({
+				id: q.code === "direction" ? "direction" : "far-from-plan",
+				field: "target",
+				key: `${s}|${t}|${JSON.stringify(after.plan.points ?? [])}`,
+				question: q.text,
+				yes: q.confirm,
+				no: "No, I’ll change it",
+				readBack: ""
+			});
+		}
+	}
+	return out.sort((a, b) => CHECK_IDS.indexOf(a.id) - CHECK_IDS.indexOf(b.id));
+}
+/** The plan a number draft would have: its own start and end weeks (or the goal's, or this week), with hand-set weeks. */
+function lateShapeOf(d, start, target, ctx) {
+	const was = ctx.existing?.kind === "metric" ? ctx.existing.plan : null;
+	const from = d.fromWeek != null && d.fromWeek.trim() !== "" ? parseNumber(d.fromWeek) ?? 0 : was ? was.fromWeek ?? 0 : Math.max(0, ctx.week);
+	const end = parseNumber(d.endWeek);
+	return withPoints({
+		start,
+		target,
+		shape: d.shape,
+		...from ? { fromWeek: from } : {},
+		...end != null && end !== ctx.cycleWeeks ? { endWeek: end } : {}
+	}, d.points, ctx.cycleWeeks);
+}
+var GOAL_FIELDS$1, withUnit, CHECK_IDS, capital;
 var init_goalEntry = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -7246,6 +7479,9 @@ var init_goalEntry = __esmMin((() => {
 	init_goal();
 	init_find();
 	init_numbers();
+	init_levels();
+	init_plan();
+	init_people();
 	init_status();
 	init_thresholds();
 	init_tree();
@@ -7272,6 +7508,23 @@ var init_goalEntry = __esmMin((() => {
 		"source"
 	];
 	withUnit = (v, unit) => unit.trim() === "%" ? v + "%" : unit.trim() ? `${v} ${unit.trim()}` : v;
+	CHECK_IDS = [
+		"stage-past",
+		"no-unit",
+		"below-zero",
+		"over-100",
+		"hundredfold",
+		"billion",
+		"wrong-side",
+		"same-name",
+		"owner-other-team",
+		"feeds-lower",
+		"margin-wide",
+		"late-plan",
+		"direction",
+		"far-from-plan"
+	];
+	capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 }));
 // src/domain/removal.ts
 /**
@@ -8454,6 +8707,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "many-admins": return `${n$1(count, "person", "people")} would become admins`;
 		case "totals-row": return first.message;
 		case "big-removal": return first.message;
+		case "feeds-lower": return count === 1 ? first.message : `${n$1(count, "goal")} feed${count === 1 ? "s" : ""} a goal at a lower level. Is that right?`;
 		default: return first.message;
 	}
 }
@@ -8528,7 +8782,8 @@ var init_problemLevels = __esmMin((() => {
 		"replaces-others",
 		"many-admins",
 		"totals-row",
-		"big-removal"
+		"big-removal",
+		"feeds-lower"
 	];
 	levelOf = (kind) => MUST_KINDS.includes(kind) ? "must" : CHECK_KINDS.includes(kind) ? "check" : "note";
 	SEVERITY = {
@@ -8689,6 +8944,10 @@ var init_problemLevels = __esmMin((() => {
 			label: "That’s right"
 		}, LEAVE],
 		odd: [RIGHT, LEAVE],
+		feedsLower: [{
+			choice: "right",
+			label: "Yes, it feeds that goal"
+		}, LEAVE],
 		leaveOnly: [LEAVE]
 	};
 	n$1 = (k, one, many = one + "s") => `${k} ${k === 1 ? one : many}`;
@@ -8754,7 +9013,7 @@ function planChanges(input) {
 	* question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
 	*/
 	const ask = (kind, sheet, row, name, message, x) => {
-		const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && kind === "odd-number" ? { choice: "right" } : void 0);
+		const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : void 0);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
 			return "leave";
@@ -9616,16 +9875,26 @@ function planChanges(input) {
 			for (const f of fix) raise(MUST_KIND[f.id], "Goals", row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? "Goal" });
 			return;
 		}
-		const hint = planHint(d) ?? (d.kind === "range" && Number(d.margin) > 0 && Number(d.margin) >= Math.abs(Number(d.limit)) && Number(d.limit) !== 0 ? `The warning margin (${d.margin}) is as large as the limit (${d.limit}). Is that right?` : null);
 		if (!existing) {
 			const twin = sameTitleNote(d.title, null, s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt), (t) => teams.get(t)?.name ?? "");
 			if (twin) note("same-name", "Goals", row, d.title, twin);
 		}
-		if (hint && (!existing || planHint(draftOf(existing)) !== hint) && ask("odd-number", "Goals", row, d.title, hint, {
-			column: d.kind === "range" ? "Limit" : "Target",
-			found: oddKind(hint),
-			answers: ANSWERS.odd
-		}) === "leave") return;
+		const checks = goalChecks(d, {
+			week,
+			cycleWeeks: cycle.weeks,
+			existing,
+			door: "table",
+			levels: cycle
+		});
+		for (const c of checks) {
+			const kind = ENGINE_CHECK[c.id];
+			if (!kind) continue;
+			if (ask(kind, "Goals", row, d.title, c.question, {
+				column: FIELD_COLUMN[c.field] ?? "Goal",
+				found: c.id,
+				answers: ANSWERS.odd
+			}) === "leave") return;
+		}
 		const gid = existing?.id ?? newId("goal", d.title);
 		if (create && id) fileIds.set(id, gid);
 		const key = existing ? existing.key : create && normalKey(keyRef) || formatKey(++lastKeyGiven);
@@ -9760,6 +10029,29 @@ function planChanges(input) {
 			...g,
 			parentId
 		};
+		const up = parentId ? work.get(parentId) : void 0;
+		if (up) {
+			const q = goalChecks(draftOf(next), {
+				week,
+				cycleWeeks: cycle.weeks,
+				existing: before,
+				door: "table",
+				levels: cycle,
+				parent: {
+					id: up.id,
+					title: up.title,
+					level: up.level
+				}
+			}).find((c) => c.id === "feeds-lower");
+			if (q && ask("feeds-lower", "Goals", l.row, g.title, q.question, {
+				column: "Feeds into",
+				found: `${g.level}>${up.level}`,
+				answers: ANSWERS.feedsLower
+			}) === "leave") {
+				touched.delete(l.id);
+				continue;
+			}
+		}
 		if (!parentId) {
 			next.effect = null;
 			delete next.whyHelps;
@@ -9940,6 +10232,11 @@ function planChanges(input) {
 		}
 		goalOut.set(id, after);
 		changes.push(ch);
+		const asked = issues.filter((x) => x.sheet === t.sheet && x.row === t.row && x.level === "check" && GOAL_QUESTION.includes(x.kind)).map((x) => ({
+			id: x.kind === "plan-question" ? x.found === "direction" ? "direction" : "far-from-plan" : x.kind === "no-unit" || !x.found || x.kind === "feeds-lower" ? x.kind : x.found,
+			field: x.column ?? "Goal",
+			text: x.message
+		}));
 		items.push({
 			sheet: t.sheet,
 			row: t.row,
@@ -9952,7 +10249,8 @@ function planChanges(input) {
 			...q ? { question: {
 				text: q.text,
 				confirm: q.confirm
-			} } : {}
+			} } : {},
+			...asked.length ? { questions: asked } : {}
 		});
 	}
 	const ciOut = [];
@@ -10671,7 +10969,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -10763,9 +11061,27 @@ var init_changeset = __esmMin((() => {
 		"stage-name": "stage-format",
 		"stage-week": "stage-format",
 		"stage-twice": "stage-format",
-		"stage-past": "stage-format",
 		"stage-done-removed": "cant-change"
 	};
+	ENGINE_CHECK = {
+		"below-zero": "odd-number",
+		"over-100": "odd-number",
+		hundredfold: "odd-number",
+		billion: "odd-number",
+		"margin-wide": "odd-number",
+		"late-plan": "odd-number"
+	};
+	GOAL_QUESTION = [
+		"odd-number",
+		"feeds-lower",
+		"no-unit",
+		"plan-question"
+	];
+	CONFIRMED = [
+		"odd-number",
+		"feeds-lower",
+		"no-unit"
+	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
 }));
@@ -14796,12 +15112,13 @@ var CORE_ARTICLES = [
 				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), the start and target, by when, and how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
 				"Step 4, check: the goal read back in words, each row with Change. Publish it. The owner is then offered the first check-in.",
 				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not.",
-				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
+				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
 				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
 				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
-				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
+				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
+				"Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title."
 			]
 		}, {
@@ -15791,7 +16108,7 @@ var CORE_ARTICLES = [
 					"Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.",
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
-					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses.",
+					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -16170,6 +16487,18 @@ var WHATS_NEW = [
 		title: "Faro opens faster",
 		points: ["The first visit downloads about a quarter less: each page other than Home loads when you first open it.", "On a slow connection, a page you open for the first time may take a moment longer."],
 		articles: ["any-device"]
+	},
+	{
+		id: "goal-questions",
+		date: "2026-11-12",
+		title: "Unlikely values are asked about, once",
+		points: [
+			"Over 100%, below zero, no unit, an owner in another team, a link to a lower level: New goal asks under the field, and remembers your answer.",
+			"Change the number and it asks again. Your answers are kept in the goal’s History.",
+			"A stage already past is asked about in the same way, and so are the numbers on set-up’s goal cards and the edit page.",
+			"Spreadsheets and assistants are asked the same questions."
+		],
+		articles: ["new-goal", "ai-assistants"]
 	},
 	{
 		id: "metrics-sort-out",
@@ -21626,7 +21955,14 @@ function rows$1(list, sheet) {
 	});
 }
 /** Yes to a plan question (a target that flips which way is better, a number far outside the old plan). */
-var CONFIRM = bool("True once the person has said a plan change that was questioned (it flips which way is better, or a number is far outside the old plan) is right.");
+var CONFIRM = bool("True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan).");
+/** The engine's kinds that are goal entry's questions (rule 3): answered yes, all of them, by "confirm". */
+var GOAL_QUESTIONS = [
+	"odd-number",
+	"feeds-lower",
+	"no-unit",
+	"plan-question"
+];
 /** Answers to the questions a change asked, by group id: "use", or { "choice": "choose", "value": "Platform" }. */
 var ANSWERS_ARG = {
 	type: "object",
@@ -21660,7 +21996,7 @@ async function change(ctx, tables, opts) {
 		answers: answersOf(opts.answers)
 	});
 	const errors = cs.issues.filter((x) => x.level === "must");
-	const checks = cs.groups.filter((g) => g.level === "check" && g.kind !== "plan-question");
+	const checks = cs.groups.filter((g) => g.level === "check" && !(GOAL_QUESTIONS.includes(g.kind) && g.sheet !== "Check-ins"));
 	const notes = cs.issues.filter((x) => x.level === "note");
 	const group = (g) => ({
 		id: g.id,
@@ -21711,11 +22047,13 @@ async function change(ctx, tables, opts) {
 		})),
 		leftOut: cs.leftOut,
 		needsReason: cs.needsReason,
-		questions: cs.items.filter((x) => x.question).map((x) => ({
+		questions: cs.items.flatMap((x) => (x.questions ?? []).map((q) => ({
 			goalId: x.goalId,
 			goal: x.goal,
-			question: x.question.text
-		})),
+			id: q.id,
+			field: q.field,
+			question: q.text
+		}))),
 		needsConfirm: cs.needsConfirm
 	};
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
@@ -21732,18 +22070,19 @@ async function change(ctx, tables, opts) {
 		data,
 		text: "Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with \"reason\"."
 	};
-	if (cs.needsConfirm) return {
+	const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({
+		goal: x.goal,
+		message: x.question
+	})))}\nIf they say yes to each, call again with "confirm": true.` : "";
+	if (asked && !checks.length) return {
 		isError: true,
 		data,
-		text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({
-			goal: x.goal,
-			message: x.question
-		})))}\nIf they say it's right, call again with "confirm": true.`
+		text: asked
 	};
 	if (checks.length) return {
 		isError: true,
 		data,
-		text: `Not saved: answer ${checks.length === 1 ? "this question" : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? " with a value" : ""} = ${a.label}`).join("; ")}`).join("\n")}`
+		text: `${asked ? asked + "\n" : ""}Not saved: answer ${checks.length === 1 ? "this question" : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? " with a value" : ""} = ${a.label}`).join("; ")}`).join("\n")}`
 	};
 	const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : "";
 	if (!cs.items.length) return {
@@ -22144,7 +22483,7 @@ var CORE_TOOLS = [
 	{
 		name: "create_goal",
 		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number (none is asked about, as is a name another goal in its team has).",
+		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with \"confirm\": true (a name another goal in its team has is asked through \"answers\").",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -22156,6 +22495,7 @@ var CORE_TOOLS = [
 					"milestone"
 				] }),
 				...GOAL_FIELDS,
+				confirm: CONFIRM,
 				answers: ANSWERS_ARG,
 				dry_run: DRY
 			}
@@ -22175,6 +22515,7 @@ var CORE_TOOLS = [
 				...GOAL_COLS
 			})] }, {
 				dry: !!a.dry_run,
+				confirm: a.confirm === true,
 				answers: a.answers
 			});
 		}

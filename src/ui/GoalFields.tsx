@@ -3,15 +3,40 @@ import { useState, type ReactNode } from 'react';
 import { levelsOf } from '../domain/levels';
 import { useApp } from '../app/state';
 import type { Level } from '../domain/types';
-import type { MustFix } from '../domain/goalEntry';
+import type { GoalAnswers, GoalCheck, MustFix } from '../domain/goalEntry';
 import { placesText } from '../domain/numbers';
 import { Icon } from './Icon';
-import { MustFixLine } from './Levels';
+import { CheckBlock, CheckSaid, MustFixLine } from './Levels';
 
 
 /** A field's Must fix: said in words under the field, with the warning mark (ui/Levels, shared with the check-in). */
 export function FieldError({ children, id }: { children: ReactNode; id?: string }) {
   return <MustFixLine id={id}>{children}</MustFixLine>;
+}
+
+/**
+ * Goal entry's questions under the field they are about (rule 3; 2.1, item 3), in the shared Check block: the question
+ * and its two answers; once answered, one line, "You said …", with Change. `onAnswer` keeps the answer (`answers[slot] =
+ * key`); `onNo` is the second answer: a change made at once, an answer too (a stage overdue), or the field to change.
+ * `alert`: the first open one, after Continue was pressed.
+ */
+export function Questions({ checks, answers, onAnswer, onNo, onChange, alertSlot }: {
+  checks: readonly GoalCheck[];
+  answers: GoalAnswers;
+  onAnswer: (c: GoalCheck) => void;
+  onNo: (c: GoalCheck) => void;
+  /** Asks an answered question again. */
+  onChange: (c: GoalCheck) => void;
+  alertSlot?: string | null;
+}) {
+  if (!checks.length) return null;
+  return (
+    <>
+      {checks.map((c) => answers[c.slot] === c.key
+        ? <CheckSaid key={c.slot} onChange={() => onChange(c)}>{c.readBack || `You said: ${c.yes}.`}</CheckSaid>
+        : <CheckBlock key={c.slot} id={`q-${c.slot.replace(/[^\w-]/g, '-')}`} slot={c.slot} question={c.question} yes={c.yes} no={c.no} alert={alertSlot === c.slot} onYes={() => onAnswer(c)} onNo={() => onNo(c)} />)}
+    </>
+  );
 }
 
 /** A date range that never breaks inside itself ("28 Dec–3 Jan 2027"). */
@@ -68,7 +93,7 @@ type Stage = { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'n
 export interface StageError { row: number; field: 'name' | 'week' | 'row'; text: string }
 
 /** Dated stages: "Stage" and "Due week" said once above the rows; an error sits under the first row it's about. */
-export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelClass, weeks, goalName, week, onLeave }: {
+export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelClass, weeks, goalName, onLeave, below }: {
   stages: Stage[];
   onChange: (stages: Stage[]) => void;
   onAdd: () => void;
@@ -83,20 +108,19 @@ export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelCl
   weeks: number;
   /** Where several goals' stages share a screen (setting up a workspace), the goal each field belongs to. */
   goalName?: string;
-  /** This week, for a new goal: a stage due before it asks whether it is already done (onboarding spec, rule 3). */
-  week?: number;
+  /** What is asked under a row (goal entry rule 3's stage-past, in the shared Check block): drawn by the form. */
+  below?: (row: number) => ReactNode;
 }) {
   const named = (what: string) => (goalName ? `${goalName}: ${what.charAt(0).toLowerCase()}${what.slice(1)}` : what);
-  const edit = (id: string, patch: Partial<Stage>) => onChange(stages.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  // A stage whose week changes is asked about again: "done" was said of the week it had.
+  const edit = (id: string, patch: Partial<Stage>) => onChange(stages.map((x) => (x.id === id ? { ...x, ...patch, ...(patch.dueWeek != null && patch.dueWeek !== x.dueWeek ? { done: '' as const } : {}) } : x)));
   // The error goes under the row it's about: the first unnamed stage, the first with a week out of range, or the first row.
   const badName = !!error && !/week/.test(error);
   const used = (s: Stage) => !!(s.name.trim() || s.dueWeek.trim());
   const weekOk = (s: Stage) => { const w = Number(s.dueWeek.trim()); return s.dueWeek.trim() !== '' && Number.isInteger(w) && w >= 1 && w <= weeks; };
-  const past = (s: Stage) => week != null && weekOk(s) && Number(s.dueWeek.trim()) < week;
-  const unanswered = !!error && /^Say whether/.test(error);
-  const bad = !error ? -1 : Math.max(0, unanswered ? stages.findIndex((s) => past(s) && !s.done) : badName ? stages.findIndex((s) => used(s) && !s.name.trim()) : stages.findIndex((s) => used(s) && !weekOk(s)));
+  const bad = !error ? -1 : Math.max(0, badName ? stages.findIndex((s) => used(s) && !s.name.trim()) : stages.findIndex((s) => used(s) && !weekOk(s)));
   // Rows with their own Must fix (New goal, the edit page); else the one line under the row it's about (set-up).
-  const rowsSaid: StageError[] = rowErrors ?? (bad >= 0 && error ? [{ row: bad, field: badName ? 'name' : unanswered ? 'row' : 'week', text: error }] : []);
+  const rowsSaid: StageError[] = rowErrors ?? (bad >= 0 && error ? [{ row: bad, field: badName ? 'name' : 'week', text: error }] : []);
   const said = (i: number, f: StageError['field']) => rowsSaid.some((e) => e.row === i && e.field === f);
   return (
     <div className="stages" role="group" aria-label="Stages">
@@ -108,21 +132,7 @@ export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelCl
             <input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} aria-invalid={said(i, 'week')} onBlur={onLeave} value={s.dueWeek} onChange={(e) => edit(s.id, { dueWeek: e.target.value })} placeholder="Due week" />
             {stages.length > 1 ? <button type="button" className="iconbtn stage-remove" onClick={() => onChange(stages.filter((x) => x.id !== s.id))} aria-label={named('Remove stage ' + (i + 1))}><Icon name="close" /></button> : <span className="stage-remove" aria-hidden="true" />}
           </div>
-          {past(s) && (() => {
-            const w = Number(s.dueWeek.trim());
-            const ago = week! - w;
-            return s.done === 'yes'
-              ? <p className="stage-past small">Done in week {w}. <button type="button" className="linkish" onClick={() => edit(s.id, { done: '' })}>Change</button></p>
-              : (
-                <div className="stage-past" role="status">
-                  <span className="small">Week {w} was {ago} {ago === 1 ? 'week' : 'weeks'} ago. Is this stage already done?</span>
-                  <span className="row stage-past-do">
-                    <button type="button" className="btn sm" aria-pressed={false} onClick={() => edit(s.id, { done: 'yes' })}>Yes, done in week {w}</button>
-                    <button type="button" className="btn sm" aria-pressed={s.done === 'no'} onClick={() => edit(s.id, { done: 'no' })}>No, it’s overdue</button>
-                  </span>
-                </div>
-              );
-          })()}
+          {below?.(i)}
           {rowsSaid.filter((e) => e.row === i).map((e) => <FieldError key={e.field + e.text}>{e.text}</FieldError>)}
         </div>
       ))}

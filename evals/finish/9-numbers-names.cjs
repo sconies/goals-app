@@ -42,6 +42,9 @@ module.exports = {
       await p.getByRole('button', { name: 'Continue' }).click();
       // Who and where (OB1): Rhea is asked the level.
       await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
+      // The same name in the same team is asked about on this step (goal entry, rule 3's same-name), never refused.
+      const differs = p.getByRole('button', { name: 'Yes, it’s a different goal' });
+      if (await differs.isVisible().catch(() => false)) await differs.click();
       await p.getByRole('button', { name: 'Continue' }).click();
       const start = p.getByLabel(/^Today/);
       await start.waitFor({ timeout: 3000 }).catch(() => {});

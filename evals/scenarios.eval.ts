@@ -2,7 +2,8 @@
    with its requirement ID, so the scorecard can say which requirements hold. */
 import { describe, expect, it } from 'vitest';
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../src/domain/checkin';
-import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint } from '../src/domain/goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf } from '../src/domain/goal';
+import { goalChecks } from '../src/domain/goalEntry';
 import { goalMustFix } from '../src/domain/goalEntry';
 import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
@@ -205,9 +206,10 @@ describe('numbers people can trust (research round 1)', () => {
 });
 describe('numbers people can trust (research round 2)', () => {
   it(R('HONEST-NUMBERS', 'a percentage target over 100% asks whether it measures a share'), () => {
-    expect(overHundredHint('%', '0', '150')).toMatch(/can’t pass 100%/);
-    expect(overHundredHint('%', '20', '90')).toBeNull();
-    expect(overHundredHint('days', '0', '150')).toBeNull();
+    const asks = (unit: string, start: string, target: string) => goalChecks({ ...blankGoal('t', 'p', ''), title: 'Coverage', unit, start, target }, { week: 1, cycleWeeks: 53, existing: null, door: 'form' }).find((c) => c.id === 'over-100')?.question ?? null;
+    expect(asks('%', '1', '150')).toMatch(/can’t pass 100%/);
+    expect(asks('%', '20', '90')).toBeNull();
+    expect(asks('days', '1', '150')).toBeNull();
   });
 });
 function draftOfUp() { return draftOf(up); }
