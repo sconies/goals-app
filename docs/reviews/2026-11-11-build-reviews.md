@@ -77,6 +77,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #195 IM4: past imports | 3 | 0 | 4 | 7 |
 | #192 New goal: #129's review, mediums 1 to 3 and 6 | 2 | 0 | 0 | 0 |
 | #199 IM5: the way in | 3 | 1 | 4 | 6 |
+| #202 GE3: the read-back | 2 | 0 | 5 | 3 |
 
 **High findings, and where each stands**
 
@@ -868,3 +869,26 @@ Read first by a separate reviewing session, with throwaway tests and on screen a
 - The row and size limits and the header-row sentence live in `Check.tsx`, not the domain; no unit test covers the paste choice, the limits, or two columns for one field (read).
 
 **Checked and fine.** A CSV with a byte-order mark, Windows line endings and quoted commas, a semicolon CSV, a zip, drag and drop and a pasted table all read the same rows. The downloaded workbook loads back unchanged, each unread sheet named. Images, PDFs and oversized or empty files get a calm refusal. A second file keeps answers and resets left-out rows and the reason. Focus lands on the preview's heading; errors are announced. No stripes, pills or emoji; one primary button per mode.
+
+### #202 GE3: the read-back (track 2, merged 14:50 UTC, 12 Nov)
+
+Read first by a separate reviewing session, on screen at 1440 and 390 and with throwaway tests; findings 1 and 2 were read again by this reviewer on main. No high finding. The first reader rated 1 and 2 high; they are logged as medium because 1 is layout, not data, and in 2 Check says "No metric" before anything is published. In every goal published, the sentences matched what was saved.
+
+**1. Medium (re-read). The read-back lays out as two or three narrow columns, not full-width rows, at every width.** The list is `review-rows read-back` (`src/screens/GoalWizard.tsx:469`), and `.read-back` is already the start-next-year counts' grid (`src/styles/notes/workspace.css:167`, `repeat(auto-fit, minmax(150px, 1fr))`). At 390 the sentences wrap in two 170 px columns; at 1440 there are three. Every new goal meets it, and U137 and F3 pass with it. Fix: rename the form's class, and have F3 check each row is as wide as the list.
+
+**2. Medium (re-read). A reload on Check, or coming back to a kept draft there, drops the chosen metric, and Publish saves the goal without it.** #198 put the choice in the draft (`measureKept`), but Check and `publish` read `measure`, which is state that only the Measure step's place sets (`GoalWizard.tsx:98`, `:370`). After a reload on Check: "No metric, and not described yet.", the "You said" row gone, and no link saved. Fix: work the pick out from the draft, not from mounted state.
+
+**3. Medium. After Change on "Who and where" and a new team, the metric stays sliced to the old team.** Continue returns straight to Check without passing the Measure step. Saved: the goal in Build & Release, measured by "Flaky test rate" for CI/CD, a state the form cannot otherwise make. Same cause as 2.
+
+**4. Medium. "Until its first check-in you can change anything, or delete it" is untrue for a stages goal with a stage answered "Yes, done"** (`src/domain/readBack.ts:160-162`): the save writes a check-in with it, so the goal can be stopped but not deleted.
+
+**5. Medium. Several things the form saves are not read back**: the estimated effect and why it helps, where the number comes from, how a stages goal is measured, each stage's name and week, and numbers set by hand. The code follows the spec's rows here; the gap is the spec's.
+
+**Lows.**
+- Change on "Who and where" leaves focus on the page body (`GoalWizard.tsx:168` at the merge).
+- Rules restated in `readBack.ts`: `andList`, "Higher/Lower is better", the first due week, month names, and shape words that differ from the form's own hint (read).
+- Wording at the edges: "feeds nothing" said twice; "within 1% of the limit" where the app says "1 pt"; "1 stage, the last due week 50"; with every stage done it still says when the first check-in is due.
+
+**#129's findings at this merge.** Continue after a Change on Check is fixed (run). Values are no longer cut with an ellipsis, though finding 1 makes them narrow.
+
+**Checked and fine.** Four published goals compared with the store: a falling number with a metric, weeks in 2027, another owner, a parent, also-helps and a guardrail; a limit of at least 1,250,000 with a margin; stages with one done and one overdue; a number set by hand. Thousands separators, singulars, negatives and dates read correctly. Each row's Change is 56 by 46 on touch and named. `readBack.ts` is pure.
