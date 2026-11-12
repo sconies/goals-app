@@ -21,7 +21,7 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 ## Exit criteria
 
 1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-UNDO` (words in [its section](../modules/spreadsheets/README.md#requirements)).
-2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, U90, F7, F8, F17, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
+2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, U90, U95, F7, F8, F17, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
 3. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.
 4. A workbook with one wrong row saves nothing, and the preview names the row and the problem.
 5. A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.

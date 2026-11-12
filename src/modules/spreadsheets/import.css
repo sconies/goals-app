@@ -37,3 +37,10 @@
 .import-changes { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
 .import-change { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .import-leave-list { max-height: 40vh; overflow: auto; }
+/* Import, the way in (IM5; spec 2.1): the two ways to start side by side, one column on a phone; the paste box. */
+.import-page { gap: var(--s4); }
+.import-starts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+@media (max-width: 699px) { .import-starts { grid-template-columns: 1fr; } }
+.import-starts .h3 { margin: 0; }
+.import-paste textarea { font-family: var(--mono, ui-monospace, monospace); font-size: var(--t-sm); min-height: 160px; }
+.import-copy { display: inline-flex; vertical-align: middle; }
