@@ -4,14 +4,12 @@
    (FARO_WITHOUT) declares nothing here, so its rows are neither read nor written, and none are deleted. */
 import PARTS from 'virtual:faro-modules/records';
 import type { ModuleRecords, ModuleSheet } from '../domain/records';
-import { addColumnParams } from '../domain/query';
 
 /** Every module's records, in module id order. */
 export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p.part, module: p.id }));
 
-/** The columns the modules add to Goals' rows (?metric=), read from an address on the server as in the app. */
+/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
 export const MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
-addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);

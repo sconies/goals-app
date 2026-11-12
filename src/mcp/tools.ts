@@ -26,6 +26,7 @@ import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById } from '../core/registry';
 import { MODULE_GOAL_COLUMNS } from '../core/records';
+import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
@@ -396,6 +397,9 @@ const TOOL_MODULE = new Map(MODULE_TOOLS.flatMap((m) => m.part.map((t) => [t.nam
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
     module's own (the spreadsheets module's export and export_table). */
+// The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
+addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
+
 export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's

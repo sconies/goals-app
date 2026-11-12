@@ -12202,949 +12202,6 @@ var METRICS_SHEET = {
 		}));
 	}
 };
-// src/domain/summary.ts
-function summarise(goal, s, cycle, today, week) {
-	const st = goalStatus(goal, cycle, s.checkIns, today);
-	const a = assessPosted(goal, cycle, s.checkIns, week);
-	const gap = gapText(goal, a);
-	const own = checkInsFor(goal, s.checkIns);
-	const last = own[own.length - 1] ?? null;
-	const owner = s.people.find((p) => p.id === goal.ownerId)?.name ?? "—";
-	const team = s.teams.find((t) => t.id === goal.teamId)?.name ?? "—";
-	const nowValue = a.kind === "milestone" ? null : a.actual;
-	const now = nowText(goal, a);
-	const planNow = goal.kind === "metric" ? planAt(goal.plan, week, cycle.weeks) : null;
-	const ptg = last?.pathToGreen;
-	const behind = st.status === "off" || st.status === "risk";
-	return {
-		goal,
-		owner,
-		team,
-		level: levelName(cycle, goal.level),
-		type: kindLabel(goal),
-		status: st.status,
-		statusLabel: LABEL[st.status],
-		now,
-		nowValue,
-		planNow,
-		planNowText: planNow != null && goal.kind === "metric" ? fmt(planNow, goal) : "—",
-		planThen: a.kind === "metric" && a.actual != null && goal.kind === "metric" ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
-		target: targetText(goal),
-		dueWeek: goal.kind === "metric" ? planEnd(goal.plan, cycle.weeks) : goal.kind === "milestone" ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
-		gap: st.status === "stale" ? LABEL.stale : gap.short,
-		gapTone: st.status === "stale" ? "stale" : gap.tone,
-		lastWeek: last?.week ?? null,
-		lastPostedAt: last?.postedAt ?? null,
-		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
-		attention: attentionFor(goal, s, cycle, today),
-		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
-		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
-		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
-		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
-		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
-		needs: behind ? ptg?.needs ?? "" : "",
-		series: valueSeries(own),
-		checkIns: own,
-		story: storyOf(goal, s, cycle, week, today)
-	};
-}
-function summariseAll(goals, s, cycle, today, week) {
-	return goals.map((g) => summarise(g, s, cycle, today, week));
-}
-var init_summary = __esmMin((() => {
-	init_checkin();
-	init_format();
-	init_levels();
-	init_plan();
-	init_status();
-	init_attention();
-	init_vocabulary();
-	init_tree();
-	init_story();
-}));
-// src/domain/summaryFacts.ts
-/** The goal's facts from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
-function summaryFacts(goal, cycle, checkIns, week, stale = false) {
-	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
-	const latest = own[own.length - 1];
-	if (!latest) return {
-		facts: [],
-		source: null
-	};
-	const source = {
-		week: latest.week,
-		authorId: latest.authorId,
-		postedAt: latest.postedAt
-	};
-	return {
-		facts: goal.kind === "metric" ? metricFacts(goal, cycle, checkIns, own, week, stale) : goal.kind === "range" ? rangeFacts(goal, cycle, own, stale) : milestoneFacts(goal, own, week, stale),
-		source
-	};
-}
-function metricFacts(goal, cycle, all, own, week, stale) {
-	const a = assessPosted(goal, cycle, all, week);
-	if (a.kind !== "metric") return [];
-	const g = goalAsOf(goal, a.week);
-	const dir = Math.sign(g.plan.target - g.plan.start) || 1;
-	const valued = own.filter((c) => c.value != null);
-	const out = [];
-	if (a.actual == null) out.push({
-		key: "plan",
-		label: "Against plan",
-		value: NO_VALUE$1,
-		detail: `Plan for week ${a.week}: ${fmt(a.plan, goal)}`,
-		tone: "flat"
-	});
-	else {
-		const diff = round$1(a.actual - a.plan, goal.decimals);
-		const ahead = diff * dir > 0;
-		out.push({
-			key: "plan",
-			label: "Against plan",
-			value: gapPhrase(diff === 0 ? 0 : ahead ? 1 : -1, fmtDiff(diff, goal)),
-			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$2(a.ratio)} of the planned progress` : ""}`,
-			tone: a.calc === "risk" || a.calc === "off" ? "bad" : diff === 0 || a.calc !== "on" ? "flat" : "good"
-		});
-	}
-	const span = planGaps(goal, cycle, valued).slice(-3);
-	if (span.length < 2) out.push({
-		key: "trend",
-		label: "Trend",
-		value: "Not enough check-ins yet",
-		detail: "Needs two check-ins",
-		tone: "flat",
-		direction: "flat"
-	});
-	else {
-		const latest = span[span.length - 1];
-		const word = planGapTrend(span);
-		const direction = DIRECTION[word];
-		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
-		const num = (v) => fixed(Math.abs(v), goal.decimals);
-		const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, "");
-		const tail = words ? " " + words : "";
-		const value = span.every((x) => x.gap === 0) ? `${GAP["on-plan"].label} at each check-in` : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.behind.label}` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.ahead.label}` : span.map((x, i) => x.gap === 0 ? GAP["on-plan"].label.toLowerCase() : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
-		let held = 1;
-		for (let k = valued.length - 2; k >= 0 && valued[k].value === latest.c.value; k--) held++;
-		const heldFrom = valued[valued.length - held];
-		const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
-		const detail = held >= 2 && planMoved ? `Flat at ${fmt(latest.c.value, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? "rises" : "falls"}` : `${TREND[word].label}, ${weekSpan(span.map((x) => x.c))}`;
-		out.push({
-			key: "trend",
-			label: "Trend",
-			value,
-			detail,
-			tone: direction === "worsening" ? "bad" : direction === "recovering" ? "good" : "flat",
-			direction
-		});
-	}
-	out.push(sinceFact(goal, own, dir));
-	const due = planEnd(goal.plan, cycle.weeks);
-	if (stale) out.push({
-		key: "projection",
-		label: "Projection",
-		value: "Not projected",
-		detail: "The last check-in is too old to project from",
-		tone: "flat"
-	});
-	else if (a.forecast == null || !a.projection) out.push({
-		key: "projection",
-		label: "Projection",
-		value: "Not enough check-ins yet",
-		detail: "Projected by the app once there are three weeks of numbers",
-		tone: "flat"
-	});
-	else {
-		const gap = round$1(a.forecast - goal.plan.target, goal.decimals);
-		const misses = a.forecastMisses && gap !== 0;
-		out.push({
-			key: "projection",
-			label: "Projection",
-			value: misses ? `Heading for ${rangeText(a.projection, goal, isShare(goal))} by week ${due}` : `Reaches ${fmt(goal.plan.target, goal)} by week ${due}`,
-			detail: `${misses ? `Misses the ${fmt(goal.plan.target, goal)} target by about ${fmtDiff(gap, goal)}. ` : ""}Projected by the app from the last ${a.projection.to - a.projection.from + 1} weeks, not the owner’s date`,
-			tone: misses ? "bad" : "good",
-			projection: a.projection
-		});
-	}
-	return out;
-}
-/** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
-is compared with last week, never with the first. The number, and the call if it moved. */
-function sinceFact(goal, own, better) {
-	const latest = own[own.length - 1];
-	const prev = previousFor(own, latest.week).number;
-	const callMoved = (p) => p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : "";
-	if (latest.value == null) return {
-		key: "since",
-		label: "Since last update",
-		value: "No number this time",
-		detail: null,
-		tone: "flat"
-	};
-	if (!prev) return {
-		key: "since",
-		label: "Since last update",
-		value: "First check-in",
-		detail: `${fmt(latest.value, goal)} in week ${latest.week}`,
-		tone: "flat"
-	};
-	const delta = round$1(latest.value - prev.value, goal.decimals);
-	return {
-		key: "since",
-		label: "Since last update",
-		delta,
-		from: {
-			value: prev.value,
-			week: prev.week
-		},
-		value: delta === 0 ? "No change" : `${delta > 0 ? "Up" : "Down"} ${fmtDiff(delta, goal)}`,
-		detail: `${fmt(prev.value, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
-		tone: delta === 0 ? "flat" : delta * better > 0 ? "good" : "bad"
-	};
-}
-function rangeFacts(goal, cycle, own, stale) {
-	const { bound, limit } = goal.range;
-	const safe = bound === "atMost" ? -1 : 1;
-	const valued = own.filter((c) => c.value != null);
-	const last = valued[valued.length - 1];
-	const out = [];
-	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
-	if (!last) out.push({
-		key: "plan",
-		label: "Against the limit",
-		value: NO_VALUE$1,
-		detail: `Must stay ${lim}`,
-		tone: "flat"
-	});
-	else {
-		const room = round$1((limit - last.value) * -safe, goal.decimals);
-		out.push({
-			key: "plan",
-			label: "Against the limit",
-			value: room === 0 ? "At the limit" : room > 0 ? `${fmtDiff(room, goal)} inside the limit` : `${fmtDiff(room, goal)} ${bound === "atMost" ? "over" : "under"} the limit`,
-			detail: `${fmt(last.value, goal)} in week ${last.week}; must stay ${lim}`,
-			tone: room < 0 ? "bad" : room <= goal.range.margin ? "flat" : "good"
-		});
-	}
-	const span = valued.slice(-3);
-	if (span.length < 2) out.push({
-		key: "trend",
-		label: "Trend",
-		value: "Not enough check-ins yet",
-		detail: "Needs two check-ins",
-		tone: "flat",
-		direction: "flat"
-	});
-	else {
-		const word = gapTrend(span.map((c) => (c.value - limit) * safe));
-		out.push({
-			key: "trend",
-			label: "Trend",
-			value: span.map((c) => fmt(c.value, goal)).join(" → "),
-			detail: `${TREND[word].label}, ${weekSpan(span)}`,
-			tone: word === "worse" ? "bad" : word === "better" ? "good" : "flat",
-			direction: DIRECTION[word]
-		});
-	}
-	out.push(sinceFact(goal, own, safe));
-	const due = cycle.weeks;
-	const pr = stale ? null : projectionFor(goal, valued.map((c) => ({
-		week: c.week,
-		value: c.value
-	})), due);
-	if (stale) out.push({
-		key: "projection",
-		label: "Projection",
-		value: "Not projected",
-		detail: "The last check-in is too old to project from",
-		tone: "flat"
-	});
-	else if (!pr) out.push({
-		key: "projection",
-		label: "Projection",
-		value: "Not enough check-ins yet",
-		detail: "Projected by the app once there are three weeks of numbers",
-		tone: "flat"
-	});
-	else {
-		const outside = bound === "atMost" ? pr.value > limit : pr.value < limit;
-		out.push({
-			key: "projection",
-			label: "Projection",
-			value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
-			detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
-			tone: outside ? "bad" : "good",
-			projection: pr
-		});
-	}
-	return out;
-}
-/** The most weeks late any unfinished stage was at a check-in (0 when none is late). */
-function weeksLateAt(goal, c) {
-	const m = assessMilestone(goal, c.week, c.stages);
-	return Math.max(0, ...m.stages.filter((s) => s.kind !== "done").map((s) => s.weeksLate));
-}
-function milestoneFacts(goal, own, week, stale) {
-	const latest = own[own.length - 1];
-	const m = assessMilestone(goal, week, latest.stages);
-	const out = [];
-	out.push({
-		key: "plan",
-		label: "Against plan",
-		value: m.calc === "done" ? "Every stage done" : stagesBehind(m.late.map((s) => s.kind)),
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
-		tone: m.late.length ? "bad" : "good"
-	});
-	const span = own.filter((c) => c.stages).slice(-3);
-	if (span.length < 2) out.push({
-		key: "trend",
-		label: "Trend",
-		value: "Not enough check-ins yet",
-		detail: "Needs two check-ins",
-		tone: "flat",
-		direction: "flat"
-	});
-	else {
-		const late = span.map((c) => weeksLateAt(goal, c));
-		const word = stagesTrend(goal, own).word;
-		out.push({
-			key: "trend",
-			label: "Trend",
-			value: late.every((n) => n === 0) ? "On time at every check-in" : `${late.join(" → ")} weeks late`,
-			detail: `${TREND[word].label}, ${weekSpan(span)}`,
-			tone: word === "worse" ? "bad" : word === "better" ? "good" : late[late.length - 1] ? "bad" : "flat",
-			direction: DIRECTION[word]
-		});
-	}
-	const prev = previousFor(own, latest.week).checkIn;
-	if (!prev) out.push({
-		key: "since",
-		label: "Since last update",
-		value: "First check-in",
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done in week ${latest.week}`,
-		tone: "flat"
-	});
-	else {
-		const before = assessMilestone(goal, prev.week, prev.stages);
-		const now = assessMilestone(goal, latest.week, latest.stages);
-		const done = now.stages.filter((s) => s.kind === "done" && before.stages.find((b) => b.id === s.id)?.kind !== "done");
-		const slips = now.stages.map((s) => ({
-			s,
-			b: before.stages.find((b) => b.id === s.id)
-		})).filter(({ s, b }) => s.kind !== "done" && b && s.expectedWeek > b.expectedWeek);
-		const first = slips[0];
-		const parts = [...done.map((s) => `${s.name} done`), ...slips.map(({ s, b }) => `${s.name} moved from week ${b.expectedWeek} to week ${s.expectedWeek}`)];
-		out.push({
-			key: "since",
-			label: "Since last update",
-			value: first ? `${first.s.name} slipped ${plural(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural(done.length, "stage")} done` : "No change",
-			detail: parts.length ? `Since week ${prev.week}: ${parts.join("; ")}` : `Same as week ${prev.week}`,
-			tone: slips.length ? "bad" : done.length ? "good" : "flat"
-		});
-	}
-	const due = Math.max(0, ...m.stages.map((s) => s.dueWeek));
-	const finish = Math.max(0, ...m.stages.map((s) => s.expectedWeek));
-	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
-	const nextText = next ? `Next: ${next.name}, due week ${next.dueWeek}${next.expectedWeek > next.dueWeek ? `, expected week ${next.expectedWeek}` : ""}` : null;
-	if (m.calc === "done") out.push({
-		key: "projection",
-		label: "Projection",
-		value: `Finished in week ${finish}`,
-		detail: finish > due ? `${plural(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
-		tone: finish > due ? "bad" : "good"
-	});
-	else if (stale) out.push({
-		key: "projection",
-		label: "Projection",
-		value: "Not projected",
-		detail: nextText ?? "The last check-in is too old to project from",
-		tone: "flat"
-	});
-	else out.push({
-		key: "projection",
-		label: "Projection",
-		value: finish > due ? `Finishes week ${finish}, ${plural(finish - due, "week")} late` : `Finishes by week ${due}`,
-		detail: nextText,
-		tone: finish > due ? "bad" : "good"
-	});
-	return out;
-}
-var DIRECTION, COUNT_WORDS, countWord, plural, pct$2, round$1, weekSpan;
-var init_summaryFacts = __esmMin((() => {
-	init_numbers();
-	init_checkin();
-	init_format();
-	init_plan();
-	init_status();
-	init_thresholds();
-	init_trend();
-	init_vocabulary();
-	DIRECTION = {
-		worse: "worsening",
-		better: "recovering",
-		flat: "flat"
-	};
-	COUNT_WORDS = [
-		"no",
-		"one",
-		"two",
-		"three",
-		"four",
-		"five",
-		"six",
-		"seven",
-		"eight",
-		"nine",
-		"ten"
-	];
-	countWord = (n) => COUNT_WORDS[n] ?? String(n);
-	plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
-	pct$2 = (r) => `${Math.round(r * 100)}%`;
-	round$1 = (v, decimals) => Number(v.toFixed(decimals));
-	weekSpan = (cs) => cs.length > 1 && cs[0].week !== cs[cs.length - 1].week ? `weeks ${cs[0].week}–${cs[cs.length - 1].week}` : `week ${cs[cs.length - 1].week}`;
-}));
-// src/domain/scorecard.ts
-/**
-* How likely a goal is to end on the right side of its mark (a target to reach, or a limit to stay within), from where
-* the mark sits against the projected range (plan.ts `projection`: the likeliest value and a range around it). Worked in
-* "better" terms, so it reads the same whichever way is good. With h half the range's width (never less than `floor`,
-* so a clean trend with no spread still has a little doubt), and d how far the mark sits beyond the likeliest value
-* towards better, in units of h:
-*   d ≤ −0.5      Likely: the mark sits comfortably on the near side of the likeliest value, or below the whole range;
-*   −0.5 < d ≤ 1  Possible: the mark is close to the likeliest value, or inside the range on its better side;
-*   1 < d ≤ 2     Unlikely: the mark is beyond the range, but within half a range's width of it;
-*   d > 2         Very unlikely.
-* Words, never a percentage: the range is a rough guide, not odds.
-*/
-function likelihood(mark, p, better, floor = 0) {
-	const half = Math.max(Math.abs(p.high - p.low) / 2, floor, 1e-9);
-	const d = (mark - p.value) * better / half;
-	if (d <= -.5) return "likely";
-	if (d <= 1) return "possible";
-	if (d <= 2) return "unlikely";
-	return "very-unlikely";
-}
-/** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". A unit of two letters is
-*  left alone: "1 ms", never "1 m" (backlog 0u). */
-function amount(v, g) {
-	const n = fixed(Math.abs(v), g.decimals);
-	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	if (!g.unit) return n;
-	return `${n} ${Number(n) === 1 && /^[a-z][a-z-]*[^s]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
-}
-/** "by year end", "by cycle end", "by week 40". */
-function byWeekWords(cycle, due) {
-	return due >= cycle.weeks ? cycle.weeks >= 48 ? "by year end" : "by cycle end" : `by week ${due}`;
-}
-/** Vs last week: the latest check-in against the one before it with a number (summaryFacts' "since"). */
-function sinceCell(goal, cycle, checkIns, week, stale, better) {
-	const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === "since");
-	const label = stale ? "Last change" : "Vs last week";
-	if (!f) return {
-		key: "since",
-		label,
-		value: LABEL.none,
-		sub: "nothing to compare",
-		tone: "flat"
-	};
-	if (f.delta == null || !f.from) return {
-		key: "since",
-		label,
-		value: f.value,
-		sub: f.value === "First check-in" ? "nothing to compare yet" : "no number to compare",
-		tone: "flat"
-	};
-	const was = `was ${fmt(f.from.value, goal)} in week ${f.from.week}`;
-	if (f.delta === 0) return {
-		key: "since",
-		label,
-		value: "No change",
-		sub: was,
-		tone: "flat"
-	};
-	const good = f.delta * better > 0;
-	return {
-		key: "since",
-		label,
-		value: `${amount(f.delta, goal)} ${good ? "better" : "worse"}`,
-		sub: was,
-		tone: good ? "good" : "bad",
-		move: f.delta > 0 ? "up" : "down"
-	};
-}
-function metricCard(goal, cycle, checkIns, week, stale) {
-	const a = assessPosted(goal, cycle, checkIns, week);
-	if (a.kind !== "metric") return {
-		cells: [],
-		gap: null,
-		marks: null
-	};
-	const better = goal.plan.target >= goal.plan.start ? 1 : -1;
-	const target = goal.plan.target;
-	const due = planEnd(goal.plan, cycle.weeks);
-	const cells = [];
-	let gap = null;
-	let now = null;
-	if (a.actual == null) cells.push({
-		key: "plan",
-		label: "Vs plan",
-		value: NO_VALUE$1,
-		sub: `plan ${fmt(a.plan, goal)}`,
-		tone: "flat"
-	});
-	else {
-		const diff = round((a.actual - a.plan) * better, goal.decimals);
-		const value = gapPhrase(diff, amount(diff, goal));
-		const tone = diff === 0 ? "flat" : diff > 0 ? "good" : "bad";
-		cells.push({
-			key: "plan",
-			label: "Vs plan",
-			value,
-			sub: `plan ${fmt(a.plan, goal)}${a.week < week ? ` in week ${a.week}` : ""}`,
-			tone
-		});
-		gap = value;
-		now = {
-			week: a.week,
-			actual: a.actual,
-			plan: a.plan,
-			text: value,
-			tone
-		};
-	}
-	cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
-	const by = due !== cycle.weeks ? ` by week ${due}` : "";
-	if (a.actual == null) cells.push({
-		key: "target",
-		label: "To target",
-		value: NO_VALUE$1,
-		sub: `target ${fmt(target, goal)}${by}`,
-		tone: "flat"
-	});
-	else {
-		const left = round((target - a.actual) * better, goal.decimals);
-		cells.push({
-			key: "target",
-			label: "To target",
-			value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} ${better < 0 ? shortWord(better) : "to go"}`,
-			sub: `target ${fmt(target, goal)}${by}`,
-			tone: left <= 0 ? "good" : "flat"
-		});
-	}
-	const label = `Will it hit ${markWord(target, goal)}?`;
-	let end = null;
-	if (stale) cells.push({
-		key: "hit",
-		label,
-		value: "Can’t say",
-		sub: `${lower(STATUS.stale)} to go on`,
-		tone: "flat"
-	});
-	else if (!a.projection) cells.push({
-		key: "hit",
-		label,
-		value: "Too early to say",
-		sub: "needs three weeks of numbers",
-		tone: "flat"
-	});
-	else {
-		const p = a.projection;
-		const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
-		const tone = l === "likely" ? "good" : l === "possible" ? "flat" : "bad";
-		cells.push({
-			key: "hit",
-			label,
-			value: LIKELIHOOD_WORD[l],
-			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`,
-			tone,
-			likelihood: l
-		});
-		const short = round((target - p.value) * better, goal.decimals);
-		end = {
-			week: a.projection.week,
-			likely: p.value,
-			target,
-			likelyText: `likely ${bareValue(p.value, goal)}`,
-			gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : "on course",
-			tone: short > 0 ? "bad" : "good"
-		};
-	}
-	return {
-		cells,
-		gap,
-		marks: {
-			now,
-			end
-		}
-	};
-}
-function rangeCard(goal, cycle, checkIns, week, stale) {
-	const a = assessPosted(goal, cycle, checkIns, week);
-	if (a.kind !== "range") return {
-		cells: [],
-		gap: null,
-		marks: null
-	};
-	const { bound, limit, margin } = goal.range;
-	const better = bound === "atLeast" ? 1 : -1;
-	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
-	const cells = [];
-	let gap = null;
-	if (a.actual == null) {
-		cells.push({
-			key: "limit",
-			label: "Vs the limit",
-			value: NO_VALUE$1,
-			sub: `must stay ${lim}`,
-			tone: "flat"
-		});
-		cells.push({
-			key: "room",
-			label: "Room to the limit",
-			value: NO_VALUE$1,
-			sub: `warning within ${amount(margin, goal)}`,
-			tone: "flat"
-		});
-	} else {
-		const room = round((limit - a.actual) * -better, goal.decimals);
-		cells.push({
-			key: "limit",
-			label: "Vs the limit",
-			value: a.out ? "Outside it" : a.near ? "Inside, near it" : "Inside it",
-			sub: `must stay ${lim}`,
-			tone: a.out ? "bad" : a.near ? "flat" : "good"
-		});
-		const over = bound === "atMost" ? "over" : "under";
-		cells.push({
-			key: "room",
-			label: "Room to the limit",
-			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
-			sub: `warning within ${amount(margin, goal)}`,
-			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
-		});
-		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
-	}
-	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
-	const label = a.out ? "Back within by the end?" : "Will it stay within?";
-	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
-	const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
-	if (stale) cells.push({
-		key: "hit",
-		label,
-		value: "Can’t say",
-		sub: `${lower(STATUS.stale)} to go on`,
-		tone: "flat"
-	});
-	else if (!pr) cells.push({
-		key: "hit",
-		label,
-		value: "Too early to say",
-		sub: "needs three weeks of numbers",
-		tone: "flat"
-	});
-	else {
-		const stay = likelihood(limit, {
-			value: pr.value,
-			low: pr.low,
-			high: pr.high
-		}, better, likelihoodFloor(margin || limit * .1, goal.decimals));
-		cells.push({
-			key: "hit",
-			label,
-			value: LIKELIHOOD_WORD[stay],
-			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`,
-			tone: stay === "likely" ? "good" : stay === "possible" ? "flat" : "bad",
-			likelihood: stay
-		});
-	}
-	return {
-		cells,
-		gap,
-		marks: null
-	};
-}
-function milestoneCard(goal, checkIns, week) {
-	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
-	const m = assessMilestone(goal, week, own[own.length - 1]?.stages ?? null);
-	const n = m.stages.length;
-	const late = m.stages.filter((s) => s.kind !== "done" && s.weeksLate > 0);
-	const most = Math.max(0, ...late.map((s) => s.weeksLate));
-	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
-	const lastDone = Math.max(0, ...m.stages.map((s) => s.doneWeek ?? 0));
-	return {
-		cells: [
-			{
-				key: "done",
-				label: "Stages done",
-				value: `${m.doneCount} of ${n}`,
-				sub: `${m.dueCount} due by week ${week}`,
-				tone: m.doneCount >= m.dueCount ? "good" : "flat"
-			},
-			{
-				key: "late",
-				label: "Stages behind",
-				value: late.length ? String(late.length) : "None",
-				sub: late.length ? `${stagesBehind(late.map((s) => s.kind)).replace(/^\d+ stages?:? ?/, "")}, up to ${most} ${most === 1 ? "week" : "weeks"}` : lower(STAGE.planned),
-				tone: late.length ? "bad" : "good"
-			},
-			next ? {
-				key: "next",
-				label: "Next stage",
-				value: `Week ${Math.max(next.dueWeek, next.expectedWeek)}`,
-				sub: `${next.name}${next.expectedWeek > next.dueWeek ? `, due week ${next.dueWeek}` : ""}`,
-				tone: next.expectedWeek > next.dueWeek ? "bad" : "flat"
-			} : {
-				key: "next",
-				label: "Next stage",
-				value: "All done",
-				sub: `last done in week ${lastDone}`,
-				tone: "good"
-			}
-		],
-		gap: m.calc === "done" ? GAP.reached.label : stagesBehind(late.map((s) => s.kind)),
-		marks: null
-	};
-}
-/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
-A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
-chart), and the note under it says when and why it stopped. */
-function goalScorecard(goal, cycle, checkIns, week, stale) {
-	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
-	const done = doneCheckIn(goal, checkIns, week);
-	if (!goal.stoppedAt && !done) return card;
-	const cells = card.cells.filter((c) => c.key !== "hit");
-	if (done && goal.kind !== "milestone") cells.push({
-		key: "result",
-		label: "Result",
-		value: STATUS.done.label,
-		sub: `${done.value != null ? fmt(done.value, goal) + " " : ""}in week ${done.week}`,
-		tone: "good"
-	});
-	return {
-		...card,
-		cells,
-		marks: card.marks && {
-			...card.marks,
-			end: null
-		}
-	};
-}
-var LIKELIHOOD_WORD, likelihoodFloor, round, bare, bareValue, markWord;
-var init_scorecard = __esmMin((() => {
-	init_numbers();
-	init_format();
-	init_plan();
-	init_status();
-	init_summaryFacts();
-	init_vocabulary();
-	LIKELIHOOD_WORD = {
-		likely: "Likely",
-		possible: "Possible",
-		unlikely: "Unlikely",
-		"very-unlikely": "Very unlikely"
-	};
-	likelihoodFloor = (span, decimals) => Math.max(Math.abs(span) * .02, 10 ** -decimals / 2);
-	round = (v, d) => Number(v.toFixed(d));
-	bare = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
-	bareValue = (v, g) => fixed(v, g.decimals) + (g.unit === "%" ? "%" : "");
-	markWord = (v, g) => bareValue(v, g);
-}));
-// src/modules/metrics/rulesLibrary.ts
-/**
-* Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
-* that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
-* button that opens the form at that field, or Goals in its unit.
-*/
-function metricNeeds(m, r) {
-	const out = [];
-	const edit = (field) => `${metricPath(m)}/edit?field=${field}`;
-	const owner = r.people.find((p) => p.id === m.ownerId);
-	if (!owner || owner.leftAt) out.push({
-		id: "no-owner",
-		sentence: owner ? "Its owner has left" : "It has no owner",
-		button: "Choose an owner",
-		to: edit("owner")
-	});
-	if (!m.meaning.trim()) out.push({
-		id: "no-meaning",
-		sentence: "No meaning yet",
-		button: "Say what it means",
-		to: edit("meaning")
-	});
-	if (!m.source.trim()) out.push({
-		id: "no-source",
-		sentence: "No source named",
-		button: "Say where the number comes from",
-		to: edit("source")
-	});
-	if (Date.parse(r.now) - Date.parse(m.createdAt) > 14 * DAY && !liveLinks(r, m.id).length) out.push({
-		id: "unused",
-		sentence: "No goal uses it",
-		button: `See goals in ${m.unit}`,
-		to: `/goals?scope=all&q=${encodeURIComponent(m.unit)}`
-	});
-	return out;
-}
-/**
-* Rule 1. The metrics that match, a page at a time. Removed metrics are never listed. A search matches the name, the
-* unit, "lower is better" or "higher is better", the owner's name, the meaning and the source, word by word as every
-* list does (find rule 1). A team keeps the metrics a live goal is measured by for it ("company": for the whole
-* company); "unused" those no live goal uses; "sort out" those rule 3 says need something (for anyone: it's the same
-* filter for everyone). Sorted A to Z ignoring case and accents, by most goals first, or by the latest change first.
-*/
-function findMetrics(r, ask = {}) {
-	const size = ask.size ?? 50;
-	const rows = r.metrics.filter((m) => !m.removedAt).map((m) => {
-		const links = liveLinks(r, m.id);
-		return {
-			metric: m,
-			owner: ownerName(r.people, m),
-			goalIds: links.map((l) => l.goalId),
-			needs: metricNeeds(m, r),
-			links
-		};
-	}).filter(({ metric: m, owner, links, needs }) => {
-		if (ask.q?.trim() && !textMatches([
-			m.name,
-			m.unit,
-			directionWords(m.direction),
-			owner ?? "",
-			m.meaning,
-			m.source
-		].join(" "), ask.q)) return false;
-		if (ask.unit && fold$2(m.unit) !== fold$2(ask.unit)) return false;
-		if (ask.teamId && !links.some((l) => ask.teamId === "company" ? l.teamId == null : l.teamId === ask.teamId)) return false;
-		if (ask.ownerId && m.ownerId !== ask.ownerId) return false;
-		if (ask.dir && m.direction !== ask.dir) return false;
-		if (ask.unused && links.length) return false;
-		if (ask.sortout && !needs.length) return false;
-		return true;
-	}).map(({ links: _, ...row }) => row);
-	const byName = (a, b) => fold$2(a.metric.name).localeCompare(fold$2(b.metric.name));
-	rows.sort(ask.sort === "goals" ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b) : ask.sort === "changed" ? (a, b) => b.metric.updatedAt.localeCompare(a.metric.updatedAt) || byName(a, b) : byName);
-	const pages = Math.max(1, Math.ceil(rows.length / size));
-	const page = Math.min(Math.max(1, Math.floor(ask.page ?? 1)), pages);
-	const from = rows.length ? (page - 1) * size + 1 : 0;
-	const to = Math.min(rows.length, page * size);
-	return {
-		total: rows.length,
-		page,
-		pages,
-		from,
-		to,
-		rows: rows.slice(from ? from - 1 : 0, to)
-	};
-}
-/**
-* Rule 2. Every goal a metric measures now, one row per link in force to a live goal of the running cycle, worst
-* status first, then by slice name, then title. Each row is the goal's own summary (domain/summary), with its slice.
-*/
-function metricGoals(metricId, links, goals, teams, cycle) {
-	const byGoal = new Map(goals.filter((s) => !s.goal.stoppedAt).map((s) => [s.goal.id, s]));
-	const rows = [];
-	for (const l of links) {
-		const s = l.metricId === metricId && !l.removedAt ? byGoal.get(l.goalId) : void 0;
-		if (!s) continue;
-		const slice = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? "A removed team";
-		rows.push({
-			goal: s.goal,
-			status: s.status,
-			slice,
-			now: s.now,
-			nowValue: s.nowValue,
-			target: `${s.target} ${byWeekWords(cycle, s.dueWeek)}`,
-			vsPlan: s.gap,
-			owner: s.owner
-		});
-	}
-	return rows.sort((a, b) => RANK[b.status] - RANK[a.status] || a.slice.localeCompare(b.slice) || a.goal.title.localeCompare(b.goal.title));
-}
-/**
-* Rule 2's line under the table: "Lowest now: Build & Release, 4 min. Highest: CI/CD, 7 min." when two or more rows
-* have a value in the same unit and decimals; otherwise null. A row with no value yet is left out.
-*/
-function summaryLine(rows) {
-	const valued = rows.filter((r) => r.nowValue != null && r.goal.kind !== "milestone");
-	if (valued.length < 2) return null;
-	const shape = (r) => r.goal.kind === "milestone" ? "" : `${fold$2(r.goal.unit)}|${r.goal.decimals}`;
-	if (new Set(valued.map(shape)).size > 1) return null;
-	const sorted = [...valued].sort((a, b) => a.nowValue - b.nowValue || a.slice.localeCompare(b.slice));
-	const lo = sorted[0], hi = sorted[sorted.length - 1];
-	const who = (r) => lo.slice === hi.slice ? r.goal.title : r.slice;
-	return `Lowest now: ${who(lo)}, ${lo.now}. Highest: ${who(hi)}, ${hi.now}.`;
-}
-/** A metric's goals by status, worst first, only the statuses it has: what a library row says ("1 off track · 2 on track"). */
-function goalsByStatus(statuses) {
-	const n = /* @__PURE__ */ new Map();
-	for (const s of statuses) n.set(s, (n.get(s) ?? 0) + 1);
-	return [...n.entries()].map(([status, k]) => ({
-		status,
-		n: k
-	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
-}
-var DAY, directionWords, decimalsWords, metricSlug, metricPath, liveLinks;
-var init_rulesLibrary = __esmMin((() => {
-	init_find();
-	init_numbers();
-	init_scorecard();
-	init_status();
-	init_rules();
-	DAY = 864e5;
-	directionWords = (d) => d === "lower" ? "lower is better" : "higher is better";
-	decimalsWords = (d) => d === 0 ? "whole numbers" : `to ${placesText(d)}`;
-	metricSlug = (id) => id.replace(/^metric_/, "");
-	metricPath = (m) => `/metrics/${encodeURIComponent(metricSlug(m.id))}`;
-	liveLinks = (r, metricId) => r.links.filter((l) => l.metricId === metricId && !l.removedAt && r.goalIds.has(l.goalId));
-}));
-// src/modules/metrics/reads.ts
-/** Rule 1's and rule 3's rows: every metric and link, the cycle's live goal ids, the people, and now. */
-function libraryReads(s, now) {
-	return {
-		metrics: metricsOf(s),
-		links: linksOf(s),
-		goalIds: new Set(liveGoals(s).map((g) => g.id)),
-		people: s.people,
-		now
-	};
-}
-/** Rule 2 for one metric: its goals' summary rows (domain/summary), side by side. */
-function goalsOfMetric(s, cycle, today, week, metricId) {
-	const links = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt);
-	const ids = new Set(links.map((l) => l.goalId));
-	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
-}
-var liveGoals;
-var init_reads = __esmMin((() => {
-	init_summary();
-	init_rules();
-	init_rulesLibrary();
-	liveGoals = (s) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
-}));
-// src/modules/metrics/finder.ts
-init_rules();
-init_records();
-var rows$2 = (s) => ({
-	metrics: moduleRows(s, "metrics", "metrics"),
-	links: moduleRows(s, "metrics", "metricLinks")
-});
-/** A metric's address part: its slug where it has one (the demo's), else its id (rulesLibrary.metricSlug). */
-var slug = (id) => id.replace(/^metric_/, "");
-/** Goals' "Measured by": a goal's column is the metric its live link names. */
-var measuredByFilter = {
-	list: "goals",
-	id: "metric",
-	label: "Measured by",
-	param: "metric",
-	column: "metricId",
-	pick: "metric",
-	fill(s) {
-		const by = new Map(rows$2(s).links.filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
-		return (g) => by.get(g.id) ?? null;
-	},
-	says(s, value) {
-		return rows$2(s).metrics.find((x) => x.id === value || slug(x.id) === value)?.name ?? null;
-	}
-};
 // src/modules/metrics/records.ts
 init_actions();
 init_rules();
@@ -13215,8 +12272,9 @@ var metricLinkFromRow = (r) => ({
 	...when$2("removedAt", r.removed_at),
 	...who$1("removedBy", r.removed_by)
 });
-// \0virtual:faro-modules/records
-var records_default = [{
+// src/core/records.ts
+/** Every module's records, in module id order. */
+var MODULE_RECORDS = [{
 	id: "metrics",
 	part: {
 		records: [{
@@ -13290,28 +12348,83 @@ var records_default = [{
 		}],
 		sheets: [METRICS_SHEET],
 		goalColumns: [{
-			param: measuredByFilter.param,
-			fill: measuredByFilter.fill
+			param: "metric",
+			fill: (s) => {
+				const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
+				return (g) => by.get(g.id) ?? null;
+			}
 		}]
 	}
-}];
-// src/core/records.ts
-init_query();
-/** Every module's records, in module id order. */
-var MODULE_RECORDS = records_default.map((p) => ({
+}].map((p) => ({
 	...p.part,
 	module: p.id
 }));
-/** The columns the modules add to Goals' rows (?metric=), read from an address on the server as in the app. */
+/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
 var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
-addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
 keeps its rows untouched, and none of them is offered back until it is on again. */
 var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
+// src/domain/summary.ts
+init_checkin();
+init_format();
+init_levels();
+init_plan();
+init_status();
+init_attention();
+init_vocabulary();
+init_tree();
+init_story();
+function summarise(goal, s, cycle, today, week) {
+	const st = goalStatus(goal, cycle, s.checkIns, today);
+	const a = assessPosted(goal, cycle, s.checkIns, week);
+	const gap = gapText(goal, a);
+	const own = checkInsFor(goal, s.checkIns);
+	const last = own[own.length - 1] ?? null;
+	const owner = s.people.find((p) => p.id === goal.ownerId)?.name ?? "—";
+	const team = s.teams.find((t) => t.id === goal.teamId)?.name ?? "—";
+	const nowValue = a.kind === "milestone" ? null : a.actual;
+	const now = nowText(goal, a);
+	const planNow = goal.kind === "metric" ? planAt(goal.plan, week, cycle.weeks) : null;
+	const ptg = last?.pathToGreen;
+	const behind = st.status === "off" || st.status === "risk";
+	return {
+		goal,
+		owner,
+		team,
+		level: levelName(cycle, goal.level),
+		type: kindLabel(goal),
+		status: st.status,
+		statusLabel: LABEL[st.status],
+		now,
+		nowValue,
+		planNow,
+		planNowText: planNow != null && goal.kind === "metric" ? fmt(planNow, goal) : "—",
+		planThen: a.kind === "metric" && a.actual != null && goal.kind === "metric" ? `${fmt(a.plan, goal)} in week ${a.week}` : null,
+		target: targetText(goal),
+		dueWeek: goal.kind === "metric" ? planEnd(goal.plan, cycle.weeks) : goal.kind === "milestone" ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
+		gap: st.status === "stale" ? LABEL.stale : gap.short,
+		gapTone: st.status === "stale" ? "stale" : gap.tone,
+		lastWeek: last?.week ?? null,
+		lastPostedAt: last?.postedAt ?? null,
+		quietDays: daysWithoutUpdate(goal, cycle, st.latest, today),
+		attention: attentionFor(goal, s, cycle, today),
+		forecast: projects(goal, st.status) ? forecastText(goal, a, cycle.weeks, cycle)?.text ?? null : null,
+		projection: !projects(goal, st.status) || a.kind !== "metric" ? null : a.projection,
+		feedsInto: goal.parentId ? s.goals.find((g) => g.id === goal.parentId)?.title ?? null : null,
+		why: behind && last ? [last.cause ? causeLabel(last.cause) : "", last.why].filter((x) => x && x !== "On plan.").join(": ") : "",
+		pathToGreen: behind && ptg ? ptg.what + (ptg.byWeek != null ? ` (back on plan by week ${ptg.byWeek})` : "") : "",
+		needs: behind ? ptg?.needs ?? "" : "",
+		series: valueSeries(own),
+		checkIns: own,
+		story: storyOf(goal, s, cycle, week, today)
+	};
+}
+function summariseAll(goals, s, cycle, today, week) {
+	return goals.map((g) => summarise(g, s, cycle, today, week));
+}
 // src/app/reads.ts
-init_summary();
 init_cycle();
 init_plan();
 init_review();
@@ -13487,7 +12600,6 @@ init_year();
 init_weeks();
 init_review();
 init_attention();
-init_summary();
 init_vocabulary();
 init_columns();
 init_records();
@@ -14100,6 +13212,693 @@ function aiBrief(x) {
 		out.push("");
 	}
 	return out.join("\n");
+}
+// src/domain/summaryFacts.ts
+init_numbers();
+init_checkin();
+init_format();
+init_plan();
+init_status();
+init_thresholds();
+init_trend();
+init_vocabulary();
+/** The trend's word as the summary bar's arrow reads it. */
+var DIRECTION = {
+	worse: "worsening",
+	better: "recovering",
+	flat: "flat"
+};
+var COUNT_WORDS = [
+	"no",
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+	"ten"
+];
+/** "two", "three" … for small counts in a sentence; digits from 11. */
+var countWord = (n) => COUNT_WORDS[n] ?? String(n);
+var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+var pct$2 = (r) => `${Math.round(r * 100)}%`;
+var round$1 = (v, decimals) => Number(v.toFixed(decimals));
+/** "weeks 42–44", or "week 44" for one. */
+var weekSpan = (cs) => cs.length > 1 && cs[0].week !== cs[cs.length - 1].week ? `weeks ${cs[0].week}–${cs[cs.length - 1].week}` : `week ${cs[cs.length - 1].week}`;
+/** The goal's facts from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected. */
+function summaryFacts(goal, cycle, checkIns, week, stale = false) {
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const latest = own[own.length - 1];
+	if (!latest) return {
+		facts: [],
+		source: null
+	};
+	const source = {
+		week: latest.week,
+		authorId: latest.authorId,
+		postedAt: latest.postedAt
+	};
+	return {
+		facts: goal.kind === "metric" ? metricFacts(goal, cycle, checkIns, own, week, stale) : goal.kind === "range" ? rangeFacts(goal, cycle, own, stale) : milestoneFacts(goal, own, week, stale),
+		source
+	};
+}
+function metricFacts(goal, cycle, all, own, week, stale) {
+	const a = assessPosted(goal, cycle, all, week);
+	if (a.kind !== "metric") return [];
+	const g = goalAsOf(goal, a.week);
+	const dir = Math.sign(g.plan.target - g.plan.start) || 1;
+	const valued = own.filter((c) => c.value != null);
+	const out = [];
+	if (a.actual == null) out.push({
+		key: "plan",
+		label: "Against plan",
+		value: NO_VALUE$1,
+		detail: `Plan for week ${a.week}: ${fmt(a.plan, goal)}`,
+		tone: "flat"
+	});
+	else {
+		const diff = round$1(a.actual - a.plan, goal.decimals);
+		const ahead = diff * dir > 0;
+		out.push({
+			key: "plan",
+			label: "Against plan",
+			value: gapPhrase(diff === 0 ? 0 : ahead ? 1 : -1, fmtDiff(diff, goal)),
+			detail: `${fmt(a.actual, goal)} against ${fmt(a.plan, goal)} planned for week ${a.week}${a.ratio != null ? ` · ${pct$2(a.ratio)} of the planned progress` : ""}`,
+			tone: a.calc === "risk" || a.calc === "off" ? "bad" : diff === 0 || a.calc !== "on" ? "flat" : "good"
+		});
+	}
+	const span = planGaps(goal, cycle, valued).slice(-3);
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const latest = span[span.length - 1];
+		const word = planGapTrend(span);
+		const direction = DIRECTION[word];
+		const behind = span.every((x) => x.gap <= 0), ahead = span.every((x) => x.gap >= 0);
+		const num = (v) => fixed(Math.abs(v), goal.decimals);
+		const words = fmtDiff(2, goal).replace(/^[0-9.]+ ?/, "");
+		const tail = words ? " " + words : "";
+		const value = span.every((x) => x.gap === 0) ? `${GAP["on-plan"].label} at each check-in` : behind ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.behind.label}` : ahead ? `${span.map((x) => num(x.gap)).join(" → ")}${tail} ${GAP.ahead.label}` : span.map((x, i) => x.gap === 0 ? GAP["on-plan"].label.toLowerCase() : `${num(x.gap)}${i === span.length - 1 ? tail : ""} ${x.gap > 0 ? "ahead" : "behind"}`).join(" → ") + (latest.gap > 0 ? " of plan" : latest.gap < 0 ? " plan" : "");
+		let held = 1;
+		for (let k = valued.length - 2; k >= 0 && valued[k].value === latest.c.value; k--) held++;
+		const heldFrom = valued[valued.length - held];
+		const planMoved = (latest.plan - planAt(goalAsOf(goal, heldFrom.week).plan, heldFrom.week, cycle.weeks)) * dir > 0;
+		const detail = held >= 2 && planMoved ? `Flat at ${fmt(latest.c.value, goal)} for ${countWord(held)} weeks while the plan ${dir > 0 ? "rises" : "falls"}` : `${TREND[word].label}, ${weekSpan(span.map((x) => x.c))}`;
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value,
+			detail,
+			tone: direction === "worsening" ? "bad" : direction === "recovering" ? "good" : "flat",
+			direction
+		});
+	}
+	out.push(sinceFact(goal, own, dir));
+	const due = planEnd(goal.plan, cycle.weeks);
+	if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else if (a.forecast == null || !a.projection) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not enough check-ins yet",
+		detail: "Projected by the app once there are three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const gap = round$1(a.forecast - goal.plan.target, goal.decimals);
+		const misses = a.forecastMisses && gap !== 0;
+		out.push({
+			key: "projection",
+			label: "Projection",
+			value: misses ? `Heading for ${rangeText(a.projection, goal, isShare(goal))} by week ${due}` : `Reaches ${fmt(goal.plan.target, goal)} by week ${due}`,
+			detail: `${misses ? `Misses the ${fmt(goal.plan.target, goal)} target by about ${fmtDiff(gap, goal)}. ` : ""}Projected by the app from the last ${a.projection.to - a.projection.from + 1} weeks, not the owner’s date`,
+			tone: misses ? "bad" : "good",
+			projection: a.projection
+		});
+	}
+	return out;
+}
+/** What changed since the week before the latest check-in's (rule 5, `previousFor`): a second check-in in the same week
+is compared with last week, never with the first. The number, and the call if it moved. */
+function sinceFact(goal, own, better) {
+	const latest = own[own.length - 1];
+	const prev = previousFor(own, latest.week).number;
+	const callMoved = (p) => p.status !== latest.status ? `; was ${LABEL[p.status].toLowerCase()}, now ${LABEL[latest.status].toLowerCase()}` : "";
+	if (latest.value == null) return {
+		key: "since",
+		label: "Since last update",
+		value: "No number this time",
+		detail: null,
+		tone: "flat"
+	};
+	if (!prev) return {
+		key: "since",
+		label: "Since last update",
+		value: "First check-in",
+		detail: `${fmt(latest.value, goal)} in week ${latest.week}`,
+		tone: "flat"
+	};
+	const delta = round$1(latest.value - prev.value, goal.decimals);
+	return {
+		key: "since",
+		label: "Since last update",
+		delta,
+		from: {
+			value: prev.value,
+			week: prev.week
+		},
+		value: delta === 0 ? "No change" : `${delta > 0 ? "Up" : "Down"} ${fmtDiff(delta, goal)}`,
+		detail: `${fmt(prev.value, goal)} in week ${prev.week} → ${fmt(latest.value, goal)} in week ${latest.week}${callMoved(prev)}`,
+		tone: delta === 0 ? "flat" : delta * better > 0 ? "good" : "bad"
+	};
+}
+function rangeFacts(goal, cycle, own, stale) {
+	const { bound, limit } = goal.range;
+	const safe = bound === "atMost" ? -1 : 1;
+	const valued = own.filter((c) => c.value != null);
+	const last = valued[valued.length - 1];
+	const out = [];
+	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	if (!last) out.push({
+		key: "plan",
+		label: "Against the limit",
+		value: NO_VALUE$1,
+		detail: `Must stay ${lim}`,
+		tone: "flat"
+	});
+	else {
+		const room = round$1((limit - last.value) * -safe, goal.decimals);
+		out.push({
+			key: "plan",
+			label: "Against the limit",
+			value: room === 0 ? "At the limit" : room > 0 ? `${fmtDiff(room, goal)} inside the limit` : `${fmtDiff(room, goal)} ${bound === "atMost" ? "over" : "under"} the limit`,
+			detail: `${fmt(last.value, goal)} in week ${last.week}; must stay ${lim}`,
+			tone: room < 0 ? "bad" : room <= goal.range.margin ? "flat" : "good"
+		});
+	}
+	const span = valued.slice(-3);
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const word = gapTrend(span.map((c) => (c.value - limit) * safe));
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value: span.map((c) => fmt(c.value, goal)).join(" → "),
+			detail: `${TREND[word].label}, ${weekSpan(span)}`,
+			tone: word === "worse" ? "bad" : word === "better" ? "good" : "flat",
+			direction: DIRECTION[word]
+		});
+	}
+	out.push(sinceFact(goal, own, safe));
+	const due = cycle.weeks;
+	const pr = stale ? null : projectionFor(goal, valued.map((c) => ({
+		week: c.week,
+		value: c.value
+	})), due);
+	if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else if (!pr) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not enough check-ins yet",
+		detail: "Projected by the app once there are three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const outside = bound === "atMost" ? pr.value > limit : pr.value < limit;
+		out.push({
+			key: "projection",
+			label: "Projection",
+			value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
+			detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
+			tone: outside ? "bad" : "good",
+			projection: pr
+		});
+	}
+	return out;
+}
+/** The most weeks late any unfinished stage was at a check-in (0 when none is late). */
+function weeksLateAt(goal, c) {
+	const m = assessMilestone(goal, c.week, c.stages);
+	return Math.max(0, ...m.stages.filter((s) => s.kind !== "done").map((s) => s.weeksLate));
+}
+function milestoneFacts(goal, own, week, stale) {
+	const latest = own[own.length - 1];
+	const m = assessMilestone(goal, week, latest.stages);
+	const out = [];
+	out.push({
+		key: "plan",
+		label: "Against plan",
+		value: m.calc === "done" ? "Every stage done" : stagesBehind(m.late.map((s) => s.kind)),
+		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
+		tone: m.late.length ? "bad" : "good"
+	});
+	const span = own.filter((c) => c.stages).slice(-3);
+	if (span.length < 2) out.push({
+		key: "trend",
+		label: "Trend",
+		value: "Not enough check-ins yet",
+		detail: "Needs two check-ins",
+		tone: "flat",
+		direction: "flat"
+	});
+	else {
+		const late = span.map((c) => weeksLateAt(goal, c));
+		const word = stagesTrend(goal, own).word;
+		out.push({
+			key: "trend",
+			label: "Trend",
+			value: late.every((n) => n === 0) ? "On time at every check-in" : `${late.join(" → ")} weeks late`,
+			detail: `${TREND[word].label}, ${weekSpan(span)}`,
+			tone: word === "worse" ? "bad" : word === "better" ? "good" : late[late.length - 1] ? "bad" : "flat",
+			direction: DIRECTION[word]
+		});
+	}
+	const prev = previousFor(own, latest.week).checkIn;
+	if (!prev) out.push({
+		key: "since",
+		label: "Since last update",
+		value: "First check-in",
+		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done in week ${latest.week}`,
+		tone: "flat"
+	});
+	else {
+		const before = assessMilestone(goal, prev.week, prev.stages);
+		const now = assessMilestone(goal, latest.week, latest.stages);
+		const done = now.stages.filter((s) => s.kind === "done" && before.stages.find((b) => b.id === s.id)?.kind !== "done");
+		const slips = now.stages.map((s) => ({
+			s,
+			b: before.stages.find((b) => b.id === s.id)
+		})).filter(({ s, b }) => s.kind !== "done" && b && s.expectedWeek > b.expectedWeek);
+		const first = slips[0];
+		const parts = [...done.map((s) => `${s.name} done`), ...slips.map(({ s, b }) => `${s.name} moved from week ${b.expectedWeek} to week ${s.expectedWeek}`)];
+		out.push({
+			key: "since",
+			label: "Since last update",
+			value: first ? `${first.s.name} slipped ${plural(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural(done.length, "stage")} done` : "No change",
+			detail: parts.length ? `Since week ${prev.week}: ${parts.join("; ")}` : `Same as week ${prev.week}`,
+			tone: slips.length ? "bad" : done.length ? "good" : "flat"
+		});
+	}
+	const due = Math.max(0, ...m.stages.map((s) => s.dueWeek));
+	const finish = Math.max(0, ...m.stages.map((s) => s.expectedWeek));
+	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
+	const nextText = next ? `Next: ${next.name}, due week ${next.dueWeek}${next.expectedWeek > next.dueWeek ? `, expected week ${next.expectedWeek}` : ""}` : null;
+	if (m.calc === "done") out.push({
+		key: "projection",
+		label: "Projection",
+		value: `Finished in week ${finish}`,
+		detail: finish > due ? `${plural(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
+		tone: finish > due ? "bad" : "good"
+	});
+	else if (stale) out.push({
+		key: "projection",
+		label: "Projection",
+		value: "Not projected",
+		detail: nextText ?? "The last check-in is too old to project from",
+		tone: "flat"
+	});
+	else out.push({
+		key: "projection",
+		label: "Projection",
+		value: finish > due ? `Finishes week ${finish}, ${plural(finish - due, "week")} late` : `Finishes by week ${due}`,
+		detail: nextText,
+		tone: finish > due ? "bad" : "good"
+	});
+	return out;
+}
+// src/domain/scorecard.ts
+init_numbers();
+init_format();
+init_plan();
+init_status();
+init_vocabulary();
+var LIKELIHOOD_WORD = {
+	likely: "Likely",
+	possible: "Possible",
+	unlikely: "Unlikely",
+	"very-unlikely": "Very unlikely"
+};
+/**
+* How likely a goal is to end on the right side of its mark (a target to reach, or a limit to stay within), from where
+* the mark sits against the projected range (plan.ts `projection`: the likeliest value and a range around it). Worked in
+* "better" terms, so it reads the same whichever way is good. With h half the range's width (never less than `floor`,
+* so a clean trend with no spread still has a little doubt), and d how far the mark sits beyond the likeliest value
+* towards better, in units of h:
+*   d ≤ −0.5      Likely: the mark sits comfortably on the near side of the likeliest value, or below the whole range;
+*   −0.5 < d ≤ 1  Possible: the mark is close to the likeliest value, or inside the range on its better side;
+*   1 < d ≤ 2     Unlikely: the mark is beyond the range, but within half a range's width of it;
+*   d > 2         Very unlikely.
+* Words, never a percentage: the range is a rough guide, not odds.
+*/
+function likelihood(mark, p, better, floor = 0) {
+	const half = Math.max(Math.abs(p.high - p.low) / 2, floor, 1e-9);
+	const d = (mark - p.value) * better / half;
+	if (d <= -.5) return "likely";
+	if (d <= 1) return "possible";
+	if (d <= 2) return "unlikely";
+	return "very-unlikely";
+}
+/** The least half-width the likelihood allows: 2% of the planned change, or half the goal's last decimal place. */
+var likelihoodFloor = (span, decimals) => Math.max(Math.abs(span) * .02, 10 ** -decimals / 2);
+var round = (v, d) => Number(v.toFixed(d));
+/** An amount in the goal's units, "1 hour" not "1 hours": "9 hours", "0.4 days", "3 pts". A unit of two letters is
+*  left alone: "1 ms", never "1 m" (backlog 0u). */
+function amount(v, g) {
+	const n = fixed(Math.abs(v), g.decimals);
+	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
+	if (!g.unit) return n;
+	return `${n} ${Number(n) === 1 && /^[a-z][a-z-]*[^s]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
+}
+/** The same, as short as the chart needs: "9", "0.4", "3 pts". */
+var bare = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
+/** A value as short as the chart needs: "37", "83%". */
+var bareValue = (v, g) => fixed(v, g.decimals) + (g.unit === "%" ? "%" : "");
+/** The target or limit as the question says it: "24", "80%", "0.10%". */
+var markWord = (v, g) => bareValue(v, g);
+/** "by year end", "by cycle end", "by week 40". */
+function byWeekWords(cycle, due) {
+	return due >= cycle.weeks ? cycle.weeks >= 48 ? "by year end" : "by cycle end" : `by week ${due}`;
+}
+/** Vs last week: the latest check-in against the one before it with a number (summaryFacts' "since"). */
+function sinceCell(goal, cycle, checkIns, week, stale, better) {
+	const f = summaryFacts(goal, cycle, checkIns, week, stale).facts.find((x) => x.key === "since");
+	const label = stale ? "Last change" : "Vs last week";
+	if (!f) return {
+		key: "since",
+		label,
+		value: LABEL.none,
+		sub: "nothing to compare",
+		tone: "flat"
+	};
+	if (f.delta == null || !f.from) return {
+		key: "since",
+		label,
+		value: f.value,
+		sub: f.value === "First check-in" ? "nothing to compare yet" : "no number to compare",
+		tone: "flat"
+	};
+	const was = `was ${fmt(f.from.value, goal)} in week ${f.from.week}`;
+	if (f.delta === 0) return {
+		key: "since",
+		label,
+		value: "No change",
+		sub: was,
+		tone: "flat"
+	};
+	const good = f.delta * better > 0;
+	return {
+		key: "since",
+		label,
+		value: `${amount(f.delta, goal)} ${good ? "better" : "worse"}`,
+		sub: was,
+		tone: good ? "good" : "bad",
+		move: f.delta > 0 ? "up" : "down"
+	};
+}
+function metricCard(goal, cycle, checkIns, week, stale) {
+	const a = assessPosted(goal, cycle, checkIns, week);
+	if (a.kind !== "metric") return {
+		cells: [],
+		gap: null,
+		marks: null
+	};
+	const better = goal.plan.target >= goal.plan.start ? 1 : -1;
+	const target = goal.plan.target;
+	const due = planEnd(goal.plan, cycle.weeks);
+	const cells = [];
+	let gap = null;
+	let now = null;
+	if (a.actual == null) cells.push({
+		key: "plan",
+		label: "Vs plan",
+		value: NO_VALUE$1,
+		sub: `plan ${fmt(a.plan, goal)}`,
+		tone: "flat"
+	});
+	else {
+		const diff = round((a.actual - a.plan) * better, goal.decimals);
+		const value = gapPhrase(diff, amount(diff, goal));
+		const tone = diff === 0 ? "flat" : diff > 0 ? "good" : "bad";
+		cells.push({
+			key: "plan",
+			label: "Vs plan",
+			value,
+			sub: `plan ${fmt(a.plan, goal)}${a.week < week ? ` in week ${a.week}` : ""}`,
+			tone
+		});
+		gap = value;
+		now = {
+			week: a.week,
+			actual: a.actual,
+			plan: a.plan,
+			text: value,
+			tone
+		};
+	}
+	cells.push(sinceCell(goal, cycle, checkIns, week, stale, better));
+	const by = due !== cycle.weeks ? ` by week ${due}` : "";
+	if (a.actual == null) cells.push({
+		key: "target",
+		label: "To target",
+		value: NO_VALUE$1,
+		sub: `target ${fmt(target, goal)}${by}`,
+		tone: "flat"
+	});
+	else {
+		const left = round((target - a.actual) * better, goal.decimals);
+		cells.push({
+			key: "target",
+			label: "To target",
+			value: left <= 0 ? GAP.reached.label : `${amount(left, goal)} ${better < 0 ? shortWord(better) : "to go"}`,
+			sub: `target ${fmt(target, goal)}${by}`,
+			tone: left <= 0 ? "good" : "flat"
+		});
+	}
+	const label = `Will it hit ${markWord(target, goal)}?`;
+	let end = null;
+	if (stale) cells.push({
+		key: "hit",
+		label,
+		value: "Can’t say",
+		sub: `${lower(STATUS.stale)} to go on`,
+		tone: "flat"
+	});
+	else if (!a.projection) cells.push({
+		key: "hit",
+		label,
+		value: "Too early to say",
+		sub: "needs three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const p = a.projection;
+		const l = likelihood(target, p, better, likelihoodFloor(goal.plan.target - goal.plan.start, goal.decimals));
+		const tone = l === "likely" ? "good" : l === "possible" ? "flat" : "bad";
+		cells.push({
+			key: "hit",
+			label,
+			value: LIKELIHOOD_WORD[l],
+			sub: `likely ${fmt(p.value, goal)} ${byWeekWords(cycle, due)}`,
+			tone,
+			likelihood: l
+		});
+		const short = round((target - p.value) * better, goal.decimals);
+		end = {
+			week: a.projection.week,
+			likely: p.value,
+			target,
+			likelyText: `likely ${bareValue(p.value, goal)}`,
+			gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : "on course",
+			tone: short > 0 ? "bad" : "good"
+		};
+	}
+	return {
+		cells,
+		gap,
+		marks: {
+			now,
+			end
+		}
+	};
+}
+function rangeCard(goal, cycle, checkIns, week, stale) {
+	const a = assessPosted(goal, cycle, checkIns, week);
+	if (a.kind !== "range") return {
+		cells: [],
+		gap: null,
+		marks: null
+	};
+	const { bound, limit, margin } = goal.range;
+	const better = bound === "atLeast" ? 1 : -1;
+	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	const cells = [];
+	let gap = null;
+	if (a.actual == null) {
+		cells.push({
+			key: "limit",
+			label: "Vs the limit",
+			value: NO_VALUE$1,
+			sub: `must stay ${lim}`,
+			tone: "flat"
+		});
+		cells.push({
+			key: "room",
+			label: "Room to the limit",
+			value: NO_VALUE$1,
+			sub: `warning within ${amount(margin, goal)}`,
+			tone: "flat"
+		});
+	} else {
+		const room = round((limit - a.actual) * -better, goal.decimals);
+		cells.push({
+			key: "limit",
+			label: "Vs the limit",
+			value: a.out ? "Outside it" : a.near ? "Inside, near it" : "Inside it",
+			sub: `must stay ${lim}`,
+			tone: a.out ? "bad" : a.near ? "flat" : "good"
+		});
+		const over = bound === "atMost" ? "over" : "under";
+		cells.push({
+			key: "room",
+			label: "Room to the limit",
+			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
+			sub: `warning within ${amount(margin, goal)}`,
+			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+		});
+		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
+	}
+	cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
+	const label = a.out ? "Back within by the end?" : "Will it stay within?";
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const pr = stale ? null : projectionFor(goal, valueSeries(own), cycle.weeks);
+	if (stale) cells.push({
+		key: "hit",
+		label,
+		value: "Can’t say",
+		sub: `${lower(STATUS.stale)} to go on`,
+		tone: "flat"
+	});
+	else if (!pr) cells.push({
+		key: "hit",
+		label,
+		value: "Too early to say",
+		sub: "needs three weeks of numbers",
+		tone: "flat"
+	});
+	else {
+		const stay = likelihood(limit, {
+			value: pr.value,
+			low: pr.low,
+			high: pr.high
+		}, better, likelihoodFloor(margin || limit * .1, goal.decimals));
+		cells.push({
+			key: "hit",
+			label,
+			value: LIKELIHOOD_WORD[stay],
+			sub: `likely ${fmt(pr.value, goal)} ${byWeekWords(cycle, cycle.weeks)}`,
+			tone: stay === "likely" ? "good" : stay === "possible" ? "flat" : "bad",
+			likelihood: stay
+		});
+	}
+	return {
+		cells,
+		gap,
+		marks: null
+	};
+}
+function milestoneCard(goal, checkIns, week) {
+	const own = checkInsFor(goal, checkIns).filter((c) => c.week <= week);
+	const m = assessMilestone(goal, week, own[own.length - 1]?.stages ?? null);
+	const n = m.stages.length;
+	const late = m.stages.filter((s) => s.kind !== "done" && s.weeksLate > 0);
+	const most = Math.max(0, ...late.map((s) => s.weeksLate));
+	const next = m.stages.filter((s) => s.kind !== "done").sort((x, y) => x.dueWeek - y.dueWeek)[0];
+	const lastDone = Math.max(0, ...m.stages.map((s) => s.doneWeek ?? 0));
+	return {
+		cells: [
+			{
+				key: "done",
+				label: "Stages done",
+				value: `${m.doneCount} of ${n}`,
+				sub: `${m.dueCount} due by week ${week}`,
+				tone: m.doneCount >= m.dueCount ? "good" : "flat"
+			},
+			{
+				key: "late",
+				label: "Stages behind",
+				value: late.length ? String(late.length) : "None",
+				sub: late.length ? `${stagesBehind(late.map((s) => s.kind)).replace(/^\d+ stages?:? ?/, "")}, up to ${most} ${most === 1 ? "week" : "weeks"}` : lower(STAGE.planned),
+				tone: late.length ? "bad" : "good"
+			},
+			next ? {
+				key: "next",
+				label: "Next stage",
+				value: `Week ${Math.max(next.dueWeek, next.expectedWeek)}`,
+				sub: `${next.name}${next.expectedWeek > next.dueWeek ? `, due week ${next.dueWeek}` : ""}`,
+				tone: next.expectedWeek > next.dueWeek ? "bad" : "flat"
+			} : {
+				key: "next",
+				label: "Next stage",
+				value: "All done",
+				sub: `last done in week ${lastDone}`,
+				tone: "good"
+			}
+		],
+		gap: m.calc === "done" ? GAP.reached.label : stagesBehind(late.map((s) => s.kind)),
+		marks: null
+	};
+}
+/** A goal's scorecard from its check-ins up to `week`. `stale` when its status can't be trusted, so nothing is projected.
+A stopped goal makes no forecast: its card says how it stood (no "will it hit?" cell and no likely end on the
+chart), and the note under it says when and why it stopped. */
+function goalScorecard(goal, cycle, checkIns, week, stale) {
+	const card = goal.kind === "metric" ? metricCard(goal, cycle, checkIns, week, stale) : goal.kind === "range" ? rangeCard(goal, cycle, checkIns, week, stale) : milestoneCard(goal, checkIns, week);
+	const done = doneCheckIn(goal, checkIns, week);
+	if (!goal.stoppedAt && !done) return card;
+	const cells = card.cells.filter((c) => c.key !== "hit");
+	if (done && goal.kind !== "milestone") cells.push({
+		key: "result",
+		label: "Result",
+		value: STATUS.done.label,
+		sub: `${done.value != null ? fmt(done.value, goal) + " " : ""}in week ${done.week}`,
+		tone: "good"
+	});
+	return {
+		...card,
+		cells,
+		marks: card.marks && {
+			...card.marks,
+			end: null
+		}
+	};
 }
 // src/domain/activity.ts
 init_levels();
@@ -21922,12 +21721,178 @@ var REMOVE_TOOLS = [
 		}
 	}
 ];
+// src/modules/metrics/rulesLibrary.ts
+init_find();
+init_numbers();
+init_status();
+init_rules();
+var DAY = 864e5;
+/** "lower is better", as a row and a search read it. */
+var directionWords = (d) => d === "lower" ? "lower is better" : "higher is better";
+/** Decimals in words (spec 2.2): "whole numbers", "to 1 decimal place", "to 2 decimal places". */
+var decimalsWords = (d) => d === 0 ? "whole numbers" : `to ${placesText(d)}`;
+/** A metric's part of an address: its id without "metric_" (the demo's are slugs, "lead-time"); any other id as it is. */
+var metricSlug = (id) => id.replace(/^metric_/, "");
+/** A metric's page. */
+var metricPath = (m) => `/metrics/${encodeURIComponent(metricSlug(m.id))}`;
+/** A metric's links in force: not unlinked, to a live goal in the running cycle. */
+var liveLinks = (r, metricId) => r.links.filter((l) => l.metricId === metricId && !l.removedAt && r.goalIds.has(l.goalId));
+/**
+* Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
+* that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
+* button that opens the form at that field, or Goals in its unit.
+*/
+function metricNeeds(m, r) {
+	const out = [];
+	const edit = (field) => `${metricPath(m)}/edit?field=${field}`;
+	const owner = r.people.find((p) => p.id === m.ownerId);
+	if (!owner || owner.leftAt) out.push({
+		id: "no-owner",
+		sentence: owner ? "Its owner has left" : "It has no owner",
+		button: "Choose an owner",
+		to: edit("owner")
+	});
+	if (!m.meaning.trim()) out.push({
+		id: "no-meaning",
+		sentence: "No meaning yet",
+		button: "Say what it means",
+		to: edit("meaning")
+	});
+	if (!m.source.trim()) out.push({
+		id: "no-source",
+		sentence: "No source named",
+		button: "Say where the number comes from",
+		to: edit("source")
+	});
+	if (Date.parse(r.now) - Date.parse(m.createdAt) > 14 * DAY && !liveLinks(r, m.id).length) out.push({
+		id: "unused",
+		sentence: "No goal uses it",
+		button: `See goals in ${m.unit}`,
+		to: `/goals?scope=all&q=${encodeURIComponent(m.unit)}`
+	});
+	return out;
+}
+/**
+* Rule 1. The metrics that match, a page at a time. Removed metrics are never listed. A search matches the name, the
+* unit, "lower is better" or "higher is better", the owner's name, the meaning and the source, word by word as every
+* list does (find rule 1). A team keeps the metrics a live goal is measured by for it ("company": for the whole
+* company); "unused" those no live goal uses; "sort out" those rule 3 says need something (for anyone: it's the same
+* filter for everyone). Sorted A to Z ignoring case and accents, by most goals first, or by the latest change first.
+*/
+function findMetrics(r, ask = {}) {
+	const size = ask.size ?? 50;
+	const rows = r.metrics.filter((m) => !m.removedAt).map((m) => {
+		const links = liveLinks(r, m.id);
+		return {
+			metric: m,
+			owner: ownerName(r.people, m),
+			goalIds: links.map((l) => l.goalId),
+			needs: metricNeeds(m, r),
+			links
+		};
+	}).filter(({ metric: m, owner, links, needs }) => {
+		if (ask.q?.trim() && !textMatches([
+			m.name,
+			m.unit,
+			directionWords(m.direction),
+			owner ?? "",
+			m.meaning,
+			m.source
+		].join(" "), ask.q)) return false;
+		if (ask.unit && fold$2(m.unit) !== fold$2(ask.unit)) return false;
+		if (ask.teamId && !links.some((l) => ask.teamId === "company" ? l.teamId == null : l.teamId === ask.teamId)) return false;
+		if (ask.ownerId && m.ownerId !== ask.ownerId) return false;
+		if (ask.dir && m.direction !== ask.dir) return false;
+		if (ask.unused && links.length) return false;
+		if (ask.sortout && !needs.length) return false;
+		return true;
+	}).map(({ links: _, ...row }) => row);
+	const byName = (a, b) => fold$2(a.metric.name).localeCompare(fold$2(b.metric.name));
+	rows.sort(ask.sort === "goals" ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b) : ask.sort === "changed" ? (a, b) => b.metric.updatedAt.localeCompare(a.metric.updatedAt) || byName(a, b) : byName);
+	const pages = Math.max(1, Math.ceil(rows.length / size));
+	const page = Math.min(Math.max(1, Math.floor(ask.page ?? 1)), pages);
+	const from = rows.length ? (page - 1) * size + 1 : 0;
+	const to = Math.min(rows.length, page * size);
+	return {
+		total: rows.length,
+		page,
+		pages,
+		from,
+		to,
+		rows: rows.slice(from ? from - 1 : 0, to)
+	};
+}
+/**
+* Rule 2. Every goal a metric measures now, one row per link in force to a live goal of the running cycle, worst
+* status first, then by slice name, then title. Each row is the goal's own summary (domain/summary), with its slice.
+*/
+function metricGoals(metricId, links, goals, teams, cycle) {
+	const byGoal = new Map(goals.filter((s) => !s.goal.stoppedAt).map((s) => [s.goal.id, s]));
+	const rows = [];
+	for (const l of links) {
+		const s = l.metricId === metricId && !l.removedAt ? byGoal.get(l.goalId) : void 0;
+		if (!s) continue;
+		const slice = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? "A removed team";
+		rows.push({
+			goal: s.goal,
+			status: s.status,
+			slice,
+			now: s.now,
+			nowValue: s.nowValue,
+			target: `${s.target} ${byWeekWords(cycle, s.dueWeek)}`,
+			vsPlan: s.gap,
+			owner: s.owner
+		});
+	}
+	return rows.sort((a, b) => RANK[b.status] - RANK[a.status] || a.slice.localeCompare(b.slice) || a.goal.title.localeCompare(b.goal.title));
+}
+/**
+* Rule 2's line under the table: "Lowest now: Build & Release, 4 min. Highest: CI/CD, 7 min." when two or more rows
+* have a value in the same unit and decimals; otherwise null. A row with no value yet is left out.
+*/
+function summaryLine(rows) {
+	const valued = rows.filter((r) => r.nowValue != null && r.goal.kind !== "milestone");
+	if (valued.length < 2) return null;
+	const shape = (r) => r.goal.kind === "milestone" ? "" : `${fold$2(r.goal.unit)}|${r.goal.decimals}`;
+	if (new Set(valued.map(shape)).size > 1) return null;
+	const sorted = [...valued].sort((a, b) => a.nowValue - b.nowValue || a.slice.localeCompare(b.slice));
+	const lo = sorted[0], hi = sorted[sorted.length - 1];
+	const who = (r) => lo.slice === hi.slice ? r.goal.title : r.slice;
+	return `Lowest now: ${who(lo)}, ${lo.now}. Highest: ${who(hi)}, ${hi.now}.`;
+}
+/** A metric's goals by status, worst first, only the statuses it has: what a library row says ("1 off track · 2 on track"). */
+function goalsByStatus(statuses) {
+	const n = /* @__PURE__ */ new Map();
+	for (const s of statuses) n.set(s, (n.get(s) ?? 0) + 1);
+	return [...n.entries()].map(([status, k]) => ({
+		status,
+		n: k
+	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
+}
+// src/modules/metrics/reads.ts
+init_rules();
+/** The running cycle's live goals: not removed, not stopped. */
+var liveGoals = (s) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
+/** Rule 1's and rule 3's rows: every metric and link, the cycle's live goal ids, the people, and now. */
+function libraryReads(s, now) {
+	return {
+		metrics: metricsOf(s),
+		links: linksOf(s),
+		goalIds: new Set(liveGoals(s).map((g) => g.id)),
+		people: s.people,
+		now
+	};
+}
+/** Rule 2 for one metric: its goals' summary rows (domain/summary), side by side. */
+function goalsOfMetric(s, cycle, today, week, metricId) {
+	const links = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt);
+	const ids = new Set(links.map((l) => l.goalId));
+	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
+}
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
 init_rules();
-init_rulesLibrary();
-init_reads();
 init_status();
 init_vocabulary();
 init_changeset();
@@ -22453,7 +22418,6 @@ init_actions();
 init_query();
 init_changeset();
 init_columns();
-init_scorecard();
 init_status();
 init_attention();
 init_vocabulary();
@@ -23244,6 +23208,7 @@ var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
 module's own (the spreadsheets module's export and export_table). */
+addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,

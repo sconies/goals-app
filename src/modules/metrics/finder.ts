@@ -9,6 +9,7 @@ import type { Finder } from '../../adapters/localSearch';
 import { moduleRows } from '../../domain/records';
 import type { Snapshot } from '../../domain/types';
 import type { Metric, MetricLink } from './types';
+import RECORDS from './records';
 
 const rows = (s: Snapshot) => ({ metrics: moduleRows<Metric>(s, 'metrics', 'metrics'), links: moduleRows<MetricLink>(s, 'metrics', 'metricLinks') });
 
@@ -34,10 +35,8 @@ export const metricFinder: ModuleFinder = {
 /** Goals' "Measured by": a goal's column is the metric its live link names. */
 export const measuredByFilter: ModuleFilter = {
   list: 'goals', id: 'metric', label: 'Measured by', param: 'metric', column: 'metricId', pick: 'metric',
-  fill(s) {
-    const by = new Map(rows(s).links.filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
-    return (g) => by.get(g.id) ?? null;
-  },
+  // The column the module's records declare (records.ts goalColumns), so the app and find_goals fill it the same way.
+  fill: RECORDS.goalColumns![0]!.fill,
   says(s, value) {
     const m = rows(s).metrics.find((x) => x.id === value || slug(x.id) === value);
     return m?.name ?? null;

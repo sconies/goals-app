@@ -15,7 +15,6 @@ import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { LINKS_KEY, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
-import { measuredByFilter } from './finder';
 import type { Metric, MetricLink } from './types';
 
 /* ---------- rows each way (the Supabase and Postgres adapters write and read these) ---------- */
@@ -93,7 +92,8 @@ const goalMetric: RecordDef<MetricLink> = {
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [METRICS_SHEET],
-  // Goals' "Measured by" (?metric=): the same column the app's filter fills (finder.ts), for find_goals.
-  goalColumns: [{ param: measuredByFilter.param, fill: measuredByFilter.fill }],
+  // Goals' "Measured by" (?metric=): a goal's column is the metric its live link names. The app's filter (finder.ts)
+  // and find_goals both read it.
+  goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;
