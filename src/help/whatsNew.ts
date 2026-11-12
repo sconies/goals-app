@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'new-goal-fixes',
+    date: '2026-11-12',
+    title: 'New goal: two fixes',
+    points: [
+      'Change an answer on Check that a later step no longer fits (a number goal turned into dated stages) and Continue now takes you to that step and says what it needs, instead of doing nothing.',
+      'On a phone, New goal fills the screen again: the tab bar no longer sits over Back and Continue.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'smaller-first-download',
     date: '2026-11-12',
     title: 'Faro opens faster',
