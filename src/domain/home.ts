@@ -41,7 +41,7 @@ export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: nu
 }
 
 /** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
-export function nextReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview[] {
+export function nextReviews(personId: string, s: Pick<Snapshot, 'reviews'>, cycle: Cycle, week: number, today: Date): NextReview[] {
   return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const w = upcomingSessionWeek(r, cycle, week, today);
     const date = sessionDate(r, cycle, w);
