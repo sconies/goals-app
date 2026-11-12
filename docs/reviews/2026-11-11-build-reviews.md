@@ -85,6 +85,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #207 Goal menu: no "Check in for" the owner | polish | 0 | 0 | 0 |
 | #209 Map: "Drawing the map…" only after 300 ms | polish | 0 | 0 | 0 |
 | #193 AX5, first part: the query port and its contract | 4 | 0 | 4 | 5 |
+| #213 Board and Table drawn in place after a layout switch | polish | 0 | 0 | 0 |
+| #221 GE10 migration 0041: proposed_at and proposed_by | 2 | 0 | 0 | 0 |
+| #216 KT1: the handoff kit's small errors | planning | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -940,3 +943,15 @@ Read first by a separate reviewing session, with throwaway tests, a production b
 - No eval or journey came with the change, and the contract's cases are written out by the adapter they test (read).
 
 **Checked and fine.** Home's counts for all 97 people. Stopped, removed and last-year goals are not listed. With the engine delayed by 7 s, Quick check-in, Data, People, bulk edit and Import show "Opening…" and then draw; a save started before it arrives waits, saves once and loses nothing. The unread dot, Home's news line and all 131 releases on What's new. A build measures 263 KB against 265, with the engine in its own chunk. The layers lint and all 1,319 unit tests pass.
+
+### #213 Board and Table drawn in place after a layout switch (polish, merged 17:11 UTC, 12 Nov)
+
+The row-motion layer keyed a row by the goal it links to, so a switch of layout slid every row from where the old layout had it. A row's key now starts with its kind (`src/ui/motion.ts`), with a new eval that fails on the old code and an F5 check. Read. No finding.
+
+### #221 GE10 migration 0041: proposed_at and proposed_by (track 2, merged 17:13 UTC, 12 Nov)
+
+Two nullable columns on `faro.okr_goals`, one merge ahead of the code that writes them. `add column if not exists`; the check constraint is dropped and added again, so it is safe to run twice; nothing outside `faro`; the column grants go to `anon` only, as the schema's other grants do, and widen nothing. The constraint keeps proposed and stopped apart and a proposer only with a time. Read in full. No finding.
+
+### #216 KT1: the handoff kit's small errors (merged 17:37 UTC, 12 Nov)
+
+Changes to the spec's generator (`src/spec/`) and its tests, from the handoff-kit review. One rule changes with it: the "Room to the limit" cell is now toned by the same near and out tests as "Vs the limit" (`src/domain/scorecard.ts`), so the two agree when the room equals the margin. Two type comments now say what is stored. Read; the generated pages were not compared line by line. No finding.
