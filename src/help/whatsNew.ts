@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'export-one-button',
+    date: '2026-11-12',
+    title: 'Export is one button',
+    points: [
+      'Excel by default; other formats one click away.',
+      'File names say what’s in them: all, the view’s name, or as-shown.',
+      'On Data, Export and Import sit side by side. Past imports and the template are on the Import page.',
+    ],
+    articles: ['export', 'data'],
+  },
+  {
     id: 'import-headers-steadier',
     date: '2026-11-12',
     title: 'Import reads your headers more carefully',

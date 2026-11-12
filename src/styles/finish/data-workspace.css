@@ -181,13 +181,14 @@
 .check.admin-check > input { flex: 0 0 auto; align-self: flex-start; margin-top: 2px; }
 .admin-word { font-size: 0.875rem; line-height: 1.25rem; font-weight: 600; color: var(--fg); }
 
-/* [W22] Export: a 520px sheet; each format's words take the room, its buttons a column of their own; the footnote
-   stays at the foot, with a line above it while the sheet scrolls. */
-.sheet:has(.export-list) { width: min(520px, 100%); }
+/* [W22] Export: a 520px sheet; under Other formats each format's words take the room, its buttons a column of their own.
+   The primary and the file's name stay at the foot (.sheet-foot). */
+.sheet:has(.export-foot) { width: min(520px, 100%); }
 .export-list .opt.static { grid-template-columns: minmax(0, 1fr) minmax(112px, auto); gap: var(--s4); }
 @media (max-width: 640px) { .export-list .opt.static { grid-template-columns: minmax(0, 1fr); gap: var(--s3); } }
-.export-note { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4) var(--s4); background: var(--surface); border-top: 1px solid transparent; }
-.export-note.scrolls { border-top-color: var(--line); }
+.export-foot { flex-direction: column; align-items: flex-start; }
+.export-note { margin: 0; overflow-wrap: anywhere; }
+.export-file { color: var(--fg-2); }
 
 /* ===================================================================================================================
    Setting up a workspace

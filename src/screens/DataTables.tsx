@@ -182,7 +182,7 @@ export function DataTables() {
     return { rows: t.rows, muted: t.muted, scope: activeView?.name ?? '' };
   };
 
-  // The Saved layouts and Spreadsheets menus open on whichever side of their button has room.
+  // The Saved layouts and Export menus open on whichever side of their button has room.
   const toolsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = toolsRef.current;
