@@ -49,7 +49,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U95 | The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template | `evals/journeys.cjs` |
 | U96 | Leave a row out and save the rest: as Amara, a file with one goal that has no owner offers “Leave this row out and save the rest”; the sheet names the row and why; left out, the focus goes to Save, the rest saves, and Imported says 1 row was left out and offers it as a download | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
-| F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
+| F8 | Fit and finish, sheets | `evals/finish/8-sheets.cjs` |
 | F17 | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
 

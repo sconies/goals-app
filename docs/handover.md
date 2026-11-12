@@ -18,6 +18,18 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
+## Track 1 (Home, reviews, the check-in), Thursday 12 November, evening (session past half, handing over)
+
+Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this session:
+
+- **HM1 (#169)**: main merged in three times (AX5's query port: Home's own goals and its counts now come through `useGoalList`/`useDashboard`; last year's wrap-up while it stays open, `wrapUpScope`, now reaches `homeFacts` through `opts.wrap`, and the wrap-up lead names that year, `wrap.name`). `home.csv` sits beside `goals.csv`, `import.csv` and `readback.csv` in the conformance data; the drill scores 100%. Full local suite: 177/177 requirements; the only red was **U4 (8.9, "publishing is not confirmed"), which fails the same way on main** since "Publishing a goal says one thing": not HM1's, needs an owner.
+- **Item 2, Correct this check-in (branch `checkin-correct`)**: the receipt's link is `/check-in/<goal>?correct=1`; the form asks "Why are you changing it?" (Must fix under `MIN_CORRECT_REASON`, which now lives in `domain/checkin.ts` and is re-exported by `changeset.ts`, so the form doesn't pull the lazy engine in); `state.postCheckIn(goal, draft, mode, reason)` posts mode `correct`, then opens the goal with the toast "Week n corrected: a is now b." and Undo (`undoImport`, a correction being an import of one). Journey **U142** (U138 to U140 left free: another track jumped to U141). Needs `npm run build:mcp` in the main checkout before merging (checkin.ts and changeset.ts changed).
+- **Item 3, the ungated branches, rebuilt from main** as `fs2-gated`, `ck2-gated`, `find-goals-scope-gated`, `gl2-gated`, `nv2-gated` (pushed; typecheck and unit tests pass on each; evals not yet run; no PRs yet). The original `gl2-map-fixes` and `nv2-fixes` commits had swept in a stale tree (about 2,600 lines reverting main): only the intended files were re-applied. On the way: GL2's `sortOff` moved into `GoalFilterSheet.tsx` (main made the sheet lazy); NV2 keeps main's Goal edit (it already closes with FormClose), puts FormClose on New goal, keeps `articleRef` (light) in BackLink and `PageHelp` from `ui/HelpLinks`, and the walk's tab storage goes through `readWalk`/`writeWalk` so CheckInFlow stays at 6 storage uses; CK2's `previewChanges` takes `posts` as a seventh argument. `find-goals-scope-gated` changes `src/mcp/tools.ts`: run `build:mcp` in the main checkout. Each still needs `evals:changed`, a draft PR, CI and merge, one at a time (they touch Goals, the check-in and Find; merge main into each first).
+
+**Next, in the brief's order:** #171 (U9, U111, U23; rebase on main after HM1), item 2's PR, the five branches, FS1's mediums (the picker clipped in sheets and Data's table: `.pick-panel` in a portal; set-up's two people of one name, `Onboarding.tsx`; people who have left are never found, `app/search.ts`), RV7 and HM2 (`rv7-who-may-speak`, `hm2-asks-wait`: both stale against main, re-apply their intended files as above), the habit moment (evaluation `docs/reviews/2026-11-12-muse-product-evaluation.md` item 12 and decision 4; backlog L (3); round 3's CF4; measure "% of goals checked in before the review, without a nudge"; calm, no confetti or emoji), then N12's Find timing and #110's lows.
+
+**Habits:** a worktree per branch (`git worktree add`, `ln -s` the main checkout's `node_modules`); `build:mcp` and merges of main only in the main checkout; take What's new from main and put the branch's entry back on top, dated today (`guide.test` wants newest first). Main moves every half hour: re-check `mergeable_state` before merging. U42 and U20 time out under four-shard load and pass alone.
+
 ## Planning state, Wednesday 11 November, 14:10 UTC
 
 - **There was no talk; the freeze is lifted.** Lane (11 Nov): "Do all the recommended work." Tracks merge their own green PRs (CLAUDE.md's gate); migrations carry their SQL in the PR. Nothing waits for Thursday any more.
@@ -99,6 +111,44 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Thursday 12 November, midday (session past half full, handing over)
+
+- **Merged:** #183, the offline fix from #167's build review. Offline, a page that loads when opened (Help, say) no longer reloads into the browser's error page:
+  - `reloadOnce` in `src/telemetry/staleCode.ts` does nothing while `navigator.onLine` is false;
+  - the error boundary in `src/telemetry/react.tsx` says "This page needs a connection", with Try again and Go back;
+  - N8 has a browser case for it.
+
+  #183 also fixed #167's two lows: `PageWait` in `src/ui/bits.tsx` shows "Opening…" on a slow load, and `evals/touches.cjs` now maps `vite.helpIndex.ts`.
+- **Open, should be merged by the time you read this:** #190, the first download. It went from 369 to 288 KB, and the real app's from 428 to 346 KB. The budgets are now 292 and 350 KB (`scripts/check-bundle.mjs`), and R4's AX4 sentence is corrected. If #190 is still open, finish it first: merge main in, check CI is green, then merge.
+  - **How:** every page but Home is `React.lazy` in `src/App.tsx`. The spreadsheets module's Import and Data menu load when first shown. "Export these goals" is now a light `ExportButton.tsx` whose sheet loads on click.
+  - **Two traps it hit, worth knowing for any new lazy page:**
+    - While a page is on its way, `PageWait` holds `min-height: 100vh` and hides `.page-help`. Otherwise the footer jumps when the page lands, and N6 fails at a 0.037 layout shift.
+    - The goal map measures again on `animationend`. Otherwise it measures mid-slide and ends 6 px short (F6).
+  - **The eval helpers:** the `settled` helpers in `evals/journeys.cjs` and in N6 ignore `[data-page-wait]`, and P7 waits for `settled` rather than a fixed time.
+  - **What's left in the entry (raw, before gzip):** react-dom 202 KB, `domain/changeset` 52, react-router 38, `domain/columns` 29, removal 23, vocabulary 21, actions 21, Home 20, Shell 19. The next cut is the change engine: `app/actions` imports `planChanges` statically. To see what is in the entry: build with `--sourcemap`, then attribute bytes per source with `source-map-js`.
+- **Next, in order:**
+  1. **AX5, the query port.** It is unblocked: AS part 2 (#139) merged. It's the one M to L item. The brief is `docs/reviews/2026-11-11-architecture-readiness.md`, finding 4 and the AX5 row:
+     - `goals()`, `counts()` and `goal()` in `src/ports`, answered in the browser the way `Search` is (`src/ports/search.ts`, `src/adapters/localSearch.ts`);
+     - a contract covering the four checks in `spec/rebuild/ports-at-scale.md`, with its cases written into `spec/conformance/`;
+     - Home and Goals read through it;
+     - the load takes only the current cycle's check-ins and recent changes;
+     - `Store` moves to `src/ports`.
+
+     Consider splitting it into two PRs: the port and its contract, then the narrower load.
+  2. FT2, then FT1, SW1 and SW2.
+  3. **AX2, now unblocked:** track 2's GE1 (#186) merged, and `saveGoal` goes through `app.run` with `planGoal`. Two parts are left for AX2:
+     - a test that nothing on `AppState` reaches `commit` except through `run`;
+     - `applyChanges` sends its input again with `apply`.
+
+     Check that `postCheckIn` is in the action table too.
+  4. AX6.
+- **Still left from the reviews:** the workspace switcher on the "can't open … yet" page (`CantOpenYet` in `src/screens/Start.tsx`).
+- **Watch items:**
+  - U20 and N6 still fail under local load during the full run and pass alone.
+  - Two traps around the MCP bundle and What's new:
+    - Any What's new entry changes `api/mcp.js`. Run `npm run build:mcp` (in a worktree, then `sed 's#^// \.\./goals-app/node_modules/#// node_modules/#' api/mcp.js`) before pushing, or Smoke fails.
+    - A new `.tsx` under a module counts as a screen: list it in the module's `help.ts` `screens` and in `src/mcp/parity.ts`.
+
 ## Track 4, Thursday 12 November, 00:20 UTC (session past half full, handing over)
 
 - **Merged tonight:**
@@ -139,6 +189,32 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
 - **The talk is Wednesday 11 Nov.** Present from `/demo?today=2026-11-11`; `docs/demo-script.md` was checked against the live demo at 18:15 UTC (Rhea 5 check-ins to do; Amara 126 goals, 20 to discuss; Goals tabs My team 1 · Watching 56 · All 126; Needs attention 41; About's wrap-up 21 Dec 2026). Dry run from `docs/live-build/checklist.md`; run the metric live build once, as main changed a lot today.
 - **0c is done:** Faro lives in the `faro` schema (0035–0037), owned by `faro_owner`, which can't read or write the family tables; CI's `DATABASE_URL` is `faro_owner` (tested by the Nightly workflow, 17:38 UTC). Exposed schemas include `faro`; `SUPABASE_SERVICE_ROLE_KEY` is gone from Vercel. Next: 0c2 (drop the public redirects) about a week on. Read `supabase/README.md` before any migration.
 - **The redesign (backlog RD, `docs/design/`) is being built in three tracks, each merging its own green PRs:** merged so far AR1/AR4, FS1, FS2 (part), AR2, GL1+NV1, AR3, GT1, GT2, GT3, WR1–WR4, OB3, plus fixes (#87–#107). **Held until Thursday 12 Nov** (after the live build): track 1 FS3, GL2, FS4 and FS2's GoalWizard/GoalEdit/Data pickers and list bars; track 2 OB2 (#103, green), OB1, GT3's edit page, goal sections into About; track 3 AS part 2, ML1–ML3, AS part 3, and #104's day-one rule taking only what it reads plus the AR4 lint gap. Track sessions: 1 session_012kbr8zbTuEu8jJZWUD4ENu, 2 session_012kbr8xYENVqYZuZ5Znt5Sq, 3 session_012kbr8z72rbVyFgvmF6P4e3.
+- **Track 1, Wednesday 11 November, late night (session past half, handing over):** merged #168 (U20/U58 Back). HM1 (#169) has main merged in (HomeNews moved to `src/ui/HelpLinks.tsx` on main; HM1's "New in Faro:" line is there now) and its full suite was running locally; merge it when that and CI are green.
+  - **#171** (open, gated): U9's budget (GT3's Watch sheet makes 7 steps), U111's `logged`, and U23's phone `entry` (it asked for the computer's title line). It and HM1 both touch U9: whichever merges second rebases.
+  - **Drafted and pushed, typecheck and unit tests passed, evals not yet run** (each its own PR once gated; run `npm test`, `npm run evals:changed`, then open a draft PR):
+    - `gl2-map-fixes`: GL2's Map findings 1, 2, 3 and 6 (`goneTo` in GoalMap, an emptied search flushes, the Filters sheet takes `sortOff`, `goals-phone.css` under 700px). Checks: MAP 2 in `6-map-reviews.cjs`, a 650/700 check in `5-list-board.cjs`.
+    - `nv2-fixes`: NV2 2–5 and NV3 1–3. `isForm` in `navigation.ts` is the one form rule (Shell and BackLink); FormClose on goal edit, New goal and the table; the back link reads `useViews`; Find has an `inline` mode for Page not found; `resumeWalk` in `checkin.ts`. U70, U71 and U72 gained steps: their budgets may need raising.
+    - `find-goals-scope`: #116 (the link's `scope=` in `find_goals`; Goals reads `scopeFacts` from `app/reads`). `api/mcp.js` rebuilt.
+    - `ck2-fixes`: CK2 1–3. The table posts through `previewChanges(…, posts)` so `Asked` is kept; `checkInLevels` uses `fmt`; the table's Must fix is a `MustFixBlock` (says the number once). F-check "numbers 5" in `2-forms-checkin.cjs` changed. Not done: a browser journey for the table's Check (the engine test covers it).
+    - `fs2-fixes`: FS2 1–2 (`wordsMatch` in `find.ts`; `applyTable` takes the shown columns). FS2 3, Data's Filters sheet, is backlog item FS2b.
+  - **Not started:** FS1's mediums (the picker clipped in sheets and Data's table: draw `.pick-panel` in a portal; set-up's two people of one name, `Onboarding.tsx:199`; people who have left are never found, since `app/search.ts` builds from the cycle-scoped snapshot). Then RV7 and HM2 (rebase on main after HM1), then N12's Find and Goals-list timing with #110's lows.
+- **Track 1, Wednesday 11 November, night (session past half, handing over):** CK2 (#160) merged. Open, with the local gate passed:
+  - **#168**, the Back fix for U20/U58: Goals rewrites its address only while still on `/goals`. Proven by a four-shard run: U20 and U58 pass, 167 of 168 requirements; P9 timed out under load and passes alone. Merge it first.
+  - **#169**, HM1. It has the full suite plus reruns of every failure; U9's step budget and U111's "logged" fail the same way on main. CI has been queued on GitHub since about 20:21 UTC.
+
+  Drafted and pushed, not yet gated (rebase each on main after #169):
+  - `rv7-who-may-speak` (RV7): `canSpeakFor`/`speakRefusal`/`joinLine` in `review.ts`, checked in `reviewCall`, `askQuestion` and `addAction` when a review is given; the join line replaces "Join this review"; N25 in its own notes file, 13-review-speak; `REVIEW-SPEAK`. Still to do: `npm test` (the generator calls `reviewCall` as the review's creator and as SAID's speakers, so check they are members), `npm run spec`, `build:mcp`, evals.
+  - `hm2-asks-wait` (HM2, stacked on HM1): `waiting`/`waitingOrder`/`askLead` and `homeAsks` in `reads.ts`; NeedsYou on rule 3; N26 gains Amara's Respond lead and Rhea's late question. Still to do: the same gate.
+
+  **Next, in the planning session's order:**
+  1. The build reviewer's mediums on #111–#117 and #116, grouped by screen (the planning session's message of 11 Nov, 21:36; the log is on `build-reviews`, draft #134). Add CK2's (#160) three:
+     - an answer given in the check-in table isn't kept in History;
+     - the Check's words use a second number formatter ("1 hours"): use the one formatter;
+     - `checkInLevels` returns only the number's Must fix, and the table draws Must fix as a hint.
+  2. Then RV7 and HM2.
+  3. Then N12's timing of Find and the Goals list, with #110's lows (listed in the next line).
+
+  Notes: Home's lead reads `homeFor` only. `.home-hero[data-lead]` is the lead's kind, or `none` for the quiet line. Evals at other dates use `/?today=…`, which `url()` keeps.
 - **Track 1, Wednesday 11 November, late evening (session past half, handing over):** merged CK1 (#156: the form posts through the engine, `postCheckIn` in `changeset.ts` with `new`/`again`/`correct`; `previousFor`, so a second check-in is compared with last week; K6's kept week). CK2 (#160: rules 2 and 3, `checkInLevels`/`unanswered`/`stepState`, the Check and Must fix blocks in `src/ui/Levels.tsx`, answers in History as `Asked`, journey U111) is open with the gate passed; merge it once CI is green. **Next for a fresh track-1 session:** HM1, HM2, RV7, then N12's "Find from anywhere" timing, in that order (`docs/design/home/spec.md` rules 1–3 and 11; `docs/design/reviews/spec.md` for RV7, decision 9 (a)). Notes: IM2 (#145, track 3) rewrites `changeset.ts` and adds an engine-side levels module; whichever of it and CK2 lands second reuses `src/ui/Levels.tsx` and rebases. Evals that type a number which raises a Check answer it with `answerChecks(p)` in `evals/journeys.cjs`. U20 and P9 time out under parallel load and pass alone; don't run two eval runs or vitest beside an eval run. `npm run evals` with `CHECKS=` (not `FINISH=`) runs a platform check alone.
 - **Track 1, Wednesday 11 November, evening (session full, handing over):** merged FS3 (#110), GL2 (#112), NV2 (#113), NV3 (#114), FS1's held pickers (#111), FS2's list bar on Data and Feedback (#115), FS4 / N12 at company size (#117); find_goals' scope (#116) is green and merging. `scripts/pickers-left.json` lists nothing outside Goals' filters, which GL2 moved. Loose ends closed: #91's lows (closed pickers and Find's "lately" ask the Search port by id, so `rowFor` is gone; the team lead first; the phone's full-height picker); Goals' browser title is "Goals" on every tab (NV2, navigation rule 2 says the scope is not in it). Fixed on the way: NV2's back link imported the Workspace screen and undid AX4's lazy load (first download back to 248 KB). **Left:** N12 doesn't yet time Find from anywhere (FS3 has landed, so it can join). **Next for a fresh track-1 session:** round 3's CK1, CK2, HM1, HM2, RV7, in the plan's order (`docs/design/round-3/README.md`, part 3; Lane chose (a) on every decision). Notes: evals read Goals' `.goals-line` and `.filter-line`; `navTo` in evals/journeys.cjs matches a label from the start, after a tab's count; the Data checks (F7, N5, P10, U20) fail on main since AX4 until #141 lands.
 - **Outside review:** a Fable 5.2 session reviewed every merge (#86, `docs/reviews/2026-11-10-rd-pr-reviews.md` on branch rd-reviews): 1 high, 17 medium, all fixed but #104's. Its three patterns for builds: weeks counted from 1 where the app counts from 0; a rule written again beside the one it should call; a lint that matches a spelling, not the thing. Start a reviewer again on Thursday for the held items.

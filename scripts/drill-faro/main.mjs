@@ -1,6 +1,6 @@
 /* Faro's own core rules behind the drill's contract (spec/rebuild/stage-1-core-rules.md), to prove the harness:
    `npm run drill -- scripts/drill-faro` must score 100%. CI runs it. It reads the workspace it is given and writes the
-   five CSV files, and find.csv, navigation.csv, import.csv and readback.csv, with the code that made the conformance data (src/spec/conformance.ts), so it is not a rebuild: the
+   five CSV files, and find.csv, goals.csv, navigation.csv, import.csv, readback.csv and home.csv, with the code that made the conformance data (src/spec/conformance.ts), so it is not a rebuild: the
    drill itself is a fresh session that sees only spec/ and llms.txt.
      node main.mjs <workspace.json> <folder to write into> */
 import fs from 'node:fs';

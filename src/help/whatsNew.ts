@@ -33,6 +33,102 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['data', 'feedback'],
   },
   {
+    id: 'correct-check-in',
+    date: '2026-11-12',
+    title: 'Correct this check-in corrects it',
+    points: [
+      'The link under a posted check-in now replaces it, instead of adding a second check-in for the week.',
+      'It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.',
+      'Undo on the message after saving puts the first check-in back.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'check-ins-owner-only',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s',
+    points: [
+      'Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.',
+      'An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'room-agrees-with-limit',
+    date: '2026-11-12',
+    title: 'A number kept in range: two cells that agree',
+    points: [
+      'On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.',
+      'A number exactly the warning margin inside its limit is not near: both cells now say so.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
+    id: 'home-asks-first',
+    date: '2026-11-12',
+    title: 'Home starts with what is asked of you today, and is quiet when nothing is',
+    points: [
+      'Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.',
+      'When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.',
+      'Your goals are counted once, in Your goals, and each count opens exactly those goals.',
+      'What’s new in Faro is now a line at the foot of Home.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'admins-triage-and-start-over',
+    date: '2026-11-12',
+    title: 'Where one workspace ends, and who you are there',
+    points: [
+      'The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.',
+      'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”',
+      'About says what a workspace is, in one sentence, under its name.',
+      'Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.',
+      'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
+    ],
+    articles: ['inbox', 'demo', 'workspace'],
+  },
+  {
+    id: 'polish-layout-switch',
+    date: '2026-11-12',
+    title: 'Board and Table line up straight away',
+    points: [
+      'Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.',
+      'Rows still slide when a sort or a filter changes their order within a layout.',
+    ],
+    articles: ['goals'],
+  },
+  {
+    id: 'polish-map-wait',
+    date: '2026-11-12',
+    title: 'The map opens without a flash',
+    points: [
+      'Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.',
+      'It says so only when drawing takes long enough to notice.',
+    ],
+    articles: ['goal-map'],
+  },
+  {
+    id: 'your-goals-worst-first',
+    date: '2026-11-12',
+    title: 'Your goals, worst first',
+    points: [
+      'On Home, the goals you own that have nothing flagged are listed worst first, then by name, as Goals lists them.',
+      'Home and Goals now read their lists and counts the same way, so the numbers on each agree.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'polish-no-check-in-for',
+    date: '2026-11-12',
+    title: 'No check-in offered that can’t be posted',
+    points: [
+      'A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.',
+      'The owner checks in from the button on the goal’s bar, as before.',
+    ],
+    articles: ['goal-page', 'check-in'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',

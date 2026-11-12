@@ -64,7 +64,12 @@ const TODAY = { drill: 'drill ready: the harness scores it against the conforman
 
 /* ---------- the guide ---------- */
 
-function guide(all: Stage[], rows: Record<string, number>): string {
+/** Stage 1's scored files: rows expected and columns in order, from the conformance data (scorecard-words.csv is
+    scored only when asked, so it is not one of them). */
+export type Stage1Files = Record<'status' | 'flags' | 'projection' | 'scorecard' | 'checkin', { rows: number; header: string[] }>;
+const total = (files: Stage1Files) => Object.values(files).reduce((a, f) => a + f.rows, 0);
+
+function guide(all: Stage[], rows: Stage1Files): string {
   const drills = all.filter((s) => s.status === 'drill');
   return GENERATED + [
     '# The rebuild kit',
@@ -75,7 +80,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     table(['Stage', 'Builds', 'Today'], all.map((s) => [`[${s.n}. ${s.title}](${s.file})`, cell(s.builds), STATUS_WORD[s.status]])),
     '',
-    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
+    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${total(rows)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
     '',
     '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it. And before copying anything, read [don’t copy this](dont-copy.md): what is right for a demo and wrong for the internal app.',
     '',
@@ -139,7 +144,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
 
 /* ---------- stage 1 ---------- */
 
-function stage1(rows: Record<string, number>): string {
+function stage1(rows: Stage1Files): string {
   return GENERATED + [
     '# Stage 1: the core rules',
     '',
@@ -156,7 +161,7 @@ function stage1(rows: Record<string, number>): string {
     '',
     '1. [llms.txt](../../llms.txt): what Faro is, in one page.',
     '2. [The data model](../core/data-model.md), the first part, “The records the core rules read”: Cycle, the three kinds of Goal and their plans, CheckIn, Decision, Ask.',
-    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words, except the scorecard’s `value`, `label` and `sub`.',
+    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words. The scorecard’s words (`value`, `label`, `sub`) are in a sixth file, `scorecard-words.csv`, scored only when asked.',
     `4. The rules, in this order: ${ruleLinks(RULES_STAGE1)}. And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.`,
     '5. [The conformance data](../conformance/README.md): how each week is judged (the moment, and the workspace as it stood then), what every column is, and how numbers are written.',
     '',
@@ -174,13 +179,7 @@ function stage1(rows: Record<string, number>): string {
     '- The harness runs `<command> <workspace.json> <out folder>` in `rebuild/`: the command, then two paths, each quoted. The first is a copy of `spec/conformance/workspace.json`; the second is `rebuild/drill-out/`, emptied first.',
     '- The command writes these five files into the out folder and exits 0, within 10 minutes:',
     '',
-    table(['File', 'Rows expected', 'Columns, in this order'], [
-      ['`status.csv`', String(rows.status), '`week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update`'],
-      ['`flags.csv`', String(rows.flags), '`week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group`'],
-      ['`projection.csv`', String(rows.projection), '`week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses`'],
-      ['`scorecard.csv`', String(rows.scorecard), '`week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub`'],
-      ['`checkin.csv`', String(rows.checkin), '`checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing`'],
-    ]),
+    table(['File', 'Rows expected', 'Columns, in this order'], (Object.entries(rows) as [string, { rows: number; header: string[] }][]).map(([f, x]) => [`\`${f}.csv\``, String(x.rows), x.header.map((c) => `\`${c}\``).join(', ')])),
     '',
     '- A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.',
     '- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).',
@@ -191,14 +190,14 @@ function stage1(rows: Record<string, number>): string {
     '2. The calculation and the official status: the rest of `status.csv`.',
     '3. The projection: `projection.csv`.',
     '4. Flags, the trend, asks and decisions, and needs attention: `flags.csv`.',
-    '5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell.',
+    '5. The scorecard: `scorecard.csv` (each cell’s `tone` and `likelihood`). Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell, and scored only when asked (`"also": ["scorecard-words"]` in `drill.json`, against `scorecard-words.csv`): a rebuild in other words still passes.',
     '6. What a check-in must say: `checkin.csv` (`--files checkin`).',
     '',
     'When a file is close, the first differences for one goal usually name the rule that differs. Read that goal’s records in `workspace.json` and the rule’s worked examples side by side.',
     '',
     '## Exit criteria',
     '',
-    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${Object.values(rows).reduce((a, b) => a + b, 0)} rows).`,
+    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows; \`scorecard-words.csv\`, scored when asked, is not counted).`,
     '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.',
     '3. `rebuild/GAPS.md` lists everything you had to guess.',
     '',
@@ -276,7 +275,8 @@ function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
 
 /** The outside parts, as src/ports/index.ts lists them: the interface, its contract, and the adapters Faro has. */
 const PARTS: [string, string, string, string][] = [
-  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/data/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/ports/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['Goal lists and counts (the query port’s first cut)', '`Goals` (`src/ports/goals.ts`)', '`goalsContract` (`src/ports/contracts/goals.ts`), its cases in `spec/conformance/goals.csv`', 'over the loaded workspace (`src/adapters/localGoals.ts`)'],
   ['Markups', '`MarkupStore` (`src/markup/ops.ts`)', '`markupContract`', 'Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`)'],
   ['Feedback', '`FeedbackStore` (`src/markup/feedback.ts`)', '`feedbackContract`', 'Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`)'],
   ['Who is viewing', '`Identity` (`src/ports/index.ts`), passed to the app beside the store (`src/main.tsx`)', '`identityContract` (any identity); `pickerContract` (what the picker adds)', 'the “Who are you?” picker (`src/adapters/local.ts`); a sign-in by email (`src/adapters/signIn.ts`), the shape yours copies (R1, R2)'],
@@ -374,7 +374,7 @@ const dontCopy = () => GENERATED + [
   '| One browser bundle, its first download held to a budget by `scripts/check-bundle.mjs` (over 300 KB compressed), with screens a first visit doesn’t need loaded when opened | The demo grew one screen at a time; the budget stops it growing and each release pays for what it adds | [R4](../requirements/internal/r4-scale-and-safety.md)’s budget is 300 KB for the first screen. Split by route from the start, and load each feature module only when it is switched on and opened |',
   '| The goals store loads a whole workspace into the browser, and the rules read it (`Store.load`, `Snapshot`) | 126 goals load in a moment, and every rule stays a pure function over plain rows | Read through [the query and command ports](ports-at-scale.md): paged summary rows in, one action and its input out, the server setting the actor, time and ids |',
   '| The actions run in the browser; the database only checks each row’s workspace and the version of a goal or review (`okr_commit`) | Faro has no server of its own beyond the AI tools’ endpoint | Run `src/domain/actions` on the server ([R1](../requirements/internal/r1-sign-in-and-access.md)): the browser asks, the server decides |',
-  '| Demo plumbing beside the store port: the example workspace, resetting it and its storage key (`hasExample`, `resetExample` in `src/data/store.ts`) | The demo is the product people try first | Keep demo data out of the port: a seeding script for a test environment, never a method every adapter must carry |',
+  '| Demo plumbing beside the store port: the example workspace, resetting it and its storage key (`ExampleStore`: `hasExample`, `resetExample` in `src/data/store.ts`, the browser store’s alone since AX5; the `Store` port has neither) | The demo is the product people try first | Keep demo data out of the port: a seeding script for a test environment, never a method every adapter must carry |',
   '| Goal keys are worked out twice: in TypeScript before the save (`src/domain/goalKey.ts`) and by a database trigger at the save (migration 0021) | Two people adding goals at once must not get one key; the app shows a key before the database has given one | Give keys in one place, the server, and show “saving…” until it answers |',
   '| Sign-in by a link to one of the demo’s people, and access rules written for a demo ([access today](access-today.md)) | Anyone can try every role in a minute | Your platform’s single sign-on and roles ([R1](../requirements/internal/r1-sign-in-and-access.md)); nothing of the demo’s access survives |',
   '| The rules’ words are hand-written beside their worked examples (`src/spec/rules.ts`) | The examples run against the code, so a wrong number fails the spec | Copy the rules and their examples; treat the prose as a draft to check. The examples can’t drift; the sentences can |',
@@ -388,11 +388,11 @@ const portsAtScale = () => GENERATED + [
   '',
   'For a team that copies Faro’s code and runs it for the whole company. [Swap the outside parts](adapters.md) gets Faro running on your platform at Faro’s size. This page is about the one part whose shape has to change on the way to 15,000 people: the goals store. Read [R1, sign-in and access](../requirements/internal/r1-sign-in-and-access.md) and [R4, scale and safety](../requirements/internal/r4-scale-and-safety.md) first; this page is the route to them.',
   '',
-  '**Today:** a sketch. Faro has neither port below in its code, and neither has a contract test. What Faro does have, and what makes the move mechanical, is that every rule and every action is a pure function: given what it reads, it returns what to save.',
+  '**Today:** the query port’s first cut is in Faro’s code (`Goals`, `src/ports/goals.ts`: `goals()`, `counts()` and `goal()`), answered in the browser and run against a contract whose cases are data (below). The rest of the query port and the command port’s server side are still a sketch. What Faro does have, and what makes the move mechanical, is that every rule and every action is a pure function: given what it reads, it returns what to save.',
   '',
   '## `Store` is the demo-scale port',
   '',
-  '`Store` (`src/data/store.ts`) has two working methods:',
+  '`Store` (`src/ports/store.ts`) has two working methods:',
   '',
   '- **`load(workspaceId)`** gives a whole `Snapshot`: every person, team, goal, check-in, ask, review and the whole change log. The rules take that `Snapshot` as their input; the app loads it again when the window regains focus and every two minutes, and the AI tools’ server loads it on every request.',
   '- **`commit(workspaceId, commit)`** saves the rows and change-log entries its caller already wrote. The caller runs the action, stamps the time from its own clock, writes the change-log entry with its own idea of who acted, and makes the ids. The database checks that every row belongs to the workspace (what each row says, where a row already stored is kept, and a milestone’s stages through their goal) and that a goal’s or review’s version hasn’t moved, and nothing else. It doesn’t check what a row points at: a goal saved to one workspace may name another workspace’s person as owner, team, cycle or parent goal, and a check-in another workspace’s goal. Refusing those is the server’s, by the same membership that decides who may save (R1). People, teams, asks, decisions and views are saved last-write-wins.',
@@ -429,6 +429,7 @@ const portsAtScale = () => GENERATED + [
   '',
   '- **`GoalSummary`** is one live goal’s summary row: the goal’s own fields, and what the stage 1 rules say about it now: its status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, its latest week and days without an update. The columns are those of [the conformance files](../conformance/README.md), so the conformance data proves the summaries.',
   '- **`GoalQuery`** is the Goals screen’s own filter and sort (`src/domain/query.ts`): search text, status, level, team, owner, kind, needs attention, and the rest. Today the browser applies it to the whole `Snapshot`; on the query port the server applies it to summary rows.',
+  '- **Faro’s first cut** (AX5): `Goals` in `src/ports/goals.ts` has the three goal calls without the workspace argument (an adapter is made for one workspace): `goals({ query, among, after, size })` → `{ rows, next, total, near? }`, `counts({ query, among })` → `{ total, status, attention }` and `goal(id)`. `among` narrows to a Goals scope’s goals (yours, a team’s, those you watch). A list row is `GoalSummary` without `checkIns` and `series`. Faro’s adapter (`src/adapters/localGoals.ts`) answers from the loaded workspace with the stage 1 rules; Home’s list of your goals and its counts, and Goals’ filtered list, near miss and switch count, read through it (`src/app/goals.ts`). Its contract, `goalsContract` (`src/ports/contracts/goals.ts`), runs [goals.csv](../conformance/goals.csv)’s cases and the four checks below on any adapter.',
   '- **Search** is the server search behind find-and-pick, the list bars and Find. Faro already calls it through a port of this shape: `Search` (`src/ports/search.ts`), `search(kind, { q, filters, sort, after, size })` → `{ total, rows, next, near? }`, with its contract (`searchContract`). `search()` and the list calls above (`people()`, `teams()`, and `goals()` for a picker) are that one call with a kind, and **kinds are open**: the core’s are goal, person, team and workspace, and a module registers its own (the metric library’s metric). It accepts a goal’s key (“G-48”) wherever it accepts a title; what a search matches is [finding things](../core/rules/finding.md). The near miss is optional: a server may never offer one. `byIds(kind, ids)` gives the rows for what a picker already holds, in the same words, someone marked as left included; and `suggest(kind, viewer, recents)` the six offered before typing (finding things, rule 6). A person search takes People’s filters, `team` (a team’s id, its lead counted wherever their own team is, or `-` for people in no team) and `admins` (`1`), and People, Teams and every picker list in its one order.',
   '- **New rules already take the query port’s shapes.** Since AR4 no rule added to `src/domain` takes the whole workspace (`Snapshot`): each takes the rows it reads, made by `src/app/reads.ts` from the loaded workspace today and from this port in the rebuild. The older rules that still take it are listed in `scripts/whole-workspace.json`, and the layers lint lets that list only shrink: they are the work left.',
   '- **Only `goal()` reads a goal’s check-ins.** Lists, counts, Home and the AI tools read summaries.',
@@ -482,9 +483,9 @@ const portsAtScale = () => GENERATED + [
   '',
   '## Gaps in the kit',
   '',
-  '- The query port doesn’t exist in Faro’s code, and neither port has a contract test. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.',
+  '- Of the query port, Faro has `goals()`, `counts()` and `goal()` (`src/ports/goals.ts`) with a contract; the other calls (`people()`, `teams()`, `activity()`, `asksFor()`, `review()`) are still sketches, and the command port has no contract. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.',
   '- Most rule functions take a whole `Snapshot`; which records each action and rule actually reads isn’t listed anywhere, so step 3 starts by finding out.',
-  '- The screens read the app’s loaded state directly; which query each screen needs isn’t listed.',
+  '- Home’s goal list and counts and Goals’ filtered list and counts read through the query port; the other screens, and the rest of Home and Goals (trees, groups, reviews, asks), read the app’s loaded state directly, and which query each needs isn’t listed.',
   '- Goal keys are worked out in the rules and again by a database trigger (`supabase/migrations/0021_goal_keys.sql`); at company scale the server’s is the one that counts.',
   '',
 ].join('\n');
@@ -493,7 +494,7 @@ const portsAtScale = () => GENERATED + [
 /** One file's entry in scripts/browser-storage.json: what it keeps in the browser and where the internal app keeps it. */
 export interface BrowserState { uses: number; keeps: string; server: string }
 
-export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
+export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
   const all = stages(mods);
   const out: Record<string, string> = {
     'spec/rebuild/README.md': guide(all, rows),

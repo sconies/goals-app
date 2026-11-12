@@ -17,14 +17,14 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_CORRECT_REASON, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal } from './goalRights';
+import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
@@ -44,9 +44,8 @@ import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
 export type { Answer, Answers, Choice, Issue, IssueGroup, IssueKind, IssueLevel, Sheet } from './problemLevels';
-export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup' | 'form';
-/** `form` is the check-in screens' own post (CK1): it is no import, so its changes carry no Via mark. */
-export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up', form: 'Check-in' };
+import { VIA_LABEL, type Via } from './via';
+export { VIA_LABEL, VIA_MCP, VIA_MCP_BEFORE, type Via } from './via';
 
 /**
  * How a check-in posted from a screen meets the week's (check-in spec, rule 13): `new` is refused when the week already
@@ -56,11 +55,7 @@ export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
 export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
-export const MIN_CORRECT_REASON = 10;
-/** What changes through MCP were marked before backlog 10a (9 Nov): still read as MCP, never written. */
-export const VIA_MCP_BEFORE = 'AI assistant (MCP)';
-/** The Via mark every change through MCP carries ("via MCP"), on top of its own diffs. */
-export const VIA_MCP = { field: 'Via', from: '—', to: VIA_LABEL.mcp } as const;
+export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
 /** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,
@@ -226,10 +221,13 @@ function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: stri
     const rename = new Map<string, string>();
     for (const k of keys) {
       const m = headerMatch(kind, k);
-      if (!m.as || m.how === 'exact' || m.how === 'unknown') continue;
+      if (!m.as || m.how === 'unknown') continue;
       const to = m.as.toLowerCase();
+      // A header the same as the column's but for punctuation, an accent or spacing ("Target.", "Owner_email") is read
+      // as that column too: only a key that is already the column's own name is left as it is (#199 review, high).
+      if (k === to) continue;
       if (keys.includes(to)) continue;
-      if (m.how === 'also' || nearOk(sheet, k, m.as)) rename.set(k, to);
+      if (m.how !== 'near' || nearOk(sheet, k, m.as)) rename.set(k, to);
     }
     if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
   }
@@ -1160,9 +1158,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
-    if (!create && !canChange(g)) {
+    // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.

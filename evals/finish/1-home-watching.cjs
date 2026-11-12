@@ -58,8 +58,9 @@ module.exports = {
       check(await noSideways(p), '[Home] sideways scroll at 360');
       await c.close();
       const [c2, q] = await open(360, 740, 'oskar', '/', true);
-      const b1 = await box(q, '.home-hero .btn', 0), b2 = await box(q, '.home-hero .btn', 1), h = await box(q, '.home-hero');
-      check(b1 && b2 && h && Math.abs(b1.w - h.w) <= 1 && Math.abs(b2.w - h.w) <= 1 && b2.y >= b1.b + 7, '[Home] 7: Tom’s hero buttons are not full width, one under the other');
+      // Tom watches goals and is asked nothing: one quiet sentence and no button (Home's spec, HM1).
+      const hero = await q.locator('.home-hero').innerText();
+      check(/Nothing is asked of you today\./.test(hero) && await q.locator('.home-hero .btn').count() === 0, `[Home] 7: Tom’s Home is not one quiet sentence with no button (“${hero.replace(/\s+/g, ' ')}”)`);
       await c2.close();
     }
     // [Home] 1, 3, 5: Elena at 1280 and 1440.
@@ -226,8 +227,9 @@ module.exports = {
       await p.getByText('Saved').first().waitFor({ timeout: 4000 }).catch(() => {});
       await p.goto(url('/'));
       await p.waitForTimeout(400);
-      const s = await box(p, '.hero-allset'), e = await box(p, '.home-hero .eyebrow');
-      check(s && e && s.b <= e.y && e.y - s.b <= 9, `[Home] 14: no "all set" line 8px above the eyebrow (${s && e && Math.round(e.y - s.b)})`);
+      // The review's eyebrow says her check-ins are in (HM1: one line, not a separate "all set" line).
+      const eyebrow = await p.locator('.home-hero .eyebrow').innerText().catch(() => '');
+      check(/is today · your (\d+ )?check-ins? (is|are) in/.test(eyebrow), `[Home] 14: the review's eyebrow doesn't say her check-ins are in (“${eyebrow}”)`);
       check(await p.locator('.home-hero .btn.primary').count() === 1, '[Home] 14: the review is not the one primary action');
       await c.close();
     }
