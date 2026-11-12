@@ -11,10 +11,10 @@
      (in a folder of its own) and the path of a folder to write into (<rebuild folder>/drill-out, emptied first). The command writes status.csv,
      flags.csv, projection.csv, scorecard.csv and checkin.csv there, with the columns spec/conformance/README.md lists, and exits 0.
    A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
-   find.csv (the find rules: what a search for a goal, a person or a team finds) and navigation.csv (the menu, the lit
-   item and a page's name) are not part of stage 1, nor is metrics.csv (the metric library's rules 1 to 3, stage 4): each
-   is scored only when drill.json lists it under "also" ({ "stage": 1, "run": "…", "also": ["find", "navigation",
-   "metrics"] }) or --files names it.
+   find.csv (the find rules: what a search for a goal, a person or a team finds), navigation.csv (the menu, the lit
+   item and a page's name) and import.csv (the change engine's kinds, levels and sentences) are not part of stage 1,
+   nor is metrics.csv (the metric library's rules 1 to 3, stage 4): each is scored only when drill.json lists it under
+   "also" ({ "stage": 1, "run": "…", "also": ["find", "navigation", "import", "metrics"] }) or --files names it.
 
    Options:
      --files status,flags   score only these files (the others are listed as not scored)
@@ -31,9 +31,9 @@ import { fileURLToPath } from 'node:url';
 
 const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
 /** Files beyond stage 1's, scored only when asked for ("also" in drill.json, or --files). */
-const ALSO = ['find', 'navigation', 'metrics'];
+const ALSO = ['find', 'navigation', 'import', 'metrics'];
 /** The columns that name a row: a row in the rebuild's file is matched to the expected row with the same values in them. */
-const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], navigation: ['viewer', 'address'], metrics: ['rule', 'ask', 'row'] };
+const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], navigation: ['viewer', 'address'], import: ['case'], metrics: ['rule', 'ask', 'row'] };
 /** Numbers are written with up to 6 decimal places, so two that differ by rounding in the last place still match. */
 const TOLERANCE = 1.5e-6;
 

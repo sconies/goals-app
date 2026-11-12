@@ -781,6 +781,10 @@ h1[tabindex='-1']:focus { outline: none; }
 .issue-list li { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) var(--s3); border: 1px solid var(--line); background: var(--surface); border-radius: 6px; font-size: var(--t-sm); }
 .problems .issue-list li { border-color: var(--off-line); background: var(--off-wash); }
 .issue-list .label { font-size: 0.75rem; color: var(--muted); }
+.answer-row { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+.answer-row .btn { min-height: 36px; }
+@media (pointer: coarse) { .answer-row .btn { min-height: 44px; } }
+.answer-line { flex-direction: row !important; align-items: center; justify-content: space-between; }
 .change-goal { border-top: 1px solid var(--line-2); }
 .change-goal:first-child { border-top: 0; }
 .change-goal > summary { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); cursor: pointer; list-style: none; }

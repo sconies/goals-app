@@ -70,7 +70,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - thousand separators › groups the digits of every number shown
 - plausibility: asked, never refused › asks about a check-in far outside the plan
 - plausibility: asked, never refused › asks about a set-up number below zero for a time, money or percentage, a target a hundred times the start, or a billion
-- plausibility: asked, never refused › notes it in an import without refusing the row
+- plausibility: asked, never refused › asks it in an import without refusing the row, and saves once it is answered (C6)
 
 ### [src/domain/names.test.ts](../../../src/domain/names.test.ts)
 
@@ -79,6 +79,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - people with the same name › get avatar colours that differ when their initials match
 - people with the same name › can be set up together, with a note on the second one’s row
 - people with the same name › can be added by spreadsheet, with a note
-- goals with the same title › are allowed with a warning on create
+- goals with the same title › are allowed with a note when the team differs, and asked about when it is the same (C10)
 - goals with the same title › show their key (or team) beside the title, and only when another goal has it
 - one shortest name › holds a workspace, a goal and an outcome to the same minimum

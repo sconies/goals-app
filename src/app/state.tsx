@@ -16,7 +16,7 @@ import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import type { ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
+import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
@@ -151,7 +151,7 @@ export interface AppState {
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
-  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean): ChangeSet;
+  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers): ChangeSet;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
@@ -343,6 +343,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text, ...(act ? { action: act } : {}) }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? UNDO_MS : kind === 'error' ? 7000 : 3200);
   }, []);
+  // An Undo is for the workspace it was made in: once another is open it could only be refused, so it goes.
+  useEffect(() => { setToasts((t) => t.filter((x) => !x.action)); }, [wsId]);
 
   // Saves this browser won't keep (full, or blocked): said once as it happens, and shown for as long as it lasts.
   const [saveNote, setSaveNote] = useState<string | null>(() => store.saveProblem?.() ?? null);
@@ -418,11 +420,17 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     return snap;
   }, [store]);
 
-  const commit = useCallback(async (c: Commit) => {
+  const commit = useCallback(async (given: Commit) => {
     const cur = loadedRef.current;
     saving.current++;
     try {
       if (!cur) throw new Error('no workspace is open');
+      // Every save keeps a carried copy in the next year true while nobody has used it (cycle-end rule 6), whatever made it.
+      // Only a workspace with more than one cycle can have a copy, so the rule loads then, not on a first visit.
+      const first = given.changes[0];
+      const c = cur.snap.cycles.filter((v) => !v.removedAt).length > 1
+        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: MODULE_RECORDS })
+        : given;
       if (!signedIn.current) throw new Error(NOBODY);
       try {
         // Says what the save was based on, so it is refused rather than overwriting a newer change.
@@ -690,7 +698,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!before && opts?.stagesDone?.length) {
           try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
         }
-        await commit({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
+        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
@@ -711,10 +719,10 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
       // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
-      previewChanges: (tables, via, reason, confirm) => perform(rx(), 'planChanges', { tables, via, reason, confirm }),
+      previewChanges: (tables, via, reason, confirm, answers) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
-        await commit(cs.commit);
+        await save(cs.commit);
       },
       createToken: (personId, name) => run('createToken', { personId, name }),
       saveView: async (v) => (await run('saveView', v)).id,

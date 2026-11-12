@@ -73,6 +73,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - changing a goal’s owner › refuses a name two people share, rather than guessing, and says to use their email
 - changing a goal’s owner › still takes a name only one person has, or an ID typed in Owner
 - changing a goal’s owner › says so when an Owner ID matches no one
+- People columns do what the field table says (review of #130) › an empty Admin cell keeps what is there; yes and no change it
+- People columns do what the field table says (review of #130) › Takes over accepts an email, or a name only one person has, and asks about one one letter out
 
 ### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
 

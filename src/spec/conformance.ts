@@ -11,6 +11,7 @@ import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Tea
 import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
+import { planChanges } from '../domain/changeset';
 import type { ModuleRows } from '../domain/records';
 import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
@@ -234,6 +235,85 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
   return rows;
 }
 
+/* ---------- kinds, levels and near misses (backlog IM2) ---------- */
+
+/**
+ * One case per kind of problem the change engine raises (docs/design/import/spec.md, section 4), run on the workspace
+ * as it stood at `builtFor`: who loads it, which sheet, its rows (column → cell), and any answers by group id. People in
+ * workspace.json have no email, so rows name people by name or ID. Cells that depend on the workspace (a target turned
+ * round, check-ins someone else posted) are worked out from it here and written into the file, so the file says it all.
+ */
+export interface ImportCase { case: string; actor: string; sheet: 'goals' | 'plan' | 'checkIns' | 'people'; rows: Record<string, string>[]; answers?: Record<string, string> }
+export function importCases(w: ConformanceWorkspace): ImportCase[] {
+  const s = asOf(w, new Date(w.builtFor));
+  const week = currentWeek(w.cycle, new Date(w.builtFor));
+  const g = (k: string) => s.goals.find((x) => x.key === k)!;
+  const g1 = g('G-1') as Extract<Goal, { kind: 'metric' }>;
+  const fresh = (o: Record<string, string>) => ({ Goal: 'A new goal', Owner: 'Rhea Kapoor', Unit: '%', Start: '10', Target: '50', ...o });
+  const theirs = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
+  const rheas = s.goals.filter((x) => x.ownerId === 'rhea').slice(0, 5);
+  return [
+    { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
+    { case: 'required-empty-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '' })] },
+    { case: 'not-a-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: 'six' }] },
+    { case: 'formula', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '=20+2' })] },
+    { case: 'precision', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: '6.25' }] },
+    { case: 'impossible-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-31', Week: String(week), Value: '-4' }] },
+    { case: 'unknown-word', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Level: 'vp' }] },
+    { case: 'unknown-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'Infra Guild' })] },
+    { case: 'conflicting-refs', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Owner ID': 'tunde' })] },
+    { case: 'bad-key', actor: 'amara', sheet: 'goals', rows: [{ Key: '12', Goal: 'x' }] },
+    { case: 'bad-key-none', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-999', Goal: 'x' }] },
+    { case: 'duplicate', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target) }, { Key: 'G-1', Target: String(g1.plan.target) }] },
+    { case: 'type-unclear', actor: 'amara', sheet: 'goals', rows: [fresh({ Stages: 'Design@50' })] },
+    { case: 'plan-order', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Due week': '10' })] },
+    { case: 'stage-format', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' }] },
+    { case: 'week-wrong', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week + 4), Value: '6' }] },
+    { case: 'checkin-incomplete', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Call: 'Off track', 'Path to green': '' }] },
+    { case: 'cant-change', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Type: 'milestone' }] },
+    { case: 'not-allowed', actor: 'tunde', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target - 1), Reason: 'Agreed at the review' }] },
+    { case: 'removal-refused', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop' }] },
+    { case: 'loop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', 'Feeds into key': 'G-1' }] },
+    { case: 'near-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })] },
+    { case: 'near-ref-answered', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })], answers: { 'near-ref:goals:team:ci-dc': 'use' } },
+    { case: 'near-ref-person', actor: 'amara', sheet: 'goals', rows: [fresh({ Owner: 'Rhea Kapor' })] },
+    { case: 'near-word', actor: 'amara', sheet: 'goals', rows: [fresh({ Type: 'numbr' })] },
+    { case: 'same-person', actor: 'amara', sheet: 'people', rows: [{ Name: 'Rhea Kapor', Email: 'rhea.k@example.com', Team: 'CI/CD' }] },
+    { case: 'same-goal', actor: 'amara', sheet: 'goals', rows: [fresh({ Goal: g('G-14').title, Team: 'CI/CD' })] },
+    { case: 'other-goal', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Goal: 'Net revenue retention', Target: '110' }] },
+    { case: 'past-stage', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'P1 stages in the past', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@2; Pilot@6; All services@10' }] },
+    { case: 'past-plan', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Plan from week': '1', 'Due week': '10' })] },
+    { case: 'odd-number', actor: 'amara', sheet: 'goals', rows: [fresh({ Unit: 'ms', Start: '3', Target: '3000' })] },
+    { case: 'plan-question', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(2 * g1.plan.start - g1.plan.target), Reason: 'Measured the other way round' }] },
+    { case: 'no-unit', actor: 'amara', sheet: 'goals', rows: [fresh({ Unit: '' })] },
+    { case: 'decimal-comma', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '1,5' })] },
+    { case: 'replaces-others', actor: 'amara', sheet: 'checkIns', rows: theirs.map((c, k) => ({ ID: c.id, 'Goal ID': c.goalId, Week: String(c.week), 'Next step': `Next step number ${k}` })) },
+    { case: 'many-admins', actor: 'amara', sheet: 'people', rows: ['rhea', 'tunde', 'samir'].map((id) => ({ ID: id, Admin: 'yes' })) },
+    { case: 'totals-row', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'TOTAL', Start: '10', Target: '550' }] },
+    { case: 'big-removal', actor: 'amara', sheet: 'goals', rows: rheas.map((x) => ({ ID: x.id, Action: 'Stop', Reason: 'No longer needed this year.' })) },
+  ];
+}
+export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'kind', 'level', 'group', 'message', 'must', 'questions', 'saves'];
+
+/**
+ * What the change engine says for each case: the first problem or question (its kind, level, group id and sentence; a
+ * note isn't one), how many Must-fix groups and Check groups there are, and whether it would save.
+ */
+export function importRowsOf(w: ConformanceWorkspace): string[][] {
+  const at = new Date(w.builtFor);
+  const base = asOf(w, at);
+  const snapshot: Snapshot = { ...base, people: base.people.map((p) => ({ ...p, email: p.email ?? '' })) };
+  const week = currentWeek(w.cycle, at);
+  return importCases(w).map((c) => {
+    let k = 0;
+    const tables = { [c.sheet]: c.rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) })) };
+    const cs = planChanges({ tables, snapshot, cycle: w.cycle, week, actor: snapshot.people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+    const first = cs.issues.find((i) => i.level !== 'note');
+    return [c.case, c.actor, c.sheet, JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', first?.kind ?? '', first?.level ?? '', first?.group ?? '', first?.message ?? '',
+      String(cs.groups.filter((x) => x.level === 'must').length), String(cs.groups.filter((x) => x.level === 'check').length), yes(!!cs.commit)];
+  });
+}
+
 /* ---------- CSV ---------- */
 
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -243,7 +323,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

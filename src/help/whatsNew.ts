@@ -23,6 +23,26 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'carry-stays-true',
+    date: '2026-11-12',
+    title: 'Next year’s goals follow this year’s last changes',
+    points: [
+      'Once next year is set up, a goal stopped, started again, changed or checked in this year updates its copy there, however the change was made, until someone uses that copy.',
+      'Stopping a goal and then carrying it on again brings back the same goal in next year, with its key, not a second one.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'undo-import-sticks',
+    date: '2026-11-12',
+    title: 'Undoing an import now lasts',
+    points: [
+      'Undo this import put back goals it had deleted or stopped and people it had marked as left, but they went again the next time the page loaded. They now stay back.',
+      'An Undo message now goes when you switch workspace, since it could only undo something in the one you left.',
+    ],
+    articles: ['removing'],
+  },
+  {
     id: 'metrics-place',
     date: '2026-11-12',
     title: 'Metrics has its own place',
@@ -54,6 +74,18 @@ export const WHATS_NEW: NewsEntry[] = [
       'Open that workspace again to undo it there.',
     ],
     articles: ['features'],
+  },
+  {
+    id: 'import-levels',
+    date: '2026-11-11',
+    title: 'Imports ask instead of refusing',
+    points: [
+      'A name one letter out is a question: “Did you mean Platform?”',
+      'The same problem on 14 rows is said once, and one answer covers them all.',
+      'Numbers that look wrong are asked about before saving.',
+      'An empty Admin cell now keeps what is there, as Every column says, and Takes over accepts a name only one person has as well as an email.',
+    ],
+    articles: ['import', 'columns'],
   },
   {
     id: 'cant-open-why',

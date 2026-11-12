@@ -817,6 +817,11 @@
       "text": "Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from."
     },
     {
+      "id": "IMPORT-LEVELS",
+      "area": "Data",
+      "text": "Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused."
+    },
+    {
       "id": "IMPORT-ACTIONS",
       "area": "Data",
       "text": "A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams."

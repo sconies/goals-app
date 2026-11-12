@@ -10,7 +10,8 @@ import { carryCopy, carryKind } from '../domain/carry';
 import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, levelRank, levelsOf } from '../domain/levels';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
-import { MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { planQuestion } from '../domain/goal';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
@@ -23,7 +24,7 @@ import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
-import { emptyText, fieldTable, FILL_SHEETS, requiredLine, requiredText, requiredWord, specOf } from '../domain/columns';
+import { emptyText, fieldTable, FILL_SHEETS, LEVEL_WORDS, requiredLine, requiredText, requiredWord, specOf, TYPE_WORDS, wordsAndAlso } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
@@ -664,7 +665,50 @@ ${fieldTableMarkdown()}`,
       { given: 'What a new goal, check-in and person must have.', then: 'Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. | Goal key (or Goal), Week, and Value or Stages. | Name and Email.', run: () => (['goals', 'checkIns', 'people'] as const).map((k) => requiredLine(k)).join(' | ') },
       { given: 'A Goals row whose Action says Example, with an owner nobody here has.', then: '0 changes, 1 example row left out, 0 problems', run: () => { const cs = change('amara', { goals: [rec({ Goal: 'X', Action: 'Example', Owner: 'Nobody here' })] }); return `${cs.items.length} changes, ${cs.examples} example row left out, ${cs.issues.length} problems`; } },
     ],
-    unclear: ['It says what Faro does today. The import design (docs/design/import/spec.md, section 3) changes a few defaults in later items (a Type read from which columns are filled; no unit and no margin by default; a Check for many of today’s refusals): those rows change with the rule that changes.'],
+    unclear: ['It says what Faro does. IM2 changed the defaults the import design marked: a new goal’s Type is read from which columns it fills in, a number has no unit and a range no warning margin unless the row gives one (core rule: kinds, levels and near misses). The goal form keeps its own visible defaults until goal entry (GE1, GE2) reads this table.'],
+  },
+  /* ---------- kinds, levels and near misses (backlog IM2) ---------- */
+  {
+    id: 'import-levels',
+    title: 'Kinds, levels and near misses',
+    summary: 'Every problem the change engine finds is data: a kind, and a level its kind fixes (Must fix, Check, or said); problems group by kind, one answer covers a group, and a name one letter out is asked about, never guessed.',
+    code: [
+      { file: 'src/domain/problemLevels.ts', names: ['fold', 'near', 'editDistance', 'levelOf', 'MUST_KINDS', 'CHECK_KINDS', 'NOTE_KINDS', 'issueOf', 'groupId', 'groupIssues', 'groupTitle', 'whereText', 'ANSWERS'] },
+      { file: 'src/domain/changeset.ts', names: ['planChanges'] },
+    ],
+    tests: ['src/domain/problemLevels.test.ts'],
+    reqs: ['IMPORT-LEVELS'],
+    body: `
+Every problem \`planChanges\` finds is an **issue** with a **kind**, and the kind fixes its **level**:
+
+- **Must fix** (\`must\`): Faro can't record it truthfully. Nothing is saved while one is left, unless its rows are left out by an answer. Kinds: ${MUST_KINDS.map((k) => `\`${k}\``).join(', ')}.
+- **Check** (\`check\`): possible but unlikely. It is a question; the change saves once it is answered. Kinds: ${CHECK_KINDS.map((k) => `\`${k}\``).join(', ')}.
+- **Said** (\`note\`): how a row was read (an owner matched by name, a type read from the columns, a date read as a week). Never blocks.
+
+An issue carries its sheet and row, the record's name, its column in the sheet's own words, what the cell said (\`found\`), the near match offered (\`suggest\`), the sentence for that one row (\`message\`: what is wrong, what was read, what would be right), the answers its group takes, and its group's id. Issues are listed in the file's order: sheet (Goals, Plan, Check-ins, People), then row.
+
+**Groups.** Issues group by kind, sheet, column and the folded value found: the group's id is those four, so it is the same for the same problem in a corrected file and an answer given to one file still applies. Each group has a title (what is wrong, or its question, with its count), where its rows are ("Goals, rows 2 to 4 and 9"; past three runs, the first three and "and 12 more"), and its answers, the suggested one first and none chosen. Must fix comes first, then Check, then what was read; within a level, the largest group first.
+
+**Answers.** \`answers\` maps a group's id to a choice (and a value where the choice needs one). One answer covers every row in the group: \`use\` reads the cell as the near match; \`choose\` with a value reads it as that; \`new\` adds a team (admins only); \`leave\` leaves those rows out (listed in \`leftOut\`); \`last\` or \`first\` says which of two rows for one record to use; \`keep\` gives goals the decimal places their check-ins were typed with (a Decimals change their owner or an admin may make); \`done\`, \`not-done\` or \`from-now\` settles stages already past (done records them in their due weeks, as setting up a goal does; from now counts them from this week); \`right\`, \`yes\`, \`replace\`, \`add\`, \`new\`, \`same\`, \`change\` or \`goal\` say the row means what it says. \`confirm\` (the older single switch) answers every plan question and every unlikely number yes. The commit is null while a Must fix or an unanswered Check is left.
+
+**Near misses.** A name or word is folded before it is compared: lower case, accents off, "&" and "and" the same, punctuation and repeated spaces one space (so "CI CD" is CI/CD). Folded equal to exactly one candidate, it is that one. Otherwise, exactly one candidate within one edit (two from 8 folded characters; a swap of two letters is one edit) is a **near miss**, asked as a Check with the near match first; never for one or two characters, and never when two candidates are within reach. Nothing near is Must fix. Teams, people (names, and an email's part before @ at the same domain), goals, a stage's name and a column's words are all read this way.
+
+**Defaults that are asked or said.** A new goal with no Type is read from the columns it fills in (Start and Target: a number goal; Limit: a range; Stages: a stages goal); none, or two of them, is Must fix. A new number goal has no unit unless the row gives one, and none is asked once a file. A new range has no warning margin unless the row gives one. A date in the cycle, in Week, Due week or a stage's week, is read as its week and said; one outside the cycle is Must fix. The due week is always checked against the start the goal will have.
+
+**Never guessed:** an owner from a first name; one of several people or goals with one name; a number from text; a type from two groups of columns; a week from a date outside the cycle; a row whose key names a goal with another name, owner and team (it is asked); anything on behalf of someone who may not make the change.`,
+    examples: [
+      { given: 'Near misses: “Platfrom” among Platform and CI/CD; “CI CD”; “Platfrom” among Platform and Platforms; “vp” among the levels; “numbr” among the types and their other spellings.', then: 'near Platform / exact CI/CD / none / none / near number', run: () => [near('Platfrom', ['Platform', 'CI/CD']), near('CI CD', ['Platform', 'CI/CD']), near('Platfrom', ['Platform', 'Platforms']), near('vp', wordsAndAlso(LEVEL_WORDS)), near('numbr', wordsAndAlso(TYPE_WORDS))].map((m) => ('exact' in m ? `exact ${m.exact}` : 'near' in m ? `near ${m.near}` : 'none')).join(' / ') },
+      { given: 'Where rows 2, 3, 4 and 9 of Goals are.', then: 'Goals, rows 2 to 4 and 9', run: () => whereText('Goals', [2, 3, 4, 9]) },
+      { given: 'Amara loads 14 new goals whose Team says “CI/DC”; then the same file with the answer “use”.', then: 'check: 14 rows name a team that isn’t here: “CI/DC”. Did you mean CI/CD? (14 rows, 1 group) → 14 new goals, ready to save', run: () => { const rows = Array.from({ length: 14 }, (_, k) => ({ ...rec({ Goal: `Pipeline goal ${k + 1}`, Owner: 'Rhea Kapoor', Team: 'CI/DC', Unit: '%', Start: '10', Target: '50' }), __row: String(k + 2) })); const cs = change('amara', { goals: rows }); const g = cs.groups.filter((x) => x.level !== 'note'); const done = change('amara', { goals: rows }, { answers: { [g[0]!.id]: { choice: 'use' } } }); return `${g[0]!.level}: ${g[0]!.title} (${g[0]!.count} rows, ${g.length} group) → ${describe(done).toLowerCase()}, ${done.commit ? 'ready to save' : 'not ready'}`; } },
+      { given: 'A Goals row for G-1 whose Level says “vp”.', then: 'must unknown-word: Level says “vp”. Use north star, svp or team.', run: () => { const i = change('amara', { goals: [rec({ Key: 'G-1', Level: 'vp' })] }).issues[0]!; return `${i.level} ${i.kind}: ${i.message}`; } },
+      { given: 'A new goal whose Type says “numbr”.', then: 'check near-word: Type says “numbr”. Read it as number?', run: () => { const i = change('amara', { goals: [rec({ Goal: 'Cache hit rate', Owner: 'Rhea Kapoor', Type: 'numbr', Unit: '%', Start: '10', Target: '50' })] }).issues.find((x) => x.level !== 'note')!; return `${i.level} ${i.kind}: ${i.message}`; } },
+      { given: 'A new goal with Start and Target but no Type and no Unit column.', then: 'Type: metric (from Start and Target; the row gave none). / check no-unit: This number has no unit. Is it a plain count?', run: () => { const cs = change('amara', { goals: [rec({ Goal: 'Cache hit rate', Owner: 'Rhea Kapoor', Start: '10', Target: '50' })] }); const t = cs.issues.find((x) => x.kind === 'default')!; const u = cs.issues.find((x) => x.kind === 'no-unit')!; return `${t.message} / ${u.level} ${u.kind}: ${u.message}`; } },
+      { given: 'A new goal owned by “Rhea Kapor”.', then: 'check near-ref: “Rhea Kapor” isn’t here. Did you mean Rhea Kapoor?', run: () => { const i = change('amara', { goals: [rec({ Goal: 'Cache hit rate', Owner: 'Rhea Kapor', Unit: '%', Start: '10', Target: '50' })] }).issues.find((x) => x.level !== 'note')!; return `${i.level} ${i.kind}: ${i.message}`; } },
+      { given: 'G-1 on rows 2 and 3 of one file.', then: 'must duplicate (row 2), must duplicate (row 3): Key G-1 is on rows 2 and 3. Give each goal one row.', run: () => { const cs = change('amara', { goals: [rec({ Key: 'G-1', Target: '20' }), { ...rec({ Key: 'G-1', Target: '22' }), __row: '3' }] }); return `${cs.issues.map((i) => `${i.level} ${i.kind} (row ${i.row})`).join(', ')}: ${cs.issues[0]!.message}`; } },
+      { given: 'A row called TOTAL with no owner.', then: 'check totals-row: Row 2 is called “TOTAL” and has no owner. It looks like a totals row.', run: () => { const i = change('amara', { goals: [rec({ Goal: 'TOTAL', Start: '10', Target: '550' })] }).issues[0]!; return `${i.level} ${i.kind}: ${i.message}`; } },
+      { given: 'A new stages goal with stages due in weeks 2 and 50, in week 45; then answered “They’re done”.', then: 'check past-stage: 1 stage of “Runbooks rewritten” is due before this week (week 45): Draft@2. Is it done? → 1 new goal, 1 check-in (1 for past weeks)', run: () => { const t = { goals: [rec({ Goal: 'Runbooks rewritten', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Draft@2; Signed off@50' })] }; const cs = change('amara', t); const i = cs.issues.find((x) => x.kind === 'past-stage')!; const done = change('amara', t, { answers: { [i.group]: { choice: 'done' } } }); return `${i.level} ${i.kind}: ${i.message} → ${describe(done).toLowerCase()}`; } },
+    ],
+    unclear: ['A group’s id is its kind, sheet, column and folded value found, written with hyphens for spaces and colons between (`near-ref:goals:team:ci-dc`): a rebuild may make ids its own way, as long as the same problem gives the same id. The titles of groups are Faro’s wording; the conformance rows (spec/conformance/import.csv) score the kind, level, group and the one row’s sentence.', 'IM3 rewrites the preview around these groups; until then the preview lists Must fix by row and asks each Check as a group. near-header and other-workspace (reading the file’s headers and its Start here sheet) come with IM5 and IM3; new-team’s set-up case with ST4.'],
   },
   /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
   {
@@ -800,8 +844,9 @@ ${fieldTableMarkdown()}`,
     summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
     code: [
       { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
-      { file: 'src/domain/recarry.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
-      { file: 'src/domain/actions.ts', names: ['saveRetro', 'mergeCommits'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'withRecarry'] },
+      { file: 'src/domain/copies.ts', names: ['copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/actions.ts', names: ['saveRetro'] },
     ],
     tests: ['src/domain/startYear.test.ts'],
     reqs: ['CARRY-GOALS'],
@@ -810,13 +855,13 @@ ${fieldTableMarkdown()}`,
 
 **What comes with it** (\`carryExtras\`): its metric link (same metric and team, linked by the same person); each watch of it or of its tree (same person); each open ask or next step on it, with the copy added, so it shows in both years; and each review that names it or its tree, with the copy added. The start keeps all of it, so Undo removes the watches and links it added and takes the copies back out of the asks and reviews.
 
-**Keeping a copy true** (\`recarry\`): a check-in or a wrap-up on a goal of a year that has a later cycle works its kind out again and, only while its copy is untouched (no check-in in it, no change to it by a person), replaces the copy's plan or stages, removes the copy and what came with it, or adds one. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead."`,
+**Keeping a copy true** (\`recarry\`, run by \`withRecarry\` on every save, from the app and the AI tools alike): whenever a save touches a goal of a year that has a later cycle (a check-in posted, corrected, deleted or restored; a wrap-up; its plan; stopped, removed or brought back; an import or its Undo), its kind is worked out again and, only while its copy is untouched (no check-in in it, no change to it by a person), the copy's plan or stages are replaced, or the copy leaves with what came with it (a goal stopped or removed in its own year leaves too) and its children's copies lose it as parent and their effect, or the copy comes back. A copy that left comes back as it was, the same ID and key, with its children's copies under it again; one a person removed stays removed. Copies are compared field by field, so a store's own order changes nothing. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead." Copies recarry added don't stop the start being undone, and Undo takes them out too.`,
     examples: [
       { given: 'A 2026 goal from 0.42 to 0.30 USD planned from week 45, with a number set by hand, whose final number is 0.37: its plan in 2027.', then: 'start 0.37, target 0.3, from week 0, no end week, no hand-set numbers', run: () => { const g = metric(0.42, 0.3, 'straight', { id: 'u', plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } }); const c = carryCopy(g, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [checkIn('u', 53, 0.37)], id: 'u2', parentId: null, now: '2026-12-21T10:00:00Z' }) as MetricGoal; return `start ${c.plan.start}, target ${c.plan.target}, from week ${c.plan.fromWeek}, ${c.plan.endWeek == null ? 'no end week' : 'end week ' + c.plan.endWeek}, ${c.plan.points ? 'hand-set numbers' : 'no hand-set numbers'}`; } },
       { given: 'A goal with stages due in weeks 3 and 7, neither done, into a 52-week year; and with the first done.', then: 'due weeks 26, 52; due weeks 52', run: () => { const due = (cis: ReturnType<typeof checkIn>[]) => `due weeks ${(carryCopy(MILESTONE, { old: { weeks: 13 }, next: { id: 'n', weeks: 52 }, checkIns: cis, id: 's2', parentId: null, now: '' }) as typeof MILESTONE).stages.map((x) => x.dueWeek).join(', ')}`; return `${due([])}; ${due([checkIn(MILESTONE.id, 4, null, { stages: [{ stageId: 'a', doneWeek: 3 }] as never })])}`; } },
       { given: 'A goal planned from week 45 to week 66 of a 53-week year.', then: 'from week -8 to week 13', run: () => { const c = carryCopy(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'k2', parentId: null, now: '' }) as MetricGoal; return `from week ${c.plan.fromWeek} to week ${c.plan.endWeek}`; } },
     ],
-    unclear: ['Recarry runs on every check-in that goes through the change engine (the check-in screens, the data tables and a spreadsheet) and on a wrap-up; the AI tools’ bulk changes after the start don’t move the copy yet, and undoing an import leaves a copy it moved where it is.'],
+    unclear: ['A copy recarry took out shows on Recently removed like any removed goal; restoring it there brings back the goal only, not what came with it, while its goal in the old year still says stop.'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */
