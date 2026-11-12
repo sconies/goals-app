@@ -11127,15 +11127,16 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
+		const owned = s.goals.find((x) => x.id === g.id) ?? g;
 		if (!create && !mayPostCheckIn({
 			id: actor.id,
 			admin: admin()
-		}, g, via)) {
+		}, owned, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -15449,7 +15450,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Whoever must respond sees each ask once on Home under Needs your response, grouped by kind, however many goals it covers. Its button opens the goal with the ask open in Next steps and asks, under For you, in the Respond panel, the box ready.",
-					"The Respond panel is the same for every kind: answer it, check in (an update), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
+					"The Respond panel is the same for every kind: answer it, check in (an update; the goal’s owner only, as check-ins are theirs), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
 					"On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.",
 					"Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.",
 					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
@@ -15859,7 +15860,7 @@ var CORE_ARTICLES = [
 					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
 					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
 					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
-					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
+					"Why: the owner’s reason from their latest check-in (one an admin loaded is said as theirs, by name), its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
@@ -17481,6 +17482,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-ins-owners-words",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s, said everywhere",
+		points: [
+			"Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.",
+			"A check-in an admin loaded is headed with the admin’s name, not as what the owner said.",
+			"One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.",
+			"An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused."
+		],
+		articles: [
+			"requests",
+			"goal-page",
+			"inbox"
+		]
+	},
 	{
 		id: "set-up-check-in-owners",
 		date: "2026-11-12",
@@ -21587,6 +21604,13 @@ function newIssueLink(repo, m, o = {}) {
 	return url;
 }
 // src/markup/ops.ts
+/** Where markups are kept, and their pictures. */
+/** A GitHub issue's address as kept: trimmed, without a query or fragment; anything else is refused in these words. */
+function issueUrlOf(url) {
+	const u = url.trim().replace(/[?#].*$/, "");
+	if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+	return u;
+}
 /** What to say, plainly, when markups' pictures can't be read here: what to do, and where. */
 var PICTURES_UNREADABLE = "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.";
 /** The pictures a markup can have (src/markup/ink.ts makePictures). */
@@ -21671,10 +21695,10 @@ function markupOps(o) {
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
 			return m;
 		},
-		/** Keeps the address of the issue the builder opened. */
-		async setIssueUrl(id, url) {
-			const u = url.trim().replace(/[?#].*$/, "");
-			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+		/** Keeps the address of the issue the builder opened: triage, so admins only (mayTriage, as statusPatch asks). */
+		async setIssueUrl(id, url, admin) {
+			const u = issueUrlOf(url);
+			if (!mayTriage({ admin })) throw new MarkupError(ADMINS_TRIAGE);
 			await must(id);
 			const m = await o.store.update(id, { issueUrl: u });
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
@@ -21963,14 +21987,16 @@ var MARKUP_TOOLS = [
 				isError: true,
 				text: "Give a status, an issue_url, or both."
 			};
-			let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-			if (a.status) m = await ops.setStatus(id, {
+			if (a.issue_url) issueUrlOf(String(a.issue_url));
+			if (a.issue_url && !mayTriage(ctx.actor)) throw new MarkupError(ADMINS_TRIAGE);
+			let m = a.status ? await ops.setStatus(id, {
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
 				by: `${ctx.actor.name} via MCP`,
 				admin: !!ctx.actor.admin
-			});
+			}) : null;
+			if (a.issue_url) m = await ops.setIssueUrl(id, String(a.issue_url), !!ctx.actor.admin);
 			return {
 				data: { markup: m },
 				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
@@ -23710,7 +23736,7 @@ var CORE_TOOLS = [
 	{
 		name: "post_check_in",
 		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner can post: not an admin, and not anyone else (an admin brings others’ check-ins in only by loading a workbook, or corrects a past one in Data’s tables). Posting again for the same week corrects that week’s check-in (the log keeps both).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
