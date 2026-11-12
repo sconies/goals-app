@@ -6340,12 +6340,12 @@
     {"id":"ask_po1805","kind":"question","goalIds":["cfr-halt"],"askedBy":"marisol","recipientId":"olivia","ask":"Is week 45 still right for the halt on tier-1, given the burn-rate signal arrived late?","status":"open","dueWeek":null,"reviewId":"reliability","week":45,"checkInId":null,"createdAt":"2026-11-04T14:02:00.000Z","updatedAt":"2026-11-04T14:02:00.000Z","answer":null,"answeredBy":null,"answeredAt":null}
   ],
   "reviews": [
-    {"id":"weekly","name":"Platform leadership weekly"},
-    {"id":"qbr","name":"Quarterly business review"},
-    {"id":"security","name":"Security monthly"},
-    {"id":"devprod","name":"Developer Productivity fortnightly"},
-    {"id":"reliability","name":"Reliability weekly"},
-    {"id":"dataml","name":"Data & ML sync"}
+    {"id":"weekly","name":"Platform leadership weekly","scope":{"goals":[],"trees":[],"levels":["north-star","svp"]}},
+    {"id":"qbr","name":"Quarterly business review","scope":{"goals":[],"trees":[],"levels":["north-star"]}},
+    {"id":"security","name":"Security monthly","scope":{"goals":["dep-gates-sec","ai-approval"],"trees":["ns-vuln"],"levels":[]}},
+    {"id":"devprod","name":"Developer Productivity fortnightly","scope":{"goals":[],"trees":["ns-lead","ns-ci","ns-deploy"],"levels":[]}},
+    {"id":"reliability","name":"Reliability weekly","scope":{"goals":[],"trees":["ns-mttr","ns-slo","ns-cfr"],"levels":[]}},
+    {"id":"dataml","name":"Data & ML sync","scope":{"goals":[],"trees":["ns-fresh"],"levels":[]}}
   ],
   "modules": {
     "metrics": {
