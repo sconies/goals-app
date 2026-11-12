@@ -1694,6 +1694,17 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   h.set('attention', true);
   h.set('logged', s.changes.filter((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Bulk edit')).length >= 4, 'bulk changes were not logged on each goal');
   await p.context().close();
+  // A number typed with a decimal comma, as someone's own locale writes it, posts as a decimal (IM2 review): the grid is
+  // a screen, not a file, so it asks nothing about it.
+  const j = h.use(await newPage(device, 'julia'));
+  await j.goto(url('/quick-check-in'));
+  const onboard = g21('devsat-onboard'), typed = valueAt(onboard, NOW).replace('.', ',');
+  await h.fill(j.getByLabel(/Days for a new engineer to merge a first change: this week’s number/), typed);
+  await h.click(j.getByRole('button', { name: 'Post 1 check-in' }));
+  await see(j, 'Posted from the table');
+  const sj = await h.snapshot();
+  h.set('finish', typed.includes(',') && sj.checkIns.some((c) => c.goalId === 'devsat-onboard' && c.week === NOW && c.value === Number(typed.replace(',', '.'))), `“${typed}” typed in the grid was not posted as a decimal`);
+  await j.context().close();
 });
 
 journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart', 10, async (h, device) => {

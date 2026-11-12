@@ -34,6 +34,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['any-device'],
   },
   {
+    id: 'setup-near-miss-stops',
+    date: '2026-11-12',
+    title: 'Set-up says when a row is one letter out',
+    points: [
+      'Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.',
+      'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
+    ],
+    articles: ['set-up', 'check-in-table'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',
