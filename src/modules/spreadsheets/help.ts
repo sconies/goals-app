@@ -116,6 +116,7 @@ const help: Article[] = [
         'Leave empty: Faro fills it in, such as a new goal’s Key.',
         'Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.',
         'On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away.',
+        'State on Goals says active or proposed. proposed adds a goal that is proposed, not yet active (its Start and Target, Limit or Stages may wait), or makes one with no check-ins proposed again; active makes a proposed goal active, once it has everything an active goal needs. A proposed goal’s worked-out columns are empty, and its Status says Proposed. A check-in row for a proposed goal is a Must fix.',
       ] },
     ],
     routes: [],

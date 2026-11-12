@@ -5,7 +5,8 @@ import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
-import { checksContext, goalChecks, goalMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
+import { isProposed } from '../domain/proposed';
+import { checksContext, goalChecks, goalMustFix, proposedMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
 import { goalMeasureOf } from '../domain/records';
@@ -76,7 +77,8 @@ function EditSheet({ goal }: { goal: Goal }) {
   // What can't be saved (goal entry, rule 2): the same rule and words as New goal, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
   const parentG = app.goal(d.parentId);
-  const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
+  // A proposed goal may still leave how it's measured unsaid (rule 14).
+  const fix = (isProposed(goal) ? proposedMustFix : goalMustFix)(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
   const errors: Partial<Record<GoalField, string>> = {};
   for (const f of fix) errors[f.field] ??= f.text;
   const err = (k: GoalField) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;

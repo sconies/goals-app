@@ -14,9 +14,14 @@ export function mayAddGoal(_actor: Actor, _ownerId: string): boolean {
   return true;
 }
 
-/** Whether `actor` may change a goal (its name, plan, owner, unit or decimals): its owner, or an admin. */
-export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'>): boolean {
-  return !!actor.admin || goal.ownerId === actor.id;
+/**
+ * Whether `actor` may change a goal (its name, plan, owner, unit or decimals): its owner, or an admin; and, while a goal
+ * is proposed (domain/proposed isProposed: proposed, not removed or stopped), whoever proposed it (GE10, rule 14).
+ */
+export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'> & Partial<Pick<Goal, 'proposedAt' | 'proposedBy' | 'removedAt' | 'stoppedAt'>>): boolean {
+  if (!!actor.admin || goal.ownerId === actor.id) return true;
+  // isProposed, stated here without importing domain/proposed (which reads this file).
+  return !!goal.proposedAt && !goal.removedAt && !goal.stoppedAt && goal.proposedBy === actor.id;
 }
 
 /**

@@ -97,7 +97,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
-- **Named parts:** “Not linked”
+- **Named parts:** “Goals”, “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
 - **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
@@ -109,7 +109,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/goals/new` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 - `/goals/new/:step` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 
-- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”, “After you publish”
+- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`

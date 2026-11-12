@@ -1,0 +1,23 @@
+/* A proposed goal (GE10): "Proposed" is a word, not a status (design rules): muted text at a status word's weight, in the
+   place a status would be, with no shape, capsule, wash or edge. Loaded with the screens that draw one. */
+.proposed-word { color: var(--muted); font-weight: 600; font-size: 0.875rem; line-height: 1.125rem; margin: 0; }
+.goal-proposed .title-xl { margin-top: 2px; }
+.proposed-key { margin-top: 4px; }
+.proposed-actions { gap: var(--s2); align-items: center; flex-wrap: wrap; margin: var(--s3) 0; }
+.proposed-block { border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); background: var(--surface); }
+.proposed-block p { margin: 0 0 var(--s2); }
+.make-active-block { border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); background: var(--surface); }
+.make-active { gap: var(--s3); }
+.confirm-row { border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); margin: var(--s2) 0; }
+.proposed-rows .proposed-row { display: grid; grid-template-columns: 7rem 1fr auto; gap: var(--s3); padding: var(--s3) 0; color: inherit; text-decoration: none; }
+.proposed-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.proposed-would { text-align: right; color: var(--muted); }
+.under-way { border: 0; padding: 0; margin: var(--s3) 0 0; display: flex; flex-direction: column; gap: var(--s2); }
+.under-way-choice { border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); min-height: 44px; align-items: flex-start; }
+.under-way-choice:has(input:checked) { outline: 2px solid var(--fg); outline-offset: -1px; }
+.under-way-choice .menu-text { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 600px) {
+  .proposed-rows .proposed-row { grid-template-columns: 1fr; gap: 2px; }
+  .proposed-would { text-align: left; }
+  .proposed-actions > .btn { width: 100%; justify-content: center; }
+}

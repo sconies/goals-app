@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-proposed',
+    date: '2026-11-12',
+    title: 'Propose a goal before it starts',
+    points: [
+      'New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.',
+      'Its owner or an admin makes it active when it is agreed.',
+      'Proposed goals are counted apart, and listed under Goals with the Proposed filter.',
+    ],
+    articles: ['goal-proposed', 'new-goal', 'goals', 'columns'],
+  },
+  {
     id: 'import-headers-steadier',
     date: '2026-11-12',
     title: 'Import reads your headers more carefully',

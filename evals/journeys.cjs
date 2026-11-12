@@ -5237,6 +5237,85 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await p.context().close();
 }, []);
 
+/* GE10: a goal that is proposed, not yet active (goal entry 2.15, rule 14). */
+journey('U134', ['GOAL-PROPOSED', 'NEW-GOAL-STEPS'], 'Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page offers “Post the first check-in”; Undo returns it to proposed; “Withdraw it” removes it', 40, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  const on = (path, day = '2026-11-11') => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '40');
+  await h.fill(p.getByLabel(/^Target$/), '90');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  const question = p.getByRole('group', { name: 'Is it under way?' });
+  await see(p, 'Is it under way?', 'the last step doesn’t ask whether the goal is under way');
+  await h.click(question.getByRole('radio', { name: /Not yet: propose it/ }));
+  await see(p, 'After you propose it', '“Not yet” doesn’t turn the block to “After you propose it”');
+  await h.inView(p.getByRole('button', { name: 'Propose goal' }), 'entry', 'Propose goal');
+  await h.checkpoint('check');
+  await h.click(p.getByRole('button', { name: 'Propose goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const id = new URL(p.url()).pathname.split('/').pop();
+  const page = p.locator('.goal-proposed');
+  await page.waitFor();
+  h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'the proposed goal’s page doesn’t say “Proposed” above the title');
+  h.set('a11y', (await page.locator('.status-shape').count()) === 0, 'a proposed goal’s page draws a status shape');
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.id === id);
+  h.set('logged', !!made && !!made.proposedAt && /^G-\d+$/.test(made.key ?? ''), 'the proposed goal was saved without a key or without proposedAt');
+  // Goals, Mine counts it apart, and the link lists it.
+  await p.goto(on('/goals?scope=mine'));
+  const line = p.locator('.goals-line').first();
+  await line.waitFor();
+  h.set('finish', /· 1 proposed/.test(await line.innerText()), `Goals, Mine reads “${await line.innerText()}”, not “· 1 proposed”`);
+  await h.click(line.getByRole('link', { name: '1 proposed' }));
+  await see(p, '1 proposed goal, newest first.', 'the proposed link doesn’t list it');
+  await see(p, 'Filtered by: Proposed', 'the proposed list doesn’t say its filter');
+  h.set('a11y', (await p.locator('.proposed-rows .status-shape').count()) === 0, 'a proposed row draws a status shape');
+  // Nothing to check in, and a fortnight later still proposed.
+  await p.goto(on('/check-in/' + id));
+  await see(p, 'This goal is proposed, so there is nothing to check in. Make it active first.', 'the check-in of a proposed goal doesn’t say so');
+  await p.goto(on('/goals/' + id, '2026-11-25'));
+  await page.waitFor();
+  h.set('finish', (await page.locator('.proposed-word').innerText()).trim() === 'Proposed', 'a fortnight later it no longer says Proposed');
+  // As Oskar: comment, ask and watch, and who can make it active.
+  await p.goto(on('/goals/' + id));
+  await viewAs(p, 'Oskar', h);
+  await page.waitFor();
+  await see(page, 'Tunde Bakare or an admin can make this active.', 'Oskar isn’t told who can make it active');
+  for (const b of ['Add a comment', 'Ask Tunde a question']) h.set('finish', await page.getByRole('button', { name: b }).first().isVisible(), `Oskar has no “${b}”`);
+  h.set('finish', (await page.getByRole('button', { name: 'Make it active' }).count()) === 0, 'Oskar can make it active');
+  // As Tunde: Make it active reads back From as this week and the first check-in's day.
+  await viewAs(p, 'Tunde', h);
+  await page.waitFor();
+  await h.click(page.getByRole('button', { name: 'Make it active' }).first());
+  const block = p.locator('.make-active');
+  await block.waitFor();
+  const says = (await block.locator('.make-active-says').innerText()).replace(/\s+/g, ' ');
+  h.set('finish', says.startsWith('From 40% in week 46 (9–15 Nov 2026) to 90% by week 53') && says.includes('Its first check-in is due by Thursday 12 Nov, then every week.'), `Make it active reads “${says}”`);
+  await h.click(block.getByRole('button', { name: 'Make it active' }));
+  await see(p, 'Post the first check-in', 'once active, the page doesn’t offer the first check-in');
+  const undo = p.locator('.toast-action').filter({ hasText: 'Undo' }).first();
+  h.set('errors', await undo.isVisible(), 'making it active has no Undo');
+  await h.click(undo);
+  await page.waitFor({ timeout: 8000 }).catch(() => {});
+  h.set('errors', await page.isVisible(), 'Undo didn’t return it to proposed');
+  // Withdraw it: gone, with Undo.
+  await h.click(page.getByRole('button', { name: 'Withdraw it' }).first());
+  await see(p, 'It goes to Recently removed for 30 days.', 'Withdraw doesn’t say where it goes');
+  await h.click(p.getByRole('alertdialog', { name: 'Withdraw the proposal' }).getByRole('button', { name: 'Withdraw it' }));
+  await p.waitForURL(/\/goals(\?|$)/);
+  await see(p, 'Withdrew the proposal', 'withdrawing doesn’t say so');
+  await p.context().close();
+}, []);
+
 /* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
 journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen survives Check: as Rhea, a goal measured by Pipeline queue wait (p90) for CI/CD; a reload on Check still reads “Pipeline queue wait (p90), for CI/CD.”; “Change” on Who and where puts focus on its first field, and choosing Build & Release then Continue reads “for Build & Release.”; Publish saves the goal measured by it for Build & Release', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
