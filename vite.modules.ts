@@ -42,17 +42,19 @@ export function findModules(root: string, without: string[] = []): { kept: Found
 export function faroModules(): Plugin {
   const without = (process.env.FARO_WITHOUT ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   let root = process.cwd();
+  let building = false;
   return {
     name: 'faro-modules',
     configResolved(c) {
       root = c.root;
+      building = c.command === 'build';
       const { left } = findModules(root, without);
       if (left.length) c.logger.info(`Faro modules left out of this build: ${left.join(', ')}`);
     },
     resolveId(id) {
       return id === PREFIX || id.startsWith(PREFIX + '/') ? '\0' + id : null;
     },
-    load(id) {
+    load(id, options) {
       if (!id.startsWith('\0' + PREFIX)) return null;
       const part = id.slice(PREFIX.length + 1) as keyof typeof PARTS;
       const file = PARTS[part];
@@ -64,7 +66,14 @@ export function faroModules(): Plugin {
         const f = path.join(m.dir, file);
         if (!fs.existsSync(f)) continue;
         this.addWatchFile(f);
-        lines.push(`import m${i} from ${JSON.stringify(f.split(path.sep).join('/'))};`);
+        /* The app's own build leaves out a module's rebuild stage: only the spec reads it (src/spec/rebuild.ts, run by
+           npm run spec and the tests, never the browser), and its prose would otherwise count in the first download. */
+        if (file === 'module.json' && building && !options?.ssr) {
+          const { rebuild: _, ...facts } = JSON.parse(fs.readFileSync(f, 'utf8')) as Record<string, unknown>;
+          lines.push(`const m${i} = ${JSON.stringify(facts)};`);
+        } else {
+          lines.push(`import m${i} from ${JSON.stringify(f.split(path.sep).join('/'))};`);
+        }
         entries.push(file === 'module.json' ? `m${i}` : `{ id: ${JSON.stringify(m.id)}, part: m${i} }`);
       }
       return `${lines.join('\n')}\nexport default [${entries.join(', ')}];\n`;
