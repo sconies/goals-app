@@ -4582,7 +4582,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4885,6 +4885,7 @@ var init_columns = __esmMin((() => {
 		means: "The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins).",
 		loaded: "Sets the plan numbers by hand; needs a reason once check-ins have started"
 	};
+	isWeekHeader = (h) => /^week \d+$/i.test(h.trim());
 	planWeekValue = (r, week) => {
 		const from = r.g.plan.fromWeek ?? 0, end = planEnd(r.g.plan, r.c.x.cycle.weeks);
 		return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
@@ -5030,6 +5031,7 @@ var init_columns = __esmMin((() => {
 		...sheets.map((x) => x.spec.name)
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
+	headersOf = (kind) => specOf(kind).columns.map((c) => c.header);
 	columnOf = (kind, header) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
 	isWorkedOut = (kind, header) => ["worked", "shown"].includes(columnOf(kind, header)?.role ?? "");
 	KEY_COLUMNS = {
@@ -8943,17 +8945,7 @@ function stagesFromNow(stages, week, weeks = 52) {
 	const scale = Math.min(1, room / last);
 	return parts.map((p) => p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`).join("; ");
 }
-var init_templates = __esmMin((() => {})), LOADED;
-var init_sheets = __esmMin((() => {
-	init_columns();
-	LOADED = {
-		goals: "goals",
-		plan: "plan",
-		checkIns: "checkIns",
-		people: "people"
-	};
-	Object.keys(LOADED);
-}));
+var init_templates = __esmMin((() => {}));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
 function editDistance(a, b) {
@@ -9049,6 +9041,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "loop": return `${n$1(count, "goal")} would feed ${count === 1 ? "itself" : "themselves"}`;
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
+		case "near-header": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9322,6 +9315,84 @@ var init_problemLevels = __esmMin((() => {
 		note: 2
 	};
 }));
+// src/domain/sheets.ts
+/** Every name a sheet of a kind reads a column by, folded: its headers, the engine's extra ones, and the field table's `also`. */
+function namesOf(kind) {
+	const out = /* @__PURE__ */ new Map();
+	for (const h of headersOf(kind)) out.set(fold$1(h), h);
+	for (const h of ALSO_READ[kind] ?? []) out.set(fold$1(h), h);
+	if (FILL_SHEETS.includes(kind)) {
+		for (const row of fieldTable(kind)) for (const a of row.also ?? []) if (!out.has(fold$1(a))) out.set(fold$1(a), row.header);
+	}
+	return out;
+}
+/**
+* How a sheet of a kind reads one header: `exact` (its own, any case, or a plan's "Week N"), `also` (another name the
+* field table gives the column: "Goal name" is Goal), `near` (one letter out of exactly one of them: "Targett" is
+* Target, asked about), or `unknown`. `as` is the column it is read as.
+*/
+function headerMatch(kind, header) {
+	const h = header.trim();
+	if (!h) return {
+		how: "unknown",
+		as: null
+	};
+	if (kind === "plan" && isWeekHeader(h.toLowerCase())) return {
+		how: "exact",
+		as: h
+	};
+	const names = NAMES.get(kind);
+	const at = names.get(fold$1(h));
+	if (at) return alsoOf(kind, h) ? {
+		how: "also",
+		as: at
+	} : {
+		how: "exact",
+		as: at
+	};
+	const m = near(h, [...names.keys()]);
+	if ("near" in m) return {
+		how: "near",
+		as: names.get(m.near)
+	};
+	return {
+		how: "unknown",
+		as: null
+	};
+}
+var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
+var init_sheets = __esmMin((() => {
+	init_columns();
+	init_problemLevels();
+	LOADED = {
+		goals: "goals",
+		plan: "plan",
+		checkIns: "checkIns",
+		people: "people"
+	};
+	Object.keys(LOADED);
+	ALSO_READ = {
+		goals: [
+			"reason",
+			"reason for change",
+			"owner id"
+		],
+		plan: ["reason", "reason for change"],
+		checkIns: ["reason"],
+		people: []
+	};
+	ALL_KINDS = [
+		"goals",
+		"plan",
+		"checkIns",
+		"people",
+		"results",
+		"asks",
+		"notes"
+	];
+	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
+	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
+}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -9354,6 +9425,25 @@ function fileDiffs(file, changed, unchanged, left) {
 		from: "—",
 		to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ""}`
 	}];
+}
+/** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
+function namedHeaders(t, nearOk) {
+	const out = { ...t };
+	for (const [key, kind, sheet] of TABLE_SHEETS) {
+		const recs = t[key];
+		if (!recs?.length) continue;
+		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
+		const rename = /* @__PURE__ */ new Map();
+		for (const k of keys) {
+			const m = headerMatch(kind, k);
+			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			const to = m.as.toLowerCase();
+			if (keys.includes(to)) continue;
+			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+		}
+		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+	}
+	return out;
 }
 function planChanges(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
@@ -9388,6 +9478,26 @@ function planChanges(input) {
 			sheet,
 			row
 		});
+	};
+	input = {
+		...input,
+		tables: namedHeaders(input.tables, (sheet, header, as) => {
+			const a = answerOf("near-header", sheet, "Header", header);
+			if (a?.choice === "use") return true;
+			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
+				column: "Header",
+				found: header,
+				suggest: as,
+				answers: [{
+					choice: "use",
+					label: `Read it as ${as}`
+				}, {
+					choice: "ignore",
+					label: "Don’t read it"
+				}]
+			});
+			return false;
+		})
 	};
 	/**
 	* A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
@@ -11419,7 +11529,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11538,6 +11648,28 @@ var init_changeset = __esmMin((() => {
 		"odd-number",
 		"feeds-lower",
 		"no-unit"
+	];
+	TABLE_SHEETS = [
+		[
+			"goals",
+			"goals",
+			"Goals"
+		],
+		[
+			"plan",
+			"plan",
+			"Plan"
+		],
+		[
+			"checkIns",
+			"checkIns",
+			"Check-ins"
+		],
+		[
+			"people",
+			"people",
+			"People"
+		]
 	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -14277,8 +14409,10 @@ var help$2 = [
 				heading: "How to use it",
 				list: [
 					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
+					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
+					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -17023,6 +17157,18 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "import-way-in",
+		date: "2026-11-12",
+		title: "Paste rows, and headers that are nearly right",
+		points: [
+			"Paste cells from a spreadsheet straight into Import.",
+			"A title row above the headers, or “Goal name” for Goal, is read.",
+			"A header one letter out is asked about once: “Read it as Target?”",
+			"A file Faro can’t use says what it found, and offers the template."
+		],
+		articles: ["import"]
+	},
+	{
 		id: "past-imports",
 		date: "2026-11-12",
 		title: "Past imports, each with Undo",
@@ -18927,6 +19073,7 @@ var _virtual_faro_modules_default = [{
 		"U89",
 		"U94",
 		"U90",
+		"U95",
 		"F7",
 		"F8",
 		"F17",
