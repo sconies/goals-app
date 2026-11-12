@@ -11,6 +11,8 @@ Then three tables, read from the screen’s markup (`src/spec/screenFacts.ts`):
 - **States:** what it draws instead of, or as well as, its usual self. *Whole screen*: drawn in place of the screen, under the condition its code tests first (a goal that doesn’t exist, a redirect, an admin-only page). *Loading*: a quiet wait, drawn only after 300 ms. *Empty*: a title for nothing to show. *Error*: an alert or a message beside a field. *Refused*: a sentence saying who may.
 - **Buttons, and who sees them:** every button and button-styled link, its kind (`primary`, `button` or `link`), and when it shows: always, or the conditions around it in the markup, outermost first. The ones every screen shares are in words (an admin, the goal’s owner); the rest are the code’s own condition, which names what it tests. Who may *do* each thing is a rule ([goal rights](rules/README.md), R1’s access table); a hidden button is how a screen follows it, not the rule.
 
+Each screen, and the views with a route of their own or a key that opens them, has two pictures, at 390 and 1440 wide, taken from the demo on its conformance day (5 Nov 2026, week 45) as the person named, by `npm run spec:shots` (`SHOTS` in `src/spec/screens.ts`). They show Faro’s look as it is, cut at 2400px tall on a phone and 1800px on a desktop; the tables and the design rules are what a rebuild keeps, the pictures what they add up to.
+
 Words worked out when the screen shows (from the goal, the person or the week) are written “…”. A screen’s look is in [the design rules](design-rules.md), and every Help article in full in [the Help guide](help-guide.md). Views, overlays and pages with no route of their own (the Goals layouts, Find, the shell, the error pages) follow the routes. Feature modules add their own screens: see [the modules](../modules/README.md). **Not self-explanatory:** a condition written as code is the screen’s own; a rebuild reads it for what it means (who is looking, what the goal has), not for its names.
 
 ## Home
@@ -23,6 +25,10 @@ Words worked out when the screen shows (from the goal, the person or the week) a
 - **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
+
+**Pictures** (`/` as rhea): [390 wide](screens/home-390.jpg), [1440 wide](screens/home-1440.jpg)
+
+<img src="screens/home-390.jpg" alt="Home at 390 wide" width="195"> <img src="screens/home-1440.jpg" alt="Home at 1440 wide" width="480">
 
 **Fields**
 
@@ -55,6 +61,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** On the week’s list (/check-in), start with the first goal due, or pick any; then post each check-in, one goal at a time.
 - **Primary buttons in its markup:** “Open the goal”, “Save and skip”, “Back to home”
 - **AI tools:** `post_check_in`, `link_request`
+
+**Pictures** (`/check-in/lead-flaky` as rhea): [390 wide](screens/checkinflow-390.jpg), [1440 wide](screens/checkinflow-1440.jpg)
+
+<img src="screens/checkinflow-390.jpg" alt="CheckInFlow at 390 wide" width="195"> <img src="screens/checkinflow-1440.jpg" alt="CheckInFlow at 1440 wide" width="480">
 
 **Fields**
 
@@ -135,6 +145,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `bulk_change`, `post_check_in`
 
+**Pictures** (`/quick-check-in` as rhea): [390 wide](screens/quickcheckin-390.jpg), [1440 wide](screens/quickcheckin-1440.jpg)
+
+<img src="screens/quickcheckin-390.jpg" alt="QuickCheckIn at 390 wide" width="195"> <img src="screens/quickcheckin-1440.jpg" alt="QuickCheckIn at 1440 wide" width="480">
+
 **Fields**
 
 | Field | Kind | Shown when |
@@ -169,6 +183,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** Start the research session.
 - **Primary buttons in its markup:** “Start the session”
 - **AI tools:** none, on purpose: Research sessions in the demo, for the people building the app.
+
+**Pictures** (`/research` as amara): [390 wide](screens/research-390.jpg), [1440 wide](screens/research-1440.jpg)
+
+<img src="screens/research-390.jpg" alt="Research at 390 wide" width="195"> <img src="screens/research-1440.jpg" alt="Research at 1440 wide" width="480">
 
 **Fields**
 
@@ -208,6 +226,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** Walk the review’s goals worst first and mark each reviewed; on the list, open a review or set one up.
 - **Primary buttons in its markup:** “Set up the first review”
 - **AI tools:** `list_reviews`, `get_review`, `save_review`, `end_review`, `delete_review`
+
+**Pictures** (`/reviews/weekly` as amara): [390 wide](screens/review-390.jpg), [1440 wide](screens/review-1440.jpg)
+
+<img src="screens/review-390.jpg" alt="Review at 390 wide" width="195"> <img src="screens/review-1440.jpg" alt="Review at 1440 wide" width="480">
 
 **Fields**
 
@@ -256,6 +278,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_watching`, `find_goals`, `watch`, `unwatch`
 
+**Pictures** (`/goals?scope=watching` as rhea): [390 wide](screens/watching-390.jpg), [1440 wide](screens/watching-1440.jpg)
+
+<img src="screens/watching-390.jpg" alt="Watching at 390 wide" width="195"> <img src="screens/watching-1440.jpg" alt="Watching at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -286,6 +312,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** Wrap up each goal you own: how it landed, what you learned, and carry it on or stop it.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_wrap_up`, `wrap_up_goal`, `start_next_cycle`
+
+**Pictures** (`/retro` as rhea): [390 wide](screens/retro-390.jpg), [1440 wide](screens/retro-1440.jpg)
+
+<img src="screens/retro-390.jpg" alt="Retro at 390 wide" width="195"> <img src="screens/retro-1440.jpg" alt="Retro at 1440 wide" width="480">
 
 **Fields**
 
@@ -324,6 +354,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
 
+**Pictures** (`/goals` as amara): [390 wide](screens/goalsscreen-390.jpg), [1440 wide](screens/goalsscreen-1440.jpg)
+
+<img src="screens/goalsscreen-390.jpg" alt="GoalsScreen at 390 wide" width="195"> <img src="screens/goalsscreen-1440.jpg" alt="GoalsScreen at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -359,6 +393,10 @@ None: nothing to type or choose here.
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`
+
+**Pictures** (`/goals/new` as rhea): [390 wide](screens/goalwizard-390.jpg), [1440 wide](screens/goalwizard-1440.jpg)
+
+<img src="screens/goalwizard-390.jpg" alt="GoalWizard at 390 wide" width="195"> <img src="screens/goalwizard-1440.jpg" alt="GoalWizard at 1440 wide" width="480">
 
 **Fields**
 
@@ -413,6 +451,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** The one main button for whoever is looking: answer what’s asked of you, check in when it’s due, mark your next step done, add a next step when it’s behind with none, or ask for an update; beside it the owner’s Check in again, or Watch.
 - **Primary buttons in its markup:** “Post the first check-in”
 - **AI tools:** `get_goal`, `add_comment`, `ask_question`, `ask_for_update`, `undo_update_ask`, `withdraw_request`, `mark_action_done`, `watch`, `unwatch`, `stop_goal`, `delete_goal`, `delete_check_in`, `edit_comment`, `delete_comment`
+
+**Pictures** (`/goals/ns-lead` as amara): [390 wide](screens/goalscreen-390.jpg), [1440 wide](screens/goalscreen-1440.jpg)
+
+<img src="screens/goalscreen-390.jpg" alt="GoalScreen at 390 wide" width="195"> <img src="screens/goalscreen-1440.jpg" alt="GoalScreen at 1440 wide" width="480">
 
 **Fields**
 
@@ -479,6 +521,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `update_goal`, `set_plan_numbers`
 
+**Pictures** (`/goals/ns-lead/edit` as rhea): [390 wide](screens/goaledit-390.jpg), [1440 wide](screens/goaledit-1440.jpg)
+
+<img src="screens/goaledit-390.jpg" alt="GoalEdit at 390 wide" width="195"> <img src="screens/goaledit-1440.jpg" alt="GoalEdit at 1440 wide" width="480">
+
 **Fields**
 
 | Field | Kind | Shown when |
@@ -531,6 +577,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_goal`, `get_review`
 
+**Pictures** (`/goals/ns-lead/print` as amara): [390 wide](screens/print-390.jpg), [1440 wide](screens/print-1440.jpg)
+
+<img src="screens/print-390.jpg" alt="Print at 390 wide" width="195"> <img src="screens/print-1440.jpg" alt="Print at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -560,6 +610,10 @@ None: nothing to type or choose here.
 - **Main action:** Read what changed, filtered to what you need.
 - **Primary buttons in its markup:** “Show the changes”
 - **AI tools:** `get_activity`, `undo_import`
+
+**Pictures** (`/activity` as amara): [390 wide](screens/activity-390.jpg), [1440 wide](screens/activity-1440.jpg)
+
+<img src="screens/activity-390.jpg" alt="Activity at 390 wide" width="195"> <img src="screens/activity-1440.jpg" alt="Activity at 1440 wide" width="480">
 
 **Fields**
 
@@ -599,6 +653,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `bulk_change`, `list_requests`, `list_views`, `save_table_view`, `delete_view`, `pin_view`
 
+**Pictures** (`/data` as amara): [390 wide](screens/datatables-390.jpg), [1440 wide](screens/datatables-1440.jpg)
+
+<img src="screens/datatables-390.jpg" alt="DataTables at 390 wide" width="195"> <img src="screens/datatables-1440.jpg" alt="DataTables at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -634,6 +692,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** For an admin, sort out what About lists; for anyone, read the facts and open the section each leads to.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `list_tokens`, `create_token`, `revoke_token`, `delete_workspace`, `rename_workspace`, `set_recording`, `set_feature`, `list_removed`, `restore_removed`, `delete_cycle`, `undo_start_cycle`, `start_next_cycle`
+
+**Pictures** (`/workspace` as amara): [390 wide](screens/workspace-390.jpg), [1440 wide](screens/workspace-1440.jpg)
+
+<img src="screens/workspace-390.jpg" alt="Workspace at 390 wide" width="195"> <img src="screens/workspace-1440.jpg" alt="Workspace at 1440 wide" width="480">
 
 **Fields**
 
@@ -689,6 +751,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** Set up a workspace, one question a screen.
 - **Primary buttons in its markup:** “Try the demo”
 - **AI tools:** none, on purpose: Setting up a new workspace happens before there is a token for it.
+
+**Pictures** (`/workspace/new` as amara): [390 wide](screens/onboarding-390.jpg), [1440 wide](screens/onboarding-1440.jpg)
+
+<img src="screens/onboarding-390.jpg" alt="Onboarding at 390 wide" width="195"> <img src="screens/onboarding-1440.jpg" alt="Onboarding at 1440 wide" width="480">
 
 **Fields**
 
@@ -768,6 +834,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_people`, `save_person`, `save_team`, `remove_team`, `mark_person_left`, `delete_person`, `create_token`, `find_goals`
 
+**Pictures** (`/people` as amara): [390 wide](screens/people-390.jpg), [1440 wide](screens/people-1440.jpg)
+
+<img src="screens/people-390.jpg" alt="People at 390 wide" width="195"> <img src="screens/people-1440.jpg" alt="People at 1440 wide" width="480">
+
 **Fields**
 
 | Field | Kind | Shown when |
@@ -835,6 +905,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_markups`, `get_markup`, `update_markup`, `list_feedback`, `get_feedback`, `update_feedback`, `review_inbox`, `send_feedback`
 
+**Pictures** (`/feedback` as amara): [390 wide](screens/feedback-390.jpg), [1440 wide](screens/feedback-1440.jpg)
+
+<img src="screens/feedback-390.jpg" alt="Feedback at 390 wide" width="195"> <img src="screens/feedback-1440.jpg" alt="Feedback at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -859,6 +933,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Main action:** For an admin, once the wrap-up opens: read what carries on, finishes and stops, then Start the next year (it opens for everyone on its first Monday).
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `start_next_cycle`, `list_people`
+
+**Pictures** (`/workspace/cycles/next` as amara): [390 wide](screens/startnext-390.jpg), [1440 wide](screens/startnext-1440.jpg)
+
+<img src="screens/startnext-390.jpg" alt="StartNext at 390 wide" width="195"> <img src="screens/startnext-1440.jpg" alt="StartNext at 1440 wide" width="480">
 
 **Fields**
 
@@ -887,6 +965,10 @@ None: nothing to type or choose here.
 - **Main action:** Change your own choices; see who you are here and go to your page.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `list_tokens`, `revoke_token`, `get_help`
+
+**Pictures** (`/settings` as rhea): [390 wide](screens/settings-390.jpg), [1440 wide](screens/settings-1440.jpg)
+
+<img src="screens/settings-390.jpg" alt="Settings at 390 wide" width="195"> <img src="screens/settings-1440.jpg" alt="Settings at 1440 wide" width="480">
 
 **Fields**
 
@@ -918,6 +1000,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`
 
+**Pictures** (`/help` as rhea): [390 wide](screens/help-390.jpg), [1440 wide](screens/help-1440.jpg)
+
+<img src="screens/help-390.jpg" alt="Help at 390 wide" width="195"> <img src="screens/help-1440.jpg" alt="Help at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -944,6 +1030,10 @@ None: nothing to type or choose here.
 - **Main action:** Say who you are, then go on to Home.
 - **Primary buttons in its markup:** “See your goals”, “Set up the first goal”
 - **AI tools:** none, on purpose: The first screen, before a workspace exists.
+
+**Pictures** (`/` before anyone has signed up): [390 wide](screens/start-390.jpg), [1440 wide](screens/start-1440.jpg)
+
+<img src="screens/start-390.jpg" alt="Start at 390 wide" width="195"> <img src="screens/start-1440.jpg" alt="Start at 1440 wide" width="480">
 
 **Fields**
 
@@ -1015,6 +1105,10 @@ Each is drawn inside a screen, over every screen, or when nothing else can be (`
 - **Help:** “Finding and choosing” (`finding`): A person, a team or a goal is chosen by typing to find it: you and your team are suggested first, and a goal’s key finds it.
 - **Main action:** Type a name, a few words or a goal’s key, and open what it finds.
 
+**Pictures** (`/` as rhea, after Control+K): [390 wide](screens/find-390.jpg), [1440 wide](screens/find-1440.jpg)
+
+<img src="screens/find-390.jpg" alt="Find at 390 wide" width="195"> <img src="screens/find-1440.jpg" alt="Find at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -1066,6 +1160,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Where:** /goals?view=table
 - **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
 - **Main action:** Read the goals in rows and open one; tick several to change them together.
+
+**Pictures** (`/goals?view=table` as amara): [390 wide](screens/goals-the-table-390.jpg), [1440 wide](screens/goals-the-table-1440.jpg)
+
+<img src="screens/goals-the-table-390.jpg" alt="Goals: the table at 390 wide" width="195"> <img src="screens/goals-the-table-1440.jpg" alt="Goals: the table at 1440 wide" width="480">
 
 **Fields**
 
@@ -1120,6 +1218,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Help:** “Goals and its layouts” (`goals`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look.
 - **Main action:** Read the goals grouped in columns by status, and open one.
 
+**Pictures** (`/goals?view=board` as amara): [390 wide](screens/goals-the-board-390.jpg), [1440 wide](screens/goals-the-board-1440.jpg)
+
+<img src="screens/goals-the-board-390.jpg" alt="Goals: the board at 390 wide" width="195"> <img src="screens/goals-the-board-1440.jpg" alt="Goals: the board at 1440 wide" width="480">
+
 **Fields**
 
 None: nothing to type or choose here.
@@ -1141,6 +1243,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Where:** /goals?view=map
 - **Help:** “The goal map” (`goal-map`): The map draws every goal and how they connect, so you can see what feeds what and where the risk runs.
 - **Main action:** Follow how goals roll up to the ones above them, and open one.
+
+**Pictures** (`/goals?view=map` as amara): [390 wide](screens/goals-the-map-390.jpg), [1440 wide](screens/goals-the-map-1440.jpg)
+
+<img src="screens/goals-the-map-390.jpg" alt="Goals: the map at 390 wide" width="195"> <img src="screens/goals-the-map-1440.jpg" alt="Goals: the map at 1440 wide" width="480">
 
 **Fields**
 
@@ -1169,6 +1275,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Where:** /goals?view=history
 - **Help:** “History: quarter results and weekly status” (`history`): History shows how each goal did at the end of each quarter, and the owner’s weekly calls week by week.
 - **Main action:** Read each goal’s status week by week, and open one.
+
+**Pictures** (`/goals?view=history` as amara): [390 wide](screens/goals-history-390.jpg), [1440 wide](screens/goals-history-1440.jpg)
+
+<img src="screens/goals-history-390.jpg" alt="Goals: history at 390 wide" width="195"> <img src="screens/goals-history-1440.jpg" alt="Goals: history at 1440 wide" width="480">
 
 **Fields**
 
@@ -1279,6 +1389,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 - **Where:** /check-in, before a goal is chosen.
 - **Help:** “Checking in on a goal” (`check-in`): A check-in is the owner’s weekly word on a goal: the number or stages, the status, and, when something changed, why and what happens next.
 - **Main action:** Start with the first goal due, or pick any.
+
+**Pictures** (`/check-in` as rhea): [390 wide](screens/check-in-the-week-s-list-390.jpg), [1440 wide](screens/check-in-the-week-s-list-1440.jpg)
+
+<img src="screens/check-in-the-week-s-list-390.jpg" alt="Check-in: the week’s list at 390 wide" width="195"> <img src="screens/check-in-the-week-s-list-1440.jpg" alt="Check-in: the week’s list at 1440 wide" width="480">
 
 **Fields**
 
@@ -1460,6 +1574,10 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - **Where:** Any address that leads nowhere.
 - **Main action:** Go to Home.
+
+**Pictures** (`/nowhere` as rhea): [390 wide](screens/page-not-found-390.jpg), [1440 wide](screens/page-not-found-1440.jpg)
+
+<img src="screens/page-not-found-390.jpg" alt="Page not found at 390 wide" width="195"> <img src="screens/page-not-found-1440.jpg" alt="Page not found at 1440 wide" width="480">
 
 **Fields**
 
