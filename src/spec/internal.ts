@@ -10,9 +10,8 @@
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
 import { createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
-import { LEVEL_LABEL } from '../domain/format';
 import { currentWeek, daysSince } from '../domain/plan';
-import { LEVELS } from '../domain/query';
+import { levelIds, levelName } from '../domain/levels';
 import { sessionDate } from '../domain/review';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
@@ -55,7 +54,7 @@ export interface Access {
   code: string[];
 }
 
-const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', MX = 'src/domain/metrics.ts#';
+const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
   { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn'] },
@@ -313,7 +312,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 430 KB compressed; 427 KB today, over R4’s 300, so it only goes down), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 370 KB compressed; 369 KB today, over R4’s 300, so it only goes down; the guide and What’s new load when Help is opened, and the first download carries only their index of titles, routes and release ids), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 430 KB (428 today), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {
@@ -334,12 +333,12 @@ export const INTERNAL: InternalRequirement[] = [
     ].join('\n'),
     today: [
       'A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).',
-      'Goal levels are a fixed three, `\'north-star\' | \'svp\' | \'team\'` (`Level` in `src/domain/types.ts`, `LEVELS` in `src/domain/query.ts`), used across the rules, screens and spreadsheets.',
+      'Goal levels are a fixed three, North star, SVP and Team (`DEFAULT_LEVELS` in `src/domain/levels.ts`), read from that one place by the rules, screens, spreadsheets and tools; a cycle can hold its own (`Cycle.levels`) but nothing sets them yet.',
       'One workspace is the whole company. Goals’ “By team” groups goals by team in a flat list. “In the tree of” scopes by the goal tree (what a goal feeds), not by the organisation.',
       'Teams and who is in them are typed in by admins, in Workspace or the People sheet; nothing reads a directory.',
     ],
     examples: [
-      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => LEVELS.map((l) => LEVEL_LABEL[l]).join(', ') },
+      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => levelIds(null).map((l) => levelName(null, l)).join(', ') },
       { given: 'Required: Platform and Developer Experience sit under Engineering, which sits under the company. Amara leads Engineering; Rhea leads Platform. Each opens Home.', then: 'Amara’s counts cover Engineering, Platform and Developer Experience; Rhea’s cover Platform. Either can widen or narrow the scope.' },
       { given: 'Required: Oskar’s manager is Maya, and Maya’s is Priya. Priya scopes Goals to her whole chain.', then: 'Oskar’s goals are in it, as are Maya’s and those of everyone else under Priya.' },
       { given: 'Required: a workspace’s levels are Company, Division, Team. An admin renames Division to Group.', then: 'Every goal at Division is now at Group; no goal is changed or logged as changed, and the rename is logged once.' },

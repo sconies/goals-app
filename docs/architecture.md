@@ -44,13 +44,16 @@ The core is everything outside `src/modules`. It offers these extension points, 
 | Goal-page sections | the `goal.sections` place, given the goal | `src/screens/GoalScreen.tsx`, inside About, after its facts |
 | Workspace sections | `sections` in `app.tsx` (id, label, summary, `admins`, element, `after`); module.json `sections` lists the ids. Each is at `/workspace/<id>`, in Workspace's menu (a side menu on a computer, a list on a phone), with a Help article whose route is that address (backlog W, 8 Nov) | `src/screens/Workspace.tsx` (`useSections`), `src/App.tsx` (the routes) |
 | Places on other core screens | `data.tools` (Data's toolbar, given the open table as laid out) and `goals.tools` (Goals' Views menu and the phone's View sheet, given the goals shown) | `src/screens/DataTables.tsx`, `src/screens/GoalsScreen.tsx` |
-| The goal forms' "Measured by" field | the `goal.measure` place (backlog 0b, 8 Nov): given the goal as saved (null while new), the form's kind, unit and team, and `onChange(pick)`. The form saves the pick after the goal (`app.linkGoalMetric`, or `app.unlinkGoalMetric` for null); with no module in it, nothing renders and nothing extra is saved | `src/screens/GoalWizard.tsx` (after “How it’s measured”), `src/screens/GoalEdit.tsx` (after the name) |
+| The goal forms' "Measured by" field | the `goal.measure` place (backlog 0b, 8 Nov): given the goal as saved (null while new), the form's kind, unit and team, and `onChange(pick)`. A pick is one of the module's actions and its input for the goal as saved (`{ action, input(goal) }`); the form runs it after the goal (`app.run`). With no module in it, nothing renders and nothing extra is saved | `src/screens/GoalWizard.tsx` (after “How it’s measured”), `src/screens/GoalEdit.tsx` (after the name) |
 | A person's and a team's page in People | the `people.person` place (given the person) and the `people.team` place (given the team), app redesign WR1, 10 Nov: after the person's facts, and after the team's people. With no module in them, nothing renders | `src/screens/People.tsx` (`PersonPage`, `TeamPage`) |
 | A line in a goal's summary | the `goal.facts` place, given the goal: one short line each ("Measured by …") (GT1 and AR2) | `src/screens/GoalScreen.tsx`, the summary |
 | Finders | `finders` in `app.tsx` (kind, nouns, a search, where a row opens); module.json `finders`, by kind. The kind answers find-and-pick and Find through the `Search` port; with the module off it is gone (AR2) | `src/app/search.ts` |
 | Filters on a core list | `filters` in `app.tsx`, declared as data: `{ list: 'goals', id, label, param, column, pick }`, a column of the summary rows compared with what is picked, so a server can apply it (AR2; docs/design/architecture.md 4.2); module.json `filters`, by id | the Goals list (GL1) |
 | Things to sort out without a section | `toSortOut(snapshot, viewer)` in `app.tsx`, giving the same `WorkspaceNeed`s a section's `needs` gives (WR2), for a module with no Workspace section; module.json `toSortOut: true` (AR2) | `src/screens/Workspace.tsx`, About's "To sort out", after the sections' |
-| Database tables | module.json `tables`: name, migration, purpose. Migrations still live in `supabase/migrations` | the manifest test checks the migration exists |
+| Database tables | module.json `tables`: name, migration, purpose. Migrations still live in `supabase/migrations`; a module's migration also puts its tables on `faro.module_tables`, the list `okr_write` saves to (0039) | the manifest test checks the migration exists |
+| Its own records (AS part 2, 11 Nov) | `records.ts` default-exports `ModuleRecords` (`src/domain/records.ts`): for each record, rows each way, what a new cycle carries, how a removed one is named and restored, and (optionally) which rows follow a goal into the next year and which goal a row belongs to (`follow`, `goalOf`: starting the next year, recarry and its Undo use them, so a carried goal keeps its metric); and any workbook sheets it adds. module.json `records` lists each (name, table, key, removable). The rows live in the workspace and in a commit under `modules[moduleId][key]`. The core's records and tables are closed: a module brings its own | `src/core/records.ts` (`MODULE_RECORDS`): both database adapters and `commitPayload` read and write the declared tables, `scopeToCycle`, Recently removed, restore and Undo iterate over them, the workbook adds the sheets, and the demo builder adds the module's demo rows from its `demo.ts` (`virtual:faro-modules/demo`, loaded only with the demo builder). A record a build lacks is neither read nor written, and none of its rows is deleted |
+| Actions (AR3, AS part 2) | `actions.ts` default-exports `ModuleActions`: each action's rule, the AI tools that do the same, and what a removal says (with Undo) | `app.run(name, input)` (`src/app/actions.ts`, `MODULE_ACTIONS`): one table, the core's and the modules'; a switched-off module's action is refused |
+| Its rules in the spec | `spec.ts` default-exports `Rule[]`: its rules in plain words, with worked examples run against its rules | `src/spec/rules.ts`, written into `spec/modules/<id>/rules.md` |
 | AI tools | `tools.ts` default-exports `ToolDef[]` | `src/mcp/tools.ts` adds them to `TOOLS`; `callTool` refuses one whose module is off in the workspace |
 | Help articles | `help.ts` default-exports `Article[]`, each with `after` (the article it follows) | `src/help/guide.ts` merges them into `ARTICLES`; Help hides a switched-off module's articles |
 | Requirements | module.json `requirements`: ids in `evals/requirements.json` | the scorecard, as for any requirement |
@@ -68,6 +71,10 @@ One folder, `src/modules/<id>/`:
 | `app.tsx` | Optional. Default-exports an `AppModule`: its routes, navigation and what it puts in each place |
 | `help.ts` | Optional. Its Help articles. Pure data |
 | `tools.ts` | Optional. Its AI tools |
+| `records.ts`, `types.ts` | Optional. Its own records (AS part 2) and their types: `spec/modules/<id>/records.md` is made from `types.ts` |
+| `rules.ts` | Optional. Its rules: as pure as `src/domain` (the layers lint holds a module's `rules*.ts` to it) |
+| `actions.ts` | Optional. Its actions, run by `app.run` |
+| `spec.ts` | Optional. Its rules for the spec, with worked examples |
 | anything else | Its screens and code. A capitalised `.tsx` counts as a screen, so it needs a Help article and an MCP parity entry |
 
 The build makes the registry (`vite.modules.ts`): every folder with a module.json is installed. The core reads them through `virtual:faro-modules` (facts), `/help`, `/tools` and `/app`. Use `src/core/registry.ts` (no screens; the server uses it too) and `src/core/app.tsx` (`useModules`, `Place`).
@@ -84,6 +91,7 @@ The build makes the registry (`vite.modules.ts`): every folder with a module.jso
 
 - **The layers lint** (`npm run lint:layers`, `scripts/check-layers.mjs`; also in `npm test` and CI):
   - `src/domain` imports only `src/domain` and uses no browser, network or storage;
+  - a module's rules (`rules*.ts`) import only `src/domain` and their own folder, with the same purity (AS part 2);
   - nothing outside `src/modules` imports a module;
   - a module imports another only if it lists it in `needs`;
   - only `src/adapters/supabase/` imports Supabase (8c).

@@ -5,6 +5,8 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
+import { entriesAfter } from './match';
+
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -22,13 +24,54 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'undo-stays-put',
-    date: '2026-11-11',
+    date: '2026-11-12',
     title: 'Undo stays in its own workspace',
     points: [
       'Pressing Undo after switching to another workspace no longer changes the one you switched to. It says the Undo was for another workspace, and changes nothing.',
       'Open that workspace again to undo it there.',
     ],
     articles: ['features'],
+  },
+  {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
+    id: 'carry-right',
+    date: '2026-11-11',
+    title: 'Goals carry on with their history',
+    points: [
+      'A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.',
+      'Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.',
+      'A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'levels-one-style',
+    date: '2026-11-11',
+    title: 'Levels look the same',
+    points: [
+      'A goal’s level (North star, SVP) is shown in one plain style everywhere: North star no longer has a coloured tag of its own.',
+      'Team goals still carry no tag. Nothing else about levels has changed.',
+    ],
+    articles: ['goals'],
   },
   {
     id: 'check-in-asks',
@@ -1198,10 +1241,7 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export function newsAfter(seenId: string | null): NewsEntry[] {
-  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
-  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
-}
+export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

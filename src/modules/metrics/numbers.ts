@@ -2,10 +2,12 @@
    pipeline time on main (p90), as if the CI system sent it. In the demo, CI's numbers are the series the example was
    built with, so a reading is the value of the goal that metric measures, as last checked in at or before the moment
    asked. Real sources (a warehouse, a dashboard's API, a monitoring tool) are the internal team's: each is a
-   NumberSource that passes src/ports/contracts/numbers.ts. Nothing on screen uses it yet. */
-import { goalsMeasuredBy } from '../../domain/metrics';
-import type { Metric, Snapshot } from '../../domain/types';
+   NumberSource that passes src/ports/contracts/numbers.ts. Nothing on screen uses it yet. It is the metric module's
+   (AS part 2): only a module with metrics has a source for them. */
+import type { Snapshot } from '../../domain/types';
 import type { NumberSource } from '../../ports';
+import { goalsMeasuredBy } from './rules';
+import type { Metric } from './types';
 
 export const DEMO_SOURCE = 'CI analytics';
 
@@ -16,7 +18,7 @@ export function demoNumbers(snapshot: () => Snapshot): NumberSource {
     async read(m, at) {
       if (m.source !== DEMO_SOURCE || m.removedAt) return null;
       const s = snapshot();
-      const goals = new Set(goalsMeasuredBy(s, m.id).map((g) => g.id));
+      const goals = new Set(goalsMeasuredBy(s, s.goals, m.id).map((g) => g.id));
       const latest = s.checkIns
         .filter((c) => goals.has(c.goalId) && c.value != null && Date.parse(c.postedAt) <= at.getTime())
         .sort((a, b) => a.postedAt.localeCompare(b.postedAt))

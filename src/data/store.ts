@@ -1,5 +1,6 @@
 import { asksOf, upgradeAsks } from '../domain/asks';
 import { settleKeys, withKeys } from '../domain/goalKey';
+import { applyModuleRows, hasModuleRows } from '../domain/records';
 import type { CheckIn, Snapshot, Workspace } from '../domain/types';
 import { hashToken, newToken } from '../mcp/token';
 import { buildExample, EXAMPLE, isExample } from './examples';
@@ -108,9 +109,9 @@ export function applyCommit(s: Snapshot, c: Commit): Snapshot {
     feedback: upsert(s.feedback ?? [], c.feedback),
     tokens: upsert(s.tokens ?? [], c.tokens),
     views: upsert(s.views ?? [], c.views),
-    // The metric library (backlog 0b): only once a workspace has one, so snapshots without metrics stay as they were.
-    ...(c.metrics?.length || s.metrics ? { metrics: upsert(s.metrics ?? [], c.metrics) } : {}),
-    ...(c.metricLinks?.length || s.metricLinks ? { metricLinks: upsert(s.metricLinks ?? [], c.metricLinks) } : {}),
+    // Feature modules' records (domain/records), by module and key: only once a workspace has some, so snapshots
+    // without any stay as they were. A module's rows the commit doesn't name, or a module this build lacks, stay too.
+    ...(hasModuleRows(c.modules) || s.modules ? { modules: applyModuleRows(s.modules, c.modules) } : {}),
     // Data from before requests were stored: start from the requests read from check-ins, so a first save keeps them.
     requests: c.requests?.length || s.requests ? upsert(s.requests ?? asksOf(s), c.requests) : s.requests,
   };

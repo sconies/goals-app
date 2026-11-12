@@ -83,7 +83,7 @@ Other assistants:
 | `send_feedback` | Feedback about the app |
 | `delete_workspace` | Admins: delete the workspace. Needs its exact name, and can't be undone |
 
-**The metric library** (the metrics module, backlog 0b; the rules are `src/domain/metrics.ts`)
+**The metric library** (the metrics module, backlog 0b; the rules are `src/modules/metrics/rules.ts`)
 
 | Tool | What it does |
 |---|---|

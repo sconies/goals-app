@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint:layers": "node scripts/check-layers.mjs",
     "lint:pickers": "node scripts/check-pickers.mjs",
+    "lint:settings": "node scripts/check-settings.mjs",
     "modules": "node scripts/modules.mjs",
     "evals": "node evals/run.mjs",
     "evals:smoke": "node evals/run.mjs --smoke",

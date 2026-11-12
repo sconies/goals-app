@@ -4,7 +4,7 @@
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
 import { planHistoryOf } from './goal';
 import { asksOf, isOverdue } from './asks';
-import { LEVEL_LABEL } from './format';
+import { isEveryday, levelName } from './levels';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { answerOf, saidIn } from './review';
@@ -14,11 +14,12 @@ import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
 import {
-  ASKS, asksFor, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, METRICS, metricsFor, NOTES, notesFor, PEOPLE, PLAN,
+  ASKS, asksFor, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN,
   planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, specOf, START_HERE, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type FillKind, type SheetKind,
 } from './columns';
 import type { Goal, Snapshot } from './types';
+import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
 
 export type { Cell, ExportInput } from './columns';
@@ -65,9 +66,9 @@ export const FIELD_TABLE_HEAD = ['Column', 'A new row', 'Format', 'Example', 'If
  * The Start here sheet (backlog IM1; it replaces the README, a name still recognised and skipped): what the file is
  * and where it came from, then, for every sheet that loads back, the field table (domain/columns): whether a new row
  * must have each column, its format, an example, what an empty cell does and what it means. The workbook adds the
- * sheets that are only for reading, and the words its worked-out columns use. The template lists only the columns it has.
+ * sheets that are only for reading (the core's, then each module's), and the words its worked-out columns use. The template lists only the columns it has.
  */
-export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'>, opts: { template?: boolean } = {}): Cell[][] {
+export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>, opts: { template?: boolean } = {}): Cell[][] {
   const rows: Cell[][] = [
     [`${x.ws.name}, ${x.cycle.name}. ${opts.template ? 'Template made' : 'Exported'} ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
     ['File of', x.ws.id, x.cycle.id],
@@ -83,7 +84,7 @@ export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'
     for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
   }
   if (opts.template) return rows;
-  for (const sheet of SHEETS.filter((v) => !v.loaded)) {
+  for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
     rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], ['Column', 'Kind', null, null, null, 'What it means']);
     for (const c of sheet.columns) rows.push([c.header, ROLE_WORD[c.role], null, null, null, c.means]);
   }
@@ -101,7 +102,8 @@ function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
   return [[...head!, ...weeks.map((w) => `Week ${w}`)], ...body.map((r, i) => [...r, ...weeks.map((w) => planWeekValue({ c, g: metric[i]! }, w))])];
 }
 
-/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, Metrics and the README. */
+/** Every sheet of the one format, in order: Start here, Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
+    metric library’s Metrics). */
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
@@ -117,11 +119,12 @@ export function workbook(x: ExportInput): Table[] {
     ['results', rowsOf(RESULTS, goalRows)],
     ['asks', rowsOf(ASKS, asksFor(x.snapshot, ids).map((a) => ({ c, a })))],
     ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
-    ['metrics', rowsOf(METRICS, metricsFor(x.snapshot, ids).map((v) => ({ c, ...v })))],
   ];
   return [
     { name: START_HERE, rows: startHere(x) },
     ...book.map(([kind, rows]) => ({ name: SHEETS.find((v) => v.kind === kind)!.name, rows, muted: muted(kind, rows[0] ?? []) })),
+    // Each feature module's sheets (domain/records), for reading: their worked-out and shown columns in grey.
+    ...(x.sheets ?? []).map((m) => ({ name: m.spec.name, rows: moduleSheetRows(m, x, c, ids), muted: m.spec.columns.filter((col) => col.role === 'worked' || col.role === 'shown').map((col) => col.header) })),
   ];
 }
 
@@ -346,7 +349,7 @@ export function aiBrief(x: ExportInput): string {
 
   out.push('## Every goal, by what it feeds');
   const line = (s: GoalSummary, depth: number) => {
-    const lvl = s.goal.level !== 'team' ? ` [${LEVEL_LABEL[s.goal.level]}]` : '';
+    const lvl = !isEveryday(null, s.goal.level) ? ` [${levelName(null, s.goal.level)}]` : '';
     out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ''}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
   };
   const seen = new Set<string>();
