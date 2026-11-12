@@ -194,6 +194,25 @@ describe('MCP server', () => {
     expect(data().goals.find((g) => g.title === 'Runbooks with an owner')!.parentId).toBe('ns-cfr');
   });
 
+  it('says each new goal’s ID and key, from create_goal and bulk_change, dry run and saved (MCP load, 12 Nov)', async () => {
+    const { call, data } = await setup('amara');
+    type Created = { id: string; key: string | null; title: string }[];
+    const one = await call('create_goal', { type: 'metric', title: 'Runbooks with an owner', owner: 'Mateo Fernández', unit: '%', start: 20, target: 90 });
+    expect(one.isError).toBe(false);
+    const made = data().goals.find((g) => g.title === 'Runbooks with an owner')!;
+    expect(made.key).toMatch(/^G-\d+$/);
+    expect(one.structuredContent!.created as Created).toEqual([{ id: made.id, key: made.key, title: made.title }]);
+    expect((one.structuredContent!.changes as { key?: string }[])[0]!.key).toBe(made.key);
+    expect(one.content[0]!.text).toContain(`New goal: ${made.key} · ${made.id} · Runbooks with an owner.`);
+    const rows = { goals: [{ Goal: 'Alerts with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: 10, Target: 80 }, { Goal: 'Dashboards with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: 5, Target: 60 }] };
+    const dry = (await call('bulk_change', rows)).structuredContent!.created as Created;
+    expect(dry.map((x) => x.key)).toEqual(dry.map((x) => x.key).filter((k) => /^G-\d+$/.test(k ?? '')));
+    expect(dry).toHaveLength(2);
+    const saved = (await call('bulk_change', { ...rows, apply: true })).structuredContent!.created as Created;
+    for (const x of saved) expect(data().goals.find((g) => g.id === x.id)?.key).toBe(x.key);
+    expect(new Set(saved.map((x) => x.key)).size).toBe(2);
+  });
+
   it('[REVIEW-DECIDE] decides in a review and adds a next step, as the app does', async () => {
     const { call, data } = await setup('daniel');
     const refused = await call('review_call', { review_id: 'devprod', goal_id: 'lead-mq', kind: 'accept', text: 'no' });

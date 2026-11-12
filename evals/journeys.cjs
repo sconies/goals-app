@@ -4986,7 +4986,11 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.fill(p.getByLabel(/^Baseline$/), '50');
   await h.fill(p.getByLabel(/^Target$/), '150');
   const q = p.locator('.level-check').filter({ hasText: 'The target is over 100%.' });
+  // Asked while typing, it is scrolled into view, smoothly, and focus stays in Target: read once the page is still.
+  await q.waitFor();
+  await p.waitForFunction(() => new Promise((res) => { const y = scrollY; setTimeout(() => res(scrollY === y), 150); }), null, { timeout: 3000 }).catch(() => {});
   await h.inView(q, 'attention', 'the over-100 question');
+  h.set('attention', await p.evaluate(() => document.activeElement?.getAttribute('data-field')) === 'target', 'the over-100 question takes focus from Target while typing');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   const waits = (await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)')).trim();
   const onQ = await p.evaluate(() => document.activeElement?.getAttribute('data-check'));
