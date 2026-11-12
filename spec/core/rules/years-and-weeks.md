@@ -9,13 +9,13 @@ A goal’s weeks are counted from its cycle’s start and shown as a goal year�
 
 **What is kept.** Nothing in the data changes: a plan's From (`fromWeek`), its To (`endWeek`) and a stage's due week stay whole numbers counted from the cycle's start, week 0 being the week before week 1. People never see those numbers bare: they see a goal year and its week, always with the dates and the year.
 
-**A goal year** runs from its week 1 (the week holding the first Thursday of the month the year starts in) to the week before the next one's week 1: 52 or 53 weeks. In a year that starts in January its year and week are the ISO week date. The cycle's own goal year holds weeks 1 to its last; a later cycle week is in the next goal year (in the demo's 2026, week 54 is week 1 of 2027) and week 0 and below in the previous one (week 0 is week 52 of 2025).
+**A goal year** runs from its week 1 (the week holding the first Thursday of the month the year starts in) to the week before the next one's week 1: 52 or 53 weeks. In a year that starts in January its year and week are the ISO week date. The cycle's own goal year holds weeks 1 to its last; a later cycle week is in the next goal year (in the demo's 2026, week 54 is week 1 of 2027) and week 0 and below in the previous one (week 0 is week 52 of 2025). A cycle shorter than a goal year (under 48 weeks) names every week by its dates alone, the ISO week date: 13 weeks from 30 March 2026 hold 2026 weeks 15 to 27, and its week 14 is 2026 week 28.
 
 **Said.** In a field “Week 46 · 9–15 Nov 2026”; in a list under its year “Week 46 · 9–15 Nov”; in a sentence “week 46 (9–15 Nov 2026)”, or “week 13 of 2027 (29 Mar–4 Apr 2027)” in another goal year; in a file `2026-W46`. Under a picked week, what it is: “This week”, “Next week”, “The end of 2026”, “The end of Q1 2027”, “6 weeks ago”.
 
-**Picked, never typed** (the week picker). From offers the first week of last year to the last of next year; To the week after From to the same end; a stage's Due this goal year only; each with up to three named weeks (for To: the end of this quarter, the end of the year, the end of Q1 next year). Typing in the picker reads a week of the year shown (“50”), a day (“14 Dec”, the next such day) or a year and a week (“2027 5”). A file or a tool gives `2026-W46`, or the cycle's week number as before.
+**Picked, never typed** (the week picker). From offers the first week of last year to the last of next year; To the week after From to the same end; a stage's Due this goal year only; each with up to three named weeks (for To: the end of this quarter, the end of the year, the end of Q1 next year). Typing in the picker reads a week of the year shown (“50”), a day (“14 Dec”, the next such day) or a year and a week (“2027 5”). A file or a tool gives `2026-W46`, or the cycle's week number as before. To left unsaid is the cycle's last week, or, for a From at or past it (a new goal in the year's last week), the end of next year (`defaultTo`).
 
-**The sheet.** From and To beside Plan from week and Due week, which still load; where both of a pair are given, the one that differs from the goal counts, and two that differ and disagree are a Must fix (“From says 2026-W46 and Plan from week says 40. Change just one of them.”). A week a year doesn't have: “2027 has 52 weeks. Use 2027-W52, or 2028-W01.”
+**The sheet.** From and To beside Plan from week and Due week, which still load; where both of a pair are given, the one that differs from the goal counts, and two that differ and disagree are a Must fix (“From says 2026-W46 and Plan from week says 40. Change just one of them.”). An empty Due week beside a To says nothing. In a file with no Start column, a bare number under From may be the starting number (the export's Start renamed): it is a Must fix asking which (“From says “52”: a starting number, or a week? …”), never read as a week. A week a year doesn't have: “2027 has 52 weeks. Use 2027-W52, or 2028-W01.”
 
 **A plan that hasn't started.** A number goal whose From is still to come (`notStarted`) is not due for a check-in and not late until that week; it reads “No check-in yet · starts week 50”. No new status.
 
@@ -38,7 +38,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/weeks.ts](../../../src/domain/weeks.ts): `yearWeek`, `cycleWeek`, `weekCode`, `readWeekCode`, `weekSays`, `weeksProblem`, `lastWeekOffered`, `firstWeekOffered`, `startsSays`
+- [src/domain/weeks.ts](../../../src/domain/weeks.ts): `yearWeek`, `cycleWeek`, `weekCode`, `readWeekCode`, `weekSays`, `weeksProblem`, `lastWeekOffered`, `firstWeekOffered`, `defaultTo`, `startsSays`
 - [src/domain/weekChoices.ts](../../../src/domain/weekChoices.ts): `planSays`, `readWeek`, `weekIs`, `weekChoices`, `spanSays`, `rangeSays`
 - [src/domain/plan.ts](../../../src/domain/plan.ts): `notStarted`
 - [src/domain/progress.ts](../../../src/domain/progress.ts): `firstDueWeek`
@@ -59,6 +59,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a cycle week as a goal year and its week (rule 13) › turns a year and a week back into the cycle’s week, and refuses one that doesn’t exist
 - a cycle week as a goal year and its week (rule 13) › reads a file’s week: 2026-W46, 46 and W46 are week 46; 2027-W01 is week 54
 - a cycle week as a goal year and its week (rule 13) › reads what is typed in the picker: a week of the year shown, a day, or a year and a week
+- a cycle week as a goal year and its week (rule 13) › names a shorter cycle’s weeks by their dates, inside it and past its end (GE9 review)
 - a cycle week as a goal year and its week (rule 13) › counts a goal year that starts in April from that April
 - what a week is, and what the picker offers (rule 13) › says what a week is
 - what a week is, and what the picker offers (rule 13) › offers To from the week after From to the end of next year

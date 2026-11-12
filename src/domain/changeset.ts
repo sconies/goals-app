@@ -30,7 +30,7 @@ import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
-import { readWeekCode, weekUnknownText } from './weeks';
+import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
@@ -652,6 +652,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     return skip;
   }
+  // From with no Start column beside it, in a file (not a tool, whose From is always a week): a bare number is asked about.
+  const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
   examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'example').length;
@@ -801,13 +803,16 @@ export function planChanges(input: ChangeInput): ChangeSet {
         const said: [string, string, number][] = [];
         for (const [c, h] of [[col, head], [old, oldHead]] as const) {
           const raw = has(r, c) ? val(r, c) : '';
-          // An empty Due week is the cycle's end (it clears); any other empty cell says nothing.
-          if (!raw && !(c === 'due week' && has(r, c))) continue;
+          // An empty Due week is the cycle's end (it clears), unless To says the week; any other empty cell says nothing.
+          if (!raw && !(c === 'due week' && has(r, c) && !val(r, 'to'))) continue;
+          // A bare number under From, in a file with no Start column, may be where the goal starts (the export's Start
+          // renamed From): asked which, never read as a week (GE9 review).
+          if (c === 'from' && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) { raise('week-wrong', 'Goals', row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head }); return false; }
           let n: number | null, msg: string | undefined;
           if (c === col) { const x = readWeekCode(cycle, raw); n = 'n' in x ? x.n : null; msg = 'text' in x ? x.text : undefined; }
           else if (c === 'due week' && raw) { const x = weekCell(raw, 'Goals', row, d.title); n = x.n; msg = x.problem; }
           else n = raw ? parseNumber(raw) : cycle.weeks;
-          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h }); return false; }
+          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw, week), { column: h }); return false; }
           if (n !== cur) said.push([h, raw, n]);
         }
         if (said.length === 2 && said[0]![2] !== said[1]![2]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${said[0]![1]} and ${oldHead} says ${said[1]![1]}. Change just one of them.`, { column: head }); return false; }
