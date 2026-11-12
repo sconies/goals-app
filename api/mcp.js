@@ -14537,7 +14537,7 @@ function amount(v, g) {
 	return `${n} ${Number(n) === 1 && /^[a-z][a-z-]*[^s]s$/i.test(g.unit) ? g.unit.slice(0, -1) : g.unit}`;
 }
 /** The same, as short as the chart needs: "9", "0.4", "3 pts". */
-var bare = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
+var bare$1 = (v, g) => g.unit === "%" ? amount(v, g) : fixed(Math.abs(v), g.decimals);
 /** A value as short as the chart needs: "37", "83%". */
 var bareValue = (v, g) => fixed(v, g.decimals) + (g.unit === "%" ? "%" : "");
 /** The target or limit as the question says it: "24", "80%", "0.10%". */
@@ -14675,7 +14675,7 @@ function metricCard(goal, cycle, checkIns, week, stale) {
 			likely: p.value,
 			target,
 			likelyText: `likely ${bareValue(p.value, goal)}`,
-			gapText: short > 0 ? `${bare(short, goal)} ${shortWord(better)}` : "on course",
+			gapText: short > 0 ? `${bare$1(short, goal)} ${shortWord(better)}` : "on course",
 			tone: short > 0 ? "bad" : "good"
 		};
 	}
@@ -15106,47 +15106,64 @@ var help$3 = [
 			"number"
 		],
 		related: [
-			"metric-add",
+			"metric-define",
 			"people",
 			"goal-page"
 		]
 	},
 	{
-		id: "metric-add",
-		title: "Adding or changing a metric",
-		summary: "Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.",
+		id: "metric-define",
+		title: "Defining a metric well",
+		summary: "A metric needs three things to be used: a name, a unit and which way is better. The rest can be said later, and its page says what is still to say, in words, never as a score.",
 		group: "you",
 		after: "metrics",
-		sections: [{
-			heading: "How to use it",
-			list: [
-				"In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.",
-				"Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.",
-				"What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.",
-				"Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.",
-				"Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.",
-				"Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.",
-				"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
-				"While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.",
-				"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.",
-				"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
-				"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
-				"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
-			]
-		}],
+		sections: [
+			{
+				heading: "What it needs",
+				list: [
+					"In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.",
+					"Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.",
+					"A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it."
+				]
+			},
+			{
+				heading: "Must fix and Check",
+				list: [
+					"A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.",
+					"A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).",
+					"The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.",
+					"Use that one opens the metric already in the library; what you typed is kept as a draft."
+				]
+			},
+			{
+				heading: "Changing or removing one",
+				list: [
+					"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.",
+					"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
+					"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
+					"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.",
+					"An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers."
+				]
+			}
+		],
 		routes: ["/metrics/new", "/metrics/:metricId/edit"],
 		screens: [],
-		reqs: ["METRICS-CARE"],
+		reqs: ["METRIC-DEFINED", "METRICS-CARE"],
 		keywords: [
 			"add metric",
 			"new metric",
+			"define metric",
+			"fully defined",
+			"still to say",
 			"change metric",
 			"edit metric",
 			"remove metric",
 			"unit",
 			"decimals",
 			"owner",
-			"caveats"
+			"caveats",
+			"must fix",
+			"check"
 		],
 		related: ["metrics", "removing"]
 	},
@@ -15155,7 +15172,7 @@ var help$3 = [
 		title: "Measured by: choosing a goal’s metric",
 		summary: "In New goal and when changing a goal, say which metric measures it by typing to find one, or add one there.",
 		group: "you",
-		after: "metric-add",
+		after: "metric-define",
 		sections: [{
 			heading: "How to use it",
 			list: [
@@ -15181,7 +15198,7 @@ var help$3 = [
 		],
 		related: [
 			"metrics",
-			"metric-add",
+			"metric-define",
 			"new-goal"
 		]
 	}
@@ -15668,40 +15685,33 @@ var CORE_ARTICLES = [
 		title: "Setting up a workspace",
 		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.",
 		group: "start",
-		sections: [
-			{
-				heading: "What it’s for",
-				text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
-			},
-			{
-				heading: "How to use it",
-				list: [
-					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
-					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
-					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
-					"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
-					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
-					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
-					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
-					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
-					"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-					"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
-					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
-					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
-					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-					"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
-					"The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.",
-					"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
-					"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
-					"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
-				]
-			},
-			{
-				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
-			}
-		],
+		sections: [{
+			heading: "What it’s for",
+			text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
+		}, {
+			heading: "How to use it",
+			list: [
+				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+				"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
+				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
+				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
+				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
+				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
+				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
+				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
+				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+				"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
+				"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
+				"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
+				"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
+				"The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.",
+				"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+				"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
+				"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
+			]
+		}],
 		routes: ["/workspace/new", "/ready"],
 		screens: ["Onboarding", "Start"],
 		reqs: [
@@ -15725,6 +15735,85 @@ var CORE_ARTICLES = [
 			"workspace",
 			"import",
 			"new-goal"
+		]
+	},
+	{
+		id: "welcome",
+		title: "Welcome: starting, the demo, or an invitation",
+		summary: "Welcome is Faro’s front door, at its own address: set up a workspace, look around the demo, or join a workspace you were invited to.",
+		group: "start",
+		sections: [{
+			heading: "What it’s for",
+			text: ["Opening Faro on a device that remembers no workspace brings you here, at /welcome. It never drops you into a workspace you didn’t choose."]
+		}, {
+			heading: "How to use it",
+			list: [
+				"Set up a workspace is the main button: about 5 minutes, and nothing is saved until the last step.",
+				"Look around the demo opens a made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.",
+				"Join a workspace you were invited to: open the link you were sent, or paste it here and choose Open it. Only a Faro invitation (an address with /join/ in it) opens anything.",
+				"Coming back, Welcome says Welcome back and lists what this device remembers: each workspace with who you are in it and the week, with Open, and a set-up you didn’t finish, with where it stopped, Carry on and Discard (which asks first: what you typed is lost)."
+			]
+		}],
+		routes: ["/welcome"],
+		screens: ["Welcome"],
+		reqs: ["SETUP-FIRST-SCREEN"],
+		keywords: [
+			"welcome",
+			"front door",
+			"first screen",
+			"start",
+			"invitation",
+			"carry on",
+			"draft",
+			"welcome back"
+		],
+		related: [
+			"set-up",
+			"joining",
+			"demo"
+		]
+	},
+	{
+		id: "joining",
+		title: "Joining a workspace you were invited to",
+		summary: "An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.",
+		group: "start",
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["Whoever set up a workspace copies its invitation and sends it themselves: Faro sends no email. The link (/join/ and the workspace) opens that workspace and nothing else, whatever your browser had open before. An older link with ?workspace= in it leads to the same place."]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.",
+					"Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.",
+					"Not on the list? Ask whoever set it up to add you: the link writes them an email.",
+					"A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door."
+				]
+			},
+			{
+				heading: "Saying who you are",
+				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
+			}
+		],
+		routes: ["/join/:workspaceId"],
+		screens: ["Start"],
+		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
+		keywords: [
+			"invitation",
+			"invite link",
+			"join",
+			"who are you",
+			"which one are you",
+			"sign in",
+			"not on the list",
+			"pick your name"
+		],
+		related: [
+			"welcome",
+			"set-up",
+			"home"
 		]
 	},
 	{
@@ -18032,6 +18121,39 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metric-defined",
+		date: "2026-11-12",
+		title: "Metrics say what’s still to say",
+		points: [
+			"Adding a metric asks for three things first: a name, a unit and which way is better. The rest can be said later.",
+			"A name one letter from another’s, a unit spelt differently from one in use, or a percentage that doesn’t say out of what, is questioned before it’s saved. Answer once and carry on.",
+			"Each metric says “Fully defined” or what it still lacks, under its title. It is never a score."
+		],
+		articles: ["metric-define", "metrics"]
+	},
+	{
+		id: "welcome-page",
+		date: "2026-11-12",
+		title: "A proper front door",
+		points: [
+			"Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to.",
+			"An invitation opens the right workspace and says who set it up.",
+			"Opening Faro on a new device no longer drops you into a workspace you didn’t choose."
+		],
+		articles: ["welcome", "joining"]
+	},
+	{
+		id: "question-in-view-steadier",
+		date: "2026-11-12",
+		title: "A question about a number stays put while you type",
+		points: [
+			"The question is brought into view once, when it first shows; typing more digits no longer moves the page up and down.",
+			"With an on-screen keyboard open, the question is brought above the keyboard.",
+			"In set-up, Continue with a goal card’s question open goes to the question, as New goal does."
+		],
+		articles: ["new-goal", "edit-goal"]
+	},
+	{
 		id: "batch-refs-fixes",
 		date: "2026-11-12",
 		title: "Refs in a file: two fixes",
@@ -18433,7 +18555,7 @@ var WHATS_NEW = [
 			"Adding one with a name close to another asks first; removing one says which goals it leaves.",
 			"Put it back brings a removed metric back with the goals it measured."
 		],
-		articles: ["metric-add", "metrics"]
+		articles: ["metric-define", "metrics"]
 	},
 	{
 		id: "measured-by-find",
@@ -18536,7 +18658,7 @@ var WHATS_NEW = [
 			"A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.",
 			"Old links still work."
 		],
-		articles: ["metrics", "metric-add"]
+		articles: ["metrics", "metric-define"]
 	},
 	{
 		id: "undo-removal-sticks",
@@ -20150,26 +20272,28 @@ var _virtual_faro_modules_default = [{
 	],
 	help: [
 		"metrics",
-		"metric-add",
+		"metric-define",
 		"metric-measured-by"
 	],
 	requirements: [
 		"METRICS-LIBRARY",
 		"METRICS-MEASURED-BY",
-		"METRICS-CARE"
+		"METRICS-CARE",
+		"METRIC-DEFINED"
 	],
 	journeys: [
 		"U81",
 		"U82",
 		"U83",
 		"U145",
+		"U105",
 		"F15",
 		"N16"
 	],
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Looking after one: what it still needs, the close-name question when adding, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
+		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Defining one well: three things to be usable, the rest said later and named in words (“Fully defined” or “Still to say: …”, never a score), and three questions answered once before saving (a close name, a unit spelt another way, a percentage that doesn’t say out of what), with each Must fix and Check under its field. Looking after one: what it still needs, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
 		"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
 		"exit": [
 			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
@@ -20181,7 +20305,8 @@ var _virtual_faro_modules_default = [{
 			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
 			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
 			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
-			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first; Remove names the goals it stops measuring and Undo brings them back; admins see on Workspace → About how many metrics have no owner (journey U83)."
+			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first; Remove names the goals it stops measuring and Undo brings them back; admins see on Workspace → About how many metrics have no owner (journey U83).",
+			"Adding a metric needs only a name, a unit and which way is better; its page then says what is still to say in words (“Fully defined”, or “Still to say: …”, and “Its owner has left.”), never a number, and every metric in the demo says the line rule 6 gives (the conformance rows `still`). A name a letter or a word from another’s or one a metric used to have, a unit spelt another way, and a percentage that doesn’t say out of what are each a Check answered once before saving, on the form and through save_metric’s checks and answers (rule 6’s worked examples; journey U105)."
 		],
 		"gaps": [
 			"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
@@ -20352,52 +20477,52 @@ var RULE_PAGES = [
 	[
 		"weeks-and-plans",
 		"Weeks and plans",
-		"which week it is, and what the plan says a number should be"
+		"Which week it is, and what a goal’s plan says its number should be in any week."
 	],
 	[
 		"year-end",
 		"A year’s end",
-		"a cycle’s real first and last days; after the last day results close and nothing is due or out of date"
+		"A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year."
 	],
 	[
 		"status",
 		"A goal’s status",
-		"what the numbers say, and the official status (the owner’s call unless stale)"
+		"What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale."
 	],
 	[
 		"projection",
 		"The projection",
-		"where a number lands by its due week, as a range"
+		"Where a number lands by its due week if the recent trend holds: the likeliest value and a range around it."
 	],
 	[
 		"check-in",
 		"What a check-in must say",
-		"what is needed before a check-in can be posted"
+		"What a check-in needs before it can be posted, and the record it becomes."
 	],
 	[
 		"numbers-and-names",
 		"Numbers and names",
-		"a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart"
+		"How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart."
 	],
 	[
 		"levels",
 		"Levels",
-		"which levels a goal can have, what each is called, which is untagged, and how they sort"
+		"Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place."
 	],
 	[
 		"flags",
 		"Flags, the trend and needs attention",
-		"why a goal is flagged, and whether it needs attention"
+		"Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled."
 	],
 	[
 		"scorecard",
 		"The scorecard",
-		"vs plan, since last week, to target, and how likely it is to hit"
+		"The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target."
 	],
 	[
 		"change-engine",
 		"The change engine",
-		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
+		"The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP."
 	]
 ];
 /** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
@@ -20414,6 +20539,7 @@ var MORE_RULE_PAGES = [
 	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
 	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
 	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["welcome", "Welcome and the invitation"],
 	["map", "The goal map"],
 	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
 	["goal-history", "A goal’s history"],
@@ -20453,6 +20579,11 @@ var INTERNAL_PAGES = [
 		"15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key"
 	],
 	[
+		"r5-notifications-and-habits",
+		"R5. Notifications and the weekly habit",
+		"asks, one reminder and a weekly digest in set words, check-in from a notification, never shame, streaks that forgive, the habit measure, a role per workspace"
+	],
+	[
 		"r6a-organisation",
 		"R6a. The organisation",
 		"teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company"
@@ -20468,9 +20599,24 @@ var INTERNAL_PAGES = [
 		"next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then"
 	],
 	[
-		"observability",
-		"Observability, as an idea",
-		"not a requirement: what Faro records today, and what the internal app might take from it"
+		"r7-retention-and-privacy",
+		"R7. Data retention, privacy and erasure",
+		"what is personal, how long each record is kept, leavers, seeing everything held about you, erasure"
+	],
+	[
+		"r8-audit",
+		"R8. Audit",
+		"a record of who did what that no one can change, with exports and token use, kept 7 years"
+	],
+	[
+		"r9-observability",
+		"R9. Observability and service levels",
+		"the signals sent to the company’s tools, the service levels promised, and what pages the on-call person"
+	],
+	[
+		"r10-accessibility",
+		"R10. Accessibility",
+		"WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow"
 	]
 ];
 function systemOverview() {
@@ -23317,6 +23463,283 @@ function goalsByStatus(statuses) {
 		n: k
 	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
 }
+/** Words that say little about which number a metric is: left out when names are compared (rule 4). */
+var FILLER = /* @__PURE__ */ new Set([
+	"the",
+	"of",
+	"per",
+	"for",
+	"in",
+	"a",
+	"rate",
+	"time"
+]);
+/** A name's words for rule 4: lower case, without accents, punctuation, anything in brackets, or filler. */
+var nameWords = (name) => new Set(fold$2(name.replace(/\([^)]*\)|\[[^\]]*\]/g, " ")).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
+/**
+* Rule 4. Up to two metrics in use whose names are close to `name`, closest first: one name's words contain the
+* other's, or they share at least two words and differ by at most one. An exact match (any case) is metricProblems'
+* error, not this; nor is a metric being changed (`except`).
+*/
+function closeNames(name, metrics, except) {
+	const mine = nameWords(name);
+	if (!mine.size) return [];
+	const scored = [];
+	for (const m of metrics) {
+		if (m.removedAt || m.id === except || fold$2(m.name.trim()) === fold$2(name.trim())) continue;
+		const theirs = nameWords(m.name);
+		if (!theirs.size) continue;
+		const shared = [...mine].filter((w) => theirs.has(w)).length;
+		const extra = mine.size + theirs.size - 2 * shared;
+		if (shared === Math.min(mine.size, theirs.size) || shared >= 2 && extra <= 1) scored.push({
+			m,
+			d: extra
+		});
+	}
+	return scored.sort((a, b) => a.d - b.d || fold$2(a.m.name).localeCompare(fold$2(b.m.name))).slice(0, 2).map((x) => x.m);
+}
+// src/modules/metrics/rulesDefine.ts
+init_find();
+/** The four things that make a metric fully defined beyond its name, unit and direction, in the order they are said. */
+var STILL_TO_SAY = [
+	["what it means", "meaning"],
+	["where the number comes from", "source"],
+	["who owns that source", "sourceOwner"],
+	["how often it refreshes", "refresh"]
+];
+Object.fromEntries(STILL_TO_SAY);
+var FULLY_DEFINED = "Fully defined";
+var OWNER_LEFT = "Its owner has left.";
+/**
+* Rule 1. What a metric still needs to say. A metric with a name, a unit and a direction is usable; `missing` lists, in
+* order, what it means (meaning empty), where the number comes from (source empty), who owns that source (empty) and how
+* often it refreshes (not said). The line is “Fully defined” when nothing is missing and its owner is here; “Its owner
+* has left.” alone when only that; otherwise “Still to say: {missing, commas}.”, with “ Its owner has left.” after it.
+*/
+function stillToSay(m, ownerIsHere) {
+	const empty = (k) => k === "refresh" ? m.refresh == null : !(m[k] ?? "").trim();
+	const missing = STILL_TO_SAY.filter(([, k]) => empty(k)).map(([w]) => w);
+	const left = !ownerIsHere;
+	const said = missing.length ? `Still to say: ${missing.join(", ")}.` : "";
+	const line = !missing.length && !left ? FULLY_DEFINED : [said, left ? OWNER_LEFT : ""].filter(Boolean).join(" ");
+	return {
+		usable: true,
+		full: !missing.length && !left,
+		missing,
+		ownerLeft: left,
+		line
+	};
+}
+/** A name as `letters` compares it: lower case, no accents, no punctuation, single spaces. */
+var bare = (s) => fold$2(s).replace(/[^\p{L}\p{N}%]+/gu, " ").trim();
+/** Edits (insert, delete, change one character) between two strings, stopping once past `max`. */
+function editsBetween(a, b, max) {
+	if (Math.abs(a.length - b.length) > max) return max + 1;
+	let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+	for (let i = 1; i <= a.length; i++) {
+		const row = [i];
+		let least = i;
+		for (let j = 1; j <= b.length; j++) {
+			const v = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+			row.push(v);
+			if (v < least) least = v;
+		}
+		if (least > max) return max + 1;
+		prev = row;
+	}
+	return prev[b.length];
+}
+/**
+* Rule 1. Up to two names close to `name`, closest first. **former**: `name` is a name a metric in use used to have
+* (its rename in the change log). **letters**: the two names, bared, differ by one edit for names up to 12 characters and
+* two for longer, and are not equal; names of 4 characters or fewer are never `letters` (too many false alarms).
+* **words**: the library's rule 4 (`closeNames`). An exact match (any case) is a Must fix, not this.
+*/
+function nameChecks(name, others, former = []) {
+	const mine = bare(name);
+	if (!mine) return [];
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const add = (c) => {
+		if (!seen.has(c.other.id)) {
+			seen.add(c.other.id);
+			out.push(c);
+		}
+	};
+	for (const f of former) {
+		const now = others.find((o) => o.id === f.id);
+		if (now && bare(f.name) === mine && bare(now.name) !== mine) add({
+			kind: "former",
+			other: now
+		});
+	}
+	const letters = [];
+	for (const o of others) {
+		const theirs = bare(o.name);
+		if (theirs === mine || mine.length <= 4 || theirs.length <= 4) continue;
+		const max = Math.max(mine.length, theirs.length) > 12 ? 2 : 1;
+		const d = editsBetween(mine, theirs, max);
+		if (d <= max) letters.push({
+			kind: "letters",
+			other: o,
+			edits: d
+		});
+	}
+	letters.sort((a, b) => a.edits - b.edits || fold$2(a.other.name).localeCompare(fold$2(b.other.name))).forEach(add);
+	const asMetrics = others.map((o) => ({
+		...o,
+		removedAt: void 0
+	}));
+	for (const m of closeNames(name, asMetrics)) add({
+		kind: "words",
+		other: {
+			id: m.id,
+			name: m.name
+		}
+	});
+	return out.slice(0, 2);
+}
+/** The names metrics in use used to have, from the change log's renames: `{ id: the metric, name: its old name }`. */
+function formerNames(changes, live) {
+	const out = [];
+	for (const c of changes) {
+		if (c.entity !== "metric") continue;
+		const now = live.find((m) => m.id === c.entityId);
+		const d = c.diffs.find((x) => x.field === "Name");
+		if (now && d && d.from && d.from !== "—" && fold$2(d.from) !== fold$2(now.name)) out.push({
+			id: now.id,
+			name: d.from
+		});
+	}
+	return out;
+}
+/** Spellings of a unit that mean one already written another way. `s` only when `s` is in use (as every one is). */
+var UNIT_SPELLINGS = {
+	percent: "%",
+	pct: "%",
+	"per cent": "%",
+	mins: "min",
+	minutes: "min",
+	minute: "min",
+	hrs: "hours",
+	hr: "hours",
+	hour: "hours",
+	secs: "s",
+	seconds: "s",
+	sec: "s",
+	dollars: "USD",
+	$: "USD"
+};
+var unitBare = (u) => u.trim().toLowerCase().replace(/\.$/, "").replace(/s$/, "");
+/**
+* Rule 1. A unit written differently from one in use: lower case and without a trailing “s” or “.”, it equals one in
+* use, or it is a known spelling of one in use (percent → %, mins → min, hrs → hours, secs → s, dollars → USD). Nothing
+* when it is already identical to one in use.
+*/
+function unitChecks(unit, unitsInUse) {
+	const typed = unit.trim();
+	if (!typed || unitsInUse.includes(typed)) return null;
+	const known = UNIT_SPELLINGS[typed.toLowerCase().replace(/\.$/, "")];
+	if (known && unitsInUse.includes(known)) return { use: known };
+	const same = unitsInUse.find((u) => unitBare(u) === unitBare(typed));
+	return same ? { use: same } : null;
+}
+var TIME_UNIT = /^(ms|s|secs?|seconds?|min|mins|minutes?|h|hrs?|hours?|days?|weeks?|months?)$/i;
+var PER_TIME = /\bper\b|\//i;
+var OUT_OF = [
+	"out of",
+	"share of",
+	"of all",
+	"of every",
+	"divided by",
+	"per ",
+	"÷",
+	"/",
+	"percentage of",
+	"proportion of",
+	"fraction of"
+];
+/**
+* Rule 1. A share whose meaning doesn't say out of what: the unit is %, or the name has “rate”, “share” or “ratio” and the
+* unit isn't a time or a count per time; the meaning is said; and it has none of “out of”, “share of”, “of all”, “of
+* every”, “divided by”, “per ”, “÷”, “/”, “percentage of”, “proportion of”, “fraction of”. An empty meaning is never this
+* (it is “Still to say”).
+*/
+function meaningChecks(m) {
+	const meaning = (m.meaning ?? "").trim().toLowerCase();
+	if (!meaning) return null;
+	const unit = m.unit.trim();
+	if (!(unit === "%" || /\b(rate|share|ratio)\b/i.test(m.name) && !TIME_UNIT.test(unit) && !PER_TIME.test(unit))) return null;
+	return OUT_OF.some((w) => meaning.includes(w)) ? null : "out-of-what";
+}
+var OUT_OF_WHAT = "This is a percentage, and the words don’t say out of what. For example: “production deploys with no rollback or hotfix, out of all production deploys, over 28 days”.";
+/**
+* The Checks a metric as typed raises (rule 1), one per field at most, each with its answers. Adding: all three. Changing:
+* only for a field that changed. An answer's `choice` is what save_metric's `answers` takes: name `keep` or `use:<id>`,
+* unit `keep` or `use`, meaning `as-written`.
+*/
+function metricChecks(next, before, r) {
+	const out = [];
+	const others = r.metrics.filter((m) => m.id !== next.id);
+	if (!before || fold$2(before.name.trim()) !== fold$2(next.name.trim())) {
+		const c = nameChecks(next.name, others, r.former)[0];
+		if (c) {
+			const m = r.metrics.find((x) => x.id === c.other.id);
+			const owner = r.people.find((p) => p.id === m.ownerId && !p.leftAt)?.name;
+			const n = r.goalsOf(m.id);
+			const about = `${m.unit}, ${directionWords(m.direction)}${owner ? `, owned by ${owner}` : ""}, ${n} ${n === 1 ? "goal" : "goals"}`;
+			const words = c.kind === "former" ? `“${next.name.trim()}” is now called “${m.name}”.` : c.kind === "letters" ? `This is ${c.edits === 1 ? "one letter" : "two letters"} from “${m.name}” (${about}).` : `This looks like “${m.name}” (${about}).`;
+			const answers = c.kind === "former" ? [{
+				choice: `use:${m.id}`,
+				label: `Use ${m.name}`
+			}, {
+				choice: "keep",
+				label: `Add “${next.name.trim()}” as a new metric`
+			}] : [{
+				choice: `use:${m.id}`,
+				label: "Use that one"
+			}, {
+				choice: "keep",
+				label: "Mine is different: keep it"
+			}];
+			out.push({
+				field: "name",
+				level: "check",
+				words,
+				answers
+			});
+		}
+	}
+	if (!before || before.unit.trim() !== next.unit.trim()) {
+		const u = unitChecks(next.unit, [...new Set(others.map((m) => m.unit))]);
+		if (u) out.push({
+			field: "unit",
+			level: "check",
+			words: `Other metrics here use “${u.use}”. Use “${u.use}”, or keep “${next.unit.trim()}”?`,
+			answers: [{
+				choice: "use",
+				label: `Use “${u.use}”`
+			}, {
+				choice: "keep",
+				label: `Keep “${next.unit.trim()}”`
+			}]
+		});
+	}
+	if (!before || before.meaning.trim() !== next.meaning.trim() || before.unit.trim() !== next.unit.trim() || before.name.trim() !== next.name.trim()) {
+		if (meaningChecks(next)) out.push({
+			field: "meaning",
+			level: "check",
+			words: OUT_OF_WHAT,
+			answers: [{
+				choice: "as-written",
+				label: "It’s right as written"
+			}]
+		});
+	}
+	return out;
+}
+/** The checks an answer doesn't cover yet. An answer must be one of its check's choices. */
+var unansweredChecks = (checks, answers) => checks.filter((c) => !c.answers.some((a) => a.choice === answers[c.field]));
 // src/modules/metrics/reads.ts
 init_rules();
 /** The running cycle's live goals: not removed, not stopped. */
@@ -23337,6 +23760,20 @@ function goalsOfMetric(s, cycle, today, week, metricId) {
 	const ids = new Set(links.map((l) => l.goalId));
 	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
 }
+/** What rule 1's questions read (rulesDefine.ts `metricChecks`): metrics in use, the people, each metric's goals in force,
+and the names metrics used to have (the change log's renames). */
+function checkReads(s) {
+	const r = libraryReads(s, "");
+	const metrics = r.metrics.filter((m) => !m.removedAt);
+	return {
+		metrics,
+		people: s.people,
+		goalsOf: (id) => liveLinks(r, id).length,
+		former: formerNames(s.changes, metrics)
+	};
+}
+/** Rule 1's line for a metric, its owner being someone here who hasn't left. */
+var lineOf = (s, m) => stillToSay(m, !!ownerName(s.people, m));
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
@@ -23580,8 +24017,16 @@ var tools$1 = [
 					id: x.id,
 					sentence: x.sentence
 				})) : [];
+				const still = lineOf(ctx.snapshot, m);
+				const stillToSay = {
+					full: still.full,
+					missing: still.missing,
+					ownerLeft: still.ownerLeft,
+					line: still.line
+				};
 				const lines = [
 					`${d.name} (${d.id})`,
+					still.line,
 					`Unit: ${d.unit}, ${decimalsWords(d.decimals)} · ${d.directionLabel}`,
 					`Meaning: ${d.meaning || "—"}`,
 					`Source: ${d.source || "—"} (owned by ${d.sourceOwner || "—"}) · refresh: ${d.refresh ?? "not said"}`,
@@ -23594,6 +24039,7 @@ var tools$1 = [
 				return {
 					data: {
 						...d,
+						stillToSay,
 						goals,
 						summary,
 						needs
@@ -23606,7 +24052,7 @@ var tools$1 = [
 	{
 		name: "save_metric",
 		title: "Add or change a metric",
-		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true.",
+		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -23616,6 +24062,16 @@ var tools$1 = [
 				confirm: {
 					type: "boolean",
 					description: "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+				},
+				answers: {
+					type: "object",
+					additionalProperties: false,
+					description: "The person’s answers to the checks a previous call returned.",
+					properties: {
+						name: str$2("“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."),
+						unit: str$2("“keep” the unit as typed, or “use” the one in use.", { enum: ["keep", "use"] }),
+						meaning: str$2("“as-written”: the meaning is right as written.", { enum: ["as-written"] })
+					}
 				}
 			}
 		},
@@ -23636,6 +24092,42 @@ var tools$1 = [
 					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
 					...a.confirm === true ? { confirm: true } : {}
 				};
+				const answers = a.answers && typeof a.answers === "object" ? a.answers : {};
+				if (answers.name?.startsWith("use:")) {
+					const use = metricOf(ctx, answers.name.slice(4));
+					return {
+						data: {
+							saved: false,
+							use: use.id
+						},
+						text: `Nothing saved: use ${use.name} (${use.id}) instead.`
+					};
+				}
+				const before = input.id ? metricsOf(ctx.snapshot).find((x) => x.id === input.id) ?? null : null;
+				const r = checkReads(ctx.snapshot);
+				if (answers.unit === "use" && input.unit !== void 0) {
+					const u = unitChecks(input.unit, [...new Set(r.metrics.filter((x) => x.id !== before?.id).map((x) => x.unit))]);
+					if (u) input.unit = u.use;
+				}
+				const typed = metricFrom(input, before, ax(ctx));
+				const open = unansweredChecks(metricChecks(typed, before, r), answers);
+				if (open.length && !metricProblems(typed, ctx.snapshot).length) {
+					const checks = open.map((c) => ({
+						field: c.field,
+						question: c.words,
+						answers: c.answers.map((x) => ({
+							answer: x.choice,
+							label: x.label
+						}))
+					}));
+					return {
+						data: {
+							saved: false,
+							checks
+						},
+						text: `Nothing saved yet. Ask the person, then call again with answers:\n${checks.map((c) => `- ${c.field}: ${c.question} (${c.answers.map((x) => `${x.answer}: ${x.label}`).join("; ")})`).join("\n")}`
+					};
+				}
 				const { commit, metric } = saveMetric(ax(ctx), input);
 				if (!commit) return {
 					data: {
@@ -23645,13 +24137,15 @@ var tools$1 = [
 					text: `Nothing changed: ${metric.name} already says that.`
 				};
 				await save(ctx, commit);
+				const still = lineOf(ctx.snapshot, metric).line;
 				return {
 					data: {
 						saved: true,
 						id: metric.id,
-						changes: commit.changes[0].diffs
+						changes: commit.changes[0].diffs,
+						stillToSay: still
 					},
-					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}.`
+					text: `${commit.changes[0].summary} (as ${ctx.actor.name}). Its ID is ${metric.id}. ${still}`
 				};
 			});
 		}

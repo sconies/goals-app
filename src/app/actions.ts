@@ -138,6 +138,7 @@ export const ACTIONS = {
   startNextCycle: (x: RunContext, _i: Record<string, never>) => A.startNextCycle(x),
   deleteCycle: (x: RunContext, i: { cycleId: string }) => R.deleteCycle(x, i.cycleId),
   undoStart: (x: RunContext, i: { cycleId: string }) => R.undoStart(x, i.cycleId),
+  arrive: (x: RunContext, _i: Record<string, never>) => A.arrive(x, x.workspace),
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),

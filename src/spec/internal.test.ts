@@ -41,6 +41,6 @@ describe('the requirements for the internal app', () => {
   });
 
   it('has a page for each requirement in the overview’s list, with the same title', () => {
-    expect(INTERNAL.map((q) => [q.file, q.title])).toEqual(INTERNAL_PAGES.filter(([f]) => f !== 'observability').map(([f, t]) => [f, t]));
+    expect(INTERNAL.map((q) => [q.file, q.title])).toEqual(INTERNAL_PAGES.map(([f, t]) => [f, t]));
   });
 });
