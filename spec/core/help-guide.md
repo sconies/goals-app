@@ -341,6 +341,7 @@ Scanning the whole set of goals, or a slice of it, in whatever shape suits the q
 - In the Table, select goals to change their owner or level, watch them or export them.
 - In the sidebar, Goals has your saved views under it.
 - The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.
+- Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed.
 
 #### Who can
 
@@ -455,6 +456,8 @@ Routes: `/goals/:goalId`. Screens: `GoalScreen`. Requirements: `GOAL-ACT`, `GOAL
 #### What it’s for
 
 Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place.
+
+A proposed goal’s page is simpler: Proposed above the title, what it would measure, and Make it active, Change it or Withdraw it for those who may (see Proposed goals).
 
 #### The summary bar
 
@@ -593,10 +596,35 @@ Routes: `/goals/new`, `/goals/new/:step`. Screens: `GoalWizard`. Requirements: `
 - Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).
 - A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.
 - Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.
+- Check asks “Is it under way?”. “Yes: publish it as active” is judged against its plan and check-ins are due. “Not yet: propose it” saves it as a proposed goal: everyone can see it and comment, nothing is due and it has no status until its owner or an admin makes it active. The block under it then reads After you propose it, and the button Propose goal. A goal for someone else starts on “Not yet”.
+- A proposed goal may leave how it’s measured unsaid: its numbers or stages become optional, all together, and Who and where offers “Skip: say how it’s measured later”. Check then reads “How it’s measured isn’t said yet.”
 
 #### Who can
 
 Anyone can set up a goal, for themselves or for anyone else, at any level: here, in a spreadsheet, or through an AI assistant, which all follow the same rules and say the same words. Choosing someone else as owner says “Amara will own it. After it is published, only Amara or an admin can change it.” Someone publishing for another person can ask them for the first check-in.
+
+### Proposed goals
+
+`goal-proposed`. A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.
+
+Routes: `/goals?state=proposed`. Screens: `ProposedGoal`, `ProposedList`. Requirements: `GOAL-PROPOSED`.
+
+#### What it’s for
+
+Putting a goal in front of its would-be owner, or a leader, without committing them: a goal for someone else, a level above your team, or next quarter’s idea.
+
+#### How to use it
+
+- Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.
+- Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.
+- Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.
+- Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.
+- Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.
+- A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead.
+
+#### Who can
+
+Anyone can propose a goal, for anyone. Its owner or an admin makes it active. Whoever proposed it may also change or withdraw it while it is proposed. Everyone can comment, ask its owner a question and watch it.
 
 ### Changing a goal or its plan
 
@@ -833,6 +861,7 @@ The same table is the first sheet of the template and of every workbook, Start h
 - Leave empty: Faro fills it in, such as a new goal’s Key.
 - Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.
 - On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away.
+- State on Goals says active or proposed. proposed adds a goal that is proposed, not yet active (its Start and Target, Limit or Stages may wait), or makes one with no check-ins proposed again; active makes a proposed goal active, once it has everything an active goal needs. A proposed goal’s worked-out columns are empty, and its Status says Proposed. A check-in row for a proposed goal is a Must fix.
 
 ### Past imports and Undo
 

@@ -237,6 +237,8 @@ export function RowText({ row, you, why, note, person }: { row: FoundRow; you?: 
     <span className="pick-text">
       <span className="pick-name">
         {row.status && <StatusWord k={row.status} className="pick-status" />}
+        {/* A proposed goal: the word alone, where a status would be (GE10; never a shape). */}
+        {row.state === 'proposed' && <span className="pick-status muted strong">Proposed</span>}
         {p && <Avatar p={p} size="sm" />}
         <span>{row.name}{you && row.kind === 'person' ? ' (you)' : ''}{note ? `, ${note}` : ''}</span>
       </span>

@@ -7,12 +7,14 @@
 import { contractFiles } from './contracts';
 import { ARTICLES, type Article } from '../help/guide';
 import { SCREENS } from '../mcp/parity';
+import { TOOLS, toolModule } from '../mcp/tools';
+import { actionsPage, toolsPage } from './calls';
 import { GROUPS, type Term } from '../domain/vocabulary';
 import { RULES, TREND_SPAN } from '../domain/thresholds';
 import { cell, link, table, UNCLEAR } from './md';
 import { dataModelMarkdown, declarations } from './model';
 import { RULE_LIST, wrongExamples, type Rule } from './rules';
-import { MAIN_ACTION, OTHER_VIEWS } from './screens';
+import { MAIN_ACTION, OTHER_VIEWS, SHOTS, WIDTHS, shotFile } from './screens';
 import { screenFacts, whoWords, type ScreenFacts } from './screenFacts';
 import { GROUPS as HELP_GROUPS } from '../help/guide';
 import { RULE_PAGES, systemOverview } from './overview';
@@ -51,6 +53,8 @@ function readme(mods: ModuleFacts[]): string {
       ['[core/journeys.md](core/journeys.md)', 'The core journeys and checks, the requirements each covers, and where each is driven'],
       ['[core/requirements.md](core/requirements.md)', 'Every core requirement, linked to its code, its Help article, its tests and its journeys'],
       ['[core/export-format.md](core/export-format.md)', 'The spreadsheet format: every sheet and column of the export, the set-up template and the import, how each is read back, its words, the JSON and the brief'],
+      ['[core/actions.md](core/actions.md)', 'Every action a person can take, as the command port runs it: its input, its result, who may and the words it refuses with'],
+      ['[core/tools.md](core/tools.md)', 'Every AI tool the MCP server offers: its input schema, what it gives back, its refusals and the actions it does the same as'],
       ['[core/import-issues.md](core/import-issues.md)', 'Every kind of issue a spreadsheet can raise: its level, what raises it, what it says and the answers it takes, and every other spelling of a column or a word'],
       ['[modules/](modules/README.md)', 'One section per feature module, from its `module.json`'],
       ['[conformance/](conformance/README.md)', 'The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself'],
@@ -163,6 +167,14 @@ function rulesIndex(): string {
 
 /* ---------- screens ---------- */
 
+/** A screen's pictures at each width, when it has them (npm run spec:shots). */
+function shotsMarkdown(name: string): string[] {
+  const shot = SHOTS[name];
+  if (!shot) return [];
+  const as = shot.who ? `as ${shot.who}` : 'before anyone has signed up';
+  return [`**Pictures** (\`${shot.at}\` ${as}${shot.keys ? `, after ${shot.keys}` : ''}): ${WIDTHS.map((w) => `[${w} wide](screens/${shotFile(name, w)})`).join(', ')}`, '', `<img src="screens/${shotFile(name, WIDTHS[0])}" alt="${name} at ${WIDTHS[0]} wide" width="195"> <img src="screens/${shotFile(name, WIDTHS[1])}" alt="${name} at ${WIDTHS[1]} wide" width="480">`, ''];
+}
+
 const STATE_ORDER = ['whole screen', 'loading', 'empty', 'error', 'refused'] as const;
 
 /** A screen's fields, states and buttons as three tables (screenFacts reads them from its markup). */
@@ -190,6 +202,7 @@ function screens(r: Repo): string {
     '- **Fields:** everything a person types or chooses, by its label, and its kind (an input’s type, `select`, `textarea`, or a picker’s component).',
     '- **States:** what it draws instead of, or as well as, its usual self. *Whole screen*: drawn in place of the screen, under the condition its code tests first (a goal that doesn’t exist, a redirect, an admin-only page). *Loading*: a quiet wait, drawn only after 300 ms. *Empty*: a title for nothing to show. *Error*: an alert or a message beside a field. *Refused*: a sentence saying who may.',
     '- **Buttons, and who sees them:** every button and button-styled link, its kind (`primary`, `button` or `link`), and when it shows: always, or the conditions around it in the markup, outermost first. The ones every screen shares are in words (an admin, the goal’s owner); the rest are the code’s own condition, which names what it tests. Who may *do* each thing is a rule ([goal rights](rules/README.md), R1’s access table); a hidden button is how a screen follows it, not the rule.',
+    '', `Each screen, and the views with a route of their own or a key that opens them, has two pictures, at 390 and 1440 wide, taken from the demo on its conformance day (5 Nov 2026, week 45) as the person named, by \`npm run spec:shots\` (\`SHOTS\` in \`src/spec/screens.ts\`). They show Faro’s look as it is, cut at 2400px tall on a phone and 1800px on a desktop; the tables and the design rules are what a rebuild keeps, the pictures what they add up to.`,
     '', `Words worked out when the screen shows (from the goal, the person or the week) are written “…”. A screen’s look is in [the design rules](design-rules.md), and every Help article in full in [the Help guide](help-guide.md). Views, overlays and pages with no route of their own (the Goals layouts, Find, the shell, the error pages) follow the routes. Feature modules add their own screens: see [the modules](../modules/README.md). ${UNCLEAR} a condition written as code is the screen’s own; a rebuild reads it for what it means (who is looking, what the goal has), not for its names.`, ''];
   for (const [file, rs] of byFile) {
     const name = file.split('/').pop()!.replace('.tsx', '');
@@ -205,7 +218,7 @@ function screens(r: Repo): string {
     out.push(`- **Main action:** ${MAIN_ACTION[name] ?? '(none written: add it to src/spec/screens.ts)'}`);
     out.push(`- **Primary buttons in its markup:** ${parts.primary.length ? parts.primary.map((x) => `“${cell(x)}”`).join(', ') : 'none written as plain text'}`);
     out.push(`- **AI tools:** ${!tools ? 'none listed' : Array.isArray(tools) ? tools.map((t) => `\`${t}\``).join(', ') : `none, on purpose: ${tools.notForAssistants}`}`);
-    out.push('', ...factsMarkdown(screenFacts(r, file)));
+    out.push('', ...shotsMarkdown(name), ...factsMarkdown(screenFacts(r, file)));
   }
   out.push('## Views, overlays and pages with no route of their own', '', 'Each is drawn inside a screen, over every screen, or when nothing else can be (`OTHER_VIEWS` in `src/spec/screens.ts`, its main action written by hand like a route’s; the rest read from its markup).', '');
   for (const v of OTHER_VIEWS) {
@@ -213,7 +226,7 @@ function screens(r: Repo): string {
     out.push(`### ${v.name}`, '', `${link(2, v.file)}${v.component ? ` (\`${v.component}\`)` : ''}`, '');
     out.push(`- **Where:** ${v.where}`);
     if (a) out.push(`- **Help:** “${a.title}” (\`${a.id}\`): ${cell(a.summary)}`);
-    out.push(`- **Main action:** ${v.mainAction}`, '', ...factsMarkdown(screenFacts(r, v.file, v.component)));
+    out.push(`- **Main action:** ${v.mainAction}`, '', ...shotsMarkdown(v.name), ...factsMarkdown(screenFacts(r, v.file, v.component)));
   }
   return out.join('\n');
 }
@@ -526,6 +539,8 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/core/help-guide.md': helpGuidePage(),
     'spec/core/journeys.md': journeys(r, mods),
     'spec/core/requirements.md': requirementsPage(r, mods, tests),
+    'spec/core/actions.md': actionsPage(r, GENERATED('src/app/actions.ts, each module’s actions.ts, R1’s access table and the rules they call, by src/spec/calls.ts')),
+    'spec/core/tools.md': toolsPage(r, TOOLS, toolModule, GENERATED('src/mcp/tools.ts, each module’s tools.ts and src/mcp/parity.ts, by src/spec/calls.ts')),
     'spec/modules/README.md': modulesIndex(mods),
   };
   for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);

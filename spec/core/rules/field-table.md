@@ -25,6 +25,7 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Owner | Required (or Owner email) | A name only one person has | Ben Ortiz | Owner email says who; with neither, Must fix |
 | Owner email | Required (or Owner) | An email | ben.ortiz@example.com | Owner says who; with neither, Must fix |
 | Type | Optional | metric, range or milestone | metric | Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later |
+| State | Optional | active or proposed | proposed | As it is |
 | Unit | Optional | Text | days | No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts. On a row already here, empty clears it |
 | Decimals | Optional | 0, 1, 2 or 3 | 1 | The most decimal places typed in Start, Target or Limit, up to 3 |
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |

@@ -6,7 +6,7 @@
    What feeds it opens with how the goals feeding it stand; and every section says in one line what it answers.
    The words come from the domain (domain/goalPage and the modules it asks); this file lays them out. */
 import { Place } from '../core/app';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { useSeen } from '../app/goalSeen';
@@ -50,6 +50,9 @@ import { MOTION_MS, reducedMotion, STORY_MS } from '../ui/motion';
 import { effectOn, landedMoment, openMotionLab, storyOn, storyPace } from '../app/appearance';
 import { shareCardPng, type ShareCard } from '../ui/shareCard';
 import { ArchivedGoalScope } from '../app/state';
+import { isProposed } from '../domain/proposed';
+
+const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
 import { canDeleteCheckIn } from '../domain/removal';
 import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
 import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
@@ -65,6 +68,8 @@ export function GoalScreen() {
   const [replay, setReplay] = useState(0);
   useEffect(() => { const on = () => setReplay((n) => n + 1); window.addEventListener('goals-replay', on); return () => window.removeEventListener('goals-replay', on); }, []);
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn sm" to="/goals">All goals</Link></Empty></div>;
+  // A proposed goal has its own page (GE10): no status, no scorecard, no chart; loaded only when one is opened.
+  if (isProposed(goal)) return <Suspense fallback={null}><ProposedGoal key={goal.id + ':' + app.viewer.id} goal={goal} /></Suspense>;
   // A stopped goal keeps its page, as it stood, marked Stopped (domain/removal). Always inside the scope, so stopping
   // the goal or undoing it carries on with the same page rather than mounting a new one.
   return <ArchivedGoalScope goalId={goal.id}><GoalView key={goal.id + ':' + app.viewer.id + ':' + replay} goal={goal} /></ArchivedGoalScope>;
@@ -539,7 +544,7 @@ function StepRowItem({ goal, x, open, focus, onOpen, onDone }: { goal: Goal; x: 
 }
 
 /** Ask the owner a question (goal spec, 2.6): an ask that stays open on their Home until it's answered. */
-function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
+export function AskQuestionSheet({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const app = useApp();
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'the owner';
   const [text, setText] = useState('');
@@ -938,7 +943,7 @@ function StreamRow({ goal, x }: { goal: Goal; x: StreamItem }) {
  * nothing of anyone. Someone who needs the owner to respond asks a question instead: the same words, as an ask that stays
  * open on the owner's Home until they answer it (one way to ask).
  */
-function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) {
+export function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) {
   const app = useApp();
   // What's typed is kept as a draft: Cancel closes the box and keeps it, as other drafts are kept (goal spec, 2.2).
   const [draft, keep, clear] = useDraft<{ text: string }>(`${app.ws.id}:comment:${goal.id}`, () => ({ text: '' }));
