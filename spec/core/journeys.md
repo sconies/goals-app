@@ -92,6 +92,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U117 | The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open |  | `RESULTS` `YEAR` | 6 | `evals/journeys.cjs` |
 | U135 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet |  | `GOALS-MENUS` `GOAL-MAP` `SAVED-VIEWS` | 14 | `evals/journeys.cjs` |
 | U136 | Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; Save with a question open focuses the question, in view, and says where it is (900 hours on Lead time, better lower, asks wrong-side); #owner opens at Who and where, its owner found by typing |  | `GOAL-EDIT-PAGE` `NAV-FORMS` `PLAN-CHANGE` `FIND-AND-PICK` | 6 | `evals/journeys.cjs` |
+| U137 | Nothing offered that is then refused: as Hamid, an admin, the “…” menu on Rhea’s goal has Change this goal but no Check in for Rhea, since only the owner checks in; Rhea checks in from the bar |  | `OWNER-ONLY` `ADMIN` `PROFILES` | 3 | `evals/journeys.cjs` |
 
 ## Platform checks
 

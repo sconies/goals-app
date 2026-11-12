@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'polish-no-check-in-for',
+    date: '2026-11-12',
+    title: 'No check-in offered that can’t be posted',
+    points: [
+      'A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.',
+      'The owner checks in from the button on the goal’s bar, as before.',
+    ],
+    articles: ['goal-page', 'check-in'],
+  },
+  {
     id: 'import-way-in',
     date: '2026-11-12',
     title: 'Paste rows, and headers that are nearly right',
