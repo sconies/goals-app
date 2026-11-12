@@ -1893,6 +1893,19 @@ function newToken() {
 	const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	return "gk_" + [...crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(40))].map((b) => abc[b % 62]).join("");
 }
+// src/domain/goalRights.ts
+/**
+* Whether `actor` may add a goal owned by `ownerId`. Always (Lane, 11 Nov): anyone may add a goal for anyone, at any
+* level, at every door. It exists so the rule is stated in one place, and the doors agree by sharing it.
+*/
+function mayAddGoal(_actor, _ownerId) {
+	return true;
+}
+/** Whether `actor` may change a goal (its name, plan, owner, unit or decimals): its owner, or an admin. */
+function mayChangeGoal(actor, goal) {
+	return !!actor.admin || goal.ownerId === actor.id;
+}
+var init_goalRights = __esmMin((() => {}));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, levelRank, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
@@ -1992,6 +2005,56 @@ var init_progress = __esmMin((() => {
 	];
 }));
 // src/domain/numbers.ts
+/**
+* A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
+* Anything else (hex, exponents, words) is not a number. Where the goal's unit is known, `numberAsTyped` also says
+* whether the words after the number are its unit.
+*/
+function parseNumber(s) {
+	return readDigits(splitTyped(s).digits);
+}
+/** A typed value as its digits and the words after them: "12 days" is "12" and "days"; "62%" is "62" and "%". */
+function splitTyped(s) {
+	const t = s.trim();
+	const m = /\s*(%|[a-z]+(\s[a-z]+)*)$/i.exec(t);
+	return m ? {
+		digits: t.slice(0, m.index),
+		words: m[0].trim()
+	} : {
+		digits: t,
+		words: ""
+	};
+}
+/** The digits of a typed number: a decimal comma, grouping commas and spaces read; anything else is not a number. */
+function readDigits(raw) {
+	let t = raw.replace(/\s/g, "");
+	if (!t) return null;
+	if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");
+	else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, "");
+	if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+	const n = Number(t);
+	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
+}
+function unitKey(unit) {
+	const u = unit.trim().toLowerCase().replace(/\s+/g, " ");
+	return UNIT_SAME[u] ?? u.replace(/s$/, "");
+}
+/**
+* Rule 12 (goal entry, section 3's table). A number typed into a goal with `unit`: the number; or `has-words` when the
+* words after it aren't the goal's unit ("12 days" in a % goal, "12%" in a days goal, any words with no unit); or
+* `not-number`. "12%" in a % goal and "12 days" in a days goal are the number.
+*/
+function numberAsTyped(raw, unit) {
+	const { digits, words } = splitTyped(raw);
+	const n = readDigits(digits);
+	if (n == null) return { problem: "not-number" };
+	if (!words) return { n };
+	if (unit.trim() && unitKey(words) === unitKey(unit)) return { n };
+	return {
+		problem: "has-words",
+		n
+	};
+}
 /** How many decimal places a typed number has: "12.5" 1, "1,250" 0, "29,4" (a decimal comma) 1. */
 function typedDecimals(raw) {
 	let t = raw.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, "").replace(/\s/g, "");
@@ -2046,8 +2109,21 @@ function setupProblem(unit, start, target) {
 	if (nums.some((x) => Math.abs(x) >= 1e9)) return "That’s a billion or more. Is it right?";
 	return null;
 }
-var PLACES, placesText, exampleNumber, notNumberText, asWritten$1, fixed, usuallyPositive;
+var UNIT_SAME, PLACES, placesText, exampleNumber, notNumberText, asWritten$1, fixed, usuallyPositive;
 var init_numbers = __esmMin((() => {
+	UNIT_SAME = {
+		minute: "min",
+		minutes: "min",
+		mins: "min",
+		min: "min",
+		day: "day",
+		days: "day",
+		hr: "hour",
+		hrs: "hour",
+		hour: "hour",
+		hours: "hour",
+		h: "hour"
+	};
 	PLACES = [
 		"whole numbers",
 		"1 decimal place",
@@ -2070,19 +2146,6 @@ function unchangedStory(draft, reason, path) {
 	if (reason && c.why.trim() && draft.cause === c.cause && draft.why.trim() === c.why.trim()) out.push("reason");
 	if (path && c.what.trim() && draft.ptgWhat.trim() === c.what.trim() && draft.ptgBy === c.by) out.push("path");
 	return out;
-}
-/**
-* A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
-* Anything else (hex, exponents, words) is not a number.
-*/
-function parseNumber(s) {
-	let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, "").replace(/\s/g, "");
-	if (!t) return null;
-	if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");
-	else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, "");
-	if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
-	const n = Number(t);
-	return Number.isFinite(n) && Math.abs(n) < 0xe8d4a51000 ? n : null;
 }
 /** Why a typed value can't be used, or a check worth making before posting it. */
 function valueProblem(raw, last, unit, goal) {
@@ -2978,14 +3041,14 @@ function blankGoal(teamId, ownerId, parentId) {
 		points: {},
 		source: "",
 		definition: "",
-		unit: "%",
-		decimals: "0",
+		unit: "",
+		decimals: "",
 		start: "",
 		target: "",
 		shape: "straight",
 		bound: "atMost",
 		limit: "",
-		margin: "1",
+		margin: "",
 		stages: [{
 			id: "s1",
 			name: "",
@@ -3030,53 +3093,18 @@ function draftOf(g) {
 	}));
 	return d;
 }
-function validateGoal(d, cycle, existing, week) {
-	const e = {};
-	const named = nameProblem(d.title, "goal");
-	if (named) e.title = named;
-	if (!d.teamId) e.teamId = "Choose a team.";
-	if (!d.ownerId) e.ownerId = "Choose an owner.";
-	if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = notNumberText(d.effect);
-	const dp = d.kind === "milestone" ? null : parseNumber(d.decimals);
-	const places = dp != null && dp >= 0 && dp <= 3 && Number.isInteger(dp) ? dp : null;
-	const numberProblem = (raw, empty) => {
-		if (!raw.trim()) return empty;
-		const n = parseNumber(raw);
-		if (n == null) return notNumberText(raw);
-		return places == null ? null : precisionProblem(raw, n, places);
-	};
-	if (d.kind !== "milestone" && places == null) e.decimals = "Between 0 and 3.";
-	if (d.kind === "metric") {
-		const sp = numberProblem(d.start, "Enter where it starts."), tp = numberProblem(d.target, "Enter the target.");
-		if (sp) e.start = sp;
-		if (tp) e.target = tp;
-		else if (!sp && parseNumber(d.start) === parseNumber(d.target)) e.target = "The target has to differ from the start.";
-		const stored = new Map(existing?.kind === "metric" ? (existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
-		const bad = Object.entries(d.points).filter(([w, v]) => v.trim() !== "" && parseNumber(v) !== stored.get(w)).map(([, v]) => parseNumber(v) == null ? notNumberText(v) : places == null ? null : precisionProblem(v, parseNumber(v), places)).find(Boolean);
-		if (bad) e.points = bad;
+/**
+* The decimal places a goal keeps (goal entry, rule 2): the ones chosen in Decimals, or, when none were, the most typed
+* in its numbers (Today, Target, Limit), at most 3. Null when Decimals says something that isn't 0 to 3. A new goal
+* starts with Decimals empty, so what is typed is what is kept.
+*/
+function decimalsFor(d) {
+	if (d.decimals.trim()) {
+		const n = parseNumber(d.decimals);
+		return n != null && Number.isInteger(n) && n >= 0 && n <= 3 ? n : null;
 	}
-	if (d.kind === "range") {
-		const lp = numberProblem(d.limit, "Enter the limit.");
-		if (lp) e.limit = lp;
-		const m = parseNumber(d.margin);
-		if (d.margin.trim() && m == null) e.margin = notNumberText(d.margin);
-		else if (m == null || m < 0) e.margin = "Enter a warning margin of zero or more.";
-		else if (places != null) {
-			const mp = precisionProblem(d.margin, m, places);
-			if (mp) e.margin = mp;
-		}
-	}
-	if (d.kind === "milestone") {
-		const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
-		if (!rows.length) e.stages = "Add at least one stage.";
-		else if (rows.some((s) => !s.name.trim())) e.stages = "Every stage needs a name.";
-		else if (rows.some((s) => {
-			const w = parseNumber(s.dueWeek);
-			return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks;
-		})) e.stages = "Every stage needs a due week between 1 and " + cycle.weeks + ".";
-		else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek), week) && !s.done)) e.stages = "Say whether this stage is done.";
-	}
-	return e;
+	const typed = d.kind === "metric" ? [d.start, d.target] : d.kind === "range" ? [d.limit] : [];
+	return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 /**
 * Checks worth making on a goal's numbers as typed: asked beside the field, never refused (backlog N). Over 100% first
@@ -3163,7 +3191,7 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 			...common,
 			kind: "metric",
 			unit: d.unit.trim(),
-			decimals: num(d.decimals),
+			decimals: decimalsFor(d) ?? 0,
 			plan,
 			...history
 		};
@@ -3172,11 +3200,11 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 		...common,
 		kind: "range",
 		unit: d.unit.trim(),
-		decimals: num(d.decimals),
+		decimals: decimalsFor(d) ?? 0,
 		range: {
 			bound: d.bound,
 			limit: num(d.limit),
-			margin: num(d.margin)
+			margin: parseNumber(d.margin) ?? 0
 		}
 	};
 	const stages = d.stages.filter((s) => s.name.trim()).map((s) => ({
@@ -3286,7 +3314,6 @@ function stagesDoneAtSetUp(goal, doneIds, authorId, now, id) {
 var pastStage, DONE_AT_SET_UP;
 var init_goal = __esmMin((() => {
 	init_checkin();
-	init_thresholds();
 	init_numbers();
 	init_plan();
 	init_status();
@@ -6581,6 +6608,7 @@ function canDeleteWorkspace(actor, kind, name, confirmName) {
 }
 var NotAllowed, no$2, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
+	init_goalRights();
 	init_levels();
 	init_decide();
 	init_thresholds();
@@ -6604,7 +6632,7 @@ var init_actions = __esmMin((() => {
 		goal: (id) => s.goals.find((g) => g.id === id),
 		teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id
 	});
-	ownsOrAdmin$2 = (x, g) => x.actor.admin || g.ownerId === x.actor.id;
+	ownsOrAdmin$2 = (x, g) => mayChangeGoal(x.actor, g);
 	latestOf = (x, g) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 	askById = (x, id) => asksOf(x.snapshot).find((r) => r.id === id);
 	nameOf = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
@@ -6617,6 +6645,625 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
+}));
+// src/domain/query.ts
+/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
+function parseQuery(p) {
+	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
+	const due = p.get("due");
+	const qtr = p.get("qtr");
+	return {
+		q: (p.get("q") ?? "").slice(0, 200),
+		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
+		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
+		team: (p.get("team") ?? "").split(",").filter(Boolean),
+		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
+		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
+		...needsOf(p),
+		due: due === "quarter" ? "quarter" : int$3(due),
+		quiet: int$3(p.get("quiet")),
+		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
+		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
+		feeds: p.get("feeds") || null,
+		helps: p.get("helps") === "1",
+		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
+		dir: dir === "desc" ? -1 : 1
+	};
+}
+/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
+function needsOf(p) {
+	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
+	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
+	return {
+		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
+		needs
+	};
+}
+/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
+function queryEntries(q) {
+	const out = [];
+	if (q.q.trim()) out.push(["q", q.q.trim()]);
+	if (q.status.length) out.push(["status", q.status.join(",")]);
+	if (q.level.length) out.push(["level", q.level.join(",")]);
+	if (q.team.length) out.push(["team", q.team.join(",")]);
+	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
+	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
+	if (q.attention || q.needs.length) out.push(["attention", "1"]);
+	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
+	if (q.due != null) out.push(["due", String(q.due)]);
+	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
+	if (q.quarter) out.push(["qtr", q.quarter]);
+	if (q.result.length) out.push(["result", q.result.join(",")]);
+	if (q.feeds) out.push(["feeds", q.feeds]);
+	if (q.helps) out.push(["helps", "1"]);
+	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
+	return out;
+}
+/** The goal and every goal that feeds it, all the way down. */
+function treeOf$1(id, goals) {
+	const out = /* @__PURE__ */ new Set([id]);
+	let grew = true;
+	while (grew) {
+		grew = false;
+		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
+			out.add(g.id);
+			grew = true;
+		}
+	}
+	return out;
+}
+/** Does this goal pass every filter in the query? */
+function matches(s, q, ctx, tree) {
+	const g = s.goal;
+	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
+	if (q.status.length && !q.status.includes(s.status)) return false;
+	if (q.level.length && !q.level.includes(g.level)) return false;
+	if (q.team.length && !q.team.includes(g.teamId)) return false;
+	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+	if (q.kind.length && !q.kind.includes(g.kind)) return false;
+	if (q.attention || q.needs.length) {
+		if (!onAttentionList(s.attention)) return false;
+		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
+	}
+	if (q.due != null) {
+		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
+		if (s.dueWeek > by) return false;
+	}
+	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
+	if (q.quarter) {
+		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
+	}
+	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
+	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
+	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
+	return true;
+}
+/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
+function compare(q, _week) {
+	const key = q.sort ?? "worst";
+	const worst = (a, b) => RANK[b.status] - RANK[a.status];
+	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
+	const by = {
+		worst,
+		title: name,
+		owner: (a, b) => a.owner.localeCompare(b.owner),
+		team: (a, b) => a.team.localeCompare(b.team),
+		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
+		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
+		last: (a, b) => b.quietDays - a.quietDays,
+		due: (a, b) => a.dueWeek - b.dueWeek
+	};
+	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
+}
+/** The goals that pass the query, in its order. */
+function applyQuery(sums, q, ctx) {
+	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
+	const out = sums.filter((s) => matches(s, q, ctx, tree));
+	return q.sort ? out.sort(compare(q, ctx.week)) : out;
+}
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, GAP_RANK;
+var init_query = __esmMin((() => {
+	init_levels();
+	init_attention();
+	init_status();
+	init_find();
+	init_vocabulary();
+	init_year();
+	EMPTY_QUERY = {
+		q: "",
+		status: [],
+		level: [],
+		team: [],
+		owner: [],
+		kind: [],
+		attention: false,
+		needs: [],
+		due: null,
+		quiet: null,
+		quarter: null,
+		result: [],
+		feeds: null,
+		helps: false,
+		sort: null,
+		dir: 1
+	};
+	STATUS_OPTIONS = [
+		"off",
+		"risk",
+		"stale",
+		"on",
+		"done",
+		"none",
+		"planned"
+	].map((k) => [k, LABEL[k]]);
+	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
+	OLD_NEEDS = {
+		"no-recovery": "no-path",
+		"missed-date": "missed-path"
+	};
+	RESULT_OPTIONS = [
+		"completed",
+		"late",
+		"missed",
+		"open"
+	].map((k) => [k, RESULT[k].label]);
+	KIND_OPTIONS = [
+		["metric", "Move a number"],
+		["range", "Keep in range"],
+		["milestone", "Dated stages"]
+	];
+	SORT_OPTIONS = [
+		["worst", "Worst first"],
+		["title", "Name"],
+		["owner", "Owner"],
+		["team", "Team"],
+		["level", "Level"],
+		["gap", "Furthest from plan"],
+		["last", "Longest since a check-in"],
+		["due", "Due soonest"]
+	];
+	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
+	int$3 = (v) => {
+		const n = v == null ? NaN : Number(v);
+		return Number.isInteger(n) && n > 0 ? n : null;
+	};
+	GAP_RANK = {
+		off: 4,
+		risk: 3,
+		stale: 2,
+		on: 1,
+		ahead: 0
+	};
+}));
+// src/domain/find.ts
+/**
+* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
+* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
+*/
+function textMatches(words, q, key) {
+	const asked = wordsOf(q);
+	if (!asked.length) return true;
+	const typedKey = normalKey(q.trim());
+	if (typedKey) return !!key && typedKey === key;
+	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
+	if (bare && key && bare === key) return true;
+	const have = wordsOf(words);
+	return asked.every((w) => have.some((h) => h.startsWith(w)));
+}
+/** One letter added, dropped or changed, or two next to each other swapped. */
+function oneEditApart(a, b) {
+	if (a === b) return false;
+	if (Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		const diff = [];
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
+		if (diff.length === 1) return true;
+		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+	}
+	const [s, l] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < s.length && s[i] === l[i]) i++;
+	return s.slice(i) === l.slice(i + 1);
+}
+/**
+* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
+* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
+* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
+* with a short word that matches nothing.
+*/
+function nearMiss(q, vocabulary) {
+	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
+	const asked = wordsOf(q);
+	if (!asked.length) return null;
+	const count = /* @__PURE__ */ new Map();
+	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
+	let changed = false;
+	const out = [];
+	for (const w of asked) {
+		if ([...count.keys()].some((v) => v.startsWith(w))) {
+			out.push(w);
+			continue;
+		}
+		if (w.length < 4) return null;
+		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
+		if (!best) return null;
+		out.push(best[0]);
+		changed = true;
+	}
+	return changed ? out.join(" ") : null;
+}
+/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
+function page(all, ask) {
+	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
+	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
+	const rows = all.slice(from, from + size);
+	return {
+		total: all.length,
+		rows,
+		next: from + size < all.length ? String(from + size) : null
+	};
+}
+/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
+function searchGoals(r, ask) {
+	const query = {
+		...parseQuery(new URLSearchParams({
+			...ask.filters ?? {},
+			...ask.sort ? { sort: ask.sort } : {}
+		})),
+		q: ""
+	};
+	return applyQuery(r.summaries, {
+		...query,
+		sort: query.sort ?? "worst"
+	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
+}
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
+* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
+*/
+function searchPeople(r, ask) {
+	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
+	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+	const f = ask.filters ?? {};
+	const left = f.left === "too";
+	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
+	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
+		...personRow(r, p),
+		name: `${p.name} (left)`
+	} : personRow(r, p));
+}
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+function teamRow(r, t) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+	const n = here.filter((p) => p.teamId === t.id).length;
+	return {
+		kind: "team",
+		id: t.id,
+		name: t.name,
+		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
+	};
+}
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
+}
+function searchWorkspaces(r, ask) {
+	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
+		kind: "workspace",
+		id: w.id,
+		name: w.name,
+		detail: w.detail
+	}));
+}
+/** The words each kind's near miss may correct to. */
+function vocabulary(r) {
+	switch (r.kind) {
+		case "goal": return r.summaries.map(goalWords);
+		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
+		case "team": return r.teams.map((t) => t.name);
+		case "workspace": return r.workspaces.map((w) => w.name);
+	}
+}
+/**
+* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
+* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
+*/
+function search(rows, ask) {
+	const run = (a) => {
+		switch (rows.kind) {
+			case "goal": return searchGoals(rows, a);
+			case "person": return searchPeople(rows, a);
+			case "team": return searchTeams(rows, a);
+			case "workspace": return searchWorkspaces(rows, a);
+		}
+	};
+	const all = run(ask);
+	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
+	const near = nearMiss(ask.q, vocabulary(rows));
+	const again = near ? run({
+		...ask,
+		q: near
+	}) : [];
+	return near && again.length ? {
+		...page(again, ask),
+		near
+	} : page([], ask);
+}
+/**
+* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+* left out.
+*/
+function rowsByIds(rows, ids) {
+	const found = (id) => {
+		switch (rows.kind) {
+			case "goal": {
+				const s = rows.summaries.find((x) => x.goal.id === id);
+				return s ? goalRow(s) : null;
+			}
+			case "person": {
+				const p = rows.people.find((x) => x.id === id && !x.removedAt);
+				return p ? personRow(rows, p) : null;
+			}
+			case "team": {
+				const t = rows.teams.find((x) => x.id === id);
+				return t ? teamRow(rows, t) : null;
+			}
+			case "workspace": {
+				const w = rows.workspaces.find((x) => x.id === id);
+				return w ? {
+					kind: "workspace",
+					id: w.id,
+					name: w.name,
+					detail: w.detail
+				} : null;
+			}
+		}
+	};
+	return ids.map(found).filter((r) => !!r);
+}
+/**
+* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+* when the rest would fill the list. Nobody marked as left; nothing it can't find.
+*/
+function suggest(rows, viewerId, recents) {
+	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+	const pick = (ids, row) => {
+		const out = [];
+		const add = (id, limit) => {
+			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+			const r = row(id);
+			if (r) out.push(r);
+		};
+		const lately = recent.filter((id) => !ids.includes(id) && row(id));
+		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
+		for (const id of [...recent, ...ids]) add(id, 6);
+		return out;
+	};
+	switch (rows.kind) {
+		case "person": {
+			const all = searchPeople(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const me = rows.people.find((p) => p.id === viewerId);
+			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
+		}
+		case "team": {
+			const all = searchTeams(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+		}
+		case "goal": {
+			const all = searchGoals(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+		}
+	}
+}
+var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
+var init_find = __esmMin((() => {
+	init_levels();
+	init_goalKey();
+	init_query();
+	init_vocabulary();
+	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	MAX_PAGE = 200;
+	goalWords = (s) => [
+		s.goal.title,
+		s.goal.key ?? "",
+		s.owner,
+		s.team,
+		levelName(null, s.goal.level),
+		LABEL[s.status],
+		s.story.why ?? "",
+		s.story.doing ?? "",
+		s.story.needs ?? "",
+		s.goal.definition,
+		s.goal.source
+	].join(" ");
+	goalRow = (s) => ({
+		kind: "goal",
+		id: s.goal.id,
+		name: s.goal.title,
+		detail: [
+			s.goal.key,
+			s.owner,
+			s.team
+		].filter(Boolean).join(" · "),
+		status: s.status,
+		key: s.goal.key ?? null
+	});
+	personRow = (r, p) => ({
+		kind: "person",
+		id: p.id,
+		name: p.name,
+		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
+	});
+	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
+	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
+}));
+// src/domain/goalEntry.ts
+/** The words for a number that has more places than its goal keeps (section 4, `too-precise`). */
+function tooPrecise(raw, n, places) {
+	const has = typedDecimals(raw);
+	if (has <= places) return null;
+	const shown = groupDigits(n.toFixed(places));
+	const keep = Math.min(3, has);
+	return keep > places ? {
+		text: `${raw.trim()} has ${placesText(has)}, but this goal keeps ${placesText(places)}, so it would show as ${shown}. Type ${shown}, or keep ${placesText(keep)} for this goal.`,
+		keep
+	} : { text: `${raw.trim()} has ${placesText(has)}, but a goal keeps at most ${placesText(3)}, so it would show as ${shown}. Type ${shown}.` };
+}
+/**
+* Rule 2. What can't be saved, in the form's order: an empty list when the goal can be saved. The same at every door
+* (the form, set-up's cards, a Goals row, the AI tools), in section 4's words. Who may save it is rule 7's, not this.
+*/
+function goalMustFix(d, ctx) {
+	const out = [];
+	const add = (field, id, text, extra = {}) => out.push({
+		field,
+		id,
+		text,
+		...extra
+	});
+	const named = nameProblem(d.title, ctx.noun ?? "goal");
+	if (named) add("title", d.title.trim() ? "name-short" : "name-empty", named);
+	if (!d.ownerId) add("ownerId", "owner-empty", "Choose who owns it.");
+	if (!d.teamId) add("teamId", "team-empty", ctx.owner && !ctx.owner.teamId ? `${ctx.owner.name} isn’t in a team. Choose the team this goal is for.` : "Choose a team.");
+	if (!d.level) add("level", "level-empty", "Choose a level.");
+	if (d.parentId && ctx.loops) add("parentId", "feeds-loop", `That link would make a loop: “${ctx.parent?.title ?? "that goal"}” already feeds into this goal.`);
+	if (d.parentId && d.effect.trim() && parseNumber(d.effect) == null) add("effect", "not-number", notNumberText(d.effect));
+	if (d.kind !== "milestone") {
+		const places = decimalsFor(d);
+		if (places == null) add("decimals", "decimals-range", `Decimals says “${d.decimals.trim()}”. Use 0, 1, 2 or 3.`);
+		const example = places ?? 0;
+		/** A typed number's problem, or its value. */
+		const number = (field, raw, empty, prefix = "", row) => {
+			if (!raw.trim()) {
+				if (empty) add(field, empty[0], empty[1]);
+				return null;
+			}
+			const read = numberAsTyped(raw, d.unit);
+			if ("problem" in read) {
+				if (read.problem === "not-number") add(field, "not-number", prefix + notNumberText(raw, example), { row });
+				else add(field, "has-words", prefix + `“${raw.trim()}” has words in it. Type the number only, like ${groupDigits(String(read.n))}; ${d.unit.trim() ? `this goal counts ${d.unit.trim()}` : "the unit goes in Unit"}.`, { row });
+				return null;
+			}
+			if (places != null) {
+				const p = tooPrecise(raw, read.n, places);
+				if (p) {
+					add(field, "too-precise", prefix + p.text, {
+						...p.keep != null ? { keep: p.keep } : {},
+						row
+					});
+					return null;
+				}
+			}
+			return read.n;
+		};
+		if (d.kind === "metric") {
+			const s = number("start", d.start, ["start-empty", ctx.existing ? "Enter where it starts." : "Enter where it starts today."]);
+			const t = number("target", d.target, ["target-empty", "Enter the target."]);
+			if (s != null && t != null && s === t) add("target", "same-as-start", `The target is the same as today (${withUnit(groupDigits(String(s)), d.unit)}). To hold a number where it is, make this a number to keep in range.`, { hold: s });
+			const stored = new Map(ctx.existing?.kind === "metric" ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
+			const typed = Object.entries(d.points).filter(([w, v]) => v.trim() !== "" && parseNumber(v) !== stored.get(w)).sort(([a], [b]) => Number(a) - Number(b));
+			for (const [w, v] of typed) {
+				const before = out.length;
+				number("points", v, null, `Week ${w}: `);
+				if (out.length > before) {
+					out[out.length - 1].id = "plan-point";
+					break;
+				}
+			}
+		}
+		if (d.kind === "range") {
+			number("limit", d.limit, ["limit-empty", "Enter the limit."]);
+			const m = number("margin", d.margin, null);
+			if (m != null && m < 0) add("margin", "margin-negative", "Enter a warning margin of zero or more, or leave it empty.");
+		}
+		if (ctx.existing && ctx.existing.kind !== "milestone" && places != null && places < ctx.existing.decimals) {
+			const over = (ctx.checkIns ?? []).filter((c) => c.value != null && (String(c.value).split(".")[1] ?? "").length > places).sort((a, b) => a.week - b.week);
+			if (over.length) {
+				const k = over.length, weeks = over.slice(0, 3).map((c) => c.week);
+				add("decimals", "decimals-lose", `${k} check-in${k === 1 ? " has" : "s have"} more decimal places than ${placesText(places)} (week${weeks.length === 1 ? "" : "s"} ${weeks.join(", ")}${k > 3 ? " and more" : ""}). Keep ${placesText(ctx.existing.decimals)}, or correct those check-ins first.`);
+			}
+		}
+	}
+	if (d.kind === "milestone") {
+		const rows = d.stages.map((s, i) => ({
+			s,
+			i
+		})).filter(({ s }) => s.name.trim() || s.dueWeek.trim());
+		if (!rows.length) add("stages", "stage-none", "Add at least one stage.", { row: 0 });
+		const seen = /* @__PURE__ */ new Map();
+		for (const { s, i } of rows) {
+			const name = s.name.trim();
+			if (!name) add("stages", "stage-name", "Give this stage a name.", { row: i });
+			else if (seen.has(fold$2(name).replace(/\s+/g, " "))) add("stages", "stage-twice", `Two stages are called “${seen.get(fold$2(name).replace(/\s+/g, " "))}”. Give each its own name, such as “${name} review”.`, { row: i });
+			if (name) seen.set(fold$2(name).replace(/\s+/g, " "), name);
+			const w = parseNumber(s.dueWeek);
+			if (!(w != null && Number.isInteger(w) && w >= 1 && w <= ctx.cycleWeeks)) add("stages", "stage-week", s.dueWeek.trim() ? `“${name || "This stage"}” needs a due week between 1 and ${ctx.cycleWeeks}: it says “${s.dueWeek.trim()}”.` : name ? `Choose the week “${name}” is due.` : "Choose the week this stage is due.", { row: i });
+			else if (ctx.door === "form" && !ctx.existing && pastStage(w, ctx.week) && !s.done) add("stages", "stage-past", "Say whether this stage is done.", { row: i });
+		}
+		if (ctx.existing?.kind === "milestone") {
+			const kept = new Set(d.stages.filter((s) => s.name.trim()).map((s) => s.id));
+			for (const st of ctx.existing.stages) {
+				if (kept.has(st.id)) continue;
+				const done = (ctx.checkIns ?? []).flatMap((c) => c.stages ?? []).find((u) => u.stageId === st.id && u.doneWeek != null);
+				if (done) add("stages", "stage-done-removed", `“${st.name}” was done in week ${done.doneWeek}, so it can’t be removed. Rename it, or leave it.`, { row: 0 });
+			}
+		}
+	}
+	return out.sort((a, b) => GOAL_FIELDS$1.indexOf(a.field) - GOAL_FIELDS$1.indexOf(b.field));
+}
+var GOAL_FIELDS$1, withUnit;
+var init_goalEntry = __esmMin((() => {
+	init_actions();
+	init_changes();
+	init_checkin();
+	init_columns();
+	init_goal();
+	init_find();
+	init_numbers();
+	init_status();
+	init_thresholds();
+	init_tree();
+	GOAL_FIELDS$1 = [
+		"title",
+		"kind",
+		"ownerId",
+		"teamId",
+		"level",
+		"parentId",
+		"effect",
+		"alsoHelps",
+		"guardrail",
+		"unit",
+		"decimals",
+		"start",
+		"target",
+		"points",
+		"bound",
+		"limit",
+		"margin",
+		"stages",
+		"definition",
+		"source"
+	];
+	withUnit = (v, unit) => unit.trim() === "%" ? v + "%" : unit.trim() ? `${v} ${unit.trim()}` : v;
 }));
 // src/domain/removal.ts
 /**
@@ -7589,6 +8236,7 @@ function restoreRemoved(x, kind, id, records = []) {
 }
 var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
+	init_goalRights();
 	init_copies();
 	init_actions();
 	init_asks();
@@ -7601,7 +8249,7 @@ var init_removal = __esmMin((() => {
 	};
 	fullOf = (x) => x.full ?? x.snapshot;
 	plural$2 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-	ownsOrAdmin$1 = (x, g) => x.actor.admin || g.ownerId === x.actor.id;
+	ownsOrAdmin$1 = (x, g) => mayChangeGoal(x.actor, g);
 	log$1 = (x, v) => ({
 		id: x.newId("chg"),
 		at: x.now,
@@ -7690,475 +8338,6 @@ var init_sheets = __esmMin((() => {
 		people: "people"
 	};
 	Object.keys(LOADED);
-}));
-// src/domain/query.ts
-/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
-function parseQuery(p) {
-	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
-	const due = p.get("due");
-	const qtr = p.get("qtr");
-	return {
-		q: (p.get("q") ?? "").slice(0, 200),
-		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
-		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
-		team: (p.get("team") ?? "").split(",").filter(Boolean),
-		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
-		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
-		...needsOf(p),
-		due: due === "quarter" ? "quarter" : int$3(due),
-		quiet: int$3(p.get("quiet")),
-		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
-		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
-		feeds: p.get("feeds") || null,
-		helps: p.get("helps") === "1",
-		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
-		dir: dir === "desc" ? -1 : 1
-	};
-}
-/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
-function needsOf(p) {
-	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
-	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
-	return {
-		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
-		needs
-	};
-}
-/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
-function queryEntries(q) {
-	const out = [];
-	if (q.q.trim()) out.push(["q", q.q.trim()]);
-	if (q.status.length) out.push(["status", q.status.join(",")]);
-	if (q.level.length) out.push(["level", q.level.join(",")]);
-	if (q.team.length) out.push(["team", q.team.join(",")]);
-	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
-	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
-	if (q.attention || q.needs.length) out.push(["attention", "1"]);
-	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
-	if (q.due != null) out.push(["due", String(q.due)]);
-	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
-	if (q.quarter) out.push(["qtr", q.quarter]);
-	if (q.result.length) out.push(["result", q.result.join(",")]);
-	if (q.feeds) out.push(["feeds", q.feeds]);
-	if (q.helps) out.push(["helps", "1"]);
-	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
-	return out;
-}
-/** The goal and every goal that feeds it, all the way down. */
-function treeOf$1(id, goals) {
-	const out = /* @__PURE__ */ new Set([id]);
-	let grew = true;
-	while (grew) {
-		grew = false;
-		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
-			out.add(g.id);
-			grew = true;
-		}
-	}
-	return out;
-}
-/** Does this goal pass every filter in the query? */
-function matches(s, q, ctx, tree) {
-	const g = s.goal;
-	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
-	if (q.status.length && !q.status.includes(s.status)) return false;
-	if (q.level.length && !q.level.includes(g.level)) return false;
-	if (q.team.length && !q.team.includes(g.teamId)) return false;
-	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
-	if (q.kind.length && !q.kind.includes(g.kind)) return false;
-	if (q.attention || q.needs.length) {
-		if (!onAttentionList(s.attention)) return false;
-		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
-	}
-	if (q.due != null) {
-		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
-		if (s.dueWeek > by) return false;
-	}
-	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
-	if (q.quarter) {
-		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
-	}
-	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
-	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
-	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
-	return true;
-}
-/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
-function compare(q, _week) {
-	const key = q.sort ?? "worst";
-	const worst = (a, b) => RANK[b.status] - RANK[a.status];
-	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
-	const by = {
-		worst,
-		title: name,
-		owner: (a, b) => a.owner.localeCompare(b.owner),
-		team: (a, b) => a.team.localeCompare(b.team),
-		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
-		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
-		last: (a, b) => b.quietDays - a.quietDays,
-		due: (a, b) => a.dueWeek - b.dueWeek
-	};
-	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
-}
-/** The goals that pass the query, in its order. */
-function applyQuery(sums, q, ctx) {
-	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
-	const out = sums.filter((s) => matches(s, q, ctx, tree));
-	return q.sort ? out.sort(compare(q, ctx.week)) : out;
-}
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, GAP_RANK;
-var init_query = __esmMin((() => {
-	init_levels();
-	init_attention();
-	init_status();
-	init_find();
-	init_vocabulary();
-	init_year();
-	EMPTY_QUERY = {
-		q: "",
-		status: [],
-		level: [],
-		team: [],
-		owner: [],
-		kind: [],
-		attention: false,
-		needs: [],
-		due: null,
-		quiet: null,
-		quarter: null,
-		result: [],
-		feeds: null,
-		helps: false,
-		sort: null,
-		dir: 1
-	};
-	STATUS_OPTIONS = [
-		"off",
-		"risk",
-		"stale",
-		"on",
-		"done",
-		"none",
-		"planned"
-	].map((k) => [k, LABEL[k]]);
-	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
-	OLD_NEEDS = {
-		"no-recovery": "no-path",
-		"missed-date": "missed-path"
-	};
-	RESULT_OPTIONS = [
-		"completed",
-		"late",
-		"missed",
-		"open"
-	].map((k) => [k, RESULT[k].label]);
-	KIND_OPTIONS = [
-		["metric", "Move a number"],
-		["range", "Keep in range"],
-		["milestone", "Dated stages"]
-	];
-	SORT_OPTIONS = [
-		["worst", "Worst first"],
-		["title", "Name"],
-		["owner", "Owner"],
-		["team", "Team"],
-		["level", "Level"],
-		["gap", "Furthest from plan"],
-		["last", "Longest since a check-in"],
-		["due", "Due soonest"]
-	];
-	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
-	int$3 = (v) => {
-		const n = v == null ? NaN : Number(v);
-		return Number.isInteger(n) && n > 0 ? n : null;
-	};
-	GAP_RANK = {
-		off: 4,
-		risk: 3,
-		stale: 2,
-		on: 1,
-		ahead: 0
-	};
-}));
-// src/domain/find.ts
-/**
-* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
-* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
-*/
-function textMatches(words, q, key) {
-	const asked = wordsOf(q);
-	if (!asked.length) return true;
-	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
-	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	const have = wordsOf(words);
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
-}
-/** One letter added, dropped or changed, or two next to each other swapped. */
-function oneEditApart(a, b) {
-	if (a === b) return false;
-	if (Math.abs(a.length - b.length) > 1) return false;
-	if (a.length === b.length) {
-		const diff = [];
-		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
-		if (diff.length === 1) return true;
-		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-	}
-	const [s, l] = a.length < b.length ? [a, b] : [b, a];
-	let i = 0;
-	while (i < s.length && s[i] === l[i]) i++;
-	return s.slice(i) === l.slice(i + 1);
-}
-/**
-* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
-* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
-* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
-* with a short word that matches nothing.
-*/
-function nearMiss(q, vocabulary) {
-	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
-	const asked = wordsOf(q);
-	if (!asked.length) return null;
-	const count = /* @__PURE__ */ new Map();
-	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
-	let changed = false;
-	const out = [];
-	for (const w of asked) {
-		if ([...count.keys()].some((v) => v.startsWith(w))) {
-			out.push(w);
-			continue;
-		}
-		if (w.length < 4) return null;
-		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
-		if (!best) return null;
-		out.push(best[0]);
-		changed = true;
-	}
-	return changed ? out.join(" ") : null;
-}
-/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
-function page(all, ask) {
-	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
-	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
-	const rows = all.slice(from, from + size);
-	return {
-		total: all.length,
-		rows,
-		next: from + size < all.length ? String(from + size) : null
-	};
-}
-/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
-function searchGoals(r, ask) {
-	const query = {
-		...parseQuery(new URLSearchParams({
-			...ask.filters ?? {},
-			...ask.sort ? { sort: ask.sort } : {}
-		})),
-		q: ""
-	};
-	return applyQuery(r.summaries, {
-		...query,
-		sort: query.sort ?? "worst"
-	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
-}
-/**
-* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
-* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
-* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
-* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
-*/
-function searchPeople(r, ask) {
-	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
-	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	const f = ask.filters ?? {};
-	const left = f.left === "too";
-	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
-	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
-	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
-		...personRow(r, p),
-		name: `${p.name} (left)`
-	} : personRow(r, p));
-}
-/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
-function teamRow(r, t) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
-	const n = here.filter((p) => p.teamId === t.id).length;
-	return {
-		kind: "team",
-		id: t.id,
-		name: t.name,
-		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
-	};
-}
-/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
-function searchTeams(r, ask) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
-}
-function searchWorkspaces(r, ask) {
-	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
-		kind: "workspace",
-		id: w.id,
-		name: w.name,
-		detail: w.detail
-	}));
-}
-/** The words each kind's near miss may correct to. */
-function vocabulary(r) {
-	switch (r.kind) {
-		case "goal": return r.summaries.map(goalWords);
-		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
-		case "team": return r.teams.map((t) => t.name);
-		case "workspace": return r.workspaces.map((w) => w.name);
-	}
-}
-/**
-* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
-* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
-*/
-function search(rows, ask) {
-	const run = (a) => {
-		switch (rows.kind) {
-			case "goal": return searchGoals(rows, a);
-			case "person": return searchPeople(rows, a);
-			case "team": return searchTeams(rows, a);
-			case "workspace": return searchWorkspaces(rows, a);
-		}
-	};
-	const all = run(ask);
-	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
-	const near = nearMiss(ask.q, vocabulary(rows));
-	const again = near ? run({
-		...ask,
-		q: near
-	}) : [];
-	return near && again.length ? {
-		...page(again, ask),
-		near
-	} : page([], ask);
-}
-/**
-* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
-* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
-* left out.
-*/
-function rowsByIds(rows, ids) {
-	const found = (id) => {
-		switch (rows.kind) {
-			case "goal": {
-				const s = rows.summaries.find((x) => x.goal.id === id);
-				return s ? goalRow(s) : null;
-			}
-			case "person": {
-				const p = rows.people.find((x) => x.id === id && !x.removedAt);
-				return p ? personRow(rows, p) : null;
-			}
-			case "team": {
-				const t = rows.teams.find((x) => x.id === id);
-				return t ? teamRow(rows, t) : null;
-			}
-			case "workspace": {
-				const w = rows.workspaces.find((x) => x.id === id);
-				return w ? {
-					kind: "workspace",
-					id: w.id,
-					name: w.name,
-					detail: w.detail
-				} : null;
-			}
-		}
-	};
-	return ids.map(found).filter((r) => !!r);
-}
-/**
-* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
-* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
-* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
-* when the rest would fill the list. Nobody marked as left; nothing it can't find.
-*/
-function suggest(rows, viewerId, recents) {
-	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
-	const pick = (ids, row) => {
-		const out = [];
-		const add = (id, limit) => {
-			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
-			const r = row(id);
-			if (r) out.push(r);
-		};
-		const lately = recent.filter((id) => !ids.includes(id) && row(id));
-		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
-		for (const id of [...recent, ...ids]) add(id, 6);
-		return out;
-	};
-	switch (rows.kind) {
-		case "person": {
-			const all = searchPeople(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const me = rows.people.find((p) => p.id === viewerId);
-			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
-			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
-		}
-		case "team": {
-			const all = searchTeams(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
-			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
-		}
-		case "goal": {
-			const all = searchGoals(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
-			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
-			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
-		}
-	}
-}
-var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
-var init_find = __esmMin((() => {
-	init_levels();
-	init_goalKey();
-	init_query();
-	init_vocabulary();
-	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
-	MAX_PAGE = 200;
-	goalWords = (s) => [
-		s.goal.title,
-		s.goal.key ?? "",
-		s.owner,
-		s.team,
-		levelName(null, s.goal.level),
-		LABEL[s.status],
-		s.story.why ?? "",
-		s.story.doing ?? "",
-		s.story.needs ?? "",
-		s.goal.definition,
-		s.goal.source
-	].join(" ");
-	goalRow = (s) => ({
-		kind: "goal",
-		id: s.goal.id,
-		name: s.goal.title,
-		detail: [
-			s.goal.key,
-			s.owner,
-			s.team
-		].filter(Boolean).join(" · "),
-		status: s.status,
-		key: s.goal.key ?? null
-	});
-	personRow = (r, p) => ({
-		kind: "person",
-		id: p.id,
-		name: p.name,
-		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
-	});
-	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
-	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
 }));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
@@ -9103,7 +9282,10 @@ function planChanges(input) {
 	let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ""))), 0);
 	const touched = /* @__PURE__ */ new Map();
 	const started = (id) => s.checkIns.some((c) => c.goalId === id);
-	const canChange = (g) => admin() || g.ownerId === actor.id;
+	const canChange = (g) => mayChangeGoal({
+		id: actor.id,
+		admin: admin()
+	}, g);
 	const notYours = (g) => `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) or an admin can change “${g.title}”.`;
 	const parentLinks = [];
 	const removals = [];
@@ -9248,10 +9430,10 @@ function planChanges(input) {
 		const owner = own.person ?? currentOwner;
 		if (own.person && own.byName) sayByName("Goals", row, label, own.byName, own.person);
 		if (!existing && !owner) return raise("required-empty", "Goals", row, title, "A new goal needs an owner: Owner email, or Owner.", { column: "Owner" });
-		if (!existing && owner && !admin() && owner.id !== actor.id) {
-			if (answerOf("not-allowed", "Goals")?.choice === "leave") return leave("Goals", row);
-			return raise("not-allowed", "Goals", row, title, "You can add goals you own. Ask an admin to add goals for other people.", { answers: ANSWERS.leaveOnly });
-		}
+		if (!existing && owner && !mayAddGoal({
+			id: actor.id,
+			admin: admin()
+		}, owner.id)) return raise("not-allowed", "Goals", row, title, "You can’t add this goal.", { answers: ANSWERS.leaveOnly });
 		const teamName = ref(r, "team");
 		const tm = teamName ? teamFrom("Goals", row, label, teamName) : null;
 		if (teamName && !tm) return;
@@ -9375,7 +9557,6 @@ function planChanges(input) {
 				const read = weekCell(m[2], "Goals", row, d.title);
 				if (read.problem) return raise("stage-format", "Goals", row, d.title, `“${x}”: ${read.problem}`, { column: "Stages" });
 				if (read.n != null && Number.isInteger(read.n) && read.n > cycle.weeks) return raise("stage-format", "Goals", row, d.title, `“${x}”: week ${read.n} is past the end of ${cycle.name} (week ${cycle.weeks}).`, { column: "Stages" });
-				if (stages.some((st) => fold$1(st.name) === fold$1(name))) return raise("stage-format", "Goals", row, d.title, `Two stages are called “${name}”. Give each stage its own name: check-ins find a stage by it.`, { column: "Stages" });
 				const old = existing?.kind === "milestone" ? existing.stages.find((st) => fold$1(st.name) === fold$1(name)) : void 0;
 				stages.push({
 					id: old?.id ?? "s" + (k + 1) + "-" + newId("st").slice(-4),
@@ -9411,19 +9592,20 @@ function planChanges(input) {
 		if (has(r, "effect")) d.effect = val(r, "effect");
 		if (has(r, "source")) d.source = val(r, "source");
 		if (has(r, "definition")) d.definition = val(r, "definition");
-		const errs = Object.entries(validateGoal(d, cycle, existing));
-		if (errs.length) {
-			for (const [field, text] of errs) {
-				const column = FIELD_COLUMN[field];
-				const empty = !(field === "start" ? d.start : field === "target" ? d.target : field === "limit" ? d.limit : field === "margin" ? d.margin : field === "effect" ? d.effect : "").trim() && EMPTY_NUMBER[field];
-				const k = empty || [
-					"title",
-					"teamId",
-					"ownerId"
-				].includes(field) || /Add at least one stage/.test(text) ? "required-empty" : /decimal place/.test(text) ? "precision" : field === "decimals" ? "unknown-word" : field === "stages" ? "stage-format" : /differ from the start|zero or more/.test(text) ? "impossible-number" : "not-a-number";
-				const message = empty ? EMPTY_NUMBER[field] : field === "decimals" ? `Decimals says “${d.decimals}”. Use 0, 1, 2 or 3.` : /Add at least one stage/.test(text) ? "Stages is empty. A stages goal needs at least one stage." : text;
-				raise(k, "Goals", row, d.title, message, { column });
-			}
+		const ownerNow = people.get(d.ownerId);
+		const fix = goalMustFix(d, {
+			cycleWeeks: cycle.weeks,
+			week,
+			existing,
+			checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing.id) : [],
+			door: "table",
+			owner: ownerNow ? {
+				name: ownerNow.name,
+				teamId: ownerNow.teamId ?? null
+			} : null
+		});
+		if (fix.length) {
+			for (const f of fix) raise(MUST_KIND[f.id], "Goals", row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? "Goal" });
 			return;
 		}
 		const hint = planHint(d) ?? (d.kind === "range" && Number(d.margin) > 0 && Number(d.margin) >= Math.abs(Number(d.limit)) && Number(d.limit) !== 0 ? `The warning margin (${d.margin}) is as large as the limit (${d.limit}). Is that right?` : null);
@@ -10481,13 +10663,15 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, EMPTY_NUMBER, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
 	init_checkin();
 	init_columns();
 	init_goal();
+	init_goalEntry();
+	init_goalRights();
 	init_numbers();
 	init_goalKey();
 	init_format();
@@ -10537,6 +10721,8 @@ var init_changeset = __esmMin((() => {
 		title: "Goal",
 		teamId: "Team",
 		ownerId: "Owner",
+		level: "Level",
+		parentId: "Feeds into",
 		start: "Start",
 		target: "Target",
 		limit: "Limit",
@@ -10544,12 +10730,33 @@ var init_changeset = __esmMin((() => {
 		decimals: "Decimals",
 		effect: "Effect",
 		stages: "Stages",
-		points: "Plan"
+		points: "Plan",
+		unit: "Unit"
 	};
-	EMPTY_NUMBER = {
-		start: "Start is empty. A number goal needs where it starts.",
-		target: "Target is empty. A number goal needs a target.",
-		limit: "Limit is empty. A range goal needs its limit."
+	MUST_KIND = {
+		"name-empty": "required-empty",
+		"name-short": "required-empty",
+		"owner-empty": "required-empty",
+		"team-empty": "required-empty",
+		"level-empty": "required-empty",
+		"start-empty": "required-empty",
+		"target-empty": "required-empty",
+		"limit-empty": "required-empty",
+		"stage-none": "required-empty",
+		"feeds-loop": "loop",
+		"not-number": "not-a-number",
+		"has-words": "not-a-number",
+		"too-precise": "precision",
+		"plan-point": "not-a-number",
+		"decimals-lose": "precision",
+		"decimals-range": "unknown-word",
+		"same-as-start": "impossible-number",
+		"margin-negative": "impossible-number",
+		"stage-name": "stage-format",
+		"stage-week": "stage-format",
+		"stage-twice": "stage-format",
+		"stage-past": "stage-format",
+		"stage-done-removed": "cant-change"
 	};
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -14513,24 +14720,28 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"Choose New goal. Step 1, what: name it the way your team would say it, and pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
+				"Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).",
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
-				"Step 3, how it’s measured: for a number, the start and target, by when, and how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
+				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), the start and target, by when, and how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
 				"Step 4, check: the goal read back in words, each row with Change. Publish it. The owner is then offered the first check-in.",
 				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not.",
 				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.",
 				"A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.",
-				"Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.",
+				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
+				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
+				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
 				"Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title."
 			]
 		}, {
 			heading: "Who can",
-			text: ["Anyone can set up a goal, for themselves or for someone else. Someone publishing for another person can ask them for the first check-in."]
+			text: ["Anyone can set up a goal, for themselves or for anyone else, at any level: here, in a spreadsheet, or through an AI assistant, which all follow the same rules and say the same words. Choosing someone else as owner says “Amara will own it. After it is published, only Amara or an admin can change it.” Someone publishing for another person can ask them for the first check-in."]
 		}],
 		routes: ["/goals/new", "/goals/new/:step"],
 		screens: ["GoalWizard"],
 		reqs: [
 			"GOAL-CREATE",
+			"GOAL-ENTRY-REQUIRED",
 			"NEW-GOAL-STEPS",
 			"NEW-GOAL-TRUTH",
 			"PLAN-SHAPE",
@@ -15509,7 +15720,7 @@ var CORE_ARTICLES = [
 					"Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.",
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
-					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.",
+					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -15883,16 +16094,17 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
-		id: "goal-edit-one-page",
+		id: "goal-needs-said",
 		date: "2026-11-12",
-		title: "Changing a goal is one page",
+		title: "New goal says what it needs",
 		points: [
-			"Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.",
-			"Save changes stays at the foot of the window and never covers what you’re typing.",
-			"One way out: Close and keep the draft. What you typed is there when you come back.",
-			"Describe it on a goal with no definition opens the page at What it is."
+			"Each step says what is needed and marks what is optional.",
+			"A problem shows under its field as you leave it, and is counted by the button.",
+			"The unit is yours to give: it no longer starts as %. Decimals follow what you type, and you can change them.",
+			"Anyone can add a goal for anyone, at any level, from New goal, a spreadsheet or an AI assistant. Choosing someone else as owner says who can change it afterwards: them, or an admin.",
+			"A spreadsheet, set-up and the AI assistant say a goal’s problems in the same words as New goal."
 		],
-		articles: ["edit-goal"]
+		articles: ["new-goal", "ai-assistants"]
 	},
 	{
 		id: "offline-page-needs-connection",
@@ -15911,6 +16123,18 @@ var WHATS_NEW = [
 		title: "Set-up says when a row is one letter out",
 		points: ["Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.", "The one-table check-in takes a decimal comma again: 3,9 posts as 3.9."],
 		articles: ["set-up", "check-in-table"]
+	},
+	{
+		id: "goal-edit-one-page",
+		date: "2026-11-12",
+		title: "Changing a goal is one page",
+		points: [
+			"Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.",
+			"Save changes stays at the foot of the window and never covers what you’re typing.",
+			"One way out: Close and keep the draft. What you typed is there when you come back.",
+			"Describe it on a goal with no definition opens the page at What it is."
+		],
+		articles: ["edit-goal"]
 	},
 	{
 		id: "new-goal-order",
@@ -21382,7 +21606,7 @@ async function change(ctx, tables, opts) {
 	if (errors.length) return {
 		isError: true,
 		data,
-		text: `Not saved. Fix these and try again:\n${lines(errors.map((x) => ({
+		text: `Not saved. Must fix:\n${lines(errors.map((x) => ({
 			goal: x.name,
 			message: x.message
 		})))}`
@@ -21804,7 +22028,7 @@ var CORE_TOOLS = [
 	{
 		name: "create_goal",
 		title: "Add a goal",
-		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. You can add goals you own; admins can add goals for anyone. Give a unit for a number (none is asked about, as is a name another goal in its team has).",
+		description: "Add a goal to the current cycle. Type \"metric\" moves a number from start to target; \"range\" keeps a number inside a limit; \"milestone\" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number (none is asked about, as is a name another goal in its team has).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

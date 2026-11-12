@@ -61,7 +61,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - bulk changes › lets an owner load the whole workbook back after changing only their own goal (research round 1)
 - bulk changes › tells which sheet is which from its header alone
 - bulk changes › adds a new goal and changes an existing one, logging both
-- bulk changes › only lets owners change their own goals; admins can change any
+- bulk changes › only lets owners change their own goals; admins can change any; anyone may add a goal for anyone
 - bulk changes › asks for a reason when a plan changes after check-ins started
 - bulk changes › sets plan numbers by hand from the Plan sheet
 - bulk changes › loads past weeks as backfilled check-ins, judged by the same rules

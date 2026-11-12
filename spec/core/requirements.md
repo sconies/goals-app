@@ -269,6 +269,14 @@ New goal asks what, who and where, how it's measured, then reads it back; each s
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F16, U84
 
+### GOAL-ENTRY-REQUIRED
+
+Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
+
+- **Rule:** [Goal entry](rules/goal-entry.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U93
+
 ### NEW-GOAL-TRUTH
 
 A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.

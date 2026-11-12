@@ -49,9 +49,15 @@ module.exports = {
       else {
         await start.fill('12.5');
         await p.getByLabel(/^Target/).fill('20');
+        // Decimals are worked out from what is typed (goal entry, rule 2), and said with Change.
+        const kept = await text(p, '.decimals-line');
+        if (!/Kept to 1 decimal place, as you typed them\./.test(kept)) fail(`New goal: 12.5 doesn’t say it is kept to 1 decimal place (“${kept}”)`);
+        await p.getByRole('button', { name: 'Change the decimal places' }).click();
+        await p.getByRole('button', { name: 'Whole numbers' }).click();
         await p.getByRole('button', { name: 'Continue' }).click();
         const err = await text(p, '.field-error, [role="alert"]');
-        if (!/would show as 13/.test(err)) fail(`New goal: 12.5 with whole-number Decimals isn’t refused (“${err}”)`);
+        if (!/would show as 13/.test(err)) fail(`New goal: 12.5 with whole numbers chosen isn’t refused (“${err}”)`);
+        if (!(await p.getByRole('button', { name: 'Keep 1 decimal place' }).isVisible().catch(() => false))) fail('New goal: a too-precise number doesn’t offer “Keep 1 decimal place”');
       }
       await c.close();
     }

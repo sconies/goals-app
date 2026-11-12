@@ -5,12 +5,15 @@ import { useApp } from '../app/state';
 import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { buildGoal, draftOf, planHint, planChanged, planQuestion, validateGoal, type GoalDraft, type GoalErrors } from '../domain/goal';
+import { buildGoal, draftOf, planHint, planChanged, planQuestion, type GoalDraft } from '../domain/goal';
+import { goalMustFix, REASON_EMPTY, type GoalField } from '../domain/goalEntry';
+import { mayChangeGoal } from '../domain/goalRights';
+import { makesLoop } from '../domain/tree';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
-import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
+import { DueField, FieldError, LevelField, StageFields, stageErrors } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
@@ -34,7 +37,7 @@ export function GoalEdit() {
   const { goalId } = useParams();
   const goal = goalId ? app.goal(goalId) : undefined;
   if (!goal) return <div className="page narrow"><Empty title="This goal doesn’t exist"><Link className="btn" to="/goals">All goals</Link></Empty></div>;
-  if (goal.ownerId !== app.viewer.id && !app.viewer.admin) {
+  if (!mayChangeGoal(app.viewer, goal)) {
     const owner = app.person(goal.ownerId);
     return <div className="page narrow"><Empty title="Only its owner can change this goal"><span className="muted">{owner ? `${owner.name} owns it.` : ''} You can watch it and comment.</span><Link className="btn" to={'/goals/' + goal.id}>Back to the goal</Link></Empty></div>;
   }
@@ -66,9 +69,14 @@ function EditSheet({ goal }: { goal: Goal }) {
     const t = [60, 400].map((ms) => setTimeout(go, ms));
     return () => t.forEach(clearTimeout);
   }, [loc.hash]);
-  const errors = validateGoal(d, cycle, goal);
-  const err = (k: keyof GoalErrors) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
-  const valid = Object.keys(errors).length === 0;
+  // What can't be saved (goal entry, rule 2): the same rule and words as New goal, set-up, a file and the AI tools.
+  const ownerP = app.person(d.ownerId);
+  const parentG = app.goal(d.parentId);
+  const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
+  const errors: Partial<Record<GoalField, string>> = {};
+  for (const f of fix) errors[f.field] ??= f.text;
+  const err = (k: GoalField) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
+  const valid = fix.length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
   // A target that flips which way is better, or a number far outside the plan, is confirmed before it's saved (domain/goal
@@ -99,8 +107,10 @@ function EditSheet({ goal }: { goal: Goal }) {
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
-      if (changed) await app.saveGoal(after, goal, replanning ? d.reason.trim() : undefined);
-      if (measure) await app.run(measure.action, measure.input(after));
+      // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
+      const { reason, ...draft } = d;
+      const saved = changed ? await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), confirm: !!question && confirmed }) : after;
+      if (measure) await app.run(measure.action, measure.input(saved));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
       back();
@@ -115,7 +125,7 @@ function EditSheet({ goal }: { goal: Goal }) {
     <label className="field reason-field">
       <span className="field-label">Why change it?</span>
       <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
-      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
+      {tried && !reasonOk ? <FieldError>{REASON_EMPTY}</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
     </label>
   );
 
@@ -190,7 +200,7 @@ function EditSheet({ goal }: { goal: Goal }) {
             </div>
           )}
           {goal.kind === 'milestone' && (
-            <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="field-label" error={tried ? errors.stages ?? null : null}
+            <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
           {goal.kind !== 'metric' && reasonField}

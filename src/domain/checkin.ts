@@ -2,7 +2,7 @@
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 import { isCount, isShare } from './plan';
-import { farOutside, fixed, notNumberText, precisionProblem, usuallyPositive } from './numbers';
+import { farOutside, fixed, notNumberText, parseNumber, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'], ['other', 'Something else'],
@@ -79,19 +79,8 @@ export function draftFrom(c: CheckIn): Draft {
   };
 }
 
-/**
- * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
- * Anything else (hex, exponents, words) is not a number.
- */
-export function parseNumber(s: string): number | null {
-  let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, '').replace(/\s/g, '');
-  if (!t) return null;
-  if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(',', '.');
-  else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
-  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
-  const n = Number(t);
-  return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : null;
-}
+/** A number as people type it (domain/numbers, where it lives with the rest of how numbers are read). */
+export { parseNumber } from './numbers';
 
 // What values a goal's number can take (a share, a count) is plan.ts's, where projections are held to them.
 export { isCount, isShare } from './plan';

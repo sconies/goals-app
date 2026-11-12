@@ -3,14 +3,15 @@ import { systemClock, viewerPicker } from '../adapters/local';
 import type { Clock, Identity, NoEntry } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
-import { goalChange, type Lookup } from '../domain/changes';
+import type { Lookup } from '../domain/changes';
+import type { GoalDraft } from '../domain/goal';
+import type { SaveGoalInput } from '../domain/goalEntry';
 import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
-import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
-import { findGoal, nextKey, withKeys } from '../domain/goalKey';
+import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
@@ -117,9 +118,11 @@ export interface AppState {
   linkRequest(r: Ask, goal: Goal): Promise<void>;
   /** Withdraw an ask; on a goal linked to another goal's request, stop waiting on it. */
   withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
-  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. A new goal's stages said
-      to be already done (`stagesDone`, onboarding rule 3) are recorded done in the same save (actions.recordStagesDone). */
-  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[] }): Promise<void>;
+  /** Saves a goal from its draft through the `saveGoal` action (goal entry, rule 7: domain/goalEntry planGoal): the same
+      rights and Must fix as a file and the AI tools, and History with the reason when the plan moved. `goal` is the goal
+      being changed (null for a new one). A new goal's stages said to be already done (`stagesDone`, onboarding rule 3)
+      are recorded done in the same save. Gives back the goal as saved. */
+  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalInput, 'draft' | 'goalId'>): Promise<Goal>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -684,22 +687,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       askQuestion: async (goal, text) => { await run('askQuestion', { goalId: goal.id, text }); },
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
-      saveGoal: async (after, before, why, opts) => {
-        if (makesLoop(after.id, after.parentId, sc.goals)) {
-          toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
-          throw new Error('loop');
-        }
-        // A new goal takes the workspace's next key; a goal being changed keeps its own.
-        if (!before && !after.key) after = { ...after, key: nextKey(sc.goals, sc.keysIssued) };
-        const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
-        if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
-        // Stages already done at set-up go in the same save as the goal, so it is never seen late in between.
-        let done: Commit | null = null;
-        if (!before && opts?.stagesDone?.length) {
-          try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
-        }
-        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
-      },
+      // One way to save a goal (goal entry, rule 7; AX2): the dispatcher runs the rule, so the form saves nothing itself.
+      saveGoal: async (draft, goal, opts) => (await run('saveGoal', { draft, ...(goal ? { goalId: goal.id } : {}), ...opts })).goal,
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
       undoUpdateAsk: async (goal) => { await run('undoUpdateAsk', { goalId: goal.id }); },

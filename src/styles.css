@@ -236,6 +236,12 @@ select.input { padding-right: 28px; }
 .level-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--fg-2); }
 .level-head svg { width: 14px; height: 14px; flex: none; }
 .level-word { font-weight: 600; }
+/* A Must fix under its field, and the line above a form's button (goal entry 2.1): the warning mark at 14px, then words. */
+.must-fix-line { display: flex; align-items: flex-start; gap: 6px; color: var(--off-fg); }
+.must-fix-line > svg, .fix-line > svg { width: 14px; height: 14px; flex: none; margin-top: 3px; }
+.fix-line { display: flex; align-items: flex-start; gap: 6px; margin: 0; color: var(--fg-2); }
+/* A field with a Must fix has a full outline, not only a red border. */
+.input[aria-invalid="true"] { outline: 1px solid var(--off-mark); outline-offset: 0; }
 .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
 .level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
 .foot-says { margin: var(--s2) 0 0; }

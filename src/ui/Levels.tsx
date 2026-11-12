@@ -2,7 +2,7 @@
    until it is fixed, and a Check, a question that must be answered. Drawn as wireframe 4: a block with a full outline or a
    wash, the warning mark and the level's word; never a status shape, never an edge stripe. Shared by the check-in form
    and its table, and meant for goal entry and the import (IM2, GE2). */
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { WarnMark } from './bits';
 
 /** A question to answer before the form goes on: the question in bold and two plain buttons. */
@@ -27,4 +27,15 @@ export function MustFixBlock({ id, read, fix }: { id: string; read: string; fix:
       <span><strong>{read}</strong> {fix}</span>
     </div>
   );
+}
+
+/** A Must fix under its own field (goal entry 2.1, item 2): the warning mark and the words, read out as they appear. The
+    field itself carries `aria-invalid` and a full outline. Never a status shape, never an edge stripe. */
+export function MustFixLine({ id, children }: { id?: string; children: ReactNode }) {
+  return <span className="field-error must-fix-line" id={id} role="alert"><WarnMark /><span>{children}</span></span>;
+}
+
+/** The line above a form's button when it can't go on yet (goal entry rule 4, check-in rule 3): the mark and the line. */
+export function FixLine({ children }: { children: ReactNode }) {
+  return <p className="fix-line small" role="status"><WarnMark /><span>{children}</span></p>;
 }

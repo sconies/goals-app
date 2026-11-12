@@ -2,6 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
+import { mayChangeGoal } from './goalRights';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
@@ -47,7 +48,8 @@ const lookupOf = (s: Snapshot): Lookup => ({
   goal: (id) => s.goals.find((g) => g.id === id),
   teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id,
 });
-const ownsOrAdmin = (x: ActionContext, g: Goal) => x.actor.admin || g.ownerId === x.actor.id;
+/** R1's row for changing a goal, stated once (domain/goalRights). */
+const ownsOrAdmin = (x: ActionContext, g: Goal) => mayChangeGoal(x.actor, g);
 const latestOf = (x: ActionContext, g: Goal) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 
 /* ---------- Comments ---------- */
