@@ -109,7 +109,7 @@ Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
   3. **The query port names scopes.** `GoalAsk.scope` is `'mine' | 'team' | 'watching' | 'all' | 'team:<id>'`, answered by `scopeIds` in `domain/goalsPage.ts` with `scopeFacts` from `app/reads.ts`. With no sort, a list comes worst first, then by title (`localGoals.ts`). `goals.csv` and the contract follow.
   4. **One port per loaded workspace** (`portFor` in `src/app/goals.ts`).
   - Its eval run: everything passed except U4 (8.9), which is main's own failure (#226: "publishing is not confirmed", after #208's publish change). That belongs to track 2 and planning, not track 4.
-- **Track 6** (session_012kbr8xR9jB8yU52qz82Gah) converts `goalsContract` to given/when/then data after #229 merges: tell them when it does. They have AX5 part 2's planned Store shape (below) and are leaving `storeContract` alone until it merges.
+- **Track 6** converts `goalsContract` to given/when/then data after #229 merges. Its session session_012kbr8xR9jB8yU52qz82Gah handed over at 17:57; a fresh track 6 session works from `docs/handover-track6.md` on branch `kt-changes`, which records AX5 part 2's shape. Send "merged" notes (#229, and AX5 part 2 later) to whichever track 6 session planning starts: ask planning for its id. A windowed load and `history` paging fit their format as multi-step cases. They have AX5 part 2's planned Store shape (below) and are leaving `storeContract` alone until it merges.
 - **#193's lows, still open:**
   - keyset paging restarts from the top when the `after` goal has gone;
   - `engine.test.ts`'s import pattern misses `import *`, re-exports and imports split over several lines;
