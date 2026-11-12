@@ -108,9 +108,10 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
+  const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
   const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric }));
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
@@ -175,8 +176,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     // "Continue" is never disabled: pressed with a Must fix, every field on the step says its own, and focus goes to the
     // first; with none but a question open, focus goes to the first question (rule 4).
     if (to > step) for (let i = step; i < to; i++) {
-      const at = stepState(i, stepErrors(i), checks, answers);
-      if (!at.go) { setTried((t) => [...t, i]); if (i === step) { if (at.check) focusCheck(at.check); else focusField(at.focus); } return; }
+      const st = stepState(i, stepErrors(i), checks, answers);
+      if (!st.go) {
+        setTried((t) => [...t, i]);
+        // A later step that no longer holds (a "Change" from Check made it wrong) is where Continue goes, its faults shown.
+        if (i === step) { if (st.check) focusCheck(st.check); else focusField(st.focus); } else nav(at(i), { state: { from: step } });
+        return;
+      }
     }
     // Each Continue is one history entry, so the browser's Back steps back a step.
     nav(at(to), { state: { from: step } });
@@ -199,7 +205,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       // own weeks, in the same save, so the goal isn't born late (OB2's rule 3). What measures it (the goal.measure place)
       // is saved in the same commit, so the link sees the new goal.
       const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
-      const g = await app.saveGoal(draft, null, { answers, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
+      const g = await app.saveGoal(draft, null, { answers, metric, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });

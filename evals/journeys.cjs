@@ -4638,7 +4638,7 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
-journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
+journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; Save with a question open focuses the question, in view, and says where it is (900 hours on Lead time, better lower, asks wrong-side); #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // An old link to one part of the form lands on that section of the one page, and the address says so.
   await p.goto(url('/goals/ns-lead/edit?part=plan'));
@@ -4663,6 +4663,24 @@ journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'],
   h.set('progress', !!rb && !!fb && rb.y + rb.height <= fb.y && fb.y + fb.height <= vh + 1, `the reason box (${rb && Math.round(rb.y + rb.height)}) is under Save changes (${fb && Math.round(fb.y)}), or the bar is off the screen`);
   await h.inView(p.getByRole('button', { name: 'Save changes' }), 'progress', 'Save changes, held at the foot');
   await h.checkpoint('plan');
+  // Save with a question open, maybe out of sight: focus goes to the first question, which comes into view, and the line
+  // above Save says where it is, as New goal's Continue does (GE2 review). 900 hours is far outside the plan.
+  await p.getByLabel(/^Target/).fill('900');
+  await reason.fill('Moving to the new dashboard');
+  await p.locator('#more').scrollIntoViewIfNeeded();
+  await p.getByRole('button', { name: 'Save changes' }).click();
+  await p.waitForTimeout(300);
+  const said = (await p.locator('.fix-line').innerText().catch(() => '')).trim();
+  const onQ = await p.evaluate(() => { const e = document.activeElement; if (!e || !e.matches('[data-check]')) return null; const r = e.getBoundingClientRect(); return { top: r.top, h: innerHeight }; });
+  h.set('errors', /^Answer the (question above, under Target|\d+ questions above)\.$/.test(said) && !!onQ && onQ.top >= 0 && onQ.top < onQ.h, `Save with a question open says “${said}”, with focus ${onQ ? `on a question at ${Math.round(onQ.top)}px` : 'not on a question'}`);
+  h.set('logged', (await h.snapshot()).goals.find((g) => g.id === 'ns-lead').plan.target !== 900, 'Save with a question open saved');
+  // Lead time for changes is better lower: what measures the goal now asks the wrong-side question here too.
+  h.set('errors', await p.getByText(/“Lead time for changes” is better lower, but the target \(900 hours\) is above today/).isVisible(), 'a target above today on a lower-is-better metric is not asked about');
+  // "No, I'll change the numbers" goes back to the field, as on New goal.
+  await p.getByRole('button', { name: 'No, I’ll change the numbers' }).click();
+  await p.waitForTimeout(200);
+  h.set('errors', (await p.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-field'))) === 'target', '“No, I’ll change the numbers” does not go back to Target');
+  await p.getByLabel(/^Target/).fill('20');
   // Closing keeps the draft: back on the goal, nothing saved; opened again, the new target is there.
   await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
@@ -4717,7 +4735,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
-  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10%( in week \d+)? to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -4729,6 +4747,14 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  // A Change from Check that makes a later step wrong: Continue goes to that step and says so (build review of #129).
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await p.getByRole('button', { name: 'Change what' }).click();
+  await p.getByRole('button', { name: /Hit dated stages/ }).click();
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('errors', /\/goals\/new\/measure(\?|$)/.test(p.url()) && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after changing the type stayed on ${p.url()} without saying what the stages step needs`);
   // No select anywhere on the steps lists people, teams or goals.
   const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((x) => x.options.length)));
   h.set('a11y', big <= 60, `a select lists ${big} options`);

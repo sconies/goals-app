@@ -39,7 +39,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [checkin.csv](checkin.csv) | 5249 | check-in in the workspace | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing` |
 | [find.csv](find.csv) (not stage 1) | 23 | search | `kind`, `q`, `total`, `near`, `ids` |
 | [navigation.csv](navigation.csv) (not stage 1) | 54 | viewer and address | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
-| [import.csv](import.csv) (not stage 1) | 50 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves` |
+| [import.csv](import.csv) (not stage 1) | 52 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves` |
 | [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 54 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs` |
 
 What each column is, and the rule that gives it:

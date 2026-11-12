@@ -13,7 +13,7 @@
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
-import { LINKS_KEY, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
+import { LINKS_KEY, linkOf, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
 import type { Metric, MetricLink } from './types';
 
@@ -92,6 +92,12 @@ const goalMetric: RecordDef<MetricLink> = {
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [METRICS_SHEET],
+  // The metric a goal is linked to, for goal entry's wrong-side question at every door (a file and the AI tools too).
+  measures: (s, goalId) => {
+    const l = linkOf(s, goalId);
+    const m = l ? metricsOf(s).find((x) => x.id === l.metricId) : undefined;
+    return m ? { name: m.name, direction: m.direction } : null;
+  },
   // Goals' "Measured by" (?metric=): a goal's column is the metric its live link names. The app's filter (finder.ts)
   // and find_goals both read it.
   goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
