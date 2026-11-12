@@ -33,6 +33,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['ai-assistants'],
   },
   {
+    id: 'set-up-check-in-owners',
+    date: '2026-11-12',
+    title: 'Stages already done are the owner’s to mark',
+    points: [
+      'Setting up a goal for someone else, a stage already past is still asked about, and the question says they mark done stages at their first check-in. The goal is published without a check-in on it.',
+      'Delete this check-in is for the goal’s owner, whoever posted it.',
+      'Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction.',
+    ],
+    articles: ['new-goal', 'removing'],
+  },
+  {
     id: 'mcp-new-goal-keys',
     date: '2026-11-12',
     title: 'AI tools hear each new goal’s key',
