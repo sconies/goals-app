@@ -129,8 +129,7 @@ export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
   const go = (to: string) => { setOpen(false); nav(to); };
   const button = variant === 'side' ? (
     <button type="button" className="ws-head ws-switch" title={`${shown.name}: switch workspace`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-      {/* On the icon rail the name has no room: the switch icon stands for it (outside review, 12 Nov). */}
-      <Icon name="switch" size={18} className="ws-rail-icon" />
+
       <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
         {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
         <b className="ws-name">{name}</b>

@@ -95,7 +95,7 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Revoke an MCP token', who: 'An admin, or the token’s person', code: [`${A}revokeToken`] },
   { area: 'People, teams and the workspace', what: 'Send feedback about the app', who: 'Anyone', code: [`${A}sendFeedback`] },
   { area: 'People, teams and the workspace', what: 'Start over: reset the shared example in this browser, or remove a workspace of your own', who: 'Anyone in the example; admins in a workspace of their own', code: [`${A}mayStartOver`] },
-  { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage', 'src/markup/model.ts#statusPatch'] },
+  { area: 'People, teams and the workspace', what: 'Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again)', who: 'Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback', code: ['src/markup/model.ts#mayTriage'] },
   { area: 'Metrics', what: 'Add a metric to the library', who: 'Anyone; they own it unless they name another owner', code: [`${MX}saveMetric`] },
   { area: 'Metrics', what: 'Change or remove a metric', who: 'Its owner, or an admin', code: [`${MX}saveMetric`, `${MX}removeMetric`, `${MX}canEditMetric`] },
   { area: 'Metrics', what: 'Say which metric measures a goal, or stop', who: 'The goal’s owner, or an admin', code: [`${MX}linkGoalMetric`, `${MX}unlinkGoalMetric`, `${MX}canLinkGoal`] },
@@ -332,7 +332,7 @@ export const INTERNAL: InternalRequirement[] = [
       '5. **Scope.** Every list and count (Home, Goals, Activity, Needs attention, the review agendas, the AI tools) takes an optional scope: a team and everything under it, or a person’s reports (direct, or their whole chain). A leader’s Home starts scoped to the team they lead. Counts in a scope come from the summary rows ([R4](r4-scale-and-safety.md)), never from loading the scope’s goals.',
       '6. **Moves are history.** When a team moves in the tree or a person changes manager or team, the change is logged. A goal keeps its team unless someone changes it; past check-ins and statuses stay as they were. Counts for a scope are worked out from the tree as it stands now.',
       '7. **Scope narrows what you see first, never what you may see.** Reading stays open to every member of the workspace ([R1](r1-sign-in-and-access.md), rule 3).',
-      '8. **A workspace is said in one sentence**, and every screen keeps to it. Faro’s is `WORKSPACE_MEANS` (`src/domain/vocabulary.ts`), the first line of Workspace’s About and the glossary’s entry. The rebuild states its own the same way. Someone signed in is one person in every workspace; their role may differ, and landing in a workspace with a different role says so once (“You’re an admin here”).',
+      '8. **A workspace is said in one sentence**, and every screen keeps to it. Faro’s is `WORKSPACE_MEANS` (`src/domain/vocabulary.ts`), on Workspace’s About under its name, and the glossary’s entry. The rebuild states its own the same way. Someone signed in is one person in every workspace; their role may differ, and landing in a workspace with a different role says so once (“You’re an admin here”).',
     ].join('\n'),
     today: [
       'A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).',

@@ -231,8 +231,6 @@ function AboutSection() {
   const fact = (label: string, body: ReactNode) => <><dt>{label}</dt><dd>{body}</dd></>;
   return (
     <>
-      {/* What a workspace is, in one sentence, before anything about this one (outside review, 12 Nov). */}
-      <p className="hint ws-means">{WORKSPACE_MEANS}</p>
       {needs.length > 0 && (
         <section className="stack ws-needs-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-needs-title">
           <h2 className="label" id="ws-needs-title">To sort out · {needs.length}</h2>
@@ -251,6 +249,8 @@ function AboutSection() {
         <WorkspaceName />
         <dl className="facts ws-facts">
           {fact('Name', <>{ws.name}{ws.kind && <span className="hint"> · {ws.kind}</span>}</>)}
+          {/* What a workspace is, in one sentence, beside its name (outside review, 12 Nov). */}
+          {fact('What it is', <span className="ws-means">{WORKSPACE_MEANS}</span>)}
           {fact('People', <Link to="/people">{app.snapshot.people.length} {app.snapshot.people.length === 1 ? 'person' : 'people'} in {teams} {teams === 1 ? 'team' : 'teams'}</Link>)}
           {fact('Year', <>{yearLine(app.cycle, app.week, app.today, left)} <Link to="/workspace/cycles">Cycles</Link></>)}
           {fact('Admins', <>{admins}. {admin ? <Link to="/workspace/access">Access</Link> : 'Ask one of them to add someone, change a team or change a setting.'}</>)}

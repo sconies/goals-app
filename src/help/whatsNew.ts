@@ -27,9 +27,9 @@ export const WHATS_NEW: NewsEntry[] = [
     date: '2026-11-12',
     title: 'Where one workspace ends, and who you are there',
     points: [
-      'The switcher at the top of the sidebar says Switch, and on the icon rail it is the switch icon. A workspace you can’t open yet lists the others.',
+      'The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.',
       'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”',
-      'About opens with what a workspace is, in one sentence.',
+      'About says what a workspace is, in one sentence, under its name.',
       'Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.',
       'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
     ],

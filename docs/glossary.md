@@ -8,7 +8,7 @@ Decided in release 1 of the consolidation (5 Nov 2026). The words for states (st
 
 | Term | What it means | Don't say |
 |---|---|---|
-| Workspace | One organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. What you can do in it depends on your role there: an admin or a member. The words live once, as `WORKSPACE_MEANS` in `src/domain/vocabulary.ts`; Workspace's About opens with them. | org, tenant, space, team (for a workspace) |
+| Workspace | One organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. What you can do in it depends on your role there: an admin or a member. The words live once, as `WORKSPACE_MEANS` in `src/domain/vocabulary.ts`; Workspace's About says them under its name. | org, tenant, space, team (for a workspace) |
 | Goal | Something a team is trying to achieve this year, with one owner. Moves a number, keeps one in range, or hits dated stages. | objective, OKR, key result |
 | Check-in | The owner's weekly post on a goal: the number, the call, and, when it's off plan, the reason and the path to green. | post an update (as the name of the check-in), status report |
 | One-table check-in | Typing every number goal's figure for the week on one screen (`/quick-check-in`). Shown as "All your numbers in one table". | `Type this week’s numbers`, `quick check-in` |
