@@ -23,7 +23,9 @@ export interface GoalRow extends W, Removal {
   id: string; key?: string | null; cycle_id: string; team_id: string; owner_id: string; parent_id: string | null; title: string;
   kind: Goal['kind']; io: Goal['io']; headline: boolean; level: Level; guardrail: boolean; effect: number | null; why_helps?: string | null; source: string; definition: string;
   unit: string | null; decimals: number | null; plan_start: number | null; plan_target: number | null; plan_shape: MetricPlan['shape'] | null; plan_from_week?: number | null; plan_end_week?: number | null; plan_points?: MetricPlan['points'] | null;
-  original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | null; range_limit: number | null;
+  original_plan: MetricPlan | null; rebaselined_week: number | null; range_bound: 'atMost' | 'atLeast' | 'between' | null; range_limit: number | null;
+  /** A range between two numbers (migration 0042): its lower bound; range_limit is then the upper one. Null otherwise. */
+  range_lower?: number | null;
   range_margin: number | null; created_at: string; pending?: Goal['pending']; version?: number; also_helps?: string[] | null;
   plan_history?: { untilWeek: number; plan: MetricPlan }[] | null;
 }
@@ -68,6 +70,9 @@ export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageR
     original_plan: g.kind === 'metric' ? g.originalPlan : null, rebaselined_week: g.kind === 'metric' ? g.rebaselinedWeek : null,
     plan_history: g.kind === 'metric' && g.planHistory?.length ? g.planHistory : null,
     range_bound: g.kind === 'range' ? g.range.bound : null, range_limit: g.kind === 'range' ? g.range.limit : null, range_margin: g.kind === 'range' ? g.range.margin : null,
+    // Range goals only (migration 0042): the lower bound of a range between two numbers, null for a one-sided range so a
+    // range changed from between to one side clears it. Metric and milestone rows look exactly as before.
+    ...(g.kind === 'range' ? { range_lower: g.range.bound === 'between' ? g.range.lower ?? null : null } : {}),
     created_at: g.createdAt || new Date().toISOString(),
     pending: g.pending ?? null,
     also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
@@ -104,7 +109,11 @@ export function goalFromRows(r: GoalRow, stageRows: StageRow[]): Goal {
     };
   }
   if (r.kind === 'range') {
-    return { ...common, kind: 'range', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0), range: { bound: r.range_bound ?? 'atMost', limit: num(r.range_limit) as number, margin: num(r.range_margin) as number } };
+    // The lower bound is read only through faro (0035's public redirects are fixed select * views without range_lower,
+    // as with proposed_at): a between range read without it falls back to its upper bound alone.
+    const lower = num(r.range_lower);
+    const bound = r.range_bound === 'between' && lower == null ? 'atMost' : r.range_bound ?? 'atMost';
+    return { ...common, kind: 'range', unit: r.unit ?? '', decimals: Number(r.decimals ?? 0), range: { bound, limit: num(r.range_limit) as number, ...(bound === 'between' ? { lower: lower as number } : {}), margin: num(r.range_margin) as number } };
   }
   const stages: Stage[] = stageRows.filter((s) => s.goal_id === r.id).map((s) => ({ id: s.id, name: s.name, dueWeek: Number(s.due_week) })).sort((a, b) => a.dueWeek - b.dueWeek);
   return { ...common, kind: 'milestone', stages };
