@@ -44,9 +44,8 @@ import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
 export type { Rec, Tables } from './sheets';
 export type { Answer, Answers, Choice, Issue, IssueGroup, IssueKind, IssueLevel, Sheet } from './problemLevels';
-export type Via = 'spreadsheet' | 'bulk' | 'mcp' | 'table' | 'setup' | 'form';
-/** `form` is the check-in screens' own post (CK1): it is no import, so its changes carry no Via mark. */
-export const VIA_LABEL: Record<Via, string> = { spreadsheet: 'Spreadsheet', bulk: 'Bulk edit', mcp: 'MCP', table: 'Data tables', setup: 'Set-up', form: 'Check-in' };
+import { VIA_LABEL, type Via } from './via';
+export { VIA_LABEL, VIA_MCP, VIA_MCP_BEFORE, type Via } from './via';
 
 /**
  * How a check-in posted from a screen meets the week's (check-in spec, rule 13): `new` is refused when the week already
@@ -57,10 +56,6 @@ export type PostMode = 'new' | 'again' | 'correct';
 export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
 export const MIN_CORRECT_REASON = 10;
-/** What changes through MCP were marked before backlog 10a (9 Nov): still read as MCP, never written. */
-export const VIA_MCP_BEFORE = 'AI assistant (MCP)';
-/** The Via mark every change through MCP carries ("via MCP"), on top of its own diffs. */
-export const VIA_MCP = { field: 'Via', from: '—', to: VIA_LABEL.mcp } as const;
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
 /** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,

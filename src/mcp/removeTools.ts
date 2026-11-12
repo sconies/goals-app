@@ -10,7 +10,7 @@ import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
-import { VIA_MCP } from '../domain/changeset';
+import { VIA_MCP } from '../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });

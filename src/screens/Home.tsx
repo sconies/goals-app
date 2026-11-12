@@ -1,7 +1,10 @@
 import { Place } from '../core/app';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
+import { useGoalCounts, useGoalList } from '../app/goals';
+import { EMPTY_QUERY } from '../domain/query';
+import { countList } from '../domain/order';
 import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
 import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
@@ -69,7 +72,8 @@ function LeadOrQuiet({ plan }: { plan: HomePlan }) {
 function YourGoals({ news }: { news?: ReactNode }) {
   const app = useApp();
   const [all, setAll] = useState(false);
-  const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
+  // Your goals through the query port (AX5), worst first.
+  const mine = useGoalList(useMineAsk(app.viewer.id))?.rows.map((r) => r.goal) ?? [];
   if (!mine.length) return null;
   const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
   const { needs, handled } = splitAttention(att);
@@ -258,6 +262,19 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
   );
 }
 
+/** Your goals, as the query port is asked for them: every goal you own. */
+function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId] } }), [viewerId]); }
+
+/** The week at a glance, its goal counts from the query port (AX5): yours, or every goal when you own none. */
+function useDashboard(): Dashboard {
+  const app = useApp();
+  const mine = useGoalCounts(useMineAsk(app.viewer.id));
+  const all = useGoalCounts(mine && !mine.total ? { query: EMPTY_QUERY } : null);
+  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const counted = mine?.total ? mine : all;
+  return counted ? { ...d, scope: mine?.total ? 'mine' : 'all', counts: countList(counted.status), total: counted.total } : d;
+}
+
 export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
@@ -270,7 +287,7 @@ export function Home() {
         <span className="muted small home-where">{app.ws.name} · {placeLine(app.cycle, app.today)}</span>
       </div>
       <GettingStarted />
-      <ThisWeek d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} leadAbout={plan.lead?.about ?? null} />
+      <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
         <aside className="home-side split-side" aria-label="For you"><NeedsYou /></aside>
