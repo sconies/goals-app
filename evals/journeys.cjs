@@ -4777,7 +4777,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4812,7 +4812,26 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.checkpoint('measure');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
+  // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
+  // beside the “Published” toast.
+  await p.route('**/assets/**', async (r) => { await new Promise((res) => setTimeout(res, 1200)); await r.continue().catch(() => {}); });
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  const mixed = new Set();
+  for (const t0 = Date.now(); Date.now() - t0 < 15000;) {
+    const s = await p.evaluate(() => ({
+      page: !!document.querySelector('.first-checkin'),
+      note: [...document.querySelectorAll('.note-bad')].map((e) => e.textContent).join(' | '),
+      saving: [...document.querySelectorAll('.focus-foot .btn.primary')].some((e) => /Saving/.test(e.textContent || '')),
+      toast: [...document.querySelectorAll('.toast')].some((e) => /Published/.test(e.textContent || '')),
+    })).catch(() => null);
+    if (s?.note) mixed.add(`the Check step says “${s.note}”`);
+    if (s?.saving && s.toast) mixed.add('the button says “Saving…” beside the “Published” toast');
+    if (s?.page) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  await p.unroute('**/assets/**');
+  h.set('finish', mixed.size === 0, `after Publish ${[...mixed].join(', and ')}`);
   await p.waitForURL(/\/goals\/[^/]+\?published=1/);
   h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
 
@@ -5421,6 +5440,28 @@ journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook 
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);
 
+journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara, a file with one goal that has no owner offers “Leave this row out and save the rest”; the sheet names the row and why; left out, the focus goes to Save, the rest saves, and Imported says 1 row was left out and offers it as a download', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u96.csv', 'Goal,Owner,Team,Unit,Start,Target\nKept cache hit rate,Rhea Kapoor,CI/CD,%,20,90\nOrphan cache size,,CI/CD,GB,20,10\n'));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await h.click(p.getByRole('button', { name: 'Leave this row out and save the rest' }));
+  const sheet = p.getByRole('dialog');
+  await see(sheet, 'Orphan cache size', 'the sheet does not name the row it leaves out');
+  await h.checkpoint('leave out');
+  await h.click(sheet.getByRole('button', { name: 'Leave them out' }));
+  await see(p, '1 row was left out at your choice', 'the preview does not say a row was left out');
+  await p.waitForTimeout(100);
+  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Save 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, '1 row was left out.', 'Imported does not say a row was left out');
+  h.set('errors', await p.getByRole('button', { name: 'Download them' }).isVisible(), 'the rows left out are not offered as a download');
+  const s = await h.snapshot();
+  h.set('finish', s.goals.some((g) => g.title === 'Kept cache hit rate') && !s.goals.some((g) => g.title === 'Orphan cache size'), 'the wrong goals were saved');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'entry', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

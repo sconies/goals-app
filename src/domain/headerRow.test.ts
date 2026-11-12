@@ -46,4 +46,12 @@ describe('rule 3 in the engine (every door)', () => {
     expect(answered.groups.filter((x) => x.level === 'must' || x.level === 'check').map((x) => x.kind)).toEqual([]);
     expect(answered.commit!.goals![0]).toMatchObject({ title: 'Pipeline cache hit rate', ownerId: 'rhea', unit: '%', plan: { target: 90 } });
   });
+  it('reads a header that differs only by punctuation, an accent or spacing as its column (#199 review)', () => {
+    const lead = s.goals.find((g) => g.id === 'ns-lead')!;
+    const target = lead.kind === 'metric' ? lead.plan.target : 0;
+    for (const h of ['target.', 'tárget', 'target_']) {
+      const cs = run({ goals: [{ __row: '2', id: 'ns-lead', goal: lead.title, [h]: String(target + 7), reason: 'Agreed at the review with the platform leads.' }] });
+      expect(cs.items.find((i) => i.goalId === 'ns-lead')?.diffs.some((d) => /target/i.test(d.field)), h).toBe(true);
+    }
+  });
 });

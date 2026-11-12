@@ -22,7 +22,7 @@ export function Feedback({ onSend }: { onSend?: () => void }) {
           <h1 className="title-xl">Feedback</h1>
           {onSend && <button type="button" className="btn" aria-expanded={sending} onClick={() => { setSending(true); onSend(); setSending(false); }}>Send feedback</button>}
         </div>
-        <span className="hint">{data.shared ? 'From every workspace and the demo.' : 'From this browser and this workspace: no database is set up.'} Anyone can change a status; every change says who made it and can be undone.</span>
+        <span className="hint">{data.shared ? 'From every workspace and the demo.' : 'From this browser and this workspace: no database is set up.'} Anyone can read it and send feedback; only an admin changes a status, and every change says who made it and can be undone.</span>
       </div>
       <Suspense fallback={<p className="hint" role="status">Opening the inbox…</p>}><Inbox data={data} narrow={narrow} inPage /></Suspense>
     </div>
