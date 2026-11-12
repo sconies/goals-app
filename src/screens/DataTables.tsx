@@ -157,7 +157,8 @@ export function DataTables() {
   const current: TableLayout = { table: tab, cols: lay.cols, widths: lay.widths, q, filters, sort };
 
   const [choosing, setChoosing] = useState(false);
-  const shown = applyTable(rows, head, q, filters, sort);
+  // The search reads the columns shown, as Goals' does (find spec, 2.1); a filter may name any column.
+  const shown = applyTable(rows, head, q, filters, sort, order);
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 
@@ -182,7 +183,7 @@ export function DataTables() {
     return { rows: t.rows, muted: t.muted, scope: activeView?.name ?? '' };
   };
 
-  // The Saved layouts and Spreadsheets menus open on whichever side of their button has room.
+  // The Saved layouts and Export menus open on whichever side of their button has room.
   const toolsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = toolsRef.current;

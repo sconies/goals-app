@@ -278,7 +278,7 @@ const LEVEL_RANK: Record<IssueLevel, number> = { must: 0, check: 1, note: 2 };
  */
 export function groupIssues(issues: readonly Issue[]): IssueGroup[] {
   const by = new Map<string, Issue[]>();
-  for (const i of issues) by.set(i.group, [...(by.get(i.group) ?? []), i]);
+  for (const i of issues) { const l = by.get(i.group); if (l) l.push(i); else by.set(i.group, [i]); }
   return [...by.entries()].map(([id, list]) => {
     const first = list[0]!;
     const rows = [...new Set(list.map((x) => x.row))].sort((a, b) => a - b);

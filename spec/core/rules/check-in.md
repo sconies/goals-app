@@ -7,7 +7,7 @@ What a check-in needs before it can be posted, and the record it becomes.
 
 ## The rule
 
-A check-in is one week's report on one goal, by its owner (or an admin): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
+A check-in is one week's report on one goal, by its owner only (R1; an admin may bring others' in by loading a workbook, or correct a past one in Data's tables): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
 
 **Reading a number** (`parseNumber`): spaces and a trailing unit or `%` are ignored; a decimal comma with one or two digits (`29,4`) is a decimal point; commas grouping thousands (`1,250`, `1,250.5`) are dropped. Anything else that isn't plain digits with one optional point and sign (hex, exponents, words, two points) is not a number; nor is anything 10¹² or more.
 
@@ -104,6 +104,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
 - the levels in a check-in (rules 2 and 3) › says why the button does nothing
 - the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
+- the levels in a check-in (rules 2 and 3) › keeps an answer given in the table check-in in History, as the form does (build review of #160)
+- the levels in a check-in (rules 2 and 3) › writes a number in a question with the app’s formatter: 1 hour, not 1 hours (build review of #160)
 
 ### [evals/scenarios.eval.ts](../../../evals/scenarios.eval.ts)
 

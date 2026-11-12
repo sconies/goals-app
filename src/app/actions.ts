@@ -6,7 +6,7 @@
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
 import { withProposed } from '../domain/proposed';
-import type { Answers, PostMode, Via } from '../domain/changeset';
+import type { Answers, CheckInPost, PostMode, Via } from '../domain/changeset';
 
 /*
  * The change engine (domain/changeset: check-ins, plan and goal edits, bulk edits, spreadsheets) is a large module a
@@ -75,8 +75,8 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
  */
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
-  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number } }) =>
-    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
+  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number }; posts?: CheckInPost[] }) =>
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file, ...(i.posts?.length ? { posts: i.posts } : {}) }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) => {
     const goalId = goalOf(x, i.goalId).id;

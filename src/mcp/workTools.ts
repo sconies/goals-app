@@ -11,12 +11,11 @@ import { attentionList, splitAttention } from '../domain/attention';
 import { cycleDates, cycleState, dayWithYear, wrapUpOpenOn } from '../domain/cycle';
 import { dashboard } from '../domain/home';
 import { ASK_STATUS, ATTENTION, choices, HANDLED_LINE, codeFrom, LABEL, lower, STATUS, withCode } from '../domain/vocabulary';
-import type { AskStatus, DisplayStatus } from '../domain/types';
+import type { DisplayStatus } from '../domain/types';
 
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 const said = (k: DisplayStatus) => withCode(STATUS[k]);
 /** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
-const askState = (r: { status: AskStatus; overdue: boolean }) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : '');
 import { ASK_KIND_LABEL, askText, asksOf, canAnswer, canMarkDone, isOverdue, openForPerson, openUpdateAsk } from '../domain/asks';
 import { agendaOf, answerOf, lastHeld, openActions, reviewSession, sessionState, sessionStateText, sessionWeek, watchedGoals } from '../domain/review';
 import { weekProgress } from '../domain/progress';
@@ -30,6 +29,7 @@ import { newsDate, newsSince } from '../help/whatsNew';
 import { canUndoImport, importUndone } from '../domain/removal';
 import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { listed } from './listed';
 import { MODULES, modulesOn } from '../core/registry';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
 import { VIA_MCP } from '../domain/via';
@@ -191,7 +191,7 @@ export const WORK_TOOLS: ToolDef[] = [
         .filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id)
         .filter((r) => !a.goal_id || r.goalIds.includes(goalOf(ctx, a.goal_id).id))
         .map((r) => requestData(ctx, r));
-      return { data: { requests: list }, text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(', ')}${r.answer ? ` · answer: ${r.answer}` : ''}`), 'No asks match.') };
+      return listed({ requests: list });
     },
   },
   {
@@ -206,7 +206,7 @@ export const WORK_TOOLS: ToolDef[] = [
         const held = lastHeld(r, ctx.snapshot, x.week);
         return { id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people.map((p) => name(ctx, p)), sessionWeek: x.week, sessionDate: x.date, reviewed: x.done, of: x.total, state: sessionStateText(sessionState(x)), lastHeld: held?.on ?? null, openActions: openActions(r, ctx.snapshot).length, youreIn: r.people.includes(ctx.actor.id) };
       });
-      return { data: { reviews: list }, text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? 'never'} · ${r.openActions} open actions`), 'No reviews yet.') };
+      return listed({ reviews: list });
     },
   },
   {
@@ -234,7 +234,7 @@ export const WORK_TOOLS: ToolDef[] = [
     async run(_a, ctx) {
       const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({ id: w.id, kind: w.kind, ref: w.ref, what: w.kind === 'level' ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref }));
       const goals = watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({ id: g.id, title: g.title }));
-      return { data: { watches, goals }, text: watches.length ? `${watches.map((w) => `${w.id} · ${w.kind} · ${w.what}`).join('\n')}\n${goals.length} goals watched.` : 'You’re not watching anything yet.' };
+      return listed({ watches, goals });
     },
   },
   {
@@ -247,7 +247,7 @@ export const WORK_TOOLS: ToolDef[] = [
       const team = (id: string | null) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
       const people = ctx.snapshot.people.map((p) => ({ id: p.id, name: p.name, email: p.email ?? null, jobTitle: p.role, team: team(p.teamId), admin: p.admin, goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length }));
       const teams = ctx.snapshot.teams.map((t) => { const m = A.teamMembers(ax(ctx), t.id); return { id: t.id, name: t.name, lead: name(ctx, t.leadId), people: m.people.length, goals: m.current.length }; });
-      return { data: { people, teams }, text: people.map((p) => `${p.id} · ${p.name}${p.email ? ` <${p.email}>` : ''}${p.jobTitle ? `, ${p.jobTitle}` : ''} · ${p.team ?? 'no team'}${p.admin ? ' · admin' : ''}`).join('\n') };
+      return listed({ people, teams });
     },
   },
   {
@@ -267,7 +267,7 @@ export const WORK_TOOLS: ToolDef[] = [
           // An import or bulk edit: its ID, for undo_import, and whether this person can undo it now.
           ...(c.action === 'imported' ? { importId: c.entityId, canUndo: canUndoImport(ctx.snapshot, c, ctx.actor), undone: importUndone(ctx.snapshot, c.entityId) } : {}),
         }));
-      return { data: { changes: list }, text: lines(list.map((c) => `${c.at.slice(0, 16).replace('T', ' ')} · ${c.by} · ${c.goal ? c.goal + ': ' : ''}${c.summary}${'importId' in c ? ` · import ${c.importId}${c.undone ? ' (undone)' : c.canUndo ? ' (can be undone)' : ''}` : ''}`), 'No changes match.') };
+      return listed({ changes: list });
     },
   },
   {
@@ -281,7 +281,7 @@ export const WORK_TOOLS: ToolDef[] = [
         const l = isTableView(v) ? parseLayout(v.params) : null;
         return { id: v.id, name: v.name, of: l ? `the ${TABLES[l.table].label} data table` : 'the Goals screen', ...(l ? { table: l.table, columns: l.cols, widths: l.widths } : {}), query: v.params, pinned: v.pinned, owner: name(ctx, v.personId) };
       });
-      return { data: { views: list }, text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? ' (pinned)' : ''} · of ${v.of} · ${v.query}`), 'No saved views.') };
+      return listed({ views: list });
     },
   },
   {
@@ -292,7 +292,7 @@ export const WORK_TOOLS: ToolDef[] = [
     annotations: READ,
     async run(_a, ctx) {
       const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({ id: t.id, name: t.name, person: name(ctx, t.personId), createdAt: t.createdAt, lastUsedAt: t.lastUsedAt }));
-      return { data: { tokens: list }, text: lines(list.map((t) => `${t.id} · ${t.name} · acts as ${t.person}`), 'No live tokens.') };
+      return listed({ tokens: list });
     },
   },
   {

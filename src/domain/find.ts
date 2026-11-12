@@ -22,13 +22,17 @@ export const wordsOf = (s: string) => fold(s).split(/[\s/\-,.:()]+/).filter(Bool
  * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
  */
 export function textMatches(words: string, q: string, key?: string | null): boolean {
+  return wordsMatch(wordsOf(words), q, key);
+}
+
+/** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
+export function wordsMatch(have: readonly string[], q: string, key?: string | null): boolean {
   const asked = wordsOf(q);
   if (!asked.length) return true;
   const typedKey = normalKey(q.trim());
   if (typedKey) return !!key && typedKey === key;
   const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
   if (bare && key && bare === key) return true;
-  const have = wordsOf(words);
   return asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 

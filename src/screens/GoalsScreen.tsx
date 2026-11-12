@@ -27,6 +27,7 @@ import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
+import { scopeFacts } from '../app/reads';
 import { goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
 
 const GOAL_WORDS = { thing: 'goal', things: 'goals' };
@@ -51,13 +52,9 @@ export function GoalsScreen() {
   const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
   // Whose goals (the scope), how they're arranged (the group) and the Needs attention switch (goals spec, rules 1–3).
   const prefs = usePrefs();
-  const scopeFacts = useMemo(() => ({
-    goals: app.snapshot.goals.filter((g) => !g.stoppedAt).map((g) => ({ id: g.id, ownerId: g.ownerId, teamId: g.teamId })),
-    viewerId: app.viewer.id,
-    teams: app.snapshot.teams.filter((t) => t.id === app.viewer.teamId || t.leadId === app.viewer.id).map((t) => ({ id: t.id, name: t.name })),
-    watched: new Set(watchedGoals(app.viewer.id, app.snapshot).map((g) => g.id)),
-  }), [app.snapshot, app.viewer.id, app.viewer.teamId]);
-  const { tabs: scopeTabs, opens } = scopesFor(scopeFacts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
+  // The facts the scope rule reads, from the one place find_goals reads them too.
+  const facts = useMemo(() => scopeFacts(app.snapshot, app.viewer), [app.snapshot, app.viewer]);
+  const { tabs: scopeTabs, opens } = scopesFor(facts, prefs.get<Scope>(app.ws.id, app.viewer.id, 'goals-scope'));
   const hasScope = (x: Scope) => scopeTabs.some((t) => t.id === x);
   // Old addresses (show=…, a filter with no scope, a bare /goals) say what they meant, replacing the entry (rule 6).
   // A filter naming a team, person or goal the workspace doesn't have is dropped, and the page says so (spec 2.1, item 7).
@@ -213,7 +210,7 @@ export function GoalsScreen() {
   const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' · pinned' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
   // Proposed goals (GE10): never among these, counted apart in the count line, and listed with the State filter on.
   const proposedHere = (app.snapshot.proposed ?? []).filter((g) => scope === 'all' || (scope === 'mine' ? g.ownerId === app.viewer.id
-    : scope === 'team' ? scopeFacts.teams.some((t) => t.id === g.teamId) : watchedGoals(app.viewer.id, { ...app.snapshot, goals: [...app.snapshot.goals, g] }).some((w) => w.id === g.id)));
+    : scope === 'team' ? facts.teams.some((t) => t.id === g.teamId) : watchedGoals(app.viewer.id, { ...app.snapshot, goals: [...app.snapshot.goals, g] }).some((w) => w.id === g.id)));
   const stateOn = params.get('state') === 'proposed';
   const setState = (on: boolean) => { const p = latest(); if (on) p.set('state', 'proposed'); else p.delete('state'); setParams(p); };
   const proposedLink = proposedHere.length > 0 ? <> · <a className="linkish proposed-count" href="?state=proposed" onClick={(e) => { e.preventDefault(); setState(true); }}>{proposedHere.length} proposed</a></> : null;

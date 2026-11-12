@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-12 19:40 UTC.
+Run 2026-11-12 19:13 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -8,7 +8,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 | # | Journey | Score | entry | one-action | progress | budget | errors | finish | attention | parity | a11y | logged | Steps (phone · desktop) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 134 | Proposed, then active: as Tunde, New goal’s last step asks “Is it under way?”; “Not yet: propose it” turns the button to “Propose goal” and the block to “After you propose it”; the goal has a key and a page that says “Proposed” as a word with no status shape; Goals, Mine counts it apart (“· 1 proposed”) and the link lists it; its check-in says there is nothing to check in; a fortnight later it still says “Proposed”. As Oskar its page has comment, ask and watch and “Tunde Bakare or an admin can make this active.” As Tunde, “Make it active” reads back From as this week with the first check-in’s date; after it the page reads “No check-in yet”; Undo returns it to proposed; “Withdraw it” removes it | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 19 · 19 (budget 40) |
+| 4 | Set up a goal, step by step | **10** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | 11 · 10 (budget 13) |
 
 - **entry**: Starts from the person's home, with the way in visible without scrolling
 - **one-action**: Every step shows exactly one primary action
@@ -23,11 +23,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**77 of 178 pass**, 101 untested. Spec scenarios 298/298.
+**78 of 177 pass**, 99 untested. Spec scenarios 298/298.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
-| ✅ | **PLAN-SHAPE** Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint. | Plans | 3 | — |
+| ✅ | **PLAN-SHAPE** Plans can be straight, back-loaded ((w/13)^1.5) or stepped, and set the weekly checkpoint. | Plans | 3 | U4 |
 | ✅ | **FORECAST** The projection is a least-squares line through the last eight weeks of numbers (reaching back to one three weeks earlier when they're sparse), leaning only as far as the numbers support, projected to the due week as a range, and only shown with enough data. | Plans | 2 | — |
 | ✅ | **REBASELINE** Changing a plan after check-ins start re-baselines it and keeps the original visible. | Plans | 1 | — |
 | ⚪ | **PLAN-CHANGE** Once check-ins have started, the owner (or an admin) can change the plan directly, with a reason. The original plan stays on the chart and the change and reason are logged and shown to watchers. No approval step. | Plans | 0 | — |
@@ -48,12 +48,11 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **UPDATE-ANYTIME** The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after. | Check-in | 0 | — |
 | ⚪ | **OWNER-ONLY** Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal). | Check-in | 0 | — |
 | ✅ | **STALE** No owner check-in for 14 days shows as No recent update, never as on track. | Status rules | 6 | — |
-| ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | — |
-| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | — |
-| ✅ | **NEW-GOAL-STEPS** New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything. | Goals | 0 | U134 |
+| ✅ | **HIERARCHY** A headline goal with input goals from several teams, each with an estimated effect; the headline shows its inputs and their mix of statuses. | Goals | 3 | U4 |
+| ✅ | **GOAL-CREATE** A lead can create a metric, range or milestone goal with a plan, and invalid input is explained. | Goals | 3 | U4 |
+| ⚪ | **NEW-GOAL-STEPS** New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything. | Goals | 0 | — |
 | ✅ | **GOAL-ENTRY-REQUIRED** Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back. | Goals | 12 | — |
 | ⚪ | **GOAL-DATES** A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools. | Goals | 0 | — |
-| ✅ | **GOAL-PROPOSED** A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin. | Goals | 0 | U134 |
 | ✅ | **NEW-GOAL-TRUTH** A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan. | Goals | 5 | — |
 | ⚪ | **GOAL-PAGE** The goal page leads with its summary bar, then the chart (plan, actual, projection range, path to green), why, what's being done, the last review, what feeds it, the year by quarter, one activity stream and About this goal. | Goals | 0 | — |
 | ⚪ | **PERSIST** Changes are saved and survive a reload; demo data can be reset. | Platform | 0 | — |
@@ -63,8 +62,8 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **PROFILES** There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings. | People | 0 | — |
 | ⚪ | **ATTENTION** Off track, stale, a worsening trend, a missed or missing path to green, and pending proposals are flagged where the user starts, with the reason in one line. | Attention | 0 | — |
 | ⚪ | **REVIEW** A review walks its goals worst and stalest first, one goal page at a time, with next and previous. | Reviews | 0 | — |
-| ⚪ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line. | Change log | 0 | — |
-| ⚪ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted. | Focus | 0 | — |
+| ✅ | **CHANGE-LOG** Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line. | Change log | 0 | U4 |
+| ✅ | **DRAFTS** Unsaved answers survive leaving a flow and are offered back when the user returns. Numbers typed in the one-table check-in are kept across a refresh until posted. | Focus | 0 | U4 |
 | ⚪ | **WORKSPACES** The example and your own data live in separate workspaces; you can load your own from a spreadsheet, with every row checked, and switch back. | Data | 0 | — |
 | ⚪ | **MOTION** Motion is subtle and never blocks; it switches off under reduced motion. The launch splash (LAUNCH) is the one longer animation, once per launch. Loading shows a skeleton, not a blank page. | Platform | 0 | — |
 | ⚪ | **OUTCOME-TREE** Goals are shown as trees: each goal that feeds nothing heads a tree, with what feeds it worst first; team goals that are not linked are flagged. | Goals | 0 | — |
@@ -73,7 +72,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **ONBOARDING** An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet). | Onboarding | 0 | — |
 | ⚪ | **DAY-ONE** In a workspace's first weeks Home tells each person, the second included, what is true and what to do first ("Getting started", app redesign OB3): whoever set it up sees their first check-ins, "Give {n} goals an owner" for the goals left without one, and the invite link (or Add people while alone); someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it goes after 14 days or when everything is done; the example never shows it. Home's old "Add your people" card is gone. | Onboarding | 0 | — |
 | ⚪ | **IDENTITY** Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home. | Onboarding | 0 | — |
-| ⚪ | **LEVELS** Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged. | Goals | 0 | — |
+| ✅ | **LEVELS** Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged. | Goals | 0 | U4 |
 | ⚪ | **WATCHING** Anyone can watch a goal, a whole tree or a level. Watching shows those goals curated: needs attention, gone quiet, what changed this week, then on track, with a level filter. | Watching | 0 | — |
 | ⚪ | **REVIEW-SETUP** Anyone can set up a review: a name, a cadence (every 1, 2 or 4 weeks on a weekday), the goals (levels, trees, single goals) and the people. | Reviews | 0 | — |
 | ⚪ | **REVIEW-RUN** What was said in a review is kept as its summary; owners see questions and actions on their goal page. | Reviews | 0 | — |

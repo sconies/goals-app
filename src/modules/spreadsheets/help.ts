@@ -12,8 +12,8 @@ const help: Article[] = [
     after: 'data',
     sections: [
       { heading: 'How to use it', list: [
-        'On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.',
-        'Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.',
+        'On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.',
+        'Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.',
         `What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine('goals')} A check-in, ${requiredLine('checkIns')} A person, ${requiredLine('people')}`,
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
         'A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.',
@@ -57,7 +57,7 @@ const help: Article[] = [
     after: 'import',
     sections: [
       { heading: 'The list', list: [
-        'On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.',
+        'On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.',
         'Find one by its file, by who made it or by what it changed. Open one to see what it saved.',
         'In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.',
       ] },
@@ -79,20 +79,22 @@ const help: Article[] = [
   {
     id: 'export',
     title: 'Exporting',
-    summary: 'Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.',
+    summary: 'One button: Export .xlsx. Zipped CSVs, one sheet as CSV, JSON and a brief for an AI chat are under Other formats.',
     group: 'data',
     after: 'import',
     sections: [
       { heading: 'How to use it', list: [
-        'On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).',
-        'On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.',
+        'On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.',
+        'Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.',
+        'On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.',
         'Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.',
-        'The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.',
-        'CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.',
+        'Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.',
+        'The template is on the Import page and in Every column, and what it needs: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported. It is saved as faro-template.xlsx.',
         'One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.',
         'JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.',
         'Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.',
-        'Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx.',
+        'Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.',
+        'Exports hold names and the owners’ reasons. Share them as you would the app.',
       ] },
     ],
     routes: [],

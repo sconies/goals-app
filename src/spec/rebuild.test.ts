@@ -61,6 +61,23 @@ describe('the drill harness (scripts/drill.mjs, copied to spec/rebuild/drill.mjs
     expect(r.status).toBe(0);
   }, 30_000);
 
+  it('scores a stage 2 rebuild on changes.csv and import.csv, row by case and item', () => {
+    const rb = fs.mkdtempSync(path.join(os.tmpdir(), 'drill-stage2-'));
+    fs.writeFileSync(path.join(rb, 'drill.json'), JSON.stringify({ stage: 2, run: 'node main.mjs' }));
+    fs.writeFileSync(path.join(rb, 'expected.json'), JSON.stringify({ changes: files['changes.csv'], import: files['import.csv'] }));
+    fs.writeFileSync(path.join(rb, 'main.mjs'), `import fs from 'node:fs'; import path from 'node:path';
+const out = process.argv[3]; const f = JSON.parse(fs.readFileSync('expected.json', 'utf8'));
+fs.writeFileSync(path.join(out, 'import.csv'), f.import);
+fs.writeFileSync(path.join(out, 'changes.csv'), f.changes.replace('saves-stop,1,,Goals,2', 'saves-stop,1,,Goals,3'));`);
+    const r = drill(rb, '--diffs', '3');
+    expect(r.stdout).toContain('import.csv: ');
+    expect(r.stdout).not.toContain('status.csv');
+    expect(r.stdout).toMatch(/changes\.csv: \d+ of \d+ rows match/);
+    expect(r.stdout).toMatch(/case saves-stop, row 1\) line: expected "2", got "3"/);
+    expect(r.status).toBe(1);
+    fs.rmSync(rb, { recursive: true, force: true });
+  }, 30_000);
+
   it('runs a rebuild through drill.json, handing it a copy of workspace.json on its own', () => {
     const rb = fs.mkdtempSync(path.join(os.tmpdir(), 'drill-rebuild-'));
     fs.writeFileSync(path.join(rb, 'drill.json'), JSON.stringify({ stage: 1, run: 'node main.mjs' }));
@@ -89,6 +106,6 @@ describe('rebuild stages', () => {
     expect(moduleOrder([m('b', ['c']), m('a', ['b']), m('c', [])]).map((x) => x.id)).toEqual(['c', 'b', 'a']);
     const s = stages([m('maps', []), m('notes', [], false)]);
     expect(s.map((x) => x.file)).toEqual(['stage-1-core-rules.md', 'stage-2-core-data.md', 'stage-3-core-screens.md', 'stage-4-module-maps.md']);
-    expect(s.filter((x) => x.status === 'drill').map((x) => x.n)).toEqual([1]);
+    expect(s.filter((x) => x.status === 'drill').map((x) => x.n)).toEqual([1, 2, 3]);
   });
 });

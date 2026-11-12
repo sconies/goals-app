@@ -21,6 +21,7 @@ The rules about who may do what already exist, once, in the shared actions the a
 5. **MCP tokens are made on the server.** An admin makes one for a person; the secret is made by the server, shown once, and only its SHA-256 hash is kept. A token belongs to one person in one workspace and acts with exactly that person’s rights (the same access table); every change it makes is logged as that person, marked via MCP. The token’s person or an admin revokes it; it stops working when its person leaves. A token can’t create, switch or reset a workspace or choose who it acts as.
 6. **Builder tokens and the builder inbox.** Builders are the people who look after the app itself (in the internal app, a group in the company directory). Only builders read the builder inbox: the markups and feedback people send about the app, from every workspace. A builder makes a builder token for themselves; it reaches the inbox as well as their workspace, and stops counting as one the moment they leave the builders. Someone who sent a markup or feedback sees its status (New, In hand, Fixed, Won’t fix), not other people’s. **Faro differs on purpose:** it never holds real data, so its inbox is open to anyone (Lane, 8 Nov, backlog O); the internal app must not copy that. Faro keeps one Feedback inbox across workspaces, which anyone reads and only an admin triages: a status change from anyone else is refused by the rule (`statusPatch`, `mayTriage`; Lane, 12 Nov). **The rebuild scopes Feedback per workspace:** a workspace’s feedback is read and triaged by that workspace’s admins, and only the builder inbox crosses workspaces.
 7. **Who may read a sent markup** (a markup about a goal sent to someone, backlog 3a). Its sender, the people it was sent to, and, when it was sent into a review, the people in that review. An admin of the workspace may remove one. Nobody else, watchers included. A markup is a picture of the sender’s screen, so it is only sent to people who can read everything on it: in the internal app, members of the same workspace. Its picture is kept private and read through a short-lived address the server makes for someone allowed to read it ([R4](r4-scale-and-safety.md), the master key).
+8. **Exports are logged** (R-E1). An export (the workbook, the zipped CSVs, one sheet, JSON, the brief for an AI chat, a table from Data as shown, or the same through the AI assistant) follows the read rules of rule 3 and is written to the audit log with who, when and what: the file’s name, which goals (everything in the cycle, or a view and its filter) and which sheets. Exporting needs no right beyond reading, so nothing is refused; the log is so an admin can see what left the app and when.
 
 ## Who may change what
 
@@ -35,10 +36,10 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Add a goal, at any level, owned by anyone | Anyone, for anyone (Lane, 11 Nov) | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayAddGoal`](../../../src/domain/goalRights.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | [`activate`](../../../src/domain/proposedActions.ts), [`mayActivate`](../../../src/domain/proposedActions.ts) |
-| Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
+| Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
 | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`saveRetro`](../../../src/domain/actions.ts) |
-| Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner, or an admin | [`recordStagesDone`](../../../src/domain/actions.ts) |
-| Undo an import or bulk edit | Whoever made it, or an admin | [`undoImport`](../../../src/domain/removal.ts), [`canUndoImport`](../../../src/domain/removal.ts) |
+| Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | [`recordStagesDone`](../../../src/domain/actions.ts) |
+| Undo an import or bulk edit | Whoever made it, or an admin; a check-in it wrote goes back only for someone who may check in on that goal by the same door (an owner’s own correction, only the owner) | [`undoImport`](../../../src/domain/removal.ts), [`canUndoImport`](../../../src/domain/removal.ts) |
 
 ### Comments and asks
 
@@ -109,6 +110,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 - Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/adapters/supabase/goalsStore.ts`).
 - Faro’s inbox is open on purpose (backlog O, migration 0031): anyone, with no sign-in, reads every markup and piece of feedback and their pictures (a public-read bucket nobody can list), and changes a status through the one status rule, recorded as the person using the app and undoable; any token reaches it through MCP. There is no builder sign-in and no builder token in the app any more (the builders list and builder tokens from migrations 0024 and 0029 are left in the database, unused). The internal app keeps rule 6 as written.
 - Markups today are reports about the app; sending one about a goal (3a) is not built yet.
+- Export is open to everyone in a workspace and isn’t logged: the file is made in the browser (`src/modules/spreadsheets/Export.tsx`, `src/domain/export.ts`) and the MCP server’s `export` and `export_table` (`src/modules/spreadsheets/tools.ts`), and nothing is written to the change log (import spec 2.9, decision 7).
 
 ## Worked examples
 
@@ -127,6 +129,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 | Oskar is marked as left in Platform, and still has a token. | He can’t open Platform, and his token is refused at once. | Required |
 | Maya sends a markup of her goal’s chart to Oskar. | Maya and Oskar can read it; Priya, an admin, can remove it but it isn’t in her list; someone watching the goal can’t see it. | Required |
 | A script with the browser’s public key writes a check-in to Maya’s goal. | The server refuses it: the public key can’t write. | Required |
+| Oskar, not an admin, exports everything in the cycle as a workbook. | It downloads, and the audit log gains one entry: Oskar, the time, the file’s name, “everything in Year 2026”, and its sheets. Priya, an admin, sees it. | Required |
 
 ## Acceptance checks
 
@@ -138,6 +141,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 6. Every change in the change log names the signed-in person (or the token’s person, marked via MCP); no change names someone else.
 7. In the internal app: a builder token reads the builder inbox; an ordinary token, an admin’s included, is told it isn’t a builder token. Removing a builder from the builders stops their token reaching the inbox at once. (Faro’s open inbox fails this check on purpose.)
 8. A sent markup is readable by its sender, its recipients and (sent into a review) the review’s people, and by nobody else; its picture’s address stops working after it expires.
+9. Every export, from the app or through the AI assistant, writes one audit entry with who, when, the file’s name, which goals and which sheets; an export by someone outside the workspace returns nothing and writes nothing.
 
 ## Nearest rebuild stage
 

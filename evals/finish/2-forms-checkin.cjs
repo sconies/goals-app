@@ -212,10 +212,13 @@ module.exports = {
       const foot = await p.locator('.qfoot').evaluate((el) => ({ pos: getComputedStyle(el).position, bt: getComputedStyle(el).borderTopColor }));
       if (foot.pos !== 'sticky') fail(`numbers 1: the button bar is ${foot.pos}`);
       if (w === 1440) {
-        // Numbers 5: the row error sits 8px under its input and ends where it ends.
+        // Numbers 5, CK2 rule 2: a number that can't post is a Must fix block under its row, as on the form, saying the
+        // number once (build review of #160), never a hint line.
         const row = p.locator('.qrow').filter({ hasText: 'Flaky test rate' });
-        const inp = await box(row.locator('.qvalue')), err = await box(row.locator('.qproblem'));
-        if (Math.abs(err.y - inp.b - 8) > 1 || Math.abs(err.r - inp.r) > 1) fail(`numbers 5: the row error is ${Math.round(err.y - inp.b)}px under and ${Math.round(inp.r - err.r)}px short of its input`);
+        const inp = await box(row.locator('.qvalue')), fix = row.locator('.level-fix');
+        const err = (await fix.count()) ? await box(fix) : null;
+        const said = err ? (await fix.innerText()).replace(/\s+/g, ' ') : '';
+        if (!err || err.y < inp.b || !/^Must fix/.test(said) || (said.match(/abc/g) ?? []).length !== 1 || await row.locator('.qproblem').count()) fail(`numbers 5: the row's Must fix ${err ? `reads “${said}”${err.y < inp.b ? ', above its input' : ''}` : 'is not a block under the row'}`);
         // Numbers 9, 10: no row fill; exactly the listed fields outlined, and the message uses the labels' words.
         const alerts = p.locator('.qrow').filter({ hasText: 'Test suites split into parallel shards' });
         const bg = await alerts.evaluate((el) => getComputedStyle(el).backgroundColor);

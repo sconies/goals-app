@@ -7,7 +7,7 @@
    One convention: nothing is deleted from the database. A removed record keeps its row and says when and by whom
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
-import { mayChangeGoal } from './goalRights';
+import { mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { withdrawnSummary, withProposed } from './proposed';
 import type { Commit } from './commit';
 import { byRecarry } from './copies';
@@ -15,7 +15,7 @@ import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
-import { VIA_LABEL } from './via';
+import { VIA_LABEL, type Via } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
@@ -308,21 +308,26 @@ export function deleteGoal(x: ActionContext, goalId: string): Commit {
 
 /* ---------- check-ins ---------- */
 
-/** Whether a check-in can still be deleted: it's the goal's latest. Once a newer one is posted it can only be corrected. */
-export function canDeleteCheckIn(s: Pick<Snapshot, 'checkIns'>, goal: Goal, c: CheckIn, actor: Person) {
-  return (c.authorId === actor.id || actor.admin) && checkInsFor(goal, s.checkIns).at(-1)?.id === c.id;
+/**
+ * Whether a check-in can still be deleted: by the goal's owner, as check-ins are theirs (R1; goalRights mayPostCheckIn,
+ * the form's door), whoever posted it; and only the goal's latest. Once a newer one is posted it can only be corrected.
+ */
+export function canDeleteCheckIn(s: Pick<Snapshot, 'checkIns'>, goal: Goal, c: CheckIn, actor: Pick<Person, 'id' | 'admin'>) {
+  return mayPostCheckIn(actor, goal, 'form') && checkInsFor(goal, s.checkIns).at(-1)?.id === c.id;
 }
+/** Why a check-in can't be deleted, or an import's check-ins put back, by anyone but the goal's owner. */
+const ownersCheckIns = (x: ActionContext, g: Goal, what: 'delete' | 'change') => `Only ${x.snapshot.people.find((p) => p.id === g.ownerId)?.name ?? 'its owner'} (its owner) can ${what} its check-ins.`;
 
 /**
- * Delete a check-in: whoever posted it, or an admin, until a newer check-in exists on the goal (then it can only be
- * corrected). The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
+ * Delete a check-in: the goal's owner (R1), until a newer check-in exists on the goal (then it can only be corrected).
+ * The goal's status is worked out again from the one before. An open ask it raised is withdrawn.
  */
 export function deleteCheckIn(x: ActionContext, id: string): Commit {
   const c = x.snapshot.checkIns.find((v) => v.id === id);
   if (!c) no('There’s no check-in with that ID in this cycle.');
   const g = x.snapshot.goals.find((v) => v.id === c!.goalId);
   if (!g) no('That check-in’s goal isn’t live in this cycle.');
-  if (c!.authorId !== x.actor.id && !x.actor.admin) no('Only whoever posted a check-in, or an admin, can delete it.');
+  if (!mayPostCheckIn(x.actor, g!, 'form')) no(ownersCheckIns(x, g!, 'delete'));
   if (checkInsFor(g!, x.snapshot.checkIns).at(-1)?.id !== c!.id) no('A newer check-in has been posted since, so this one can only be corrected.');
   const requests: Ask[] = [];
   const changes: Change[] = [log(x, { entity: 'check-in', entityId: c!.id, goalId: g!.id, action: 'removed', summary: `Deleted the check-in for week ${c!.week}`, diffs: [{ field: 'Check-in', from: `Week ${c!.week}`, to: '—' }] })];
@@ -502,12 +507,17 @@ function undoPlan(x: ActionContext, importId: string): { commit: Commit; restore
     goals.push(before ? ({ ...asBefore(cur, before), ...(cur.key ? { key: cur.key } : {}) } as Goal) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'goal', entityId: id, goalId: id, action: before ? 'edited' : 'removed', summary: before ? 'Put back as it was before an import' : `Deleted ${cur.title}: an import that added it was undone`, importId }));
   }
+  // Putting a check-in back is changing it, so it asks R1 through the door the import came in by: an admin may undo a
+  // workbook, but not an owner's own correction; a goal handed on since is its new owner's.
+  const via = viaOf(entry!);
+  const goingGoals = new Set(u.goals.filter((v) => !v.before).map((v) => v.id));
   for (const { id, before } of u.checkIns) {
     const cur = full.checkIns.find((c) => c.id === id);
     if (!cur || cur.removedAt) continue;
     const goal = full.goals.find((g) => g.id === cur.goalId);
     const by = touchedBy('check-in', id);
     if (by) { keep(`${goal?.title ?? 'A goal'}, week ${cur.week}`, by, 'check-in'); continue; }
+    if (goal && !goingGoals.has(goal.id) && !mayPostCheckIn(x.actor, goal, via)) { keep(`${goal.title}, week ${cur.week}`, entry!, 'check-in', ownersCheckIns(x, goal, 'change')); continue; }
     checkIns.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'check-in', entityId: id, goalId: cur.goalId, action: before ? 'edited' : 'removed', summary: before ? `Put the check-in for week ${cur.week} back as it was before an import` : `Deleted the check-in for week ${cur.week}: an import that added it was undone`, importId }));
   }
@@ -647,6 +657,13 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
 export function undoPreview(x: ActionContext, importId: string): { restores: number; skipped: KeptRow[] } {
   const out = undoPlan(x, importId);
   return { restores: out.restored, skipped: out.skipped };
+}
+
+/** The door an import came in by, from its Via mark: a check-in corrected on its own screen carries none (CK1). */
+function viaOf(entry: Change): Via {
+  const label = entry.diffs.find((d) => d.field === 'Via')?.to;
+  const via = (Object.keys(VIA_LABEL) as Via[]).find((k) => VIA_LABEL[k] === label);
+  return via ?? (/^Corrected a check-in\b/.test(entry.summary) ? 'form' : 'spreadsheet');
 }
 
 /** An import's name, as Past imports and Activity say it (spec 2.7): the file's, or where the bulk change was made. */

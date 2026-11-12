@@ -4,7 +4,7 @@
 
 The core screens, so a person can do every core journey: check in, read a goal, see what needs attention, run a review.
 
-**Today:** an outline: entry and exit criteria, checked by hand, with no drill yet. A rebuild can start from it; proving it is done is by hand until it has a drill.
+**Today:** drill ready: the harness scores part of it against the conformance data. The rest of its exit criteria are checked by hand.
 
 ## Entry criteria
 
@@ -12,7 +12,8 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 
 ## What to read
 
-- [The screens](../core/screens.md): each core route, its purpose, named parts and one main action.
+- [The screens](../core/screens.md): each core route, its purpose, named parts and one main action, and its fields, states and buttons; then the views and overlays with no route of their own.
+- [The design rules](../core/design-rules.md): the look. [The Help guide](../core/help-guide.md): what each screen is for and who can, in full.
 - [The journeys](../core/journeys.md): what people do end to end, the most steps each may take, and the ease test.
 - [The requirements](../core/requirements.md): each one, with the screens and Help article that cover it.
 - [The vocabulary](../core/vocabulary.md): where each word may appear. A status is always a shape and a word.
@@ -34,17 +35,42 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 - A goal’s weeks are picked, never typed (requirement `GOAL-DATES`; [years and weeks](../core/rules/years-and-weeks.md)): a number goal’s Baseline with its From and Target with its To, and a stage’s Due, each chosen from a short list of a goal year’s weeks with their dates, opened at the chosen week, with up to three named weeks. The data keeps weeks counted from the cycle’s start; one rule converts, and the sheet and the AI tools write `2026-W46`. A plan whose From is still to come is not due until then. The change engine’s cases in `import.csv` carry the sheet’s side (`to-before-from`, `week-unknown`, `from-pair-disagrees`, `to-next-year`).
 - Change a goal is one page (requirement `GOAL-EDIT-PAGE`): four sections an address opens at (`#definition`, `#plan`, `#owner`, then More details), its one closing control “Close and keep the draft”, Save changes held at the window’s foot, and old `?part=` links led to the matching section. A plan change after check-ins have started needs a reason; that is the plan-change rule, not the page’s.
 
+## The drill
+
+Stage 3’s drill scores the parts of the screens that are rules of the viewer, the address and the workspace, not of the markup: the menu, the lit item and a page’s name for two viewers at each address (`navigation.csv`), what New goal’s last step reads back for six drafts (`readback.csv`), what a search for a goal, a person or a team finds and in what order (`find.csv`), and Home’s lead or quiet line for four viewers over fourteen days (`home.csv`). Each is a function a screen calls, so a rebuild can pass it before drawing anything.
+
+- `rebuild/drill.json` holds `{ "stage": 3, "run": "<command>" }`. The harness runs it as stage 1’s ([the contract](stage-1-core-rules.md#the-contract)): `<command> <workspace.json> <out folder>`, a copy of `spec/conformance/workspace.json` and `rebuild/drill-out/`, emptied first.
+- The command writes these files into the out folder and exits 0, within 10 minutes:
+
+| File | Rows expected | Columns, in this order |
+|---|---|---|
+| `navigation.csv` | 54 | `viewer`, `owns_goals`, `address`, `menu`, `tabs`, `lit`, `page` |
+| `readback.csv` | 6 | `case`, `viewer`, `draft`, `rows`, `after` |
+| `find.csv` | 23 | `kind`, `q`, `total`, `near`, `ids` |
+| `home.csv` | 56 | `viewer`, `day`, `lead`, `title`, `quiet` |
+
+- What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.
+
+### A good order
+
+1. [Navigation](../core/rules/navigation.md): `navigation.csv` (`--files navigation`).
+2. [Finding things](../core/rules/finding.md): `find.csv`.
+3. [Home](../core/rules/home.md): `home.csv`.
+4. [The read-back](../core/rules/read-back.md): `readback.csv`, which needs [New goal](../core/rules/new-goal.md)’s level and [goal entry](../core/rules/goal-entry.md)’s questions.
+
+**What the drill doesn’t prove:** the screens themselves, their layout and look, and the journeys (exit criteria 2 to 4).
+
 ## Exit criteria
 
-1. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.
-2. Each core requirement in [the requirements](../core/requirements.md) holds.
-3. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
+1. `node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 3`: every row and column of `navigation.csv`, `readback.csv`, `find.csv` and `home.csv` match.
+2. Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.
+3. Each core requirement in [the requirements](../core/requirements.md) holds.
+4. No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).
 
 ## Gaps in the kit
 
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
-- The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. There is no portable journey runner yet.
-- The design rules (`docs/design-rules.md`) and the look are not in the kit; a heading or button whose words are worked out when it shows isn’t listed (the screens page says so).
-- The Help guide’s articles are summarised on the screens page, not given in full.
+- The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. The drill scores the screens’ words that are rules, not the screens: there is no portable journey runner yet.
+- The look is in [the design rules](../core/design-rules.md) and the Help guide in full in [the Help guide](../core/help-guide.md); each screen’s fields, states and buttons are read from Faro’s markup ([the screens](../core/screens.md)), with words worked out when it shows written “…” and the conditions a button shows under as Faro’s code writes them. There are no pictures of the screens yet.
 - Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.

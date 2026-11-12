@@ -18,6 +18,7 @@ import { attentionGroup, needsAttention } from '../domain/attention';
 import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
+import { listed } from './listed';
 import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
 import { FEEDBACK_TOOLS } from './feedbackTools';
@@ -127,6 +128,8 @@ const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 's
 const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
 
 async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+  // A goal's key: as saved once it is, as the change gives it before (a dry run's key is the one it would get).
+  const keyOf = (id: string): string | null => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
   const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
@@ -138,7 +141,8 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const data = {
     saved: false,
     summary: describe(cs),
-    changes: cs.items.map((x) => ({ goalId: x.goalId, goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
+    // Every goal a change is to, by its ID and key: a new goal's key is the one it is given (MCP load, 12 Nov).
+    changes: cs.items.map((x) => ({ goalId: x.goalId, ...(x.goalId ? { key: keyOf(x.goalId) } : {}), goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
     unchanged: cs.unchanged,
     examples: cs.examples,
     problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.name, kind: x.kind, message: x.message })),
@@ -149,7 +153,10 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     needsReason: cs.needsReason,
     questions: cs.items.flatMap((x) => (x.questions ?? []).map((q) => ({ goalId: x.goalId, goal: x.goal, id: q.id, field: q.field, question: q.text }))),
     needsConfirm: cs.needsConfirm,
+    /** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
+    created: cs.items.filter((x) => x.kind === 'new goal').map((x) => ({ id: x.goalId, key: keyOf(x.goalId), title: x.goal })),
   };
+  const createdLine = () => (data.created.length ? `\nNew ${data.created.length === 1 ? 'goal' : 'goals'}: ${data.created.map((x) => `${x.key ?? '—'} · ${x.id} · ${x.title}`).join('; ')}.` : '');
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
@@ -161,9 +168,12 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
   const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
-  if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}` };
+  if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}` };
   await ctx.save(cs.commit);
-  return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}` };
+  // Read back as saved: the store settles each new goal's key, so two people adding goals at once never share one.
+  data.created = data.created.map((x) => ({ ...x, key: keyOf(x.id) }));
+  data.changes = data.changes.map((x) => (x.goalId ? { ...x, key: keyOf(x.goalId) } : x));
+  return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}` };
 }
 
 /** A goal by its ID or its key (G-12). */
@@ -232,17 +242,21 @@ const CORE_TOOLS: ToolDef[] = [
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own (the same as scope "mine").'),
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
-      query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
       state: str('active (the default) or proposed: proposed goals have no status and are listed only when asked for.', { enum: ['active', 'proposed'] }),
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : EMPTY_QUERY;
+      const link = a.query ? new URLSearchParams(String(a.query).replace(/^.*\?/, '')) : null;
+      let query = link ? parseQuery(link) : EMPTY_QUERY;
+      // A Goals link (or a saved view) says whose goals with scope=, as the screen's address does (build review of #116).
+      let linkScope = link?.get('scope') ?? null;
       if (a.view) {
         const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
         if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
         query = parseQuery(new URLSearchParams(v.params));
+        linkScope = new URLSearchParams(v.params).get('scope');
       }
       // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
@@ -259,12 +273,13 @@ const CORE_TOOLS: ToolDef[] = [
         attention: query.attention || !!a.needs_attention,
       };
       // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
-      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: 'No goals match.' };
+      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [] });
       // Whose goals (goals spec, rule 1): the scope's goals, from the same rule as the Goals screen's tabs.
-      const scope = a.scope ? String(a.scope) as Scope : null;
+      // The scope argument wins over the link's.
+      const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: scope === 'team' ? 'No goals match: you’re in no team and lead none.' : 'No goals match: you own no goals this year.' };
+      if (scope && scope !== 'all' && !scoped) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [], why: scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.' });
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -282,8 +297,9 @@ const CORE_TOOLS: ToolDef[] = [
         : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
-      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state, needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
-      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${g.status ? statusWords(g.status) : g.statusLabel} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(', ')}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ''}`).join('\n') : 'No goals match.' };
+      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
+      // The same shape every time, filtered or not (MCP load, 12 Nov): the list as JSON, as structured content and as text.
+      return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: data });
     },
   },
   {
@@ -309,7 +325,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'post_check_in',
     title: 'Post a check-in',
-    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).',
+    description: 'Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner can post: not an admin, and not anyone else (an admin brings others’ check-ins in only by loading a workbook, or corrects a past one in Data’s tables). Posting again for the same week corrects that week’s check-in (the log keeps both).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: {
       goal_id: str('The goal’s ID or its key, e.g. G-12.'),
       week: int('The week, counted from the cycle start. Defaults to this week. Earlier weeks are marked as loaded later.'),
