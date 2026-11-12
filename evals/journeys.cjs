@@ -3159,7 +3159,7 @@ journey('U69', ['NAV-WHERE'], 'A page says where it is: each address has its own
   await p.context().close();
 }, ['logged']);
 
-journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page', 7, async (h, device) => {
+journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and goes there; the browser’s Forward returns; after saving an edit the link and the browser’s Back both go to Goals; a goal opened in a new tab goes up the tree; no back link on a place’s first page', 9, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const back = p.locator('main .backlink').first();
   const says = async () => ((await back.getAttribute('aria-label', { timeout: 5000 }).catch(() => '')) || '').trim();
@@ -3225,7 +3225,8 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await save.getByLabel('Name').fill('Off track, all');
   await save.getByRole('button', { name: 'Save view' }).click();
   await save.waitFor({ state: 'detached' });
-  await h.click(p.locator('main a[href*="/goals/"]').filter({ hasNotText: /^$/ }).locator('visible=true').first());
+  // A goal of the view's, not New goal (a form, which has no back link).
+  await h.click(p.locator('main a[href*="/goals/"]:not([href*="/goals/new"]):not([href$="/edit"])').filter({ hasNotText: /^$/ }).locator('visible=true').first());
   await p.waitForURL(/\/goals\/[^/?]+(\?|$)/);
   const fromView = await says();
   // Page not found offers Find in the page (navigation spec 2.6): a name finds that person, as a link.

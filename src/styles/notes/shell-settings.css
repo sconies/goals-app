@@ -179,6 +179,8 @@
 .focus-top .form-close { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; white-space: nowrap; }
 .focus-top .ci-top-actions { margin-left: auto; }
 .focus-top .ci-top-actions .form-close { margin-left: 0; }
+/* New goal: the step bar ends 16px from Close (F3, item 9), as it did from the icon. */
+.focus-top.wiz-top .form-close { margin-left: var(--s2); }
 @media (max-width: 420px) { .focus-top .form-close { padding: 0 8px; font-size: 0.8125rem; } }
 
 /* ---------- Find from anywhere (find spec 2.4): the sidebar's row drawn as a field, the phone's button, the sheet ---------- */
