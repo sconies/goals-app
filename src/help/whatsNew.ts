@@ -35,6 +35,38 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['getting-around', 'check-in'],
   },
   {
+    id: 'welcome-page',
+    date: '2026-11-12',
+    title: 'A proper front door',
+    points: [
+      'Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to.',
+      'An invitation opens the right workspace and says who set it up.',
+      'Opening Faro on a new device no longer drops you into a workspace you didn’t choose.',
+    ],
+    articles: ['welcome', 'joining'],
+  },
+  {
+    id: 'question-in-view-steadier',
+    date: '2026-11-12',
+    title: 'A question about a number stays put while you type',
+    points: [
+      'The question is brought into view once, when it first shows; typing more digits no longer moves the page up and down.',
+      'With an on-screen keyboard open, the question is brought above the keyboard.',
+      'In set-up, Continue with a goal card’s question open goes to the question, as New goal does.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'goal-proposed',
     date: '2026-11-12',
     title: 'Propose a goal before it starts',

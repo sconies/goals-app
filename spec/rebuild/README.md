@@ -28,10 +28,14 @@ Some things the internal app must do, Faro leaves to the platform it is rebuilt 
 - [R2. Company single sign-on](../requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
 - [R3. Time zones](../requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
 - [R4. Scale and safety](../requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [R5. Notifications and the weekly habit](../requirements/internal/r5-notifications-and-habits.md): asks, one reminder and a weekly digest in set words, check-in from a notification, never shame, streaks that forgive, the habit measure, a role per workspace
 - [R6a. The organisation](../requirements/internal/r6a-organisation.md): teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company
 - [R6b. Delegates](../requirements/internal/r6b-delegates.md): someone named to check in and answer asks for an owner while they are away, recorded as acting for them
 - [R6c. The planning round](../requirements/internal/r6c-planning-round.md): next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then
-- [Observability, as an idea](../requirements/internal/observability.md): not a requirement: what Faro records today, and what the internal app might take from it
+- [R7. Data retention, privacy and erasure](../requirements/internal/r7-retention-and-privacy.md): what is personal, how long each record is kept, leavers, seeing everything held about you, erasure
+- [R8. Audit](../requirements/internal/r8-audit.md): a record of who did what that no one can change, with exports and token use, kept 7 years
+- [R9. Observability and service levels](../requirements/internal/r9-observability.md): the signals sent to the company’s tools, the service levels promised, and what pages the on-call person
+- [R10. Accessibility](../requirements/internal/r10-accessibility.md): WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow
 
 ## The drill: a fresh session rebuilds a stage from the kit alone
 
