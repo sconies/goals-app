@@ -263,7 +263,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
 
-- **Named parts:** “Who are you?”
+- **Named parts:** “Who are you?”, “Open another workspace”
 - **Main action:** Say who you are, then go on to Home.
 - **Primary buttons in its markup:** “See your goals”, “Set up the first goal”
 - **AI tools:** none, on purpose: The first screen, before a workspace exists.

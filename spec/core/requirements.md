@@ -1020,10 +1020,10 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 ### WORKSPACE-ADMIN
 
-Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
+Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
-- **Tests:** `evals/workspace-admin.eval.ts` (6)
+- **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
@@ -1273,10 +1273,10 @@ Feedback sent with a mood and a few words joins the inbox (migration 0026): it i
 
 ### INBOX-TRIAGE
 
-The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
+The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U52
+- **Journeys and checks:** U42, U52
 
 ### MCP-FEEDBACK
 

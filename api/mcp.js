@@ -15043,7 +15043,7 @@ var CORE_ARTICLES = [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.",
 				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
-				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
+				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example. Only an admin of that workspace sees it; in the example anyone may start over.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
 				"Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload."
 			]
@@ -16388,7 +16388,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
+					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
 					"Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.",
 					"Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin."
@@ -17002,7 +17004,7 @@ var CORE_ARTICLES = [
 				heading: "Who can read it",
 				list: [
 					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
-					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
+					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
 					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
 					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
 				]
@@ -17047,7 +17049,11 @@ var CORE_ARTICLES = [
 				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
-		routes: ["/feedback", "/workspace/inbox"],
+		routes: [
+			"/feedback",
+			"/workspace/inbox",
+			"/inbox"
+		],
 		screens: ["Feedback"],
 		reqs: [
 			"MARKUP-INBOX",
@@ -17278,6 +17284,23 @@ var WHATS_NEW = [
 			"What’s new in Faro is now a line at the foot of Home."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "admins-triage-and-start-over",
+		date: "2026-11-12",
+		title: "Where one workspace ends, and who you are there",
+		points: [
+			"The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.",
+			"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”",
+			"About says what a workspace is, in one sentence, under its name.",
+			"Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.",
+			"In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may."
+		],
+		articles: [
+			"inbox",
+			"demo",
+			"workspace"
+		]
 	},
 	{
 		id: "polish-layout-switch",
@@ -21140,8 +21163,12 @@ var markupFromRow = (r) => ({
 	statusAt: r.status_at,
 	createdAt: new Date(r.created_at).toISOString()
 });
+/** Who may change an item's status in the inbox (Lane, 12 Nov): admins. Everyone may send feedback and read the inbox. */
+var mayTriage = (who) => !!who.admin;
+var ADMINS_TRIAGE = "Only an admin can change the status of feedback. You can still read it and send your own.";
 /** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
 function statusPatch(c, now, entries) {
+	if (!mayTriage(c)) throw new MarkupError(ADMINS_TRIAGE);
 	if (!STATUSES$1.includes(c.status)) throw new MarkupError("A status is new, in-hand, fixed or wont-fix.");
 	const fixedIn = c.status === "fixed" ? (c.fixedIn ?? "").trim() : "";
 	if (c.status === "fixed" && !fixedIn) throw new MarkupError("Say which What’s new entry has the fix.");
@@ -21589,7 +21616,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "update_markup",
 		title: "Change a markup",
-		description: "Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		description: "Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21620,7 +21647,8 @@ var MARKUP_TOOLS = [
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
 			});
 			return {
 				data: { markup: m },
@@ -21739,7 +21767,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "update_feedback",
 		title: "Change a piece of feedback",
-		description: "Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		description: "Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21764,7 +21792,8 @@ var FEEDBACK_TOOLS = [
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
 			});
 			return {
 				data: { feedback: {
