@@ -21,6 +21,8 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **Making it active** (`activate`): refused unless `mayActivate` and `readyToActivate` (rule 2's full list, empty). A number goal's From becomes the week chosen, this week unless said, and hand-set weeks before it are dropped. History: "Made it active, from week {n}". The read-back (`activeReadBack`) says the plan from then with its dates, "{n} weeks, not the {m} you proposed" when the span changed, and when the first check-in is due.
 
+A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes `confirm` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (`leaving`).
+
 **Back to proposed** (`backToProposed`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (`state-has-check-ins` in a file).
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".
@@ -79,6 +81,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 14: proposed goals › a fortnight later it still says Proposed, and a check-in on it is refused in the check-in’s words
 - rule 14: proposed goals › Rhea proposes a goal for Camille with only a name: nothing measured yet; Camille’s Home asks; she may make it active, Rhea may change it, Oskar neither
 - rule 14: proposed goals › Tunde makes it active in week 48: From becomes 48, read back with its dates; Undo makes it proposed again
+- rule 14: proposed goals › GE10 review: From before this week is asked at every door; a From outside the plan is refused
+- rule 14: proposed goals › GE10 review: a stages goal proposed with a stage already done saves no check-in
+- rule 14: proposed goals › GE10 review: marking an owner as left hands over their proposed goals too
 - rule 14: proposed goals › a goal with a check-in can’t go back to proposed, by the menu or by a file
 - rule 14: proposed goals › a goal proposed 9 weeks ago asks its owner on Home
 - rule 14: proposed goals › it carries into the next year as proposed
