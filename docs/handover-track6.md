@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second, third and fourth, each at half context. The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second, third, fourth and fifth. The next session starts from here.
 
 ## The brief
 
@@ -50,6 +50,15 @@ The ground rules:
   - **Tests:** in `src/spec/conformance.test.ts`, "import.csv covers every issue kind".
   - **Rebuild api/mcp.js:** a change to a `module.json` or to `src/spec/overview.ts` changes it, so run `npm run build:mcp` (CI failed once on this).
 
+- **KT5, gap 3, the screens (#263 merged; part 2 is the pictures' PR).**
+  - **Fields, states and buttons:** `spec/core/screens.md` gives each screen three tables, read from its markup's syntax by `src/spec/screenFacts.ts`. The tables are fields, states (whole screen, loading, empty, error, refused) and buttons with the conditions they show under. `whoWords` turns the shared conditions (an admin, the goal's owner) into words.
+  - **Screens with no route:** `OTHER_VIEWS` in `src/spec/screens.ts` gives them entries. A test fails if a file in `src/screens` is neither a route's screen nor one of these.
+  - **New pages:** `spec/core/design-rules.md` (`docs/design-rules.md`, word for word) and `spec/core/help-guide.md` (every article in full).
+  - **Pictures:** `npm run spec:shots` (`scripts/screen-shots.mjs`) builds the app and takes each screen in `SHOTS` at 390 and 1440 wide, as JPEG, into `spec/core/screens/`.
+    - `npm run spec` keeps the pictures.
+    - The spec test fails if a core screen has no picture.
+    - Retake them (`-- --no-build Home`, say) when a screen's look changes a lot. Nothing forces it.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -63,11 +72,10 @@ The ground rules:
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
      - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
-2. **Gap 3 (next to build: it doesn't wait on track 4):** the screens. Put `docs/design-rules.md` and the Help guide in the kit, generate a fields-and-states table per screen, and add screenshots at 390 and 1440 wide. Give the missing screens entries.
-3. **Gap 4:** schemas for the AI tools and actions, generated into `spec/core/tools.md` and `spec/core/actions.md`.
-4. **Gap 5:** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
+2. **Gap 4 (next to build: it doesn't wait on track 4):** schemas for the AI tools and actions, generated into `spec/core/tools.md` and `spec/core/actions.md`.
+3. **Gap 5:** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-5. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
+4. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
 
 ## Things to know
 

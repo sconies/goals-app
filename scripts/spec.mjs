@@ -15,7 +15,8 @@ try {
   const onDisk = [];
   const walk = (rel) => { for (const e of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) { const p = `${rel}/${e.name}`; if (e.isDirectory()) walk(p); else onDisk.push(p); } };
   if (fs.existsSync(path.join(root, 'spec'))) walk('spec');
-  const extra = onDisk.filter((f) => !(f in want));
+  // The screens' pictures are taken by npm run spec:shots, not made here; screens.md shows them and the spec test checks them.
+  const extra = onDisk.filter((f) => !(f in want) && !/^spec\/core\/screens\/[^/]+\.jpg$/.test(f));
   const stale = Object.entries(want).filter(([f, text]) => !fs.existsSync(path.join(root, f)) || fs.readFileSync(path.join(root, f), 'utf8') !== text).map(([f]) => f);
   if (check) {
     if (stale.length || extra.length) {
