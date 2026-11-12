@@ -48,7 +48,7 @@ Decided in release 1 of the consolidation (5 Nov 2026). The words for states (st
 
 These use a word from the last column on purpose. The consistency check skips exactly these.
 
-- `Data tables` in `src/domain/changeset.ts`: the "Via" value and summary written into the change log for edits made in Data. They are stored on every such change, so renaming them changes data; a later release can rename them together with a migration.
+- `Data tables` in `src/domain/via.ts`: the "Via" value written into the change log for edits made in Data (moved from `src/domain/changeset.ts` so the first download doesn't load the change engine). Stored on every such change, as below.
 - `the data tables` in `src/domain/changeset.ts`: the same, in the logged summary "Edited the data tables: …".
 
 ## Words that look alike

@@ -1,5 +1,7 @@
 /* Type every number for the week in one table. Each row is judged as you type with the same rules as the
    check-in; a row that's behind or ahead opens just the fields it needs. Saved together through the bulk-change engine. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../app/engineReady';
 import { useMemo, useRef, useState, type SelectHTMLAttributes } from 'react';
 import { checkInDraftKey, checkInStepKey, clearDraft, peekDraft, writeDraft } from '../app/drafts';
 import type { FromTable } from './CheckInFlow';

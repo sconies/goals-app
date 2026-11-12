@@ -2,7 +2,7 @@
    that's the RPC (okr_commit, okr_create_workspace) as the browser sees it, so `db.system` is postgresql and
    `db.operation` the function's name; nothing is instrumented inside Postgres. The demo's browser store is timed the
    same way, as db.system=browser. The store behaves exactly as before: the span only watches. */
-import type { Commit, Store } from '../data/store';
+import { examplesOf, type Commit, type Store } from '../data/store';
 import { errorType } from './errors';
 import type { Telemetry } from './client';
 
@@ -19,14 +19,14 @@ export function tracedStore(store: Store, tel: Telemetry): Store {
     );
   };
   const size = (c: Commit) => Object.values(c).reduce<number>((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
+  const demo = examplesOf(store);
   return {
     kind: store.kind,
-    hasExample: store.hasExample,
+    ...(demo ? { hasExample: true, resetExample: (id?: string) => demo.resetExample(id) } : {}),
     workspaces: () => store.workspaces(),
     load: (ws) => timed(pg ? 'select' : 'load', () => store.load(ws)),
     commit: (ws, c) => timed(pg ? 'okr_commit' : 'commit', () => store.commit(ws, c), { 'app.count': size(c) }),
     createWorkspace: (w, data) => timed(pg ? 'okr_create_workspace' : 'create_workspace', () => store.createWorkspace(w, data)),
-    resetExample: (id) => store.resetExample(id),
     deleteWorkspace: (id) => timed(pg ? 'okr_delete_workspace' : 'delete_workspace', () => store.deleteWorkspace(id)),
     issueToken: (id, c) => timed(pg ? 'okr_token_create' : 'issue_token', () => store.issueToken(id, c)),
     ...(store.saveProblem ? { saveProblem: () => store.saveProblem!() } : {}),
