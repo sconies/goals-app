@@ -6,7 +6,8 @@ import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
   /** Stable, for tests and keys. */
-  id: 'no-goals' | 'no-review' | 'only-admin' | 'no-email' | 'no-team' | 'no-lead';
+  id: 'no-goals' | 'no-review' | 'only-admin' | 'no-email' | 'no-team' | 'no-lead' | (string & {});
+  /* A module's own need (the metric library's `metric-no-owner`) comes after the core's, with an id of its own. */
   /** What needs sorting out, as a short sentence (shown in bold). */
   says: string;
   /** Why it matters, in a line under it. */

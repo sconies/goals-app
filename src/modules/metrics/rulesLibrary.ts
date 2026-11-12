@@ -12,7 +12,7 @@ import { byWeekWords } from '../../domain/scorecard';
 import { RANK } from '../../domain/status';
 import type { GoalSummary } from '../../domain/summary';
 import type { Cycle, DisplayStatus, Person, Team } from '../../domain/types';
-import { COMPANY } from './rules';
+import { COMPANY, ownerName } from './rules';
 import type { Metric, MetricDirection, MetricLink } from './types';
 
 const DAY = 86_400_000;
@@ -33,7 +33,9 @@ export const decimalsWords = (d: number) => (d === 0 ? 'whole numbers' : `to ${p
 export const metricSlug = (id: string) => id.replace(/^metric_/, '');
 /** The metric an address names: by its slug, or its whole id. Removed ones too: the page says it was removed. */
 export const metricAt = (metrics: readonly Metric[], part: string): Metric | undefined => {
-  const p = decodeURIComponent(part);
+  // The router gives the part decoded already; an address typed by hand may still be encoded ("100%25" or "100%").
+  let p = part;
+  try { p = decodeURIComponent(part); } catch { /* a bare % stays as it is */ }
   return metrics.find((m) => m.id === p) ?? metrics.find((m) => m.id === `metric_${p}`);
 };
 /** A metric's page. */
@@ -58,7 +60,7 @@ export const liveLinks = (r: Pick<LibraryReads, 'links' | 'goalIds'>, metricId: 
 /** The units the library's metrics use, A to Z: the "Unit" filter's short list. */
 export const unitsInUse = (metrics: readonly Metric[]) => [...new Set(metrics.filter((m) => !m.removedAt).map((m) => m.unit))].sort((a, b) => fold(a).localeCompare(fold(b)));
 /** The owner's name, or null when none is set or they have left. */
-export const ownerName = (people: LibraryReads['people'], m: Pick<Metric, 'ownerId'>) => { const p = people.find((x) => x.id === m.ownerId); return p && !p.leftAt ? p.name : null; };
+export { ownerName } from './rules';
 
 /* ---------- rule 3: what a metric needs ---------- */
 
@@ -190,7 +192,9 @@ export function summaryLine(rows: readonly MetricGoalRow[]): string | null {
   if (new Set(valued.map(shape)).size > 1) return null;
   const sorted = [...valued].sort((a, b) => a.nowValue! - b.nowValue! || a.slice.localeCompare(b.slice));
   const lo = sorted[0]!, hi = sorted[sorted.length - 1]!;
-  return `Lowest now: ${lo.slice}, ${lo.now}. Highest: ${hi.slice}, ${hi.now}.`;
+  // Two goals for one slice: each is named by its goal, so the line never names the same slice twice.
+  const who = (r: MetricGoalRow) => (lo.slice === hi.slice ? r.goal.title : r.slice);
+  return `Lowest now: ${who(lo)}, ${lo.now}. Highest: ${who(hi)}, ${hi.now}.`;
 }
 
 /** A metric's goals by status, worst first, only the statuses it has: what a library row says ("1 off track · 2 on track"). */
@@ -221,3 +225,39 @@ export function movedMetrics(path: string, search = ''): string | null {
   if (isNew) return `/metrics/new${rest}`;
   return `/metrics${rest}`;
 }
+
+/* ---------- rule 4: a close name ---------- */
+
+/** Words that say little about which number a metric is: left out when names are compared (rule 4). */
+const FILLER = new Set(['the', 'of', 'per', 'for', 'in', 'a', 'rate', 'time']);
+/** A name's words for rule 4: lower case, without accents, punctuation, anything in brackets, or filler. */
+export const nameWords = (name: string) => new Set(fold(name.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')).split(/[^\p{L}\p{N}%]+/u).filter((w) => w && !FILLER.has(w)));
+
+/**
+ * Rule 4. Up to two metrics in use whose names are close to `name`, closest first: one name's words contain the
+ * other's, or they share at least two words and differ by at most one. An exact match (any case) is metricProblems'
+ * error, not this; nor is a metric being changed (`except`).
+ */
+export function closeNames(name: string, metrics: readonly Metric[], except?: string): Metric[] {
+  const mine = nameWords(name);
+  if (!mine.size) return [];
+  const scored: { m: Metric; d: number }[] = [];
+  for (const m of metrics) {
+    if (m.removedAt || m.id === except || fold(m.name.trim()) === fold(name.trim())) continue;
+    const theirs = nameWords(m.name);
+    if (!theirs.size) continue;
+    const shared = [...mine].filter((w) => theirs.has(w)).length;
+    const extra = mine.size + theirs.size - 2 * shared;
+    const contained = shared === Math.min(mine.size, theirs.size);
+    if (contained || (shared >= 2 && extra <= 1)) scored.push({ m, d: extra });
+  }
+  return scored.sort((a, b) => a.d - b.d || fold(a.m.name).localeCompare(fold(b.m.name))).slice(0, 2).map((x) => x.m);
+}
+
+/** The close-name question's words (spec 2.3): "This looks like “{other}” ({unit}, {direction}, owned by {name})." */
+export const closeNameWords = (m: Metric, people: LibraryReads['people']) => {
+  const owner = ownerName(people, m);
+  return `“${m.name}” (${m.unit}, ${directionWords(m.direction)}${owner ? `, owned by ${owner}` : ''})`;
+};
+
+export { ownerlessMetrics } from './rules';

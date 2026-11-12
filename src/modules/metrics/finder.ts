@@ -2,6 +2,9 @@
    Goals filter "Measured by" (?metric=), declared as data (docs/design/architecture.md, 4.2). Kept small: it is in the
    first download, so the finder loads its rules only when someone searches, and the filter reads the rows directly. */
 import type { ModuleFilter, ModuleFinder } from '../../core/app';
+import type { WorkspaceNeed } from '../../domain/workspaceAttention';
+import type { Person } from '../../domain/types';
+import { ownerlessMetrics } from './rules';
 import type { Finder } from '../../adapters/localSearch';
 import { moduleRows } from '../../domain/records';
 import type { Snapshot } from '../../domain/types';
@@ -40,3 +43,10 @@ export const measuredByFilter: ModuleFilter = {
     return m?.name ?? null;
   },
 };
+
+/** Workspace → About, for admins (spec 2.8): live metrics with no owner, or one who has left. */
+export function metricsToSortOut(s: Snapshot, viewer: Person): WorkspaceNeed[] {
+  if (!viewer.admin) return [];
+  const n = ownerlessMetrics({ metrics: rows(s).metrics, people: s.people }).length;
+  return n ? [{ id: 'metric-no-owner', says: `${n} ${n === 1 ? 'metric has' : 'metrics have'} no owner`, why: 'An owner keeps a metric’s meaning true.', action: 'See them', to: '/metrics?sortout=1' }] : [];
+}
