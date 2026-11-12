@@ -15,6 +15,8 @@ const RULES = [
   // The spec (backlog 8a, 8b): generated files and their generator. npm test checks them; no screen reads them.
   [/^(spec\/|llms\.txt$|src\/spec\/|scripts\/spec\.mjs$)/, []],
   [/^src\/help\//, ['N7', 'U27', 'U29']],
+  // The build-time index of Help and What's new (#167): what the first download knows of them before they load.
+  [/^vite\.helpIndex\.ts$/, ['N7', 'U27', 'U29']],
   // Shared by every screen: the full suite.
   [/^(src\/(App|main)\.tsx|src\/styles\.css|src\/styles\/[^/]+\.css|src\/app\/state\.tsx|src\/ui\/|src\/domain\/(vocabulary|status|types|plan|cycle|year)\.ts|src\/data\/(store|examples)\.ts|src\/data\/platformOrg\/|index\.html|vite\.config\.ts|package(-lock)?\.json)/, [FULL]],
   [/^evals\/(journeys\.cjs|run\.mjs|shards\.cjs|touches\.cjs)$/, [FULL]],

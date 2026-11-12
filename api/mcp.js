@@ -15714,6 +15714,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
+					"Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.",
 					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
@@ -15871,6 +15872,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "offline-page-needs-connection",
+		date: "2026-11-12",
+		title: "Offline, a page that hasn’t loaded says so",
+		points: [
+			"Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.",
+			"It says the page needs a connection, with Try again and Go back.",
+			"On a slow connection, such a page says “Opening…” while it loads."
+		],
+		articles: ["any-device"]
+	},
 	{
 		id: "setup-near-miss-stops",
 		date: "2026-11-12",

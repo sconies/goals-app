@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
@@ -103,6 +103,14 @@ export function Stat({ label, value, note, tone }: { label: string; value: strin
       {note && <span className="tiny" style={{ color: 'var(--fg-2)' }}>{note}</span>}
     </div>
   );
+}
+
+/** While a page that loads when opened is on its way (Help, What's new, Settings…): nothing for a moment, so a fast
+    connection sees no flash, then a quiet line, so a slow one doesn't look stuck (#167's review). */
+export function PageWait({ after = 300 }: { after?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShown(true), after); return () => clearTimeout(t); }, [after]);
+  return shown ? <div className="page narrow"><p className="hint" role="status" data-page-wait>Opening…</p></div> : null;
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
