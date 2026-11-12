@@ -18060,6 +18060,17 @@ var WHATS_NEW = [
 		articles: ["metric-define", "metrics"]
 	},
 	{
+		id: "question-in-view-steadier",
+		date: "2026-11-12",
+		title: "A question about a number stays put while you type",
+		points: [
+			"The question is brought into view once, when it first shows; typing more digits no longer moves the page up and down.",
+			"With an on-screen keyboard open, the question is brought above the keyboard.",
+			"In set-up, Continue with a goal card’s question open goes to the question, as New goal does."
+		],
+		articles: ["new-goal", "edit-goal"]
+	},
+	{
 		id: "batch-refs-fixes",
 		date: "2026-11-12",
 		title: "Refs in a file: two fixes",
@@ -20383,52 +20394,52 @@ var RULE_PAGES = [
 	[
 		"weeks-and-plans",
 		"Weeks and plans",
-		"which week it is, and what the plan says a number should be"
+		"Which week it is, and what a goal’s plan says its number should be in any week."
 	],
 	[
 		"year-end",
 		"A year’s end",
-		"a cycle’s real first and last days; after the last day results close and nothing is due or out of date"
+		"A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year."
 	],
 	[
 		"status",
 		"A goal’s status",
-		"what the numbers say, and the official status (the owner’s call unless stale)"
+		"What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale."
 	],
 	[
 		"projection",
 		"The projection",
-		"where a number lands by its due week, as a range"
+		"Where a number lands by its due week if the recent trend holds: the likeliest value and a range around it."
 	],
 	[
 		"check-in",
 		"What a check-in must say",
-		"what is needed before a check-in can be posted"
+		"What a check-in needs before it can be posted, and the record it becomes."
 	],
 	[
 		"numbers-and-names",
 		"Numbers and names",
-		"a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart"
+		"How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart."
 	],
 	[
 		"levels",
 		"Levels",
-		"which levels a goal can have, what each is called, which is untagged, and how they sort"
+		"Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place."
 	],
 	[
 		"flags",
 		"Flags, the trend and needs attention",
-		"why a goal is flagged, and whether it needs attention"
+		"Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled."
 	],
 	[
 		"scorecard",
 		"The scorecard",
-		"vs plan, since last week, to target, and how likely it is to hit"
+		"The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target."
 	],
 	[
 		"change-engine",
 		"The change engine",
-		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
+		"The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP."
 	]
 ];
 /** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
