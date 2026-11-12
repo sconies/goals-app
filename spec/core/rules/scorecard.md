@@ -79,7 +79,7 @@ For a range, better means further from the limit on its safe side.
 
 **Short or over** (`shortWord(better)` in `src/domain/vocabulary.ts`, the one place the word is chosen): an amount on the wrong side of a plan or target is "short" when higher is better and "over" when lower is better: "1 pt short" of a 46% plan, "1 min over" a 6 min plan. The scorecard's `target` cell, the chart's mark at the due week ("5 over") and a quarter's result ("Q3: 7 min against a plan of 6 min, 1 min over") all use it.
 
-**A quarter's result** (`quarterResult` in `src/domain/year.ts`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short".
+**A quarter's result** (`quarterResult` in `src/domain/year.ts`) compares the number with the plan at the quarter's end as both are shown, at the goal's decimals: 0.68 against a plan shown as 0.68 is met, never "0.00 short". **A quarter that ended before the goal was set up is never judged** (`bornWeek`: the cycle's week of the goal's `createdAt`, 0 before the cycle began): a quarter whose last week is at or before it has nothing due ("Q1: before the goal was set up in week 46"), whatever week its baseline is from and whatever numbers were loaded for those weeks, so it is in no count of Met or Not met and raises no "Last quarter not met".
 
 ## Worked examples
 
@@ -90,6 +90,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A target of 75, higher is better, projected 80 (range 78–82, d = −2.5); 76 (72–80, d = −0.25); 72 (70–74, d = 1.5); 60 (58–62, d = 7.5). | `likely, possible, unlikely, very-unlikely` |
 | A target of 18, lower is better, projected 19 (range 18–20): d = (18 − 19) × −1 / 1 = 1. | `possible` |
 | The 30→75 goal with 36, 39, 42, 45 in weeks 1–4, seen in week 4. | `plan: 1 pt ahead of plan [good] (plan 44%); since: 3 pts better [good] (was 42% in week 3); target: 30 pts to go [flat] (target 75%); hit: Very unlikely [bad] (likely 72% by cycle end)` |
+| A goal year of 53 weeks; a range goal (at most 12.0%) and a 30→75 goal with its baseline from week 23, both set up on 12 November 2026 (week 46), with nothing reported; seen in week 46. | `range: none, none, none, open; metric: none, none, none, open` |
 | Short or over: higher is better, then lower is better. | `short, over` |
 | A 60→30 goal (lower is better) with 50, 48, 46, 45 in weeks 1–4, seen in week 4: To target. | `15 pts over [flat] (target 30%)` |
 | Values and amounts: 1 and 1.0 in hours (1 and 0 decimals), 1 in ms, 1 in pts, 1250.5 in USD (1 decimal), 0.4 and 1 in %; -0.3 in min (0 decimals). | `fmt: 1 hour, 1.0 hours, 1 ms, 1 pts, 1,250.5 USD, 0.4%, -0 min; amount: 1 hour, 1.0 hour, 1 ms, 1 pt, 1,250.5 USD, 0.4 pts, 1 pt` |
@@ -153,6 +154,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - quarters read off the owner’s plan › keeps closed quarters judged against the plan of their day when the target changes again (research round 1)
 - quarters read off the owner’s plan › counts a template’s stage weeks from now, within the year (research round 1)
 - quarters read off the owner’s plan › keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › is never judged, whatever week the baseline is from, and says why
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › even with numbers loaded for those weeks
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › raises no “Last quarter not met” on its story
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › a goal set up during a quarter is still judged on it
 
 ### [evals/goalPage.eval.ts](../../../evals/goalPage.eval.ts)
 
