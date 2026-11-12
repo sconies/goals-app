@@ -34,6 +34,31 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'import-way-in',
+    date: '2026-11-12',
+    title: 'Paste rows, and headers that are nearly right',
+    points: [
+      'Paste cells from a spreadsheet straight into Import.',
+      'A title row above the headers, or “Goal name” for Goal, is read.',
+      'A header one letter out is asked about once: “Read it as Target?”',
+      'A file Faro can’t use says what it found, and offers the template.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'metric-fixes',
+    date: '2026-11-12',
+    title: 'Metrics: a few things put right',
+    points: [
+      'New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.',
+      'A goal you make for someone else can be measured by a metric straight away.',
+      'A goal whose metric changed unit or direction since now says so on its page.',
+      'Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.',
+      'See goals in a unit finds the goals in that unit.',
+    ],
+    articles: ['metrics'],
+  },
+  {
     id: 'past-imports',
     date: '2026-11-12',
     title: 'Past imports, each with Undo',

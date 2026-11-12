@@ -250,6 +250,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'loop': return `${n(count, 'goal')} would feed ${count === 1 ? 'itself' : 'themselves'}`;
     case 'near-ref': return `${n(count, 'row')} name${count === 1 ? 's' : ''} a ${THING[col] ?? 'record'} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
     case 'near-word': return `${col} says “${v}” on ${n(count, 'row')}. Read it as ${first.suggest}?`;
+    case 'near-header': return first.message;
     case 'same-person': return first.message;
     case 'same-goal': return `${n(count, 'new goal')} ${count === 1 ? 'has a name its team already uses' : 'have names their teams already use'}: “${v}”. Are they new?`;
     case 'other-goal': return first.message;

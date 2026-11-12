@@ -45,6 +45,8 @@
 
 /* On a goal's page, a person's and a team's (the module's places). */
 .goal-measured-by { margin: 0; }
+.metric-differs { margin: 0; display: flex; gap: var(--s1); align-items: flex-start; color: var(--fg-2); }
+.goal-bar.compact .metric-differs { display: none; }
 /* The one-line bar once scrolled, and a phone's summary, stay short: the section below says it (N2, N9). */
 .goal-bar.compact .goal-measured-by { display: none; }
 @media (max-width: 760px) { .goal-measured-by { display: none; } }
