@@ -36,7 +36,8 @@ export function CheckInFlow() {
   const [params] = useSearchParams();
   const fromTable = !!(useLocation().state as { fromTable?: FromTable } | null)?.fromTable;
   if (!goalId && params.get('start') !== '1' && !fromTable) return <CheckInQueue />;
-  return <Flow key={goalId ?? 'week'} goalId={goalId} />;
+  // Correcting is its own form: the receipt's link (?correct=1) opens it afresh, not the receipt again.
+  return <Flow key={(goalId ?? 'week') + (params.get('correct') === '1' ? ':correct' : '')} goalId={goalId} />;
 }
 
 /** Where the week's queue is kept for this tab, so a reload keeps "2 of 2" (deep review U8). */

@@ -1403,7 +1403,7 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await h.checkpoint('posted');
 });
 
-journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 8, async (h, device) => {
+journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 9, async (h, device) => {
   // Rhea's image slimming (ci-docker), due this week: she posts the plan's number, then corrects it.
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/check-in/ci-docker'));
@@ -1420,12 +1420,13 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   await h.click(p.getByRole('link', { name: 'Correct this check-in' }));
   await p.waitForURL(/\/check-in\/ci-docker\?correct=1/);
   await see(p, 'Why are you changing it?', 'the correction asks why');
-  await h.fill(field, String(right + 1));
+  await h.fill(field, String(right - 1));
   await answerChecks(p);
   const why = p.getByLabel('Why are you changing it?');
   await h.fill(why, 'typo');
   await h.click(p.getByRole('button', { name: /Post check-in|Continue/ }));
-  await see(p, 'Must fix', 'a reason under 10 characters is not a Must fix');
+  // The field's Must fix: the warning mark and the engine's sentence under the field (goal entry 2.1, item 2).
+  await see(p, 'Say why, in a sentence', 'a reason under 10 characters is not a Must fix');
   const s1 = await h.snapshot();
   h.set('errors', s1.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW).length === 1, 'something posted with a reason under 10 characters');
   await h.fill(why, 'I read the dashboard for the wrong week');
@@ -1438,7 +1439,7 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   h.set('progress', /is now/.test(await toast.innerText()), `the toast said “${(await toast.innerText()).replace(/\s+/g, ' ')}”`);
   const s2 = await h.snapshot();
   const week = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
-  h.set('finish', week.length === 1 && week[0].value === right + 1, `week ${NOW} holds ${week.map((c) => c.value).join(', ') || 'nothing'}`);
+  h.set('finish', week.length === 1 && week[0].value === right - 1, `week ${NOW} holds ${week.map((c) => c.value).join(', ') || 'nothing'}`);
   const hist = p.locator('#history');
   await hist.waitFor();
   await see(hist, `Corrected week ${NOW}`, 'History does not say the week was corrected');

@@ -342,6 +342,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   const saving = useRef(0);
   // A check-in being saved, by goal: pressing Post again (or a second tap) waits for it rather than posting twice.
   const posting = useRef(new Map<string, Promise<CheckIn>>());
+  // A correction's Undo runs against the workspace as it is when pressed (the import it undoes is in it by then).
+  const undoNow = useRef<(importId: string) => void>(() => undefined);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -593,6 +595,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       deleteCycle: (_, i) => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === i.cycleId)?.name ?? ''}`,
     };
 
+    undoNow.current = (importId) => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); };
     /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
     async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
       const before = snapshot;
@@ -704,7 +707,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
           const ch = out.commit.changes.find((x) => x.importId);
           if (mode === 'correct' && ch?.importId) {
             const importId = ch.importId;
-            toast(correctedLine(ch.summary), 'success', { label: 'Undo', run: () => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); } });
+            toast(correctedLine(ch.summary), 'success', { label: 'Undo', run: () => undoNow.current(importId) });
           }
           return out.checkIn;
         });
