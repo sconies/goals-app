@@ -24,7 +24,8 @@ export const MAIN_ACTION: Record<string, string> = {
   Onboarding: 'Set up a workspace, one question a screen.',
   Settings: 'Change your own choices; see who you are here and go to your page.',
   Help: 'Find an answer: search, or open an article.',
-  Start: 'Say who you are, then go on to Home.',
+  Start: 'On an invitation, choose which one you are, then go on to Home; on /ready, the one next thing after setting up.',
+  Welcome: 'Set up a workspace; coming back, Open the workspace last opened (or Carry on a set-up left unfinished).',
 };
 
 /** A view, overlay or page with no route of its own: shown inside a screen, over every screen, or when nothing else
@@ -87,7 +88,8 @@ export const SHOTS: Record<string, Shot> = {
   Onboarding: { who: 'amara', at: '/workspace/new' },
   Settings: { who: 'rhea', at: '/settings' },
   Help: { who: 'rhea', at: '/help' },
-  Start: { who: '', at: '/', live: true },
+  Start: { who: '', at: '/join/ws_nope', live: true },
+  Welcome: { who: '', at: '/welcome', live: true },
   'Check-in: the week’s list': { who: 'rhea', at: '/check-in' },
   'Goals: the table': { who: 'amara', at: '/goals?view=table' },
   'Goals: the board': { who: 'amara', at: '/goals?view=board' },

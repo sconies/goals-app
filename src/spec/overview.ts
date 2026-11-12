@@ -35,6 +35,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['workspace', 'The workspace: cycles, teams, names, leaving and what needs attention'],
   ['directory', 'The directory: who People lists, what a search finds, and where old addresses lead'],
   ['day-one', 'Day one: set-up’s steps and “Getting started”'],
+  ['welcome', 'Welcome and the invitation'],
   ['map', 'The goal map'],
   ['goal-act', 'Acting on a goal: its buttons, and next steps and asks'],
   ['goal-history', 'A goal’s history'],

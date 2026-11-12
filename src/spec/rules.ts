@@ -10,7 +10,8 @@ import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scope
 import { carryCopy, carryKind } from '../domain/carry';
 import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, levelRank, levelsOf } from '../domain/levels';
 import { dayOneRows } from '../app/reads';
-import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
+import { arrived, DAY_ONE_DAYS, gettingStarted, invitedTo, inviteLink, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
+import { arrivalIntro, arrivalLine, readInvitation } from '../domain/arrival';
 import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { readHeader, readLine, readTables } from '../domain/sheets';
@@ -1008,7 +1009,7 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
 
 **Leaving.** Anyone may leave a workspace themselves. It is the same as an admin marking them as left (whoever takes over their goals and open asks is chosen first; they leave the reviews they were in), logged as "Name left the workspace". The only admin may not leave.
 
-**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (\`mergePeople\`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (\`stagesFromNow\`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (\`stagesFromJoining\`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (\`/?workspace=<id>\`), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
+**Set-up says only what it was told** (deep review U2–U7). People typed are never replaced by a spreadsheet uploaded after them: the file's people come after, anyone already there (the same email, or the same name where either has no email) isn't added twice, and only a typed row's empty fields take the file's (\`mergePeople\`); the upload says what it added and can be undone. A template's stage weeks count from the week the workspace joins (\`stagesFromNow\`); so do a spreadsheet's, for any goal with a stage due before that week and no check-ins in the file (\`stagesFromJoining\`), said on Check with "Keep the weeks as typed". A goal with check-ins in the file keeps its weeks. Set-up never asks who leads a team, so it names no lead; anything else that adds a team adds its first person as the lead. The invitation link names the workspace (\`/join/<id>\`; the old \`/?workspace=<id>\` leads there), and opening it opens that workspace and remembers it, whatever the browser had open. With no goals, nothing is said to be due.
 
 **What an admin has to sort out** (About's "To sort out", for admins only; a member is shown nothing), in this order: no goals in the running cycle; no review that hasn't ended; the only admin, once the workspace has ${ONLY_ADMIN_FROM} people or more; people with no email; people in no team; teams of ${LEAD_FROM} people or more with no lead (set-up never asks who leads a team, so a small new team isn't told off). About shows the first ${NEEDS_SHOWN}; the rest open from "and {k} more". The year ending is Home's to say, and feedback is the builders' business.
 
@@ -1085,6 +1086,33 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Ana, 15 days after her first visit.', then: 'nothing', run: () => gettingStarted('ana', dayOneRows(dayOneWs(['ana'])), DAY_WS, { firstSeenAt: DAY_MADE }, new Date('2026-11-26T15:00:00Z'), 'Thursday').map((x) => x.id).join(', ') || 'nothing' },
     ],
     unclear: ['Two weeks, and 28 days for a workspace to stop being new, are choices; the rebuild may tune them.', 'Which goals were left without an owner is kept per person (the Prefs port), not on the goal: a rebuild keeps it out of the goal’s record too.'],
+  },
+
+  /* ---------- Welcome and the invitation (set-up spec ST1) ---------- */
+  {
+    id: 'welcome',
+    title: 'Welcome and the invitation',
+    summary: 'Which workspace opens (only one someone chose), what an invitation is and what it opens, and what the arrival says about each person.',
+    code: [{ file: 'src/domain/dayOne.ts', names: ['inviteLink', 'invitedTo', 'arrived'] }, { file: 'src/domain/arrival.ts', names: ['readInvitation', 'arrivalLine', 'arrivalIntro', 'draftStopped'] }, { file: 'src/domain/actions.ts', names: ['arrive'] }],
+    tests: ['src/domain/dayOne.test.ts', 'src/app/invitation.test.tsx'],
+    reqs: ['SETUP-FIRST-SCREEN', 'IDENTITY'],
+    body: `
+**Only a workspace someone chose opens.** One this device remembers (the last opened), or the one an invitation names. A device that remembers none opens Welcome, at \`/welcome\`, never the first workspace the store lists. An invitation to a workspace that isn't there opens nothing else: it says so.
+
+**An invitation** is the address \`/join/<workspace>\` (under \`/demo\` in the demo). The link copied before, \`/?workspace=<id>\`, leads there. Opening it opens that workspace and remembers it on the device; someone already known there goes to Home, anyone else to the arrival. Pasted into Welcome, only this site's \`/join/…\` or \`/?workspace=…\` is an invitation; anything else is "That isn't a Faro invitation."
+
+**The arrival** says who set the workspace up, when, and how many people and goals it has, then lists everyone by team with one true line each: "Set this up · admin" (whoever set it up), "Admin", "Owns {n} goals", or "No goals yet". Choosing a name is the action.
+
+**Arriving is logged once.** The first time someone chooses their name, the log gains "{name} opened {workspace} for the first time": a change on the person, \`acknowledged\`, by them. Choosing again (another device) adds nothing; whoever set it up has arrived already. No record changes and nothing new is stored, so no migration. In the internal app the first sign-in writes it (R1, rule 11).
+`,
+    examples: [
+      { given: 'The invitation to ws_n0g3rv, in the real app and in the demo.', then: 'https://faro.example/join/ws_n0g3rv / https://faro.example/demo/join/ws_n0g3rv', run: () => `${inviteLink('https://faro.example', 'live', 'ws_n0g3rv')} / ${inviteLink('https://faro.example', 'demo', 'ws_n0g3rv')}` },
+      { given: 'The workspace /join/ws_a and the old /?workspace=ws_b name.', then: 'ws_a, ws_b', run: () => `${invitedTo('/join/ws_a', '')}, ${invitedTo('/', '?workspace=ws_b')}` },
+      { given: 'https://elsewhere.example/join/ws_a, pasted into Welcome on https://faro.example.', then: 'That isn’t a Faro invitation. It looks like https://faro.example/join/…', run: () => { const r = readInvitation('https://elsewhere.example/join/ws_a', 'https://faro.example'); return 'problem' in r ? r.problem : r.id; } },
+      { given: 'The arrival’s lines for Ana (set it up), Ben (owns 1 goal) and Cara (owns none); and its opening line, 3 people and no goals.', then: 'Set this up · admin / Owns 1 goal / No goals yet / Ana Silva set this up on 11 Nov to keep the team’s goals in one place: 3 people, no goals yet.', run: () => [arrivalLine({ id: 'ana', admin: true }, 'ana', 0), arrivalLine({ id: 'ben', admin: false }, 'ana', 1), arrivalLine({ id: 'cara', admin: false }, 'ana', 0), arrivalIntro({ name: 'Field Operations', createdAt: '2026-11-11T10:00:00Z' }, 'Ana Silva', 3, 0)].join(' / ') },
+      { given: 'Has Ben arrived before and after his arrival is logged; has Ana, who set it up?', then: 'no / yes / yes', run: () => { const made = { entity: 'workspace' as const, action: 'created' as const, entityId: 'ws', summary: 'Created “Field Operations”', actorId: 'ana' }; const ppl = [{ id: 'ana', admin: true }, { id: 'ben', admin: false }]; const came = { entity: 'person' as const, action: 'acknowledged' as const, entityId: 'ben', summary: 'Ben Carter opened Field Operations for the first time', actorId: 'ben' }; return [arrived('ben', [made], ppl), arrived('ben', [made, came], ppl), arrived('ana', [made], ppl)].map((b) => (b ? 'yes' : 'no')).join(' / '); } },
+    ],
+    unclear: ['Faro lets anyone with the link choose any name, the admin’s included: the internal app replaces the arrival with the first sign-in (R1, rules 9 to 11).', 'What a device remembers (each workspace and who you are there) is kept in the browser; the internal app keeps it with the signed-in person.'],
   },
 
   /* ---------- the goal map ---------- */

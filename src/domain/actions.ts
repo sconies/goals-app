@@ -15,6 +15,7 @@ import { copyUntouched } from './copies';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
+import { arrivalSummary, arrived } from './dayOne';
 import { answerAsk, asksOf, canAnswer, canMarkDone, canWithdraw, editAsk, linkRequest as linked, markDone, openUpdateAsk, raiseAsk, UPDATE_ASK, updateAskText, withdrawAsk } from './asks';
 import { sessionWeek } from './review';
 import { checkInsFor } from './status';
@@ -454,6 +455,16 @@ export function sendFeedback(x: ActionContext, mood: 'good' | 'meh' | 'bad', tex
 }
 
 /* ---------- The workspace and its teams ---------- */
+
+/**
+ * Arriving (set-up spec, rule S4): the first time someone chooses their name on a workspace's arrival screen, the log
+ * says so, once. It changes no record. Null when they have already arrived, or set the workspace up.
+ */
+export function arrive(x: ActionContext, ws: { name: string }): Commit | null {
+  const changes = x.full?.changes ?? x.snapshot.changes ?? [];
+  if (arrived(x.actor.id, changes, x.full?.people ?? x.snapshot.people)) return null;
+  return { changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'person', entityId: x.actor.id, action: 'acknowledged', summary: arrivalSummary(x.actor.name, ws.name), diffs: [] }] };
+}
 
 /** Admins: give the workspace a new name. Null when it already has that name. */
 export function renameWorkspace(x: ActionContext, ws: { id: string; name: string }, name: string): Commit | null {

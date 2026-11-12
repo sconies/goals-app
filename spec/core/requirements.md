@@ -770,11 +770,11 @@ The demo keeps only the visitor’s own saves on top of the example rebuilt from
 
 ### ONBOARDING
 
-An empty real app explains itself in three lines and offers the demo. Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
+Setting up takes one question per screen: the workspace, who you are, your team (typed, pasted or uploaded), a starting point (a template, your spreadsheet, blank or later), the outcome and the goals feeding it (two to four, each optionally saying how it is measured). Each field says what it needs. It makes the weekly review it describes (everyone, every goal) and pinned views, starts with nothing due or late, and ends with the one next thing to do. Its small links in a line of text (Start over, Change, Change people) are 44px to hit on a phone. Each goal feeding the outcome starts with "No owner yet"; one left so is made the setter's and remembered for Home; Check says each owner or "No owner yet" and how many have none; the counter counts the path chosen (5 steps with goals later or from a spreadsheet).
 
 - **Rule:** [Day one: set-up’s steps and “Getting started”](rules/day-one.md)
 - **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86
+- **Journeys and checks:** N10, U5, U11, U49, U54, U61, U86, U97
 
 ### DAY-ONE
 
@@ -788,8 +788,17 @@ In a workspace's first weeks Home tells each person, the second included, what i
 
 Until sign-in comes with SSO, someone opening a workspace on a new device says who they are once, and lands on their own home.
 
-- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`
-- **Journeys and checks:** U11
+- **Rule:** [Welcome and the invitation](rules/welcome.md)
+- **Help:** “Setting up a workspace” (`set-up`), screens `Onboarding`, `Start`; “Joining a workspace you were invited to” (`joining`), screens `Start`
+- **Journeys and checks:** U11, U97
+
+### SETUP-FIRST-SCREEN
+
+Someone with no workspace meets Welcome at its own address, with one main action; someone invited meets the workspace they were invited to, who set it up, and their name; nobody is dropped into a workspace they didn't choose
+
+- **Rule:** [Welcome and the invitation](rules/welcome.md)
+- **Help:** “Welcome: starting, the demo, or an invitation” (`welcome`), screens `Welcome`; “Joining a workspace you were invited to” (`joining`), screens `Start`
+- **Journeys and checks:** U97
 
 ## Watching
 

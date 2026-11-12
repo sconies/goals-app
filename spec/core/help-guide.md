@@ -108,7 +108,7 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 
 #### How to use it
 
-- A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.
+- Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.
 - In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.
 - Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.
 - Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.
@@ -123,14 +123,48 @@ Start your own workspace from a template, your own spreadsheet, or nothing at al
 - Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.
 - Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.
 - On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.
-- The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.
+- The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.
 - Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.
 - Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.
 - In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.
 
+### Welcome: starting, the demo, or an invitation
+
+`welcome`. Welcome is Faro’s front door, at its own address: set up a workspace, look around the demo, or join a workspace you were invited to.
+
+Routes: `/welcome`. Screens: `Welcome`. Requirements: `SETUP-FIRST-SCREEN`.
+
+#### What it’s for
+
+Opening Faro on a device that remembers no workspace brings you here, at /welcome. It never drops you into a workspace you didn’t choose.
+
+#### How to use it
+
+- Set up a workspace is the main button: about 5 minutes, and nothing is saved until the last step.
+- Look around the demo opens a made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.
+- Join a workspace you were invited to: open the link you were sent, or paste it here and choose Open it. Only a Faro invitation (an address with /join/ in it) opens anything.
+- Coming back, Welcome says Welcome back and lists what this device remembers: each workspace with who you are in it and the week, with Open, and a set-up you didn’t finish, with where it stopped, Carry on and Discard (which asks first: what you typed is lost).
+
+### Joining a workspace you were invited to
+
+`joining`. An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.
+
+Routes: `/join/:workspaceId`. Screens: `Start`. Requirements: `SETUP-FIRST-SCREEN`, `IDENTITY`.
+
+#### What it’s for
+
+Whoever set up a workspace copies its invitation and sends it themselves: Faro sends no email. The link (/join/ and the workspace) opens that workspace and nothing else, whatever your browser had open before. An older link with ?workspace= in it leads to the same place.
+
+#### How to use it
+
+- Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.
+- Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.
+- Not on the list? Ask whoever set it up to add you: the link writes them an email.
+- A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door.
+
 #### Saying who you are
 
-Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.
+Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.
 
 Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.
 
