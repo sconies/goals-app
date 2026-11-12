@@ -88,6 +88,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #213 Board and Table drawn in place after a layout switch | polish | 0 | 0 | 0 |
 | #221 GE10 migration 0041: proposed_at and proposed_by | 2 | 0 | 0 | 0 |
 | #216 KT1: the handoff kit's small errors | planning | 0 | 0 | 0 |
+| #222 The workspace boundary: admins-only triage and Start over, the switcher | polish | 0 | 3 | 4 |
+| #227 Check-ins are the owner's (R1) | polish | 1 | 4 | 4 |
 
 **High findings, and where each stands**
 
@@ -106,6 +108,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Fixed** by #180; the reproduction re-run in both orders: no record twice, and the child's copy returns under its parent |
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
+| #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -955,3 +958,46 @@ Two nullable columns on `faro.okr_goals`, one merge ahead of the code that write
 ### #216 KT1: the handoff kit's small errors (merged 17:37 UTC, 12 Nov)
 
 Changes to the spec's generator (`src/spec/`) and its tests, from the handoff-kit review. One rule changes with it: the "Room to the limit" cell is now toned by the same near and out tests as "Vs the limit" (`src/domain/scorecard.ts`), so the two agree when the room equals the margin. Two type comments now say what is stored. Read; the generated pages were not compared line by line. No finding.
+
+### #227 Check-ins are the owner's: R1, one rule, every door but two closed (polish, merged 17:45 UTC, 12 Nov)
+
+Read first by a separate reviewing session, with throwaway tests at every door, the MCP tools and on screen; finding 1 was read again by this reviewer on main. At the form, Quick check-in, `post_check_in` and `bulk_change`, only the owner saves: two admins, a lead and a member were each refused in the same words.
+
+**1. High (re-read by this reviewer). Any member can put a check-in on someone else's goal by creating it with stages already done.** The set-up check-in is written with the creator as author and never asks `mayPostCheckIn`: `src/domain/goalEntry.ts:593-596` (the form), `src/domain/changeset.ts:1116-1119` (a sheet, bulk, MCP) and `recordStagesDone` (`src/domain/actions.ts:599-602`, owner or admin). On main the rule is asked in one place only, `changeset.ts:1167`.
+- First reader, on screen: as Oskar, a member with no goals, New goal with dated stages, owner Mateo, one stage answered "Yes, done in week 40", Publish. Mateo's new goal reads Done, "1 of 1 stages done", under "What the owner said in the week 40 check-in", and the store has `authorId: "oskar"`. The same through `create_goal` and `bulk_change` with Oskar's token.
+- Only a goal the person creates can be touched this way; creating a goal for someone else is allowed by Lane's decision of 11 Nov.
+- Fix: ask `mayPostCheckIn` for the set-up check-in in all three places. When the creator is not the owner, publish without it and say so at the stage question.
+
+**2. Medium. An admin's token can still check in on someone's goal in one call, by taking the goal in the same change.** The engine judges the check-in against the goal as the same file has already changed it (`changeset.ts:1162`): `bulk_change` with an owner change and a check-in saved both. The mirror case, an owner handing over and checking in at once, is refused.
+
+**3. Medium. The two open doors are keyed on the door, so they are wider than the PR and Help say.** `src/domain/goalRights.ts:28-33` lets an admin through for `spreadsheet`, `setup` and `table`, whatever the row is. As Grace, one pasted row on Import saved this week's new check-in on Mateo's goal, which is the door the goal menu lost. The list has three entries, not two. Fix: a workbook for past weeks only, and Data's tables only where a check-in exists.
+
+**4. Medium. Deleting a check-in and undoing an import don't ask the rule** (`src/domain/removal.ts:311-325`, `:485`): an admin can delete an owner's latest check-in, the owner cannot delete one an admin loaded onto their goal, and a previous owner can delete where the new one cannot.
+
+**5. Medium. The words still say an admin can check in**: `post_check_in`'s description (`src/mcp/tools.ts:296`), the check-in rule page (`src/spec/rules.ts:370`) and the delegates requirement (`src/spec/internal.ts:372`). An assistant will offer it and be refused, and the rebuild copies the rule page.
+
+**Lows.**
+- An admin answering an update ask still sees "Check in for week 46", which then refuses (`src/screens/Respond.tsx:75`); an open update ask stays with the previous owner after an owner change.
+- An admin-loaded check-in is headed "What the owner said".
+- Five screens compare the owner to the viewer themselves, and the form has its own refusal sentence (read).
+- Tests cover the engine by door only; nothing covers the stages-done path, delete or undo, and no journey shows an admin refused (read).
+
+**Unconfirmed.** Whether an admin should record a year-end wrap-up when they cannot record the final number (`actions.ts:298`); Lane's call.
+
+### #222 The workspace boundary: admins-only triage and Start over, the switcher, who you are after a switch (polish, merged 17:18 UTC, 12 Nov)
+
+Read first by the same reviewing session; nothing here was re-run by this reviewer. No high finding.
+
+**1. Medium. On the icon rail there is no workspace switcher at all.** `.ws-head` is hidden there (`src/styles/notes/shell-settings.css:59`, `:75`) and the top-bar one shows only on a phone. At 1024 wide, and at 1440 with the sidebar as icons, nothing switches workspace. A rail icon was added in this PR and then taken out for P10.
+
+**2. Medium. A member's token can set or overwrite a markup's GitHub issue, and a refused call half-saves.** `update_markup` stores the issue address before it checks the status change (`src/mcp/markupTools.ts:159-160`), and `src/markup/ops.ts:110` has no role check.
+
+**3. Medium. Admins-only triage rests on a flag the browser supplies** (`src/markup/inboxData.ts:72`, read): the inbox is shared with the demo, where anyone can choose to see it as an admin. MCP is sound. Probably acceptable for Faro, and R1 already requires the server to enforce it in the rebuild; Lane's call.
+
+**Lows.**
+- The landing line is skipped on the browser's Back and on "Open another workspace" from the can't-open page (`src/ui/WorkspaceSwitch.tsx:63-67`, `src/screens/Start.tsx:79`).
+- At 390 the switcher reads "Example d…", 108 by 24 px, with no "Switch".
+- `WORKSPACE_MEANS` is copied into the guide and the glossary (read).
+- In Feedback a member is told "only an admin" three times on one screen, and `src/markup/feedback.ts:3` still says anyone triages.
+
+**Checked and fine.** A member sees no triage controls and the shortcut keys do nothing; an admin's change offers Undo. Both MCP tools refuse a member's status change in the same words. Start over and Delete are hidden from a member. The landing line names the person and role, once, and not when nothing changed. No frame was seen acting as the previous workspace's person.
