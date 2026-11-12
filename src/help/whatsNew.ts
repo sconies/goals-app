@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['requests', 'goal-page', 'inbox'],
   },
   {
+    id: 'quarters-before-set-up',
+    date: '2026-11-12',
+    title: 'Quarters before a goal existed are not judged',
+    points: [
+      'A goal set up part way through the year no longer shows the quarters that ended before it as Not met. They say Not applicable, with the week it was set up.',
+      'Those quarters are in no count of met or not met, and no longer raise “Last quarter not met” on the goal or in the overview.',
+    ],
+    articles: ['history', 'status'],
+  },
+  {
     id: 'set-up-check-in-owners',
     date: '2026-11-12',
     title: 'Stages already done are the owner’s to mark',

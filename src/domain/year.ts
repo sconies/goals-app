@@ -5,7 +5,7 @@
    they're read off the owner's own plan, so any week in between has a target too. */
 import { fmt, fmtDiff } from './format';
 import { goalAsOf } from './goal';
-import { planAt, planEnd } from './plan';
+import { currentWeek, planAt, planEnd } from './plan';
 import { checkInsFor, doneCheckIn } from './status';
 import { shortWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal } from './types';
@@ -65,13 +65,22 @@ export interface QuarterResult {
   text: string;
   /** A quarter after the goal was called done: the week it was done in. */
   doneWeek?: number;
+  /** A quarter that ended before the goal was set up: not applicable, never judged. */
+  before?: true;
 }
+
+/** The week of the cycle a goal was set up in: 0 for one set up before the cycle began (or carried into it). */
+export const bornWeek = (g: Pick<Goal, 'createdAt'>, c: Cycle) => (g.createdAt ? currentWeek(c, new Date(g.createdAt)) : 0);
 
 /**
  * How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. Once the
  * owner calls it done, the quarter it closed in is judged on its final number, and any quarter after it has nothing due.
+ * A quarter that ended before the goal was set up is never judged (MCP load, 12 Nov): it says so, and counts nowhere,
+ * whatever week its baseline is from and whatever numbers were loaded for those weeks.
  */
 export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter, week: number): QuarterResult {
+  const born = bornWeek(g, c);
+  if (born >= q.to) return { quarter: q, kind: 'none', text: `${q.label}: before the goal was set up in week ${born}`, before: true };
   const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
   const last = own[own.length - 1];
   const done = doneCheckIn(g, checkIns, week);
