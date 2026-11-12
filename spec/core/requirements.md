@@ -276,7 +276,7 @@ A goal is never late or behind because of when it was typed in: a date already p
 - **Rule:** [A goal not born late](rules/not-born-late.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/onboarding.eval.ts` (1)
-- **Journeys and checks:** U85, U85
+- **Journeys and checks:** U85
 
 ### GOAL-PAGE
 
