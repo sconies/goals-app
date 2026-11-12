@@ -33,6 +33,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'goal-proposed',
     date: '2026-11-12',
     title: 'Propose a goal before it starts',
