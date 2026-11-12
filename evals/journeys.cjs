@@ -4716,7 +4716,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
-  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10%( in week \d+)? to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
