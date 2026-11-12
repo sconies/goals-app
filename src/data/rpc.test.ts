@@ -371,6 +371,12 @@ describe('database save functions, as the public user', () => {
       await expect(raw({ modules: { okr_metrics: [{ ...row('metric_rpc_7', 'Elsewhere'), workspace_id: 'ws_other' }] } })).rejects.toThrow(/belongs to another workspace/);
       await raw({ metrics: [row('metric_rpc_8', 'From an older client')] });
       expect((await one<DbRow>('select * from okr_metrics where id = $1', ['metric_rpc_8'])).name).toBe('From an older client');
+      // 0040: `modules` null is no module rows; a table named both ways stops the save, writing neither.
+      await raw({ modules: null, metrics: [row('metric_rpc_9', 'Null modules')] });
+      expect((await one<DbRow>('select * from okr_metrics where id = $1', ['metric_rpc_9'])).name).toBe('Null modules');
+      await expect(raw({ modules: { okr_metrics: [row('metric_rpc_10', 'New way')] }, metrics: [row('metric_rpc_11', 'Old way')] })).rejects.toThrow(/names okr_metrics twice/);
+      expect(await count('okr_metrics', `id in ('metric_rpc_10', 'metric_rpc_11')`)).toBe(0);
+      await expect(raw({ modules: [] })).rejects.toThrow(/modules must be an object/);
     });
 
     it('applies from the paste-in script on its own, as often as it’s run', async () => {
