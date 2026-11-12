@@ -1810,6 +1810,56 @@ function restorableModuleRow(full, records, kind, id) {
 	}
 	return null;
 }
+/**
+* What comes with goals copied into the next cycle, from every module that says (`follow`): the new rows, and their
+* ids for Undo. Rows of a record that doesn't follow stay with the old goal.
+*/
+function followCopies(all, copies, records, newId) {
+	const modules = {};
+	const ids = [];
+	for (const m of records) for (const def of m.records) {
+		if (!def.follow) continue;
+		const rows = (all?.[m.module]?.[def.key] ?? []).filter((r) => !r.removedAt);
+		const made = def.follow(rows, copies, newId);
+		if (!made.length) continue;
+		(modules[m.module] ??= {})[def.key] = made;
+		ids.push({
+			module: m.module,
+			key: def.key,
+			ids: made.map((r) => r.id)
+		});
+	}
+	return {
+		modules,
+		ids
+	};
+}
+/** The live rows that belong to these goals (`goalOf`), marked removed: a copy that leaves takes them with it. */
+function rowsLeaving(all, goalIds, records, gone) {
+	const modules = {};
+	for (const m of records) for (const def of m.records) {
+		if (!def.goalOf) continue;
+		const rows = (all?.[m.module]?.[def.key] ?? []).filter((r) => !r.removedAt && goalIds.has(def.goalOf(r) ?? ""));
+		if (rows.length) (modules[m.module] ??= {})[def.key] = rows.map((r) => ({
+			...r,
+			...gone
+		}));
+	}
+	return modules;
+}
+/** The rows a start added (by id), marked removed: Undo takes them back out, whichever module they belong to. */
+function rowsUndone(all, added, gone) {
+	const modules = {};
+	for (const a of added) {
+		const want = new Set(a.ids);
+		const rows = (all?.[a.module]?.[a.key] ?? []).filter((r) => want.has(r.id) && !r.removedAt);
+		if (rows.length) (modules[a.module] ??= {})[a.key] = rows.map((r) => ({
+			...r,
+			...gone
+		}));
+	}
+	return modules;
+}
 var hasModuleRows, recordOf, moduleSheetRows;
 var init_records = __esmMin((() => {
 	hasModuleRows = (m) => !!m && Object.values(m).some((k) => Object.values(k).some((v) => v.length));
@@ -3690,6 +3740,124 @@ function startReadBack(ctx) {
 		total: ctx.goals.length
 	};
 }
+/**
+* A goal's copy in the next year (rule 5): a new id, in the new cycle, made now, with its key and everything else as it
+* was. A number goal that **carries** starts from its final number in week 1 (\`fromWeek\` 0), with the same target
+* and shape, due at the end of the new year: no end week, no hand-set numbers, no earlier plans. One that **keeps** its
+* plan keeps its dates, counted from the new year's start. Stages not done are spread evenly over the new year
+* (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
+*/
+function carryCopy(g, ctx) {
+	const base = {
+		...g,
+		id: ctx.id,
+		cycleId: ctx.next.id,
+		parentId: ctx.parentId,
+		createdAt: ctx.now,
+		pending: null
+	};
+	if (!base.parentId) base.effect = null;
+	if (g.kind === "metric" && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
+		const shift = (w) => w - ctx.old.weeks;
+		const plan = {
+			...g.plan,
+			fromWeek: shift(g.plan.fromWeek ?? 0),
+			endWeek: shift(g.plan.endWeek),
+			...g.plan.points ? { points: g.plan.points.map((p) => ({
+				...p,
+				week: shift(p.week)
+			})) } : {}
+		};
+		return {
+			...base,
+			kind: "metric",
+			plan,
+			originalPlan: null,
+			rebaselinedWeek: null,
+			planHistory: void 0
+		};
+	}
+	if (g.kind === "metric") {
+		const plan = {
+			start: finalNumber(g, ctx.checkIns, ctx.old).value ?? g.plan.start,
+			target: g.plan.target,
+			shape: g.plan.shape,
+			fromWeek: 0
+		};
+		return {
+			...base,
+			kind: "metric",
+			plan,
+			originalPlan: null,
+			rebaselinedWeek: null,
+			planHistory: void 0
+		};
+	}
+	if (g.kind === "milestone") {
+		const last = checkInsFor(g, ctx.checkIns).filter((c) => c.stages).pop();
+		const a = assessMilestone(g, ctx.old.weeks, last?.stages ?? null);
+		const left = g.stages.filter((_, i) => a.stages[i]?.kind !== "done");
+		const stages = (left.length ? left : g.stages).map((st, i, arr) => ({
+			...st,
+			id: st.id + "-" + ctx.next.id,
+			dueWeek: Math.max(1, Math.round((i + 1) * ctx.next.weeks / arr.length))
+		}));
+		return {
+			...base,
+			kind: "milestone",
+			stages
+		};
+	}
+	return base;
+}
+/**
+* What comes with the goals that carry on (rule 6): whatever a module says follows a goal (`follow` in its records: the
+* metrics module's link, same metric and team, linked by the same person); a watch per watch of a carried goal or tree (same person); each open ask or next
+* step on a carried goal, with the copy added to it (so it shows in both years); and each review that names a carried
+* goal or tree, with the copies added. `map` is old goal id → copy id.
+*/
+function carryExtras(map, s, newId, records = []) {
+	const followed = followCopies(s.modules, map, records, newId);
+	const watches = (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === "goal" || w.kind === "tree") && map.has(w.ref)).map((w) => ({
+		...w,
+		id: newId("watch"),
+		ref: map.get(w.ref)
+	}));
+	const add = (ids) => [...ids, ...ids.filter((id) => map.has(id)).map((id) => map.get(id))];
+	const before = {
+		requests: [],
+		reviews: []
+	};
+	const requests = (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => map.has(id))).map((r) => {
+		before.requests.push(r);
+		return {
+			...r,
+			goalIds: add(r.goalIds)
+		};
+	});
+	const reviews = (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => map.has(id))).map((r) => {
+		before.reviews.push(r);
+		return {
+			...r,
+			scope: {
+				...r.scope,
+				goals: add(r.scope.goals),
+				trees: add(r.scope.trees)
+			}
+		};
+	});
+	return {
+		modules: followed.modules,
+		watches,
+		requests,
+		reviews,
+		undo: {
+			watches: watches.map((w) => w.id),
+			modules: followed.ids,
+			...before
+		}
+	};
+}
 var carries;
 var init_carry = __esmMin((() => {
 	init_status();
@@ -3817,9 +3985,10 @@ function nextCycleShape(old) {
 	};
 }
 /**
-* The next cycle, straight after this one, and copies of the goals that carry on. A carried metric
-* starts from its last number; a carried milestone keeps the stages not yet done, spread over the
-* new cycle. Links between carried goals are kept; a link to a goal that stops is dropped.
+* The next cycle, straight after this one, and copies of the goals that carry on (domain/carry carryCopy: a number goal
+* starts from its final number in week 1 with the same target, due at the end of the new year; stages not done are
+* spread over it; a plan that runs past the year keeps its dates). Links between carried goals are kept; a link to a
+* goal that finishes or stops is dropped.
 */
 function nextCycle(old, goals, checkIns, retros, ids, now) {
 	const cycle = {
@@ -3835,70 +4004,17 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 	const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
 	return {
 		cycle,
-		goals: carried.map((g) => {
-			const base = {
-				...g,
-				id: map.get(g.id),
-				cycleId: cycle.id,
-				parentId: g.parentId ? map.get(g.parentId) ?? null : null,
-				createdAt: now,
-				pending: null
-			};
-			if (!base.parentId) base.effect = null;
-			if (g.kind === "metric" && (g.plan.endWeek ?? 0) > old.weeks) {
-				const shift = (w) => w - old.weeks;
-				const plan = {
-					...g.plan,
-					fromWeek: shift(g.plan.fromWeek ?? 0),
-					endWeek: shift(g.plan.endWeek),
-					...g.plan.points ? { points: g.plan.points.map((p) => ({
-						...p,
-						week: shift(p.week)
-					})) } : {}
-				};
-				return {
-					...base,
-					kind: "metric",
-					plan,
-					originalPlan: null,
-					rebaselinedWeek: null
-				};
-			}
-			if (g.kind === "metric") {
-				const own = checkInsFor(g, checkIns).filter((c) => c.value != null);
-				const last = own[own.length - 1]?.value ?? g.plan.start;
-				return {
-					...base,
-					kind: "metric",
-					plan: {
-						...g.plan,
-						start: last
-					},
-					originalPlan: null,
-					rebaselinedWeek: null
-				};
-			}
-			if (g.kind === "milestone") {
-				const own = checkInsFor(g, checkIns).filter((c) => c.stages);
-				const last = own[own.length - 1];
-				const a = assessMilestone(g, old.weeks, last?.stages ?? null);
-				const left = g.stages.filter((_, i) => a.stages[i]?.kind !== "done");
-				const stages = (left.length ? left : g.stages).map((st, i, arr) => ({
-					...st,
-					id: st.id + "-" + cycle.id,
-					dueWeek: Math.max(1, Math.round((i + 1) * old.weeks / arr.length))
-				}));
-				return {
-					...base,
-					kind: "milestone",
-					stages
-				};
-			}
-			return base;
-		})
+		goals: carried.map((g) => carryCopy(g, {
+			old,
+			next: cycle,
+			checkIns,
+			id: map.get(g.id),
+			parentId: g.parentId ? map.get(g.parentId) ?? null : null,
+			now
+		}))
 	};
 }
-var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, WEEKDAYS$1, MONTHS, RESULT_LABEL;
+var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -3908,11 +4024,13 @@ var init_cycle = __esmMin((() => {
 	init_carry();
 	init_yearName();
 	init_status();
+	init_records();
 	DAY = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
+	startFromLine = (c) => `${nextCycleShape(c).name} can be started from ${dayWithYear(cycleDates(c).wrapUpOpens)}, when ${c.name}’s wrap-up opens.`;
 	WEEKDAYS$1 = [
 		"Sun",
 		"Mon",
@@ -3937,6 +4055,116 @@ var init_cycle = __esmMin((() => {
 		"Dec"
 	];
 	RESULT_LABEL = labels(OWNER_VIEW);
+}));
+// src/domain/recarry.ts
+/**
+* Keeps a carried copy true after the start (cycle-end rule 6): when a goal of a year that has a later cycle gets a
+* check-in or a wrap-up, its kind is worked out again and, **only while its copy is untouched** (no check-in in it, no
+* change to it by a person since the start), the copy's plan or stages are replaced, the copy and what came with it are
+* removed (it now finishes or stops), or a copy is added with what comes with it (it now carries on). Nothing when the
+* copy has been used, or there is no later cycle. `extra` is what the change is about to save.
+*/
+function recarry(goal, full, extra, x) {
+	const cycle = full.cycles.find((c) => c.id === goal.cycleId);
+	const later = cycle && laterCycle(full.cycles, cycle);
+	if (!cycle || !later || !goal.key) return null;
+	const copy = full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt);
+	if (copy && !copyUntouched(copy, full)) return null;
+	const checkIns = [...full.checkIns.filter((c) => !c.removedAt && !(extra.checkIns ?? []).some((e) => e.id === c.id)), ...extra.checkIns ?? []];
+	const kind = carryKind(goal, {
+		cycle,
+		checkIns,
+		retro: extra.retro !== void 0 ? extra.retro : (full.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null
+	}).kind;
+	const log = (summary, id) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actorId,
+		goalId: id,
+		entity: "goal",
+		entityId: id,
+		action: "edited",
+		summary,
+		diffs: []
+	});
+	if (carries(kind)) {
+		const parentCopy = goal.parentId ? full.goals.find((g) => g.cycleId === later.id && !g.removedAt && g.key && g.key === full.goals.find((p) => p.id === goal.parentId)?.key) : void 0;
+		const id = copy?.id ?? x.newId("goal");
+		const made = carryCopy(goal, {
+			old: cycle,
+			next: later,
+			checkIns,
+			id,
+			parentId: copy ? copy.parentId : parentCopy?.id ?? null,
+			now: copy?.createdAt ?? x.now
+		});
+		if (copy) {
+			if (JSON.stringify(sansVersion(made)) === JSON.stringify(sansVersion(copy))) return null;
+			return {
+				goals: [{
+					...made,
+					version: copy.version
+				}],
+				changes: [log(`${goal.title} in ${later.name} now starts from ${cycle.name}’s final number`, id)]
+			};
+		}
+		const extras = carryExtras(/* @__PURE__ */ new Map([[goal.id, id]]), full, x.newId, x.records);
+		return {
+			goals: [made],
+			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
+			watches: extras.watches,
+			requests: extras.requests,
+			reviews: extras.reviews,
+			changes: [log(`${goal.title} carries on into ${later.name}`, id)]
+		};
+	}
+	if (!copy) return null;
+	const gone = {
+		removedAt: x.now,
+		removedBy: x.actorId
+	};
+	const leaving = rowsLeaving(full.modules, /* @__PURE__ */ new Set([copy.id]), x.records ?? [], gone);
+	return {
+		goals: [{
+			...copy,
+			...gone
+		}],
+		watches: (full.watches ?? []).filter((w) => w.ref === copy.id && !w.removedAt).map((w) => ({
+			...w,
+			...gone
+		})),
+		...hasModuleRows(leaving) ? { modules: leaving } : {},
+		requests: (full.requests ?? []).filter((r) => r.goalIds.includes(copy.id)).map((r) => ({
+			...r,
+			goalIds: r.goalIds.filter((g) => g !== copy.id)
+		})),
+		reviews: (full.reviews ?? []).filter((r) => r.scope.goals.includes(copy.id) || r.scope.trees.includes(copy.id)).map((r) => ({
+			...r,
+			scope: {
+				...r.scope,
+				goals: r.scope.goals.filter((g) => g !== copy.id),
+				trees: r.scope.trees.filter((g) => g !== copy.id)
+			}
+		})),
+		changes: [log(`${goal.title} ${kind === "stop" ? "stops" : "finishes"} in ${cycle.name}, so it left ${later.name}`, copy.id)]
+	};
+}
+/** Whether a carried copy is as the start made it: no check-in in it and no change to it by a person since. */
+function copyUntouched(copy, full) {
+	if (full.checkIns.some((c) => c.goalId === copy.id && !c.removedAt)) return false;
+	return !full.changes.some((c) => c.goalId === copy.id && c.at > copy.createdAt && !byRecarry(c.summary));
+}
+var byRecarry, sansVersion;
+var init_recarry = __esmMin((() => {
+	init_carry();
+	init_cycle();
+	init_records();
+	byRecarry = (summary) => /now starts from .*’s final number$|carries on into /.test(summary);
+	sansVersion = (g) => ({
+		...g,
+		version: void 0,
+		createdAt: void 0
+	});
 }));
 // src/domain/people.ts
 /**
@@ -5801,17 +6029,18 @@ function savePerson(x, p, before) {
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
 	if (!ownsOrAdmin$2(x, goal)) no$2("Only the goal’s owner or an admin can wrap it up.");
+	const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
 	const today = new Date(x.now);
-	if (!wrapUpOpenOn(x.cycle, today)) {
-		const d = cycleDates(x.cycle);
-		no$2(cycleState(x.cycle, today) === "closed" ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+	if (!wrapUpOpenOn(cycle, today)) {
+		const d = cycleDates(cycle);
+		no$2(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
 	}
 	if (v.learned.trim().length < 10) no$2("Say what was learned, in a sentence (10 characters or more).");
-	const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
+	const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
 		goalId: goal.id,
-		cycleId: x.cycle.id,
+		cycleId: cycle.id,
 		result: v.result,
 		learned: v.learned.trim(),
 		next: v.next,
@@ -5835,7 +6064,7 @@ function saveRetro(x, goal, v) {
 			to: retro.next === "carry" ? "Carry on" : "Stop"
 		}] : []
 	];
-	return {
+	const own = {
 		retros: [retro],
 		changes: [{
 			id: x.newId("chg"),
@@ -5849,6 +6078,25 @@ function saveRetro(x, goal, v) {
 			diffs
 		}]
 	};
+	const full = x.full;
+	if (!full) return own;
+	const later = laterCycle(full.cycles, cycle);
+	const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : void 0;
+	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$2(`It already has check-ins in ${later.name}. Stop it there instead.`);
+	return mergeCommits(own, recarry(goal, full, { retro }, {
+		now: x.now,
+		actorId: x.actor.id,
+		newId: x.newId,
+		records: x.records
+	}));
+}
+/** Two commits as one save: their records and changes side by side. */
+function mergeCommits(a, b) {
+	if (!b) return a;
+	const out = { ...a };
+	const was = a;
+	for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...was[k] ?? [], ...v] : v;
+	return out;
 }
 /**
 * Admins: set up the next cycle with the goals that carry on (cycle-end rule 6). It can be started from the day this
@@ -5860,16 +6108,21 @@ function startNextCycle(x) {
 	const today = new Date(x.now);
 	const full = x.full ?? x.snapshot;
 	const state = cycleState(x.cycle, today);
-	if (state === "before" || state === "running") no$2(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+	if (state === "before" || state === "running") no$2(startFromLine(x.cycle));
 	const later = laterCycle(full.cycles ?? [], x.cycle);
 	if (later) {
 		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
 		const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
 		no$2(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
 	}
+	const map = /* @__PURE__ */ new Map();
 	const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], {
 		cycle: x.newId("cycle"),
-		goal: () => x.newId("goal")
+		goal: (g) => {
+			const id = x.newId("goal");
+			map.set(g.id, id);
+			return id;
+		}
 	}, x.now);
 	const rb = startReadBack({
 		cycle: x.cycle,
@@ -5888,11 +6141,16 @@ function startNextCycle(x) {
 		...finish ? [`${finish} finish`] : [],
 		...rb.stop ? [`${rb.stop} stop`] : []
 	];
+	const extras = carryExtras(map, full, x.newId, x.records);
 	return {
 		name: next.cycle.name,
 		commit: {
 			cycles: [next.cycle],
 			goals: next.goals,
+			...hasModuleRows(extras.modules) ? { modules: extras.modules } : {},
+			watches: extras.watches,
+			requests: extras.requests,
+			reviews: extras.reviews,
 			changes: [{
 				id: x.newId("chg"),
 				at: x.now,
@@ -5914,7 +6172,16 @@ function startNextCycle(x) {
 					})),
 					checkIns: [],
 					people: [],
-					requests: []
+					requests: extras.undo.requests.map((r) => ({
+						id: r.id,
+						before: r
+					})),
+					reviews: extras.undo.reviews.map((r) => ({
+						id: r.id,
+						before: r
+					})),
+					watches: extras.undo.watches,
+					...extras.undo.modules.length ? { modules: extras.undo.modules } : {}
 				}
 			}]
 		}
@@ -6369,8 +6636,10 @@ var init_actions = __esmMin((() => {
 	init_levels();
 	init_decide();
 	init_thresholds();
+	init_records();
 	init_cycle();
 	init_carry();
+	init_recarry();
 	init_people();
 	init_goal();
 	init_changes();
@@ -6974,7 +7243,7 @@ function canUndoStart(full, cycleId) {
 	};
 	const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
 	const changed = new Set([...ids].filter((id) => !made.has(id)));
-	for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId)) changed.add(ch.goalId);
+	for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId) && !byRecarry(ch.summary)) changed.add(ch.goalId);
 	if (changed.size) return {
 		ok: false,
 		why: `${plural$2(changed.size, "goal in it has", "goals in it have")} been changed`
@@ -6997,12 +7266,45 @@ function undoStart(x, cycleId) {
 	if (!c) no$1("There’s no cycle with that ID.");
 	const can = canUndoStart(full, cycleId);
 	if (!can.ok) no$1(`${c.name} can’t be undone now: ${can.why}.`);
+	const u = startOf(full, cycleId).undo;
+	const gone = {
+		removedAt: x.now,
+		removedBy: x.actor.id
+	};
+	const watches = (full.watches ?? []).filter((w) => (u.watches ?? []).includes(w.id) && !w.removedAt).map((w) => ({
+		...w,
+		...gone
+	}));
+	const modules = rowsUndone(full.modules, u.modules ?? [], gone);
+	const requests = u.requests.map((r) => r.before).filter((r) => !!r).map((r) => {
+		const now = (full.requests ?? []).find((v) => v.id === r.id);
+		return now ? {
+			...now,
+			goalIds: now.goalIds.filter((id) => !(u.goals ?? []).some((g) => g.id === id))
+		} : r;
+	});
+	const reviews = (u.reviews ?? []).map((r) => r.before).filter((r) => !!r).map((r) => {
+		const now = (full.reviews ?? []).find((v) => v.id === r.id) ?? r;
+		const added = new Set(u.goals.map((g) => g.id));
+		return {
+			...now,
+			scope: {
+				...now.scope,
+				goals: now.scope.goals.filter((id) => !added.has(id)),
+				trees: now.scope.trees.filter((id) => !added.has(id))
+			}
+		};
+	});
 	return {
 		cycles: [{
 			...c,
 			removedAt: x.now,
 			removedBy: x.actor.id
 		}],
+		watches,
+		...hasModuleRows(modules) ? { modules } : {},
+		requests,
+		reviews,
 		changes: [log$1(x, {
 			entity: "cycle",
 			entityId: c.id,
@@ -7337,6 +7639,7 @@ function restoreRemoved(x, kind, id, records = []) {
 }
 var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, liveReview, importEntry, importUndone, canUndoImport, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
+	init_recarry();
 	init_actions();
 	init_asks();
 	init_status();
@@ -8615,6 +8918,15 @@ function planChanges(input) {
 			changes: [...changes, summary]
 		};
 	}
+	if (result.commit && input.full) {
+		const full = input.full;
+		for (const g of new Set(ciOut.map((c) => goalOut.get(c.goalId) ?? s.goals.find((x) => x.id === c.goalId)).filter((g) => !!g))) result.commit = mergeCommits(result.commit, recarry(g, full, { checkIns: ciOut }, {
+			now,
+			actorId: actor.id,
+			newId,
+			records: input.records
+		}));
+	}
 	return result;
 }
 /** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
@@ -8669,6 +8981,7 @@ function keepsTheRules(c) {
 var VIA_LABEL, VIA_MCP, norm$1, has, val, ref, rowOf, blankRow, plural$1, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
+	init_recarry();
 	init_changes();
 	init_checkin();
 	init_columns();
@@ -9310,7 +9623,15 @@ var MODULE_RECORDS = [{
 			carry: (rows, scope) => {
 				const live = new Set(metricsOf(scope).filter((m) => !m.removedAt).map((m) => m.id));
 				return rows.filter((l) => !l.removedAt && scope.goalIds.has(l.goalId) && live.has(l.metricId));
-			}
+			},
+			follow: (rows, copies) => rows.filter((l) => copies.has(l.goalId)).map((l) => ({
+				...l,
+				id: copies.get(l.goalId),
+				goalId: copies.get(l.goalId),
+				removedAt: null,
+				removedBy: null
+			})),
+			goalOf: (l) => l.goalId
 		}],
 		sheets: [METRICS_SHEET]
 	}
@@ -9847,6 +10168,8 @@ function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
 }
 // src/app/reads.ts
+init_cycle();
+init_plan();
 init_review();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
@@ -11924,7 +12247,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown."]
+				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
 			}
 		],
 		routes: ["/workspace/new", "/ready"],
@@ -13016,7 +13339,7 @@ var CORE_ARTICLES = [
 			heading: "How to use it",
 			list: [
 				"A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.",
-				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.",
+				"The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.",
 				"Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.",
 				"Wrap up shows everyone which goals are wrapped up, and how.",
 				"An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day."
@@ -13062,7 +13385,9 @@ var CORE_ARTICLES = [
 			list: [
 				"From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.",
 				"Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).",
-				"Then it says what next year starts with: the goals that carry on, the stages not done that come with them, any goal that loses its “Feeds into” because the goal above it finishes or stops, and when the first check-ins are due.",
+				"Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.",
+				"A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.",
+				"A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.",
 				"Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.",
 				"Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.",
 				"Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from."
@@ -14155,6 +14480,31 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "cant-open-why",
+		date: "2026-11-11",
+		title: "When you can’t open a workspace, it says why",
+		points: ["If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.", "Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it."],
+		articles: ["set-up"]
+	},
+	{
+		id: "last-year-wrap-up",
+		date: "2026-11-11",
+		title: "Last year’s wrap-up stays open",
+		points: ["Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.", "An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it."],
+		articles: ["wrap-up", "start-next-year"]
+	},
+	{
+		id: "carry-right",
+		date: "2026-11-11",
+		title: "Goals carry on with their history",
+		points: [
+			"A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.",
+			"Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.",
+			"A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal."
+		],
+		articles: ["start-next-year", "wrap-up"]
+	},
 	{
 		id: "levels-one-style",
 		date: "2026-11-11",
@@ -15550,11 +15900,11 @@ function startPage(s, cycle, today) {
 	const state = cycleState(cycle, today);
 	const later = laterCycle(s.cycles, cycle);
 	const ended = state === "ended" || state === "closed";
-	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? "It opens for everyone as soon as you start it." : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
+	const line = `${shape.name} runs from ${dayWithYear(nd.firstDay)} to ${dayWithYear(nd.lastDay)}: ${shape.weeks} weeks. ${ended ? `It opens for everyone as soon as you start it.${state === "ended" ? ` ${cycle.name}’s wrap-up stays open until ${dayWithYear(d.wrapUpCloses)}.` : ""}` : `Everyone stays in ${cycle.name} until ${dayWithYear(d.lastDay)}, so the last check-ins and the wrap-up carry on.`}`;
 	if (state === "before" || state === "running") return {
 		next: shape.name,
 		canStart: false,
-		whyNot: `${shape.name} can be started from ${dayWithYear(d.wrapUpOpens)}, when ${cycle.name}’s wrap-up opens.`,
+		whyNot: startFromLine(cycle),
 		line,
 		counts: [],
 		startsWith: [],
@@ -15569,9 +15919,17 @@ function startPage(s, cycle, today) {
 			weeks: shape.weeks
 		},
 		goals,
-		checkIns: s.checkIns,
+		checkIns: s.checkIns.filter((c) => !c.removedAt),
 		retros: s.retros ?? []
 	});
+	const going = new Set(goals.filter((g) => carries(rb.kinds.get(g.id))).map((g) => g.id));
+	const openAsks = (s.requests ?? []).filter((r) => r.status === "open" && r.goalIds.some((id) => goals.some((g) => g.id === id)));
+	const extras = {
+		asks: openAsks.filter((r) => r.goalIds.some((id) => going.has(id))).length,
+		staying: openAsks.filter((r) => !r.goalIds.some((id) => going.has(id))).length,
+		watches: (s.watches ?? []).filter((w) => !w.removedAt && (w.kind === "goal" || w.kind === "tree") && going.has(w.ref)).length,
+		reviews: (s.reviews ?? []).filter((r) => !r.endedAt && !r.removedAt && [...r.scope.goals, ...r.scope.trees].some((id) => going.has(id))).length
+	};
 	const counts = [
 		{
 			n: rb.carry,
@@ -15597,7 +15955,7 @@ function startPage(s, cycle, today) {
 	const startsWith = [
 		...rb.carried ? [{
 			bold: n(rb.carried, "goal", "goals"),
-			rest: `, each with its key, owner, team and level. A number goal starts from its last number in ${cycle.name}, with the same target.`
+			rest: `, each with its key, owner, team, level and metric. A number goal starts from its final number, from week 1; its target is unchanged and due at the end of ${shape.name}.`
 		}] : [],
 		...rb.stageGoals ? [{
 			bold: n(rb.stageGoals, "goal with stages", "goals with stages"),
@@ -15606,6 +15964,22 @@ function startPage(s, cycle, today) {
 		...rb.loseParent ? [{
 			bold: `${n(rb.loseParent, "goal loses its", "goals lose their")} “Feeds into”`,
 			rest: ", because the goal above finishes or stops."
+		}] : [],
+		...extras.asks ? [{
+			bold: `${n(extras.asks, "open next step or ask moves", "open next steps and asks move")} with ${extras.asks === 1 ? "its goal" : "their goals"}.`,
+			rest: extras.staying ? ` ${extras.staying} stay in ${cycle.name}, on goals that finish or stop.` : ""
+		}] : [],
+		...extras.watches ? [{
+			bold: `${n(extras.watches, "watch follows", "watches follow")} ${extras.watches === 1 ? "its goal" : "their goals"}`,
+			rest: ", for the same people."
+		}] : [],
+		...rb.handSet ? [{
+			bold: `${n(rb.handSet, "goal sets its", "goals set their")} weekly plan numbers by hand.`,
+			rest: ` Those numbers were for ${cycle.name}; in ${shape.name} the plan is a straight line until the owner sets them again.`
+		}] : [],
+		...extras.reviews ? [{
+			bold: `${n(extras.reviews, "review carries", "reviews carry")} on`,
+			rest: ` with the same people and days, on ${shape.name}’s goals.`
 		}] : [],
 		{
 			bold: `Check-ins every week, due by ${WEEKDAYS[cycle.reviewDay]}`,
@@ -16030,7 +16404,8 @@ var ax$2 = (ctx) => ({
 	now: ctx.now,
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
-	...ctx.full ? { full: ctx.full } : {}
+	...ctx.full ? { full: ctx.full } : {},
+	records: MODULE_RECORDS
 });
 /** Saves what an action returned, marked as done through the assistant. Null: nothing to save. */
 async function save$2(ctx, c, done, nothing) {
@@ -18283,7 +18658,8 @@ var ax$1 = (ctx) => ({
 	now: ctx.now,
 	newId: ctx.newId,
 	...ctx.allGoals ? { allGoals: ctx.allGoals } : {},
-	...ctx.full ? { full: ctx.full } : {}
+	...ctx.full ? { full: ctx.full } : {},
+	records: MODULE_RECORDS
 });
 async function save$1(ctx, c, done) {
 	await ctx.save({

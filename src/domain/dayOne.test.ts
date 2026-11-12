@@ -65,4 +65,8 @@ describe('getting started (rule 7)', () => {
     expect(gettingStarted('ana', dayOneRows(s), ws, { ...seen, hidden: true }, now, 'Thursday')).toEqual([]);
     expect(gettingStarted('ana', dayOneRows(s), { ...ws, kind: 'example' }, seen, now, 'Thursday')).toEqual([]);
   });
+  it('asks for no first check-in once the year has ended (cycle-end rule 2)', () => {
+    const rows = gettingStarted('ben', { ...dayOneRows(base([goal('g1', 'ben')])), ended: true }, ws, seen, now, 'Thursday');
+    expect(rows.some((r) => r.id === 'first-check-in')).toBe(false);
+  });
 });

@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
-import type { Identity } from './ports';
+import type { Clock, Identity } from './ports';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalEdit } from './screens/GoalEdit';
@@ -114,10 +114,11 @@ export function Routed() {
   );
 }
 
-export function App({ store, identity, mode = 'demo', today }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date }) {
+/** `clock` is the real time (the Clock port, the system's by default); `today` pins the app's day for the demo and the evals. */
+export function App({ store, identity, mode = 'demo', clock, today }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date }) {
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
-      <AppProvider store={store} identity={identity} mode={mode} today={today} empty={() => <Welcome />}>
+      <AppProvider store={store} identity={identity} mode={mode} clock={clock} today={today} empty={() => <Welcome />}>
         <TelemetryRoutes />
         <Routed />
       </AppProvider>
