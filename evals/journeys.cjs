@@ -4915,6 +4915,74 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
   await p.context().close();
 }, []);
 
+/* Looking after metrics (ML3, docs/design/metrics/spec.md 2.3, 2.5, 2.8, rules 3 and 4). */
+journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; Remove says which goals stop being measured, and Undo puts the metric and its links back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/new'));
+  await h.fill(p.getByLabel('Name', { exact: true }), 'CI cost per pipeline run');
+  const asked = p.locator('.metric-close');
+  await see(asked, 'This looks like “CI compute cost per pipeline run”', 'a close name is not asked about');
+  h.set('entry', (await asked.getAttribute('role')) === 'status', 'the close-name question is not a status');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'USD');
+  await h.click(p.getByRole('button', { name: 'Lower is better' }));
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { level: 1, name: 'CI cost per pipeline run' }).waitFor();
+  // What it still needs, each with the button that opens the form at that field.
+  const sort = p.locator('.metric-need-list');
+  const needs = (await sort.innerText()).replace(/\s+/g, ' ');
+  h.set('progress', /No meaning yet/.test(needs) && /No source named/.test(needs), `To sort out says “${needs}”`);
+  await h.click(sort.getByRole('link', { name: 'Say what it means' }));
+  await p.waitForURL(/\/edit\?field=meaning/);
+  await p.waitForTimeout(300);
+  h.set('attention', await p.evaluate(() => !!document.activeElement?.closest('#metric-meaning')), 'Say what it means does not open the form at the meaning');
+  await h.checkpoint('to sort out');
+  // Changing the unit of a metric goals use is asked first; keeping it changes nothing.
+  await p.goto(url('/metrics/queue-wait/edit'));
+  await h.fill(p.getByLabel('Unit', { exact: true }), 's');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const confirm = p.getByRole('alertdialog');
+  await see(confirm, /1 goal is measured by this metric\. Changing its unit doesn’t change their numbers or plans; 1 of them will show a warning that they differ\. Change it\?/, 'changing a unit goals use is not asked first');
+  await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
+  h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
+  // Remove says which goals stop being measured by it; Undo brings the metric and its link back.
+  await p.goto(url('/metrics/queue-wait'));
+  await h.click(p.getByRole('button', { name: 'Remove this metric…' }));
+  const sheet = p.getByRole('dialog', { name: /Remove “Pipeline queue wait \(p90\)”\?/ });
+  await see(sheet, '1 goal stops being measured by it: Pipeline queue wait (p90). They keep their numbers and plans.', 'Remove does not say which goals stop being measured');
+  await h.click(sheet.getByRole('button', { name: 'Remove the metric' }));
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }));
+  await p.waitForTimeout(400);
+  const s1 = await h.snapshot();
+  const link = (s1.modules?.metrics?.metricLinks ?? []).find((l) => l.goalId === 'lead-ci-time');
+  const met = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_queue-wait');
+  h.set('logged', !!met && !met.removedAt && !!link && !link.removedAt, 'Undo did not put the metric and its link back');
+  await p.context().close();
+  // Someone else: none of these, and who can change it.
+  const t = h.use(await newPage(device, 'tunde'));
+  await t.goto(url('/metrics/queue-wait'));
+  await t.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  const offered = (await t.locator('.metric-need-list').count()) + (await t.getByRole('button', { name: /^Remove this metric/ }).count()) + (await t.getByRole('link', { name: 'Change this metric' }).count());
+  await see(t, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
+  h.set('errors', offered === 0, `Tunde was offered ${offered} ways to change a metric he doesn’t own`);
+  await t.context().close();
+  // An admin: About says a metric has no owner once its owner has left.
+  const a = h.use(await newPage(device, 'amara'));
+  await a.goto(url('/people'));
+  await h.fill(a.getByPlaceholder('Find by name, job title or team'), 'Mateo');
+  await h.click(a.getByRole('link', { name: /Mateo Fernández/ }).first());
+  await h.click(a.getByRole('button', { name: 'Mark as left…' }));
+  const dlg = a.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
+  await pickIn(dlg, /^Who takes over Mateo’s \d+ goals?/, 'marisol', /Marisol Duarte/);
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(a, 'Mateo Fernández is marked as left');
+  await a.goto(url('/workspace'));
+  const row = a.getByRole('list', { name: 'To sort out' });
+  await see(row, '1 metric has no owner', 'About does not say a metric has no owner');
+  await h.click(row.getByRole('link', { name: 'See them' }));
+  await a.waitForURL(/\/metrics\?sortout=1/);
+  await a.context().close();
+}, []);
+
 journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.

@@ -31,7 +31,7 @@ A **metric** is one number defined once per workspace, so every goal about it me
 
 **Measuring a goal.** A goal is measured by at most one metric, for one **slice**: a team’s number, or the whole company’s. The goal’s own target is the target in that metric (a number to move: its plan’s target; a number to keep in range: its limit); nothing is copied. A goal with dated stages has no number, so no metric measures it. The goal and the metric must have the same unit, any case. A goal aiming the other way from the metric’s better direction (planned to go up when lower is better, or kept at least a level when lower is better) is linked with a warning, since a guardrail may mean it. So is a goal that keeps more decimal places than its metric. The goal's target in the metric is shown as every number is ([numbers and names](../../core/rules/numbers-and-names.md)): at the goal's decimals, digits grouped, with its unit. Linking again with the same metric and slice changes nothing; another metric or slice is a change.
 
-**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back without its old links. Unlinking keeps the link’s row too, and Undo puts it back.`,
+**Logged, never lost.** Every change is in the change log as a metric change (adding, changing field by field, removing, restoring; linking and unlinking on the goal it measures). Removing a metric keeps its row, unlinks every goal it measured in the same save, and leaves the goals as they were. Undo straight after puts the metric and its links back; restoring it later from Recently removed brings the metric back with the links it had, to goals still there that nothing else measures since. Unlinking keeps the link’s row too, and Undo puts it back.`,
   examples: [
     { given: 'Oskar adds a metric named “Build time” with no unit or direction.', then: 'refused: Say its unit: %, min, hours, USD, deploys… Say which way is better: higher or lower.', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time' }).commit)) },
     { given: 'Oskar adds “Build time”, in min, lower is better.', then: 'Added the metric “Build time”', run: () => summaryOf(asPerson('oskar', (x) => MET.saveMetric(x, { name: 'Build time', unit: 'min', direction: 'lower' }).commit)) },
@@ -122,6 +122,28 @@ A goal's metric is chosen where the goal is made or changed, by typing part of i
     { given: 'Changing a goal that keeps 1 decimal place; a metric with 0 chosen.', then: 'nothing set; The goal keeps 1 decimal place and Pipeline queue wait (p90) whole numbers. Check which is meant.', run: () => { const d = MEAS.measureDefaults(queue(), { isNew: false, untouched: true, unit: 'min', decimals: 1 }); return `${d.set ? 'set' : 'nothing set'}; ${MEAS.measureFormProblems(queue(), { kind: 'metric', unit: 'min', decimals: 1 }).warnings.join(' ')}`; } },
     { given: 'Check, measured for CI/CD.', then: 'Measured by Pipeline queue wait (p90), for CI/CD.', run: () => MEAS.measuredBySays(queue(), 'CI/CD') },
     { given: 'The finder, “queue” typed.', then: 'CI pipeline time on main (p90) | Pipeline queue wait (p90): min · lower is better · Rhea Kapoor', run: () => { const a = MEAS.searchMetrics(reads(), { q: 'queue' }); return `${a.rows.map((r) => r.name).join(' | ')}: ${a.rows[1]!.detail}`; } },
+  ],
+});
+
+rules.push({
+  id: 'metric-care',
+  title: 'Looking after metrics',
+  summary: 'A name close to one already in the library (rule 4), and what an admin is told on Workspace → About.',
+  code: [{ file: 'src/modules/metrics/rulesLibrary.ts', names: ['closeNames', 'nameWords', 'closeNameWords'] }, { file: 'src/modules/metrics/rules.ts', names: ['ownerName', 'ownerlessMetrics'] }, { file: 'src/modules/metrics/finder.ts', names: ['metricsToSortOut'] }],
+  tests: ['src/modules/metrics/rulesCare.test.ts'],
+  reqs: ['METRICS-CARE'],
+  body: `
+**Rule 4. A close name** (\`closeNames\`). While a metric is added, a name of four characters or more is compared with every metric in use as sets of words: lower case, without accents and punctuation, leaving out anything in brackets and the words “the”, “of”, “per”, “for”, “in”, “a”, “rate” and “time”. Two names are close when one set contains the other, or when they share at least two words and differ by at most one. Up to two are named, closest first (fewest words apart, then A to Z). An exact match, any case, is not close: it is refused as a name already taken. The question is said, never an error, and never stops the save: “This looks like “{other}” ({unit}, {direction}, owned by {name}). Use that one, or carry on if yours is different.”
+
+**Changing what goals rely on.** When goals in force are measured by a metric and its unit or direction is changed, the form asks first: how many goals, and how many of them will then show a warning that they differ (linking's checks). Their numbers and plans don't change.
+
+**Workspace → About** tells admins how many metrics in use have no owner, or an owner who has left: “{n} metrics have no owner”, because an owner keeps a metric's meaning true, with See them (the library's Something to sort out).`,
+  examples: [
+    ...([['CI cost per pipeline run', 'CI compute cost per pipeline run', 'close'], ['Queue wait', 'Pipeline queue wait (p90)', 'close'], ['Lead time', 'Lead time for changes', 'close'], ['Deploys per day', 'Production deploys per day', 'close'], ['Change failure rate', 'Flaky test rate', 'not close'], ['Build time', 'Base image build time', 'close'], ['MTTR', 'Mean time to restore (P1 and P2)', 'not close']] as const).map(([typed, existing, then]) => ({
+      given: `“${typed}” typed, “${existing}” in the library.`, then,
+      run: () => (LIB.closeNames(typed, [{ ...LIB_METRIC('metric_lead-time'), id: 'x', name: existing }]).length ? 'close' : 'not close'),
+    })),
+    { given: 'Rhea’s metrics when she is marked as left: how many About counts.', then: '4', run: () => String(MET.ownerlessMetrics({ metrics: MET.metricsOf(demo()), people: demo().people.map((p) => (p.id === 'rhea' ? { ...p, leftAt: CHECK_IN_MOMENT } : p)) }).length) },
   ],
 });
 
