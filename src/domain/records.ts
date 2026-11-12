@@ -5,7 +5,8 @@
    adds a field or a table to them. A module declares its records instead, in its module.json (`records`: name, table,
    key, removable) and in its records.ts, which default-exports a `ModuleRecords`: for each record, the row mappers each
    way, what a new cycle carries over, what happens when a goal or person a row points to is removed, and how a removed
-   row is named and restored. The workspace as loaded, and a commit, hold every module's rows under `modules`:
+   row is named and restored; and, if it keeps that, what measures a goal (`measures`, read by goal entry's questions).
+   The workspace as loaded, and a commit, hold every module's rows under `modules`:
 
      modules: { [moduleId]: { [key]: rows } }
 
@@ -106,6 +107,18 @@ export interface ModuleRecords {
   records: RecordDef<any>[];
   /** The workbook's sheets it adds, if any. */
   sheets?: ModuleSheet<any>[];
+  /** What measures a goal, when the module keeps that (the metric library's link): its name and which way is better, for
+      goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
+  measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
+}
+
+/** What measures a goal, for goal entry's questions: a name, and which way is better. */
+export interface GoalMeasure { name: string; direction: 'lower' | 'higher' }
+
+/** What measures a goal, from the first module in this build that says: null when none does. */
+export function goalMeasureOf(records: readonly ModuleRecords[] | undefined, s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null {
+  for (const m of records ?? []) { const got = m.measures?.(s, goalId); if (got) return got; }
+  return null;
 }
 
 /* ---------- reading and writing a module's rows ---------- */

@@ -111,6 +111,17 @@ describe('metric library tools', () => {
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(13);
   });
 
+  it('asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)', async () => {
+    // Lead time for changes is better lower: a plan that rises is asked about, with the form's words.
+    const { call } = await setup('rhea');
+    const r = await call('update_goal', { goal_id: 'ns-lead', start: 20, target: 22, reason: 'Re-based on the new dashboard', dry_run: true });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/“Lead time for changes” is better lower, but the target \(22 hours\) is above today \(20 hours\)\. Is that the plan\?/);
+    // Switched off, the library says nothing measures it, so nothing is asked about it.
+    const off = await (await setup('rhea', ['metrics'])).call('update_goal', { goal_id: 'ns-lead', start: 20, target: 22, reason: 'Re-based on the new dashboard', dry_run: true });
+    expect(off.content[0]!.text).not.toMatch(/is better lower/);
+  });
+
   it('says the library is off where an admin has switched it off', async () => {
     const { call } = await setup('grace', ['metrics']);
     const r = await call('list_metrics');
