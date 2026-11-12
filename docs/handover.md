@@ -321,7 +321,7 @@ Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its o
   - The review's lows: `ask_for_update` on a proposed goal; two primary buttons with "Make it active" open; 22 px buttons; "Rhea see"; the scope rule written twice; no MCP test of `make_goal_active` beyond #293's.
 - **Habits:**
   - The first download is 259.4 of 265 KB on #300's branch (main was 264.7 before #300 moved `RangeChart` out): keep new code lazy.
-  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or `src/domain/range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
+  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or #300's new `range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
   - A finish check runs alone with `FINISH=N12`, not `ONLY=`.
   - `enable_pr_auto_merge` still refuses (no branch protection), so merge by hand.
   - CI's vitest sometimes fails one timing test under load (`importSpeed`, `undoElsewhere`); they pass alone. One re-run each.
