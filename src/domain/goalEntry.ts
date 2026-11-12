@@ -444,14 +444,19 @@ export interface ChecksLookup {
 export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: string) =>
   sameTitleGoals(title, null, goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt));
 
-/** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named. */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'>): ChecksContext {
+/** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named.
+    `savedAs`: the id a new goal's draft has been saved under, once it has (it is then not asked about itself). */
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'> & { savedAs?: string | null }): ChecksContext {
+  const { savedAs, ...rest } = base;
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   const team = d.teamId ? look.team(d.teamId) : undefined;
   const parent = d.parentId ? look.goal(d.parentId) : undefined;
-  const named = team && d.title.trim() ? look.sameNamed(d.title, team.id).filter((g) => g.id !== base.existing?.id) : [];
+  // A goal is never its own twin: not the goal being changed, nor the new goal this draft has just been saved as (a
+  // screen still drawn while the goal's page opens sees it among the team's goals).
+  const self = new Set([base.existing?.id, savedAs].filter((id): id is string => !!id));
+  const named = team && d.title.trim() ? look.sameNamed(d.title, team.id).filter((g) => !self.has(g.id)) : [];
   return {
-    ...base,
+    ...rest,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null, teamName: owner.teamId ? look.team(owner.teamId)?.name ?? null : null } : null,
     team: team ? { id: team.id, name: team.name } : null,
     parent: parent ? { id: parent.id, title: parent.title, level: parent.level } : null,

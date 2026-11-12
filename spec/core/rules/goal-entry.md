@@ -91,6 +91,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what is asked (rule 3) › asks about a target on the worse side of the start for the metric that measures it
 - what is asked (rule 3) › asks about a warning margin as wide as the limit
 - what is asked (rule 3) › asks about a link to a lower level, an owner in another team and the same name in the same team
+- what is asked (rule 3) › never counts a goal as its own twin: not the goal being changed, nor the new goal a draft was just saved as
 - what is asked (rule 3) › asks about a hand-set plan that leaves most of the change to the end; a chosen shape never
 - what is asked (rule 3) › asks whether a stage already past is done; either answer is an answer
 - what is asked (rule 3) › asks nothing about a field with a Must fix

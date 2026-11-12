@@ -64,6 +64,9 @@ export function GoalWizard() {
   return <Wizard key={round} onFresh={() => { clearDraft(key); setRound((r) => r + 1); }} />;
 }
 
+/** The goal's page (lazy, as in App): fetched early so Publish opens it at once. A failed fetch is left to the route. */
+const loadGoalPage = () => import('./GoalScreen').then(() => undefined, () => undefined);
+
 /** The form's own unit and decimals, before anyone types: a metric chosen then fills them (rule 5). */
 const BLANK = blankGoal('', '', '');
 
@@ -80,6 +83,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [d, set, clear, restored] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  // The goal this draft was published as: from then on nothing here asks again or says what's missing; the goal's page
+  // opens with the toast (the wizard stays drawn while that page loads).
+  const [published, setPublished] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   useMark(STEP_MARKS[step] ?? null);
   // From and To (rule 13): picked weeks, from this week to the year's end until chosen.
@@ -110,9 +116,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
   const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
-  const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
+  const live: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published }));
+  // Pressing Publish freezes the questions as they were: the save puts the new goal among the team's goals before it
+  // returns, and nothing it changes may ask again (or say a question is open) while the goal's page opens.
+  const frozen = useRef<GoalCheck[] | null>(null);
+  const checks = frozen.current ?? live;
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
@@ -165,6 +175,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   // A later step opened with an earlier one unfilled goes to the first unfilled one, its errors not yet shown.
   const firstBad = [0, 1, 2].find((i) => i < step && stepErrors(i).length);
   useEffect(() => { if (firstBad == null && d.step !== step) set({ step }); }, [firstBad, step, d.step, set]);
+  // The goal's page loads while Check is read, so Publish opens it at once.
+  useEffect(() => { if (step === 3) void loadGoalPage(); }, [step]);
   useEffect(() => { top.current?.querySelector<HTMLElement>('.focus-body input, .focus-body select, .focus-body textarea, .focus-body button.kindcard, .focus-body .pick button')?.focus(); }, [step]);
 
   const atStep = (i: number) => `/goals/new/${NEW_GOAL_STEPS[i]!.slug}`;
@@ -202,6 +214,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const publish = async () => {
     const bad = [0, 1, 2].find((i) => stepErrors(i).length || stepOpen(i).length);
     if (bad != null) { setTried([0, 1, 2]); nav(atStep(bad)); return; }
+    frozen.current = checks;
     setSaving(true);
     try {
       // Saved through the saveGoal action (goal entry, rule 7): the same rights, Must fix and questions as every other door.
@@ -211,9 +224,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
       const g = await app.saveGoal(draft, null, { answers, metric, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
-      app.toast(`Published “${g.title}”`);
+      setPublished(g.id);
+      // The page and the toast together: the page's code is (almost always) here already.
+      await loadGoalPage();
       nav('/goals/' + g.id + '?published=1', { replace: true });
+      app.toast(`Published “${g.title}”`);
     } catch {
+      frozen.current = null;
       setSaving(false);
     }
   };
@@ -462,7 +479,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
               <h2 className="small strong" id="after-publish">After you publish</h2>
               {read.after.map((t) => <p key={t} className="small">{t}</p>)}
             </section>
-            {[0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
+            {saving || published ? null : [0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
               : [0, 1, 2].some((i) => stepOpen(i).length) ? <div className="note-bad small">A question is still to answer; publishing takes you to it.</div> : null}
           </>
         )}
@@ -471,7 +488,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         <div className="focus-foot nav-foot">
           {step > 0 && <button type="button" className="btn" onClick={back}>Back</button>}
           <span style={{ flex: 1 }} />
-          <button className="btn primary big-btn" type="submit" disabled={saving}>{saving ? 'Saving…' : step < 3 ? 'Continue' : 'Publish goal'}</button>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? 'Published' : saving ? 'Saving…' : step < 3 ? 'Continue' : 'Publish goal'}</button>
         </div>
       </form>
     </div>
