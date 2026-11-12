@@ -1638,8 +1638,9 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await p.waitForURL(/\/data\/import/);
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\nRunbooks with an owner,${NOW + 2},20\n`));
   await see(p, 'hasn’t happened yet', 'a future week was not refused');
-  h.set('errors', await p.getByRole('button', { name: /^Save/ }).isDisabled(), 'Save was allowed with a row that needs fixing');
-  await h.click(p.getByRole('button', { name: 'Choose another file' }));
+  // With a row to fix, the preview's one action is choosing the corrected file: there is no Save to press.
+  h.set('errors', !(await p.getByRole('button', { name: /^Save/ }).count()), 'Save was offered with a row that needs fixing');
+  await h.click(p.getByRole('button', { name: 'Choose the corrected file' }));
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\n`));
   await see(p, '2 check-ins (2 for past weeks)');
   h.set('attention', await p.getByText('Runbooks with an owner').first().isVisible(), 'the preview does not name the goal');
@@ -4181,9 +4182,10 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
   await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
-  h.set('attention', await p.getByText(stop.title).first().isVisible() && await p.getByText(move.title).first().isVisible(), 'the preview does not name both goals');
-  await p.locator('.change-goal summary').first().click();
   await h.checkpoint('import preview');
+  await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
+  await p.waitForURL(/\/data\/import\/check\/changes/);
+  h.set('attention', await p.getByText(stop.title).first().isVisible() && await p.getByText(move.title).first().isVisible(), 'the changes do not name both goals');
   h.set('errors', (await h.snapshot()).goals.find((g) => g.id === stop.id) && !(await h.snapshot()).changes.some((c) => c.action === 'stopped'), 'something was saved before Save');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
   await p.waitForURL(/\/goals$/);
@@ -5077,10 +5079,129 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
   await p.goto(url('/data/import'));
   await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
   await see(p, '3 example rows left out', 'the preview does not count the example rows');
-  await see(p, 'Nothing in this file changes anything', 'the template loaded back would change something');
+  await see(p, 'Nothing would change', 'the template loaded back would change something');
   await h.checkpoint('template loaded back');
   await p.context().close();
 }, ['progress', 'logged', 'errors', 'parity', 'entry']);
+
+/** A CSV as Playwright sets it on a file input. */
+const csvFile = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
+
+journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none”', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const head = 'Goal,Owner,Team,Type,Unit,Start,Target,Stages\n';
+  const many = Array.from({ length: 14 }, (_, i) => `Runner pool ${i + 1} wait,Rhea Kapoor,CI/DC,metric,min,10,5,\n`).join('');
+  const orphans = (owner) => ['Cache warm-up', 'Artifact pruning', 'Mirror freshness'].map((t) => `${t},${owner},CI/CD,metric,min,10,5,\n`).join('');
+  const staged = 'Runbooks rewritten,Rhea Kapoor,,milestone,,,,Draft@2; Signed off@50\n';
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('goals-u88.csv', head + many + orphans('') + staged));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, 'Check this import');
+  await see(p, '3 rows, 1 kind of problem', 'Must fix does not count its rows and kinds');
+  await see(p, '2 questions cover 15 rows', 'the questions are not counted once each');
+  h.set('attention', !(await p.getByRole('button', { name: /^Save/ }).count()) && await p.getByRole('button', { name: 'Choose the corrected file' }).isVisible(), 'Save is offered while rows must be fixed');
+  await h.checkpoint('preview');
+  // One answer covers fourteen rows, and closes to what was asked and the answer.
+  await h.click(p.getByRole('radio', { name: 'Use CI/CD' }));
+  await see(p, 'Did you mean CI/CD?: Use CI/CD', 'the answered question does not close to one line');
+  h.set('progress', await p.getByRole('button', { name: 'Change' }).first().isVisible(), 'the answered question has no Change');
+  // The rows to fix, as a file whose first column is Problem.
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the 3 rows to fix' }))]);
+  const file = path.join(OUT, `U88-${device}.xlsx`);
+  await download.saveAs(file);
+  const book = await readWorkbook(file);
+  h.set('finish', download.suggestedFilename() === 'goals-u88-rows-to-fix.xlsx' && book[0]?.rows[0]?.[0] === 'Problem' && book[0].rows.length === 4, `the rows to fix are ${download.suggestedFilename()}: ${JSON.stringify(book[0]?.rows[0])}, ${book[0]?.rows.length} rows`);
+  // The corrected file: the answer still applies; the stage question is answered and Save is there.
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('goals-u88.csv', head + many + orphans('Rhea Kapoor') + staged));
+  await see(p, 'Your 1 answer still applies.', 'the corrected file forgot the answer');
+  await h.click(p.getByRole('radio', { name: 'They’re not done' }));
+  const save = p.getByRole('button', { name: 'Save 18 changes' });
+  await save.waitFor({ timeout: 5000 }).catch(() => {});
+  h.set('errors', await save.isEnabled().catch(() => false), 'Save is not ready once every question is answered');
+  await h.checkpoint('answered');
+  await h.click(p.getByRole('link', { name: 'Show the 18 changes' }));
+  await p.waitForURL(/\/data\/import\/check\/changes/);
+  await see(p, 'the owner’s team; the row gave none', 'the changes list does not say where a default came from');
+  await h.click(p.getByRole('button', { name: 'Save 18 changes' }));
+  await p.waitForURL(/\/goals$/);
+  const s = await h.snapshot();
+  const runners = s.goals.filter((g) => /^Runner pool \d+ wait$/.test(g.title));
+  h.set('logged', runners.length === 14 && runners.every((g) => g.teamId === 'cicd') && s.changes.some((c) => c.action === 'imported'), `${runners.length} goals saved, teams ${[...new Set(runners.map((g) => g.teamId))].join(', ')}`);
+  await p.context().close();
+}, ['parity', 'entry']);
+
+journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook loaded straight back reads “Nothing would change”; with Status edited on two rows it says those cells differ and Faro never reads them; a column nothing reads is named in the file line; a file exported from another workspace asks before anything else, and its rows can be added as new goals', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the workbook' }))]);
+  const file = path.join(OUT, `U89-${device}.xlsx`);
+  await download.saveAs(file);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await see(p, 'Nothing would change', 'the workbook loaded straight back would change something');
+  h.set('finish', !(await p.getByText(/differs? from what Faro works out today/).count()), 'an unedited workbook says worked-out cells differ');
+  await h.checkpoint('nothing would change');
+  // Status edited on two rows, and a column of the person's own.
+  const book = await readWorkbook(file);
+  const goals = book.find((x) => x.name === 'Goals').rows;
+  const st = goals[0].indexOf('Status');
+  goals[1][st] = goals[1][st] === 'Done' ? 'Off track' : 'Done';
+  goals[2][st] = goals[2][st] === 'Done' ? 'Off track' : 'Done';
+  goals[0].push('Budget');
+  goals.slice(1).forEach((r, i) => r.push(i === 0 ? 400 : null));
+  const edited = path.join(OUT, `U89-${device}-edited.xlsx`);
+  await writeWorkbook(book, edited);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
+  await see(p, 'On 2 rows, Status differs from what Faro works out today', 'the edited worked-out cells are not said');
+  await see(p, 'the column Budget on Goals', 'a column nothing reads is not named');
+  await h.checkpoint('worked-out cells');
+  // Another workspace's file: asked first.
+  const start = book.find((x) => x.name === 'Start here').rows;
+  start.find((r) => r[0] === 'File of')[1] = 'another-org';
+  start[0][0] = String(start[0][0]).replace(/^[^,]+,/, 'Another Org,');
+  const other = path.join(OUT, `U89-${device}-other.xlsx`);
+  await writeWorkbook(book, other);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(other);
+  await see(p, 'This file was exported from “Another Org”', 'a file from another workspace is not asked about');
+  h.set('attention', !(await p.getByRole('heading', { name: 'Must fix' }).count()) && !(await p.getByRole('heading', { name: 'What will be saved' }).count()), 'the preview went on before the workspace question');
+  await h.click(p.getByRole('button', { name: 'Add its rows as new goals' }));
+  await see(p, 'What will be saved', 'answering the question does not go on to the preview');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'entry', 'logged', 'errors']);
+
+journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tunde, a workbook with his own target changed and Rhea’s changed gives one group “1 row changes a goal you don’t own” with “Leave these rows out”, and a People row changed gives the admins-only group; both left out, his change saves and Rhea’s goal is as it was', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  await p.goto(url('/data/import'));
+  const [download] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Download the workbook' }))]);
+  const file = path.join(OUT, `U94-${device}.xlsx`);
+  await download.saveAs(file);
+  const book = await readWorkbook(file);
+  const goals = book.find((x) => x.name === 'Goals').rows;
+  const col = (n) => goals[0].indexOf(n);
+  const mine = goals.find((r) => r[col('Key')] === 'G-37');
+  const hers = goals.find((r) => r[col('Key')] === 'G-14');
+  const before = { mine: mine[col('Target')], hers: hers[col('Target')] };
+  mine[col('Target')] = Number(before.mine) + 2;
+  mine[col('Reason')] = 'Agreed at the Q4 review with the platform leads.';
+  hers[col('Target')] = Number(before.hers) - 1;
+  const people = book.find((x) => x.name === 'People').rows;
+  people.find((r) => r[people[0].indexOf('Email')] === 'rhea.kapoor@example.com')[people[0].indexOf('Job title')] = 'Pipeline lead';
+  const edited = path.join(OUT, `U94-${device}-edited.xlsx`);
+  await writeWorkbook(book, edited);
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
+  await see(p, '1 row changes a goal you don’t own', 'another person’s goal is not one group');
+  await see(p, '1 row changes people. Only an admin can add or change people', 'a People change is not the admins-only group');
+  await h.checkpoint('not yours');
+  for (let i = 0; i < 2; i++) await h.click(p.getByRole('radio', { name: 'Leave these rows out' }).first());
+  await see(p, '2 rows are left out', 'the rows left out are not said');
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/goals$/);
+  const s = await h.snapshot();
+  const g37 = s.goals.find((g) => g.key === 'G-37'), g14 = s.goals.find((g) => g.key === 'G-14');
+  h.set('finish', g37.target === Number(before.mine) + 2 && g14.target === Number(before.hers) && s.people.find((x) => x.id === 'rhea').role !== 'Pipeline lead', `G-37 ${g37.target}, G-14 ${g14.target}`);
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'entry', 'logged', 'errors']);
 
 /** Until the app has drawn the page: the boot screen gone, and something in main. A screen that loads when it's opened
     (AX4: Data, Workspace, Feedback, Print, the wrap-up) leaves main empty until it arrives, so a fixed wait after going

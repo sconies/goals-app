@@ -91,6 +91,8 @@ export const SCREENS: Record<string, Entry> = {
   DataFilters: ['export_table'],
   DataLayout: ['list_views', 'save_table_view', 'delete_view', 'pin_view'],
   Import: ['bulk_change'],
+  Check: ['bulk_change'],
+  Changes: ['bulk_change'],
   Export: ['export'],
   DataMenu: ['export', 'export_table', 'bulk_change'],
   ColumnsHelp: ['get_help', 'export'],

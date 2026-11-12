@@ -3,7 +3,7 @@
    doubled inside them, line breaks inside a cell, a byte-order mark), and each grid is recognised by its header row,
    never its name (domain/columns sheetKindOf). The apostrophe the export puts before a cell that would otherwise run as
    a formula (=, +, -, @) is taken off again here, so a file loaded back says exactly what was exported. */
-import { sheetKindOf, type SheetKind } from './columns';
+import { andList, headersOf, isWeekHeader, sheetKindOf, START_HERE, type SheetKind } from './columns';
 
 export type Grid = string[][];
 /** A sheet as read: its name (for messages) and its rows of text. */
@@ -86,17 +86,45 @@ const LOADED: Partial<Record<SheetKind, keyof Tables>> = { goals: 'goals', plan:
 /** The sheets a file loads back (the rest are written for reading): every column a person fills in on them is in the field table. */
 export const LOADED_SHEETS = Object.keys(LOADED) as SheetKind[];
 
+/** Why a sheet wasn't read (rule 5): one written for reading only, one that isn't a Faro sheet, a second of a kind, or
+    the workbook's own Start here (or README) sheet, which says what the file is and is never a table. */
+export type SkipWhy = 'reading-only' | 'not-faro' | 'second' | 'start-here';
+/** Where a workbook came from: its Start here sheet's "File of" row (the workspace's and cycle's ids). */
+export interface FileOrigin { workspaceId: string; workspaceName: string | null; cycleId: string | null }
+
 export interface ReadTables {
   tables: Tables;
   /** The sheets loaded, by the name they had. */
   read: { name: string; kind: SheetKind }[];
-  /** Sheets left out, and why: one this format writes but doesn't load back (Results, Asks, Notes, Metrics), one it doesn't know. */
-  skipped: { name: string; why: string }[];
+  /** Sheets left out, and why. */
+  skipped: { name: string; why: SkipWhy }[];
+  /** Columns on a sheet that was read that nothing reads (C19): named in the file line, never dropped silently. */
+  unknownColumns: { sheet: string; headers: string[] }[];
+  /** Each table's headers as the file wrote them, in order: the rows-to-fix file writes them back. */
+  headers: Partial<Record<keyof Tables, string[]>>;
+  /** The Start here sheet's origin, when the file has one. */
+  origin: FileOrigin | null;
+}
+
+/** Headers the change engine reads besides each sheet's own columns. */
+const ALSO_READ: Partial<Record<SheetKind, string[]>> = { goals: ['reason', 'reason for change', 'owner id'], plan: ['reason', 'reason for change'], checkIns: ['reason'], people: [] };
+/** Whether a sheet of a kind reads a header. */
+export const readsHeader = (kind: SheetKind, header: string): boolean => {
+  const h = header.trim().toLowerCase();
+  return !h || headersOf(kind).some((x) => x.toLowerCase() === h) || (ALSO_READ[kind] ?? []).includes(h) || (kind === 'plan' && isWeekHeader(h));
+};
+
+/** A Start here (or README) sheet's "File of" row, as written by the export. */
+function originOf(rows: Grid): FileOrigin | null {
+  const at = rows.find((r) => (r[0] ?? '').trim().toLowerCase() === 'file of');
+  if (!at || !(at[1] ?? '').trim()) return null;
+  const name = /^(.+), [^,]+\. (Exported|Template made) /.exec(rows[0]?.[0] ?? '')?.[1] ?? null;
+  return { workspaceId: at[1]!.trim(), workspaceName: name, cycleId: (at[2] ?? '').trim() || null };
 }
 
 /** Named grids (a workbook's sheets, a zip's files, one CSV) as the tables the engine reads, each by its header. */
 export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: string; columns: readonly { header: string }[] }[] = []): ReadTables {
-  const out: ReadTables = { tables: {}, read: [], skipped: [] };
+  const out: ReadTables = { tables: {}, read: [], skipped: [], unknownColumns: [], headers: {}, origin: null };
   // A module's own sheet (Metrics), known by its header: the same columns the export writes, in any order.
   const ownSheet = (head: readonly string[]) => {
     const h = new Set(head.map((x) => x.trim().toLowerCase()).filter(Boolean));
@@ -104,14 +132,38 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
   };
   for (const g of grids) {
     if (!g.rows.length) continue;
-    const own = ownSheet(g.rows[0]!);
-    if (own) { out.skipped.push({ name: g.name, why: `the ${own.name} sheet, written for reading; not loaded back` }); continue; }
+    const bare = g.name.replace(/\.(csv|tsv|txt)$/i, '').trim().toLowerCase();
+    if (bare === START_HERE.toLowerCase() || bare === 'readme') { out.origin ??= originOf(g.rows); out.skipped.push({ name: g.name, why: 'start-here' }); continue; }
+    if (ownSheet(g.rows[0]!)) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
     const kind = sheetKindOf(g.rows[0]!);
     const key = kind ? LOADED[kind] : undefined;
-    if (!kind) out.skipped.push({ name: g.name, why: 'not a sheet this app reads (its header row doesn’t match one)' });
-    else if (!key) out.skipped.push({ name: g.name, why: 'written for reading; not loaded back' });
-    else if (out.tables[key]) out.skipped.push({ name: g.name, why: `a second ${kind === 'checkIns' ? 'Check-ins' : kind} sheet; only the first is read` });
-    else { out.tables[key] = recordsOf(g.rows); out.read.push({ name: g.name, kind }); }
+    if (!kind) out.skipped.push({ name: g.name, why: 'not-faro' });
+    else if (!key) out.skipped.push({ name: g.name, why: 'reading-only' });
+    else if (out.tables[key]) out.skipped.push({ name: g.name, why: 'second' });
+    else {
+      out.tables[key] = recordsOf(g.rows);
+      out.read.push({ name: g.name, kind });
+      out.headers[key] = g.rows[0]!.map((h) => h.trim());
+      const unknown = g.rows[0]!.map((h) => h.trim()).filter((h) => h && !readsHeader(kind, h));
+      if (unknown.length) out.unknownColumns.push({ sheet: g.name, headers: unknown });
+    }
   }
   return out;
+}
+
+/**
+ * Rule 5. What was read, in one sentence (the preview's file line, 2.3): "Read Goals and Check-ins. Not read: Results
+ * (for reading only); Budget (not a Faro sheet); the column Notes on Goals." Parts with nothing are left out; the Start
+ * here sheet is never mentioned. Then the example rows left out, when there are any.
+ */
+export function readLine(read: Pick<ReadTables, 'read' | 'skipped' | 'unknownColumns'>, examples = 0): string {
+  const by = (why: SkipWhy) => read.skipped.filter((x) => x.why === why).map((x) => x.name);
+  const not = [
+    by('reading-only').length ? `${andList(by('reading-only'))} (for reading only)` : '',
+    by('not-faro').length ? `${andList(by('not-faro'))} (not a Faro sheet)` : '',
+    by('second').length ? `${andList(by('second'))} (a second sheet of the same kind; only the first is read)` : '',
+    ...read.unknownColumns.map((u) => `the column${u.headers.length === 1 ? '' : 's'} ${andList(u.headers)} on ${u.sheet}`),
+  ].filter(Boolean);
+  const parts = [read.read.length ? `Read ${andList(read.read.map((x) => x.name))}.` : 'Nothing was read.', not.length ? `Not read: ${not.join('; ')}.` : '', examples ? `${examples} example row${examples === 1 ? '' : 's'} left out.` : ''];
+  return parts.filter(Boolean).join(' ');
 }

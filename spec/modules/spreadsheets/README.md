@@ -11,7 +11,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Extension point | What |
 |---|---|
 | Needs | none |
-| Routes | `/data/import` |
+| Routes | `/data/import`, `/data/import/check`, `/data/import/check/changes` |
 | Old addresses | `/import` → `/data/import` |
 | Navigation | none |
 | Places on core screens | `data.tools`, `goals.tools`, `help.article` |
@@ -30,6 +30,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 - `SPREADSHEETS-ON-DATA`: Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template (a Start here sheet, then the columns a person fills in on Goals, Plan, Check-ins and People, required headers in bold, and example rows that are never imported), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). Tests: `evals/modules.eval.ts`.
 - `FIELD-TABLE`: Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from. Tests: `src/domain/fieldTable.test.ts`.
 - `IMPORT-LEVELS`: Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused. Tests: `src/domain/problemLevels.test.ts`, `evals/format.eval.ts`.
+- `IMPORT-PREVIEW`: Before anything is saved an import says which sheets and columns it read and which it did not, then counts by sheet, then what must be fixed, then its questions, then the changes on request with before and after and every default it used. Saving is all or nothing unless the person chooses to leave named rows out. Tests: `src/domain/importPreview.test.ts`, `src/domain/roundtrip.test.ts`.
 
 ## Journeys and checks
 
@@ -40,8 +41,12 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | `evals/journeys.cjs` |
 | U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on, or Undo straight after switching it off, brings it all back | `evals/journeys.cjs` |
 | U87 | What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out | `evals/journeys.cjs` |
+| U88 | One answer for many rows: as Amara, a file with 14 rows for team “CI/DC”, 3 new goals with no owner and a stage in week 2 gives Must fix “3 rows, 1 kind of problem”, two questions and no Save; “Use CI/CD” closes its question to one line; the 3 rows to fix download with Problem first; the corrected file says “Your 1 answer still applies.”; answering the stage question enables Save; the changes list says “the owner’s team; the row gave none” | `evals/journeys.cjs` |
+| U89 | Out and back in: the workbook loaded straight back reads “Nothing would change”; with Status edited on two rows it says those cells differ and Faro never reads them; a column nothing reads is named in the file line; a file exported from another workspace asks before anything else, and its rows can be added as new goals | `evals/journeys.cjs` |
+| U94 | Who may import what: as Tunde, a workbook with his own target changed and Rhea’s changed gives one group “1 row changes a goal you don’t own” with “Leave these rows out”, and a People row changed gives the admins-only group; both left out, his change saves and Rhea’s goal is as it was | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
+| F17 | The import’s preview on a phone: nothing scrolls sideways, every answer and button is 44 px high, Import’s primary action is on the first screen | `evals/finish/17-import.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |
 
 ## Help

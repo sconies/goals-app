@@ -14,22 +14,24 @@ Download the goals as an Excel workbook or CSV files, and load changes back from
 
 ## What to build
 
-Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Tools for it on Data and Goals, and Help’s table of every column.
+Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column.
 
 What it adds to the core (routes, places on core screens, AI tools, Help) is in [its section](../modules/spreadsheets/README.md#what-it-adds-to-the-core).
 
 ## Exit criteria
 
-1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS` (words in [its section](../modules/spreadsheets/README.md#requirements)).
-2. Its journeys and checks can be done: U19, U20, U46, U48, U87, F7, F8, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
+1. Its requirements hold: `EXPORT`, `BULK-IMPORT`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `FIELD-TABLE`, `IMPORT-LEVELS`, `IMPORT-PREVIEW` (words in [its section](../modules/spreadsheets/README.md#requirements)).
+2. Its journeys and checks can be done: U19, U20, U46, U48, U87, U88, U89, U94, F7, F8, F17, N5 ([its section](../modules/spreadsheets/README.md#journeys-and-checks)).
 3. A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.
 4. A workbook with one wrong row saves nothing, and the preview names the row and the problem.
-5. Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.
-6. The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.
-7. The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).
-8. Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists "import" under "also").
+5. A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.
+6. A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.
+7. Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.
+8. The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.
+9. The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).
+10. Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists "import" under "also").
 
 ## Gaps in the kit
 
 - The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.
-- The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; a download, a load and the preview (IM3) are still scored only by Faro’s own eval scripts.
+- The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U94); what was read and leaving rows out are rules in the kit, with their worked examples.
