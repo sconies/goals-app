@@ -7712,7 +7712,8 @@ function parseQuery(p) {
 		feeds: p.get("feeds") || null,
 		helps: p.get("helps") === "1",
 		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
-		dir: dir === "desc" ? -1 : 1
+		dir: dir === "desc" ? -1 : 1,
+		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v))
 	};
 }
 /** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
@@ -7741,6 +7742,7 @@ function queryEntries(q) {
 	if (q.result.length) out.push(["result", q.result.join(",")]);
 	if (q.feeds) out.push(["feeds", q.feeds]);
 	if (q.helps) out.push(["helps", "1"]);
+	for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]]);
 	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
 	return out;
 }
@@ -7766,6 +7768,10 @@ function matches(s, q, ctx, tree) {
 	if (q.team.length && !q.team.includes(g.teamId)) return false;
 	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
 	if (q.kind.length && !q.kind.includes(g.kind)) return false;
+	for (const [k, v] of Object.entries(q.cols ?? {})) {
+		const col = ctx.columns?.[k];
+		if (col && col(g) !== v) return false;
+	}
 	if (q.attention || q.needs.length) {
 		if (!onAttentionList(s.attention)) return false;
 		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
@@ -7806,7 +7812,7 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
@@ -7830,7 +7836,8 @@ var init_query = __esmMin((() => {
 		feeds: null,
 		helps: false,
 		sort: null,
-		dir: 1
+		dir: 1,
+		cols: {}
 	};
 	STATUS_OPTIONS = [
 		"off",
@@ -7872,6 +7879,7 @@ var init_query = __esmMin((() => {
 		const n = v == null ? NaN : Number(v);
 		return Number.isInteger(n) && n > 0 ? n : null;
 	};
+	COLUMN_PARAMS = [];
 	GAP_RANK = {
 		off: 4,
 		risk: 3,
@@ -11442,7 +11450,7 @@ init_plan();
 init_review();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
-function goalRows(s, cycle, today, week) {
+function goalRows(s, cycle, today, week, columns) {
 	const goals = live(s.goals).filter((g) => !g.stoppedAt);
 	return {
 		kind: "goal",
@@ -11450,7 +11458,8 @@ function goalRows(s, cycle, today, week) {
 		ctx: {
 			goals,
 			cycle,
-			week
+			week,
+			...columns ? { columns } : {}
 		}
 	};
 }
@@ -11471,13 +11480,13 @@ function teamRows(s) {
 	};
 }
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
-function searchRows(s, cycle, today, week) {
+function searchRows(s, cycle, today, week, columns) {
 	const once = (f) => {
 		let v;
 		return () => v ??= f();
 	};
 	return {
-		goal: once(() => goalRows(s, cycle, today, week)),
+		goal: once(() => goalRows(s, cycle, today, week, columns)),
 		person: once(() => personRows(s)),
 		team: once(() => teamRows(s))
 	};
@@ -13124,94 +13133,132 @@ function dashboard(personId, s, cycle, week, today) {
 	};
 }
 // src/modules/metrics/help.ts
-var help$3 = [{
-	id: "metrics",
-	title: "Metrics: what each number means",
-	summary: "The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.",
-	group: "you",
-	after: "people",
-	sections: [
-		{
-			heading: "What it’s for",
-			text: ["A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone."]
-		},
-		{
+var help$3 = [
+	{
+		id: "metrics",
+		title: "Metrics: what each number means",
+		summary: "The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.",
+		group: "you",
+		after: "people",
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone."]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.",
+					"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
+					"A search that finds nothing offers to add it as a new metric.",
+					"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
+					"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
+					"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
+					"Old links to Metrics under Data still work: they open the library, a metric, or the form."
+				]
+			},
+			{
+				heading: "Who can",
+				list: ["Anyone reads the library and every metric, and anyone adds a metric.", "A metric’s owner and admins change or remove it. They also see what it still needs (an owner, a meaning, a source, a goal that uses it) on its page, under To sort out, and as a warning on its row in the library. Everyone else sees who can change it."]
+			}
+		],
+		routes: [
+			"/metrics",
+			"/metrics/:metricId",
+			"/data/metrics"
+		],
+		screens: ["Metrics", "MetricPlaces"],
+		reqs: ["METRICS-LIBRARY"],
+		keywords: [
+			"metric",
+			"metrics",
+			"library",
+			"measure",
+			"measured by",
+			"unit",
+			"definition",
+			"meaning",
+			"source",
+			"kpi",
+			"number"
+		],
+		related: [
+			"metric-add",
+			"people",
+			"goal-page"
+		]
+	},
+	{
+		id: "metric-add",
+		title: "Adding or changing a metric",
+		summary: "Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.",
+		group: "you",
+		after: "metrics",
+		sections: [{
 			heading: "How to use it",
 			list: [
-				"The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.",
-				"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
-				"A search that finds nothing offers to add it as a new metric.",
-				"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
-				"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
-				"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
-				"Old links to Metrics under Data still work: they open the library, a metric, or the form."
+				"In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.",
+				"Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.",
+				"What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.",
+				"Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.",
+				"Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.",
+				"Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.",
+				"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
+				"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
 			]
-		},
-		{
-			heading: "Who can",
-			list: ["Anyone reads the library and every metric, and anyone adds a metric.", "A metric’s owner and admins change or remove it. They also see what it still needs (an owner, a meaning, a source, a goal that uses it) on its page, under To sort out, and as a warning on its row in the library. Everyone else sees who can change it."]
-		}
-	],
-	routes: [
-		"/metrics",
-		"/metrics/:metricId",
-		"/data/metrics"
-	],
-	screens: ["Metrics", "MetricPlaces"],
-	reqs: ["METRICS-LIBRARY"],
-	keywords: [
-		"metric",
-		"metrics",
-		"library",
-		"measure",
-		"measured by",
-		"unit",
-		"definition",
-		"meaning",
-		"source",
-		"kpi",
-		"number"
-	],
-	related: [
-		"metric-add",
-		"people",
-		"goal-page"
-	]
-}, {
-	id: "metric-add",
-	title: "Adding or changing a metric",
-	summary: "Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.",
-	group: "you",
-	after: "metrics",
-	sections: [{
-		heading: "How to use it",
-		list: [
-			"In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.",
-			"Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.",
-			"What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.",
-			"Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.",
-			"Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.",
-			"Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.",
-			"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
-			"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
+		}],
+		routes: ["/metrics/new", "/metrics/:metricId/edit"],
+		screens: [],
+		reqs: [],
+		keywords: [
+			"add metric",
+			"new metric",
+			"change metric",
+			"edit metric",
+			"remove metric",
+			"unit",
+			"decimals",
+			"owner",
+			"caveats"
+		],
+		related: ["metrics", "removing"]
+	},
+	{
+		id: "metric-measured-by",
+		title: "Measured by: choosing a goal’s metric",
+		summary: "In New goal and when changing a goal, say which metric measures it by typing to find one, or add one there.",
+		group: "you",
+		after: "metric-add",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.",
+				"Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.",
+				"For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.",
+				"A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.",
+				"No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.",
+				"Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.",
+				"Check reads it back (“Measured by …, for …”). On Goals, Filters has Measured by, and a metric’s page has See its goals."
+			]
+		}],
+		routes: [],
+		screens: ["MeasuredBy"],
+		reqs: ["METRICS-MEASURED-BY"],
+		keywords: [
+			"measured by",
+			"metric",
+			"choose metric",
+			"link metric",
+			"no metric",
+			"for"
+		],
+		related: [
+			"metrics",
+			"metric-add",
+			"new-goal"
 		]
-	}],
-	routes: ["/metrics/new", "/metrics/:metricId/edit"],
-	screens: [],
-	reqs: [],
-	keywords: [
-		"add metric",
-		"new metric",
-		"change metric",
-		"edit metric",
-		"remove metric",
-		"unit",
-		"decimals",
-		"owner",
-		"caveats"
-	],
-	related: ["metrics", "removing"]
-}];
+	}
+];
 // src/modules/spreadsheets/help.ts
 init_columns();
 var help$2 = [
@@ -15870,6 +15917,21 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "measured-by-find",
+		date: "2026-11-12",
+		title: "Find a goal’s metric by typing",
+		points: [
+			"In New goal, “Measured by” comes first: type to find a metric, or add one there.",
+			"Choosing one fills in its unit and which way is better.",
+			"A metric’s page opens its goals on Goals, and Filters on Goals has Measured by."
+		],
+		articles: [
+			"metric-measured-by",
+			"new-goal",
+			"metrics"
+		]
+	},
+	{
 		id: "new-goal-order",
 		date: "2026-11-12",
 		title: "New goal asks in a better order",
@@ -17487,6 +17549,7 @@ var _virtual_faro_modules_default = [{
 	navigation: ["Metrics"],
 	places: [
 		"goal.facts",
+		"goal.measure",
 		"goal.sections",
 		"people.person",
 		"people.team"
@@ -17518,17 +17581,22 @@ var _virtual_faro_modules_default = [{
 		"remove_metric",
 		"link_goal_metric"
 	],
-	help: ["metrics", "metric-add"],
-	requirements: ["METRICS-LIBRARY"],
+	help: [
+		"metrics",
+		"metric-add",
+		"metric-measured-by"
+	],
+	requirements: ["METRICS-LIBRARY", "METRICS-MEASURED-BY"],
 	journeys: [
 		"U81",
+		"U82",
 		"F15",
 		"N16"
 	],
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s.",
+		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric.",
 		"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
 		"exit": [
 			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
@@ -17538,10 +17606,11 @@ var _virtual_faro_modules_default = [{
 			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
 			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
 			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
-			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16)."
+			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
+			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples)."
 		],
 		"gaps": [
-			"“Measured by” found by typing in the goal forms, the Goals filter by a metric (so a metric with several goals opens them on Goals), and the close-name question come with ML2 and ML3 (docs/design/metrics/spec.md).",
+			"The close-name question, what a metric still needs on Workspace → About, and the confirm before changing a unit or direction goals use come with ML3 (docs/design/metrics/spec.md).",
 			"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
 			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
 		]
@@ -17582,7 +17651,9 @@ var _virtual_faro_modules_default = [{
 			"why": "The Metrics sheet is written for reading, like Asks and Notes; metrics are added in the app or by an AI assistant. A goal’s numbers still come from its check-ins.",
 			"how": "Give the Metrics sheet match and edit columns and read it through the change engine (stage 2), as People is. Later, read each metric’s number from its source on its refresh cadence and offer it in the check-in."
 		}
-	]
+	],
+	finders: ["metric"],
+	filters: ["metric"]
 }, {
 	id: "spreadsheets",
 	name: "Spreadsheets",

@@ -20,7 +20,7 @@ import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { StatusLegend } from '../ui/StatusLegend';
-import { Place } from '../core/app';
+import { Place, useGoalColumns } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
 import { applyQuery, EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
@@ -115,6 +115,7 @@ export function GoalsScreen() {
     [show, app.snapshot, app.viewer.id, att, handled, inScope]);
   // Search, filters and sort apply on top of the grouping, in every layout and in exports.
   const [query, setQuery] = useGoalQuery();
+  const { columns } = useGoalColumns();
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort || scope !== 'all';
   const attentionOn = query.attention || query.needs.length > 0;
@@ -122,13 +123,13 @@ export function GoalsScreen() {
   const [ranked, near] = useMemo((): [string[] | null, string | null] => {
     if (!refined) return [null, null];
     const sums = summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week);
-    const ctx = { goals: app.snapshot.goals, cycle: app.cycle, week: app.week };
+    const ctx = { goals: app.snapshot.goals, cycle: app.cycle, week: app.week, columns };
     const ids = applyQuery(sums, query, ctx).map((x) => x.goal.id);
     if (ids.length || !query.q.trim()) return [ids, null];
     const fix = nearMiss(query.q, sums.map(goalWords));
     const again = fix ? applyQuery(sums, { ...query, q: fix }, ctx).map((x) => x.goal.id) : [];
     return again.length ? [again, fix] : [ids, null];
-  }, [refined, query, app.snapshot, app.cycle, app.today, app.week, inScope]);
+  }, [refined, query, app.snapshot, app.cycle, app.today, app.week, inScope, columns]);
   // Saved views and what can be done with this one: the Views menu, or the phone's View sheet (goals spec, 2.1, 2.4).
   const actions = useViewActions();
   const { views, active: activeView } = actions;

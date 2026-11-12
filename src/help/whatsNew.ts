@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'measured-by-find',
+    date: '2026-11-12',
+    title: 'Find a goal’s metric by typing',
+    points: [
+      'In New goal, “Measured by” comes first: type to find a metric, or add one there.',
+      'Choosing one fills in its unit and which way is better.',
+      'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
+    ],
+    articles: ['metric-measured-by', 'new-goal', 'metrics'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',

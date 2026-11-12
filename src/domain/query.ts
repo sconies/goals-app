@@ -42,9 +42,14 @@ export interface GoalQuery {
   sort: SortKey | null;
   /** 1: the natural order for the key (worst first, A to Z, oldest check-in first, soonest due); -1 reverses it. */
   dir: 1 | -1;
+  /**
+   * A module's filters (docs/design/architecture.md, 4.2): its parameter in the address and the value picked, compared
+   * with the column the module fills for each goal (QueryContext.columns). Measured by a metric: `{ metric: <id> }`.
+   */
+  cols: Record<string, string>;
 }
 
-export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1 };
+export const EMPTY_QUERY: GoalQuery = { q: '', status: [], level: [], team: [], owner: [], kind: [], attention: false, needs: [], due: null, quiet: null, quarter: null, result: [], feeds: null, helps: false, sort: null, dir: 1, cols: {} };
 
 export const STATUS_OPTIONS: [QStatus, string][] = (['off', 'risk', 'stale', 'on', 'done', 'none', 'planned'] as const).map((k) => [k, LABEL[k]]);
 /** "Needs attention because …": each flag that makes a goal need attention, in its vocabulary words. */
@@ -57,6 +62,15 @@ export const SORT_OPTIONS: [SortKey, string][] = [['worst', 'Worst first'], ['ti
 
 const list = <T extends string>(v: string | null, ok: readonly T[]): T[] => (v ? v.split(',').filter((x): x is T => (ok as readonly string[]).includes(x)) : []);
 const int = (v: string | null) => { const n = v == null ? NaN : Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
+
+/**
+ * The parameters modules' filters read (?metric=), added once as the build's modules load (src/core/app.tsx), so a
+ * link, a saved view and the AI read them as the core's own. The domain names no module: it only keeps the list.
+ */
+const COLUMN_PARAMS: string[] = [];
+export function addColumnParams(params: readonly string[]) {
+  for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) { COLUMN_PARAMS.push(k); QUERY_KEYS.push(k); }
+}
 
 /** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
 export function parseQuery(p: URLSearchParams): GoalQuery {
@@ -79,6 +93,7 @@ export function parseQuery(p: URLSearchParams): GoalQuery {
     helps: p.get('helps') === '1',
     sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? (sortKey as SortKey) : null,
     dir: dir === 'desc' ? -1 : 1,
+    cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? '').slice(0, 200)]).filter(([, v]) => v)),
   };
 }
 
@@ -106,16 +121,22 @@ export function queryEntries(q: GoalQuery): [string, string][] {
   if (q.result.length) out.push(['result', q.result.join(',')]);
   if (q.feeds) out.push(['feeds', q.feeds]);
   if (q.helps) out.push(['helps', '1']);
+  for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]!]);
   if (q.sort) out.push(['sort', q.sort + (q.dir === -1 ? '.desc' : '')]);
   return out;
 }
+/** Every parameter a goals query reads: the core's, then modules' (addColumnParams). */
 export const QUERY_KEYS = ['q', 'status', 'level', 'team', 'owner', 'kind', 'attention', 'needs', 'due', 'quiet', 'qtr', 'result', 'feeds', 'helps', 'sort'];
 
 /** Does the query narrow the goals at all? (Sorting alone doesn't.) */
 export const filters = (q: GoalQuery) => queryEntries({ ...q, sort: null }).length > 0;
 
 /** What a goal's place in the query needs to know beyond its summary. */
-export interface QueryContext { goals: Goal[]; cycle: Cycle; week: number }
+export interface QueryContext {
+  goals: Goal[]; cycle: Cycle; week: number;
+  /** Each module filter's column, by its parameter: the value it holds for a goal (a metric's id), or null. A filter whose column isn't here (its module is off) narrows nothing. */
+  columns?: Record<string, (goal: Goal) => string | null>;
+}
 
 /** The goal and every goal that feeds it, all the way down. */
 export function treeOf(id: string, goals: Goal[]): Set<string> {
@@ -142,6 +163,7 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
   if (q.team.length && !q.team.includes(g.teamId)) return false;
   if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
   if (q.kind.length && !q.kind.includes(g.kind)) return false;
+  for (const [k, v] of Object.entries(q.cols ?? {})) { const col = ctx.columns?.[k]; if (col && col(g) !== v) return false; }
   if (q.attention || q.needs.length) {
     // Needs attention lists the goals being handled too, below the others (Lane, 9 Nov): nothing is hidden.
     if (!onAttentionList(s.attention)) return false;
@@ -190,8 +212,14 @@ export function applyQuery(sums: GoalSummary[], q: GoalQuery, ctx: QueryContext)
   return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
 
+/** Names for what a query holds by id; `col` words a module filter's value ("Measured by", "Lead time"), null when no module that's on reads it. */
+export interface QueryNames {
+  team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string;
+  col?: (param: string, value: string) => { label: string; value: string } | null;
+}
+
 /** Each active filter in words, for the chips above the goals and a saved view's description. */
-export function describeQuery(q: GoalQuery, names: { team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string }): { key: string; text: string }[] {
+export function describeQuery(q: GoalQuery, names: QueryNames): { key: string; text: string }[] {
   const out: { key: string; text: string }[] = [];
   const label = <T extends string>(opts: [T, string][], v: T) => opts.find(([k]) => k === v)?.[1] ?? v;
   if (q.q.trim()) out.push({ key: 'q', text: `“${q.q.trim()}”` });
@@ -207,6 +235,7 @@ export function describeQuery(q: GoalQuery, names: { team: (id: string) => strin
   if (q.result.length) out.push({ key: 'result', text: q.result.map((r) => label(RESULT_OPTIONS, r)).join(' or ') });
   if (q.feeds) out.push({ key: 'feeds', text: `In the tree of ${names.goal(q.feeds)}` });
   if (q.helps) out.push({ key: 'helps', text: 'With “also helps” links' });
+  for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, text: `${c.label} ${c.value}` }); }
   return out;
 }
 
@@ -214,7 +243,7 @@ export function describeQuery(q: GoalQuery, names: { team: (id: string) => strin
  * The filters on, as find's rule 3 says them ("Team CI/CD · Status Off track or At risk"), each removable by its key.
  * A search is never a filter, and the Needs attention switch isn't one (the switch says it); its reasons are.
  */
-export function queryParts(q: GoalQuery, names: { team: (id: string) => string; person: (id: string) => string; goal: (id: string) => string }): FilterPart[] {
+export function queryParts(q: GoalQuery, names: QueryNames): FilterPart[] {
   const label = <T extends string>(opts: [T, string][], v: T) => opts.find(([k]) => k === v)?.[1] ?? v;
   const out: FilterPart[] = [];
   if (q.status.length) out.push({ key: 'status', label: 'Status', values: q.status.map((s) => label(STATUS_OPTIONS, s)) });
@@ -229,11 +258,13 @@ export function queryParts(q: GoalQuery, names: { team: (id: string) => string; 
   if (q.result.length) out.push({ key: 'result', label: 'Result', values: q.result.map((r) => label(RESULT_OPTIONS, r)) });
   if (q.feeds) out.push({ key: 'feeds', label: 'In the tree of', values: [names.goal(q.feeds)] });
   if (q.helps) out.push({ key: 'helps', label: 'With', values: ['“also helps” links'] });
+  for (const [k, v] of Object.entries(q.cols ?? {})) { const c = names.col?.(k, v); if (c) out.push({ key: k, label: c.label, values: [c.value] }); }
   return out;
 }
 
 /** Remove one filter (by its describeQuery key). */
 export function without(q: GoalQuery, key: string): GoalQuery {
   const map: Record<string, Partial<GoalQuery>> = { q: { q: '' }, status: { status: [] }, level: { level: [] }, team: { team: [] }, owner: { owner: [] }, kind: { kind: [] }, needs: { needs: [], attention: false }, due: { due: null }, quiet: { quiet: null }, qtr: { quarter: null }, result: { result: [] }, feeds: { feeds: null }, helps: { helps: false } };
+  if (key in (q.cols ?? {})) { const { [key]: _, ...cols } = q.cols; return { ...q, cols }; }
   return { ...q, ...(map[key] ?? {}) };
 }

@@ -362,7 +362,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Anyone saves their own views. Admins can pin a view for everyone.'] },
     ],
     routes: ['/goals?q=*', '/goals?status=*'],
-    screens: ['GoalFilters'],
+    screens: ['GoalFilters', 'GoalFilterSheet'],
     reqs: ['SAVED-VIEWS'],
     keywords: ['search', 'filter', 'sort', 'saved view', 'pin', 'copy link', 'share', 'find'],
     related: ['goals', 'data'],

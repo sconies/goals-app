@@ -4,6 +4,7 @@
 import { exampleKit, type Rule } from '../../spec/rules';
 import * as MET from './rules';
 import * as LIB from './rulesLibrary';
+import * as MEAS from './rulesMeasure';
 import { goalsOfMetric, libraryReads } from './reads';
 import { CHECK_IN_MOMENT } from '../../spec/conformance';
 import { currentWeek } from '../../domain/plan';
@@ -96,6 +97,34 @@ Each rule takes plain rows: every metric, every goal’s link, the ids of the ru
 /* ---------- the library's examples: the demo as built for the conformance moment ---------- */
 const reads = () => libraryReads(demo(), CHECK_IN_MOMENT);
 const names = (a: LIB.LibraryAsk) => LIB.findMetrics(reads(), a).rows.map((r) => r.metric.name).join(', ');
+const queue = () => LIB_METRIC('metric_queue-wait');
+
+rules.push({
+  id: 'metric-measured-by',
+  title: '“Measured by”, found by typing',
+  summary: 'What choosing a metric in a goal form fills in (rule 5), what stops the goal being saved with it, and the words the metric finder gives each metric.',
+  code: [{ file: 'src/modules/metrics/rulesMeasure.ts', names: ['measureDefaults', 'measureFormProblems', 'measuredBySays', 'fromTheMetric', 'metricRow', 'searchMetrics', 'suggestMetrics', 'metricRowsByIds'] }, { file: 'src/modules/metrics/finder.ts', names: ['metricFinder', 'measuredByFilter'] }],
+  tests: ['src/modules/metrics/rulesMeasure.test.ts', 'src/domain/query.test.ts'],
+  reqs: ['METRICS-MEASURED-BY'],
+  body: `
+A goal's metric is chosen where the goal is made or changed, by typing part of its name, unit, direction, owner, meaning or source (rule 1's words). Each metric reads as two lines: its name, then “{unit} · {lower|higher} is better · {owner}” (“no owner” when it has none, or they have left). Before anything is typed, up to six are offered: those chosen lately, then those the viewer's team's goals are measured by, then the most used. A metric removed since it was chosen still reads by its name.
+
+**Rule 5. What a chosen metric sets on the form** (\`measureDefaults\`). On a **new** goal whose unit and decimal places are still the form's own (nobody typed them), choosing a metric sets both from it, and the form says so in one line instead of the two fields: “{unit}, {decimals in words}, {lower|higher} is better: from the metric.” “Use different ones” shows the fields again, filled from the metric. Choosing “No metric” afterwards gives them back what they held. A field the person typed is kept. On a goal that already exists nothing is set.
+
+**What stops it** (\`measureFormProblems\`). A unit that differs from the metric's, any case, stops the goal being saved with that metric: “This metric is in {unit}; this goal is in {unit}.” More decimal places than the metric keeps is a warning, as linking says. A goal with dated stages has no number, so it has no “Measured by”. Which way the target lies from the start is judged when the link is saved (the metric library, above).
+
+**For.** The goal's team (chosen at first), or the whole company; with no team chosen yet, only the whole company. Check says “Measured by {metric}, for {team | the whole company}.”
+
+**Goals, filtered by a metric.** Goals' address takes \`?metric=<id>\`: the goals a metric measures now (a link in force). The filter line says “Measured by {metric}”. It is declared as data (a column of each goal's summary, the metric its link names), so a server compares the column itself.`,
+  examples: [
+    { given: 'A new goal, nothing typed; Rhea chooses Pipeline queue wait (p90) (min, 0 decimals, lower is better).', then: 'min, 0: min, whole numbers, lower is better: from the metric.', run: () => { const d = MEAS.measureDefaults(queue(), { isNew: true, untouched: true, unit: '%', decimals: 0 }); return `${d.set!.unit}, ${d.set!.decimals}: ${d.line}`; } },
+    { given: 'A new goal with its unit typed as hours; the same metric chosen.', then: 'nothing set; This metric is in min; this goal is in hours.', run: () => { const d = MEAS.measureDefaults(queue(), { isNew: true, untouched: false, unit: 'hours', decimals: 0 }); return `${d.set ? 'set' : 'nothing set'}; ${MEAS.measureFormProblems(queue(), { kind: 'metric', unit: 'hours', decimals: 0 }).errors.join(' ')}`; } },
+    { given: 'Changing a goal that keeps 1 decimal place; a metric with 0 chosen.', then: 'nothing set; The goal keeps 1 decimal place and Pipeline queue wait (p90) whole numbers. Check which is meant.', run: () => { const d = MEAS.measureDefaults(queue(), { isNew: false, untouched: true, unit: 'min', decimals: 1 }); return `${d.set ? 'set' : 'nothing set'}; ${MEAS.measureFormProblems(queue(), { kind: 'metric', unit: 'min', decimals: 1 }).warnings.join(' ')}`; } },
+    { given: 'Check, measured for CI/CD.', then: 'Measured by Pipeline queue wait (p90), for CI/CD.', run: () => MEAS.measuredBySays(queue(), 'CI/CD') },
+    { given: 'The finder, “queue” typed.', then: 'CI pipeline time on main (p90) | Pipeline queue wait (p90): min · lower is better · Rhea Kapoor', run: () => { const a = MEAS.searchMetrics(reads(), { q: 'queue' }); return `${a.rows.map((r) => r.name).join(' | ')}: ${a.rows[1]!.detail}`; } },
+  ],
+});
+
 const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;
 const goalsOf = (id: string) => { const s = demo(); const cycle = s.cycles[0]!; const today = new Date(CHECK_IN_MOMENT); return goalsOfMetric(s, cycle, today, currentWeek(cycle, today), id); };
 const needs = (id: string) => LIB.metricNeeds(LIB_METRIC(id), reads()).map((n) => `${n.id}: ${n.sentence} → ${n.button}`).join('; ') || 'nothing';

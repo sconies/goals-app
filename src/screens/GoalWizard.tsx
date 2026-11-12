@@ -62,6 +62,9 @@ export function GoalWizard() {
   return <Wizard key={round} onFresh={() => { clearDraft(key); setRound((r) => r + 1); }} />;
 }
 
+/** The form's own unit and decimals, before anyone types: a metric chosen then fills them (rule 5). */
+const BLANK = blankGoal('', '', '');
+
 function Wizard({ onFresh }: { onFresh: () => void }) {
   const app = useApp();
   const nav = useNavigate();
@@ -84,6 +87,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const top = useRef<HTMLDivElement>(null);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check.
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  // A metric chosen on a goal whose unit and decimals nobody typed fills them, and they're said in one line (metrics, rule 5).
+  const [filled, setFilled] = useState(false);
 
   // A parent chosen in the draft that has gone since: said once, and "Feeds into" is empty again (2.5).
   const [gone] = useState(() => (d.parentId && !app.goal(d.parentId) ? d.parentId : ''));
@@ -96,7 +101,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const errors: Partial<Record<StepError, string>> = { ...validateGoal(goal, cycle, null, week), ...(level ? {} : { level: 'Choose a level.' }) };
   if (!d.ownerId) errors.ownerId = 'Choose who owns it.';
   if (d.parentId && parent && level && feedRefusal(cycle, level, parent)) errors.level = feedRefusal(cycle, level, parent)!;
-  const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
+  // What measures it can stop step 3 too (a metric in another unit): the module says why, under its field.
+  const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
+  const stepErrors = (i: number): string[] => [...STEP_FIELDS[i]!.filter((k) => errors[k]), ...(i === 2 && measureBlock ? ['measure'] : [])];
   const shown = tried.includes(step);
   const showErr = (k: StepError) => (shown && errors[k] ? <FieldError>{errors[k]}</FieldError> : null);
 
@@ -175,7 +182,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         ...(d.guardrail ? ['a guardrail'] : []),
       ].join(', ') + '.',
     },
-    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? 'The metric chosen on step 3.' : `No metric: ${d.definition.trim() || 'not described yet'}.` }] : []),
+    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? measure.says ?? 'The metric chosen on step 3.' : d.definition.trim() ? 'No metric: measured as described.' : 'No metric: not described yet.' }] : []),
     {
       step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)} by week ${endChoice}` : 'Not set yet')
         : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : 'Not set yet')
@@ -276,8 +283,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
           <>
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
-            {number && (
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
+              untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} />}
+            {number && !filled && (
               <div className="num-pair">
                 <label className="field"><span className="small strong">Unit</span><input className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="%, days, ms" /></label>
                 <label className="field"><span className="small strong">Decimals</span><input className="input" inputMode="numeric" value={d.decimals} onChange={(e) => set({ decimals: e.target.value })} aria-invalid={shown && !!errors.decimals} />{showErr('decimals')}</label>

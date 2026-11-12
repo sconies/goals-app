@@ -82,7 +82,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const save = async () => {
     setTried(true);
-    if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
+    if (!built || saving || (needReason && !reasonOk) || !confirmed || measure?.blocks) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
@@ -125,7 +125,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
         </label>
         )}
-        {show('definition') && <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
+        {show('definition') && <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} />}
         {part === 'definition' && (
           <>
             <label className="field"><span className="field-label">How it’s measured</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
