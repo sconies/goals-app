@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'data-feedback-search-words',
+    date: '2026-11-11',
+    title: 'Data and Feedback search the way Goals does',
+    points: [
+      'Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.',
+      'On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched.',
+    ],
+    articles: ['data', 'feedback'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',
