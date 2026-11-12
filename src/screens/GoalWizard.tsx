@@ -27,7 +27,7 @@ import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
-import { Place, type MeasurePick } from '../core/app';
+import { Place, useFilled, type MeasurePick } from '../core/app';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
 
@@ -62,6 +62,9 @@ export function GoalWizard() {
   return <Wizard key={round} onFresh={() => { clearDraft(key); setRound((r) => r + 1); }} />;
 }
 
+/** The form's own unit and decimals, before anyone types: a metric chosen then fills them (rule 5). */
+const BLANK = blankGoal('', '', '');
+
 function Wizard({ onFresh }: { onFresh: () => void }) {
   const app = useApp();
   const nav = useNavigate();
@@ -84,6 +87,11 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const top = useRef<HTMLDivElement>(null);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check.
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  // A metric chosen on a goal whose unit and decimals nobody typed fills them, and they're said in one line (metrics, rule 5).
+  const [filled, setFilled] = useState(false);
+  // With a module offering "Measured by", the form's own words for how it's measured wait until "No metric" is chosen (metrics spec, 2.4).
+  const measurePlace = useFilled('goal.measure');
+  const [saidNone, setSaidNone] = useState(false);
 
   // A parent chosen in the draft that has gone since: said once, and "Feeds into" is empty again (2.5).
   const [gone] = useState(() => (d.parentId && !app.goal(d.parentId) ? d.parentId : ''));
@@ -98,7 +106,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // OB1's rule on what a level can feed, until goal entry asks it as a question (GE2).
   if (d.parentId && parent && level && feedRefusal(cycle, level, parent)) fix.push({ field: 'level', id: 'level-empty', text: feedRefusal(cycle, level, parent)! });
-  const stepErrors = (i: number) => fix.filter((f) => stepFields(i, d.kind).includes(f.field));
+  // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
+  const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
+  const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
   const shown = tried.includes(step);
   // A Must fix shows under its field once the field has been changed and left, and for every field on Continue; never while typing.
   const [left, setLeft] = useState<GoalField[]>([]);
@@ -162,8 +172,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       const done = d.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
       // Saved through the saveGoal action (goal entry, rule 7): the same rights and Must fix as every other door.
       const { step: _step, teamByHand: _t, levelByHand: _l, ...draft } = goal;
-      const g = await app.saveGoal(draft, null, done.length ? { stagesDone: done } : undefined);
-      if (measure) await app.run(measure.action, measure.input(g));
+      // What measures it (the goal.measure place) is saved in the same commit, so the link sees the new goal.
+      const g = await app.saveGoal(draft, null, { ...(done.length ? { stagesDone: done } : {}), ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });
@@ -210,7 +220,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         ...(d.guardrail ? ['a guardrail'] : []),
       ].join(', ') + '.',
     },
-    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? 'The metric chosen on step 3.' : `No metric: ${d.definition.trim() || 'not described yet'}.` }] : []),
+    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? measure.says ?? 'The metric chosen on step 3.' : d.definition.trim() ? 'No metric: measured as described.' : 'No metric: not described yet.' }] : []),
     {
       step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)} by week ${endChoice}` : 'Not set yet')
         : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : 'Not set yet')
@@ -315,8 +325,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {stepSays(stepFields(2, d.kind).filter((f) => noMetric || (f !== 'definition' && f !== 'source')), d.kind) && <p className="small muted step-says">{STEP_SAYS}</p>}
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
-            {number && (
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
+              untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} onNone={setSaidNone} />}
+            {number && !filled && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">Unit{optional('unit')}</span>
                 <input className="input" data-field="unit" value={d.unit} onChange={(e) => set({ unit: e.target.value })} onBlur={leave('unit')} placeholder="%, days, hours, incidents" aria-invalid={invalid('unit')} />{showErr('unit')}
               </label>
@@ -372,7 +383,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
             {/* With no metric chosen: said in words, so the goal's page doesn't open on "not described yet". */}
-            {(noMetric || d.kind === 'milestone') && (
+            {((noMetric && (!measurePlace || saidNone || !!d.definition.trim() || !!d.source.trim())) || d.kind === 'milestone') && (
               <>
                 <label className="field"><span className="small strong">How it’s measured <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
                   <textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way, e.g. Median hours to the first reply, from the help desk" />

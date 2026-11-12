@@ -121,8 +121,9 @@ export interface AppState {
   /** Saves a goal from its draft through the `saveGoal` action (goal entry, rule 7: domain/goalEntry planGoal): the same
       rights and Must fix as a file and the AI tools, and History with the reason when the plan moved. `goal` is the goal
       being changed (null for a new one). A new goal's stages said to be already done (`stagesDone`, onboarding rule 3)
-      are recorded done in the same save. Gives back the goal as saved. */
-  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalInput, 'draft' | 'goalId'>): Promise<Goal>;
+      are recorded done in the same save. `also`: a module's action for the goal as saved (what measures it, from the
+      goal.measure place), run on the workspace with the goal in it and saved in the same commit. Gives back the goal as saved. */
+  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalInput, 'draft' | 'goalId'> & { also?: { action: string; input: (goal: Goal) => unknown } }): Promise<Goal>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -688,7 +689,23 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
       // One way to save a goal (goal entry, rule 7; AX2): the dispatcher runs the rule, so the form saves nothing itself.
-      saveGoal: async (draft, goal, opts) => (await run('saveGoal', { draft, ...(goal ? { goalId: goal.id } : {}), ...opts })).goal,
+      // What the form's module place chose (goal.measure) is run on the workspace with the goal in it and saved in the
+      // same commit: run after the save, it would see the workspace from before it, without the goal.
+      saveGoal: async (draft, goal, opts) => {
+        const { also, ...rest } = opts ?? {};
+        const input = { draft, ...(goal ? { goalId: goal.id } : {}), ...rest };
+        if (!also) return (await run('saveGoal', input)).goal;
+        if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+        let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
+        try {
+          out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };
+          const g = out.goal, given = also.input(g);
+          extra = commitOf(also.action, performAny({ ...rx(), snapshot: { ...sc, goals: [...sc.goals.filter((v) => v.id !== g.id), g] } }, also.action, given), given);
+        } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        const c = out.commit ? A.mergeCommits(out.commit, extra) : extra;
+        if (c) await save(c);
+        return out.goal;
+      },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
       undoUpdateAsk: async (goal) => { await run('undoUpdateAsk', { goalId: goal.id }); },

@@ -54,6 +54,29 @@ const help: Article[] = [
     keywords: ['add metric', 'new metric', 'change metric', 'edit metric', 'remove metric', 'unit', 'decimals', 'owner', 'caveats'],
     related: ['metrics', 'removing'],
   },
+  {
+    id: 'metric-measured-by',
+    title: 'Measured by: choosing a goal’s metric',
+    summary: 'In New goal and when changing a goal, say which metric measures it by typing to find one, or add one there.',
+    group: 'you',
+    after: 'metric-add',
+    sections: [
+      { heading: 'How to use it', list: [
+        'In New goal, “Measured by” is the first field on the step about numbers; when changing a goal, it is under its name. Type part of a metric’s name, unit or owner to find it. Metrics already in the goal’s unit are offered first.',
+        'Choosing one shows what it means, with Read more for its page. On a new goal whose unit nobody has typed, it fills in the unit, the decimal places and which way is better, said in one line; Use different ones shows the fields again.',
+        'For: the goal’s team, or the whole company. With no team chosen yet, only the whole company is offered.',
+        'A goal in another unit can’t be measured by the metric: it says so, and the goal can’t be saved until the units agree or No metric is chosen.',
+        'No metric means the goal says in its own words how it’s measured. A goal with dated stages has no number, so it has no “Measured by”.',
+        'Nothing fits? Choose Add “…” as a new metric: give it a name, a unit and which way is better, and it is chosen. You own it; say more about it on its page later.',
+        'Check reads it back (“Measured by …, for …”). On Goals, Filters has Measured by, and a metric’s page has See its goals.',
+      ] },
+    ],
+    routes: [],
+    screens: ['MeasuredBy'],
+    reqs: ['METRICS-MEASURED-BY'],
+    keywords: ['measured by', 'metric', 'choose metric', 'link metric', 'no metric', 'for'],
+    related: ['metrics', 'metric-add', 'new-goal'],
+  },
 ];
 
 export default help;

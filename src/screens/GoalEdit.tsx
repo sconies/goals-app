@@ -102,15 +102,16 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const save = async () => {
     setTried(true);
-    if (!built || saving || (replanning && !reasonOk) || !confirmed) return;
+    if (!built || saving || (replanning && !reasonOk) || !confirmed || measure?.blocks) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
       const { reason, ...draft } = d;
-      const saved = changed ? await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), confirm: !!question && confirmed }) : after;
-      if (measure) await app.run(measure.action, measure.input(saved));
+      // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
+      if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), confirm: !!question && confirmed, ...(measure ? { also: measure } : {}) });
+      else if (measure) await app.run(measure.action, measure.input(after));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
       back();
@@ -149,7 +150,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           {goal.kind !== 'milestone' && (
             <label className="field"><span className="field-label">What it measures</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
           )}
-          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />
+          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} />
         </section>
 
         <section className="stack edit-part" id="plan" aria-labelledby="plan-h">
