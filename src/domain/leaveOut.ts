@@ -45,9 +45,10 @@ export function leaveOut(tables: Tables, rows: readonly RowRef[], isNew: IsNew =
     const { r, row } = queue.shift()!;
     if (!isNew('Goals', r)) continue;
     const title = fold(v(r, 'goal'));
-    if (!title) continue;
-    for (const c of checkIns) if (!v(c.r, 'goal key') && !v(c.r, 'goal id') && fold(v(c.r, 'goal')) === title) add('Check-ins', c.row, `it is a check-in for Goals row ${row}`);
-    for (const g of goals) if (!v(g.r, 'feeds into key') && fold(v(g.r, 'feeds into')) === title && add('Goals', g.row, `Feeds into names Goals row ${row}`)) queue.push(g);
+    // Its Ref (backlog BT) names it as surely as its name: a row naming that Ref leaves with it.
+    const tag = fold(v(r, 'ref'));
+    for (const c of checkIns) if ((tag && fold(v(c.r, 'goal ref')) === tag) || (title && !v(c.r, 'goal ref') && !v(c.r, 'goal key') && !v(c.r, 'goal id') && fold(v(c.r, 'goal')) === title)) add('Check-ins', c.row, `it is a check-in for Goals row ${row}`);
+    for (const g of goals) if (((tag && fold(v(g.r, 'feeds into ref')) === tag) || (title && !v(g.r, 'feeds into ref') && !v(g.r, 'feeds into key') && fold(v(g.r, 'feeds into')) === title)) && add('Goals', g.row, `Feeds into names Goals row ${row}`)) queue.push(g);
   }
   const kept: Tables = {};
   for (const sheet of Object.keys(KEY) as Sheet[]) {

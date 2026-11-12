@@ -43,6 +43,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['years-and-weeks', 'Years and weeks'],
   ['new-goal', 'New goal'],
   ['read-back', 'The read-back'],
+  ['proposed', 'Proposed goals'],
   ['not-born-late', 'A goal not born late'],
   ['finding', 'Finding things'],
   ['navigation', 'Navigation: the menu, the lit item and a page’s name'],

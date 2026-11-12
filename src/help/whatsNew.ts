@@ -33,6 +33,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'goal-proposed',
+    date: '2026-11-12',
+    title: 'Propose a goal before it starts',
+    points: [
+      'New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.',
+      'Its owner or an admin makes it active when it is agreed.',
+      'Proposed goals are counted apart, and listed under Goals with the Proposed filter.',
+    ],
+    articles: ['goal-proposed', 'new-goal', 'goals', 'columns'],
+  },
+  {
+    id: 'batch-refs',
+    date: '2026-11-12',
+    title: 'Build a whole tree of goals in one file',
+    points: [
+      'A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.',
+      'A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.',
+      'Two new goals with the same name stay two goals when each row has its own Ref.',
+    ],
+    articles: ['import', 'ai-assistants'],
+  },
+  {
     id: 'import-faster',
     date: '2026-11-12',
     title: 'Large files are checked much faster',

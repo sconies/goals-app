@@ -19,7 +19,7 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
-import { commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
+import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
@@ -222,6 +222,8 @@ export interface AppState {
 }
 
 const Ctx = createContext<AppState | null>(null);
+/** The app's state as a provider, for a page that shows the workspace with one record put back (ProposedGoal). */
+export const AppStateProvider = Ctx.Provider;
 
 /** What onboarding needs before any workspace exists. */
 export interface SetupState {
@@ -366,7 +368,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   useEffect(() => { setToasts((t) => t.filter((x) => !x.action)); }, [wsId]);
   // The change engine loads once the first screen is up and the browser is idle, so a check-in doesn't wait for it.
   useEffect(() => {
-    const load = () => { void loadEngine().catch(() => undefined); };
+    const load = () => { void loadEngine().catch(() => undefined); void loadGoalEntry().catch(() => undefined); };
     const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
     if (w.requestIdleCallback) { const h = w.requestIdleCallback(load, { timeout: 4000 }); return () => w.cancelIdleCallback?.(h); }
     const t = setTimeout(load, 1500);
@@ -589,7 +591,9 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       markPersonLeft: (_, i) => `${nameOf(i.personId) ?? 'They'} ${nameOf(i.personId) ? 'is' : 'are'} marked as left`,
       deletePerson: (_, i) => `Deleted ${nameOf(i.personId) ?? 'them'}`,
       stopGoal: (_, i) => `Stopped ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
-      deleteGoal: (_, i) => `Deleted ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
+      // Withdrawing a proposal is deleting it, in its own words (domain/proposed withdrawnSummary).
+      deleteGoal: (c, i) => c.changes[0]?.summary ?? `Deleted ${lookup.goal(i.goalId)?.title ?? 'the goal'}`,
+      activate: (o) => `“${o.goal.title}” is active.`,
       deleteCheckIn: (_, i) => `Deleted the check-in for week ${snapshot.checkIns.find((c) => c.id === i.checkInId)?.week ?? ''}`,
       endReview: (o, i) => `${o.deleted ? 'Deleted' : ENDED} the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
       deleteReview: (_, i) => `Deleted the review “${sc.reviews.find((r) => r.id === i.reviewId)?.name ?? ''}”`,
@@ -691,7 +695,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       avatarHue: (id) => hues().get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
       // By ID or by key, so /goals/G-12 opens the same goal as its ID does. A stopped goal still opens (its page says so).
-      goal: (id) => findGoal(sc.goals, id) ?? archived(id),
+      goal: (id) => findGoal(sc.goals, id) ?? findGoal(sc.proposed ?? [], id) ?? archived(id),
       statusOf: (g) => {
         let st = statuses.get(g.id);
         if (!st) statuses.set(g.id, (st = goalStatus(g, cycle, sc.checkIns, now)));
@@ -733,6 +737,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         const input = { draft, ...(goal ? { goalId: goal.id } : {}), ...rest };
         if (!also) return (await run('saveGoal', input)).goal;
         if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+        await ready('saveGoal');
         let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
         try {
           out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };
