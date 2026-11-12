@@ -8,6 +8,7 @@
    The store must keep that module's rows whole, save them with the rest of a commit, and remove and restore them
    with the goal they point to, without knowing what they are. */
 import { createToken, revokeToken, type ActionContext } from '../../domain/actions';
+import { deleteGoal, markPersonLeft, undoRemoval } from '../../domain/removal';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
 import type { Snapshot } from '../../domain/types';
 import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
@@ -138,6 +139,33 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       const back = await store.load(ws);
       expect(back.goals.find((x) => x.id === g.id)?.removedAt ?? null).toBeNull();
       expect(marksOf(back).map((x) => ({ ...x, removedAt: x.removedAt ?? null, removedBy: x.removedBy ?? null }))).toEqual([{ ...m, removedAt: null, removedBy: null }]);
+    });
+
+    it('brings back what Undo restores, as loaded, and it stays back after the next load', async () => {
+      // A record loaded live has no removedAt at all, and Undo saves it back as it was loaded: the store must still clear
+      // the removal's time (build review: on the database stores the record came back, then went again on reload).
+      const undone = async (remove: (x: ActionContext) => Commit) => {
+        const before = await store.load(ws);
+        const removal = remove(ctx(before));
+        await store.commit(ws, removal);
+        await store.commit(ws, undoRemoval(ctx(await store.load(ws)), removal, before));
+        return store.load(ws);
+      };
+      const live = await store.load(ws);
+      const g = live.goals.find((x) => !x.removedAt && !live.goals.some((c) => c.parentId === x.id) && !live.checkIns.some((c) => c.goalId === x.id))!;
+      expect(g.removedAt).toBeUndefined();
+      const goalBack = await undone((x) => deleteGoal(x, g.id));
+      expect(goalBack.goals.find((x) => x.id === g.id)?.removedAt ?? null).toBeNull();
+
+      const p = live.people.find((x) => !x.admin && !x.leftAt && !x.removedAt)!;
+      const personBack = await undone((x) => markPersonLeft(x, p.id, { goalsTo: x.actor.id, asksTo: x.actor.id }));
+      expect(personBack.people.find((x) => x.id === p.id)?.leftAt ?? null).toBeNull();
+
+      // A module's row, which its toRow also writes only when it has a removal time.
+      const m: Mark = { id: ids('mark'), goalId: g.id, text: 'Undone', at: NOW.toISOString() };
+      await store.commit(ws, { modules: { contract: { marks: [m] } }, changes: [] });
+      const markBack = await undone((x) => ({ modules: { contract: { marks: [{ ...m, removedAt: x.now, removedBy: x.actor.id }] } }, changes: note(x.snapshot, 'Removed a mark').changes }));
+      expect(marksOf(markBack).find((x) => x.id === m.id)?.removedAt ?? null).toBeNull();
     });
 
     it('issues an AI assistant token once, never keeps its secret, and revokes it', async () => {

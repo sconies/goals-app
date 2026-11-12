@@ -195,6 +195,19 @@ export function restorableModuleRow(full: { modules?: ModuleRows }, records: rea
   return null;
 }
 
+/** The fields a removal sets: removed, left, stopped (with its reason), ended or deleted, and by whom. */
+const REMOVAL_FIELD = /^(?:(?:removed|left|stopped|ended|deleted)(?:At|By)|stopReason)$/;
+
+/**
+ * A row as it was before a removal, to save back on Undo. Every removal field the removal set and the row before didn't
+ * have is null, not missing: a store writes only the columns a row carries, so a missing one kept the removal's time and
+ * the record was removed again on the next load (build review: Undo on the database stores).
+ */
+export function asBefore<T extends object>(removed: T, before: T): T {
+  const cleared = Object.entries(removed).filter(([k, v]) => REMOVAL_FIELD.test(k) && v != null && (before as Record<string, unknown>)[k] == null);
+  return cleared.length ? { ...before, ...Object.fromEntries(cleared.map(([k]) => [k, null])) } : before;
+}
+
 /** Undo for module rows (domain/removal undoRemoval): every row a removal changed, as it was just before. */
 export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modules?: ModuleRows }): ModuleRows | undefined {
   if (!removal) return undefined;
@@ -202,7 +215,7 @@ export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modu
   for (const [mod, keys] of Object.entries(removal)) {
     for (const [key, rows] of Object.entries(keys)) {
       const was = moduleRows<ModuleRow>(before, mod, key);
-      const back = (rows as ModuleRow[]).flatMap((r) => { const b = was.find((v) => v.id === r.id); return b ? [b] : []; });
+      const back = (rows as ModuleRow[]).flatMap((r) => { const b = was.find((v) => v.id === r.id); return b ? [asBefore(r, b)] : []; });
       if (back.length) (out[mod] ??= {})[key] = back;
     }
   }
