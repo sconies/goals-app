@@ -15668,40 +15668,33 @@ var CORE_ARTICLES = [
 		title: "Setting up a workspace",
 		summary: "A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes.",
 		group: "start",
-		sections: [
-			{
-				heading: "What it’s for",
-				text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
-			},
-			{
-				heading: "How to use it",
-				list: [
-					"A new Faro opens on its welcome page: what it’s for, Try the demo (the main button) and, just below, Set up your workspace. Choose Set up your workspace. It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
-					"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
-					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
-					"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
-					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
-					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
-					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
-					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
-					"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
-					"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
-					"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
-					"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
-					"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
-					"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
-					"The last screen gives you the one next thing to do, and a link to copy for your team. The link opens this workspace, whichever one their browser last had open. Faro sends no email: you send the link yourself.",
-					"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
-					"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
-					"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
-				]
-			},
-			{
-				heading: "Saying who you are",
-				text: ["Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
-			}
-		],
+		sections: [{
+			heading: "What it’s for",
+			text: ["Start your own workspace from a template, your own spreadsheet, or nothing at all. Whoever sets it up is its first admin."]
+		}, {
+			heading: "How to use it",
+			list: [
+				"Start from Welcome’s Set up a workspace (or the workspace switcher’s Set up a new workspace). It asks one question per screen: the workspace’s name (three to 80 characters; it counts them as you near the limit), the month its goal year starts and whether to record how the app is used there (off unless you tick it), who you are (with your email), your team (typed, pasted or uploaded), and a starting point. Each field says what it needs under it.",
+				"In the team table, leave Team empty for your own team, or choose Same as above. A team typed close to another (“Suport” beside “Support”) is asked about, so a typo doesn’t make a second team: use the other name, or say it’s a different team.",
+				"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
+				"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
+				"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
+				"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
+				"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
+				"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
+				"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
+				"The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.",
+				"Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.",
+				"Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.",
+				"Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.",
+				"Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.",
+				"On a phone, the small links in set-up (Start over, Change, Change people) are as easy to hit as a button.",
+				"The last screen gives you the one next thing to do, and a link to copy for your team: /join/ and the workspace. It opens this workspace and nothing else, and asks them which one they are (see Joining a workspace you were invited to). Faro sends no email: you send the link yourself.",
+				"Set up with no goals (Set goals up later), nothing is due: no check-ins until there are goals.",
+				"Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.",
+				"In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow."
+			]
+		}],
 		routes: ["/workspace/new", "/ready"],
 		screens: ["Onboarding", "Start"],
 		reqs: [
@@ -15725,6 +15718,85 @@ var CORE_ARTICLES = [
 			"workspace",
 			"import",
 			"new-goal"
+		]
+	},
+	{
+		id: "welcome",
+		title: "Welcome: starting, the demo, or an invitation",
+		summary: "Welcome is Faro’s front door, at its own address: set up a workspace, look around the demo, or join a workspace you were invited to.",
+		group: "start",
+		sections: [{
+			heading: "What it’s for",
+			text: ["Opening Faro on a device that remembers no workspace brings you here, at /welcome. It never drops you into a workspace you didn’t choose."]
+		}, {
+			heading: "How to use it",
+			list: [
+				"Set up a workspace is the main button: about 5 minutes, and nothing is saved until the last step.",
+				"Look around the demo opens a made-up division of about 100 people with a year of goals. It’s example data: change anything, but none of it can be kept or copied into a workspace.",
+				"Join a workspace you were invited to: open the link you were sent, or paste it here and choose Open it. Only a Faro invitation (an address with /join/ in it) opens anything.",
+				"Coming back, Welcome says Welcome back and lists what this device remembers: each workspace with who you are in it and the week, with Open, and a set-up you didn’t finish, with where it stopped, Carry on and Discard (which asks first: what you typed is lost)."
+			]
+		}],
+		routes: ["/welcome"],
+		screens: ["Welcome"],
+		reqs: ["SETUP-FIRST-SCREEN"],
+		keywords: [
+			"welcome",
+			"front door",
+			"first screen",
+			"start",
+			"invitation",
+			"carry on",
+			"draft",
+			"welcome back"
+		],
+		related: [
+			"set-up",
+			"joining",
+			"demo"
+		]
+	},
+	{
+		id: "joining",
+		title: "Joining a workspace you were invited to",
+		summary: "An invitation is a link that opens one workspace: it says who set it up and what it holds, then asks which one you are.",
+		group: "start",
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["Whoever set up a workspace copies its invitation and sends it themselves: Faro sends no email. The link (/join/ and the workspace) opens that workspace and nothing else, whatever your browser had open before. An older link with ?workspace= in it leads to the same place."]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Welcome to the workspace: who set it up and when, how many people and goals it has, then Which one are you?, with everyone listed by team and one line each (who set it up, an admin, how many goals they own, or no goals yet). With more than eight people, Find your name narrows the list.",
+					"Choose your name: that is the whole step. Home opens as you, and this device remembers your answer. The first time anyone chooses their name, Activity says they opened the workspace for the first time.",
+					"Not on the list? Ask whoever set it up to add you: the link writes them an email.",
+					"A link to a workspace that isn’t there says This invitation doesn’t open a workspace (it may have been deleted, or the link was cut short) and opens nothing else; Go to Welcome takes you to the front door."
+				]
+			},
+			{
+				heading: "Saying who you are",
+				text: ["Until company sign-in arrives, the app asks once on each device which one you are and remembers the answer. Choose Not you? in the person menu to change it. In the internal app, signing in with your company login replaces this step.", "Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it."]
+			}
+		],
+		routes: ["/join/:workspaceId"],
+		screens: ["Start"],
+		reqs: ["SETUP-FIRST-SCREEN", "IDENTITY"],
+		keywords: [
+			"invitation",
+			"invite link",
+			"join",
+			"who are you",
+			"which one are you",
+			"sign in",
+			"not on the list",
+			"pick your name"
+		],
+		related: [
+			"welcome",
+			"set-up",
+			"home"
 		]
 	},
 	{
@@ -18031,6 +18103,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "welcome-page",
+		date: "2026-11-12",
+		title: "A proper front door",
+		points: [
+			"Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to.",
+			"An invitation opens the right workspace and says who set it up.",
+			"Opening Faro on a new device no longer drops you into a workspace you didn’t choose."
+		],
+		articles: ["welcome", "joining"]
+	},
 	{
 		id: "question-in-view-steadier",
 		date: "2026-11-12",
@@ -20425,6 +20508,7 @@ var MORE_RULE_PAGES = [
 	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
 	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
 	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["welcome", "Welcome and the invitation"],
 	["map", "The goal map"],
 	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
 	["goal-history", "A goal’s history"],

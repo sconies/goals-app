@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'welcome-page',
+    date: '2026-11-12',
+    title: 'A proper front door',
+    points: [
+      'Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to.',
+      'An invitation opens the right workspace and says who set it up.',
+      'Opening Faro on a new device no longer drops you into a workspace you didn’t choose.',
+    ],
+    articles: ['welcome', 'joining'],
+  },
+  {
     id: 'question-in-view-steadier',
     date: '2026-11-12',
     title: 'A question about a number stays put while you type',

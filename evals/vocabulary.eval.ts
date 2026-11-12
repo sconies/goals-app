@@ -58,6 +58,7 @@ const GUIDE = 'src/help/guide.ts';
  * result the word means. Each says why. Anything else fails: read the word from src/domain/vocabulary.ts.
  */
 const ALLOWED: { file: string; word: string; why: string }[] = [
+  { file: 'src/screens/Welcome.tsx', word: 'Open', why: 'Welcome’s button that opens a workspace this device remembers (set-up spec 2.1): a verb, not an ask’s status.' },
   { file: 'src/domain/checkin.ts', word: 'On plan', why: 'NO_REASON: the why older check-ins stored when nothing needed explaining (“On plan.”). A stored value to recognise, never shown as the gap word.' },
   { file: 'src/domain/asks.ts', word: 'Question', why: 'The change log’s field names for an ask’s words, stored on every change since asks began; ChangeItem reads them back.' },
   { file: 'src/domain/asks.ts', word: 'Action', why: 'The change log’s field names for an ask’s words, stored on every change since asks began; ChangeItem reads them back.' },
