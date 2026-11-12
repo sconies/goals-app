@@ -35,6 +35,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['getting-around', 'check-in'],
   },
   {
+    id: 'proposed-fixes',
+    date: '2026-11-12',
+    title: 'Proposed goals, four fixes',
+    points: [
+      'Proposing a goal with stages no longer asks whether a past stage is done: it has no check-ins until it is made active.',
+      'When someone is marked as left, the goals proposed for them are handed over with the rest.',
+      'Making a goal active from an earlier week asks whether it has been running since then, for the AI assistant too.',
+      'The last step of a proposal no longer promises a Home row that isn’t there yet.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
     id: 'map-comes-back-fresh',
     date: '2026-11-12',
     title: 'The Map behaves when you come back to it',
