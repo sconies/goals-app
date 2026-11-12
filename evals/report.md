@@ -1,6 +1,6 @@
 # Eval scorecard · 3 · Updating a goal
 
-Run 2026-11-12 05:23 UTC.
+Run 2026-11-12 05:25 UTC.
 
 ## Journeys: ease of use out of 10, on a phone and a desktop
 
@@ -22,7 +22,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Requirements
 
-**74 of 172 pass**, 1 fail, 97 untested. Spec scenarios 281/281.
+**75 of 172 pass**, 97 untested. Spec scenarios 281/281.
 
 | | Requirement | Area | Scenarios | Journeys and checks |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 | ⚪ | **OTHER-CAUSE** When none of the named causes fits, the owner can pick Something else and say it in their own words; it is saved and shown like any other cause. | Check-ins | 0 | — |
 | ⚪ | **DEMO-FEEDBACK** Feedback sent from the demo reaches the people building the app: it is kept with the research notes, with the screen, the person being played and how they felt, and one id per visitor. The thanks says where it went. | Research | 0 | — |
 | ⚪ | **FIT-AND-FINISH** The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge. | Platform | 0 | — |
-| ❌ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F5 |
+| ✅ | **FIT-AND-FINISH-AREAS** The fourteen per-area fit-and-finish reports hold: every page, sheet and form measured at phone, tablet and desktop widths keeps its layout, alignment, spacing, contrast, touch targets and status shapes as the reports specify, with one check per area. | Platform | 0 | F5 |
 | ✅ | **CALENDAR-WEEKS** A goal year's weeks follow the calendar: week 1 is the week with the first Thursday of the month the year starts in, so in a January year week n is ISO week n, and the year runs to the week before the next year's week 1 (52 or 53 weeks). Week 0, the week before, is for starting numbers. Setting up in the last days of December sets up next year. Shorter cycles count from their own start. Years stored under the old numbering are moved once, keeping every check-in, stage and plan on its date. The demo is set in the real calendar year, so its week is today's. | Cycles | 6 | — |
 | ⚪ | **NO-LOST-UPDATES** A save says what it was based on. If someone else has changed the same goal, review or week since, the save is refused whole, the person is told plainly and shown the latest; nothing is half-saved and the change log never records a save that didn’t land. Open screens pick up other people’s changes when the tab comes back into view. | Data | 0 | — |
 | ⚪ | **FIRST-CHECKIN** Straight after a goal is published, its owner is offered the first check-in, so everyone can see where it stands from day one; it can be skipped. Someone publishing a goal for another person can ask them for it instead. | Goals | 0 | — |
@@ -201,7 +201,7 @@ Each journey is driven in Chromium at 390px and 1440px and checked against the t
 
 ## Platform checks
 
-- ❌ **F5** Fit and finish, list-board: L&T 3: filter sheet ends at 850, “Show the goals” at 838 on a 844px screen
+- ✅ **F5** Fit and finish, list-board
 - ✅ **P5** No console or page errors across every journey
 
 ## Not built yet
