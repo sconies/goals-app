@@ -114,6 +114,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #255 CK2: the table check-in | 1 | 0 | 0 | 2 |
 | #248 IM7: Export is one button | 3 | 0 | 2 | 5 |
 | #257 IM6 part 1: large files | 3 | 0 | 2 | 3 |
+| #270 GE10: proposed goals | 2 | 0 | 4 | 8 |
 | #271 Batch refs: the two review findings | MCP load | 0 | 0 | 0 |
 | #268, #275 KT5b and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
@@ -1201,3 +1202,27 @@ Fixes both. The duplicate-row pass on Check-ins now resolves Goal ref first, so 
 ### #268 and #275 KT5b and KT6: the kit; #262, #272 and #276 handovers
 
 Screenshots of each screen for the spec, and the MCP tools' calls as data (`src/spec/calls.ts`), with two lines in `src/mcp/tools.ts`. They change the spec's generator, not the app's behaviour. Skimmed, not reviewed in depth. The rest are documents. No finding.
+
+### #270 GE10: proposed goals (track 2, merged 20:45 UTC, 12 Nov)
+
+Read first by a reviewing session with domain probes, the MCP tools and the demo on screen at 1440 and 390; I re-read the code behind mediums 1 to 3 on main at `113be18f`. No high finding. The permission rules held at every door tried: only the owner or an admin makes a proposal active (domain, `make_goal_active`, `update_goal state=active`, the file's State column, and a file row that changes the owner and the state together); someone who is neither proposer, owner nor admin can't change or withdraw it; check-ins are refused; and a proposal stays out of the overview, My work, the wrap-up, people and reviews (the tools' answers were byte-identical before and after one).
+
+**1. Medium (ran). A check-in can be written on a proposed goal at the moment it is proposed.** The set-up check-in for stages already done has no test for proposing (`src/domain/goalEntry.ts:611-615`), and the form still asks the stage question when "Not yet" is chosen. An owner proposing their own stages goal with a past stage marked done saved a check-in on a goal with `proposedAt` set. It is hidden while the goal is proposed and reappears on "Make it active"; it is the owner's own, so R1 holds, but rule 14 says a proposed goal has no check-ins. Fix: skip it when proposing and ask the stage question at activation.
+
+**2. Medium (ran). When an owner is marked as left, their proposed goals are not handed over.** `leaving()` reads `x.snapshot.goals` (`src/domain/removal.ts:129`), which no longer holds proposed goals: marking Tunde as left handed two active goals to Rhea and left the proposal owned by someone who has left, with the read-back one short. Fix: read `withProposed(x.snapshot)` there.
+
+**3. Medium (ran). The last step promises "{Owner} sees it on their Home as a proposal for them", and they don't.** `proposalAsks` (`src/domain/proposedActions.ts:86`) is called only by the spec and a test; Home and `get_my_work` were unchanged for the owner. Fix: drop the line until Home's rows are built, or wire it in.
+
+**4. Medium (ran). "Make it active" asks the from-the-past question only in the screen, so MCP skips it** (`src/screens/ProposedGoal.tsx:147-166` against `activate`, `proposedActions.ts:49-58`): `make_goal_active` with a From of week 10 answered with no question, and From 53 and -3 were accepted and saved by `activate`. The range gap in From is older than this PR; the missing question is new. Fix: run the date Checks inside `activate`, and bound From to the year.
+
+**Lows.**
+- `ask_for_update` works on a proposed goal and leaves an ask its owner cannot answer.
+- An active goal can feed a proposed goal and then reads as feeding nothing.
+- Two primary buttons once "Make it active" is open at 1440.
+- "Withdraw it" and "Keep it" are 22 px high on touch.
+- "Rhea see that it is active."
+- The proposed scope rule is written in `GoalsScreen.tsx` and again, differently, in `src/mcp/tools.ts` (read).
+- No MCP test names `make_goal_active` or the state (read).
+- On a phone the proposed row sits flush against the card's edge, and with the State filter on Goals has no tabs or search.
+
+**Unconfirmed.** A proposer's stale edit landing after the owner activates; `startNextCycle`'s count with proposed goals carried; the rebuild stage and drill.
