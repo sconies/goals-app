@@ -24,7 +24,7 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal } from './goalRights';
+import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
@@ -1163,9 +1163,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
-    if (!create && !canChange(g)) {
+    // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
