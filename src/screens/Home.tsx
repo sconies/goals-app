@@ -15,7 +15,8 @@ import { dashboard, groupWatched, homeFor, type Dashboard, type HomePlan } from 
 import { weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText, nextSessionWeek, pastText, sessionDate, upcomingSessionWeek, watchedGoals } from '../domain/review';
 import { hasEnded, weekDates } from '../domain/plan';
-import { placeLine } from '../domain/cycle';
+import { cycleDates, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
+import { periodWord } from '../domain/year';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
 import { statusChange } from '../domain/tree';
@@ -239,7 +240,10 @@ function AttentionList({ list }: { list: ReturnType<typeof attentionList> }) {
  */
 function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) {
   const missed = d.missed.filter((m) => m.id !== leadAbout);
-  const next = d.next && d.next.id !== leadAbout && !d.missed.some((m) => m.id === d.next!.id) ? d.next : null;
+  // The first review not already in the lead or missed: with two on one day, the lead takes one and the cell the other.
+  const left = d.upcoming.filter((r) => r.id !== leadAbout && !d.missed.some((m) => m.id === r.id));
+  const next = left[0] ?? null;
+  const sameDay = next ? left.filter((r) => r.date === next.date).length : 0;
   if (!missed[0] && !next) return null;
   const when = next ? (next.days === 0 ? 'today' : next.days === 1 ? 'tomorrow' : `in ${next.days} days`) : '';
   return (
@@ -253,7 +257,7 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
         </Link>
       ) : next && (
         <Link className="dash-cell dash-review" to={`/reviews/${next.id}`}>
-          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}</span>
+          <span className="dash-label">{next.days === 0 ? 'Review today' : next.days === 1 ? `Review tomorrow, ${dayText(next.date)}` : `Review on ${dayText(next.date)}`}{sameDay > 1 ? ` · ${sameDay} reviews` : ''}</span>
           <span className="dash-value" title={`${next.name}, ${next.weekday} ${when}`}>{next.name}</span>
           <span className="dash-sub">{next.weekday} · {when}</span>
         </Link>
@@ -261,6 +265,36 @@ function ThisWeek({ d, leadAbout }: { d: Dashboard; leadAbout: string | null }) 
     </section>
   );
 }
+
+/** For admins: the year is ending or has ended, and the next one to start (HM1 review: HM1 had dropped it before HM7). */
+function AdminCard() {
+  const app = useApp();
+  if (!app.viewer.admin) return null;
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const over = hasEnded(app.cycle, app.today);
+  if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
+    const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    const next = later?.name ?? nextCycleShape(app.cycle).name;
+    const lastDay = dayWithYear(cycleDates(app.cycle).lastDay);
+    // The next year is prepared, not moved into: it opens for everyone on its week 1's Monday (cycle-end 2.9).
+    const nextLine = later ? `${next} is ready. It opens for everyone on ${dayWithYear(cycleDates(later).firstDay)}.`
+      : over ? `Start ${next}: it opens for everyone as soon as you start it.`
+      : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapUpOpenOn(app.cycle, app.today) ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}>
+          {wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">See the wrap-up</Link>}
+          <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
+        </span>
+      </section>
+    );
+  }
+  // Adding people is Getting started's row now, said only while it's true (OB3).
+  return null;
+}
+
+/** Your goals that need attention, each with its one action: check in when that's what it needs, otherwise open it. */
 
 /** Your goals, as the query port is asked for them: every goal you own. */
 function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId] } }), [viewerId]); }
@@ -290,7 +324,7 @@ export function Home() {
       <ThisWeek d={useDashboard()} leadAbout={plan.lead?.about ?? null} />
       <div className="home-grid split">
         <LeadOrQuiet plan={plan} />
-        <aside className="home-side split-side" aria-label="For you"><NeedsYou /></aside>
+        <aside className="home-side split-side" aria-label="For you"><NeedsYou /><AdminCard /></aside>
         <div className="home-main split-b">
           <YourGoals />
           <WatchedGoals />

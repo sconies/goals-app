@@ -37,12 +37,16 @@ export interface NextReview { id: string; name: string; week: number; date: stri
 
 /** The next session of a review the person takes part in, today's included. */
 export function nextReview(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview | null {
-  const next = s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
+  return nextReviews(personId, s, cycle, week, today)[0] ?? null;
+}
+
+/** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
+export function nextReviews(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): NextReview[] {
+  return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
     const w = upcomingSessionWeek(r, cycle, week, today);
     const date = sessionDate(r, cycle, w);
     return { id: r.id, name: r.name, week: w, date, weekday: WEEKDAY[r.weekday] ?? '', days: 0 - daysSince(date, today) + 0 };
   }).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
-  return next[0] ?? null;
 }
 
 /** A session of a review the person is in, past its date this week and not held (re-review, 8 Nov, backlog T). */
@@ -68,6 +72,8 @@ export interface Dashboard {
   /** The goals they watch, grouped; null when they watch nothing. */
   watching: WatchGroups | null;
   next: NextReview | null;
+  /** Every review's next session, soonest first (`next` is the first), so a second review on the same day isn't lost. */
+  upcoming: NextReview[];
   /** Sessions past their date and not held: shown before the next review, so a missed one isn't hidden by it. */
   missed: MissedReview[];
 }
@@ -82,7 +88,7 @@ export function dashboard(personId: string, s: Snapshot, cycle: Cycle, week: num
     total: goals.length,
     streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
     watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-    next: nextReview(personId, s, cycle, week, today),
+    ...(() => { const upcoming = nextReviews(personId, s, cycle, week, today); return { next: upcoming[0] ?? null, upcoming }; })(),
     missed: missedReviews(personId, s, cycle, week, today),
   };
 }
@@ -208,7 +214,8 @@ export function homeLead(f: HomeFacts): Lead | null {
 
 /** Section 2.1's quiet line: what Home says when nothing is asked of the viewer today. Never "You’re all set". */
 export function quietLine(f: HomeFacts): Quiet {
-  const sentence = 'Nothing is asked of you today.';
+  // While asks wait on the viewer ("Needs your response"), Home doesn't say nothing is asked (HM1 review).
+  const sentence = f.asks ? `${f.asks === 1 ? 'One ask waits' : `${f.asks} asks wait`} for your response.` : 'Nothing is asked of you today.';
   if (f.starts) return { sentence, line: `${f.cycleName} starts on ${longDay(f.starts.on)}. The first check-ins are due by ${longDay(f.starts.firstDue)}.`, buttons: [] };
   if (f.ended) return { sentence, line: `${f.cycleName} has ended.`, buttons: [] };
   const c = f.checkIns;

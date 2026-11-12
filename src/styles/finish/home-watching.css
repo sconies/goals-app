@@ -228,10 +228,7 @@
   /* The ask itself is the one thing to read: it wraps to two lines at word breaks rather than being cut mid-word (U27). */
   .needs-you .need-quote { white-space: normal; text-overflow: clip; overflow-wrap: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.1875rem; }
 }
-/* The hero's list of what's due is one line on a phone; the check-in names each goal as you go. */
-@container app (max-width: 600px) {
-  .page.home .home-hero .hero-body > .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-}
+/* The lead's line and the quiet line are sentences now (HM1), so they wrap on a phone rather than being cut. */
 /* A phone: Home's blocks sit 16px apart and the hero's second link close under its button, so the first goal that
    needs attention starts on the first screen (U2). */
 @container app (max-width: 600px) {

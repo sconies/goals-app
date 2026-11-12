@@ -76,7 +76,8 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
   const thisWeek = s.checkIns.filter((c) => c.week === week && p.goals.some((g) => g.id === c.goalId));
   const allIn = p.goals.length > 0 && p.done.length >= p.goals.length;
   const dueDate = reviewDate(cycle, Math.max(1, week));
-  const sessions: HomeSession[] = s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
+  // Once the year has ended no session is held in it: a "Not held yet" lead would never go (HM1 review).
+  const sessions: HomeSession[] = ended ? [] : s.reviews.filter((r) => r.people.includes(viewerId)).map((r) => reviewSession(r, s, cycle, today, week))
     .filter((x) => x.week === Math.max(1, week) && x.week <= cycle.weeks).map((x) => {
       const { discuss, healthy } = agendaOf(x);
       const order = walkOrder(sessionPlan(x, s, cycle, today));
