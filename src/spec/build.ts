@@ -4,6 +4,7 @@
 
    Organised as the code is (docs/architecture.md): spec/core/ for the core, spec/modules/<id>/ for each feature module
    from its module.json, spec/conformance/ for the conformance data, and spec/rebuild/ for the rebuild kit (8k). */
+import { contractFiles } from './contracts';
 import { ARTICLES, type Article } from '../help/guide';
 import { SCREENS } from '../mcp/parity';
 import { GROUPS, type Term } from '../domain/vocabulary';
@@ -347,6 +348,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     'What the real core rules give for every goal in every week of the demo workspace. A rebuild proves its rules by reading the same workspace and producing the same rows: every row, every column. `src/spec/conformance.test.ts` recomputes them from `workspace.json` with Faro’s own rules and fails on any difference, so these files always say what the code does.',
     '',
+    'The ports’ contracts are here too, as cases any build runs through a small shim: [the port contracts](contracts/README.md).',
+    '',
     '## The input: workspace.json',
     '',
     `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches${w.modules ? `, and, under \`modules\`, the records of the modules that add rows here (${Object.keys(w.modules).join(', ')})` : ''}. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
@@ -473,6 +476,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
+  Object.assign(out, contractFiles());
   // Stage 1's scored files only: scorecard-words.csv, find.csv and the rest are scored when asked.
   const stage1 = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
   const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;

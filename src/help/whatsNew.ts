@@ -33,6 +33,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['history', 'status'],
   },
   {
+    id: 'mcp-new-goal-keys',
+    date: '2026-11-12',
+    title: 'AI tools hear each new goal’s key',
+    points: [
+      'When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.',
+      'A dry run says the key each new goal would get.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
     id: 'question-in-view',
     date: '2026-11-12',
     title: 'A question about a number is where you can see it',
