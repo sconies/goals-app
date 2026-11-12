@@ -99,6 +99,55 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Thursday 12 November, 18:00 UTC (session past half full, handing over)
+
+Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
+
+- **#229, #193's four review mediums** (open as a draft when this was written; merge it on green CI if it hasn't merged, and report the merge to planning, session_012kbr91PHhQvhHZRqaiFs6n):
+  1. **A failed engine load says so.** `run` in `src/app/state.tsx` toasts `ENGINE_OFFLINE` (offline, #183's words) or reloads once through `recoverFromStaleCode`. When it has just reloaded, it offers Reload (`ENGINE_FAILED`). Chromium keeps a module that failed to load, so a reload is the only real retry. N8 (`evals/notes/8-telemetry.cjs`) has the case.
+  2. **Home asks for `sort: 'worst'`.**
+  3. **The query port names scopes.** `GoalAsk.scope` is `'mine' | 'team' | 'watching' | 'all' | 'team:<id>'`, answered by `scopeIds` in `domain/goalsPage.ts` with `scopeFacts` from `app/reads.ts`. With no sort, a list comes worst first, then by title (`localGoals.ts`). `goals.csv` and the contract follow.
+  4. **One port per loaded workspace** (`portFor` in `src/app/goals.ts`).
+  - Its eval run: everything passed except U4 (8.9), which is main's own failure (#226: "publishing is not confirmed", after #208's publish change). That belongs to track 2 and planning, not track 4.
+- **Track 6** (session_012kbr8xR9jB8yU52qz82Gah) converts `goalsContract` to given/when/then data after #229 merges: tell them when it does. They have AX5 part 2's planned Store shape (below) and are leaving `storeContract` alone until it merges.
+- **#193's lows, still open:**
+  - keyset paging restarts from the top when the `after` goal has gone;
+  - `engine.test.ts`'s import pattern misses `import *`, re-exports and imports split over several lines;
+  - on a near miss, `counts().attention` disagrees with its list;
+  - `attentionCount` in `goalsPage.ts` has no caller;
+  - `goals.csv` is written by the adapter it tests.
+- **Next: AX5 part 2, the narrower load. The handover's "last few weeks of changes" is unsafe as written.** A survey (12 Nov, 17:40) found that comments are change-log entries (entity `note`), and that several rules read the log at any age:
+  - `commentsOf` and `liveNotes`/`writtenNotes` (`removal.ts`, `asks.ts`), Recently removed and restore, and `personHistory`;
+  - asks (legacy update-asks, "answered since");
+  - `startOf`/`canUndoStart` (a cycle's "created" entry);
+  - imports: `importEntry`/`undoImport`/`canUndoImport` and the past-imports lists;
+  - `sinceLooked`, and Metrics "Last changed";
+  - MCP `get_activity` (`src/mcp/workTools.ts`), which filters every change with no cursor.
+
+  The safe parts:
+  - **Check-ins:** `scopeToCycle` already keeps only the current cycle's. The wrap-up (`wrapUpScope`) and `recarry` need last year's while its wrap-up is open, which is 4 weeks after the year ends. `cycleStanding`, `canUndoStart` and `copyUntouched` only ask whether a cycle has any check-in.
+  - **Activity and goal History:** both slice a list that is already fully in memory, with no paging. Supabase `all()` already pages by id.
+
+  **The planned shape** (sent to track 6):
+  - `load(ws, window?)`. With no window, the whole workspace, as now. With `{ from }`, two things are narrowed:
+    - check-ins only from cycles that overlap `from` onwards;
+    - changes with `at >= from`, plus anchors of any age: entity `note`, `request` and `cycle`, and import summaries (`imported`/`undone`, or carrying `undo`).
+  - `Snapshot.history?: { from, checkInCycles }` says what was left out.
+  - `history(ws, { before?: {at, id}, goalId?, size <= 100 })` gives older entries newest first, keyset by (at, id). Activity, History and `get_activity` page with it.
+  - Three new contract cases: a windowed load drops the right rows and keeps the anchors; `history` pages with no skips or repeats and narrows by goal; a load with no window is whole.
+  - Implement it in the browser, Supabase and Postgres stores, plus `server/mcp.ts`. Supabase probably needs an index on `(workspace_id, at)`: a migration, shipped one merge ahead of the code (AX10).
+  - Size: M to L. Consider splitting: (a) the window and `history` in the port, the contract and the stores; (b) Activity, History and `get_activity` paging.
+- **Then, in order:**
+  1. FT2, FT1, SW1, SW2.
+  2. AX2.
+  3. AX6.
+- **Traps:**
+  - Gate: `npm run typecheck`, `npm test`, `npm run lint:layers`, `npm run evals:changed` (anything in `src/app/state.tsx` runs the full suite, about 15 minutes), and `npm run spec` committed.
+  - After `npm run build:mcp`, run `sed -i 's#^// \(\.\./\)*home/user/goals-app/node_modules/#// node_modules/#' api/mcp.js`.
+  - The evals exit 1 while U1 to U5 aren't all 10; U4 is red on main.
+  - `src/docPaths.test.ts` fails a hand-written page that names a file that doesn't exist, including in the handover.
+  - A domain rule may not take a `Snapshot` (lint:layers); build facts in `src/app/reads.ts`.
+
 ## Track 4, Thursday 12 November, 16:40 UTC (session past half full, handing over)
 
 - **Merged:** #193, which is AX5 part 1 plus the fix for the first download.
