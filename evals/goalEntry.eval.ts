@@ -5,9 +5,9 @@
    goalChecks): the form, a Goals row and create_goal ask them in the same words, and none saves until each is answered.
    goalChecks reads the same-named goals it is given (the finder's answer), never the whole list: N19's 30,000-goal half
    waits for the Search port's goal finder to answer it on the server (AX5). */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { serve, type Deps } from '../server/mcp';
-import { perform, type RunContext } from '../src/app/actions';
+import { loadGoalEntry, perform, type RunContext } from '../src/app/actions';
 import { applyCommit } from '../src/data/store';
 import { buildPlatformOrg as seed } from '../src/data/platformOrg';
 import { NotAllowed } from '../src/domain/actions';
@@ -61,6 +61,8 @@ async function tools(personId: string) {
     return { text: body.result.content[0]!.text, error: body.result.isError };
   };
 }
+
+beforeAll(() => loadGoalEntry());
 
 describe('one check at every door (N19)', () => {
   for (const c of CASES) {

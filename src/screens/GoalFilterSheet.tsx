@@ -1,6 +1,7 @@
 /* Every filter on Goals, in one sheet (goals spec, 2.4): loaded when it is first opened, as a first visit doesn't need
    it (the bundle budget, scripts/check-bundle.mjs). What each filter means is in domain/query.ts. */
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { useGoalColumns } from '../core/app';
 import { levelIds, levelName } from '../domain/levels';
@@ -18,6 +19,7 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
   const [q, setQ] = useGoalQuery();
   const { filters: modFilters } = useGoalColumns();
   const [owner, setOwner] = useState('');
+  const [params, setParams] = useSearchParams();
   const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   type ListKey = 'status' | 'level' | 'team' | 'kind' | 'result';
   const checks = <T extends string>(legend: string, opts: [T, string][], key: ListKey) => (
@@ -39,6 +41,12 @@ export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean;
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>{l}, reversed</option>)}
           </select>
         </fieldset>}
+        {/* State (GE10): active goals by default; proposed goals are listed apart, never mixed with them. */}
+        <fieldset className="filter-group"><legend className="field-label">State</legend>
+          <span className="filter-options">{([['', 'Active'], ['proposed', 'Proposed']] as const).map(([k, l]) => (
+            <label key={k} className="check"><input type="radio" name="goal-state" checked={(params.get('state') ?? '') === k} onChange={() => setParams((p) => { if (k) p.set('state', k); else p.delete('state'); return p; })} /> {l}</label>
+          ))}</span>
+        </fieldset>
         {checks('Status', STATUS_OPTIONS, 'status')}
         {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
         <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
