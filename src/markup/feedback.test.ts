@@ -19,20 +19,20 @@ describe('feedback in the builder inbox', () => {
 
   it('triages with the markups’ states and rules, and keeps the status', async () => {
     const o = ops();
-    expect(await o.setStatus('fb_a', { status: 'in-hand', by: 'Lane' })).toMatchObject({ status: 'in-hand', statusBy: 'Lane', statusAt: '2026-11-06T12:00:00.000Z' });
-    await expect(o.setStatus('fb_a', { status: 'fixed', by: 'Lane' })).rejects.toThrow('Say which What’s new entry has the fix.');
-    await expect(o.setStatus('fb_a', { status: 'fixed', fixedIn: 'no-such-entry', by: 'Lane' })).rejects.toThrow(/There’s no What’s new entry/);
-    await expect(o.setStatus('fb_a', { status: 'wont-fix', reason: ' ', by: 'Lane' })).rejects.toThrow('Say why it won’t be fixed.');
-    await o.setStatus('fb_a', { status: 'fixed', fixedIn: 'remove-and-undo', by: 'Lane' });
+    expect(await o.setStatus('fb_a', { status: 'in-hand', by: 'Lane', admin: true })).toMatchObject({ status: 'in-hand', statusBy: 'Lane', statusAt: '2026-11-06T12:00:00.000Z' });
+    await expect(o.setStatus('fb_a', { status: 'fixed', by: 'Lane', admin: true })).rejects.toThrow('Say which What’s new entry has the fix.');
+    await expect(o.setStatus('fb_a', { status: 'fixed', fixedIn: 'no-such-entry', by: 'Lane', admin: true })).rejects.toThrow(/There’s no What’s new entry/);
+    await expect(o.setStatus('fb_a', { status: 'wont-fix', reason: ' ', by: 'Lane', admin: true })).rejects.toThrow('Say why it won’t be fixed.');
+    await o.setStatus('fb_a', { status: 'fixed', fixedIn: 'remove-and-undo', by: 'Lane', admin: true });
     expect((await ops().list()).find((r) => r.id === 'fb_a')).toMatchObject({ status: 'fixed', fixedIn: 'remove-and-undo', wontFixReason: null });
-    await expect(o.setStatus('fb_gone', { status: 'in-hand', by: 'Lane' })).rejects.toThrow('That feedback isn’t there any more.');
+    await expect(o.setStatus('fb_gone', { status: 'in-hand', by: 'Lane', admin: true })).rejects.toThrow('That feedback isn’t there any more.');
   });
 
   it('opens one, lists by status, and remembers where each was fixed for “You raised this”', async () => {
     const o = ops();
     expect(await o.open('fb_a')).toMatchObject({ id: 'fb_a', personName: 'Maya Okafor', status: 'new' });
     await expect(o.open('fb_gone')).rejects.toThrow('There’s no feedback fb_gone.');
-    await o.setStatus('fb_b', { status: 'fixed', fixedIn: 'mark-up-a-screen', by: 'Lane' });
+    await o.setStatus('fb_b', { status: 'fixed', fixedIn: 'mark-up-a-screen', by: 'Lane', admin: true });
     expect((await o.list(10, { status: 'fixed' })).map((r) => r.id)).toEqual(['fb_b']);
     expect((await o.list(10, { workspaceId: 'elsewhere' }))).toEqual([]);
     expect(keptFixes()).toEqual({ fb_b: 'mark-up-a-screen' });

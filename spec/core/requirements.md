@@ -982,13 +982,14 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ## Home
 
-### HOME-DASHBOARD
+### HOME-OWNER
 
-Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals ("11 off track" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word.
+Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
 
+- **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10
+- **Journeys and checks:** N3, N10, N26, U122
 
 ## Interface
 
@@ -1012,17 +1013,17 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Tests:** `evals/printMotion.eval.ts` (3)
+- **Tests:** `evals/layoutSwitch.eval.ts` (2), `evals/printMotion.eval.ts` (3)
 - **Journeys and checks:** N6
 
 ## Workspace
 
 ### WORKSPACE-ADMIN
 
-Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
+Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
-- **Tests:** `evals/workspace-admin.eval.ts` (6)
+- **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
@@ -1272,10 +1273,10 @@ Feedback sent with a mood and a few words joins the inbox (migration 0026): it i
 
 ### INBOX-TRIAGE
 
-The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
+The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U52
+- **Journeys and checks:** U42, U52
 
 ### MCP-FEEDBACK
 

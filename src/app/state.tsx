@@ -639,6 +639,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       },
       deleteWorkspace: async () => {
         if (ws.kind === 'example') throw new Error('Examples can be reset, not deleted.');
+        // Start over (and Delete this workspace) removes a workspace of your own: admins only (the rule, not just the panel).
+        if (!A.mayStartOver(viewer, 'own')) throw new Error(A.START_OVER_ADMINS);
         await store.deleteWorkspace(ws.id);
         forgetWorkspaceBrowser(ws.id);
         const rest = workspaces.filter((w) => w.id !== ws.id);

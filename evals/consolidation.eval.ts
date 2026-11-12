@@ -99,7 +99,7 @@ describe('One word for each concept', () => {
   it.skipIf(noSheets)(W('Import is called Import, and the one-table check-in has one name'), () => {
     expect(withoutComments(read('src/modules/spreadsheets/Import.tsx'))).toContain('<h1 className="title-xl">Import</h1>');
     expect(withoutComments(read('src/screens/QuickCheckIn.tsx'))).toContain('Type all your numbers in one table');
-    expect(withoutComments(read('src/screens/Home.tsx'))).toContain('Or type all your numbers in one table');
+    expect(withoutComments(read('src/domain/home.ts'))).toContain('Or type all your numbers in one table');
     expect(articleForPath('/quick-check-in')?.title).toMatch(/all your numbers in one table/i);
   });
 
