@@ -78,6 +78,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #192 New goal: #129's review, mediums 1 to 3 and 6 | 2 | 0 | 0 | 0 |
 | #199 IM5: the way in | 3 | 1 | 4 | 6 |
 | #202 GE3: the read-back | 2 | 0 | 5 | 3 |
+| #208 New goal: Publish shows one outcome, not three | 2 | 0 | 0 | 0 |
+| #212, #210, #205 A handoff-kit review, track 2's handover, a product-feedback evaluation | planning, 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -892,3 +894,11 @@ Read first by a separate reviewing session, on screen at 1440 and 390 and with t
 **#129's findings at this merge.** Continue after a Change on Check is fixed (run). Values are no longer cut with an ellipsis, though finding 1 makes them narrow.
 
 **Checked and fine.** Four published goals compared with the store: a falling number with a metric, weeks in 2027, another owner, a parent, also-helps and a guardrail; a limit of at least 1,250,000 with a margin; stages with one done and one overdue; a number set by hand. Thousands separators, singulars, negatives and dates read correctly. Each row's Change is 56 by 46 on touch and named. `readBack.ts` is pure.
+
+### #208 New goal: Publish shows one outcome, not three (track 2, merged 15:28 UTC, 12 Nov)
+
+Takes #202's last low (the "A question is still to answer" flash after Publish). A goal is never asked about as its own twin, whether it is the one being changed or the one this draft was just saved as (`src/domain/goalEntry.ts`, `checksContext`, with a unit test). The form freezes its questions when Publish is pressed, releases them if the save fails (`src/screens/GoalWizard.tsx:217`, `:233`), and says "Published" once saved. Read. No finding.
+
+### #212, #210 and #205 Documents (merged 16:00 to 16:01 UTC, 12 Nov)
+
+A review of the handoff kit, track 2's handover and an evaluation of product feedback: three documents, no code. Not reviewed.
