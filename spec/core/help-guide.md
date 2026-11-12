@@ -761,7 +761,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 #### How to use it
 
 - On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.
-- Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
+- Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
 - What a new row must have is on the Import page and in Every column, and what it needs: a goal needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. A check-in, Goal key (or Goal), Week, and Value or Stages. A person, Name and Email.
 - Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.
 - A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.
@@ -1213,6 +1213,7 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 - Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
 - Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.
 - Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.
+- Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.
 
 #### How to connect
 
