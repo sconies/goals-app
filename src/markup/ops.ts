@@ -3,9 +3,16 @@
    markups kept in this browser when no database is set up) and by the MCP server's markup tools (with any token).
    Where the markups are kept is passed in (src/markup/stores.ts). No secrets: an issue is opened on GitHub, from a
    pre-filled link. */
-import { ISSUE_URL, MarkupError, newIssueLink, statusPatch, type Markup, type MarkupStatus, type StatusChange } from './model';
+import { ADMINS_TRIAGE, ISSUE_URL, mayTriage, MarkupError, newIssueLink, statusPatch, type Markup, type MarkupStatus, type StatusChange } from './model';
 
 /** Where markups are kept, and their pictures. */
+/** A GitHub issue's address as kept: trimmed, without a query or fragment; anything else is refused in these words. */
+export function issueUrlOf(url: string): string {
+  const u = url.trim().replace(/[?#].*$/, '');
+  if (!ISSUE_URL.test(u)) throw new MarkupError('Paste the issue’s address: https://github.com/owner/repo/issues/123.');
+  return u;
+}
+
 export interface MarkupStore {
   list(o: { workspaceId?: string; status?: MarkupStatus; limit: number }): Promise<Markup[]>;
   get(id: string): Promise<Markup | null>;
@@ -106,10 +113,10 @@ export function markupOps(o: MarkupOpsOptions) {
       return m;
     },
 
-    /** Keeps the address of the issue the builder opened. */
-    async setIssueUrl(id: string, url: string): Promise<Markup> {
-      const u = url.trim().replace(/[?#].*$/, '');
-      if (!ISSUE_URL.test(u)) throw new MarkupError('Paste the issue’s address: https://github.com/owner/repo/issues/123.');
+    /** Keeps the address of the issue the builder opened: triage, so admins only (mayTriage, as statusPatch asks). */
+    async setIssueUrl(id: string, url: string, admin: boolean): Promise<Markup> {
+      const u = issueUrlOf(url);
+      if (!mayTriage({ admin })) throw new MarkupError(ADMINS_TRIAGE);
       await must(id);
       const m = await o.store.update(id, { issueUrl: u });
       if (!m) throw new MarkupError(`There’s no markup ${id}.`);

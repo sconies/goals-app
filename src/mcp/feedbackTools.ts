@@ -7,6 +7,7 @@
 import { MOOD_WORD, STATUS_WORD, STATUSES, type MarkupStatus } from '../markup/model';
 import type { FeedbackOps, InboxFeedback } from '../markup/feedback';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { listed } from './listed';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
@@ -18,8 +19,6 @@ function triage(ctx: McpContext): FeedbackOps {
   return ctx.feedback;
 }
 
-/** One line: "fb_1 · In hand · It gets in the way · “The reason box is too small” · /check-in · Mateo, Acme, 2026-11-06". */
-const line = (f: InboxFeedback) => `${f.id} · ${STATUS_WORD[f.status]} · ${MOOD_WORD[f.mood]} · “${f.text || '(no words)'}” · ${f.path || '/'} · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`;
 const outcome = (f: Pick<InboxFeedback, 'status' | 'fixedIn' | 'wontFixReason'>) => `${STATUS_WORD[f.status]}${f.fixedIn ? `, fixed in ${f.fixedIn}` : ''}${f.wontFixReason ? `: ${f.wontFixReason}` : ''}`;
 
 export const FEEDBACK_TOOLS: ToolDef[] = [
@@ -37,13 +36,13 @@ export const FEEDBACK_TOOLS: ToolDef[] = [
       if (ctx.feedback) {
         const list = await ctx.feedback.list(Number(a.limit ?? 50), { ...(a.workspace ? { workspaceId: String(a.workspace) } : {}), ...(a.status ? { status: a.status as MarkupStatus } : {}) });
         const rows = list.map((f) => ({ id: f.id, status: f.status, mood: f.mood, text: f.text, screen: f.path, by: f.personName, from: f.workspaceName, at: f.at, fixedIn: f.fixedIn, wontFixReason: f.wontFixReason }));
-        return { data: { feedback: rows }, text: list.length ? list.map(line).join('\n') : 'No feedback.' };
+        return listed({ feedback: rows });
       }
       if (a.status || a.workspace) return { isError: true, text: `${NO_INBOX} An admin’s token lists this workspace’s feedback, without statuses.` };
       if (!ctx.actor.admin) return { isError: true, text: 'Only admins can read the feedback.' };
       const who = (id: string) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? '—';
       const list = [...(ctx.snapshot.feedback ?? [])].sort((x, y) => (x.at < y.at ? 1 : -1)).slice(0, a.limit ? Number(a.limit) : undefined).map((f) => ({ id: f.id, at: f.at, by: who(f.personId), mood: f.mood, screen: f.path, text: f.text }));
-      return { data: { feedback: list }, text: list.length ? list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`).join('\n') : 'No feedback yet.' };
+      return listed({ feedback: list });
     },
   },
   {

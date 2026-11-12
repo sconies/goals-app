@@ -225,7 +225,8 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     };
     let n = 0;
     const call = async (name: string, args: object) => (await (await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method: 'tools/call', params: { name, arguments: args } }) }), deps)).json() as { result: { content: { text: string }[]; isError: boolean } }).result;
-    expect((await call('list_feedback', { status: 'new' })).content[0]!.text).toContain('fb_m1 · New · It’s OK · “The filters are hard to find” · /goals · Mateo, Acme');
+    // A list answers as JSON, its text the same as its data (MCP load, 12 Nov).
+    expect(JSON.parse((await call('list_feedback', { status: 'new' })).content[0]!.text).feedback).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'fb_m1', status: 'new', text: 'The filters are hard to find', screen: '/goals', by: 'Mateo', from: 'Acme' })]));
     expect((await call('get_feedback', { id: 'fb_m1' })).content[0]!.text).toContain('From Mateo in Acme');
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: WHATS_NEW[0]!.id })).content[0]!.text).toBe(`fb_m1 is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);

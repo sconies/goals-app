@@ -1209,9 +1209,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
     // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
-    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
+    // Asked of the owner before this file's own changes, so one change can't take a goal and check in on it at once.
+    const owned = s.goals.find((x) => x.id === g.id) ?? g;
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, owned, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.

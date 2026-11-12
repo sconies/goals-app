@@ -44,6 +44,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['export', 'data'],
   },
   {
+    id: 'check-ins-owners-words',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s, said everywhere',
+    points: [
+      'Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.',
+      'A check-in an admin loaded is headed with the admin’s name, not as what the owner said.',
+      'One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.',
+      'An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused.',
+    ],
+    articles: ['requests', 'goal-page', 'inbox'],
+  },
+  {
+    id: 'mcp-lists-one-shape',
+    date: '2026-11-12',
+    title: 'AI tools get every list in one shape',
+    points: [
+      'Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.',
+      'The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
     id: 'quarters-before-set-up',
     date: '2026-11-12',
     title: 'Quarters before a goal existed are not judged',
