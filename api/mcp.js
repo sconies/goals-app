@@ -15626,7 +15626,7 @@ var CORE_ARTICLES = [
 				list: [
 					"One main button, for what you’d most likely do next, in this order: answer a question or a decision asked of you here; post the first check-in, or check in for this week when it’s due (the owner); mark your next step done; Add a next step, when the goal is behind and its owner has no next step open; ask a quiet goal’s owner for an update.",
 					"Beside it, a plain button: the owner always has Check in again (unless the main button is the check-in); anyone else has Watch, or Watching once they do.",
-					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). An admin checks in for the owner from there."
+					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). Only the owner checks in, from the bar."
 				]
 			},
 			{
@@ -17257,6 +17257,13 @@ var WHATS_NEW = [
 		title: "The map opens without a flash",
 		points: ["Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.", "It says so only when drawing takes long enough to notice."],
 		articles: ["goal-map"]
+	},
+	{
+		id: "polish-no-check-in-for",
+		date: "2026-11-12",
+		title: "No check-in offered that can’t be posted",
+		points: ["A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.", "The owner checks in from the button on the goal’s bar, as before."],
+		articles: ["goal-page", "check-in"]
 	},
 	{
 		id: "import-preview-steadier",

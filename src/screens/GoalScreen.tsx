@@ -191,8 +191,7 @@ function GoalView({ goal }: { goal: Goal }) {
         { label: 'Share image', onClick: () => void share.image() },
         { label: 'Copy link', onClick: () => void share.link() },
         { label: 'Print or save as PDF', to: `/goals/${goal.id}/print` },
-        // An admin checks in for the owner from here; the owner's own buttons are on the bar.
-        ...(!stopped && !isOwner && app.viewer.admin && week > 0 ? [{ label: `Check in for ${ownerFirst}`, to: '/check-in/' + goal.id }] : []),
+        // No "Check in for …": only the owner checks in (OWNER-ONLY); their buttons are on the bar.
         ...(!stopped && canEdit ? [{ label: 'Change this goal', to: `/goals/${goal.id}/edit` }] : []),
         // Stop a goal with history (with a reason), or delete one set up by mistake: its owner or an admin.
         ...(!stopped && canEdit ? [{ label: goalRemoveLabel(own.length > 0), onClick: () => setRemoving(true) }] : []),
