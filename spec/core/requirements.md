@@ -982,13 +982,14 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ## Home
 
-### HOME-DASHBOARD
+### HOME-OWNER
 
-Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals ("11 off track" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word.
+Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
 
+- **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10
+- **Journeys and checks:** N3, N10, N26, U122
 
 ## Interface
 
