@@ -11115,7 +11115,13 @@ function planChanges(input) {
 		}
 		const ids = new Set(found.map((x) => x.p?.id ?? ""));
 		if (ids.size > 1) {
-			raise("conflicting-refs", "Goals", l.row, g.title, "Feeds into and Feeds into key name different goals. Change just one of them.", { column: "Feeds into" });
+			const said = found.map((x) => ({
+				"feeds into ref": "Feeds into ref",
+				"feeds into key": "Feeds into key",
+				"feeds into id": "Feeds into ID",
+				"feeds into": "Feeds into"
+			})[x.c]);
+			raise("conflicting-refs", "Goals", l.row, g.title, `${said.slice(0, -1).join(", ")} and ${said[said.length - 1]} name different goals. Change just one of them.`, { column: said[0] });
 			continue;
 		}
 		const parentId = [...ids][0] || null;
@@ -11395,7 +11401,7 @@ function planChanges(input) {
 		if (a?.choice === "choose" && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
 	};
 	const skipCheckIns = twice("Check-ins", ciRows.map(({ r, row }) => {
-		const g = goalFor(r) ?? answeredGoal(r);
+		const g = (val(r, "goal ref") ? goalOfRef(val(r, "goal ref")).g : void 0) ?? goalFor(r) ?? answeredGoal(r);
 		const w = weekCell(val(r, "week"), "Check-ins", row, "", false).n;
 		const cid = create ? "" : val(r, "id");
 		return {
@@ -18025,6 +18031,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "batch-refs-fixes",
+		date: "2026-11-12",
+		title: "Refs in a file: two fixes",
+		points: ["Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.", "A row whose Feeds into ref and Feeds into key name different goals now says so in those words."],
+		articles: ["import"]
+	},
 	{
 		id: "goal-proposed",
 		date: "2026-11-12",
