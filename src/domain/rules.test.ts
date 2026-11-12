@@ -1,8 +1,14 @@
 import { currentWeek, forecast, isCount, planAt, projection, projectionFor, shapeProgress, valueSeries } from './plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus, worst } from './status';
 import { emptyDraft, evaluate, MISSING_TEXT, numberCheck, REASON_CODES, toCheckIn, valueProblem, VALUE_CODES, type Draft } from './checkin';
-import { blankGoal, buildGoal, validateGoal } from './goal';
+import { blankGoal, buildGoal, type GoalDraft } from './goal';
+import { goalMustFix } from './goalEntry';
 import type { CheckIn, Cycle, Goal, MetricGoal, MilestoneGoal, RangeGoal } from './types';
+
+/** Goal entry's rule 2 as one line per field (the first for each), for the checks below. */
+const fixes = (d: GoalDraft, cycleWeeks: number, x: { existing?: Goal | null; week?: number; door?: 'form' | 'table' } = {}): Partial<Record<string, string>> =>
+  Object.fromEntries(goalMustFix(d, { cycleWeeks, week: x.week ?? 0, existing: x.existing ?? null, door: x.door ?? 'table' }).reverse().map((f) => [f.field, f.text]));
+
 
 const cycle: Cycle = { id: 'c1', name: 'Q4', startDate: '2026-09-07', weeks: 13, reviewDay: 3 };
 const base = { cycleId: 'c1', teamId: 't', ownerId: 'p', io: 'input' as const, level: 'team' as const, guardrail: false, parentId: null, effect: null, source: '', definition: '', createdAt: '2026-09-01T00:00:00Z' };
@@ -255,9 +261,9 @@ describe('check-in rules', () => {
 describe('goals', () => {
   it('validates the form', () => {
     const d = blankGoal('t', 'p', '');
-    expect(Object.keys(validateGoal(d, cycle)).sort()).toEqual(['start', 'target', 'title']);
-    expect(validateGoal({ ...d, title: 'Triage', start: '40', target: '40' }, cycle).target).toMatch(/differ/);
-    expect(validateGoal({ ...d, kind: 'milestone', title: 'Brain', stages: [{ id: 's1', name: 'Model', dueWeek: '14' }] }, cycle).stages).toMatch(/between 1 and 13/);
+    expect(Object.keys(fixes(d, cycle.weeks)).sort()).toEqual(['start', 'target', 'title']);
+    expect(fixes({ ...d, title: 'Triage', start: '40', target: '40' }, cycle.weeks).target).toMatch(/the same as today/);
+    expect(fixes({ ...d, kind: 'milestone', title: 'Brain', stages: [{ id: 's1', name: 'Model', dueWeek: '14' }] }, cycle.weeks).stages).toMatch(/between 1 and 13/);
   });
   it('keeps the original plan when the plan changes after check-ins started', () => {
     const d = { ...blankGoal('t', 'p', ''), title: 'Review', start: '30', target: '75' };

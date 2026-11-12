@@ -106,9 +106,10 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalWizard.tsx](../../src/screens/GoalWizard.tsx)
 
-- `/goals/new` (`GoalWizard`): A new goal takes a few short steps: what you want to achieve, the type, the numbers or stages, and where it fits. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new/:step` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 
-- **Named parts:** “You have a goal you didn’t publish”, “What do you want to achieve?”, “Where does it fit?”, “Does this read right?”
+- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”, “After you publish”
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`
@@ -128,9 +129,9 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalEdit.tsx](../../src/screens/GoalEdit.tsx)
 
-- `/goals/:goalId/edit` (`GoalEdit`): Edit a goal’s details, owner, links or plan. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
+- `/goals/:goalId/edit` (`GoalEdit`): Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
 
-- **Named parts:** “Owner and links”
+- **Named parts:** “What it is”, “Who and where”
 - **Main action:** Save the change; a plan change after check-ins started needs a reason.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `update_goal`, `set_plan_numbers`
@@ -251,7 +252,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/help/:id` (`HelpArticle`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 - `/whats-new` (`WhatsNew`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 
-- **Named parts:** “The columns”, “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
+- **Named parts:** “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
 - **Main action:** Find an answer: search, or open an article.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`

@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
 import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows, homeFacts } from '../app/reads';
+import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -262,7 +262,7 @@ export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
   const draft = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
-  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft }));
+  const plan = homeFor(homeFacts(app.viewer.id, app.snapshot, app.cycle, app.week, app.today, { workspace: workspaceName(app.ws, app.mode).name, draft, wrap: wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today) }));
   return (
     <div className="page home" data-part="Home">
       <div className="page-head">
@@ -305,7 +305,7 @@ function GettingStarted() {
     prefs.set(...key, next); setFacts(next);
   }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
-  const rows = gettingStarted(app.viewer.id, dayOneRows(app.snapshot), { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today) }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
   if (!rows.length) return null;
   const invite = `${location.origin}${app.mode === 'demo' ? '/demo' : ''}/?workspace=${encodeURIComponent(app.ws.id)}`;
   return (

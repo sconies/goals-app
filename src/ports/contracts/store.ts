@@ -8,6 +8,7 @@
    The store must keep that module's rows whole, save them with the rest of a commit, and remove and restore them
    with the goal they point to, without knowing what they are. */
 import { createToken, revokeToken, type ActionContext } from '../../domain/actions';
+import { deleteGoal, markPersonLeft, undoImport, undoRemoval } from '../../domain/removal';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
 import type { Snapshot } from '../../domain/types';
 import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
@@ -138,6 +139,55 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       const back = await store.load(ws);
       expect(back.goals.find((x) => x.id === g.id)?.removedAt ?? null).toBeNull();
       expect(marksOf(back).map((x) => ({ ...x, removedAt: x.removedAt ?? null, removedBy: x.removedBy ?? null }))).toEqual([{ ...m, removedAt: null, removedBy: null }]);
+    });
+
+    it('brings back what Undo restores, as loaded, and it stays back after the next load', async () => {
+      // A record loaded live has no removedAt at all, and Undo saves it back as it was loaded: the store must still clear
+      // the removal's time (build review: on the database stores the record came back, then went again on reload).
+      const undone = async (remove: (x: ActionContext) => Commit) => {
+        const before = await store.load(ws);
+        const removal = remove(ctx(before));
+        await store.commit(ws, removal);
+        await store.commit(ws, undoRemoval(ctx(await store.load(ws)), removal, before));
+        return store.load(ws);
+      };
+      const live = await store.load(ws);
+      const g = live.goals.find((x) => !x.removedAt && !live.goals.some((c) => c.parentId === x.id) && !live.checkIns.some((c) => c.goalId === x.id))!;
+      expect(g.removedAt).toBeUndefined();
+      const goalBack = await undone((x) => deleteGoal(x, g.id));
+      expect(goalBack.goals.find((x) => x.id === g.id)?.removedAt ?? null).toBeNull();
+
+      const p = live.people.find((x) => !x.admin && !x.leftAt && !x.removedAt)!;
+      const personBack = await undone((x) => markPersonLeft(x, p.id, { goalsTo: x.actor.id, asksTo: x.actor.id }));
+      expect(personBack.people.find((x) => x.id === p.id)?.leftAt ?? null).toBeNull();
+
+      // A module's row, which its toRow also writes only when it has a removal time.
+      const m: Mark = { id: ids('mark'), goalId: g.id, text: 'Undone', at: NOW.toISOString() };
+      await store.commit(ws, { modules: { contract: { marks: [m] } }, changes: [] });
+      const markBack = await undone((x) => ({ modules: { contract: { marks: [{ ...m, removedAt: x.now, removedBy: x.actor.id }] } }, changes: note(x.snapshot, 'Removed a mark').changes }));
+      expect(marksOf(markBack).find((x) => x.id === m.id)?.removedAt ?? null).toBeNull();
+    });
+
+    it('puts back what an import deleted, stopped or marked as left when the import is undone, and it stays back', async () => {
+      // An import's log entry keeps each row as it was, and a live row has no removal fields at all (build review of #175).
+      const live = await store.load(ws);
+      const free = live.goals.filter((x) => !x.removedAt && !x.stoppedAt && !live.goals.some((c) => c.parentId === x.id));
+      const [a, b] = [free.at(-1)!, free.at(-2)!];
+      const p = [...live.people].reverse().find((x) => !x.admin && !x.leftAt && !x.removedAt)!;
+      const admin = live.people.find((x) => x.admin)!.id, at = NOW.toISOString(), importId = ids('imp');
+      await store.commit(ws, {
+        goals: [{ ...a, removedAt: at, removedBy: admin }, { ...b, stoppedAt: at, stoppedBy: admin, stopReason: 'Stopped by a row’s Action' }],
+        people: [{ ...p, leftAt: at, leftBy: admin, email: p.email ?? 'left@example.org' }],
+        changes: [{ id: ids('chg'), at, actorId: admin, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', summary: 'Imported a spreadsheet: 3 rows', diffs: [], importId,
+          undo: { goals: [{ id: a.id, before: a }, { id: b.id, before: b }], checkIns: [], people: [{ id: p.id, before: p }], requests: [] } }],
+      });
+      await store.commit(ws, undoImport(ctx(await store.load(ws)), importId).commit);
+      const back = await store.load(ws);
+      expect(back.goals.find((x) => x.id === a.id)?.removedAt ?? null).toBeNull();
+      const stopped = back.goals.find((x) => x.id === b.id)!;
+      expect([stopped.stoppedAt ?? null, stopped.stopReason ?? null]).toEqual([null, null]);
+      const person = back.people.find((x) => x.id === p.id)!;
+      expect([person.leftAt ?? null, person.email ?? null]).toEqual([null, p.email ?? null]);
     });
 
     it('issues an AI assistant token once, never keeps its secret, and revokes it', async () => {

@@ -44,7 +44,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Requirements
 
-- `CARRY-GOALS`: An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on.
+- `CARRY-GOALS`: An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
 - `RESULTS`: A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
 
 ## Tests that check it
@@ -66,8 +66,20 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - starting and undoing (rules 6 and 9) › prepares 2027 on 21 December; everyone stays in 2026; a second start is refused
 - starting and undoing (rules 6 and 9) › can be undone until someone uses it, and puts 2026 back as it was
 - starting and undoing (rules 6 and 9) › can’t be undone once someone checks in or changes a goal in it
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › on 11 Jan 2027, with 2027 current, the page is 2026’s and a 2026 goal’s wrap-up saves, in 2026
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › after 2026’s wrap-up closes, the page is 2027’s and a 2026 wrap-up is refused
+- last year’s wrap-up once the next year is current (rule 3; build review of #133, high) › before a year’s first week, the period says when it starts, never week 0
 - the start page (2.4) › says when it can be started before the wrap-up opens, and nothing else
 - the start page (2.4) › reads back four counts and what 2027 starts with
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › starts a number goal from its final number in week 1, due at the end of the new year; spreads stages over it; keeps a long plan
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › never makes a plan that turns round, starts late, or has a stage after the year’s end, in the whole example
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › brings metric links, watches, open asks and reviews, and Undo puts every one back
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › keeps an untouched copy true: a later final number moves its start; a wrap-up “stop” takes it out
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › keeps the copy true for a check-in from the change engine too: the check-in screens, the tables and a spreadsheet
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stop, then carry it on, brings the same copy back; stopping again takes it out; never two (build review of #152, high 1)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent and its child leaving or coming back in one save: each row once, the child under its parent (build review of #179)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)
 
 ### [src/domain/journeys.test.ts](../../../src/domain/journeys.test.ts)
 

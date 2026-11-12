@@ -8,6 +8,9 @@ import { currentWeek, planAt } from './plan';
 import { goalStatus } from './status';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { MetricGoal } from './types';
+import type { ModuleRecords } from './records';
+import { blankGoal } from './goal';
+import { goalMustFix } from './goalEntry';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const s = buildPlatformOrg(today);
@@ -67,7 +70,7 @@ describe('bulk changes', () => {
     ] }));
     expect(real(cs)).toEqual([]);
     // Matched by a name only one person has, and said so.
-    expect(cs.issues).toEqual([expect.objectContaining({ severity: 'note', message: expect.stringMatching(/“Mateo Fernández” matched by name/) })]);
+    expect(cs.issues).toEqual([expect.objectContaining({ severity: 'note', message: expect.stringMatching(/“Mateo Fernández” matched by name/) }), expect.objectContaining({ kind: 'default', message: expect.stringMatching(/the owner’s team; the row gave none/) })]);
     expect(cs.counts).toEqual(expect.objectContaining({ newGoals: 1, goals: 1 }));
     const after = applyCommit(s, cs.commit!);
     const fresh = after.goals.find((g) => g.title === 'Runbooks with an owner')!;
@@ -77,14 +80,43 @@ describe('bulk changes', () => {
     expect(cs.commit!.changes.at(-1)!.entity).toBe('workspace');
   });
 
-  it('only lets owners change their own goals; admins can change any', () => {
+  it('refuses an Effect that isn’t a number on a new goal’s row, in the form’s words, though its parent is read later', () => {
+    const row = (o: Record<string, string>) => rec({ Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: '20', Target: '90', Effect: 'lots', ...o });
+    const form = goalMustFix({ ...blankGoal('cicd', 'mateo', ''), title: 'Runbooks with an owner', parentId: 'ns-lead', effect: 'lots' }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form' }).find((f) => f.field === 'effect')!.text;
+    const cs = planChanges(base('mateo', { goals: [row({ 'Feeds into ID': 'ns-lead' })] }));
+    expect(real(cs)).toContainEqual(expect.objectContaining({ kind: 'not-a-number', column: 'Effect', message: form }));
+    expect(cs.commit).toBeNull();
+    // With nothing to feed, an Effect says nothing, as on the form: it isn't kept, and isn't judged.
+    expect(real(planChanges(base('mateo', { goals: [row({})] }))).filter((i) => i.column === 'Effect')).toEqual([]);
+  });
+
+  it('asks about a target on the worse side of the metric that measures the goal (wrong-side), from a module’s records', () => {
+    const g = s.goals.find((x): x is MetricGoal => x.id === 'ns-lead')!;
+    const records: ModuleRecords[] = [{ module: 'test', records: [], measures: (_s, id) => (id === 'ns-lead' ? { name: 'Lead time for changes', direction: 'lower' } : null) }];
+    const row = [rec({ ID: 'ns-lead', Start: String(g.plan.target - 2), Target: String(g.plan.target - 1) })];
+    const wrong = (cs: ReturnType<typeof planChanges>) => cs.issues.filter((i) => i.found === 'wrong-side');
+    expect(wrong(planChanges(base('rhea', { goals: row }, { reason: 'Re-based on the new dashboard' })))).toEqual([]);
+    const cs = planChanges(base('rhea', { goals: row }, { reason: 'Re-based on the new dashboard', records }));
+    expect(wrong(cs)).toEqual([expect.objectContaining({ kind: 'odd-number', column: 'Target', message: expect.stringMatching(/^“Lead time for changes” is better lower, but the target/) })]);
+    expect(cs.commit).toBeNull();
+  });
+
+  it('asks about a unit a row clears, as the form does (no-unit)', () => {
+    const g = s.goals.find((x) => x.id === 'ns-lead')!;
+    const cs = planChanges(base('rhea', { goals: [rec({ ID: g.id, Unit: '' })] }));
+    expect(cs.issues).toEqual([expect.objectContaining({ kind: 'no-unit', column: 'Unit', message: 'This number has no unit. Is it a plain count?' })]);
+    expect(real(planChanges(base('rhea', { goals: [rec({ ID: g.id, Unit: 'hours' })] })))).toEqual([]);
+  });
+
+  it('only lets owners change their own goals; admins can change any; anyone may add a goal for anyone', () => {
     const row = [rec({ ID: 'ns-ai', Target: '90' })];
     const tariq = planChanges(base('tariq', { goals: row }, { reason: 'Faster than expected' }));
     expect(tariq.issues).toEqual([]);
     const mateo = planChanges(base('mateo', { goals: row }));
     expect(mateo.issues[0]!.message).toMatch(/Only Tariq Haddad \(its owner\) or an admin/);
     expect(mateo.commit).toBeNull();
-    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Start: '1', Target: '2' })] })))[0]!.message).toMatch(/goals you own/);
+    // Lane, 11 Nov: anyone may add a goal for anyone, at any level, at every door (domain/goalRights mayAddGoal).
+    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Unit: 'days', Start: '1', Target: '2' })] })))).toEqual([]);
   });
 
   it('asks for a reason when a plan changes after check-ins started', () => {
@@ -141,7 +173,9 @@ describe('bulk changes', () => {
     const v = String(Math.ceil(planAt(g.planHistory?.[0]?.plan ?? g.plan, 6, cycle.weeks)));
     const cs = planChanges(base('amara', { checkIns: [rec({ 'Goal ID': 'ns-ai', Week: '6', Value: v, Call: 'On track', Why: 'Recounted from the review tool.' })] }));
     expect(cs.counts.replaced).toBe(1);
-    expect(cs.issues.find((i) => i.severity === 'warning')!.message).toMatch(/Replaces Tariq Haddad’s check-in for week 6/);
+    // Fine, and said on the change (C18): one row replacing someone else's check-in isn't a question.
+    expect(cs.issues.find((i) => i.kind === 'replaces')).toMatchObject({ level: 'note', message: expect.stringMatching(/Replaces Tariq Haddad’s check-in for week 6/) });
+    expect(cs.commit).not.toBeNull();
   });
 
   it('reads milestone stages in words', () => {
@@ -193,5 +227,42 @@ describe('changing a goal’s owner', () => {
     const cs = planChanges(base('amara', { goals: [rec({ id: goal.id, 'owner id': 'nobody' })] }));
     expect(cs.commit).toBeNull();
     expect(cs.issues[0]?.message).toBe('There’s no person with ID nobody.');
+  });
+});
+
+describe('People columns do what the field table says (review of #130)', () => {
+  const admin = s.people.find((p) => p.admin && p.id !== 'amara' && p.email)!;
+  const plain = s.people.find((p) => !p.admin && p.email && !p.leftAt)!;
+
+  it('an empty Admin cell keeps what is there; yes and no change it', () => {
+    const blank = planChanges(base('amara', { people: [rec({ email: admin.email!, admin: '' })] }));
+    expect(blank.items).toEqual([]);
+    expect(blank.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    const no = planChanges(base('amara', { people: [rec({ email: admin.email!, admin: 'no' })] }));
+    expect(no.items[0]?.diffs.some((d) => d.field === 'Admin')).toBe(true);
+    const yes = planChanges(base('amara', { people: [rec({ email: plain.email!, admin: 'yes' })] }));
+    expect(yes.items).toHaveLength(1);
+    // Someone new with Admin empty is not an admin.
+    const added = planChanges(base('amara', { people: [rec({ email: 'new.person@example.com', name: 'New Person', team: 'CI/CD', admin: '' })] }));
+    expect(added.commit?.people?.find((p) => p.email === 'new.person@example.com')?.admin).toBe(false);
+  });
+
+  it('Takes over accepts an email, or a name only one person has, and asks about one one letter out', () => {
+    const leaver = s.people.find((p) => p.id !== 'amara' && !p.leftAt && s.goals.some((g) => g.ownerId === p.id))!;
+    const heir = s.people.find((p) => p.id !== leaver.id && p.id !== 'amara' && !p.leftAt && s.people.filter((q) => q.name === p.name).length === 1)!;
+    const byEmail = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': heir.email! })] }));
+    expect(byEmail.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(byEmail.items.map((x) => x.kind)).toEqual(['person left']);
+    const byName = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': heir.name })] }));
+    expect(byName.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(byName.items.map((x) => x.kind)).toEqual(['person left']);
+    expect(byName.issues.find((i) => i.kind === 'by-name')?.message).toContain(`matched by name: ${heir.name}`);
+    // One letter out is a question (IM2's near-miss rule), never "isn't an email".
+    const typo = heir.name.slice(0, -1) + (heir.name.endsWith('a') ? 'e' : 'a');
+    const near = planChanges(base('amara', { people: [rec({ email: leaver.email!, action: 'Left', 'takes over': typo })] }));
+    const asked = near.issues.find((i) => i.column === 'Takes over');
+    expect(asked?.kind).toBe('near-ref');
+    expect(asked?.message).toBe(`Takes over: “${typo}” isn’t here. Did you mean ${heir.name}?`);
+    expect(near.commit).toBeNull();
   });
 });

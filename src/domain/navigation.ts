@@ -2,6 +2,7 @@
    from who is looking and the address, not drawn inline in the shell. The shell (src/ui/Shell.tsx) and the Back link
    (src/ui/BackLink.tsx) draw what these say; a rebuild copies these and draws its own. Pure: each takes what it reads
    (whether the viewer owns goals, names looked up by id), never the workspace. */
+import { NEW_GOAL_STEPS } from './newGoal';
 
 /** The core's places in the menu. */
 export type NavId = 'home' | 'checkin' | 'watching' | 'reviews' | 'goals' | 'activity' | 'people' | 'data' | 'new' | 'workspace' | 'settings' | 'help' | 'feedback';
@@ -139,8 +140,6 @@ export interface PlaceNames {
   parent?(goalId: string): string | null;
 }
 
-/** New goal's steps, as their address names them (the onboarding spec). */
-const NEW_GOAL_STEPS: Record<string, string> = { measure: 'how it’s measured' };
 
 /** The places named the same wherever they are. */
 const FIXED: Record<string, string> = {
@@ -164,7 +163,7 @@ export function pageName(path: string, search: string, names: PlaceNames): strin
   if (FIXED[path]) return FIXED[path]!;
   const m = (re: RegExp) => re.exec(path)?.slice(1).map((x) => decodeURIComponent(x));
   let x: string[] | undefined;
-  if ((x = m(/^\/goals\/new\/([^/]+)$/))) return NEW_GOAL_STEPS[x[0]!] ? `New goal: ${NEW_GOAL_STEPS[x[0]!]}` : 'New goal';
+  if ((x = m(/^\/goals\/new\/([^/]+)$/))) return NEW_GOAL_STEPS.find((st) => st.slug === x![0])?.title ?? 'New goal';
   if ((x = m(/^\/goals\/([^/]+)(\/edit|\/print)?$/))) {
     const t = names.goal(x[0]!);
     if (!t) return 'Goal not found';
@@ -185,6 +184,7 @@ export function pageName(path: string, search: string, names: PlaceNames): strin
   if ((x = m(/^\/people\/([^/]+)$/))) return names.person(x[0]!) ?? 'Person not found';
   if ((x = m(/^\/teams\/([^/]+)$/))) return names.team(x[0]!) ?? 'Team not found';
   if ((x = m(/^\/help\/([^/]+)$/))) return names.article(x[0]!) ?? 'Help';
+  if (path.split('?')[0] === '/workspace/cycles/next') return 'Start the next year · Workspace';
   if ((x = m(/^\/workspace\/([^/]+)$/))) { const s = names.section?.(x[0]!); return s ? `${s} · Workspace` : 'Workspace'; }
   return 'Page not found';
 }

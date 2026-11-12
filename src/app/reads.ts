@@ -4,6 +4,8 @@
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
+import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
+import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { agendaOf, nextSessionWeek, reviewSession, sessionDate, sessionPlan, sessionState, walkOrder, watchedGoals } from '../domain/review';
@@ -12,14 +14,15 @@ import { onTimeStreak, reviewDate, weekProgress } from '../domain/progress';
 import { hasEnded } from '../domain/plan';
 import { beforeStart, cycleDates, wrapUpOpenOn } from '../domain/cycle';
 import { openForPerson } from '../domain/asks';
+import type { QueryContext } from '../domain/query';
 import type { LocalRows } from '../adapters/localSearch';
 
 const live = <T extends { removedAt?: string | null }>(xs: T[]) => xs.filter((x) => !x.removedAt);
 
 /** Every goal's summary row, with what the Goals filters need beyond it. */
-export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number): GoalRows {
+export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): GoalRows {
   const goals = live(s.goals).filter((g) => !g.stoppedAt);
-  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week } };
+  return { kind: 'goal', summaries: summariseAll(goals, s, cycle, today, week), ctx: { goals, cycle, week, ...(columns ? { columns } : {}) } };
 }
 
 export function personRows(s: Snapshot): PersonRows {
@@ -32,9 +35,9 @@ export function teamRows(s: Snapshot): TeamRows {
 }
 
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
-export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number): LocalRows {
+export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): LocalRows {
   const once = <T,>(f: () => T) => { let v: T | undefined; return () => (v ??= f()); };
-  return { goal: once(() => goalRows(s, cycle, today, week)), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
+  return { goal: once(() => goalRows(s, cycle, today, week, columns)), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
 }
 
 /** What the Goals scopes read (goals spec, rule 1) for one person: the running cycle's goals (not stopped), their team
@@ -64,7 +67,7 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
  * Home's facts (docs/design/home/spec.md rule 1): what the lead and the quiet line read, from the rules that already
  * say each thing (weekProgress, onTimeStreak, reviewSession, the wrap-up's dates). `draft` says a check-in draft is kept.
  */
-export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean }): HomeFacts {
+export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: number, today: Date, opts: { workspace: string; draft: boolean; wrap?: { cycle: Cycle; snapshot: Snapshot } }): HomeFacts {
   const day = today.toISOString().slice(0, 10);
   const p = weekProgress(viewerId, s, cycle, week, today);
   const mine = s.goals.filter((g) => g.ownerId === viewerId);
@@ -84,6 +87,10 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
         started: x.done > 0 && discuss.length > 0, nextGoal: next ? { id: next.goal.id, title: next.goal.title } : null, nextDate: nw <= cycle.weeks ? sessionDate(x.review, cycle, nw) : null };
     });
   const wrapOpen = wrapUpOpenOn(cycle, today);
+  // The wrap-up is this year's, or last year's while it stays open after the next year is current (cycle-end rule 3, `wrapUpScope`).
+  const wc = opts.wrap?.cycle ?? cycle;
+  const ws = opts.wrap?.snapshot ?? s;
+  const wrapMine = ws.goals.filter((g) => g.ownerId === viewerId);
   return {
     today: day, week, lastWeek: cycle.weeks, cycleName: cycle.name, workspace: opts.workspace,
     starts: start ? { on: start.firstDay, firstDue: start.firstDue } : null, ended: ended && !(wrapOpen && mine.some((g) => !s.retros.some((r) => r.goalId === g.id))),
@@ -94,10 +101,16 @@ export function homeFacts(viewerId: string, s: Snapshot, cycle: Cycle, week: num
       allInOnTimeToday: allIn && thisWeek.some((c) => c.postedAt.slice(0, 10) === day) && thisWeek.every((c) => c.postedAt.slice(0, 10) <= dueDate),
       streak: mine.length ? onTimeStreak(viewerId, s, cycle, week) : null,
     },
-    wrap: wrapOpen ? { ends: cycleDates(cycle).lastDay, ended, left: mine.filter((g) => !s.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: mine.length } : null,
+    wrap: wrapUpOpenOn(wc, today) ? { name: wc.name, ends: cycleDates(wc).lastDay, ended: hasEnded(wc, today), left: wrapMine.filter((g) => !ws.retros.some((r) => r.goalId === g.id)).map((g) => ({ id: g.id, title: g.title })), total: wrapMine.length } : null,
     sessions,
     owns: mine.length,
     watches: watchedGoals(viewerId, s).filter((g) => g.ownerId !== viewerId).length,
     asks: openForPerson(viewerId, s).length,
   };
+/** The year a wrap-up page is for (cycle-end rule 3): the current one; or, once the next year is current, the year
+    before while its wrap-up is still open, so it can be finished until the day it closes. */
+export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, week: number, today: Date): { cycle: Cycle; snapshot: Snapshot; week: number; earlier: boolean } {
+  const w = wrapUpCycle(full.cycles, today);
+  if (!w || w.id === cycle.id) return { cycle, snapshot, week, earlier: false };
+  return { cycle: w, snapshot: scopeToCycle(full, w), week: currentWeek(w, today), earlier: true };
 }

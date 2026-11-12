@@ -553,16 +553,22 @@ export type HistoryEntry = StreamItem | MissedEntry;
 
 /** What the history reads: the goal, its own check-ins and change-log entries, the cycle, this week, the reviews' names. */
 export interface HistoryInput {
-  goal: Goal; checkIns: readonly CheckIn[]; changes: readonly Change[]; cycle: Cycle; week: number; reviews: readonly { name: string }[];
+  goal: Goal; checkIns: readonly CheckIn[]; changes: readonly Change[]; cycle: Cycle; week: number;
+  /** The asks on this goal, for which review (if any) each was raised in. */
+  asks: readonly Pick<Ask, 'id' | 'reviewId'>[];
 }
 
-/** Which filter an entry is under: a week; a comment (or an ask raised outside a review); what a review said; an edit. */
-export function historyKind(x: HistoryEntry, reviews: readonly { name: string }[]): Exclude<HistoryFilter, 'all'> {
+/**
+ * Which filter an entry is under: a week; a comment (or an ask raised outside a review); what a review said; an edit.
+ * An ask is under Reviews when it was raised in one: its own `reviewId`, never the review's name in its sentence, so
+ * renaming a review moves none of its past asks.
+ */
+export function historyKind(x: HistoryEntry, asks: readonly Pick<Ask, 'id' | 'reviewId'>[]): Exclude<HistoryFilter, 'all'> {
   if (x.kind === 'checkin' || x.kind === 'checkins' || x.kind === 'missed') return 'checkins';
   if (x.kind === 'comment') return 'comments';
   const c = x.change;
   if (c.entity === 'decision') return 'reviews';
-  if (c.entity === 'request') return reviews.some((r) => r.name && c.summary.includes(` in ${r.name}`)) ? 'reviews' : 'comments';
+  if (c.entity === 'request') return asks.some((a) => a.id === c.entityId && a.reviewId) ? 'reviews' : 'comments';
   return 'changes';
 }
 
@@ -611,8 +617,8 @@ export function goalHistory(i: HistoryInput, filter: HistoryFilter = 'all', q = 
   const placed: HistoryEntry[] = stream.map((x) => (x.kind === 'checkin' ? { ...x, at: weekEnd(i.cycle, x.checkIn.week) } : x.kind === 'checkins' ? { ...x, at: weekEnd(i.cycle, x.to) } : x));
   const all = [...placed, ...weeks].sort((a, b) => b.at.localeCompare(a.at));
   const counts: Record<HistoryFilter, number> = { all: 0, checkins: 0, comments: 0, reviews: 0, changes: 0 };
-  for (const x of all) { const n = weight(x); counts[historyKind(x, i.reviews)] += n; counts.all += n; }
-  const entries = all.filter((x) => (filter === 'all' || historyKind(x, i.reviews) === filter) && textMatches(historyWords(x), q));
+  for (const x of all) { const n = weight(x); counts[historyKind(x, i.asks)] += n; counts.all += n; }
+  const entries = all.filter((x) => (filter === 'all' || historyKind(x, i.asks) === filter) && textMatches(historyWords(x), q));
   return { counts, entries };
 }
 

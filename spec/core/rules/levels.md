@@ -51,4 +51,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - The layers › are caught when broken
 - The pickers lint (find spec, N12) › holds in this repository: nothing new is chosen from a list of everything
 - The pickers lint (find spec, N12) › finds a <select> of people, teams or goals, and not one of weeks
+- The pickers lint (find spec, N12) › finds a week typed as a number, and not a field about a week (goal entry, N12)
 - The settings lint (workspace settings, CF1) › holds in this repository: a level is read from src/domain/levels.ts only
+- The settings lint (workspace settings, CF1) › tells a goal's level from an import problem's level (must, check, note)

@@ -5,7 +5,8 @@
    adds a field or a table to them. A module declares its records instead, in its module.json (`records`: name, table,
    key, removable) and in its records.ts, which default-exports a `ModuleRecords`: for each record, the row mappers each
    way, what a new cycle carries over, what happens when a goal or person a row points to is removed, and how a removed
-   row is named and restored. The workspace as loaded, and a commit, hold every module's rows under `modules`:
+   row is named and restored; and, if it keeps that, what measures a goal (`measures`, read by goal entry's questions).
+   The workspace as loaded, and a commit, hold every module's rows under `modules`:
 
      modules: { [moduleId]: { [key]: rows } }
 
@@ -58,6 +59,11 @@ export interface RecordDef<T extends ModuleRow = ModuleRow> {
    * person changes none of a module's rows, unless `onRemoved` says otherwise.
    */
   carry?(rows: T[], scope: CarryScope): T[];
+  /** Rows that come with goals copied into the next cycle (cycle-end rule 6): given old goal id → copy id, the new
+      rows for the copies. A record without it stays with the old goal only. */
+  follow?(rows: T[], copies: ReadonlyMap<string, string>, newId: (prefix: string) => string): T[];
+  /** The one goal a row belongs to, for records that belong to a goal: a copy that leaves takes its rows with it. */
+  goalOf?(row: T): string | null;
   /** Recently removed (removable records): what a removed row is called there, and how it comes back. */
   removed?: {
     /** How the kind reads on Recently removed: "Metric". */
@@ -101,6 +107,21 @@ export interface ModuleRecords {
   records: RecordDef<any>[];
   /** The workbook's sheets it adds, if any. */
   sheets?: ModuleSheet<any>[];
+  /** The columns it adds to Goals' rows, by their address parameter (?metric=): what each goal holds, from the open
+      workspace. The app's Goals filter (core/app ModuleFilter) and the AI's find_goals read the same ones. */
+  goalColumns?: { param: string; fill: (s: import('./types').Snapshot) => (g: Goal) => string | null }[];
+  /** What measures a goal, when the module keeps that (the metric library's link): its name and which way is better, for
+      goal entry's wrong-side question (rule 3) at the doors that don't draw the module's own field (a file, the AI tools). */
+  measures?(s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null;
+}
+
+/** What measures a goal, for goal entry's questions: a name, and which way is better. */
+export interface GoalMeasure { name: string; direction: 'lower' | 'higher' }
+
+/** What measures a goal, from the first module in this build that says: null when none does. */
+export function goalMeasureOf(records: readonly ModuleRecords[] | undefined, s: { modules?: ModuleRows }, goalId: string): GoalMeasure | null {
+  for (const m of records ?? []) { const got = m.measures?.(s, goalId); if (got) return got; }
+  return null;
 }
 
 /* ---------- reading and writing a module's rows ---------- */
@@ -190,6 +211,22 @@ export function restorableModuleRow(full: { modules?: ModuleRows }, records: rea
   return null;
 }
 
+/**
+ * The fields the stores write only when a record has them (data/rows `set`): a removal's (removed, left, stopped with its
+ * reason, ended or deleted, and by whom), and a person's email. Missing, the database keeps what it had.
+ */
+const REMOVAL_FIELD = /^(?:(?:removed|left|stopped|ended|deleted)(?:At|By)|stopReason|email)$/;
+
+/**
+ * A row as it was before a removal or an import, to save back on Undo. Every such field set since that the row before
+ * didn't have is null, not missing: a store writes only the columns a row carries, so a missing one kept the removal's time and
+ * the record was removed again on the next load (build review: Undo on the database stores).
+ */
+export function asBefore<T extends object>(removed: T, before: T): T {
+  const cleared = Object.entries(removed).filter(([k, v]) => REMOVAL_FIELD.test(k) && v != null && (before as Record<string, unknown>)[k] == null);
+  return cleared.length ? { ...before, ...Object.fromEntries(cleared.map(([k]) => [k, null])) } : before;
+}
+
 /** Undo for module rows (domain/removal undoRemoval): every row a removal changed, as it was just before. */
 export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modules?: ModuleRows }): ModuleRows | undefined {
   if (!removal) return undefined;
@@ -197,7 +234,7 @@ export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modu
   for (const [mod, keys] of Object.entries(removal)) {
     for (const [key, rows] of Object.entries(keys)) {
       const was = moduleRows<ModuleRow>(before, mod, key);
-      const back = (rows as ModuleRow[]).flatMap((r) => { const b = was.find((v) => v.id === r.id); return b ? [b] : []; });
+      const back = (rows as ModuleRow[]).flatMap((r) => { const b = was.find((v) => v.id === r.id); return b ? [asBefore(r, b)] : []; });
       if (back.length) (out[mod] ??= {})[key] = back;
     }
   }
@@ -207,3 +244,46 @@ export function moduleRowsBefore(removal: ModuleRows | undefined, before: { modu
 /** A module sheet's rows, header first (domain/export). */
 export const moduleSheetRows = (sheet: ModuleSheet, x: ExportInput, c: Ctx, goalIds: ReadonlySet<string>): Cell[][] =>
   [sheet.spec.columns.map((col) => col.header), ...sheet.rows(x, c, goalIds).map((it) => sheet.spec.columns.map((col) => col.write(it)))];
+
+/** Where a module's rows are filed, and which of them: what a start added, so Undo can take them back out. */
+export interface ModuleRowIds { module: string; key: string; ids: string[] }
+
+/**
+ * What comes with goals copied into the next cycle, from every module that says (`follow`): the new rows, and their
+ * ids for Undo. Rows of a record that doesn't follow stay with the old goal.
+ */
+export function followCopies(all: ModuleRows | undefined, copies: ReadonlyMap<string, string>, records: readonly ModuleRecords[], newId: (prefix: string) => string): { modules: ModuleRows; ids: ModuleRowIds[] } {
+  const modules: ModuleRows = {};
+  const ids: ModuleRowIds[] = [];
+  for (const m of records) for (const def of m.records) {
+    if (!def.follow) continue;
+    const rows = ((all?.[m.module]?.[def.key] ?? []) as ModuleRow[]).filter((r) => !r.removedAt);
+    const made = def.follow(rows, copies, newId);
+    if (!made.length) continue;
+    (modules[m.module] ??= {})[def.key] = made;
+    ids.push({ module: m.module, key: def.key, ids: made.map((r) => r.id) });
+  }
+  return { modules, ids };
+}
+
+/** The live rows that belong to these goals (`goalOf`), marked removed: a copy that leaves takes them with it. */
+export function rowsLeaving(all: ModuleRows | undefined, goalIds: ReadonlySet<string>, records: readonly ModuleRecords[], gone: { removedAt: string; removedBy: string }): ModuleRows {
+  const modules: ModuleRows = {};
+  for (const m of records) for (const def of m.records) {
+    if (!def.goalOf) continue;
+    const rows = ((all?.[m.module]?.[def.key] ?? []) as ModuleRow[]).filter((r) => !r.removedAt && goalIds.has(def.goalOf!(r) ?? ''));
+    if (rows.length) (modules[m.module] ??= {})[def.key] = rows.map((r) => ({ ...r, ...gone }));
+  }
+  return modules;
+}
+
+/** The rows a start added (by id), marked removed: Undo takes them back out, whichever module they belong to. */
+export function rowsUndone(all: ModuleRows | undefined, added: readonly ModuleRowIds[], gone: { removedAt: string; removedBy: string }): ModuleRows {
+  const modules: ModuleRows = {};
+  for (const a of added) {
+    const want = new Set(a.ids);
+    const rows = ((all?.[a.module]?.[a.key] ?? []) as ModuleRow[]).filter((r) => want.has(r.id) && !r.removedAt);
+    if (rows.length) (modules[a.module] ??= {})[a.key] = rows.map((r) => ({ ...r, ...gone }));
+  }
+  return modules;
+}

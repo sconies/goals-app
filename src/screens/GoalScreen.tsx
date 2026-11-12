@@ -15,7 +15,11 @@ import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
-import { planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
+import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
+import { weekSays } from '../domain/weeks';
+import { planSays } from '../domain/weekChoices';
+
+const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
 import { criticalPath } from '../domain/map';
@@ -852,7 +856,7 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
   const all = params.get('all') === '1';
   const q = params.get('hq') ?? '';
   const weekWanted = Number(params.get('week')) || null;
-  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, reviews: app.snapshot.reviews };
+  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, asks: asksOf(app.snapshot).filter((r) => r.goalIds.includes(goal.id)) };
   const h = goalHistory(input, filter, q);
   const whole = goalHistory(input);
   const shown = all || q || weekWanted ? h.entries : h.entries.slice(0, 12);
@@ -1045,8 +1049,8 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
     <details className="block about goal-section" id="about" data-part="About this goal" ref={detailsRef} open={open} onToggle={(e) => onToggle((e.target as HTMLDetailsElement).open)}>
       <summary><span className="section-head"><h2 className="block-title">About this goal</h2><span className="section-purpose">Its definition, its plan week by week, and who watches it.</span></span></summary>
       <dl className="details">
-        {goal.kind !== 'milestone' && <><dt>What it measures</dt><dd>{goal.definition || <><span className="muted">Not described yet.</span>{canEdit && !goal.stoppedAt && <> <Link className="linkish" to={`/goals/${goal.id}/edit?part=definition`}>Describe it</Link></>}</>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
-        {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd></>}
+        {goal.kind !== 'milestone' && <><dt>What it measures</dt><dd>{goal.definition || <><span className="muted">Not described yet.</span>{canEdit && !goal.stoppedAt && <> <Link className="linkish" to={`/goals/${goal.id}/edit#definition`}>Describe it</Link></>}</>}{goal.source ? <span className="muted"> Source: {goal.source}.</span> : null}</dd></>}
+        {goal.kind === 'metric' && <><dt>Measure</dt><dd>{capitalFirst(planSays(cycle, goal.plan.fromWeek ?? 0, goal.plan.endWeek ?? cycle.weeks, fmt(goal.plan.start, goal), fmt(goal.plan.target, goal)))}{(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}{notStarted(goal, app.week) ? `. It starts in ${weekSays(cycle, goal.plan.fromWeek!, 'sentence')}; nothing is due until then` : ''}</dd></>}
         {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}{goal.source ? '' : ''}</dd></>}
         {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (week ${s.dueWeek})`).join(', ')}{goal.source ? <span className="muted">. Source: {goal.source}.</span> : null}</dd></>}
         <dt>Level</dt><dd>{levelName(app.cycle, goal.level)}{!isEveryday(app.cycle, goal.level) ? ', reported at major reviews' : ''}</dd>

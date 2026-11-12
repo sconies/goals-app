@@ -13,7 +13,8 @@ const ALLOWED = [/^src\/domain\/levels\.ts$/, /^src\/data\/rows\.ts$/, /^src\/da
 const RULES = [
   [/['"`](north-star|svp)['"`]/, 'names a level by its id; ask src/domain/levels.ts'],
   [/\bLEVEL_LABEL\b/, 'uses LEVEL_LABEL; use levelName from src/domain/levels.ts'],
-  [/\blevel\s*[!=]==\s*['"`]|['"`]\s*[!=]==\s*\w*\.?level\b/, 'compares a level with a word; use isEveryday, isTop or levelRank'],
+  // An import problem's level (IM2: must, check, note; src/domain/problemLevels.ts) is not a goal's level.
+  [/\blevel\s*[!=]==\s*['"`](?!(?:must|check|note)['"`])|(?<!['"`](?:must|check|note))['"`]\s*[!=]==\s*\w*\.?level\b/, 'compares a level with a word; use isEveryday, isTop or levelRank'],
 ];
 
 function files(root, dir) {
@@ -24,6 +25,9 @@ function files(root, dir) {
     return e.isDirectory() ? files(root, rel) : /\.tsx?$/.test(e.name) ? [rel] : [];
   });
 }
+
+/** What one line of code does wrong, if anything. */
+export const lineProblems = (code) => RULES.filter(([re]) => re.test(code)).map(([, why]) => why);
 
 /** Each place that names a level outside levels.ts: "file:line: what's wrong". */
 export function checkSettings(root) {

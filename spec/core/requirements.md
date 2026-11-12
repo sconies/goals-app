@@ -41,7 +41,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** F9, U7
+- **Journeys and checks:** F9, U7, U136
 
 ### CHART-READ
 
@@ -259,7 +259,31 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** U4, U18, U25
+- **Journeys and checks:** F16, U4, U18, U25
+
+### NEW-GOAL-STEPS
+
+New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything.
+
+- **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** F16, U84, U137
+
+### GOAL-ENTRY-REQUIRED
+
+Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
+
+- **Rule:** [Goal entry](rules/goal-entry.md), [The read-back](rules/read-back.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U93, U137
+
+### GOAL-DATES
+
+A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools.
+
+- **Rule:** [Years and weeks](rules/years-and-weeks.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U109
 
 ### NEW-GOAL-TRUTH
 
@@ -311,7 +335,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
-- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
+- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`, `GoalFilterSheet`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** N10, U32, U33, U34, U135
 
@@ -362,6 +386,13 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 - **Rule:** [A goal’s history](rules/goal-history.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
+
+### GOAL-EDIT-PAGE
+
+Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section.
+
+- **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U136
 
 ### GOAL-SAYS
 
@@ -482,7 +513,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -497,7 +528,7 @@ Every address that worked before still lands on the right page, without a histor
 
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U58
+- **Journeys and checks:** U58, U81
 
 ### BRAND
 
@@ -708,7 +739,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
-- **Journeys and checks:** U46
+- **Journeys and checks:** U46, U89
 
 ## Demo
 
@@ -810,9 +841,9 @@ A cycle ends on its last day (its last week's Sunday) whether or not the next is
 
 ### CARRY-GOALS
 
-An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on.
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
 
-- **Rule:** [Starting the next year](rules/start-next-year.md)
+- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
 - **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
 - **Journeys and checks:** U115
 
@@ -910,7 +941,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6
+- **Journeys and checks:** F11, P6, P19
 
 ### SHAPE-MATCHES-WORD
 
@@ -929,7 +960,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
-- **Journeys and checks:** U30, U31, U34, U54
+- **Journeys and checks:** N16, U30, U31, U34, U54
 
 ## Layout
 
@@ -1069,7 +1100,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Help:** “Getting around” (`getting-around`)
-- **Journeys and checks:** U72
+- **Journeys and checks:** U72, U136
 
 ## Finding
 
@@ -1085,7 +1116,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U91
+- **Journeys and checks:** F11, N12, U63, U82, U84, U91, U136
 
 ### FIND-ANYWHERE
 
@@ -1142,7 +1173,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8
@@ -1292,15 +1323,6 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U44
-
-### IMPORT-UNDO
-
-Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed.
-
-- **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “The activity log” (`activity`), screens `Activity`; “Removing, stopping and undoing” (`removing`)
-- **Tests:** `evals/remove.eval.ts` (1)
-- **Journeys and checks:** U45, U46
 
 ## Architecture
 

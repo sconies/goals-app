@@ -2,7 +2,7 @@
    an assistant can mark someone as left, stop or delete a goal, delete a check-in, end a review, edit or remove a
    comment, undo an import, and list and restore what was removed, exactly as the person it acts for could. Every change
    is logged as that person, via the AI assistant. */
-import { MODULE_RECORDS } from '../core/records';
+import { MODULE_RECORDS, recordsOn } from '../core/records';
 import type { Commit } from '../data/store';
 import { editCall, type ActionContext } from '../domain/actions';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -20,7 +20,7 @@ const VIA = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 const KINDS = R.removedKinds(MODULE_RECORDS);
 
-const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
+const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
 async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResult> {
   await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
   return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
@@ -47,7 +47,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
-      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, MODULE_RECORDS).filter((r) => R.canRestore(ctx.actor, r));
+      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws)).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
       return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };
@@ -61,7 +61,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     annotations: WRITE,
     async run(a, ctx) {
       if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(', ')}.`);
-      const c = R.restoreRemoved(ax(ctx), String(a.kind), String(a.id ?? ''), MODULE_RECORDS);
+      const c = R.restoreRemoved(ax(ctx), String(a.kind), String(a.id ?? ''), recordsOn(ctx.ws));
       await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
       return { text: `${c.changes[0]?.summary ?? 'Restored'} (as ${ctx.actor.name}).` };
     },
@@ -209,13 +209,18 @@ export const REMOVE_TOOLS: ToolDef[] = [
   {
     name: 'undo_import',
     title: 'Undo an import or bulk edit',
-    description: 'Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since are skipped and listed. Import IDs are in get_activity (kind=imports).',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['import_id'], properties: { import_id: str('The import’s ID (imp_…), from get_activity.') } },
+    description: 'Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since stay as they are and are listed with why. With dry_run, nothing is saved: it says how many rows would go back and which would stay, so you can tell the person first. Import IDs are in get_activity (kind=imports).',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['import_id'], properties: { import_id: str('The import’s ID (imp_…), from get_activity.'), dry_run: { type: 'boolean', description: 'Say what Undo would do without saving anything.' } } },
     annotations: REMOVE,
     async run(a, ctx) {
+      const kept = (k: R.KeptRow) => ({ row: k.name, reason: k.reason, at: k.at });
+      if (a.dry_run === true) {
+        const p = R.undoPreview(ax(ctx), String(a.import_id ?? ''));
+        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
+      }
       const out = R.undoImport(ax(ctx), String(a.import_id ?? ''));
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
-      return { data: { restored: out.restored, skipped: out.skipped }, text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? 'row' : 'rows'} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.join('; ')}.` : ''}` };
+      return { data: { restored: out.restored, skipped: out.skipped.map(kept) }, text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? 'row' : 'rows'} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(R.keptText).join('; ')}.` : ''}` };
     },
   },
 ];

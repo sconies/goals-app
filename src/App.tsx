@@ -2,35 +2,48 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
-import type { Identity } from './ports';
-import { Activity } from './screens/Activity';
-import { CheckInFlow } from './screens/CheckInFlow';
-import { GoalEdit } from './screens/GoalEdit';
-import { GoalScreen } from './screens/GoalScreen';
-import { GoalsScreen } from './screens/GoalsScreen';
-import { Watching } from './screens/Watching';
-import { GoalWizard } from './screens/GoalWizard';
+import type { Clock, Identity } from './ports';
 import { Home } from './screens/Home';
-import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
-import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
 import { movedTo } from './domain/directory';
-import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
-import { QuickCheckIn } from './screens/QuickCheckIn';
 import { MotionLayer } from './ui/Count';
+import { PageWait } from './ui/bits';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
+// Every page but Home loads when it is first opened (the first download, R4's 300 KB; scripts/check-bundle.mjs): a
+// first visit lands on Home, and a link to another page fetches that page's part as it opens.
+const Activity = lazy(() => import('./screens/Activity').then((m) => ({ default: m.Activity })));
+const CheckInFlow = lazy(() => import('./screens/CheckInFlow').then((m) => ({ default: m.CheckInFlow })));
+const GoalScreen = lazy(() => import('./screens/GoalScreen').then((m) => ({ default: m.GoalScreen })));
+const GoalsScreen = lazy(() => import('./screens/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
+const Watching = lazy(() => import('./screens/Watching').then((m) => ({ default: m.Watching })));
+const ReviewEdit = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewEdit })));
+const ReviewHome = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewHome })));
+const ReviewRedirect = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewRedirect })));
+const Reviews = lazy(() => import('./screens/Review').then((m) => ({ default: m.Reviews })));
+const ReviewSummary = lazy(() => import('./screens/Review').then((m) => ({ default: m.ReviewSummary })));
+const PeopleList = lazy(() => import('./screens/People').then((m) => ({ default: m.PeopleList })));
+const PersonPage = lazy(() => import('./screens/People').then((m) => ({ default: m.PersonPage })));
+const TeamPage = lazy(() => import('./screens/People').then((m) => ({ default: m.TeamPage })));
+const TeamsList = lazy(() => import('./screens/People').then((m) => ({ default: m.TeamsList })));
+const QuickCheckIn = lazy(() => import('./screens/QuickCheckIn').then((m) => ({ default: m.QuickCheckIn })));
 // Screens a first visit never needs load when first opened, to keep the first download small (AX4; the bundle budget
 // is scripts/check-bundle.mjs).
 // Screens a first visit doesn't open load when they are opened (the bundle budget, scripts/check-bundle.mjs).
 const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
+// Set-up (a new workspace, and the welcome of an empty one) is opened once, not on a usual first visit.
+const Onboarding = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })));
+const Welcome = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Welcome })));
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
 const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
+// Changing a goal is opened by its owner now and then, never on a first visit.
+const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
+const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ default: m.GoalWizard })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
@@ -53,7 +66,7 @@ export function Routed() {
       <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
-      <Suspense fallback={null}>
+      <Suspense fallback={<PageWait />}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
@@ -72,6 +85,7 @@ export function Routed() {
         <Route path="/retro/:goalId" element={<RetroGoal />} />
         <Route path="/goals" element={<GoalsScreen />} />
         <Route path="/goals/new" element={<GoalWizard />} />
+        <Route path="/goals/new/:step" element={<GoalWizard />} />
         <Route path="/goals/:goalId" element={<GoalScreen />} />
         <Route path="/goals/:goalId/edit" element={<GoalEdit />} />
         <Route path="/goals/:goalId/print" element={<GoalPrint />} />
@@ -114,10 +128,11 @@ export function Routed() {
   );
 }
 
-export function App({ store, identity, mode = 'demo', today }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date }) {
+/** `clock` is the real time (the Clock port, the system's by default); `today` pins the app's day for the demo and the evals. */
+export function App({ store, identity, mode = 'demo', clock, today }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date }) {
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
-      <AppProvider store={store} identity={identity} mode={mode} today={today} empty={() => <Welcome />}>
+      <AppProvider store={store} identity={identity} mode={mode} clock={clock} today={today} empty={() => <Suspense fallback={null}><Welcome /></Suspense>}>
         <TelemetryRoutes />
         <Routed />
       </AppProvider>

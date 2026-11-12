@@ -1,6 +1,6 @@
 # The metric library: what the screens call
 
-The back end of backlog item 0b is built and tested: the rules, the data, the AI tools and the demo's metrics. The screens are not: the **Metrics page under Data** and **"Measured by" in New goal and goal edit** are to be built live. This page says exactly what they call, so the live build is screens only. Nothing here is UI code.
+The back end of backlog item 0b is built and tested: the rules, the data, the AI tools and the demo's metrics. **ML1** (docs/design/metrics/spec.md) built the library as a place of its own: `/metrics` and a page per metric (`Metrics.tsx`), the menu item after People, and the metric on a goal's, a person's and a team's page (`MetricPlaces.tsx`, through `app.tsx`), with the library's rules 1 to 3 in `rulesLibrary.ts` (rows made in `reads.ts`) and their conformance rows in `conformance.ts` (spec/conformance/metrics.csv). **"Measured by" in New goal and goal edit** (ML2) is still to come; the sections below say what it calls. The old "Metrics page under Data" plan is replaced: its addresses redirect to `/metrics`.
 
 ## The rules, in one paragraph
 
@@ -13,7 +13,7 @@ Since AS part 2 the module registers its actions in the dispatcher's table (`src
 | Call | Who | What it does |
 |---|---|---|
 | `app.run('saveMetric', input)` → `{ commit, metric }` (`metric.id` is the id) | anyone adds; owner or admin changes | `input` is `MetricInput & { id?: string }`. No `id`: a new metric. With `id`: fields given change, fields left out keep their value. Nothing is saved when nothing changed |
-| `app.run('removeMetric', { metricId })` | owner or admin | Removes it and unlinks every goal it measures, in one save. Shows a message with **Undo** (puts both back). Restorable later from Workspace → Recently removed (kind `metric`), without its old links |
+| `app.run('removeMetric', { metricId })` | owner or admin | Removes it and unlinks every goal it measures, in one save. Shows a message with **Undo** (puts both back). Restorable later from Workspace → Recently removed (kind `metric`), with the links it had |
 | `app.run('linkGoalMetric', { goalId, metricId, teamId })` | goal owner or admin | Measures the goal by the metric for a team, or the whole company when `teamId` is `null`. The same metric and slice again saves nothing |
 | `app.run('unlinkGoalMetric', { goalId })` | goal owner or admin | Stops measuring it, with **Undo**. Saves nothing if it isn't measured |
 

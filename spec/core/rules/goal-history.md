@@ -9,7 +9,7 @@ Every week of a goal, checked in or not, its comments, what reviews said and its
 
 **Every week.** One entry for each week from the goal's first (the week it was created, or the first week it was checked in, if earlier) to this week, or to the week it stopped: its check-in, or "No check-in". Four or more weeks in a row with none are one entry ("Weeks 12 to 17 · No check-ins (6 weeks)"); fewer are a week each. This week is always its own entry. A goal with no check-in yet has one week entry, this week, "No check-in yet". Check-ins in a row that gave the same reason are one group, as before; every week is in it.
 
-**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
+**The kinds.** *Check-ins*: the week entries, missed weeks included. *Comments*: comments, and asks raised outside a review. *Reviews*: what a review said (looked at it, a note, a question or next step agreed in it, an ask answered in it). Whether an ask was raised in a review is the ask's own record of the review (its `reviewId`), never the review's name in its sentence, so renaming a review moves none of its past asks. *Changes*: everything else the change log holds for the goal (its plan, target, owner, team, level, links, metric; stopped, restored).
 
 **Counts.** Per kind and for All, which is their sum; a run of missed weeks counts as its weeks, a group as its weeks.
 
@@ -48,6 +48,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a goal’s history (rule 4) › a goal gone quiet lists the weeks it missed, newest first, then its last check-in
 - a goal’s history (rule 4) › a week’s entry sits at the end of its week: a comment made this week is listed under it
 - a goal’s history (rule 4) › Changes holds only edits; Reviews only what reviews said; the counts add up to All
+- a goal’s history (rule 4) › an ask raised in a review stays under Reviews when the review is renamed; one raised outside a review is a comment
 - a goal’s history (rule 4) › a goal checked in every week has a week entry for each, none missed
 - a goal’s history (rule 4) › six quiet weeks are one entry, counted as six; this week stays its own
 - a goal’s history (rule 4) › a goal with no check-in yet has one week entry: this week

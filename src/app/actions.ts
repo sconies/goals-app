@@ -5,15 +5,16 @@
    (app/state.tsx `run`) for a call to its server and changes no screen. No screens, storage or network here. */
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
-import { planChanges, postCheckIn, type PostMode, type Via } from '../domain/changeset';
+import { planChanges, postCheckIn, type Answers, type PostMode, type Via } from '../domain/changeset';
 import type { Draft } from '../domain/checkin';
+import { planGoal, type SaveGoalInput } from '../domain/goalEntry';
 import { findGoal } from '../domain/goalKey';
 import type { Tables } from '../domain/sheets';
 import type { TableLayout } from '../domain/tableLayout';
 import type { Goal, Person, Retro, Review, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { MODULE_RECORDS } from '../core/records';
+import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById } from '../core/registry';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
@@ -41,11 +42,13 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
  */
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
-  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; apply?: boolean }) =>
-    planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, full: x.full }),
+  planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number } }) =>
+    planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) =>
     postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),
+  /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. */
+  saveGoal: (x: RunContext, i: SaveGoalInput) => planGoal(x, i),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),
   deleteGoal: (x: RunContext, i: { goalId: string }) => R.deleteGoal(x, goalOf(x, i.goalId).id),
   deleteCheckIn: (x: RunContext, i: { checkInId: string }) => R.deleteCheckIn(x, i.checkInId),
@@ -101,7 +104,7 @@ export const ACTIONS = {
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
-  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, MODULE_RECORDS),
+  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, recordsOn(x.workspace)),
   createToken: (x: RunContext, i: { personId: string; name: string }) => A.createToken(x, i.personId, i.name),
   revokeToken: (x: RunContext, i: { tokenId: string }) => A.revokeToken(x, i.tokenId),
   sendFeedback: (x: RunContext, i: { mood: 'good' | 'meh' | 'bad'; text: string; path: string }) => A.sendFeedback(x, i.mood, i.text, i.path),

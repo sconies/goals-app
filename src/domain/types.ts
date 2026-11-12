@@ -253,6 +253,10 @@ export interface ImportUndo {
   /** Reviews and teams a row's Action changed (someone marked as left leaves their reviews and hands over their teams). */
   reviews?: { id: Id; before: Review | null }[];
   teams?: { id: Id; before: Team | null }[];
+  /** Starting a year (domain/carry carryExtras): the watches, and the modules' rows (a metric link), it added for the
+      carried goals. */
+  watches?: Id[];
+  modules?: { module: string; key: string; ids: Id[] }[];
 }
 
 /**

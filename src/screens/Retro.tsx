@@ -1,14 +1,15 @@
 /* Closing the cycle: each owner wraps up their goals (how it landed, what we learned, carry on or stop),
    everyone sees the summary, and an admin starts the next cycle with the goals that carry on. */
 import { OWNER_VIEW_LABEL } from '../domain/vocabulary';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
+import { wrapUpScope } from '../app/reads';
 import { periodWord } from '../domain/year';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, periodNow, RESULT_LABEL, suggestedResult, wrapUpOpenOn } from '../domain/cycle';
 import { MIN_LEARNED } from '../domain/actions';
 import { fmt, gapBeside, NO_VALUE } from '../domain/format';
-import { assessPosted } from '../domain/status';
+import { assessPosted, goalStatus } from '../domain/status';
 import type { Goal, Retro } from '../domain/types';
 import { newId } from '../data/store';
 import { Chip, Empty, LevelTag, ProgressRing } from '../ui/bits';
@@ -16,13 +17,21 @@ import { FormClose } from '../ui/FormClose';
 
 const RESULTS: Retro['result'][] = ['hit', 'partly', 'missed'];
 
-function nowText(g: Goal, app: ReturnType<typeof useApp>) {
+/** The app, with the year this wrap-up is for: once the next year is current, the year before while its wrap-up is open. */
+function useWrapUp() {
+  const app = useApp();
+  const s = useMemo(() => wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today), [app.full, app.cycle, app.snapshot, app.week, app.today]);
+  return { ...app, cycle: s.cycle, snapshot: s.snapshot, week: s.week, earlier: s.earlier, statusOf: (g: Goal) => (s.earlier ? goalStatus(g, s.cycle, s.snapshot.checkIns, app.today) : app.statusOf(g)) };
+}
+type WrapApp = ReturnType<typeof useWrapUp>;
+
+function nowText(g: Goal, app: WrapApp) {
   const a = assessPosted(g, app.cycle, app.snapshot.checkIns, app.week);
   return a.kind === 'milestone' ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === 'milestone' ? NO_VALUE : `${fmt(a.actual, g)}${g.kind === 'metric' ? ` of ${fmt(g.plan.target, g)}` : ''}`;
 }
 
 export function WrapUp() {
-  const app = useApp();
+  const app = useWrapUp();
   const open = wrapUpOpenOn(app.cycle, app.today);
   const w = periodWord(app.cycle);
   const retroOf = (g: Goal) => app.snapshot.retros.find((r) => r.goalId === g.id);
@@ -89,7 +98,7 @@ export function WrapUp() {
         {!all.length && <Empty title={`No goals this ${w}`} />}
       </section>
 
-      {app.viewer.admin && cycleState(app.cycle, app.today) !== 'before' && cycleState(app.cycle, app.today) !== 'running' && (() => {
+      {app.viewer.admin && !app.earlier && cycleState(app.cycle, app.today) !== 'before' && cycleState(app.cycle, app.today) !== 'running' && (() => {
         // Starting the next year is its own page, with a read-back first (cycle-end 2.4); nobody moves until the last day.
         const later = laterCycle(app.full.cycles, app.cycle);
         const next = later?.name ?? nextCycleShape(app.cycle).name;
@@ -109,16 +118,16 @@ export function WrapUp() {
 
 /** One goal's retro, on one screen. */
 export function RetroGoal() {
-  const app = useApp();
+  const app = useWrapUp();
   const { goalId } = useParams();
-  const goal = goalId ? app.goal(goalId) : undefined;
+  const goal = goalId ? app.snapshot.goals.find((g) => g.id === goalId || g.key === goalId) ?? app.goal(goalId) : undefined;
   if (!goal) return <div className="page narrow"><Empty title={`This goal isn’t in this ${periodWord(app.cycle)}`}><Link className="btn" to="/retro">Back to the wrap-up</Link></Empty></div>;
   if (goal.ownerId !== app.viewer.id && !app.viewer.admin) return <div className="page narrow"><Empty title="Only its owner wraps up this goal"><Link className="btn" to="/retro">Back to the wrap-up</Link></Empty></div>;
   return <RetroForm key={goal.id} goal={goal} />;
 }
 
 function RetroForm({ goal }: { goal: Goal }) {
-  const app = useApp();
+  const app = useWrapUp();
   const nav = useNavigate();
   const before = app.snapshot.retros.find((r) => r.goalId === goal.id) ?? null;
   const [result, setResult] = useState<Retro['result']>(before?.result ?? suggestedResult(goal, app.cycle, app.snapshot.checkIns, app.today));

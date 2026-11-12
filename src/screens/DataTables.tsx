@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
 import { Place } from '../core/app';
-import type { ChangeSet, Rec, Tables } from '../domain/changeset';
+import { examplesLine, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { workbook, type Cell } from '../domain/export';
 import { BOUND_WORDS, CAUSE_WORDS, isEditable, LEVEL_WORDS, RECOVERY_WORDS, SHAPE_WORDS } from '../domain/columns';
 import { Chip, Sheet } from '../ui/bits';
@@ -228,7 +228,9 @@ export function DataTables() {
     }
     return out;
   };
-  const review = (why = reason, yes = confirmed) => setCs(app.previewChanges(records(), 'table', why, yes));
+  // Answers to the questions a review asks (domain/problemLevels), by group; kept while editing goes on.
+  const [answers, setAnswers] = useState<Answers>({});
+  const review = (why = reason, yes = confirmed, said = answers) => setCs(app.previewChanges(records(), 'table', why, yes, said));
   const apply = async () => {
     if (!cs?.commit) return;
     setBusy(true);
@@ -374,7 +376,7 @@ export function DataTables() {
       )}
       {cs && (
         <Sheet open onClose={() => setCs(null)} title="Review your changes" wide>
-          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} in Data`} reason={reason} setReason={(v) => { setReason(v); review(v); }} onConfirm={() => { setConfirmed(true); review(reason, true); }} busy={busy} onApply={() => void apply()} onAgain={() => { setCs(null); setConfirmed(false); }} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
+          <Preview cs={cs} name={`${total} ${total === 1 ? 'change' : 'changes'} in Data${cs.examples ? ` · ${examplesLine(cs.examples)}` : ''}`} reason={reason} setReason={(v) => { setReason(v); review(v); }} onConfirm={() => { setConfirmed(true); review(reason, true); }} answers={answers} onAnswer={(id, a) => { const next = { ...answers }; if (a) next[id] = a; else delete next[id]; setAnswers(next); review(reason, confirmed, next); }} busy={busy} onApply={() => void apply()} onAgain={() => { setCs(null); setConfirmed(false); }} againLabel="Keep editing" fixHint="Fix those cells, then review again." />
         </Sheet>
       )}
     </div>

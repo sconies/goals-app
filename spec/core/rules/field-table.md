@@ -23,18 +23,20 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Team | Optional | A team’s name | Platform | The owner’s team |
 | Owner | Required (or Owner email) | A name only one person has | Ben Ortiz | Owner email says who; with neither, Must fix |
 | Owner email | Required (or Owner) | An email | ben.ortiz@example.com | Owner says who; with neither, Must fix |
-| Type | Optional | metric, range or milestone | metric | A number goal (metric). A goal’s type can’t change later |
-| Unit | Optional | Text | days | No unit. On a row already here, empty clears it |
+| Type | Optional | metric, range or milestone | metric | Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later |
+| Unit | Optional | Text | days | No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts. On a row already here, empty clears it |
 | Decimals | Optional | 0, 1, 2 or 3 | 1 | The most decimal places typed in Start, Target or Limit, up to 3 |
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |
 | Target | Required for a number goal | A number, different from Start | 1 | Must fix for a number goal |
 | Plan | Optional | straight, back-loaded or stepped | back-loaded | straight |
-| Plan from week | Optional | A whole number, −104 to 104 | 46 | This week (0 when setting up a workspace) |
-| Due week | Optional | A whole number, 1 to 104, after Plan from week | 53 | The cycle’s last week. On a row already here, empty clears it |
+| From | Optional | A year and a week | 2026-W46 | This week |
+| Plan from week | Optional | A whole number of weeks from the cycle’s start | 46 | This week (0 when setting up a workspace) |
+| To | Optional | A year and a week, after From | 2026-W53 | The cycle’s last week |
+| Due week | Optional | A whole number, after Plan from week; a date in the cycle is read as its week | 53 | The cycle’s last week. On a row already here, empty clears it |
 | Limit | Required for a range goal | A number | 5 | Must fix for a range goal |
 | Must stay | Optional | at most or at least | at most | at most |
-| Margin | Optional | A number, zero or more | 0.5 | 1 |
-| Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start) | Design@48; Pilot@52 | Must fix for a stages goal |
+| Margin | Optional | A number, zero or more | 0.5 | No warning margin (0) |
+| Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name) | Design@48; Pilot@52 | Must fix for a stages goal |
 | Feeds into | Optional | A goal’s name | Deploy lead time | It feeds nothing. On a row already here, empty clears it |
 | Feeds into key | Optional | A goal’s key | G-1 | It feeds nothing. On a row already here, empty clears it |
 | Why it helps | Optional | Text | Fewer failed deploys mean fewer rollbacks | Nothing said. On a row already here, empty clears it |
@@ -66,7 +68,7 @@ Worked out: none.
 | Goal key | Required (or Goal ID, or Goal) | G- and a number | G-14 | Goal ID or Goal says which goal; with none of them, Must fix |
 | Goal ID | Required (or Goal key, or Goal) | Faro’s own | goal_hzde4g | Goal key or Goal says which goal |
 | Goal | Required (or Goal key, or Goal ID) | The goal’s exact name, when only one goal has it | Pipeline queue wait (p90) | Goal key or Goal ID says which goal |
-| Week | Required | A whole number from 1 to this week | 46 | Must fix |
+| Week | Required | A whole number from 1 to this week; a date in the cycle is read as its week | 46 | Must fix |
 | Value | Required for a number or range goal | A number, at the goal’s decimal places | 6 | Must fix for a number or range goal |
 | Stages | Required for a stages goal | “Pilot: done week 6; Rollout: expected week 9” | Pilot: done week 6 | Must fix for a stages goal |
 | Call | Optional | On track, At risk, Off track or Done | At risk | The rules decide |
@@ -110,7 +112,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** It says what Faro does today. The import design (docs/design/import/spec.md, section 3) changes a few defaults in later items (a Type read from which columns are filled; no unit and no margin by default; a Check for many of today’s refusals): those rows change with the rule that changes.
+- **Not self-explanatory:** It says what Faro does. IM2 changed the defaults the import design marked: a new goal’s Type is read from which columns it fills in, a number has no unit and a range no warning margin unless the row gives one (core rule: kinds, levels and near misses). The goal form keeps its own visible defaults until goal entry (GE1, GE2) reads this table.
 
 ## Where it lives
 
@@ -127,6 +129,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ### [src/domain/fieldTable.test.ts](../../../src/domain/fieldTable.test.ts)
 
 - the field table › every column a person fills in says whether a new row needs it, its format, an example and what empty does
+- the field table › every column a person fills in on a sheet that loads back has a field-table entry, and every entry is a real column
 - the field table › a new goal needs Goal, and Owner or Owner email; a number goal Start and Target
 - the field table › says what a new row must have in one line per sheet
 - the Start here sheet and the template › the workbook opens on Start here: the file’s workspace and cycle, then the field table of every sheet that loads back

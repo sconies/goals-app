@@ -2,13 +2,16 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
+import { mayChangeGoal } from './goalRights';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
 import type { Commit } from './commit';
+import { applyModuleRows, hasModuleRows, type ModuleRecords, type ModuleRows } from './records';
 import type { Lookup } from './changes';
-import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, nextCycleShape, RESULT_LABEL, wrapUpOpenOn } from './cycle';
-import { startReadBack } from './carry';
+import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, RESULT_LABEL, startFromLine, wrapUpOpenOn } from './cycle';
+import { carryExtras, startReadBack } from './carry';
+import { copyUntouched } from './copies';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
@@ -32,6 +35,8 @@ export interface ActionContext {
   allGoals?: Goal[];
   /** The whole workspace, unscoped: every cycle and every removed record, for restoring (domain/removal). */
   full?: Snapshot;
+  /** The feature modules' records in this build (core/records), for the rules that move a module's rows with a goal. */
+  records?: readonly ModuleRecords[];
 }
 
 /** A rule says no: the message says why, in words the person (or their assistant) can act on. */
@@ -43,7 +48,8 @@ const lookupOf = (s: Snapshot): Lookup => ({
   goal: (id) => s.goals.find((g) => g.id === id),
   teamName: (id) => s.teams.find((t) => t.id === id)?.name ?? id,
 });
-const ownsOrAdmin = (x: ActionContext, g: Goal) => x.actor.admin || g.ownerId === x.actor.id;
+/** R1's row for changing a goal, stated once (domain/goalRights). */
+const ownsOrAdmin = (x: ActionContext, g: Goal) => mayChangeGoal(x.actor, g);
 const latestOf = (x: ActionContext, g: Goal) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 
 /* ---------- Comments ---------- */
@@ -290,21 +296,40 @@ export const MIN_LEARNED = 10;
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['result']; learned: string; next: Retro['next'] }): Commit {
   if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can wrap it up.');
-  // One test for when a wrap-up can be saved, the page's too: from the day it opens until the day it closes (cycle-end rule 1).
+  // A wrap-up is its goal's year's, which stays open after the next year is current, until the day it closes (cycle-end
+  // rules 1 and 3): one test for when it can be saved, the page's too.
+  const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
   const today = new Date(x.now);
-  if (!wrapUpOpenOn(x.cycle, today)) {
-    const d = cycleDates(x.cycle);
-    no(cycleState(x.cycle, today) === 'closed' ? `${x.cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${x.cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+  if (!wrapUpOpenOn(cycle, today)) {
+    const d = cycleDates(cycle);
+    no(cycleState(cycle, today) === 'closed' ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
   }
   if (v.learned.trim().length < MIN_LEARNED) no('Say what was learned, in a sentence (10 characters or more).');
-  const before = (x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === x.cycle.id) ?? null;
-  const retro: Retro = { id: before?.id ?? x.newId('retro'), goalId: goal.id, cycleId: x.cycle.id, result: v.result, learned: v.learned.trim(), next: v.next, byId: x.actor.id, at: x.now };
+  const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
+  const retro: Retro = { id: before?.id ?? x.newId('retro'), goalId: goal.id, cycleId: cycle.id, result: v.result, learned: v.learned.trim(), next: v.next, byId: x.actor.id, at: x.now };
   const diffs = [
     ...(!before || before.result !== retro.result ? [{ field: 'Result', from: before ? RESULT_LABEL[before.result] : '—', to: RESULT_LABEL[retro.result] }] : []),
     ...(!before || before.learned !== retro.learned ? [{ field: 'Learned', from: before?.learned ?? '—', to: retro.learned }] : []),
     ...(!before || before.next !== retro.next ? [{ field: 'Next cycle', from: before ? (before.next === 'carry' ? 'Carry on' : 'Stop') : '—', to: retro.next === 'carry' ? 'Carry on' : 'Stop' }] : []),
   ];
-  return { retros: [retro], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] };
+  const own: Commit = { retros: [retro], changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: goal.id, entity: 'retro', entityId: retro.id, action: before ? 'edited' : 'posted', summary: `Wrapped up ${goal.title}: ${RESULT_LABEL[retro.result].toLowerCase()}`, diffs }] };
+  // Wrapped up after the next year was started: its copy there follows, while nobody has used it (cycle-end rule 6).
+  const full = x.full;
+  if (!full) return own;
+  const later = laterCycle(full.cycles, cycle);
+  const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : undefined;
+  if (copy && retro.next === 'stop' && !copyUntouched(copy, full)) no(`It already has check-ins in ${later!.name}. Stop it there instead.`);
+  // Its copy there follows when the save lands (domain/recarry withRecarry, run on every save).
+  return own;
+}
+
+/** Two commits as one save: their records and changes side by side. */
+export function mergeCommits(a: Commit, b: Commit | null): Commit {
+  if (!b) return a;
+  const out: Record<string, unknown> = { ...a };
+  const was = a as unknown as Record<string, unknown>;
+  for (const [k, v] of Object.entries(b)) out[k] = Array.isArray(v) ? [...((was[k] as unknown[] | undefined) ?? []), ...v] : k === 'modules' ? applyModuleRows(was[k] as ModuleRows | undefined, v as ModuleRows) : v;
+  return out as unknown as Commit;
 }
 
 /**
@@ -317,26 +342,31 @@ export function startNextCycle(x: ActionContext): { commit: Commit; name: string
   const today = new Date(x.now);
   const full = x.full ?? x.snapshot;
   const state = cycleState(x.cycle, today);
-  if (state === 'before' || state === 'running') no(`${nextCycleShape(x.cycle).name} can be started from ${dayWithYear(cycleDates(x.cycle).wrapUpOpens)}, when ${x.cycle.name}’s wrap-up opens.`);
+  if (state === 'before' || state === 'running') no(startFromLine(x.cycle));
   const later = laterCycle(full.cycles ?? [], x.cycle);
   if (later) {
     const made = full.changes.find((c) => c.entity === 'cycle' && c.entityId === later.id && c.action === 'created');
     const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
     no(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made!.at.slice(0, 10))}` : ''}.`);
   }
-  const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: () => x.newId('goal') }, x.now);
+  const map = new Map<string, string>(); // old goal id → its copy's
+  const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: (g) => { const id = x.newId('goal'); map.set(g.id, id); return id; } }, x.now);
   const rb = startReadBack({ cycle: x.cycle, next: { name: next.cycle.name, firstDay: cycleDates(next.cycle).firstDay, weeks: next.cycle.weeks }, goals: x.snapshot.goals, checkIns: x.snapshot.checkIns, retros: x.snapshot.retros ?? [] });
   const finish = rb.finish + rb.openFinish;
   const parts = [`${rb.carried} ${rb.carried === 1 ? 'goal carries' : 'goals carry'} on`, ...(finish ? [`${finish} finish`] : []), ...(rb.stop ? [`${rb.stop} stop`] : [])];
+  // What comes with the goals that carry on (rule 6): what a module says follows a goal (a metric link), watches, open
+  // asks and reviews.
+  const extras = carryExtras(map, full, x.newId, x.records);
   return {
     name: next.cycle.name,
     commit: {
       cycles: [next.cycle], goals: next.goals,
+      ...(hasModuleRows(extras.modules) ? { modules: extras.modules } : {}), watches: extras.watches, requests: extras.requests, reviews: extras.reviews,
       changes: [{
         id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'cycle', entityId: next.cycle.id, action: 'created',
         summary: `Started ${next.cycle.name}: ${parts.join(', ')}`, diffs: [{ field: 'Cycle', from: x.cycle.name, to: next.cycle.name }],
         // What the start added, so Undo can take it away again (removal undoStart).
-        undo: { goals: next.goals.map((g) => ({ id: g.id, before: null })), checkIns: [], people: [], requests: [] },
+        undo: { goals: next.goals.map((g) => ({ id: g.id, before: null })), checkIns: [], people: [], requests: extras.undo.requests.map((r) => ({ id: r.id, before: r })), reviews: extras.undo.reviews.map((r) => ({ id: r.id, before: r })), watches: extras.undo.watches, ...(extras.undo.modules.length ? { modules: extras.undo.modules } : {}) },
       }],
     },
   };

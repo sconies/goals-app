@@ -1,0 +1,78 @@
+# Muse's product feedback, evaluated (12 November 2026)
+
+An outside AI reviewer, Muse, tested the live site and gave high-level product feedback. Lane asked for it to be evaluated, not built. This page checks each claim against main (commit `25c106a`), the designs and the backlog, and weighs it against what Faro is for: a model for an internal application to copy, plus demos, never holding real data. Nothing under `src/`, `server/`, `api/` or `supabase/` was changed. The live site was not re-tested; every "accurate?" below is read from the code and the documents named.
+
+## Verdict
+
+Muse is right about what is good (the check-in, the reviews, the honest voice) and right that the workspace boundary is where the app is least clear, but about a third of the specifics are out of date or wrong for main: there is a workspace switcher, roles are shown in three places, Delete on the Map was switched off on 9 November, and a streak and a "week is done" moment already exist. The go-to-market points (buyers, price bands, first customers, rivals' Slack surfaces) do not apply to a model that is never sold; what survives of them is small and already has a home (the small-workspace design pass, and requirement R5). The real gaps are few and cheap: nobody is told who they are after a switch, "workspace" is defined nowhere a reader would look, R5 (digests, never shame) is still unwritten, and the habit measure the designs plan is not the one the product review asked for. None of this needs a new track; it is two small builds, one spec item and three decisions.
+
+## Claim by claim
+
+Size: S is under a day, M is a release. "Where" is one of: build in Faro, specify for the rebuild, backlog for a design pass, or reject.
+
+| # | Muse's claim | Accurate for main? | Already decided or planned? | Recommendation | Size | Where |
+|---|---|---|---|---|---|---|
+| 1 | The core loop (plain check-ins, attention-only reviews, a status that explains itself) is strong; the check-in is the best part. | Yes. The deep review said the same ("the best flow", `docs/reviews/2026-11-10-deep-review.md`). | CK1 and CK2 merged (#156, #160); NR (readings fill in the check-in) is in the backlog. | Nothing to do. Keep it as the idea the rebuild copies first. | – | – |
+| 2 | The honest voice is a differentiator, and a wedge against Lattice, 15Five and Tability at $6–11 a user. | The voice: yes. The market: not checked, and not relevant. | "Reward honesty and early warnings, never shame" is backlog R5, not yet written into `spec/`. | Reject the market framing: Faro is not sold. Keep the voice as a rule the rebuild inherits by writing R5 (row 12). | S | Specify (with R5) |
+| 3 | "It doesn't know what a workspace is": at once a team container, a settings area, a directory and a demo panel. | Partly, and partly stale. Since WR1–WR4 the directory is its own place (People), Workspace is About, Cycles, Access, Features, Privacy and Recently removed (`src/screens/Workspace.tsx`), and the demo's controls are a separate panel (`src/ui/Demo.tsx`). What is true: the only definition is one sentence in a design note ("A workspace is the unit that shares a year, a due day and admins", `docs/design/feature-toggles/README.md` 2.5). `docs/glossary.md` and `spec/core/vocabulary.md` have no entry for the word. | The rebuild decides what its workspace is (R6a–R6c). | Put the one-sentence definition in the glossary and vocabulary, and as the first line of Workspace, About. Add a line to R6a saying the rebuild must state its own in one sentence and hold every screen to it. | S | Build in Faro (words only) and specify |
+| 4 | There is no workspace switcher. | No. It shipped on 10 Nov (WS, #70): the sidebar header and the phone's top bar open "Workspaces", with search from six up, "Open now", About and "Set up a new workspace" (`src/ui/WorkspaceSwitch.tsx`, `src/ui/Shell.tsx:272, 287`). But that a careful tester missed it is a finding: the control looks like a title, and "switch workspace" is only in the screen-reader text. | Known leftover: the "can't open … yet" page has no switcher (`docs/handover.md`, track 4). | Make it read as a control: a visible "Switch" word or hint beside the chevron on hover and focus, and the same on the collapsed rail. Do the handover's leftover with it. | S | Build in Faro |
+| 5 | Your identity silently changes as you cross the boundary. | Yes, by construction. Who you are is a pick kept per workspace in the browser (`viewerPicker`, `src/adapters/local.ts:14`). After a switch you are whoever was picked there last; in the demo, with nobody picked, a stand-in (Rhea, else the first goal owner, `src/app/state.tsx:529`). Nothing says so on landing. | In the rebuild it goes away: one sign-in, matched by email in each workspace (setup SR3; `src/adapters/signIn.ts`). ST1's "Welcome back" lists each workspace with who you are in it (round 2, first cut, not yet built). | Say it once when a switch lands you as a different person or with a different role: "You're Rhea Kapoor here, a member." Show who you are on each switcher row once known. For the rebuild: the person never changes, the role may, and a change of role on switching is said. | S | Build in Faro and specify (R1) |
+| 6 | Roles are invisible. | Mostly no. The sidebar says "Admin" beside your name (`Shell.tsx:304`), the switcher says "you're an admin" or "a member" for the open workspace, and every Workspace section says "you're a member here" (`Workspace.tsx:100`). The gap: a member's sidebar shows no role word at all, so a member learns their role only by absence. | WR2 and navigation spec 2.1 designed it this way. | Fold into row 5's line on landing. No separate work. | – | With row 5 |
+| 7 | Feedback ignores the boundary and announces that anyone can edit anything. | Yes: "From every workspace and the demo. Anyone can change a status" (`src/screens/Feedback.tsx:25`). | Decided by Lane, 12 Nov: one inbox, only admins change status, and the spec tells the rebuild to scope it per workspace. | Build the decision. Add "Change a feedback or markup status: admins" to R1's access table so `src/spec/internal.test.ts` keeps it true (today the status rule sits outside `src/domain/actions.ts` and outside the table). | S | Build in Faro and specify |
+| 8 | Ceremony doesn't scale down: the same seven-step set-up, heavyweight language and an empty Metrics in the menu for a team of four. | Yes. Set-up is seven steps, five when goals come later (`src/screens/Onboarding.tsx:69`). Metrics is in the menu whenever its module is on, and every switch starts on (`docs/design/navigation/spec.md` rule 1; feature-switches decision 4a recommends no "start simple" preset, with no answer from Lane recorded). | ST2 cuts set-up to five steps (round 2, second cut). Lane, 12 Nov: a design pass first (backlog SM). SM is not in `docs/backlog.md` on main or in any open pull request yet. | Add SM to the backlog and give it three questions to settle: ST2's five steps; whether a small workspace starts with some switches off (feature-switches decision 4a); and whether a module's menu item waits until it has something in it. | S (the pass), then M | Backlog for the design pass |
+| 9 | Small teams are the natural first customers. | Not applicable. The rebuild is for a company of 15,000; Faro has no customers. | – | Reject as a market point. It still matters for the off-site and demos, and for small teams inside the big company, which is what SM covers. | – | Reject (covered by row 8) |
+| 10 | The trust bugs are permission bugs: a member can reset the example, anyone can change feedback status, Delete on a Map node by keyboard. | Two of three. Start over and feedback status: yes. Map Delete: no, fixed on 9 Nov ("Delete on the map no longer does anything", `src/help/whatsNew.ts:883`; `deleteKeyCode={null}`, `src/screens/GoalMap.tsx:341`). | Both live ones were decided by Lane on 12 Nov. | Build the two decisions as one small release. See the list below for what else a member may do. | S | Build in Faro |
+| 11 | Together they teach an enterprise buyer that the app doesn't take access control seriously. | Wrong frame for Faro, but the instinct is useful. Faro's access is open on purpose: anyone picks any name, the admin's included, and the public key can write most tables (`spec/rebuild/access-today.md`; architecture review finding 10). What Faro does take seriously is the rule table: every "who may" is stated once, enforced by the app, the import and MCP alike, listed in R1 and checked by a test. | R1 requires the server to enforce every line (acceptance check 1). | No new work beyond rows 7 and 10. In demos, say the sentence out loud: the rules are real, the lock is the platform's. The demo script could carry it. | – | Specify (already in R1) |
+| 12 | No loop rewards the weekly habit: no celebration when a goal recovers, no streak or closure moment when check-ins land before the review, no digest. | Partly. A streak exists: on Home, and as "N weeks in a row on time" under "Week N is done" when the week's last check-in is posted (`src/domain/progress.ts:65`, `src/screens/CheckInFlow.tsx:160`). No celebration on recovery or on reaching a target, and no digest: both true. | Celebration: backlog L (3), not designed. A forgiving streak: CF4 (round 3, outside the first cut). Home's quiet "both check-ins are in": HM1 (#169, open). Digests: R5, spec only, unwritten. | Write R5 now. Then one small build after HM1 and HM2: L (3), a restrained moment when a goal reaches its target or comes back on track, with CF4's forgiven week pulled forward beside it. | S (R5), S–M (build) | Specify, then build in Faro |
+| 13 | Hold one measure: % of goals checked in before the review without a nudge. Nothing should shame. | The measure is not built. The design that is planned differs: HM7's cell is "Checked in for week 46 · 98 of 118 goals", counted by the due date, not "before the review" and not "without a nudge" (`docs/design/home/spec.md`; later cut). Never shame is already the rule (R5's wording; Home ranks goals and teams, never people). | Backlog L (1) uses Muse's definition; HM7 uses the simpler one. | Lane picks one definition (decision 2 below). Either way it goes in R5 as the number the rebuild watches. | S | Decision, then specify; build with HM7 |
+| 14 | No integrations story: no Slack or Teams surface, and every rival has one. | Yes, none, and on purpose. Faro sends nothing ("Faro doesn't send email", set-up spec); round 3 leaves "telling people things" to the platform. MCP is Faro's one integration. | R5 (digests in Slack, Teams or email; check-in from a notification; push). | Specify, don't build: delivery is the platform's. What the rebuild can copy from Faro is the content, so R5 should give the digest's words and rules (what goes in, in what order, what is never said) as worked examples. A preview page in Faro is optional (decision 3). | S | Specify for the rebuild |
+| 15 | Sequence: workspace model and permissions first, then small-team onboarding, then the habit loop. | Reasonable order; the sizes are much smaller than the feedback implies. | – | See the sequence below. | – | – |
+
+## What a member may do today
+
+From R1's access table (`spec/requirements/internal/r1-sign-in-and-access.md`, generated from `src/domain/actions.ts`, `removal.ts`, `asks.ts`, `changeset.ts`, `goalRights.ts` and `src/modules/metrics/rules.ts`), these are the things anyone may do that a strict "admins and owners only" reading would not expect:
+
+| What any member may do | Standing |
+|---|---|
+| Add a goal for anyone, at any level (`mayAddGoal`) | Lane's decision, 11 Nov. Leave. |
+| Set up a review (`saveReview`) | By design. Leave. |
+| Mark goals reviewed in any review, and accept the risk on a goal behind (`markReviewed`, `acceptRisk`) | RV7 (round 3, first cut, decision 9a) limits it to people in the review or an admin. Not yet built. |
+| Agree an action on any goal, for anyone to do; comment; ask the owner a question or for an update (`addAction`, `addNote`, `askQuestion`, `askForUpdate`) | By design: this is how reviews work. Leave. |
+| Add a metric to the library, owning it (`saveMetric`) | By design. Leave. |
+| Set up a new workspace (the switcher) | By design in the demo; in the rebuild, the platform's to decide (R6a). |
+| Leave the workspace (`leaveWorkspace`); restore what they removed themselves (`canRestore`) | By design. Leave. |
+| Change a feedback or markup status (`statusPatch`, `src/markup/model.ts`; not in the access table) | Lane, 12 Nov: admins only. To build. |
+| Start over (`src/ui/Demo.tsx`; this browser only) | Lane, 12 Nov: admins only in a person's own workspaces; the shared demo stays open. To build. |
+| Choose to be anyone, an admin included ("Who are you?") | Faro's open door, on purpose. R1 and R2 replace it. |
+
+Everything else that changes someone else's record is the owner's, the author's or an admin's, and is refused with a sentence that says who may. Once RV7 and the two 12 November decisions are built, the list above holds nothing that is not a stated decision.
+
+## Proposed sequence
+
+1. **Boundary and permissions, one small release (S).** The two 12 Nov decisions (feedback status, Start over), with the feedback line added to R1's table; the switcher made to read as a control, and kept on the "can't open … yet" page; one line on landing after a switch that says who you are and your role; "workspace" defined in the glossary, the vocabulary and on About. RV7 stays with track 1.
+2. **R5 written into `spec/` (S), in the same week.** Digests (with the words as worked examples), check-in from a notification, the habit measure as decided, never shame, streaks forgive, one sign-in with a role per workspace, and the feedback inbox scoped per workspace.
+3. **SM added to the backlog, then its design pass (S), then its build (M).** Fed by ST2, the "start simple" question and empty modules in the menu.
+4. **The habit moment (S–M), after HM1 and HM2 merge.** L (3) with CF4's forgiven week, and HM7's cell with the definition chosen.
+
+Nothing here displaces a running track: item 1 fits track 4 or a short session of its own, item 2 is docs and spec, and items 3 and 4 wait for work already in flight.
+
+## Decisions for Lane
+
+Recommended answer first.
+
+1. **The boundary release (sequence item 1).**
+   - (a) Build it now as one small release, beside the two decisions already made. *Recommended: it is under a day and closes Muse's main complaint.*
+   - (b) Build only the two 12 Nov decisions; leave the switcher, the landing line and the definition to SM's design pass.
+   - (c) Leave all of it for the rebuild's spec.
+2. **The habit measure.**
+   - (a) Checked in by the due day, as HM7 designs it ("98 of 118 goals"), and R5 gives Muse's stricter version as what the rebuild should measure once it sends nudges. *Recommended: Faro sends no nudges, so "without a nudge" cannot be told apart here.*
+   - (b) Muse's definition in Faro too: before the review, and not after an ask for an update (Faro's only nudge).
+   - (c) No measure in Faro; spec only.
+3. **Digests.**
+   - (a) Spec only: R5 carries the digest's words and rules as worked examples. *Recommended: delivery is the platform's, and the words are what a rebuild copies.*
+   - (b) Also a "This week's digest" preview page in Faro, built from the same rule, for demos (S–M).
+   - (c) Build a real Slack or Teams post. Not recommended: Faro has no sign-in and holds no real data.
+4. **The habit moment (L (3) with CF4's forgiven week).**
+   - (a) Build it after HM1 and HM2, as sequence item 4. *Recommended.*
+   - (b) Leave it for the round 3 second cut.
+   - (c) Spec only.

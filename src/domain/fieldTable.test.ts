@@ -8,11 +8,11 @@ import { excelSheets } from '../app/files';
 import { workbookGrids } from '../app/spreadsheet';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { planChanges } from './changeset';
-import { EXAMPLE_ROWS, fieldTable, FILL_SHEETS, isFillIn, requiredLine, requiredText, requiredWord, specOf } from './columns';
+import { EXAMPLE_ROWS, fieldHeaders, fieldTable, FILL_SHEETS, isFillIn, requiredLine, requiredText, requiredWord, specOf, WEEK_COLUMN, type FillKind } from './columns';
 import { currentCycle, scopeToCycle } from './cycle';
 import { startHere, templateWorkbook, workbook, type Table } from './export';
 import { currentWeek } from './plan';
-import { readTables } from './sheets';
+import { LOADED_SHEETS, readTables } from './sheets';
 
 const today = new Date('2026-11-11T12:00:00Z');
 const full = buildPlatformOrg(today);
@@ -39,6 +39,25 @@ describe('the field table', () => {
       }
       // A worked-out column is never asked for, and says so.
       for (const c of table.filter((v) => v.role === 'worked')) expect(c.required, `${kind} ${c.header}`).toBeNull();
+    }
+  });
+
+  it('[FIELD-TABLE] every column a person fills in on a sheet that loads back has a field-table entry, and every entry is a real column', () => {
+    // Read from the sheets themselves, not the table: a new column with no entry would otherwise pass as worked out.
+    const fillRoles = ['match', 'edit', 'action'];
+    expect(LOADED_SHEETS.length).toBeGreaterThan(0);
+    for (const kind of LOADED_SHEETS) {
+      expect(FILL_SHEETS, kind).toContain(kind);
+      const k = kind as FillKind;
+      const cols = [...specOf(k).columns, ...(k === 'plan' ? [WEEK_COLUMN] : [])];
+      const missing = cols.filter((c) => fillRoles.includes(c.role) && !fieldHeaders(k).includes(c.header)).map((c) => c.header);
+      expect(missing, `${kind}: fill-in columns with no field-table entry`).toEqual([]);
+      for (const c of cols.filter((v) => fillRoles.includes(v.role))) {
+        const row = fieldTable(k).find((r) => r.header === c.header)!;
+        expect(row.required, `${kind} ${c.header}`).not.toBeNull();
+      }
+      const unknown = fieldHeaders(k).filter((h) => !cols.some((c) => c.header === h));
+      expect(unknown, `${kind}: field-table entries naming no column`).toEqual([]);
     }
   });
 

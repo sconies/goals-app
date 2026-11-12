@@ -54,6 +54,9 @@ describe('the demo’s library', () => {
     expect(M.measureOf(w.scoped, w.goal('lead-flaky'))).toMatchObject({ metric: { name: 'Flaky test rate' }, slice: 'CI/CD', target: { value: 2, kind: 'at most' }, targetText: 'At most 2.0%' });
     // A goal with no metric.
     expect(M.measureOf(w.scoped, w.goal('lead-mq'))).toBeNull();
+    // What the core's goal entry reads of it, for the wrong-side question at every door (domain/records goalMeasureOf).
+    expect(RECORDS.measures!(w.scoped, 'ns-lead')).toEqual({ name: 'Lead time for changes', direction: 'lower' });
+    expect(RECORDS.measures!(w.scoped, 'lead-mq')).toBeNull();
   });
   it('one metric can sit in the library measuring nothing yet', () => {
     expect(M.goalsMeasuredBy(w.scoped, w.scoped.goals, 'metric_ci-cost')).toEqual([]);
@@ -173,14 +176,24 @@ describe('removing a metric', () => {
     w.apply(R.undoRemoval(w.x('rhea'), c, before));
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
   });
-  it('is on Recently removed, and restoring brings the metric back without its old links', () => {
+  it('is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)', () => {
     const w = world();
     w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
     const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
     expect(item).toMatchObject({ id: 'metric_lead-time', label: 'Metric', name: 'Lead time for changes', by: 'rhea' });
     w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
     expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeTruthy();
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
+    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
+  });
+  it('restoring leaves out a link whose goal was measured by another metric since', () => {
+    const w = world();
+    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
+    w.apply(M.saveMetric(w.x('grace'), { name: 'Lead time, merge to production', unit: 'hours', direction: 'lower' }).commit);
+    const other = M.metricsOf(w.full).find((m) => m.name === 'Lead time, merge to production')!;
+    w.apply(M.linkGoalMetric(w.x('grace'), w.goal('ns-lead'), other.id, null));
+    const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
+    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
+    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time, merge to production');
   });
   it('can’t come back under a name another metric took since', () => {
     const w = world();
@@ -196,6 +209,37 @@ describe('one form, one save', () => {
     const b: Commit = { ...M.metricRows({ metricLinks: [{ id: 'g' } as never] }), changes: [{ id: 'c2' } as never] };
     expect(M.mergeCommits(a, null, b)).toEqual({ goals: [], modules: { metrics: { metricLinks: [{ id: 'g' }] } }, changes: [{ id: 'c1' }, { id: 'c2' }] });
     expect(M.mergeCommits(null, undefined)).toBeNull();
+  });
+});
+
+describe('the build review’s findings on ML2 and ML3 (11 Nov)', () => {
+  it('a goal being made for someone else can be measured in the same save, by whoever makes it', () => {
+    const w = world();
+    const x = w.x('rhea');
+    const g = { ...w.goal('ns-lead'), id: 'goal_new', key: undefined, ownerId: 'oskar' } as Goal;
+    refused(() => M.linkGoalMetric(x, { ...w.goal('ns-lead'), ownerId: 'oskar' } as Goal, 'metric_lead-time'), /Only the goal’s owner or an admin/);
+    const c = M.linkGoalMetric({ ...x, snapshot: { ...x.snapshot, goals: [...x.snapshot.goals, g] } }, g, 'metric_lead-time', null);
+    expect(c!.changes[0]!.summary).toBe('Measured by “Lead time for changes” for the whole company');
+  });
+  it('changing a unit goals use is asked at every door: refused without confirm, saved with it', () => {
+    const w = world();
+    const m = M.metricsOf(w.full).find((v) => v.id === 'metric_lead-time')!;
+    const q = M.metricChangeQuestion(m, { ...m, unit: 'days' }, w.full.goals, M.linksOf(w.full));
+    expect(q).toMatchObject({ changing: ['unit'], goals: 1, apart: 1 });
+    expect(q!.text).toBe('1 goal is measured by this metric. Changing its unit doesn’t change their numbers or plans; 1 of them will show a warning that they differ. Change it?');
+    refused(() => M.saveMetric(w.x('rhea'), { id: m.id, unit: 'days' }), /Ask first, then save it again with confirm/);
+    expect(M.saveMetric(w.x('rhea'), { id: m.id, unit: 'days', confirm: true }).commit).not.toBeNull();
+    // Other fields, or a metric no goal uses, ask nothing.
+    expect(M.metricChangeQuestion(m, { ...m, caveats: 'x' }, w.full.goals, M.linksOf(w.full))).toBeNull();
+  });
+  it('removing a metric unlinks a stopped goal too, and putting it back links it again', () => {
+    const w = world();
+    w.apply(R.stopGoal(w.x('rhea'), 'ns-lead', 'Folded into the delivery north star for the rest of the year.'));
+    expect(w.goal('ns-lead').stoppedAt).toBeTruthy();
+    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
+    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
+    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', 'metric_lead-time', MINE));
+    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeNull();
   });
 });
 

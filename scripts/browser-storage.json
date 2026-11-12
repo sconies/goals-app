@@ -1,6 +1,7 @@
 {
-  "about": "The files outside src/adapters and src/ports that use browser storage (localStorage, sessionStorage, indexedDB) today, how many times, what they keep and where the internal app keeps it. The layers lint (rule 7, AX9) fails any other file that does, and any of these that does it more; take a file off when it moves behind a port (Prefs, src/ports/prefs.ts, as src/app/goalSeen.ts did). spec/rebuild/adapters.md shows this list as a table. Count: 72 uses in 24 files on 11 Nov 2026.",
+  "about": "The files outside src/adapters and src/ports that use browser storage (localStorage, sessionStorage, indexedDB) today, how many times, what they keep and where the internal app keeps it. The layers lint (rule 7, AX9) fails any other file that does, and any of these that does it more; take a file off when it moves behind a port (Prefs, src/ports/prefs.ts, as src/app/goalSeen.ts did). spec/rebuild/adapters.md shows this list as a table. Count: 79 uses in 25 files on 11 Nov 2026 (index.html’s first script added).",
   "files": {
+    "index.html": { "uses": 7, "keeps": "Nothing of its own: reads the appearance keys (src/app/appearance.ts) before the first paint, so there is no flash", "server": "This browser: a copy of the person’s appearance, for the first paint" },
     "src/app/appearance.ts": { "uses": 3, "keeps": "Appearance: theme, accent, sidebar, motion, sound and story mode", "server": "Server: a person’s preference, on every device" },
     "src/app/demoBrowser.ts": { "uses": 4, "keeps": "Nothing of its own: clears the demo’s keys when the demo is reset", "server": "Not needed: the demo only" },
     "src/app/drafts.ts": { "uses": 4, "keeps": "Unsent check-in and form drafts", "server": "Server: a draft follows the person from laptop to phone" },
@@ -15,7 +16,7 @@
     "src/screens/DataLayout.tsx": { "uses": 4, "keeps": "Each table’s columns and layout on Data", "server": "Server: a person’s preference" },
     "src/screens/GoalMap.tsx": { "uses": 4, "keeps": "Where goals were moved on the Map, and its only-in-trouble switch", "server": "Server: a person’s preference" },
     "src/screens/GoalViews.tsx": { "uses": 4, "keeps": "The Goals list’s layout", "server": "Server: a person’s preference" },
-    "src/screens/Inspect.tsx": { "uses": 2, "keeps": "The order of a review’s goals (this tab)", "server": "This browser" },
+    "src/screens/reviewOrder.ts": { "uses": 2, "keeps": "The order of a review’s goals (this tab)", "server": "This browser" },
     "src/screens/QuickCheckIn.tsx": { "uses": 2, "keeps": "Nothing of its own: clears a check-in’s step once it is saved", "server": "Server, with the step (see CheckInFlow)" },
     "src/telemetry/ids.ts": { "uses": 2, "keeps": "The telemetry session id (this tab)", "server": "This browser" },
     "src/telemetry/staleCode.ts": { "uses": 1, "keeps": "That the page has already reloaded once for new code (this tab)", "server": "This browser" },

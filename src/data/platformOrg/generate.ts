@@ -301,7 +301,8 @@ export function buildPlatformOrg(today: Date): Snapshot {
           });
         }
       }
-      const cs = planChanges({ tables: { checkIns: rows }, snapshot: S, cycle, week: w, actor: person(owner), now: at(w, 0, 11).toISOString(), newId, via: 'spreadsheet' });
+      // The owner has seen the numbers they load: an unlikely one is theirs to keep (confirm), as an answered Check is.
+      const cs = planChanges({ tables: { checkIns: rows }, snapshot: S, cycle, week: w, actor: person(owner), now: at(w, 0, 11).toISOString(), newId, via: 'spreadsheet', confirm: true });
       if (!cs.commit) throw new Error(`Platform example: the import for ${owner} didn’t pass: ${cs.issues.map((x) => x.message).join('; ')}`);
       save(cs.commit);
     }

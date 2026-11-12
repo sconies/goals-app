@@ -6,9 +6,9 @@ import { requestsFromCheckIns } from './asks';
 import { isYear, periodLabel, quarterOf, yearWeeks } from './year';
 import { currentWeek, hasEnded } from './plan';
 import { RULES } from './thresholds';
-import { carries, carryKind } from './carry';
+import { carries, carryCopy, carryKind } from './carry';
 import { yearName } from './yearName';
-import { assessMilestone, checkInsFor, goalStatus } from './status';
+import { checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
 import { carryModules, type ModuleRecords } from './records';
 
@@ -139,6 +139,12 @@ export function cycleState(c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): 
 /** The wrap-up is open from the day it opens until the day it closes, four weeks after the cycle ends. */
 export const wrapUpOpenOn = (c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => ['ending', 'ended'].includes(cycleState(c, today));
 
+/** Whether the next year can be started today (cycle-end rule 6): from the day this one's wrap-up opens, for as long as
+    no later year exists, even once the wrap-up has closed. */
+export const canStartNext = (cycles: Cycle[], c: Cycle, today: Date): boolean => !['before', 'running'].includes(cycleState(c, today)) && !laterCycle(cycles, c);
+/** Why not yet: "2027 can be started from Mon 21 Dec 2026, when 2026’s wrap-up opens." */
+export const startFromLine = (c: Cycle): string => `${nextCycleShape(c).name} can be started from ${dayWithYear(cycleDates(c).wrapUpOpens)}, when ${c.name}’s wrap-up opens.`;
+
 /** The cycle whose wrap-up is open today (the later, if two), or nothing. */
 export function wrapUpCycle(cycles: Cycle[], today: Date): Cycle | undefined {
   return cycles.filter((c) => !c.removedAt && wrapUpOpenOn(c, today)).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
@@ -161,6 +167,8 @@ export function dayWithYear(iso: string): string {
 
 /** The long place line (Goals, the wrap-up, Print): "Week 45 of 53 · Q4 (Oct–Dec) · 2026", or "2026 ended on Sun 3 Jan 2027" once its last day is past. */
 export function periodNow(c: Cycle, today: Date): string {
+  // Before its week 1 a cycle has no week to name: never "Week 0 of 52" (cycle-end 2.10).
+  if (cycleState(c, today) === 'before') return `${c.name} starts ${dayWithYear(cycleDates(c).firstDay)}`;
   return hasEnded(c, today) ? `${c.name} ended on ${dayWithYear(cycleDates(c).lastDay)}` : periodLabel(c, currentWeek(c, today));
 }
 
@@ -227,9 +235,10 @@ export function nextCycleShape(old: Pick<Cycle, 'startDate' | 'weeks'>): { start
 }
 
 /**
- * The next cycle, straight after this one, and copies of the goals that carry on. A carried metric
- * starts from its last number; a carried milestone keeps the stages not yet done, spread over the
- * new cycle. Links between carried goals are kept; a link to a goal that stops is dropped.
+ * The next cycle, straight after this one, and copies of the goals that carry on (domain/carry carryCopy: a number goal
+ * starts from its final number in week 1 with the same target, due at the end of the new year; stages not done are
+ * spread over it; a plan that runs past the year keeps its dates). Links between carried goals are kept; a link to a
+ * goal that finishes or stops is dropped.
  */
 export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros: Retro[], ids: { cycle: string; goal: (old: Goal) => string }, now: string): { cycle: Cycle; goals: Goal[] } {
   const cycle: Cycle = { ...old, id: ids.cycle, ...nextCycleShape(old) };
@@ -237,29 +246,6 @@ export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros
   // finishes, and one its owner stopped at the wrap-up stops. The read-back before starting counts the same.
   const carried = goals.filter((g) => g.cycleId === old.id && carries(carryKind(g, { cycle: old, checkIns, retro: retros.find((r) => r.goalId === g.id && r.cycleId === old.id) ?? null }).kind));
   const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
-  const out = carried.map((g): Goal => {
-    const base = { ...g, id: map.get(g.id)!, cycleId: cycle.id, parentId: g.parentId ? map.get(g.parentId) ?? null : null, createdAt: now, pending: null };
-    if (!base.parentId) base.effect = null;
-    if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > old.weeks) {
-      // A goal that runs past this cycle keeps its plan; its weeks are now counted from the new cycle's start.
-      const shift = (w: number) => w - old.weeks;
-      const plan = { ...g.plan, fromWeek: shift(g.plan.fromWeek ?? 0), endWeek: shift(g.plan.endWeek!), ...(g.plan.points ? { points: g.plan.points.map((p) => ({ ...p, week: shift(p.week) })) } : {}) };
-      return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null } as Goal;
-    }
-    if (g.kind === 'metric') {
-      const own = checkInsFor(g, checkIns).filter((c) => c.value != null);
-      const last = own[own.length - 1]?.value ?? g.plan.start;
-      return { ...base, kind: 'metric', plan: { ...g.plan, start: last }, originalPlan: null, rebaselinedWeek: null } as Goal;
-    }
-    if (g.kind === 'milestone') {
-      const own = checkInsFor(g, checkIns).filter((c) => c.stages);
-      const last = own[own.length - 1];
-      const a = assessMilestone(g, old.weeks, last?.stages ?? null);
-      const left = g.stages.filter((_, i) => a.stages[i]?.kind !== 'done');
-      const stages = (left.length ? left : g.stages).map((st, i, arr) => ({ ...st, id: st.id + '-' + cycle.id, dueWeek: Math.max(1, Math.round(((i + 1) * old.weeks) / arr.length)) }));
-      return { ...base, kind: 'milestone', stages } as Goal;
-    }
-    return base as Goal;
-  });
+  const out = carried.map((g) => carryCopy(g, { old, next: cycle, checkIns, id: map.get(g.id)!, parentId: g.parentId ? map.get(g.parentId) ?? null : null, now, alsoHelps: (g.alsoHelps ?? []).map((h) => map.get(h)).filter((h): h is string => !!h) }));
   return { cycle, goals: out };
 }

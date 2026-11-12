@@ -211,10 +211,27 @@ describe('AI assistants can do what the person can', () => {
     expect((await mateo.call('get_wrap_up')).data!.goals.find((g: { id: string }) => g.id === 'mttr-pir').wrappedUp).toBe(true);
     expect((await mateo.call('start_next_cycle', { confirm: true })).text).toMatch(/Only admins/);
     const amara = await as('amara', DEC, mateo.data());
-    expect((await amara.call('start_next_cycle', {})).text).toMatch(/Ask the person first/);
+    // The dry run reads the start page back, and changes nothing.
+    const dry = await amara.call('start_next_cycle', {});
+    expect(dry.text).toMatch(/Ask the person first/);
+    expect(dry.text).toMatch(/2027 runs from Mon 4 Jan 2027/);
+    expect(amara.data().cycles).toHaveLength(seed(TODAY).cycles.length);
     const started = await amara.call('start_next_cycle', { confirm: true });
     expect(started.error).toBe(false);
     expect(amara.data().cycles).toHaveLength(seed(TODAY).cycles.length + 1);
+    // Through the tools too, a wrap-up after the start keeps the copy true: stopped, it leaves 2027 (cycle-end rule 6).
+    const made = amara.data().cycles.find((c) => c.name === '2027')!;
+    const key = amara.data().goals.find((g) => g.id === 'mttr-pir')!.key;
+    const copy = () => amara.data().goals.find((g) => g.cycleId === made.id && g.key === key && !g.removedAt);
+    expect(copy()).toBeTruthy();
+    await amara.call('wrap_up_goal', { goal_id: 'mttr-pir', result: 'partly', learned: 'Reviews caught most late actions.', next: 'stop' });
+    expect(copy()).toBeUndefined();
+    // Undo, while nobody has used it: admins only, and the year before is as it was.
+    expect((await mateo.call('undo_start_cycle', { cycle_id: made.id })).text).toMatch(/Only admins|admin/);
+    const undone = await amara.call('undo_start_cycle', { cycle_id: made.id });
+    expect(undone.error).toBe(false);
+    expect(undone.text).toMatch(/2027 was undone/);
+    expect(amara.data().cycles.filter((c) => !c.removedAt)).toHaveLength(seed(TODAY).cycles.length);
   });
 
   it(R('views, tokens, feedback and the activity log, with the same rights as in the app'), async () => {

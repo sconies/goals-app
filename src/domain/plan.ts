@@ -66,8 +66,30 @@ export function shapeProgress(shape: PlanShape, week: number, weeks: number): nu
   return w / weeks;
 }
 
+/**
+ * Goal entry, rule 13: a number goal whose plan starts after this week (its From, `fromWeek`, is still to come). Until
+ * then it is not due for a check-in and not late, and its summary line says "· starts week {n}". No new status: it reads
+ * "No check-in yet".
+ */
+export const notStarted = (goal: Goal, week: number): boolean => goal.kind === 'metric' && (goal.plan.fromWeek ?? 0) > week;
+
 /** The week a plan's target is due: its own end week, or the cycle's end. */
 export const planEnd = (plan: MetricPlan, weeks: number) => plan.endWeek ?? weeks;
+
+/**
+ * Goal entry, rule 12: the share of a plan's whole change that falls in its last quarter of weeks (rounded up), from 0
+ * to 1, with `k` that many weeks of `n`. A steady plan of 7 weeks leaves about 0.29 to its last 2; from 10, the weeks
+ * 10, 10, 10, 10, 9, 8 and then 5 leave 0.8. Zero for a plan with no change.
+ */
+export function lateShare(plan: MetricPlan, weeks: number): { share: number; k: number; n: number } {
+  const end = planEnd(plan, weeks);
+  const from = Math.min(plan.fromWeek ?? 0, end - 1);
+  const n = end - from;
+  const k = Math.max(1, Math.ceil(n / 4));
+  const whole = plan.target - plan.start;
+  if (!whole) return { share: 0, k, n };
+  return { share: Math.max(0, Math.min(1, (plan.target - planAt(plan, end - k, weeks)) / whole)), k, n };
+}
 
 export function planAt(plan: MetricPlan, week: number, weeks: number): number {
   const end = planEnd(plan, weeks);

@@ -21,7 +21,7 @@ const goalOf = (x: RunContext, id: string): Goal =>
   findGoal(x.snapshot.goals, id) ?? (x.allGoals && findGoal(x.allGoals, id)) ?? (x.snapshot.archive && findGoal(x.snapshot.archive.goals, id)) ?? (() => { throw new NotAllowed('That goal no longer exists. Reload to see the latest.'); })();
 
 const actions = {
-  saveMetric: { run: (x, i: MetricInput & { id?: string }) => saveMetric(x, i), tools: ['save_metric'] } satisfies ModuleAction<MetricInput & { id?: string }, { commit: Commit | null; metric: Metric }>,
+  saveMetric: { run: (x, i: MetricInput & { id?: string; confirm?: boolean }) => saveMetric(x, i), tools: ['save_metric'] } satisfies ModuleAction<MetricInput & { id?: string; confirm?: boolean }, { commit: Commit | null; metric: Metric }>,
   removeMetric: { run: (x, i: { metricId: string }) => removeMetric(x, i.metricId), said, tools: ['remove_metric', 'restore_removed'] } satisfies ModuleAction<{ metricId: string }, Commit>,
   linkGoalMetric: { run: (x, i: { goalId: string; metricId: string; teamId: string | null }) => linkGoalMetric(x, goalOf(x, i.goalId), i.metricId, i.teamId), tools: ['link_goal_metric'] } satisfies ModuleAction<{ goalId: string; metricId: string; teamId: string | null }, Commit | null>,
   unlinkGoalMetric: { run: (x, i: { goalId: string }) => unlinkGoalMetric(x, goalOf(x, i.goalId)), said, tools: ['link_goal_metric'] } satisfies ModuleAction<{ goalId: string }, Commit | null>,

@@ -20,24 +20,23 @@ import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { parseNumber } from '../domain/checkin';
-import { notNumberText } from '../domain/numbers';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
 import { Steps } from '../ui/bits';
-import { overHundredHint } from '../domain/goal';
+import { blankGoal as blankDraft, type GoalDraft } from '../domain/goal';
+import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck } from '../domain/goalEntry';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
-import { StageFields } from '../ui/GoalFields';
+import { Questions, StageFields } from '../ui/GoalFields';
 import { PickOne, type PickSource } from '../ui/Pick';
 import { FaroLogo } from '../ui/Brand';
 import { PROTOTYPE_LINE } from '../help/about';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
-interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string }
+interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
 /** Set-up's owner picker: a search over the draft's people, and the names a goal row keeps. */
 interface OwnerPick { source: PickSource; idOf: (name: string) => string | null; nameOf: (id: string) => string }
 
@@ -215,20 +214,22 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const teamOf = (r: PersonRow) => r.team.trim() || d.me.team.trim();
   const typed = [d.me.team.trim(), d.me.team.trim(), ...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()).map(teamOf)].filter(Boolean);
   const teamTypo = (r: PersonRow) => (r.team.trim() && !(d.newTeams ?? []).includes(r.team.trim()) ? closeTeam(r.team, typed) : null);
-  const goalErr = (g: GoalRow, headline = false) => ({
-    title: nameProblem(g.title, headline ? 'outcome' : 'goal'),
-    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? notNumberText(g.start) : 'Add today’s number.') : null,
-    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? notNumberText(g.target) : 'Add the target.') : null,
-    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? ((g.limit ?? '').trim() ? notNumberText(g.limit ?? '') : 'Add the limit.') : null,
-  });
-  const clean = (e: ReturnType<typeof goalErr>) => !e.title && !e.start && !e.target && !e.limit;
+  // A card's Must fix is goal entry's rule 2 (door 'setup'), in the same words as New goal, a file and the AI tools. The
+  // owner, team and level are the step's to fix (2.10), so only the card's own fields are said here.
+  const goalErr = (g: GoalRow, headline = false) => {
+    const fix = goalMustFix(cardDraft(g), { cycleWeeks: 53, week: 0, existing: null, door: 'setup', noun: headline ? 'outcome' : 'goal' });
+    const said = (f: 'title' | 'start' | 'target' | 'limit') => fix.find((x) => x.field === f)?.text ?? null;
+    return { title: said('title'), start: said('start'), target: said('target'), limit: said('limit') };
+  };
+  // A card's questions wait for their answers before Next (2.10), as the form's do.
+  const clean = (e: ReturnType<typeof goalErr>, g?: GoalRow) => !e.title && !e.start && !e.target && !e.limit && !(g && unanswered(cardChecks(g), g.answers).length);
   const ok = [
     !nameIssue && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),
     !meErr.name && !meErr.email && !meErr.team,
     !issues('People').length && !rowsOf.some(teamTypo),
     !!d.template,
-    clean(goalErr(d.outcome, true)) && !goalIssue(2),
-    d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) && !issues('Goals').length,
+    clean(goalErr(d.outcome, true), d.outcome) && !goalIssue(2),
+    d.goals.every((g) => !g.title.trim() || clean(goalErr(g), g)) && !issues('Goals').length,
     !result.issues.length,
   ];
   const problem = [
@@ -236,8 +237,8 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
     '',
     'Fix the rows marked in red, or clear them.',
     'Pick a starting point.',
-    goalIssue(2) ?? '',
-    'Fix the goals marked in red, or remove them.',
+    goalIssue(2) ?? (unanswered(cardChecks(d.outcome), d.outcome.answers).length ? 'Answer the question above.' : ''),
+    d.goals.some((g) => g.title.trim() && clean(goalErr(g)) && unanswered(cardChecks(g), g.answers).length) && d.goals.every((g) => !g.title.trim() || clean(goalErr(g))) ? 'Answer the questions above.' : 'Fix the goals marked in red, or remove them.',
     result.issues[0]?.message ?? '',
   ];
   const fieldErr = (text: string | null | undefined) => (tried && text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
@@ -478,7 +479,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
               {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
             </div>
-            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline />
+            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline startDate={d.startDate} />
           </section>
         )}
 
@@ -491,7 +492,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
+                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} startDate={d.startDate} />
                 <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
               </div>
             ))}
@@ -558,11 +559,29 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   );
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
+/** A card as goal entry's draft: its type, unit and numbers (owner, team and level are the step's, 2.10). */
+function cardDraft(g: GoalRow): GoalDraft {
+  return { ...blankDraft('set-up', 'set-up', ''), title: g.title, kind: g.kind, unit: g.unit, start: g.start, target: g.target, limit: g.limit ?? '', margin: g.margin ?? '', ...(g.kind === 'milestone' ? { stages: [{ id: 's', name: 'x', dueWeek: '1' }] } : {}) };
+}
+/** The number questions a card asks (2.10): below zero, over 100%, a hundredfold, a billion, a margin as wide as the limit. */
+const CARD_CHECKS = ['below-zero', 'over-100', 'hundredfold', 'billion', 'margin-wide'];
+function cardChecks(g: GoalRow): GoalCheck[] {
+  const d = cardDraft(g);
+  const mustFix = goalMustFix(d, { cycleWeeks: 53, week: 0, existing: null, door: 'setup' });
+  return goalChecks(d, { week: 0, cycleWeeks: 53, existing: null, door: 'setup', mustFix }).filter((c) => CARD_CHECKS.includes(c.id));
+}
+
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, startDate, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number; startDate: string }) {
   const titleIssue = errors?.title;
   const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
   const name = (headline ? 'Outcome' : g.title || 'Goal');
+  // The number questions (goal entry, rule 3; 2.10), under the card's numbers, answered once for the values they're about.
+  const answers = g.answers ?? {};
+  const questions = (
+    <Questions checks={cardChecks(g)} answers={answers} onAnswer={(c) => onChange({ answers: { ...answers, [c.slot]: c.key } })} onNo={() => undefined}
+      onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; onChange({ answers: rest }); }} />
+  );
   return (
     <div className="stack" style={{ gap: 'var(--s3)' }}>
       <div className="field">
@@ -581,7 +600,7 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
       {g.kind === 'metric' ? (
         <div className="trio">
           <label className="field"><span className="field-label">Today</span><input className={'input' + (errors?.start ? ' invalid' : '')} aria-invalid={!!errors?.start || undefined} inputMode="decimal" value={g.start} onChange={(e) => onChange({ start: e.target.value })} aria-label={name + ': today'} />{say(errors?.start)}</label>
-          <label className="field"><span className="field-label">Target</span><input className={'input' + (errors?.target ? ' invalid' : '')} aria-invalid={!!errors?.target || undefined} inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={name + ': target'} />{say(errors?.target)}{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '') && <span className="hint tone-risk" role="status">{overHundredHint(g.unit ?? '', g.start ?? '', g.target ?? '')}</span>}</label>
+          <label className="field"><span className="field-label">Target</span><input className={'input' + (errors?.target ? ' invalid' : '')} aria-invalid={!!errors?.target || undefined} inputMode="decimal" value={g.target} onChange={(e) => onChange({ target: e.target.value })} aria-label={name + ': target'} />{say(errors?.target)}</label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, days" aria-label={(headline ? 'Outcome' : g.title || 'Goal') + ': unit'} /></label>
         </div>
       ) : g.kind === 'range' ? (
@@ -593,8 +612,10 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
           <label className="field"><span className="field-label">Warn within</span><input className="input" inputMode="decimal" value={g.margin ?? ''} onChange={(e) => onChange({ margin: e.target.value })} placeholder="1" aria-label={(g.title || 'Goal') + ': warn within'} /></label>
           <label className="field"><span className="field-label">Unit</span><input className="input" value={g.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, ms" aria-label={(g.title || 'Goal') + ': unit'} /></label>
         </div>
-      ) : (
-        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} weeks={weeks} />
+      ) : null}
+      {g.kind !== 'milestone' && questions}
+      {g.kind !== 'milestone' ? null : (
+        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} cycle={{ startDate, weeks }} week={week} />
       )}
       {/* Asked here, in the open, so a new goal page doesn't say "not described yet" (setup review, 8 Nov). */}
       {g.kind !== 'milestone' && (
@@ -613,11 +634,11 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
  * Stages as rows (name and week), with the same fields as the new-goal wizard and Edit goal. Kept in the text form the
  * importer reads ("Design@3; Pilot@7").
  */
-function StageRows({ value, onChange, goalName, weeks }: { value: string; onChange: (v: string) => void; goalName: string; weeks: number }) {
+function StageRows({ value, onChange, goalName, cycle, week }: { value: string; onChange: (v: string) => void; goalName: string; cycle: { startDate: string; weeks: number }; week: number }) {
   const parsed = value.split(';').map((x) => x.trim()).filter(Boolean).map((x, i) => { const [n, w] = x.split('@'); return { id: 's' + i, name: (n ?? '').trim(), dueWeek: (w ?? '').trim() }; });
   const stages = parsed.length ? parsed : [{ id: 's0', name: '', dueWeek: '' }];
   const save = (next: { name: string; dueWeek: string }[]) => onChange(next.map((r) => `${r.name.replace(/[;@]/g, ' ')}@${r.dueWeek.replace(/\D/g, '')}`).join('; '));
-  return <StageFields stages={stages} onChange={save} onAdd={() => save([...stages, { name: '', dueWeek: '' }])} error={null} labelClass="field-label" weeks={weeks} goalName={goalName} />;
+  return <StageFields stages={stages} onChange={save} onAdd={() => save([...stages, { name: '', dueWeek: '' }])} error={null} labelClass="field-label" cycle={cycle} week={week} goalName={goalName} />;
 }
 
 function UploadButton({ onFile, label = 'Upload a spreadsheet' }: { onFile: (f: File) => void; label?: string }) {

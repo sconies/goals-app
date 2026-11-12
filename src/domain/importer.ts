@@ -104,7 +104,15 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
   });
   const notes: ImportIssue[] = [];
-  for (const i of cs.issues) (i.severity === 'error' ? issues : i.severity === 'note' ? notes : []).push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
+  // Must fix blocks set-up. A Check is a question set-up's own steps don't ask yet (IM8 brings it the import's preview):
+  // one that stopped its row from being built blocks set-up too, so no row is ever quietly left out; one the row was read
+  // past, and how a row was read, are said beside the row.
+  // (A row a Must fix already stops says that first, and only that.)
+  const rowOf = (i: { sheet: string; row: number }) => `${i.sheet}\t${i.row}`;
+  const built = new Set(cs.items.map(rowOf));
+  const mustRows = new Set(cs.issues.filter((i) => i.level === 'must').map(rowOf));
+  const blocks = (i: (typeof cs.issues)[number]) => i.level === 'must' || (i.level === 'check' && !built.has(rowOf(i)) && !mustRows.has(rowOf(i)));
+  for (const i of cs.issues) (blocks(i) ? issues : notes).push({ table: i.sheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
   // The weekly review and the pinned views, set up by the first person (you).

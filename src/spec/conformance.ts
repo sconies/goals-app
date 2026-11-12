@@ -12,6 +12,13 @@ import { search } from '../domain/find';
 import { goalRows, homeFacts, personRows, teamRows } from '../app/reads';
 import { homeFor } from '../domain/home';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
+import { planChanges } from '../domain/changeset';
+import { blankGoal, type GoalDraft } from '../domain/goal';
+import { goalChecks } from '../domain/goalEntry';
+import { startLevel } from '../domain/newGoal';
+import { readBack, reviewsJoining } from '../domain/readBack';
+import type { ModuleRows } from '../domain/records';
+import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
 /** The moment the demo workspace is built for: Thursday 5 November 2026, noon UTC (week 45), as the evals pin it. */
 export const CHECK_IN_MOMENT = '2026-11-05T12:00:00.000Z';
@@ -28,10 +35,31 @@ export interface ConformanceWorkspace {
   checkIns: CheckIn[];
   decisions: Decision[];
   requests: Ask[];
+  /** Each review's picks (`scope`) too, for the reviews a new goal joins (readback.csv); its rhythm and people for home.csv. */
   reviews: Pick<Review, 'id' | 'name' | 'everyWeeks' | 'weekday' | 'scope' | 'people'>[];
   /** Who watches what (home.csv reads it). Watches carry no date: they are taken as they are now in every week. */
   watches: Pick<Watch, 'id' | 'personId' | 'kind' | 'ref'>[];
+  /** Feature modules' own records (domain/records), by module and record, for the rows a module adds (ModuleConformance). */
+  modules?: ModuleRows;
 }
+
+/**
+ * A feature module's rows in the conformance data (its conformance.ts, through the module registry): one CSV file of
+ * what its rules give in the demo workspace as it stood at `builtFor`. Not part of stage 1: the drill scores it when
+ * asked (`"also"` in drill.json). `rows` is given `asOf`, so a module needs nothing else from here.
+ */
+export interface ModuleConformance {
+  /** The file's name, without .csv. */
+  file: string;
+  header: string[];
+  /** The columns that name a row (the drill matches rows by them). */
+  keys: string[];
+  /** What the file holds, for the conformance README: Markdown, one paragraph. */
+  about: string;
+  rows(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): string[][];
+}
+/** The modules' conformance files in this build. */
+export const MODULE_FILES: (ModuleConformance & { module: string })[] = MODULE_CONFORMANCE.flatMap((m) => m.part.map((c) => ({ ...c, module: m.id })));
 
 /** The demo's records, trimmed to what the rules read, as workspace.json holds them. */
 export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
@@ -46,8 +74,9 @@ export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
     checkIns: live(s.checkIns),
     decisions: live(s.decisions),
     requests: s.requests ?? [],
-    reviews: live(s.reviews).map((r) => ({ id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people })),
+    reviews: live(s.reviews).filter((r) => !r.endedAt).map((r) => ({ id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people })),
     watches: live(s.watches).map((x) => ({ id: x.id, personId: x.personId, kind: x.kind, ref: x.ref })),
+    ...(MODULE_FILES.length && s.modules ? { modules: Object.fromEntries(Object.entries(s.modules).filter(([id]) => MODULE_FILES.some((f) => f.module === id))) } : {}),
   };
 }
 
@@ -75,18 +104,21 @@ export function asOf(w: ConformanceWorkspace, moment: Date): Snapshot {
     changes: [], watches: w.watches ?? [], retros: [],
     reviews: w.reviews.map((r) => ({ ...r, createdBy: '', createdAt: '' })),
     requests,
+    ...(w.modules ? { modules: w.modules } : {}),
   };
 }
 
 /* ---------- the rows ---------- */
 
-export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][]; checkin: string[][] }
+export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][]; 'scorecard-words': string[][]; checkin: string[][] }
 
 export const HEADERS: Record<keyof ConformanceTables, string[]> = {
   status: ['week', 'goal', 'kind', 'status', 'calculated', 'greener', 'latest_week', 'days_without_update'],
   flags: ['week', 'goal', 'flags', 'handled', 'needs_attention', 'attention_group'],
   projection: ['week', 'goal', 'kind', 'to_week', 'value', 'low', 'high', 'slope', 'first_week', 'last_week', 'forecast_misses'],
-  scorecard: ['week', 'goal', 'cell', 'value', 'tone', 'likelihood', 'label', 'sub'],
+  // The scorecard's codes are scored; its words are a file of their own, so a rebuild in other words still scores (AS part 3; deep review A5).
+  scorecard: ['week', 'goal', 'cell', 'tone', 'likelihood'],
+  'scorecard-words': ['week', 'goal', 'cell', 'value', 'label', 'sub'],
   checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing'],
 };
 
@@ -99,7 +131,7 @@ const keyOf = (g: Goal) => g.key ?? g.id;
 export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
   const cycle = w.cycle;
   const last = currentWeek(cycle, new Date(w.builtFor));
-  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [], checkin: [] };
+  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [], 'scorecard-words': [], checkin: [] };
   for (let week = 0; week <= last; week++) {
     const moment = weekMoment(cycle, week);
     const s = asOf(w, moment);
@@ -124,7 +156,8 @@ export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
       }
 
       for (const c of goalScorecard(goal, cycle, s.checkIns, week, st.status === 'stale').cells) {
-        out.scorecard.push([W, k, c.key, c.value, c.tone, c.likelihood ?? '', c.label, c.sub]);
+        out.scorecard.push([W, k, c.key, c.tone, c.likelihood ?? '']);
+        out['scorecard-words'].push([W, k, c.key, c.value, c.label, c.sub]);
       }
     }
   }
@@ -233,6 +266,138 @@ export function homeRowsOf(w: ConformanceWorkspace): string[][] {
   return rows;
 }
 
+/* ---------- kinds, levels and near misses (backlog IM2) ---------- */
+
+/**
+ * One case per kind of problem the change engine raises (docs/design/import/spec.md, section 4), run on the workspace
+ * as it stood at `builtFor`: who loads it, which sheet, its rows (column → cell), and any answers by group id. People in
+ * workspace.json have no email, so rows name people by name or ID. Cells that depend on the workspace (a target turned
+ * round, check-ins someone else posted) are worked out from it here and written into the file, so the file says it all.
+ */
+export interface ImportCase { case: string; actor: string; sheet: 'goals' | 'plan' | 'checkIns' | 'people'; rows: Record<string, string>[]; answers?: Record<string, string> }
+export function importCases(w: ConformanceWorkspace): ImportCase[] {
+  const s = asOf(w, new Date(w.builtFor));
+  const week = currentWeek(w.cycle, new Date(w.builtFor));
+  const g = (k: string) => s.goals.find((x) => x.key === k)!;
+  const g1 = g('G-1') as Extract<Goal, { kind: 'metric' }>;
+  const fresh = (o: Record<string, string>) => ({ Goal: 'A new goal', Owner: 'Rhea Kapoor', Unit: '%', Start: '10', Target: '50', ...o });
+  const theirs = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
+  const rheas = s.goals.filter((x) => x.ownerId === 'rhea').slice(0, 5);
+  return [
+    { case: 'required-empty', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' }] },
+    { case: 'required-empty-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '' })] },
+    { case: 'not-a-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: 'six' }] },
+    { case: 'formula', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '=20+2' })] },
+    { case: 'precision', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Value: '6.25' }] },
+    { case: 'impossible-number', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-31', Week: String(week), Value: '-4' }] },
+    { case: 'unknown-word', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Level: 'vp' }] },
+    { case: 'unknown-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'Infra Guild' })] },
+    { case: 'conflicting-refs', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Owner ID': 'tunde' })] },
+    { case: 'bad-key', actor: 'amara', sheet: 'goals', rows: [{ Key: '12', Goal: 'x' }] },
+    { case: 'bad-key-none', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-999', Goal: 'x' }] },
+    { case: 'duplicate', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target) }, { Key: 'G-1', Target: String(g1.plan.target) }] },
+    { case: 'type-unclear', actor: 'amara', sheet: 'goals', rows: [fresh({ Stages: 'Design@50' })] },
+    { case: 'plan-order', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Due week': '10' })] },
+    { case: 'stage-format', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' }] },
+    { case: 'week-wrong', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week + 4), Value: '6' }] },
+    { case: 'checkin-incomplete', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Call: 'Off track', 'Path to green': '' }] },
+    { case: 'cant-change', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Type: 'milestone' }] },
+    { case: 'not-allowed', actor: 'tunde', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target - 1), Reason: 'Agreed at the review' }] },
+    // Goal entry's rule 2 (GE1): the same Must fix and words as New goal; anyone may add a goal for anyone, at any level.
+    { case: 'has-words', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '12 days' })] },
+    { case: 'same-as-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '10' })] },
+    { case: 'stage-twice', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@50; design@51' }] },
+    { case: 'effect-not-number', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Feeds into key': 'G-14', Effect: 'lots' })] },
+    { case: 'for-someone-else', actor: 'tunde', sheet: 'goals', rows: [fresh({ Goal: 'A north star for Rhea', Level: 'north star' })] },
+    // Goal entry's rule 3 (GE2): the same questions and words as New goal, each that applies, one answer per question.
+    { case: 'over-100-and-hundredfold', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '10', Target: '1500' })] },
+    { case: 'over-100-answered', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '50', Target: '150' })], answers: { 'odd-number:goals:target:over-100': 'right' } },
+    { case: 'margin-wide', actor: 'amara', sheet: 'goals', rows: [fresh({ Type: 'range', Start: '', Target: '', Limit: '12', Margin: '20' })] },
+    { case: 'no-unit-cleared', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Unit: '' }] },
+    { case: 'feeds-lower', actor: 'amara', sheet: 'goals', rows: [fresh({ Level: 'north star', 'Feeds into key': 'G-14' })] },
+    // Years and weeks (rule 13; GE9): From and To as a goal year's week, beside the old columns, read as Owner and Owner email are.
+    { case: 'to-before-from', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', To: '2026-W40' })] },
+    { case: 'week-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ To: '2027-W53' })] },
+    { case: 'from-pair-disagrees', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', 'Plan from week': '40' })] },
+    { case: 'to-next-year', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', To: '2027-W13' })] },
+    { case: 'removal-refused', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop' }] },
+    { case: 'loop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', 'Feeds into key': 'G-1' }] },
+    { case: 'near-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })] },
+    { case: 'near-ref-answered', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })], answers: { 'near-ref:goals:team:ci-dc': 'use' } },
+    { case: 'near-ref-person', actor: 'amara', sheet: 'goals', rows: [fresh({ Owner: 'Rhea Kapor' })] },
+    { case: 'near-word', actor: 'amara', sheet: 'goals', rows: [fresh({ Type: 'numbr' })] },
+    { case: 'same-person', actor: 'amara', sheet: 'people', rows: [{ Name: 'Rhea Kapor', Email: 'rhea.k@example.com', Team: 'CI/CD' }] },
+    { case: 'same-goal', actor: 'amara', sheet: 'goals', rows: [fresh({ Goal: g('G-14').title, Team: 'CI/CD' })] },
+    { case: 'other-goal', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Goal: 'Net revenue retention', Target: '110' }] },
+    { case: 'past-stage', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'P1 stages in the past', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@2; Pilot@6; All services@10' }] },
+    { case: 'past-plan', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Plan from week': '1', 'Due week': '10' })] },
+    { case: 'odd-number', actor: 'amara', sheet: 'goals', rows: [fresh({ Unit: 'ms', Start: '3', Target: '3000' })] },
+    { case: 'plan-question', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(2 * g1.plan.start - g1.plan.target), Reason: 'Measured the other way round' }] },
+    { case: 'no-unit', actor: 'amara', sheet: 'goals', rows: [fresh({ Unit: '' })] },
+    { case: 'decimal-comma', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '1,5' })] },
+    { case: 'replaces-others', actor: 'amara', sheet: 'checkIns', rows: theirs.map((c, k) => ({ ID: c.id, 'Goal ID': c.goalId, Week: String(c.week), 'Next step': `Next step number ${k}` })) },
+    { case: 'many-admins', actor: 'amara', sheet: 'people', rows: ['rhea', 'tunde', 'samir'].map((id) => ({ ID: id, Admin: 'yes' })) },
+    { case: 'totals-row', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'TOTAL', Start: '10', Target: '550' }] },
+    { case: 'big-removal', actor: 'amara', sheet: 'goals', rows: rheas.map((x) => ({ ID: x.id, Action: 'Stop', Reason: 'No longer needed this year.' })) },
+  ];
+}
+export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'kind', 'level', 'group', 'message', 'must', 'questions', 'saves'];
+
+/**
+ * What the change engine says for each case: the first problem or question (its kind, level, group id and sentence; a
+ * note isn't one), how many Must-fix groups and Check groups there are, and whether it would save.
+ */
+export function importRowsOf(w: ConformanceWorkspace): string[][] {
+  const at = new Date(w.builtFor);
+  const base = asOf(w, at);
+  const snapshot: Snapshot = { ...base, people: base.people.map((p) => ({ ...p, email: p.email ?? '' })) };
+  const week = currentWeek(w.cycle, at);
+  return importCases(w).map((c) => {
+    let k = 0;
+    const tables = { [c.sheet]: c.rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) })) };
+    const cs = planChanges({ tables, snapshot, cycle: w.cycle, week, actor: snapshot.people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+    const first = cs.issues.find((i) => i.level !== 'note');
+    return [c.case, c.actor, c.sheet, JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', first?.kind ?? '', first?.level ?? '', first?.group ?? '', first?.message ?? '',
+      String(cs.groups.filter((x) => x.level === 'must').length), String(cs.groups.filter((x) => x.level === 'check').length), yes(!!cs.commit)];
+  });
+}
+
+/* ---------- the read-back (goal entry, rule 5; GE3) ---------- */
+
+/** The drafts readback.csv reads back: New goal's last step, by `viewer`, at `builtFor`. */
+export const READBACK_CASES: { case: string; viewer: string; draft: Partial<GoalDraft> }[] = [
+  { case: 'number-own', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', parentId: 'ns-mttr', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
+  { case: 'number-for-someone-else', viewer: 'tunde', draft: { ownerId: 'amara', teamId: 'build', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
+  { case: 'number-answered', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', title: 'Runbook coverage', unit: '%', start: '50', target: '150', decimals: '0', fromWeek: '40', endWeek: '66', shape: 'back' } },
+  { case: 'range', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', kind: 'range', title: 'Change failure rate', unit: '%', limit: '12' } },
+  { case: 'stages', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', kind: 'milestone', title: 'Signing rolled out', stages: [{ id: 's1', name: 'Pilot', dueWeek: '50' }] } },
+  { case: 'north-star', viewer: 'amara', draft: { ownerId: 'amara', teamId: 'office', level: 'north-star', title: 'Developer happiness', unit: 'pts', start: '30', target: '40', guardrail: true, alsoHelps: ['ns-mttr'] } },
+];
+export const READBACK_HEADER = ['case', 'viewer', 'draft', 'rows', 'after'];
+
+/**
+ * What New goal's last step says for each case: its rows (`label: sentence`, separated by ` | `) and its "After you
+ * publish" lines (separated by ` | `), with the weekly rhythm and Reviews on. Every question asked is taken as answered.
+ */
+export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
+  const at = new Date(w.builtFor);
+  const s = asOf(w, at);
+  const week = currentWeek(w.cycle, at);
+  return READBACK_CASES.map((x) => {
+    const d: GoalDraft = { ...blankGoal('', '', ''), ...x.draft };
+    const parent = s.goals.find((g) => g.id === d.parentId) ?? null;
+    const owner = s.people.find((p) => p.id === d.ownerId) ?? null;
+    const level = x.draft.level ?? startLevel(w.cycle, d.ownerId, s.teams, s.goals, parent);
+    const answers = goalChecks({ ...d, level: level ?? d.level }, { week, cycleWeeks: w.cycle.weeks, existing: null, door: 'form', startDate: w.cycle.startDate }).filter((c) => c.id !== 'stage-past' && c.readBack).map((c) => c.readBack);
+    const rb = readBack(d, {
+      cycle: w.cycle, week, today: at, level, owner: owner ? { name: owner.name, isViewer: owner.id === x.viewer } : null, teamName: s.teams.find((t) => t.id === d.teamId)?.name ?? '',
+      parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: d.alsoHelps.map((id) => s.goals.find((g) => g.id === id)?.title ?? id), metric: null, answers, rhythm: 'weekly', reviewsOn: true,
+      reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, w.reviews as Review[], s.goals, w.cycle) : [], wsName: 'Platform Engineering',
+    });
+    return [x.case, x.viewer, JSON.stringify(x.draft), rb.rows.map((r) => `${r.label}: ${r.text}`).join(' | '), rb.after.join(' | ')];
+  });
+}
+
 /* ---------- CSV ---------- */
 
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -241,5 +406,8 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 /** The CSV files, by name. */
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
-  return { ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)) };
+  return {
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)),
+    ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
+  };
 }

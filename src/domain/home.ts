@@ -107,7 +107,7 @@ export interface HomeFacts {
   rhythm: { dueDate: string; nextDueDate: string | null } | null;
   checkIns: { total: number; done: number; due: { id: string; title: string; number: boolean }[]; draft: boolean; allInOnTimeToday: boolean; streak: number | null };
   /** The wrap-up, while it is open: the cycle's last day, whether it has passed, the viewer's goals not yet wrapped up. */
-  wrap: { ends: string; ended: boolean; left: { id: string; title: string }[]; total: number } | null;
+  wrap: { name?: string; ends: string; ended: boolean; left: { id: string; title: string }[]; total: number } | null;
   sessions: HomeSession[];
   owns: number;
   watches: number;
@@ -196,7 +196,7 @@ export function homeLead(f: HomeFacts): Lead | null {
   // 40: the wrap-up, once no check-in is still to do this week (Monday 21 Dec with two to do has no lead: the wrap-up is a cell).
   if (f.wrap && f.wrap.left.length && !(f.rhythm && due)) {
     const n = f.wrap.left.length;
-    return { kind: 'wrap-up', eyebrow: f.wrap.ended ? `${f.cycleName} has ended` : `${f.cycleName} ends on ${longDay(f.wrap.ends)}`, warn: false,
+    return { kind: 'wrap-up', eyebrow: f.wrap.ended ? `${f.wrap.name ?? f.cycleName} has ended` : `${f.wrap.name ?? f.cycleName} ends on ${longDay(f.wrap.ends)}`, warn: false,
       title: n === 1 ? 'Wrap up your goal' : `Wrap up your ${n} goals`, line: 'How each one landed, one thing you learned, and whether it carries on. About a minute each.',
       action: { label: 'Start the wrap-up', to: `/retro/${f.wrap.left[0]!.id}` }, also: null, ring: { done: f.wrap.total - n, total: f.wrap.total, counts: 'wrapped' }, about: null };
   }

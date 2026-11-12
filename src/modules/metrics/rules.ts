@@ -46,6 +46,11 @@ export const REFRESH_LABEL: Record<MetricRefresh, string> = { live: 'Live', hour
 /** How a slice reads: a team's name, or the whole company. */
 export const COMPANY = 'The whole company';
 
+/** A metric's owner's name; null when it has none or they have left. */
+export const ownerName = (people: readonly Pick<Person, 'id' | 'name' | 'leftAt'>[], m: Pick<Metric, 'ownerId'>) => { const p = people.find((x) => x.id === m.ownerId); return p && !p.leftAt ? p.name : null; };
+/** Live metrics with no owner, or an owner who has left: Workspace → About's "{n} metrics have no owner", for admins (spec 2.8). */
+export const ownerlessMetrics = (r: { metrics: readonly Metric[]; people: readonly Pick<Person, 'id' | 'name' | 'leftAt'>[] }): Metric[] => r.metrics.filter((m) => !m.removedAt && !ownerName(r.people, m));
+
 /** The limits a metric's fields keep to: what the form, the tools and the database all check. */
 export const METRIC_LIMITS = { name: 120, unit: 20, text: 2000, decimals: 4 } as const;
 /** The fields a metric must have, and the ones it may leave empty. */
@@ -184,16 +189,32 @@ export const canLinkGoal = (actor: ActionContext['actor'], g: Goal) => actor.adm
 /* ---------- the actions ---------- */
 
 /**
+ * Changing the unit or which way is better of a metric that live goals use is asked first, at every door (the form's
+ * confirm, save_metric's confirm): their numbers and plans don't change, and those that now differ show a warning
+ * (linkProblems). Null when nothing needs asking.
+ */
+export function metricChangeQuestion(before: Metric, next: Metric, goals: readonly Goal[], links: readonly MetricLink[]): { changing: ('unit' | 'direction')[]; goals: number; apart: number; text: string } | null {
+  const linked = links.filter((l) => l.metricId === before.id && !l.removedAt).map((l) => goals.find((g) => g.id === l.goalId)).filter((g): g is Goal => !!g && !g.removedAt && !g.stoppedAt);
+  const changing = linked.length ? [...(next.unit.trim().toLowerCase() !== before.unit.trim().toLowerCase() ? ['unit' as const] : []), ...(next.direction !== before.direction ? ['direction' as const] : [])] : [];
+  if (!changing.length) return null;
+  const apart = linked.filter((g) => { const p = linkProblems(g, next); return p.errors.length + p.warnings.length > 0; }).length;
+  const n = linked.length;
+  return { changing, goals: n, apart, text: `${n} ${n === 1 ? 'goal is' : 'goals are'} measured by this metric. Changing its ${changing.join(' and ')} doesn’t change their numbers or plans; ${apart} of them will show a warning that they differ. Change it?` };
+}
+
+/**
  * Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
  * the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
  * nothing changed.
  */
-export function saveMetric(x: ActionContext, input: MetricInput & { id?: string }): { commit: Commit | null; metric: Metric } {
+export function saveMetric(x: ActionContext, input: MetricInput & { id?: string; confirm?: boolean }): { commit: Commit | null; metric: Metric } {
   const before = input.id ? live(x, input.id) : null;
   if (before && !ownsOrAdmin(x, before)) no(`Only ${x.snapshot.people.find((p) => p.id === before.ownerId)?.name ?? 'the metric’s owner'} or an admin can change this metric.`);
   const m = metricFrom(input, before, x);
   const problems = metricProblems(m, x.snapshot);
   if (problems.length) no(problems.join(' '));
+  const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
+  if (ask && !input.confirm) no(ask.text.replace(/ Change it\?$/, ' Ask first, then save it again with confirm.'));
   const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
   if (before && !diffs.length) return { commit: null, metric: before };
   const summary = before ? (before.name !== m.name ? `Renamed the metric “${before.name}” to “${m.name}”` : `Changed the metric “${m.name}”`) : `Added the metric “${m.name}”`;
@@ -243,7 +264,10 @@ export function linkProblems(goal: Goal, m: Metric): { errors: string[]; warning
  * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
  */
 export function linkGoalMetric(x: ActionContext, goal: Goal, metricId: string, teamId: string | null = null): Commit | null {
-  if (!canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
+  // A goal being created in this save (it's in the snapshot the form passes, not yet in the workspace): whoever may
+  // create it, for themselves or someone else, chooses what measures it in the same save.
+  const creating = !!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id);
+  if (!creating && !canLinkGoal(x.actor, goal)) no('Only the goal’s owner or an admin can choose what measures it.');
   const m = live(x, metricId);
   if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no('There’s no team with that ID. Leave the slice empty for the whole company.');
   const { errors } = linkProblems(goal, m);

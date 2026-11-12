@@ -42,7 +42,7 @@ import { LABEL, LEFT, STOPPED } from '../src/domain/vocabulary';
 import { callTool, type McpContext } from '../src/mcp/tools';
 import type { Goal, MetricGoal, Snapshot } from '../src/domain/types';
 
-const F = (id: 'ONE-FORMAT' | 'ROUND-TRIP' | 'IMPORT-ACTIONS' | 'PERSON-EMAIL', text: string) => `[${id}] ${text}`;
+const F = (id: 'ONE-FORMAT' | 'ROUND-TRIP' | 'IMPORT-ACTIONS' | 'PERSON-EMAIL' | 'IMPORT-LEVELS', text: string) => `[${id}] ${text}`;
 const root = path.join(__dirname, '..');
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -108,7 +108,7 @@ describe('one format', () => {
     const people = exportedTable(sheetNamed(bookOf(full0), 'People'), { ...usualLayout('people'), cols: ['Job title'] });
     const r = readTables([{ name: 'Sheet1.csv', rows: parseDelimited(toCsv(people.rows)) }, { name: 'Goals.csv', rows: parseDelimited(toCsv(sheetNamed(bookOf(full0), 'Asks').rows)) }]);
     expect(r.read).toEqual([{ name: 'Sheet1.csv', kind: 'people' }]);
-    expect(r.skipped).toEqual([{ name: 'Goals.csv', why: 'written for reading; not loaded back' }]);
+    expect(r.skipped).toEqual([{ name: 'Goals.csv', why: 'reading-only' }]);
   });
 
   it(F('ONE-FORMAT', 'worked-out columns say the vocabulary’s words and are never read: changing them changes nothing'), () => {
@@ -128,14 +128,14 @@ describe('one format', () => {
   it(F('ONE-FORMAT', 'a word a column doesn’t know is a problem to fix, never a quiet default'), () => {
     const g = scoped(full0).goals.find((x) => x.kind === 'range')!;
     const bad = (o: Record<string, string>) => errors(load(full0, { goals: [{ __row: '2', key: g.key!, ...o }] }))[0] ?? '';
-    expect(bad({ level: 'vp' })).toMatch(/Level “vp” isn’t one of: north star, svp or team/);
-    expect(bad({ 'must stay': 'sometimes' })).toMatch(/Must stay “sometimes” isn’t one of: at most or at least/);
-    expect(bad({ type: 'pie' })).toMatch(/Type “pie”/);
-    expect(bad({ action: 'Archive' })).toMatch(/Action “Archive” isn’t one of: Stop, Delete or Example/);
+    expect(bad({ level: 'vp' })).toMatch(/Level says “vp”. Use north star, svp or team/);
+    expect(bad({ 'must stay': 'sometimes' })).toMatch(/Must stay says “sometimes”. Use at most or at least/);
+    expect(bad({ type: 'pie' })).toMatch(/Type says “pie”/);
+    expect(bad({ action: 'Archive' })).toMatch(/Action says “Archive”. Use Stop, Delete or Example, or leave it empty/);
     const m = scoped(full0).goals.find((x) => x.kind === 'metric')!;
-    expect(errors(load(full0, { goals: [{ __row: '2', key: m.key!, plan: 'zigzag' }] }))[0]).toMatch(/Plan “zigzag”/);
+    expect(errors(load(full0, { goals: [{ __row: '2', key: m.key!, plan: 'zigzag' }] }))[0]).toMatch(/Plan says “zigzag”/);
     const ci = checkInsFor(m, scoped(full0).checkIns).at(-1)!;
-    expect(errors(load(full0, { checkIns: [{ __row: '2', id: ci.id, 'goal key': m.key!, week: String(ci.week), recovery: 'maybe' }] }))[0]).toMatch(/Recovery “maybe”/);
+    expect(errors(load(full0, { checkIns: [{ __row: '2', id: ci.id, 'goal key': m.key!, week: String(ci.week), recovery: 'maybe' }] }))[0]).toMatch(/Recovery says “maybe”/);
   });
 
   it(F('ONE-FORMAT', 'set-up reads a whole exported workbook: people (not its Asks), keys, decimals, due weeks, definitions, why it helps, plans and past check-ins'), async () => {
@@ -311,6 +311,35 @@ describe('a row’s Action', () => {
     expect(errors(load(w.full, { people: [{ __row: '2', email: 'rhea.kapoor@example.com', action: LEFT, 'takes over': 'tariq.haddad@example.com' }] }, 'mateo'))[0]).toMatch(/Only an admin/);
     // A non-owner's stop is refused as in the app.
     expect(errors(load(w.full, { goals: [{ __row: '2', key: g.key!, action: 'Stop', reason: 'Not mine to stop, though.' }] }, 'rhea'))[0]).toMatch(/Only the goal’s owner or an admin/);
+  });
+});
+
+describe('kinds, levels and near misses (backlog IM2)', () => {
+  const rows = (k: number, o: Record<string, string>) => Array.from({ length: k }, (_, i) => ({ __row: String(i + 2), goal: `Pipeline goal ${i + 1}`, owner: 'Rhea Kapoor', unit: '%', start: '10', target: '50', ...o }));
+  it(F('IMPORT-LEVELS', 'every problem is Must fix, Check or said; fourteen rows with one typo are one question, and one answer saves them all'), () => {
+    const t = { goals: rows(14, { team: 'CI/DC' }) };
+    const cs = load(full0, t);
+    expect(cs.groups.filter((g) => g.level !== 'note').map((g) => [g.level, g.kind, g.count, g.title])).toEqual([['check', 'near-ref', 14, '14 rows name a team that isn’t here: “CI/DC”. Did you mean CI/CD?']]);
+    expect(cs.commit).toBeNull();
+    const done = load(full0, t, 'amara', 'spreadsheet');
+    expect(done.groups[0]!.id).toBe(cs.groups[0]!.id);
+    const s = scoped(full0);
+    const saved = planChanges({ tables: t, snapshot: s, cycle, week, actor: s.people.find((p) => p.id === 'amara')!, now: today.toISOString(), newId, via: 'spreadsheet', answers: { [cs.groups[0]!.id]: { choice: 'use' } } });
+    expect(saved.counts.newGoals).toBe(14);
+    expect(saved.commit!.goals!.every((g) => g.teamId === s.teams.find((x) => x.name === 'CI/CD')!.id)).toBe(true);
+  });
+  it(F('IMPORT-LEVELS', 'a name or word one letter out is asked, never guessed; one that matches nothing is Must fix, never quietly dropped'), () => {
+    const kinds = (o: Record<string, string>) => load(full0, { goals: rows(1, o) }).issues.filter((i) => i.level !== 'note').map((i) => `${i.level} ${i.kind}`);
+    expect(kinds({ owner: 'Rhea Kapor' })).toEqual(['check near-ref']);
+    expect(kinds({ type: 'numbr' })).toEqual(['check near-word']);
+    expect(kinds({ team: 'Infra Guild' })).toEqual(['must unknown-ref']);
+    expect(kinds({ level: 'vp' })).toEqual(['must unknown-word']);
+    // Case, accents, "&" and punctuation fold to a match: said, not asked.
+    expect(kinds({ team: 'ci cd', owner: 'rhea kapoor' })).toEqual([]);
+  });
+  it(F('IMPORT-LEVELS', 'the AI tools carry the same levels: a dry run lists must_fix and check by group, and answers by group id save'), async () => {
+    const cs = load(full0, { goals: rows(2, { team: 'CI/DC' }) }, 'amara', 'mcp');
+    expect(cs.groups.find((g) => g.level === 'check')!.answers.map((a) => a.choice)).toEqual(['use', 'new', 'choose']);
   });
 });
 

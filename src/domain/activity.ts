@@ -188,3 +188,21 @@ export function activityRows(list: Change[], s: Snapshot): Cell[][] {
     ]),
   ];
 }
+
+/**
+ * An import, bulk edit or undo is one entry in Activity (import spec 2.7): the rows it wrote fold under its summary,
+ * shown on request. A row folds only when its summary is in the list too, so a search that finds the row but not the
+ * summary still shows it, as does each goal's own history (which never folds).
+ */
+export function foldImports(list: Change[]): { top: Change[]; rows: Map<string, Change[]> } {
+  const key = (c: Change) => `${c.importId}|${c.at}`;
+  const heads = new Map<string, Change>();
+  for (const c of list) if (c.entity === 'workspace' && (c.action === 'imported' || c.action === 'undone') && c.importId) heads.set(key(c), c);
+  const rows = new Map<string, Change[]>();
+  const top: Change[] = [];
+  for (const c of list) {
+    const head = c.importId ? heads.get(key(c)) : undefined;
+    if (head && head !== c) { const l = rows.get(head.id) ?? []; l.push(c); rows.set(head.id, l); } else top.push(c);
+  }
+  return { top, rows };
+}
