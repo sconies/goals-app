@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'batch-refs',
     date: '2026-11-12',
     title: 'Build a whole tree of goals in one file',

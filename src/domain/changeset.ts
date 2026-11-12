@@ -1033,7 +1033,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     });
     if (missing) { if (leftSet.has(`Goals|${l.row}`)) touched.delete(l.id); continue; }
     const ids = new Set(found.map((x) => x.p?.id ?? ''));
-    if (ids.size > 1) { raise('conflicting-refs', 'Goals', l.row, g.title, 'Feeds into and Feeds into key name different goals. Change just one of them.', { column: 'Feeds into' }); continue; }
+    if (ids.size > 1) {
+      // Said with the columns the row used (build review of #259): "Feeds into ref and Feeds into key name different goals".
+      const said = found.map((x) => ({ 'feeds into ref': 'Feeds into ref', 'feeds into key': 'Feeds into key', 'feeds into id': 'Feeds into ID', 'feeds into': 'Feeds into' })[x.c]);
+      raise('conflicting-refs', 'Goals', l.row, g.title, `${said.slice(0, -1).join(', ')} and ${said[said.length - 1]} name different goals. Change just one of them.`, { column: said[0]! });
+      continue;
+    }
     const parentId = [...ids][0] || null;
     if (parentId === l.id) { raise('loop', 'Goals', l.row, g.title, 'A goal can’t feed into itself.', { column: 'Feeds into' }); continue; }
     if (parentId && makesLoop(l.id, parentId, [...work.values()])) { raise('loop', 'Goals', l.row, g.title, 'That link would make a loop: the goal it feeds already feeds into it.', { column: 'Feeds into' }); continue; }
@@ -1212,7 +1217,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     return undefined;
   };
   const skipCheckIns = twice('Check-ins', ciRows.map(({ r, row }) => {
-    const g = goalFor(r) ?? answeredGoal(r);
+    // A new goal named by its Goal ref (backlog BT) is the same goal however it is named (build review of #259).
+    const g = (val(r, 'goal ref') ? goalOfRef(val(r, 'goal ref')).g : undefined) ?? goalFor(r) ?? answeredGoal(r);
     const w = weekCell(val(r, 'week'), 'Check-ins', row, '', false).n;
     const cid = create ? '' : val(r, 'id');
     return { row, name: g?.title ?? val(r, 'goal'), id: cid ? 'c:' + cid : g && w != null ? `${g.id}:${w}` : '' };
