@@ -42,3 +42,9 @@ declare module 'virtual:faro-help-index' {
   const index: import('../../vite.helpIndex.ts').HelpIndex;
   export default index;
 }
+/* Every What's new release's id, date and title (vite.helpIndex.ts), for the screens that list them. Read it through
+   src/help/newsIndex.ts; the first download never imports it. */
+declare module 'virtual:faro-news-index' {
+  const index: { news: import('../../vite.helpIndex.ts').NewsRef[] };
+  export default index;
+}

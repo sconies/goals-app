@@ -36,7 +36,6 @@ const TABLES = {
 
 export class PostgresStore implements Store {
   readonly kind = 'postgres' as const;
-  readonly hasExample = false;
 
   /** `records`: the feature modules' records it keeps (domain/records), the build's unless given (the contract test gives a test module's). */
   constructor(private readonly db: Sql, private readonly records: readonly ModuleRecords[] = MODULE_RECORDS) {}
@@ -127,10 +126,6 @@ export class PostgresStore implements Store {
   async createWorkspace(w: Workspace, data: Snapshot) {
     const payload = { ...commitPayload(w.id, data, this.records), teams: data.teams.map((t) => teamToRow(w.id, t)), expect: null };
     await this.run('Creating the workspace', 'select okr_create_workspace($1::jsonb, $2::jsonb)', [JSON.stringify(workspaceToRow(w)), JSON.stringify(payload)]);
-  }
-
-  async resetExample(): Promise<Snapshot> {
-    throw new Error('Only the demo has an example to reset.');
   }
 
   async deleteWorkspace(ws: string) {
