@@ -15,9 +15,7 @@
    Platform?"), never guessed and never silently refused. */
 import type { Commit } from './commit';
 import type { ActionContext } from './actions';
-import { mergeCommits, NotAllowed } from './actions';
-import type { ModuleRecords } from './records';
-import { recarry } from './recarry';
+import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
 import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
@@ -123,8 +121,6 @@ export interface ChangeInput {
   mode?: 'update' | 'create';
   /** The whole workspace, for what a row's Action reaches past this cycle (domain/removal). */
   full?: Snapshot;
-  /** The feature modules' records in this build, so a carried copy's module rows (a metric link) follow it. */
-  records?: readonly ModuleRecords[];
   /** Check-ins posted from a screen, judged by the same loop as a sheet's rows (rule 13). */
   posts?: CheckInPost[];
 }
@@ -1365,14 +1361,6 @@ export function planChanges(input: ChangeInput): ChangeSet {
       changes: [...changes, summary],
     };
   }
-  // A final number given after next year was started, from a form, a table or a spreadsheet: its untouched copy there
-  // starts from it, or leaves when the goal now finishes (cycle-end rule 6, startYear recarry).
-  if (result.commit && input.full) {
-    const full = input.full;
-    for (const g of new Set(ciOut.map((c) => goalOut.get(c.goalId) ?? s.goals.find((x) => x.id === c.goalId)).filter((g): g is Goal => !!g))) {
-      result.commit = mergeCommits(result.commit, recarry(g, full, { checkIns: ciOut }, { now, actorId: actor.id, newId, records: input.records }));
-    }
-  }
   return result;
 }
 
@@ -1390,9 +1378,15 @@ function unrelated(a: string, b: string): boolean {
  * Post one check-in from a screen (check-in spec, rule 13): through the same engine as the table, the import and the AI
  * tools, so a check-in is judged and written one way. Refuses, in the engine's words, what the engine refuses.
  */
+<<<<<<< HEAD
 export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week' | 'actor' | 'now' | 'newId' | 'full' | 'records'>, post: CheckInPost): { commit: Commit; checkIn: CheckIn } {
   const set = planChanges({ tables: {}, posts: [post], snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: 'form', ...(x.full ? { full: x.full } : {}), ...(x.records ? { records: x.records } : {}) });
   const problem = set.issues.find((i) => i.level === 'must' || i.level === 'check');
+=======
+export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week' | 'actor' | 'now' | 'newId' | 'full'>, post: CheckInPost): { commit: Commit; checkIn: CheckIn } {
+  const set = planChanges({ tables: {}, posts: [post], snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: 'form', ...(x.full ? { full: x.full } : {}) });
+  const problem = set.issues.find((i) => i.severity === 'error');
+>>>>>>> 12d0bbda (Carried copies stay true after every save (build review of #152))
   if (problem || !set.commit) throw new NotAllowed(problem?.message ?? 'That check-in can’t be saved yet.');
   return { commit: set.commit, checkIn: set.commit.checkIns!.find((c) => c.goalId === post.goalId)! };
 }

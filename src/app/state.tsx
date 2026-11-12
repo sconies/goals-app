@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { systemClock, viewerPicker } from '../adapters/local';
 import type { Clock, Identity, NoEntry } from '../ports';
+import { withRecarry } from '../domain/recarry';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
 import { goalChange, type Lookup } from '../domain/changes';
@@ -420,11 +421,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     return snap;
   }, [store]);
 
-  const commit = useCallback(async (c: Commit) => {
+  const commit = useCallback(async (given: Commit) => {
     const cur = loadedRef.current;
     saving.current++;
     try {
       if (!cur) throw new Error('no workspace is open');
+      // Every save keeps a carried copy in the next year true while nobody has used it (cycle-end rule 6), whatever made it.
+      const first = given.changes[0];
+      const c = withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: MODULE_RECORDS });
       if (!signedIn.current) throw new Error(NOBODY);
       try {
         // Says what the save was based on, so it is refused rather than overwriting a newer change.

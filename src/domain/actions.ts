@@ -10,7 +10,7 @@ import { hasModuleRows, type ModuleRecords } from './records';
 import type { Lookup } from './changes';
 import { cycleDates, cycleState, dayWithYear, laterCycle, nextCycle, RESULT_LABEL, startFromLine, wrapUpOpenOn } from './cycle';
 import { carryExtras, startReadBack } from './carry';
-import { copyUntouched, recarry } from './recarry';
+import { copyUntouched } from './recarry';
 import { personChange, personProblems } from './people';
 import { stagesDoneAtSetUp } from './goal';
 import { checkInChange } from './changes';
@@ -317,7 +317,8 @@ export function saveRetro(x: ActionContext, goal: Goal, v: { result: Retro['resu
   const later = laterCycle(full.cycles, cycle);
   const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : undefined;
   if (copy && retro.next === 'stop' && !copyUntouched(copy, full)) no(`It already has check-ins in ${later!.name}. Stop it there instead.`);
-  return mergeCommits(own, recarry(goal, full, { retro }, { now: x.now, actorId: x.actor.id, newId: x.newId, records: x.records }));
+  // Its copy there follows when the save lands (domain/recarry withRecarry, run on every save).
+  return own;
 }
 
 /** Two commits as one save: their records and changes side by side. */

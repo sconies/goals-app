@@ -11,7 +11,7 @@ How a goal that carries on is set up in the next year, what comes with it, and h
 
 **What comes with it** (`carryExtras`): its metric link (same metric and team, linked by the same person); each watch of it or of its tree (same person); each open ask or next step on it, with the copy added, so it shows in both years; and each review that names it or its tree, with the copy added. The start keeps all of it, so Undo removes the watches and links it added and takes the copies back out of the asks and reviews.
 
-**Keeping a copy true** (`recarry`): a check-in or a wrap-up on a goal of a year that has a later cycle works its kind out again and, only while its copy is untouched (no check-in in it, no change to it by a person), replaces the copy's plan or stages, removes the copy and what came with it, or adds one. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead."
+**Keeping a copy true** (`recarry`, run by `withRecarry` on every save, from the app and the AI tools alike): whenever a save touches a goal of a year that has a later cycle (a check-in posted, corrected, deleted or restored; a wrap-up; its plan; stopped, removed or brought back; an import or its Undo), its kind is worked out again and, only while its copy is untouched (no check-in in it, no change to it by a person), the copy's plan or stages are replaced, or the copy leaves with what came with it (a goal stopped or removed in its own year leaves too) and its children's copies lose it as parent and their effect, or the copy comes back. A copy that left comes back as it was, the same ID and key, with its children's copies under it again; one a person removed stays removed. Copies are compared field by field, so a store's own order changes nothing. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead." Copies recarry added don't stop the start being undone, and Undo takes them out too.
 
 ## Worked examples
 
@@ -25,13 +25,13 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** Recarry runs on every check-in that goes through the change engine (the check-in screens, the data tables and a spreadsheet) and on a wrap-up; the AI tools’ bulk changes after the start don’t move the copy yet, and undoing an import leaves a copy it moved where it is.
+- **Not self-explanatory:** A copy recarry took out shows on Recently removed like any removed goal; restoring it there brings back the goal only, not what came with it, while its goal in the old year still says stop.
 
 ## Where it lives
 
 - [src/domain/carry.ts](../../../src/domain/carry.ts): `carryCopy`, `carryExtras`, `finalNumber`
-- [src/domain/recarry.ts](../../../src/domain/recarry.ts): `recarry`, `copyUntouched`, `byRecarry`
-- [src/domain/actions.ts](../../../src/domain/actions.ts): `saveRetro`, `mergeCommits`
+- [src/domain/recarry.ts](../../../src/domain/recarry.ts): `recarry`, `withRecarry`, `copyUntouched`, `byRecarry`
+- [src/domain/actions.ts](../../../src/domain/actions.ts): `saveRetro`
 
 ## Requirements
 
@@ -66,3 +66,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › brings metric links, watches, open asks and reviews, and Undo puts every one back
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › keeps an untouched copy true: a later final number moves its start; a wrap-up “stop” takes it out
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › keeps the copy true for a check-in from the change engine too: the check-in screens, the tables and a spreadsheet
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stop, then carry it on, brings the same copy back; stopping again takes it out; never two (build review of #152, high 1)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)
