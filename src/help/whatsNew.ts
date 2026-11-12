@@ -33,6 +33,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-map'],
   },
   {
+    id: 'import-preview-steadier',
+    date: '2026-11-12',
+    title: 'Checking an import: quicker and steadier',
+    points: [
+      'Typing why plans are changing no longer re-checks the whole file on every key.',
+      'Choosing a team, person or goal in an answer shows the search box as it should.',
+      'After an answer, the next question has the focus, so the keyboard carries on where you are.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'publish-one-outcome',
+    date: '2026-11-12',
+    title: 'Publishing a goal says one thing',
+    points: [
+      'Pressing Publish goal no longer shows a question still to answer, a stuck “Saving…” and “Published” all at once.',
+      'Once it is published, the goal’s page opens with the “Published” note, and it opens sooner.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'goal-read-back',
     date: '2026-11-12',
     title: 'Read your goal back before it’s published',

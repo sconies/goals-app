@@ -68,7 +68,7 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 export function Check() {
   const app = useApp();
   const nav = useNavigate();
-  const { st, base, left, cs, otherWorkspace } = useImportPlan();
+  const { st, base, left, cs, otherWorkspace, toSave } = useImportPlan();
   const file = useRef<HTMLInputElement>(null);
   const why = useRef<HTMLTextAreaElement>(null);
   const [problem, setProblem] = useState('');
@@ -116,12 +116,13 @@ export function Check() {
   const leftCount = cs.leftOut.length + left.length;
 
   const save = async () => {
-    if (onlyReason) { setTried(true); why.current?.focus(); return; }
-    if (!cs.commit) return;
+    if (onlyReason && !st.reason.trim()) { setTried(true); why.current?.focus(); return; }
+    const final = toSave();
+    if (!final?.commit) { setTried(true); return; }
     setBusy(true);
     try {
-      const importId = cs.commit.changes.find((c) => c.action === 'imported')?.entityId;
-      await app.applyChanges(cs);
+      const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
+      await app.applyChanges(final);
       // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
       // Imported reads the import from the change log; the rows left out stay in memory for its download.
       if (importId) importStore.set({ done: { importId, tables: base, rows: leftRows } });
@@ -159,7 +160,7 @@ export function Check() {
           {mustRows.length > 0 && (
             <div className="import-fix-actions">
               <button type="button" className="btn" onClick={() => void download(toFix, 'rows-to-fix', 'Rows to fix saved')}>Download the {n(mustRows.length, 'row')} to fix</button>
-              <button type="button" className="linkish tap" onClick={() => setLeaving(true)}>Leave these {n(mustRows.length, 'row')} out and save the rest</button>
+              <button type="button" className="linkish tap" onClick={() => setLeaving(true)}>{mustRows.length === 1 ? 'Leave this row out and save the rest' : `Leave these ${n(mustRows.length, 'row')} out and save the rest`}</button>
             </div>
           )}
         </section>
@@ -180,7 +181,7 @@ export function Check() {
         <section className="stack import-section" aria-labelledby="will-save">
           <h2 className="h2" id="will-save">What will be saved</h2>
           <p>{total ? describe(cs) : 'Nothing yet'}.{cs.unchanged ? ` ${n(cs.unchanged, 'row is', 'rows are')} unchanged.` : ''}{leftCount ? ` ${n(leftCount, 'row is', 'rows are')} left out.` : ''}</p>
-          {total > 0 && <Link to="/data/import/check/changes">Show the {n(total, 'change')}</Link>}
+          {total > 0 && <Link className="linkish tap import-show" to="/data/import/check/changes">Show the {n(total, 'change')}</Link>}
           {left.length > 0 && (
             <p className="small">{n(left.length, 'row was', 'rows were')} left out at your choice. <button type="button" className="linkish tap" onClick={() => void download(leftRows, 'left-out', 'Rows left out saved')}>Download them</button> · <button type="button" className="linkish tap" onClick={() => importStore.set({ leftOut: [] })}>Put them back</button></p>
           )}
@@ -195,11 +196,11 @@ export function Check() {
         </label>
       )}
 
-      <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!!cs.commit} onlyReason={onlyReason} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />
+      <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!!cs.commit || (onlyReason && !!st.reason.trim())} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />
 
       <LeaveSheet open={leaving} onClose={() => setLeaving(false)} rows={mustRows.map((i) => ({ sheet: i.sheet, row: i.row, name: i.name, problem: i.message }))} onDownload={() => void download(toFix, 'left-out', 'Rows left out saved')}
         dependants={leaving ? leaveOut(base, [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))], isNewIn(app.snapshot)).also.filter((x) => !left.some((y) => rowKey(y) === rowKey(x))) : []}
-        onLeave={() => { importStore.set({ leftOut: [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))] }); setLeaving(false); }} />
+        onLeave={() => { importStore.set({ leftOut: [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))] }); setLeaving(false); focusOn('.import-foot .btn.primary'); }} />
     </div>
   );
 }
@@ -244,17 +245,24 @@ function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Part
   return (
     <section className="import-nothing" aria-labelledby="nothing">
       <h2 className="h2" id="nothing">Nothing would change</h2>
-      <p>All {n(Object.values(cs.unchangedBy).reduce((a, b) => a + b, 0), 'row says', 'rows say')} what Faro already says.</p>
+      {(() => { const k = Object.values(cs.unchangedBy).reduce((a, b) => a + b, 0); return <p>{k ? `All ${n(k, 'row says', 'rows say')} what Faro already says.` : 'The file has its headers but no rows.'}</p>; })()}
       {rows > 0 && <p className="small">On {n(rows, 'row')}, {cols.length === 1 ? cols[0] : `${cols.slice(0, -1).join(', ')} and ${cols.at(-1)}`} {cols.length === 1 ? 'differs' : 'differ'} from what Faro works out today. Faro never reads those columns: to change where a goal stands, post a check-in.</p>}
     </section>
   );
 }
 
+/** After an answer closes its block, or rows are left out, the focus goes on: to the next open question, else to
+    `then` (an answered line, the Save button), never to the page itself (#191 review). */
+const focusOn = (then: string) => requestAnimationFrame(() => {
+  const next = document.querySelector<HTMLElement>('.import-group input[type=radio]');
+  (next ?? document.querySelector<HTMLElement>(then))?.focus();
+});
+
 /** A question answered: what was asked and the answer, with Change. */
 function Answered({ id }: { id: string }) {
   const said = importStore.get().said[id]!;
   return (
-    <div className="import-answered">
+    <div className="import-answered" id={`answered-${id}`} tabIndex={-1}>
       <span>{said.title}: <span className="strong">{said.label}</span></span>
       <button type="button" className="btn ghost sm" onClick={() => importStore.answer(id, null)}>Change</button>
     </div>
@@ -280,6 +288,7 @@ function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: An
     // An unlikely number's answer covers the numbers it was given for, and those of the answer before it.
     const covers = g.values ? [...new Set([...(prior?.covers ?? []), ...g.values])] : undefined;
     importStore.answer(g.id, { choice: c.choice, ...(v ? { value: v } : {}), ...(covers ? { covers } : {}) }, { title: g.title, label: v ? `Use “${v}”` : c.label, level: g.level === 'must' ? 'must' : 'check' });
+    focusOn(`[id="answered-${g.id}"]`);
   };
   const rows = cs.issues.filter((i) => i.group === g.id);
   const valueChoice = g.answers.find((c) => c.choice === chosen && c.needsValue);

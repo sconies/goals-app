@@ -5,11 +5,11 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { blankGoal, decimalsFor, type GoalDraft } from './goal';
-import { formNeed, goalChecks, goalMustFix, openLine, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext } from './goalEntry';
+import { checksContext, formNeed, goalChecks, goalMustFix, openLine, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext, sameNamedIn } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { numberAsTyped } from './numbers';
 import { currentWeek } from './plan';
-import type { MetricGoal } from './types';
+import type { Goal, MetricGoal } from './types';
 import type { ModuleRecords } from './records';
 
 const ctx = (o: Partial<MustFixContext> = {}): MustFixContext => ({ cycleWeeks: 53, week: 45, existing: null, door: 'form', ...o });
@@ -137,6 +137,19 @@ describe('what is asked (rule 3)', () => {
     expect(other[0]!.noDoes).toEqual({ teamId: 'vp' });
     const twin = { id: 'g73', key: 'G-73', title: 'Signed artifacts', ownerName: 'Rhea Kapoor' };
     expect(words({}, { team: { id: 'cicd', name: 'Build & Release' }, sameNamed: [twin] })).toEqual(['Build & Release already has a goal called “Signed artifacts” (G-73, owned by Rhea Kapoor). Is this a different goal?']);
+  });
+  it('never counts a goal as its own twin: not the goal being changed, nor the new goal a draft was just saved as', () => {
+    const mine = { id: 'g73', key: 'G-73', title: 'Signed artifacts', teamId: 'cicd', ownerId: 'rhea' } as unknown as Goal;
+    const d = draft({ teamId: 'cicd', ownerId: 'rhea', title: 'Signed ARTIFACTS ' });
+    const look = { person: (id: string) => (id === 'rhea' ? { name: 'Rhea Kapoor', teamId: 'cicd' } : undefined), team: (id: string) => (id === 'cicd' ? { id, name: 'Build & Release' } : undefined), goal: () => undefined, sameNamed: sameNamedIn([mine]) };
+    const base = { week: 45, cycleWeeks: 52, door: 'form' as const };
+    const ids = (ctx: ChecksContext) => goalChecks(d, ctx).map((c) => c.id).filter((id) => id === 'same-name');
+    // Before saving, a goal of the same team with the same name is asked about.
+    expect(ids(checksContext(d, look, { ...base, existing: null }))).toEqual(['same-name']);
+    // Once this draft is saved as that goal (New goal, while the goal's page opens), it isn't asked about itself.
+    expect(ids(checksContext(d, look, { ...base, existing: null, savedAs: mine.id }))).toEqual([]);
+    // Nor is a goal being changed.
+    expect(ids(checksContext(d, look, { ...base, existing: mine }))).toEqual([]);
   });
   it('asks about a hand-set plan that leaves most of the change to the end; a chosen shape never', () => {
     const points = Object.fromEntries([10, 10, 10, 10, 9, 8].map((v, i) => [String(i + 1), String(v)]));
