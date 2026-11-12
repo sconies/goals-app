@@ -57,7 +57,8 @@ export interface Access {
 const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', G = 'src/domain/goalEntry.ts#planGoal', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
-  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn', G, 'src/domain/goalRights.ts#mayChangeGoal'] },
+  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI)', who: 'The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via', code: ['src/domain/changeset.ts#postCheckIn', 'src/domain/goalRights.ts#mayPostCheckIn'] },
+  { area: 'Goals, plans and check-ins', what: 'Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, G, 'src/domain/goalRights.ts#mayChangeGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Add a goal, at any level, owned by anyone', who: 'Anyone, for anyone (Lane, 11 Nov)', code: [C, G, 'src/domain/goalRights.ts#mayAddGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'Whoever posted it, or an admin', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
@@ -381,8 +382,7 @@ export const INTERNAL: InternalRequirement[] = [
       '7. **The server enforces it**, as one more line of [R1’s access table](r1-sign-in-and-access.md#who-may-change-what).',
     ].join('\n'),
     today: [
-      'Only a goal’s owner or an admin may post or correct a check-in, or change the goal (the change engine, `planChanges` in `src/domain/changeset.ts`; R1’s access table). There is no delegate and no co-owner.',
-      'An admin who checks in for someone is logged as the admin, with nothing saying for whom.',
+      'Only a goal’s owner posts or corrects its check-ins (`mayPostCheckIn` in `src/domain/goalRights.ts`, asked by the change engine; R1’s access table). Its two exceptions, both for an admin (Lane, 12 Nov): bringing check-ins in from a workbook, and correcting one in Data’s tables. Each is logged as the admin, with the route as its Via (Spreadsheet, Set-up, Data tables) and the check-in it replaced, but nothing saying for whom. The goal itself is changed by its owner or an admin. There is no delegate and no co-owner.',
       'A goal whose owner is away shows No recent update after 14 days; an ask for an update waits for the owner.',
       'Goals change hands only for good: when someone leaves, an admin hands each goal over (`markPersonLeft` in `src/domain/removal.ts`).',
     ],

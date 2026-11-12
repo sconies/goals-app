@@ -110,7 +110,8 @@ export interface AppState {
   run(name: string, input: unknown, opts?: { said?: string }): Promise<unknown>;
   /** Posts (or replaces) this week's check-in and logs it. */
   /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
-  postCheckIn(goal: Goal, draft: Draft, mode: PostMode): Promise<CheckIn>;
+  /** `reason` is a correction's why (mode `correct`, at least MIN_CORRECT_REASON characters). */
+  postCheckIn(goal: Goal, draft: Draft, mode: PostMode, reason?: string): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
   answerRequest(r: Ask, answer: string): Promise<void>;
   /** Mark an action done, with an optional note. */
@@ -270,6 +271,13 @@ export function ArchivedGoalScope({ goalId, children }: { goalId: string; childr
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/** What a correction says once saved (check-in spec 2.7): "Week 44 corrected: 60% is now 61%.", from the engine's own summary. */
+export const correctedLine = (summary: string) => {
+  const m = /^Corrected week (\d+): (.*)$/.exec(summary);
+  if (m) return `Week ${m[1]} corrected: ${m[2]}.`;
+  const a = /^Added week (\d+) later: (.*)$/.exec(summary);
+  return a ? `Week ${a[1]} added: ${a[2]}.` : summary;
+};
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 /** Now, as the person's own wall-clock time: weeks turn over at their midnight on Sunday, wherever they are. */
@@ -340,6 +348,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   const saving = useRef(0);
   // A check-in being saved, by goal: pressing Post again (or a second tap) waits for it rather than posting twice.
   const posting = useRef(new Map<string, Promise<CheckIn>>());
+  // A correction's Undo runs against the workspace as it is when pressed (the import it undoes is in it by then).
+  const undoNow = useRef<(importId: string) => void>(() => undefined);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -591,6 +601,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       deleteCycle: (_, i) => `Deleted the cycle ${snapshot.cycles.find((c) => c.id === i.cycleId)?.name ?? ''}`,
     };
 
+    undoNow.current = (importId) => { void run('undoImport', { importId }).then(() => toast('Undone')).catch(() => undefined); };
     /** The dispatcher (app/actions.ts): one way to run an action. Who, when and ids are set here. */
     async function run<N extends ActionName>(name: N, input: ActionInput<N>, opts: { said?: string } = {}): Promise<RunResult<N>> {
       const before = snapshot;
@@ -700,11 +711,19 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
-      postCheckIn: (goal, draft, mode) => {
+      postCheckIn: (goal, draft, mode, reason) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
         // One way to save (check-in spec, rule 13): the engine the table, the import and the AI tools use; its ask too.
-        const posted = run('postCheckIn', { goalId: goal.id, draft, mode }).then((out) => out.checkIn);
+        // A correction is an import of one (rule 8): it says what it changed, and Undo takes the import back (2.7).
+        const posted = run('postCheckIn', { goalId: goal.id, draft, mode, ...(mode === 'correct' ? { reason } : {}) }).then((out) => {
+          const ch = out.commit.changes.find((x) => x.importId);
+          if (mode === 'correct' && ch?.importId) {
+            const importId = ch.importId;
+            toast(correctedLine(ch.summary), 'success', { label: 'Undo', run: () => undoNow.current(importId) });
+          }
+          return out.checkIn;
+        });
         posting.current.set(goal.id, posted);
         void posted.catch(() => undefined).finally(() => posting.current.delete(goal.id));
         return posted;

@@ -23,7 +23,7 @@ function readKept(kept: string | undefined): { metricId: string | null; company:
 /** A metric being added in place, from what was typed in the picker. */
 interface Adding { name: string; unit: string; direction: MetricDirection | ''; meaning: string }
 
-export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill, onNone, kept, onKeep }: PlaceProps['goal.measure']) {
+export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill, onNone, kept, onKeep, quiet }: PlaceProps['goal.measure']) {
   const app = useApp();
   const link = goal ? linkOf(app.snapshot, goal.id) : undefined;
   // The choice lives in the form's draft (kept), so Back, a reload and "Close and keep the draft" don't lose it.
@@ -76,7 +76,8 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metric?.id, slice, problems.errors[0], team?.name]);
 
-  if (kind === 'milestone' || (goal && !canLinkGoal(app.viewer, goal))) return null;
+  // Quiet (New goal's Check): the choice is worked out from the draft for the goal's team now, and nothing is drawn.
+  if (quiet || kind === 'milestone' || (goal && !canLinkGoal(app.viewer, goal))) return null;
 
   const choose = (id: string | null) => pickMetric(metricsOf(app.snapshot).find((x) => x.id === id));
   const pickMetric = (m: Metric | undefined) => {

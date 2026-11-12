@@ -30,7 +30,8 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`postCheckIn`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayChangeGoal`](../../../src/domain/goalRights.ts) |
+| Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via | [`postCheckIn`](../../../src/domain/changeset.ts), [`mayPostCheckIn`](../../../src/domain/goalRights.ts) |
+| Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayChangeGoal`](../../../src/domain/goalRights.ts) |
 | Add a goal, at any level, owned by anyone | Anyone, for anyone (Lane, 11 Nov) | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayAddGoal`](../../../src/domain/goalRights.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |

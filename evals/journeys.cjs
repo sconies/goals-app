@@ -644,7 +644,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
   await see(p, 'MTTR for P1 incidents');
-  h.set('finish', await p.getByText(/Published/).isVisible().catch(() => false) || await p.getByRole('link', { name: /Check in/ }).isVisible(), 'publishing is not confirmed');
+  h.set('finish', await p.getByText(/Published/).first().waitFor({ timeout: 3000 }).then(() => true, () => false) || await p.getByRole('link', { name: /Check in/ }).isVisible(), 'publishing is not confirmed');
   const s = await h.snapshot();
   const c = s.changes.filter((x) => x.action === 'created' && x.actorId === 'mateo').pop();
   h.set('logged', !!c && c.diffs.some((d) => d.field === 'Target' && d.to === '45 min') && c.diffs.some((d) => d.field === 'Plan shape' && d.to === 'Back-loaded') && c.diffs.some((d) => d.field === 'Level' && d.to === 'SVP'), 'the new goal is not logged with its fields and level');
@@ -1133,7 +1133,7 @@ journey('U8', ['STALE', 'ATTENTION', 'WATCHING', 'ONE-WATCHING', 'ONE-ASK'], 'Wa
   await p.context().close();
 }, ['errors']);
 
-journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE-WATCHING'], 'Follow goals you don’t own: watch a tree or a level', 6, async (h, device) => {
+journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE-WATCHING'], 'Follow goals you don’t own: watch a tree or a level', 7, async (h, device) => {
   // Oskar, an engineer, watches three goals and owns none.
   const p = h.use(await newPage(device, 'oskar'));
   await p.goto(url('/'));
@@ -1146,7 +1146,7 @@ journey('U9', ['WATCHING', 'HIERARCHY', 'OWNER-ONLY', 'LEVELS', 'PROFILES', 'ONE
   await h.checkpoint('home');
   // Watch a whole tree from a goal page.
   await p.goto(url('/goals/ns-lead'));
-  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3).
+  // Watch opens a sheet that says what watching does; with feeders, this goal or it and everything feeding it (GT3), one step more than before: seven in all.
   await h.click(p.locator('.goal-bar').getByRole('button', { name: 'Watch', exact: true }));
   const watchSheet = p.getByRole('dialog', { name: /^Watch / });
   await h.click(watchSheet.getByRole('radio', { name: /^It and the \d+ goals? feeding it$/ }));
@@ -1405,6 +1405,10 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   const s2 = await h.snapshot();
   const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
   h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Only the corrected number is in the log, as Rhea's post for this week; the mistyped one never was.
+  const before = new Set(s0.changes.map((c) => c.id));
+  const logs = s2.changes.filter((c) => !before.has(c.id) && c.actorId === 'rhea' && c.action === 'posted');
+  h.set('logged', logs.length === 1 && logs[0].diffs.some((d) => d.field === 'Value' && String(d.to).includes(right)) && !logs[0].diffs.some((d) => String(d.to).includes(String(last.value * 10))), `the log holds ${logs.map((c) => c.summary).join(' | ') || 'nothing'} for this post`);
   await h.checkpoint('posted');
 });
 
@@ -1455,6 +1459,57 @@ journey('U122', ['HOME-OWNER'], 'The owner’s week on Home: on Monday nothing i
   await p.waitForURL(/\/check-in/);
   h.set('logged', true);
   await p.context().close();
+});
+
+journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 9, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week: she posts the plan's number, then corrects it.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const right = Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW));
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(right));
+  await answerChecks(p);
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  await h.checkpoint('posted');
+  // The link opens the correction, never a second check-in.
+  await h.click(p.getByRole('link', { name: 'Correct this check-in' }));
+  await p.waitForURL(/\/check-in\/ci-docker\?correct=1/);
+  await see(p, 'Why are you changing it?', 'the correction asks why');
+  await h.fill(field, String(right - 1));
+  await answerChecks(p);
+  const why = p.getByLabel('Why are you changing it?');
+  await h.fill(why, 'typo');
+  await h.click(p.getByRole('button', { name: /Post check-in|Continue/ }));
+  // The field's Must fix: the warning mark and the engine's sentence under the field (goal entry 2.1, item 2).
+  await see(p, 'Say why, in a sentence', 'a reason under 10 characters is not a Must fix');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW).length === 1, 'something posted with a reason under 10 characters');
+  await h.fill(why, 'I read the dashboard for the wrong week');
+  await h.click(p.getByRole('button', { name: /Post check-in|Continue/ }));
+  // Mode `correct`: the account step may follow; posting goes to the goal.
+  if (!/\/goals\/ci-docker/.test(p.url())) { const post = p.getByRole('button', { name: 'Post check-in' }); if (await post.count()) await h.click(post); }
+  await p.waitForURL(/\/goals\/ci-docker/);
+  const toast = p.getByRole('status').filter({ hasText: `Week ${NOW} corrected` });
+  await toast.waitFor();
+  h.set('progress', /is now/.test(await toast.innerText()), `the toast said “${(await toast.innerText()).replace(/\s+/g, ' ')}”`);
+  const s2 = await h.snapshot();
+  const week = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', week.length === 1 && week[0].value === right - 1, `week ${NOW} holds ${week.map((c) => c.value).join(', ') || 'nothing'}`);
+  const hist = p.locator('#history');
+  await hist.waitFor();
+  await see(hist, `Corrected week ${NOW}`, 'History does not say the week was corrected');
+  await see(hist, 'I read the dashboard for the wrong week', 'History does not keep why it was corrected');
+  h.set('attention', true);
+  await h.checkpoint('corrected');
+  // Undo takes the correction back: the week holds the number first posted.
+  await h.click(toast.getByRole('button', { name: 'Undo' }));
+  await see(p, 'Undone');
+  const s3 = await h.snapshot();
+  const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
@@ -1852,8 +1907,10 @@ journey('U23', ['YEAR'], 'See the year in quarters: where we are, each quarter m
   await p.goto(url('/goals?scope=all'));
   // A phone's Goals page has no title (goals spec, 2.4): its top bar says the week.
   if (device === 'phone') h.set('entry', /week 45/.test(await p.locator('.mtop').first().innerText()), 'the top bar does not say the week');
-  else await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
-  await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  else {
+    await see(p, 'Week 45 of 53 · Q4 (Oct–Dec)', 'the Goals page says the week, the quarter and the year');
+    await h.inView(p.getByText('Week 45 of 53 · Q4 (Oct–Dec)'), 'entry', 'the week, quarter and year');
+  }
   await p.goto(url('/goals/cost-rightsize'));
   const strip = p.getByRole('region', { name: 'This year by quarter' });
   await strip.waitFor();
@@ -5131,7 +5188,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Nothing is saved until you publish.', 'Check doesn’t say nothing is saved yet');
   await h.inView(p.getByRole('button', { name: 'Publish goal' }), 'entry', 'Publish goal');
-  const rows = p.locator('.read-back');
+  const rows = p.locator('.goal-read-back');
   const rowText = async (id) => ((await rows.locator(`li[data-row="${id}"] .rr-value`).innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const want = {
     what: 'A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better.',
@@ -5177,6 +5234,59 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   const made = snap.goals.find((g) => g.title === 'Signed artifacts in staging');
   const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
   h.set('logged', !!checked && /Which team is this goal for\?/.test(checked.from) && checked.to === 'Keep it in CI/CD', 'History doesn’t keep the answer as Checked');
+  await p.context().close();
+}, []);
+
+/* Check reads the metric from the draft (build review of #202, findings 2 and 3): a reload keeps it, a new team re-slices it. */
+journey('U145', ['METRICS-MEASURED-BY', 'NEW-GOAL-STEPS'], 'The metric chosen survives Check: as Rhea, a goal measured by Pipeline queue wait (p90) for CI/CD; a reload on Check still reads “Pipeline queue wait (p90), for CI/CD.”; “Change” on Who and where puts focus on its first field, and choosing Build & Release then Continue reads “for Build & Release.”; Publish saves the goal measured by it for Build & Release', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/new'));
+  await see(p, 'What do you want to achieve?');
+  await h.fill(p.getByLabel(/Name it the way/), 'Queue wait kept short');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  const field = p.locator('.measured-by');
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'queue');
+  await h.click(p.locator('.pick.open').getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await see(field, 'min, whole numbers, lower is better: from the metric.', 'choosing a metric does not say what it fills in');
+  await h.fill(p.getByLabel(/^Baseline$/), '9');
+  await h.fill(p.getByLabel(/^Target$/), '4');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  const rows = p.getByRole('list', { name: 'Read back' });
+  const measured = async () => ((await rows.locator('li[data-row="measured"] .rr-value').innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  // A reload on Check (or coming back to the kept draft) reads the choice from the draft.
+  await p.reload();
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(rows, 'Pipeline queue wait (p90), for CI/CD.', 'after a reload, Check has lost the metric');
+  h.set('finish', (await measured()) === 'Pipeline queue wait (p90), for CI/CD.', `after a reload, Measured by reads “${await measured()}”`);
+  await h.inView(p.getByRole('button', { name: 'Publish goal' }), 'entry', 'Publish goal');
+  h.set('attention', !(await rows.textContent()).includes('No metric'), 'after a reload, Check says “No metric”');
+  await h.checkpoint('reloaded');
+  // Change on Who and where: focus on the step's first field, then another team; Continue comes straight back.
+  await h.click(rows.getByRole('button', { name: 'Change who and where' }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await p.waitForTimeout(150);
+  const focused = await p.evaluate(() => { const a = document.activeElement; return !!a && a !== document.body && !!a.closest('.focus-body'); });
+  h.set('a11y', focused, 'after Change on Who and where, focus is left on the page, not the step’s first field');
+  await pickIn(p, /^Team\b/, 'Build', /Build & Release/);
+  const keep = p.getByRole('button', { name: 'Keep it in Build & Release' });
+  if (await keep.count()) await h.click(keep);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(rows, 'Pipeline queue wait (p90), for Build & Release.', 'after a new team, the metric is still for the old one');
+  h.set('progress', (await measured()) === 'Pipeline queue wait (p90), for Build & Release.', `after a new team, Measured by reads “${await measured()}”`);
+  h.set('errors', (await p.locator('.note-bad').count()) === 0, 'Check says something still needs fixing');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/demo\/goals\/[^/?]+\?.*published=1/);
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Queue wait kept short');
+  const team = snap.teams.find((t) => t.name === 'Build & Release');
+  const link = made && ((snap.modules && snap.modules.metrics && snap.modules.metrics.metricLinks) || []).find((l) => l.goalId === made.id && !l.removedAt);
+  h.set('logged', !!link && /queue-wait$/.test(link.metricId) && !!team && link.teamId === team.id && made.teamId === team.id, `the published goal is measured by ${link ? `${link.metricId} for ${link.teamId}` : 'nothing'} (team ${made && made.teamId})`);
   await p.context().close();
 }, []);
 
@@ -5641,7 +5751,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
     await window.__goalsStore.commit('platform-org', { checkIns: [ci], changes: [{ id: 'chg_u90', at, actorId: 'rhea', goalId, entity: 'check-in', entityId: 'ci_u90', action: 'posted', summary: `Checked in for week ${week}`, diffs: [] }] });
   }, { goalId: first.id, week: NOW });
   await p.reload();
-  await see(p, '1 of its 15 rows have changed since, so Undo would put back 14.', 'Past imports does not say a row changed since');
+  await see(p, '1 of its 15 rows has changed since, so Undo would put back 14.', 'Past imports does not say a row changed since');
   await h.click(p.getByRole('button', { name: 'Undo 14 rows' }));
   const sheet = p.getByRole('dialog');
   await see(sheet, '14 rows go back to how they were on', 'the Undo sheet does not say how many rows go back');

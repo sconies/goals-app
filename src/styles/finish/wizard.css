@@ -112,7 +112,7 @@
 .goal-form .review-rows li:has(> .linkish) .rr-label { padding-top: 0; }
 .goal-form .review-rows .rr-value { grid-column: 1 / -1; grid-row: 2; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .goal-form .review-rows .linkish { grid-column: 2; grid-row: 1; min-height: 44px; }
-.goal-form .read-back-name { margin: 0; overflow-wrap: anywhere; }
+.goal-form .goal-read-back-name { margin: 0; overflow-wrap: anywhere; }
 .goal-form .after-publish { display: flex; flex-direction: column; gap: 8px; }
 .goal-form .after-publish p { margin: 0; }
 

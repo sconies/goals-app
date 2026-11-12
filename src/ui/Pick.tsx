@@ -2,7 +2,7 @@
    metric) is chosen anywhere in the app. Closed, it says the choice in words with "Change"; open, it suggests a few
    (you, your team, lately), then finds by typing, a page of rows at most, never a list of everything. Arrow keys and
    Enter choose, Escape closes. It asks the Search port (src/app/search.ts) and never filters the workspace itself. */
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { recentsOf, remember, usePrefs, useSearch } from '../app/search';
 import { useApp } from '../app/state';
 import { latestOnly, type FoundRow, type Search, type SearchKind } from '../ports/search';
@@ -159,6 +159,11 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
   };
   const optId = (i: number) => `${id}-o${i}`;
   const chosen = value.map((v) => known[v]).filter((r): r is FoundRow => !!r);
+  // The chosen row comes from the Search port a moment after the field draws, and redraws its button: focus that was on
+  // the button (a step's first field, focused as it opens) moves to the new one, not to the page (build review of #202).
+  const hadFocus = useRef(false);
+  hadFocus.current = typeof document !== 'undefined' && !!opener.current && opener.current === document.activeElement;
+  useLayoutEffect(() => { if (hadFocus.current && document.activeElement === document.body) opener.current?.focus(); }, [chosen.length > 0]);
   const count = typed ? (total === 0 ? 'None match' : `${total} ${total === 1 ? 'matches' : 'match'}`) : '';
 
   return (

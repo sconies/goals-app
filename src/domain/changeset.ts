@@ -17,20 +17,20 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_CORRECT_REASON, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal } from './goalRights';
+import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
-import { readWeekCode, weekUnknownText } from './weeks';
+import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
@@ -38,7 +38,7 @@ import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
-import { ANSWERS, fold, groupId, groupIssues, issueOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
+import { ANSWERS, fold, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
 
@@ -55,7 +55,7 @@ export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
 export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
-export const MIN_CORRECT_REASON = 10;
+export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
 /** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,
@@ -212,24 +212,37 @@ function fileDiffs(file: ChangeInput['file'], changed: number, unchanged: number
 
 const TABLE_SHEETS: [keyof Tables, 'goals' | 'plan' | 'checkIns' | 'people', Sheet][] = [['goals', 'goals', 'Goals'], ['plan', 'plan', 'Plan'], ['checkIns', 'checkIns', 'Check-ins'], ['people', 'people', 'People']];
 /** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
-function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: string) => boolean): Tables {
+function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: string) => boolean, whichOf: (sheet: Sheet, as: string, headers: string[]) => string | null): Tables {
   const out: Tables = { ...t };
   for (const [key, kind, sheet] of TABLE_SHEETS) {
     const recs = t[key];
     if (!recs?.length) continue;
     const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== '__row');
-    const rename = new Map<string, string>();
+    // Each Faro column, and the file's columns read as it, in the file's order. A header the same as the column's but
+    // for punctuation, an accent or spacing ("Target.", "Owner_email") is read as that column too (#199 review, high).
+    const by = new Map<string, { as: string; keys: string[]; near: string[] }>();
     for (const k of keys) {
       const m = headerMatch(kind, k);
       if (!m.as || m.how === 'unknown') continue;
       const to = m.as.toLowerCase();
-      // A header the same as the column's but for punctuation, an accent or spacing ("Target.", "Owner_email") is read
-      // as that column too: only a key that is already the column's own name is left as it is (#199 review, high).
-      if (k === to) continue;
-      if (keys.includes(to)) continue;
-      if (m.how !== 'near' || nearOk(sheet, k, m.as)) rename.set(k, to);
+      const at = by.get(to) ?? { as: m.as, keys: [], near: [] };
+      at.keys.push(k);
+      if (m.how === 'near' && k !== to) at.near.push(k);
+      by.set(to, at);
     }
-    if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
+    const rename = new Map<string, string>();
+    const drop = new Set<string>();
+    for (const [to, { as, keys: from, near: nearKeys }] of by) {
+      let use: string | null | undefined = from[0];
+      if (from.length > 1) {
+        // Two columns are one: which is read is asked; until then neither is.
+        use = whichOf(sheet, as, from);
+        for (const k of from) if (k !== use) drop.add(k);
+        if (!use) continue;
+      } else if (nearKeys.includes(use!) && !nearOk(sheet, use!, as)) continue;
+      if (use && use !== to) rename.set(use, to);
+    }
+    if (rename.size || drop.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k)).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
   }
   return out;
 }
@@ -249,7 +262,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const changes: Change[] = [];
   type Extra = { column?: string; found?: string; suggest?: string; answers?: Choice[]; value?: string };
   /** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
-  const raise = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => { issues.push(issueOf(kind, sheet, row, name, message, x)); };
+  /** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
+  const held = new Set<string>();
+  const raise = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => {
+    if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === 'must') return;
+    issues.push(issueOf(kind, sheet, row, name, message, x));
+  };
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
@@ -259,8 +277,19 @@ export function planChanges(input: ChangeInput): ChangeSet {
   input = { ...input, tables: namedHeaders(input.tables, (sheet, header, as) => {
     const a = answerOf('near-header', sheet, 'Header', header);
     if (a?.choice === 'use') return true;
-    if (!a) raise('near-header', sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, { column: 'Header', found: header, suggest: as, answers: [{ choice: 'use', label: `Read it as ${as}` }, { choice: 'ignore', label: 'Don’t read it' }] });
+    if (!a) {
+      raise('near-header', sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, { column: 'Header', found: header, suggest: as, answers: [{ choice: 'use', label: `Read it as ${as}` }, { choice: 'ignore', label: 'Don’t read it' }] });
+      held.add(`${sheet}|${as.toLowerCase()}`);
+    }
     return false;
+  }, (sheet, as, headers) => {
+    // Two columns read as one Faro column: asked which, never one dropped quietly (#199 review).
+    const a = answerOf('two-columns', sheet, 'Header', as);
+    const pick = a?.choice.startsWith('use:') ? a.choice.slice(4) : null;
+    if (pick && headers.includes(pick)) return pick;
+    raise('two-columns', sheet, 1, as, `Two columns on ${sheet} are read as ${as}: ${headers.map((h) => `“${h}”`).join(' and ')}. Which should be read?`, { column: 'Header', found: as, answers: headers.map((h) => ({ choice: `use:${h}`, label: `Read “${h}”` })) });
+    held.add(`${sheet}|${as.toLowerCase()}`);
+    return null;
   }) };
   /**
    * A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
@@ -652,6 +681,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     return skip;
   }
+  // From with no Start column beside it, in a file (not a tool, whose From is always a week): a bare number is asked about.
+  const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
   examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'example').length;
@@ -801,13 +832,16 @@ export function planChanges(input: ChangeInput): ChangeSet {
         const said: [string, string, number][] = [];
         for (const [c, h] of [[col, head], [old, oldHead]] as const) {
           const raw = has(r, c) ? val(r, c) : '';
-          // An empty Due week is the cycle's end (it clears); any other empty cell says nothing.
-          if (!raw && !(c === 'due week' && has(r, c))) continue;
+          // An empty Due week is the cycle's end (it clears), unless To says the week; any other empty cell says nothing.
+          if (!raw && !(c === 'due week' && has(r, c) && !val(r, 'to'))) continue;
+          // A bare number under From, in a file with no Start column, may be where the goal starts (the export's Start
+          // renamed From): asked which, never read as a week (GE9 review).
+          if (c === 'from' && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) { raise('week-wrong', 'Goals', row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head }); return false; }
           let n: number | null, msg: string | undefined;
           if (c === col) { const x = readWeekCode(cycle, raw); n = 'n' in x ? x.n : null; msg = 'text' in x ? x.text : undefined; }
           else if (c === 'due week' && raw) { const x = weekCell(raw, 'Goals', row, d.title); n = x.n; msg = x.problem; }
           else n = raw ? parseNumber(raw) : cycle.weeks;
-          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h }); return false; }
+          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw, week), { column: h }); return false; }
           if (n !== cur) said.push([h, raw, n]);
         }
         if (said.length === 2 && said[0]![2] !== said[1]![2]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${said[0]![1]} and ${oldHead} says ${said[1]![1]}. Change just one of them.`, { column: head }); return false; }
@@ -1158,9 +1192,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
-    if (!create && !canChange(g)) {
+    // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
