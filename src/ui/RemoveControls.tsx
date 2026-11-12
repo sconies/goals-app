@@ -1,11 +1,11 @@
 /* Small in-place controls for removing and undoing: a comment's Edit and Remove, a check-in's Delete, a stopped goal's
-   note, and "Undo this import" on an import's Activity entry. The rules are domain/removal's; removals end with a
+   note. ("Undo this import" is its own sheet: ui/UndoImport.) The rules are domain/removal's; removals end with a
    message that has Undo (app/state). */
 import { useState, type ReactNode } from 'react';
 import { useApp } from '../app/state';
 import { Link } from 'react-router';
-import { canUndoImport, importUndone, reviewHeld } from '../domain/removal';
-import type { Change, CheckIn, Comment, Goal, Review } from '../domain/types';
+import { reviewHeld } from '../domain/removal';
+import type { CheckIn, Comment, Goal, Review } from '../domain/types';
 import { whenText } from './ChangeItem';
 import { LifeMark } from './LifeMark';
 
@@ -108,29 +108,3 @@ export function StoppedNote({ goal }: { goal: Goal }) {
   );
 }
 
-/** On an import's (or bulk edit's) Activity entry: Undo this import, for whoever made it or an admin; or that it's been undone. */
-export function ImportUndo({ entry }: { entry: Change }) {
-  const app = useApp();
-  const [asking, setAsking] = useState(false);
-  const [busy, setBusy] = useState(false);
-  if (importUndone(app.snapshot, entry.entityId)) return <span className="tiny muted import-undone">Undone</span>;
-  if (!canUndoImport(app.snapshot, entry, app.viewer)) return null;
-  const go = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const out = await app.undoImport(entry.entityId);
-      app.toast(`Undid the import: ${out.restored} ${out.restored === 1 ? 'row' : 'rows'} put back${out.skipped.length ? `; ${out.skipped.length} skipped, changed since` : ''}`);
-    } catch { setBusy(false); }
-  };
-  if (!asking) return <button type="button" className="btn sm import-undo" onClick={() => setAsking(true)}>Undo this import</button>;
-  return (
-    <span className="import-undo-ask" role="group" aria-label="Undo this import">
-      <span className="small">Put every row it wrote back as it was? Rows changed since are skipped and listed.</span>
-      <span className="row" style={{ gap: 'var(--s2)' }}>
-        <button type="button" className="btn danger sm" disabled={busy} onClick={() => void go()}>{busy ? 'Undoing…' : 'Undo the import'}</button>
-        <button type="button" className="btn ghost sm" onClick={() => setAsking(false)}>Cancel</button>
-      </span>
-    </span>
-  );
-}

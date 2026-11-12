@@ -21,6 +21,8 @@ const ColumnsHelp = (p: PlaceProps['help.article']) => (p.article === 'columns' 
 const LazyImport = lazy(() => import('./Import').then((m) => ({ default: m.Import })));
 const LazyCheck = lazy(() => import('./Check').then((m) => ({ default: m.Check })));
 const LazyChanges = lazy(() => import('./Changes').then((m) => ({ default: m.Changes })));
+const LazyImported = lazy(() => import('./Imported').then((m) => ({ default: m.Imported })));
+const LazyPastImports = lazy(() => import('./PastImports').then((m) => ({ default: m.PastImports })));
 const page = (C: ComponentType) => <Suspense fallback={null}><C /></Suspense>;
 
 const spreadsheets: AppModule = {
@@ -28,6 +30,8 @@ const spreadsheets: AppModule = {
     { path: '/data/import', element: page(LazyImport), focus: true, title: 'Import' },
     { path: '/data/import/check', element: page(LazyCheck), focus: true, title: 'Check this import' },
     { path: '/data/import/check/changes', element: page(LazyChanges), focus: true, title: 'The changes' },
+    { path: '/data/import/done/:importId', element: page(LazyImported), focus: true, title: 'Imported' },
+    { path: '/data/imports', element: page(LazyPastImports), title: 'Past imports' },
   ],
   places: {
     'data.tools': DataMenu,

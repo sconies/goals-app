@@ -209,13 +209,18 @@ export const REMOVE_TOOLS: ToolDef[] = [
   {
     name: 'undo_import',
     title: 'Undo an import or bulk edit',
-    description: 'Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since are skipped and listed. Import IDs are in get_activity (kind=imports).',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['import_id'], properties: { import_id: str('The import’s ID (imp_…), from get_activity.') } },
+    description: 'Whoever made it, or an admin: put every row an import, bulk edit or bulk_change wrote back as it was. Goals and check-ins it added are deleted; ones it changed get their earlier version back. Rows changed since stay as they are and are listed with why. With dry_run, nothing is saved: it says how many rows would go back and which would stay, so you can tell the person first. Import IDs are in get_activity (kind=imports).',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['import_id'], properties: { import_id: str('The import’s ID (imp_…), from get_activity.'), dry_run: { type: 'boolean', description: 'Say what Undo would do without saving anything.' } } },
     annotations: REMOVE,
     async run(a, ctx) {
+      const kept = (k: R.KeptRow) => ({ row: k.name, reason: k.reason, at: k.at });
+      if (a.dry_run === true) {
+        const p = R.undoPreview(ax(ctx), String(a.import_id ?? ''));
+        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
+      }
       const out = R.undoImport(ax(ctx), String(a.import_id ?? ''));
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
-      return { data: { restored: out.restored, skipped: out.skipped }, text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? 'row' : 'rows'} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.join('; ')}.` : ''}` };
+      return { data: { restored: out.restored, skipped: out.skipped.map(kept) }, text: `Undid the import (as ${ctx.actor.name}): ${out.restored} ${out.restored === 1 ? 'row' : 'rows'} put back.${out.skipped.length ? ` Skipped, as changed since: ${out.skipped.map(R.keptText).join('; ')}.` : ''}` };
     },
   },
 ];

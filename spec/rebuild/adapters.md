@@ -62,7 +62,7 @@ Records go through the goals store; a few small things a person chose or was doi
 | `src/screens/DataLayout.tsx` | Each table’s columns and layout on Data | Server: a person’s preference |
 | `src/screens/GoalMap.tsx` | Where goals were moved on the Map, and its only-in-trouble switch | Server: a person’s preference |
 | `src/screens/GoalViews.tsx` | The Goals list’s layout | Server: a person’s preference |
-| `src/screens/Inspect.tsx` | The order of a review’s goals (this tab) | This browser |
+| `src/screens/reviewOrder.ts` | The order of a review’s goals (this tab) | This browser |
 | `src/screens/QuickCheckIn.tsx` | Nothing of its own: clears a check-in’s step once it is saved | Server, with the step (see CheckInFlow) |
 | `src/telemetry/ids.ts` | The telemetry session id (this tab) | This browser |
 | `src/telemetry/staleCode.ts` | That the page has already reloaded once for new code (this tab) | This browser |

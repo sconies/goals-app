@@ -23,7 +23,7 @@ import { statusChange } from '../domain/tree';
 import type { AskKind, Review } from '../domain/types';
 import { AttentionCard, Avatar, ProgressRing, StatusShape, timeAgo, WarnMark } from '../ui/bits';
 import { Icon } from '../ui/Icon';
-import { saveReviewOrder } from './Inspect';
+import { saveReviewOrder } from './reviewOrder';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { FirstReports } from '../ui/FirstReports';

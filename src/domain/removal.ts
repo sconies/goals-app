@@ -14,6 +14,7 @@ import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
+import { VIA_LABEL } from './via';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
 import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
@@ -459,12 +460,23 @@ export const importUndone = (s: Pick<Snapshot, 'changes'>, importId: string) => 
 /** Whether this person may undo an import now: one that can be undone, not undone yet, and theirs (or they're an admin). */
 export const canUndoImport = (s: Pick<Snapshot, 'changes'>, entry: Change, actor: Person) => !!entry.undo && !importUndone(s, entry.entityId) && (entry.actorId === actor.id || actor.admin);
 
-/**
- * Undo an import or bulk edit: whoever made it, or an admin. Every row it wrote is put back as it was: a goal or
- * check-in it added is deleted, one it changed gets its earlier version back, as do people and asks. A row changed by
- * anything since is left alone and listed in `skipped`.
- */
-export function undoImport(x: ActionContext, importId: string): { commit: Commit; restored: number; skipped: string[] } {
+const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** Why a row changed since, from the latest change that touched it (spec 2.6's sentences). */
+function keptReason(rows: { people: readonly Person[]; checkIns: readonly CheckIn[] }, c: Change, of: 'goal' | 'check-in' | 'person' | 'other'): string {
+  const who = rows.people.find((p) => p.id === c.actorId)?.name ?? 'Someone';
+  const on = onDay(c.at);
+  if (c.entity === 'check-in' && (c.action === 'posted' || c.action === 'created')) {
+    const week = rows.checkIns.find((v) => v.id === c.entityId)?.week;
+    return `${who} posted a check-in${week != null ? ` for week ${week}` : ''} on ${on}`;
+  }
+  if (of === 'check-in') return c.action === 'removed' ? `The check-in was deleted on ${on}` : `The check-in was corrected on ${on}`;
+  const field = c.diffs.find((d) => d.field !== 'Via')?.field;
+  return field ? `Its ${field.toLowerCase()} was changed on ${on}` : `It was changed on ${on}`;
+}
+
+/** What undoing an import would do, worked out once for undoImport and undoPreview. */
+function undoPlan(x: ActionContext, importId: string): { commit: Commit; restored: number; skipped: KeptRow[] } {
   const full = fullOf(x);
   const entry = importEntry(full, importId);
   if (!entry) no('There’s no import with that ID.');
@@ -474,15 +486,18 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
   const u = entry!.undo!;
   const own = new Set(full.changes.filter((c) => c.importId === importId).map((c) => c.id));
   const since = full.changes.filter((c) => c.at > entry!.at && !own.has(c.id) && c.id !== entry!.id);
-  const touched = (entity: Change['entity'], id: string) => since.some((c) => c.entity === entity && c.entityId === id);
-  const skipped: string[] = [];
+  const latest = (f: (c: Change) => boolean) => { for (let i = since.length - 1; i >= 0; i--) if (f(since[i]!)) return since[i]; return undefined; };
+  const touchedBy = (entity: Change['entity'], id: string) => latest((c) => c.entity === entity && c.entityId === id);
+  const skipped: KeptRow[] = [];
+  const keep = (name: string, c: Change, of: 'goal' | 'check-in' | 'person' | 'other', reason?: string) => skipped.push({ name, reason: reason ?? keptReason(full, c, of), at: c.at, by: c.actorId });
   const goals: Goal[] = [], checkIns: CheckIn[] = [], people: Person[] = [], requests: Ask[] = [];
   const changes: Change[] = [];
   for (const { id, before } of u.goals) {
     const cur = full.goals.find((g) => g.id === id);
     // A goal the import deleted (an Action row) comes back; one deleted some other way since is left alone.
     if (!cur || (cur.removedAt && (!before || before.removedAt))) continue;
-    if (touched('goal', id) || (!before && since.some((c) => c.goalId === id))) { skipped.push(`${cur.title}: changed since`); continue; }
+    const by = touchedBy('goal', id) ?? (!before ? latest((c) => c.goalId === id) : undefined);
+    if (by) { keep(cur.title, by, 'goal'); continue; }
     goals.push(before ? ({ ...asBefore(cur, before), ...(cur.key ? { key: cur.key } : {}) } as Goal) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'goal', entityId: id, goalId: id, action: before ? 'edited' : 'removed', summary: before ? 'Put back as it was before an import' : `Deleted ${cur.title}: an import that added it was undone`, importId }));
   }
@@ -490,17 +505,23 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     const cur = full.checkIns.find((c) => c.id === id);
     if (!cur || cur.removedAt) continue;
     const goal = full.goals.find((g) => g.id === cur.goalId);
-    if (touched('check-in', id)) { skipped.push(`${goal?.title ?? 'A goal'}, week ${cur.week}: changed since`); continue; }
+    const by = touchedBy('check-in', id);
+    if (by) { keep(`${goal?.title ?? 'A goal'}, week ${cur.week}`, by, 'check-in'); continue; }
     checkIns.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'check-in', entityId: id, goalId: cur.goalId, action: before ? 'edited' : 'removed', summary: before ? `Put the check-in for week ${cur.week} back as it was before an import` : `Deleted the check-in for week ${cur.week}: an import that added it was undone`, importId }));
   }
   for (const { id, before } of u.people) {
     const cur = full.people.find((p) => p.id === id);
     if (!cur || cur.removedAt) continue;
-    if (touched('person', id)) { skipped.push(`${cur.name}: changed since`); continue; }
+    const by = touchedBy('person', id);
+    if (by) { keep(cur.name, by, 'person'); continue; }
     // Someone the import added goes again, unless they've done something since (then they're skipped, like any change).
     const added = (gid: string) => u.goals.some((v) => v.id === gid && !v.before);
-    if (!before && (since.some((c) => c.actorId === id) || full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id)))) { skipped.push(`${cur.name}: has history since`); continue; }
+    if (!before) {
+      const acted = latest((c) => c.actorId === id);
+      const owns = full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id));
+      if (acted || owns) { skipped.push({ name: cur.name, reason: `${cur.name} has made changes since`, at: acted?.at ?? entry!.at, by: id }); continue; }
+    }
     people.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'person', entityId: id, action: before ? 'edited' : 'removed', summary: before ? `Put ${before.name} back as they were before an import` : `Deleted ${cur.name}: an import that added them was undone`, importId }));
   }
@@ -509,7 +530,8 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
   for (const { id, before } of u.reviews ?? []) {
     const cur = (full.reviews ?? []).find((r) => r.id === id);
     if (!cur || !before) continue;
-    if (touched('review', id)) { skipped.push(`The review “${cur.name}”: changed since`); continue; }
+    const by = touchedBy('review', id);
+    if (by) { keep(`The review “${cur.name}”`, by, 'other'); continue; }
     reviews.push({ ...asBefore(cur, before), version: cur.version });
   }
   const teams = (u.teams ?? []).flatMap(({ id, before }) => (before && full.teams.some((t) => t.id === id) ? [before] : []));
@@ -523,11 +545,12 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
   // What the import added and Undo removes keeps a team that exists, so restoring it later finds one.
   const home = full.teams.find((t) => !removeTeams.includes(t.id))?.id;
   if (home) for (const list of [goals, people] as { teamId: string | null }[][]) for (const r of list) if (r.teamId && removeTeams.includes(r.teamId)) r.teamId = home;
-  for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push(`The team ${full.teams.find((t) => t.id === id)!.name}: has goals or people since`);
+  for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push({ name: `The team ${full.teams.find((t) => t.id === id)!.name}`, reason: 'It has goals or people since', at: entry!.at, by: entry!.actorId });
   for (const { id, before } of u.requests) {
     const cur = asksOf(full).find((r) => r.id === id);
     if (!cur) continue;
-    if (touched('request', id)) { skipped.push(`An ask on ${full.goals.find((g) => g.id === cur.goalIds[0])?.title ?? 'a goal'}: changed since`); continue; }
+    const by = touchedBy('request', id);
+    if (by) { keep(`An ask on ${full.goals.find((g) => g.id === cur.goalIds[0])?.title ?? 'a goal'}`, by, 'other'); continue; }
     const back = before ?? (cur.status === 'open' ? { ...cur, status: 'withdrawn' as const, updatedAt: x.now } : null);
     if (back) requests.push(back);
   }
@@ -535,9 +558,48 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
   changes.unshift(log(x, {
     entity: 'workspace', entityId: importId, action: 'undone', importId,
     summary: `Undid ${entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
-    diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.join('; ') }] : [])],
+    diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.map(keptText).join('; ') }] : [])],
   }));
   return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
+}
+
+/** A row Undo leaves as it is, because it changed after the import (rule 9): the row, why, when and by whom. */
+export interface KeptRow { name: string; reason: string; at: string; by: string }
+/** "Q4 revenue: Rhea Kapoor posted a check-in for week 6 on 12 Nov": a kept row as one line (the log, MCP's text). */
+export const keptText = (k: KeptRow) => `${k.name}: ${k.reason}`;
+
+/**
+ * Undo an import or bulk edit: whoever made it, or an admin. Every row it wrote is put back as it was: a goal or
+ * check-in it added is deleted, one it changed gets its earlier version back, as do people and asks. A row changed by
+ * anything since is left alone and listed in `skipped`, with why, when and by whom (rule 9).
+ */
+export function undoImport(x: ActionContext, importId: string): { commit: Commit; restored: number; skipped: KeptRow[] } {
+  return undoPlan(x, importId);
+}
+
+/** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
+export function undoPreview(x: ActionContext, importId: string): { restores: number; skipped: KeptRow[] } {
+  const out = undoPlan(x, importId);
+  return { restores: out.restored, skipped: out.skipped };
+}
+
+/** An import's name, as Past imports and Activity say it (spec 2.7): the file's, or where the bulk change was made. */
+export function importName(entry: Change): string {
+  const file = entry.diffs.find((d) => d.field === 'File')?.to;
+  if (file) return file;
+  const via = entry.diffs.find((d) => d.field === 'Via')?.to;
+  return via === VIA_LABEL.table ? 'Bulk edit on Data' : via === VIA_LABEL.bulk ? 'Bulk edit on Goals' : via === VIA_LABEL.mcp ? 'Changes through MCP' : via === VIA_LABEL.form ? 'A corrected check-in' : 'A spreadsheet';
+}
+/** What an import changed, in words: its summary after the colon ("3 goals changed, 2 check-ins added"). */
+export const importCounts = (entry: Change) => entry.summary.replace(/^[^:]*:\s*/, '');
+
+/** An import's (or bulk edit's) line on Past imports (spec 2.7): its summary entry, and when and by whom it was undone. */
+export interface PastImport { entry: Change; undone: Change | null }
+
+/** Rule 9: every import, bulk edit and change through MCP in the change log, newest first, each with whether it is undone. */
+export function pastImports(changes: readonly Change[]): PastImport[] {
+  const undone = new Map(changes.filter((c) => c.action === 'undone' && c.entity === 'workspace').map((c) => [c.entityId, c]));
+  return changes.filter((c) => c.action === 'imported' && c.entity === 'workspace').map((entry) => ({ entry, undone: undone.get(entry.entityId) ?? null })).sort((a, b) => (a.entry.at < b.entry.at ? 1 : a.entry.at > b.entry.at ? -1 : 0));
 }
 
 /* ---------- recently removed, and restoring ---------- */

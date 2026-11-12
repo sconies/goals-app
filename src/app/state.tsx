@@ -155,7 +155,7 @@ export interface AppState {
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
-  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers): ChangeSet;
+  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers, file?: { name: string; leftOut?: number }): ChangeSet;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
@@ -196,7 +196,9 @@ export interface AppState {
   /** Admins: undo starting the next cycle while nobody has used it (domain/removal undoStart). */
   undoStart(cycleId: string): Promise<void>;
   /** Whoever imported, or an admin: put every row an import or bulk edit wrote back as it was. */
-  undoImport(importId: string): Promise<{ restored: number; skipped: string[] }>;
+  undoImport(importId: string): Promise<{ restored: number; skipped: R.KeptRow[] }>;
+  /** What Undo would do to an import, saving nothing (rule 9): rows that go back, and those that stay, with why. */
+  undoPreview(importId: string): { restores: number; skipped: R.KeptRow[] };
   /** Admins, or whoever removed it: bring back something removed in the last 30 days. */
   restoreRemoved(kind: R.RemovedKind, id: string): Promise<void>;
   /** Everything removed in the last 30 days, newest first (Workspace → Recently removed). */
@@ -736,7 +738,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
       // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
-      previewChanges: (tables, via, reason, confirm, answers) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers }),
+      previewChanges: (tables, via, reason, confirm, answers, file) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers, ...(file ? { file } : {}) }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await save(cs.commit);
@@ -764,6 +766,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       deleteCycle: async (id) => { await run('deleteCycle', { cycleId: id }); },
       undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
+      undoPreview: (importId) => R.undoPreview(rx(), importId),
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
       recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, recordsOn(ws)),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
