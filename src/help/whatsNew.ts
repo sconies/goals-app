@@ -34,6 +34,39 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['check-in-table', 'check-in'],
   },
   {
+    id: 'export-one-button',
+    date: '2026-11-12',
+    title: 'Export is one button',
+    points: [
+      'Excel by default; other formats one click away.',
+      'File names say what’s in them: all, the view’s name, or as-shown.',
+      'On Data, Export and Import sit side by side. Past imports and the template are on the Import page.',
+    ],
+    articles: ['export', 'data'],
+  },
+  {
+    id: 'data-feedback-search-words',
+    date: '2026-11-12',
+    title: 'Data and Feedback search the way Goals does',
+    points: [
+      'Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.',
+      'On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched.',
+    ],
+    articles: ['data', 'feedback'],
+  },
+  {
+    id: 'check-ins-owners-words',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s, said everywhere',
+    points: [
+      'Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.',
+      'A check-in an admin loaded is headed with the admin’s name, not as what the owner said.',
+      'One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.',
+      'An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused.',
+    ],
+    articles: ['requests', 'goal-page', 'inbox'],
+  },
+  {
     id: 'mcp-lists-one-shape',
     date: '2026-11-12',
     title: 'AI tools get every list in one shape',

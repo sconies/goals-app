@@ -5536,6 +5536,510 @@ var init_columns = __esmMin((() => {
 	isFillIn = (row) => row.required != null && row.required !== "reading";
 	GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.metric, SHAPE_WORDS.word.straight, GOAL_ACTION_WORDS.word.example, TYPE_WORDS.word.milestone, PERSON_ACTION_WORDS.word.example, YES_WORDS.word.no;
 }));
+// src/domain/query.ts
+function addColumnParams(params) {
+	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
+		COLUMN_PARAMS.push(k);
+		QUERY_KEYS.push(k);
+	}
+}
+/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
+function parseQuery(p) {
+	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
+	const due = p.get("due");
+	const qtr = p.get("qtr");
+	return {
+		q: (p.get("q") ?? "").slice(0, 200),
+		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
+		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
+		team: (p.get("team") ?? "").split(",").filter(Boolean),
+		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
+		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
+		...needsOf(p),
+		due: due === "quarter" ? "quarter" : int$3(due),
+		quiet: int$3(p.get("quiet")),
+		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
+		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
+		feeds: p.get("feeds") || null,
+		helps: p.get("helps") === "1",
+		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
+		dir: dir === "desc" ? -1 : 1,
+		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v))
+	};
+}
+/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
+function needsOf(p) {
+	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
+	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
+	return {
+		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
+		needs
+	};
+}
+/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
+function queryEntries(q) {
+	const out = [];
+	if (q.q.trim()) out.push(["q", q.q.trim()]);
+	if (q.status.length) out.push(["status", q.status.join(",")]);
+	if (q.level.length) out.push(["level", q.level.join(",")]);
+	if (q.team.length) out.push(["team", q.team.join(",")]);
+	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
+	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
+	if (q.attention || q.needs.length) out.push(["attention", "1"]);
+	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
+	if (q.due != null) out.push(["due", String(q.due)]);
+	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
+	if (q.quarter) out.push(["qtr", q.quarter]);
+	if (q.result.length) out.push(["result", q.result.join(",")]);
+	if (q.feeds) out.push(["feeds", q.feeds]);
+	if (q.helps) out.push(["helps", "1"]);
+	for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]]);
+	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
+	return out;
+}
+/** The goal and every goal that feeds it, all the way down. */
+function treeOf$1(id, goals) {
+	const out = /* @__PURE__ */ new Set([id]);
+	let grew = true;
+	while (grew) {
+		grew = false;
+		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
+			out.add(g.id);
+			grew = true;
+		}
+	}
+	return out;
+}
+/** Does this goal pass every filter in the query? */
+function matches(s, q, ctx, tree) {
+	const g = s.goal;
+	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
+	if (q.status.length && !q.status.includes(s.status)) return false;
+	if (q.level.length && !q.level.includes(g.level)) return false;
+	if (q.team.length && !q.team.includes(g.teamId)) return false;
+	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
+	if (q.kind.length && !q.kind.includes(g.kind)) return false;
+	for (const [k, v] of Object.entries(q.cols ?? {})) {
+		const col = ctx.columns?.[k];
+		if (col && col(g) !== v) return false;
+	}
+	if (q.attention || q.needs.length) {
+		if (!onAttentionList(s.attention)) return false;
+		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
+	}
+	if (q.due != null) {
+		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
+		if (s.dueWeek > by) return false;
+	}
+	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
+	if (q.quarter) {
+		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
+	}
+	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
+	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
+	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
+	return true;
+}
+/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
+function compare(q, _week) {
+	const key = q.sort ?? "worst";
+	const worst = (a, b) => RANK[b.status] - RANK[a.status];
+	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
+	const by = {
+		worst,
+		title: name,
+		owner: (a, b) => a.owner.localeCompare(b.owner),
+		team: (a, b) => a.team.localeCompare(b.team),
+		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
+		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
+		last: (a, b) => b.quietDays - a.quietDays,
+		due: (a, b) => a.dueWeek - b.dueWeek
+	};
+	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
+}
+/** The goals that pass the query, in its order. */
+function applyQuery(sums, q, ctx) {
+	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
+	const out = sums.filter((s) => matches(s, q, ctx, tree));
+	return q.sort ? out.sort(compare(q, ctx.week)) : out;
+}
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
+var init_query = __esmMin((() => {
+	init_levels();
+	init_attention();
+	init_status();
+	init_find();
+	init_vocabulary();
+	init_year();
+	EMPTY_QUERY = {
+		q: "",
+		status: [],
+		level: [],
+		team: [],
+		owner: [],
+		kind: [],
+		attention: false,
+		needs: [],
+		due: null,
+		quiet: null,
+		quarter: null,
+		result: [],
+		feeds: null,
+		helps: false,
+		sort: null,
+		dir: 1,
+		cols: {}
+	};
+	STATUS_OPTIONS = [
+		"off",
+		"risk",
+		"stale",
+		"on",
+		"done",
+		"none",
+		"planned"
+	].map((k) => [k, LABEL[k]]);
+	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
+	OLD_NEEDS = {
+		"no-recovery": "no-path",
+		"missed-date": "missed-path"
+	};
+	RESULT_OPTIONS = [
+		"completed",
+		"late",
+		"missed",
+		"open"
+	].map((k) => [k, RESULT[k].label]);
+	KIND_OPTIONS = [
+		["metric", "Move a number"],
+		["range", "Keep in range"],
+		["milestone", "Dated stages"]
+	];
+	SORT_OPTIONS = [
+		["worst", "Worst first"],
+		["title", "Name"],
+		["owner", "Owner"],
+		["team", "Team"],
+		["level", "Level"],
+		["gap", "Furthest from plan"],
+		["last", "Longest since a check-in"],
+		["due", "Due soonest"]
+	];
+	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
+	int$3 = (v) => {
+		const n = v == null ? NaN : Number(v);
+		return Number.isInteger(n) && n > 0 ? n : null;
+	};
+	COLUMN_PARAMS = [];
+	QUERY_KEYS = [
+		"q",
+		"status",
+		"level",
+		"team",
+		"owner",
+		"kind",
+		"attention",
+		"needs",
+		"due",
+		"quiet",
+		"qtr",
+		"result",
+		"feeds",
+		"helps",
+		"sort"
+	];
+	GAP_RANK = {
+		off: 4,
+		risk: 3,
+		stale: 2,
+		on: 1,
+		ahead: 0
+	};
+}));
+// src/domain/find.ts
+/**
+* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
+* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
+* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
+*/
+function textMatches(words, q, key) {
+	return wordsMatch(wordsOf(words), q, key);
+}
+/** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
+function wordsMatch(have, q, key) {
+	const asked = wordsOf(q);
+	if (!asked.length) return true;
+	const typedKey = normalKey(q.trim());
+	if (typedKey) return !!key && typedKey === key;
+	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
+	if (bare && key && bare === key) return true;
+	return asked.every((w) => have.some((h) => h.startsWith(w)));
+}
+/** One letter added, dropped or changed, or two next to each other swapped. */
+function oneEditApart(a, b) {
+	if (a === b) return false;
+	if (Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		const diff = [];
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
+		if (diff.length === 1) return true;
+		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
+	}
+	const [s, l] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < s.length && s[i] === l[i]) i++;
+	return s.slice(i) === l.slice(i + 1);
+}
+/**
+* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
+* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
+* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
+* with a short word that matches nothing.
+*/
+function nearMiss(q, vocabulary) {
+	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
+	const asked = wordsOf(q);
+	if (!asked.length) return null;
+	const count = /* @__PURE__ */ new Map();
+	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
+	let changed = false;
+	const out = [];
+	for (const w of asked) {
+		if ([...count.keys()].some((v) => v.startsWith(w))) {
+			out.push(w);
+			continue;
+		}
+		if (w.length < 4) return null;
+		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
+		if (!best) return null;
+		out.push(best[0]);
+		changed = true;
+	}
+	return changed ? out.join(" ") : null;
+}
+/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
+function page(all, ask) {
+	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
+	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
+	const rows = all.slice(from, from + size);
+	return {
+		total: all.length,
+		rows,
+		next: from + size < all.length ? String(from + size) : null
+	};
+}
+/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
+function searchGoals(r, ask) {
+	const query = {
+		...parseQuery(new URLSearchParams({
+			...ask.filters ?? {},
+			...ask.sort ? { sort: ask.sort } : {}
+		})),
+		q: ""
+	};
+	return applyQuery(r.summaries, {
+		...query,
+		sort: query.sort ?? "worst"
+	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
+}
+/**
+* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
+* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
+* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
+*/
+function searchPeople(r, ask) {
+	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
+	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
+	const f = ask.filters ?? {};
+	const left = f.left === "too";
+	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
+	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
+	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
+		...personRow(r, p),
+		name: `${p.name} (left)`
+	} : personRow(r, p));
+}
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+function teamRow(r, t) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+	const n = here.filter((p) => p.teamId === t.id).length;
+	return {
+		kind: "team",
+		id: t.id,
+		name: t.name,
+		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
+	};
+}
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
+function searchTeams(r, ask) {
+	const here = r.people.filter((p) => !p.leftAt);
+	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
+	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
+}
+function searchWorkspaces(r, ask) {
+	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
+		kind: "workspace",
+		id: w.id,
+		name: w.name,
+		detail: w.detail
+	}));
+}
+/** The words each kind's near miss may correct to. */
+function vocabulary(r) {
+	switch (r.kind) {
+		case "goal": return r.summaries.map(goalWords);
+		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
+		case "team": return r.teams.map((t) => t.name);
+		case "workspace": return r.workspaces.map((w) => w.name);
+	}
+}
+/**
+* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
+* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
+*/
+function search(rows, ask) {
+	const run = (a) => {
+		switch (rows.kind) {
+			case "goal": return searchGoals(rows, a);
+			case "person": return searchPeople(rows, a);
+			case "team": return searchTeams(rows, a);
+			case "workspace": return searchWorkspaces(rows, a);
+		}
+	};
+	const all = run(ask);
+	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
+	const near = nearMiss(ask.q, vocabulary(rows));
+	const again = near ? run({
+		...ask,
+		q: near
+	}) : [];
+	return near && again.length ? {
+		...page(again, ask),
+		near
+	} : page([], ask);
+}
+/**
+* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+* left out.
+*/
+function rowsByIds(rows, ids) {
+	const found = (id) => {
+		switch (rows.kind) {
+			case "goal": {
+				const s = rows.summaries.find((x) => x.goal.id === id);
+				return s ? goalRow(s) : null;
+			}
+			case "person": {
+				const p = rows.people.find((x) => x.id === id && !x.removedAt);
+				return p ? personRow(rows, p) : null;
+			}
+			case "team": {
+				const t = rows.teams.find((x) => x.id === id);
+				return t ? teamRow(rows, t) : null;
+			}
+			case "workspace": {
+				const w = rows.workspaces.find((x) => x.id === id);
+				return w ? {
+					kind: "workspace",
+					id: w.id,
+					name: w.name,
+					detail: w.detail
+				} : null;
+			}
+		}
+	};
+	return ids.map(found).filter((r) => !!r);
+}
+/**
+* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
+* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
+* when the rest would fill the list. Nobody marked as left; nothing it can't find.
+*/
+function suggest(rows, viewerId, recents) {
+	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
+	const pick = (ids, row) => {
+		const out = [];
+		const add = (id, limit) => {
+			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
+			const r = row(id);
+			if (r) out.push(r);
+		};
+		const lately = recent.filter((id) => !ids.includes(id) && row(id));
+		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
+		for (const id of [...recent, ...ids]) add(id, 6);
+		return out;
+	};
+	switch (rows.kind) {
+		case "person": {
+			const all = searchPeople(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const me = rows.people.find((p) => p.id === viewerId);
+			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
+		}
+		case "team": {
+			const all = searchTeams(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
+			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
+		}
+		case "goal": {
+			const all = searchGoals(rows, { q: "" });
+			const by = new Map(all.map((r) => [r.id, r]));
+			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
+			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
+			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
+		}
+	}
+}
+var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
+var init_find = __esmMin((() => {
+	init_levels();
+	init_goalKey();
+	init_query();
+	init_vocabulary();
+	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	MAX_PAGE = 200;
+	goalWords = (s) => [
+		s.goal.title,
+		s.goal.key ?? "",
+		s.owner,
+		s.team,
+		levelName(null, s.goal.level),
+		LABEL[s.status],
+		s.story.why ?? "",
+		s.story.doing ?? "",
+		s.story.needs ?? "",
+		s.goal.definition,
+		s.goal.source,
+		s.goal.kind !== "milestone" ? s.goal.unit : ""
+	].join(" ");
+	goalRow = (s) => ({
+		kind: "goal",
+		id: s.goal.id,
+		name: s.goal.title,
+		detail: [
+			s.goal.key,
+			s.owner,
+			s.team
+		].filter(Boolean).join(" · "),
+		status: s.status,
+		key: s.goal.key ?? null
+	});
+	personRow = (r, p) => ({
+		kind: "person",
+		id: p.id,
+		name: p.name,
+		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
+	});
+	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
+	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
+}));
 // src/domain/tableFilter.ts
 /** Does one cell value pass the filter? */
 function passes(cell, f) {
@@ -5555,11 +6059,14 @@ function passes(cell, f) {
 		}
 	}
 }
-function applyTable(rows, head, q, filters, sort) {
-	const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+function applyTable(rows, head, q, filters, sort, searched) {
+	const typed = q.trim();
 	const idx = (c) => head.indexOf(c);
+	const cols = (searched ?? head).map(idx).filter((i) => i >= 0);
+	const colsKey = cols.join(",");
+	const keyAt = idx("Key");
 	const live = filters.filter((f) => idx(f.col) >= 0 && (NO_VALUE.includes(f.op) || f.value.trim() !== ""));
-	const out = rows.filter((r) => (!words.length || words.every((w) => lowered(r).some((c) => c.includes(w)))) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
+	const out = rows.filter((r) => (!typed || wordsMatch(wordsFor(r, cols, colsKey), typed, keyAt >= 0 ? r.cells[keyAt] : null)) && live.every((f) => passes(r.cells[idx(f.col)] ?? "", f)));
 	const si = sortIndex(head, sort);
 	if (sort && si >= 0) out.sort((a, b) => {
 		const x = a.cells[si] ?? "", y = b.cells[si] ?? "";
@@ -5604,8 +6111,9 @@ function parseSort(p) {
 function filterEntries(filters, sort) {
 	return [...filters.map((f) => ["f", `${f.col}~${f.op}~${f.value}`]), ...sort ? [["sort", `${sort.col.toLowerCase()}${sort.dir === -1 ? ".desc" : ""}`]] : []];
 }
-var OP_LABEL, NO_VALUE, isNum, lowerCells, lowered, sortIndex;
+var OP_LABEL, NO_VALUE, isNum, rowWords, wordsFor, sortIndex;
 var init_tableFilter = __esmMin((() => {
+	init_find();
 	OP_LABEL = {
 		is: "is any of",
 		isNot: "is none of",
@@ -5622,14 +6130,16 @@ var init_tableFilter = __esmMin((() => {
 	};
 	NO_VALUE = ["empty", "notEmpty"];
 	isNum = (v) => v.trim() !== "" && !isNaN(Number(v));
-	lowerCells = /* @__PURE__ */ new WeakMap();
-	lowered = (r) => {
-		let l = lowerCells.get(r);
-		if (!l) {
-			l = r.cells.map((c) => c.toLowerCase());
-			lowerCells.set(r, l);
-		}
-		return l;
+	rowWords = /* @__PURE__ */ new WeakMap();
+	wordsFor = (r, idx, cols) => {
+		const kept = rowWords.get(r);
+		if (kept && kept.cols === cols) return kept.words;
+		const words = wordsOf(idx.map((i) => r.cells[i] ?? "").join(" "));
+		rowWords.set(r, {
+			cols,
+			words
+		});
+		return words;
 	};
 	sortIndex = (head, sort) => sort ? head.findIndex((h) => h.toLowerCase() === sort.col.toLowerCase()) : -1;
 }));
@@ -5714,11 +6224,12 @@ function layoutProblems(l, head) {
 function shownTable(sheet, l, extra = []) {
 	const [head0, ...body] = sheet.rows;
 	const head = (head0 ?? []).map((c) => c == null ? "" : String(c));
-	const cols = [...visibleColumns(l.table, head, l.cols), ...extra].map((c) => head.indexOf(c));
+	const visible = visibleColumns(l.table, head, l.cols);
+	const cols = [...visible, ...extra].map((c) => head.indexOf(c));
 	const shown = applyTable(body.map((raw) => ({
 		raw,
 		cells: raw.map((c) => c == null ? "" : String(c))
-	})), head, l.q, l.filters, l.sort);
+	})), head, l.q, l.filters, l.sort, visible);
 	return [cols.map((i) => head[i]), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
 }
 /**
@@ -6877,507 +7388,6 @@ var init_actions = __esmMin((() => {
 		return ((w[0]?.[0] ?? "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
 	};
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
-}));
-// src/domain/query.ts
-function addColumnParams(params) {
-	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
-		COLUMN_PARAMS.push(k);
-		QUERY_KEYS.push(k);
-	}
-}
-/** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
-function parseQuery(p) {
-	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
-	const due = p.get("due");
-	const qtr = p.get("qtr");
-	return {
-		q: (p.get("q") ?? "").slice(0, 200),
-		status: list$1(p.get("status"), STATUS_OPTIONS.map(([k]) => k)),
-		level: (p.get("level") ?? "").split(",").filter((l) => isLevel(null, l)),
-		team: (p.get("team") ?? "").split(",").filter(Boolean),
-		owner: (p.get("owner") ?? "").split(",").filter(Boolean),
-		kind: list$1(p.get("kind"), KIND_OPTIONS.map(([k]) => k)),
-		...needsOf(p),
-		due: due === "quarter" ? "quarter" : int$3(due),
-		quiet: int$3(p.get("quiet")),
-		quarter: qtr === "met" || qtr === "missed" ? qtr : null,
-		result: list$1(p.get("result"), RESULT_OPTIONS.map(([k]) => k)),
-		feeds: p.get("feeds") || null,
-		helps: p.get("helps") === "1",
-		sort: SORT_OPTIONS.some(([k]) => k === sortKey) ? sortKey : null,
-		dir: dir === "desc" ? -1 : 1,
-		cols: Object.fromEntries(COLUMN_PARAMS.map((k) => [k, (p.get(k) ?? "").slice(0, 200)]).filter(([, v]) => v))
-	};
-}
-/** Needs attention from a link: attention=1, needs=… (because), or a link from before release 2 (needs=slipped, …). */
-function needsOf(p) {
-	const raw = (p.get("needs") ?? "").split(",").filter(Boolean);
-	const needs = [...new Set(raw.map((v) => v in OLD_NEEDS ? OLD_NEEDS[v] : NEED_OPTIONS.some(([k]) => k === v) ? v : void 0).filter((v) => !!v))];
-	return {
-		attention: p.get("attention") === "1" || raw.some((v) => v in OLD_NEEDS || NEED_OPTIONS.some(([k]) => k === v)),
-		needs
-	};
-}
-/** The query as search params: only what differs from no filter, in a fixed order, so equal queries make equal links. */
-function queryEntries(q) {
-	const out = [];
-	if (q.q.trim()) out.push(["q", q.q.trim()]);
-	if (q.status.length) out.push(["status", q.status.join(",")]);
-	if (q.level.length) out.push(["level", q.level.join(",")]);
-	if (q.team.length) out.push(["team", q.team.join(",")]);
-	if (q.owner.length) out.push(["owner", q.owner.join(",")]);
-	if (q.kind.length) out.push(["kind", q.kind.join(",")]);
-	if (q.attention || q.needs.length) out.push(["attention", "1"]);
-	if (q.needs.length) out.push(["needs", q.needs.join(",")]);
-	if (q.due != null) out.push(["due", String(q.due)]);
-	if (q.quiet != null) out.push(["quiet", String(q.quiet)]);
-	if (q.quarter) out.push(["qtr", q.quarter]);
-	if (q.result.length) out.push(["result", q.result.join(",")]);
-	if (q.feeds) out.push(["feeds", q.feeds]);
-	if (q.helps) out.push(["helps", "1"]);
-	for (const k of Object.keys(q.cols ?? {}).sort()) if (q.cols[k]) out.push([k, q.cols[k]]);
-	if (q.sort) out.push(["sort", q.sort + (q.dir === -1 ? ".desc" : "")]);
-	return out;
-}
-/** The goal and every goal that feeds it, all the way down. */
-function treeOf$1(id, goals) {
-	const out = /* @__PURE__ */ new Set([id]);
-	let grew = true;
-	while (grew) {
-		grew = false;
-		for (const g of goals) if (g.parentId && out.has(g.parentId) && !out.has(g.id)) {
-			out.add(g.id);
-			grew = true;
-		}
-	}
-	return out;
-}
-/** Does this goal pass every filter in the query? */
-function matches(s, q, ctx, tree) {
-	const g = s.goal;
-	if (q.q.trim() && !textMatches(goalWords(s), q.q, g.key)) return false;
-	if (q.status.length && !q.status.includes(s.status)) return false;
-	if (q.level.length && !q.level.includes(g.level)) return false;
-	if (q.team.length && !q.team.includes(g.teamId)) return false;
-	if (q.owner.length && !q.owner.includes(g.ownerId)) return false;
-	if (q.kind.length && !q.kind.includes(g.kind)) return false;
-	for (const [k, v] of Object.entries(q.cols ?? {})) {
-		const col = ctx.columns?.[k];
-		if (col && col(g) !== v) return false;
-	}
-	if (q.attention || q.needs.length) {
-		if (!onAttentionList(s.attention)) return false;
-		if (q.needs.length && !q.needs.some((n) => n === "slipped" ? s.story.flags.includes("slipped") : s.attention.flags.some((f) => f.kind === n))) return false;
-	}
-	if (q.due != null) {
-		const by = q.due === "quarter" ? quarterOf(ctx.cycle, Math.max(1, ctx.week)).to : q.due;
-		if (s.dueWeek > by) return false;
-	}
-	if (q.quiet != null && (s.status === "done" || s.quietDays < q.quiet * 7)) return false;
-	if (q.quarter) {
-		if ([...s.story.quarters].reverse().find((x) => x.kind === "met" || x.kind === "missed")?.kind !== q.quarter) return false;
-	}
-	if (q.result.length && !q.result.includes(s.story.result?.kind ?? "open")) return false;
-	if (q.feeds && !(tree ?? treeOf$1(q.feeds, ctx.goals)).has(g.id)) return false;
-	if (q.helps && !(g.alsoHelps?.length || ctx.goals.some((x) => x.alsoHelps?.includes(g.id)))) return false;
-	return true;
-}
-/** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
-function compare(q, _week) {
-	const key = q.sort ?? "worst";
-	const worst = (a, b) => RANK[b.status] - RANK[a.status];
-	const name = (a, b) => a.goal.title.localeCompare(b.goal.title);
-	const by = {
-		worst,
-		title: name,
-		owner: (a, b) => a.owner.localeCompare(b.owner),
-		team: (a, b) => a.team.localeCompare(b.team),
-		level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
-		gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
-		last: (a, b) => b.quietDays - a.quietDays,
-		due: (a, b) => a.dueWeek - b.dueWeek
-	};
-	return (a, b) => q.dir * by[key](a, b) || worst(a, b) || name(a, b);
-}
-/** The goals that pass the query, in its order. */
-function applyQuery(sums, q, ctx) {
-	const tree = q.feeds ? treeOf$1(q.feeds, ctx.goals) : null;
-	const out = sums.filter((s) => matches(s, q, ctx, tree));
-	return q.sort ? out.sort(compare(q, ctx.week)) : out;
-}
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
-var init_query = __esmMin((() => {
-	init_levels();
-	init_attention();
-	init_status();
-	init_find();
-	init_vocabulary();
-	init_year();
-	EMPTY_QUERY = {
-		q: "",
-		status: [],
-		level: [],
-		team: [],
-		owner: [],
-		kind: [],
-		attention: false,
-		needs: [],
-		due: null,
-		quiet: null,
-		quarter: null,
-		result: [],
-		feeds: null,
-		helps: false,
-		sort: null,
-		dir: 1,
-		cols: {}
-	};
-	STATUS_OPTIONS = [
-		"off",
-		"risk",
-		"stale",
-		"on",
-		"done",
-		"none",
-		"planned"
-	].map((k) => [k, LABEL[k]]);
-	NEED_OPTIONS = [...ATTENTION_FLAGS.filter((k) => k !== "due").map((k) => [k, FLAG[k].label]), ["slipped", WARNING.slipped.label]];
-	OLD_NEEDS = {
-		"no-recovery": "no-path",
-		"missed-date": "missed-path"
-	};
-	RESULT_OPTIONS = [
-		"completed",
-		"late",
-		"missed",
-		"open"
-	].map((k) => [k, RESULT[k].label]);
-	KIND_OPTIONS = [
-		["metric", "Move a number"],
-		["range", "Keep in range"],
-		["milestone", "Dated stages"]
-	];
-	SORT_OPTIONS = [
-		["worst", "Worst first"],
-		["title", "Name"],
-		["owner", "Owner"],
-		["team", "Team"],
-		["level", "Level"],
-		["gap", "Furthest from plan"],
-		["last", "Longest since a check-in"],
-		["due", "Due soonest"]
-	];
-	list$1 = (v, ok) => v ? v.split(",").filter((x) => ok.includes(x)) : [];
-	int$3 = (v) => {
-		const n = v == null ? NaN : Number(v);
-		return Number.isInteger(n) && n > 0 ? n : null;
-	};
-	COLUMN_PARAMS = [];
-	QUERY_KEYS = [
-		"q",
-		"status",
-		"level",
-		"team",
-		"owner",
-		"kind",
-		"attention",
-		"needs",
-		"due",
-		"quiet",
-		"qtr",
-		"result",
-		"feeds",
-		"helps",
-		"sort"
-	];
-	GAP_RANK = {
-		off: 4,
-		risk: 3,
-		stale: 2,
-		on: 1,
-		ahead: 0
-	};
-}));
-// src/domain/find.ts
-/**
-* Rule 1. True when every word of `q` starts a word of `words`, ignoring case and accents (words break at spaces and at
-* / - , . : ( )). A goal's key (`key`) finds it however it is typed ("G-48", "g48", "48"); a whole search that is one key
-* finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
-*/
-function textMatches(words, q, key) {
-	const asked = wordsOf(q);
-	if (!asked.length) return true;
-	const typedKey = normalKey(q.trim());
-	if (typedKey) return !!key && typedKey === key;
-	const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
-	if (bare && key && bare === key) return true;
-	const have = wordsOf(words);
-	return asked.every((w) => have.some((h) => h.startsWith(w)));
-}
-/** One letter added, dropped or changed, or two next to each other swapped. */
-function oneEditApart(a, b) {
-	if (a === b) return false;
-	if (Math.abs(a.length - b.length) > 1) return false;
-	if (a.length === b.length) {
-		const diff = [];
-		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff.push(i);
-		if (diff.length === 1) return true;
-		return diff.length === 2 && diff[1] === diff[0] + 1 && a[diff[0]] === b[diff[1]] && a[diff[1]] === b[diff[0]];
-	}
-	const [s, l] = a.length < b.length ? [a, b] : [b, a];
-	let i = 0;
-	while (i < s.length && s[i] === l[i]) i++;
-	return s.slice(i) === l.slice(i + 1);
-}
-/**
-* Rule 5. Only when rule 1 finds nothing: each word of `q` that starts none of the list's words, and has 4 letters
-* or more, is corrected to the commonest of the list's words one edit away (`oneEditApart`). Returns the corrected search
-* when every such word has a correction and something changed; otherwise null. Never applied to a key, nor to a search
-* with a short word that matches nothing.
-*/
-function nearMiss(q, vocabulary) {
-	if (normalKey(q.trim()) || /^\d+$/.test(q.trim())) return null;
-	const asked = wordsOf(q);
-	if (!asked.length) return null;
-	const count = /* @__PURE__ */ new Map();
-	for (const w of vocabulary.flatMap(wordsOf)) count.set(w, (count.get(w) ?? 0) + 1);
-	let changed = false;
-	const out = [];
-	for (const w of asked) {
-		if ([...count.keys()].some((v) => v.startsWith(w))) {
-			out.push(w);
-			continue;
-		}
-		if (w.length < 4) return null;
-		const best = [...count.entries()].filter(([v]) => oneEditApart(w, v)).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0];
-		if (!best) return null;
-		out.push(best[0]);
-		changed = true;
-	}
-	return changed ? out.join(" ") : null;
-}
-/** One page of `all`, from `after` (an offset, as Faro's adapter writes it). */
-function page(all, ask) {
-	const size = Math.min(MAX_PAGE, Math.max(1, Math.floor(ask.size ?? 50)));
-	const from = Math.max(0, Number.parseInt(ask.after ?? "0", 10) || 0);
-	const rows = all.slice(from, from + size);
-	return {
-		total: all.length,
-		rows,
-		next: from + size < all.length ? String(from + size) : null
-	};
-}
-/** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
-function searchGoals(r, ask) {
-	const query = {
-		...parseQuery(new URLSearchParams({
-			...ask.filters ?? {},
-			...ask.sort ? { sort: ask.sort } : {}
-		})),
-		q: ""
-	};
-	return applyQuery(r.summaries, {
-		...query,
-		sort: query.sort ?? "worst"
-	}, r.ctx).filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
-}
-/**
-* People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
-* names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
-* Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
-* team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
-*/
-function searchPeople(r, ask) {
-	const team = (p) => p.teamId ? r.teamName(p.teamId) : "";
-	const named = (p) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-	const f = ask.filters ?? {};
-	const left = f.left === "too";
-	const lead = f.team && f.team !== "-" ? r.teamLead?.(f.team) ?? null : null;
-	const inTeam = (p) => !f.team || (f.team === "-" ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
-	return r.people.filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== "1" || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q)).sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b)).map((p) => p.leftAt ? {
-		...personRow(r, p),
-		name: `${p.name} (left)`
-	} : personRow(r, p));
-}
-/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
-function teamRow(r, t) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
-	const n = here.filter((p) => p.teamId === t.id).length;
-	return {
-		kind: "team",
-		id: t.id,
-		name: t.name,
-		detail: `${lead ? `Led by ${lead}` : "No lead"} · ${n} ${n === 1 ? "person" : "people"}`
-	};
-}
-/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
-function searchTeams(r, ask) {
-	const here = r.people.filter((p) => !p.leftAt);
-	const lead = (t) => here.find((p) => p.id === t.leadId)?.name ?? "";
-	return r.teams.filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q)).sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id)).map((t) => teamRow(r, t));
-}
-function searchWorkspaces(r, ask) {
-	return r.workspaces.filter((w) => textMatches(w.name, ask.q)).map((w) => ({
-		kind: "workspace",
-		id: w.id,
-		name: w.name,
-		detail: w.detail
-	}));
-}
-/** The words each kind's near miss may correct to. */
-function vocabulary(r) {
-	switch (r.kind) {
-		case "goal": return r.summaries.map(goalWords);
-		case "person": return r.people.filter((p) => !p.leftAt).map((p) => `${p.name} ${p.role}`);
-		case "team": return r.teams.map((t) => t.name);
-		case "workspace": return r.workspaces.map((w) => w.name);
-	}
-}
-/**
-* Rule 7. One search for a kind: every match in the kind's order, a page of it, and, when nothing matches, rule 5's near
-* miss with its rows. Each kind's rows come from `rows` (the core's four; a module's finder answers its own kind).
-*/
-function search(rows, ask) {
-	const run = (a) => {
-		switch (rows.kind) {
-			case "goal": return searchGoals(rows, a);
-			case "person": return searchPeople(rows, a);
-			case "team": return searchTeams(rows, a);
-			case "workspace": return searchWorkspaces(rows, a);
-		}
-	};
-	const all = run(ask);
-	if (all.length || !wordsOf(ask.q).length) return page(all, ask);
-	const near = nearMiss(ask.q, vocabulary(rows));
-	const again = near ? run({
-		...ask,
-		q: near
-	}) : [];
-	return near && again.length ? {
-		...page(again, ask),
-		near
-	} : page([], ask);
-}
-/**
-* The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
-* picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
-* left out.
-*/
-function rowsByIds(rows, ids) {
-	const found = (id) => {
-		switch (rows.kind) {
-			case "goal": {
-				const s = rows.summaries.find((x) => x.goal.id === id);
-				return s ? goalRow(s) : null;
-			}
-			case "person": {
-				const p = rows.people.find((x) => x.id === id && !x.removedAt);
-				return p ? personRow(rows, p) : null;
-			}
-			case "team": {
-				const t = rows.teams.find((x) => x.id === id);
-				return t ? teamRow(rows, t) : null;
-			}
-			case "workspace": {
-				const w = rows.workspaces.find((x) => x.id === id);
-				return w ? {
-					kind: "workspace",
-					id: w.id,
-					name: w.name,
-					detail: w.detail
-				} : null;
-			}
-		}
-	};
-	return ids.map(found).filter((r) => !!r);
-}
-/**
-* Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
-* (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
-* worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
-* when the rest would fill the list. Nobody marked as left; nothing it can't find.
-*/
-function suggest(rows, viewerId, recents) {
-	const recent = recents.filter((r) => r.kind === rows.kind).map((r) => r.id);
-	const pick = (ids, row) => {
-		const out = [];
-		const add = (id, limit) => {
-			if (!id || out.length >= limit || out.some((r) => r.id === id)) return;
-			const r = row(id);
-			if (r) out.push(r);
-		};
-		const lately = recent.filter((id) => !ids.includes(id) && row(id));
-		for (const id of ids) add(id, 6 - Math.min(2, lately.length));
-		for (const id of [...recent, ...ids]) add(id, 6);
-		return out;
-	};
-	switch (rows.kind) {
-		case "person": {
-			const all = searchPeople(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const me = rows.people.find((p) => p.id === viewerId);
-			const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
-			return pick([viewerId, ...me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : []], (id) => by.get(id) ?? null);
-		}
-		case "team": {
-			const all = searchTeams(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = rows.people.find((p) => p.id === viewerId)?.teamId;
-			return pick([mine, ...rows.teams.filter((t) => t.leadId === viewerId).map((t) => t.id)], (id) => by.get(id) ?? null);
-		}
-		case "goal": {
-			const all = searchGoals(rows, { q: "" });
-			const by = new Map(all.map((r) => [r.id, r]));
-			const mine = all.filter((r) => rows.summaries.find((s) => s.goal.id === r.id)?.goal.ownerId === viewerId).map((r) => r.id);
-			const fed = mine.map((id) => rows.summaries.find((s) => s.goal.id === id)?.goal.parentId);
-			return pick([...mine, ...fed], (id) => by.get(id) ?? null);
-		}
-	}
-}
-var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
-var init_find = __esmMin((() => {
-	init_levels();
-	init_goalKey();
-	init_query();
-	init_vocabulary();
-	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
-	MAX_PAGE = 200;
-	goalWords = (s) => [
-		s.goal.title,
-		s.goal.key ?? "",
-		s.owner,
-		s.team,
-		levelName(null, s.goal.level),
-		LABEL[s.status],
-		s.story.why ?? "",
-		s.story.doing ?? "",
-		s.story.needs ?? "",
-		s.goal.definition,
-		s.goal.source,
-		s.goal.kind !== "milestone" ? s.goal.unit : ""
-	].join(" ");
-	goalRow = (s) => ({
-		kind: "goal",
-		id: s.goal.id,
-		name: s.goal.title,
-		detail: [
-			s.goal.key,
-			s.owner,
-			s.team
-		].filter(Boolean).join(" · "),
-		status: s.status,
-		key: s.goal.key ?? null
-	});
-	personRow = (r, p) => ({
-		kind: "person",
-		id: p.id,
-		name: p.name,
-		detail: [p.role, p.teamId ? r.teamName(p.teamId) : ""].filter(Boolean).join(" · ")
-	});
-	collator = new Intl.Collator("en-GB", { sensitivity: "base" });
-	byName = (a, b) => collator.compare(a.name, b.name) || (a.email ?? "").localeCompare(b.email ?? "") || a.id.localeCompare(b.id);
 }));
 // src/domain/goalEntry.ts
 /**
@@ -11138,15 +11148,16 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
+		const owned = s.goals.find((x) => x.id === g.id) ?? g;
 		if (!create && !mayPostCheckIn({
 			id: actor.id,
 			admin: admin()
-		}, g, via)) {
+		}, owned, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(owned.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -14720,7 +14731,7 @@ var help$2 = [
 			{
 				heading: "How to use it",
 				list: [
-					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
+					"On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.",
 					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
@@ -14829,7 +14840,7 @@ var help$2 = [
 			{
 				heading: "The list",
 				list: [
-					"On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
+					"On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
 					"Find one by its file, by who made it or by what it changed. Open one to see what it saved.",
 					"In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own."
 				]
@@ -14868,21 +14879,23 @@ var help$2 = [
 	{
 		id: "export",
 		title: "Exporting",
-		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
+		summary: "One button: Export .xlsx. Zipped CSVs, one sheet as CSV, JSON and a brief for an AI chat are under Other formats.",
 		group: "data",
 		after: "import",
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-				"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.",
+				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.",
+				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
+				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
-				"The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.",
-				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
+				"Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.",
+				"The template is on the Import page and in Every column, and what it needs: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported. It is saved as faro-template.xlsx.",
 				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
 				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
+				"Exports hold names and the owners’ reasons. Share them as you would the app."
 			]
 		}],
 		routes: [],
@@ -15461,7 +15474,7 @@ var CORE_ARTICLES = [
 				heading: "How to use it",
 				list: [
 					"Whoever must respond sees each ask once on Home under Needs your response, grouped by kind, however many goals it covers. Its button opens the goal with the ask open in Next steps and asks, under For you, in the Respond panel, the box ready.",
-					"The Respond panel is the same for every kind: answer it, check in (an update), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
+					"The Respond panel is the same for every kind: answer it, check in (an update; the goal’s owner only, as check-ins are theirs), or mark it done (an action). Answering closes it for every goal it covers. For a decision, Ask the owner first asks them a question of your own and leaves theirs open.",
 					"On a goal’s page, Next steps and asks lists every ask and next step on it once: the kind and its words, who and when, and whether it’s open, overdue (with by how much), answered or done. Each row has at most one button for you: Respond, Answer, Mark done, Check in or Withdraw.",
 					"Waiting on a decision already asked for another goal? Say so in the check-in: link to that request instead of asking again, and one answer covers both goals.",
 					"Still true in the next check-in carries an open request forward; dropping the ask withdraws it."
@@ -15872,7 +15885,7 @@ var CORE_ARTICLES = [
 					"Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.",
 					"Next steps and asks: everything asked and agreed on the goal, in one list, shown once. What waits on you comes first, under For you; then the rest that is open, overdue steps first; then the last three answered or done, with Show all for the others. Respond, Answer and Mark done open the Respond panel right in the row.",
 					"If the goal is behind and nobody has said what happens next, the list says so, with the warning mark: “No next step yet.” Add a next step asks what, who (find them by name or team; it starts with you, and the owner) and the week it’s due by. Anyone but the owner can Ask the owner a question; the owner’s Ask for a decision or help opens this week’s check-in, where a decision or help is raised.",
-					"Why: the owner’s reason from their latest check-in, its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
+					"Why: the owner’s reason from their latest check-in (one an admin loaded is said as theirs, by name), its cause and since when, anything else that flags it, and the owner’s path to green with its date. When it waits on a decision, Why says whose and links to Next steps and asks; the ask’s words are said only there.",
 					"The chart: the plan as a broad pale band, the actual as a solid dark line on it, the app’s projection as a shaded range, and the owner’s path to green. It marks the scorecard’s numbers where they are. Drag along it to read any week.",
 					"Last time we talked: the last review that discussed it and what was noted (what was agreed is in Next steps and asks), and when it’s next due.",
 					"What feeds it: what it feeds into, and how the goals directly feeding it stand, the one most likely to make it miss first.",
@@ -16427,11 +16440,11 @@ var CORE_ARTICLES = [
 			{
 				heading: "How to use it",
 				list: [
-					"Pick a table. Search it, sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
+					"Pick a table. Search it (each word you type starts a word in a shown column, as on Goals; a key like G-48 finds its goal), sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.",
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
-					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
+					"Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -17001,7 +17014,7 @@ var CORE_ARTICLES = [
 					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
-					"Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
+					"Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
 				]
 			},
 			{
@@ -17506,6 +17519,40 @@ var WHATS_NEW = [
 			"Questions about a number use the goal’s unit properly: 1 hour, not 1 hours."
 		],
 		articles: ["check-in-table", "check-in"]
+	},
+	{
+		id: "export-one-button",
+		date: "2026-11-12",
+		title: "Export is one button",
+		points: [
+			"Excel by default; other formats one click away.",
+			"File names say what’s in them: all, the view’s name, or as-shown.",
+			"On Data, Export and Import sit side by side. Past imports and the template are on the Import page."
+		],
+		articles: ["export", "data"]
+	},
+	{
+		id: "data-feedback-search-words",
+		date: "2026-11-12",
+		title: "Data and Feedback search the way Goals does",
+		points: ["Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.", "On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched."],
+		articles: ["data", "feedback"]
+	},
+	{
+		id: "check-ins-owners-words",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s, said everywhere",
+		points: [
+			"Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.",
+			"A check-in an admin loaded is headed with the admin’s name, not as what the owner said.",
+			"One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.",
+			"An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused."
+		],
+		articles: [
+			"requests",
+			"goal-page",
+			"inbox"
+		]
 	},
 	{
 		id: "mcp-lists-one-shape",
@@ -19669,9 +19716,10 @@ var _virtual_faro_modules_default = [{
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
+			"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
 			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
 			"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
 			"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
@@ -19682,7 +19730,7 @@ var _virtual_faro_modules_default = [{
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
 			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
-		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
 }];
 // src/core/module.ts
@@ -19879,6 +19927,8 @@ function systemOverview() {
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
+		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
+		"- [Every issue a spreadsheet can raise](spec/core/import-issues.md): each kind’s level, trigger, sentence and answers, and every column’s other spellings",
 		"",
 		"## Conformance data",
 		"",
@@ -21615,6 +21665,13 @@ function newIssueLink(repo, m, o = {}) {
 	return url;
 }
 // src/markup/ops.ts
+/** Where markups are kept, and their pictures. */
+/** A GitHub issue's address as kept: trimmed, without a query or fragment; anything else is refused in these words. */
+function issueUrlOf(url) {
+	const u = url.trim().replace(/[?#].*$/, "");
+	if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+	return u;
+}
 /** What to say, plainly, when markups' pictures can't be read here: what to do, and where. */
 var PICTURES_UNREADABLE = "Markup pictures can’t be read here yet: the “markups” bucket isn’t open to read. Migration 0031 opens it (CI applies it when the open inbox merges); or, in Supabase, Storage, make the markups bucket public.";
 /** The pictures a markup can have (src/markup/ink.ts makePictures). */
@@ -21699,10 +21756,10 @@ function markupOps(o) {
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
 			return m;
 		},
-		/** Keeps the address of the issue the builder opened. */
-		async setIssueUrl(id, url) {
-			const u = url.trim().replace(/[?#].*$/, "");
-			if (!ISSUE_URL.test(u)) throw new MarkupError("Paste the issue’s address: https://github.com/owner/repo/issues/123.");
+		/** Keeps the address of the issue the builder opened: triage, so admins only (mayTriage, as statusPatch asks). */
+		async setIssueUrl(id, url, admin) {
+			const u = issueUrlOf(url);
+			if (!mayTriage({ admin })) throw new MarkupError(ADMINS_TRIAGE);
 			await must(id);
 			const m = await o.store.update(id, { issueUrl: u });
 			if (!m) throw new MarkupError(`There’s no markup ${id}.`);
@@ -21987,14 +22044,16 @@ var MARKUP_TOOLS = [
 				isError: true,
 				text: "Give a status, an issue_url, or both."
 			};
-			let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-			if (a.status) m = await ops.setStatus(id, {
+			if (a.issue_url) issueUrlOf(String(a.issue_url));
+			if (a.issue_url && !mayTriage(ctx.actor)) throw new MarkupError(ADMINS_TRIAGE);
+			let m = a.status ? await ops.setStatus(id, {
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
 				by: `${ctx.actor.name} via MCP`,
 				admin: !!ctx.actor.admin
-			});
+			}) : null;
+			if (a.issue_url) m = await ops.setIssueUrl(id, String(a.issue_url), !!ctx.actor.admin);
 			return {
 				data: { markup: m },
 				text: `${id} is ${STATUS_WORD[m.status]}${m.fixedIn ? `, fixed in ${m.fixedIn}` : ""}${m.issueUrl ? `, issue ${m.issueUrl}` : ""}.`
@@ -23722,7 +23781,7 @@ var CORE_TOOLS = [
 	{
 		name: "post_check_in",
 		title: "Post a check-in",
-		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner or an admin can post. Posting again for the same week corrects that week’s check-in (the log keeps both).",
+		description: "Post the number (or stages) for one goal for a week: this week by default, or an earlier week to fill in history. The same rules as the app apply: behind or ahead of plan needs a cause and a why; at risk or off track needs a path to green. Only the goal’s owner can post: not an admin, and not anyone else (an admin brings others’ check-ins in only by loading a workbook, or corrects a past one in Data’s tables). Posting again for the same week corrects that week’s check-in (the log keeps both).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

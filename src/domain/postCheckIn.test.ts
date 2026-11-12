@@ -72,6 +72,15 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(() => postCheckIn(x(), post({ week: week - 1, mode: 'again' }))).toThrow(`Week ${week - 1} has passed. Correct it, or add it, with a reason.`);
   });
 
+  it('asks the owner before the change’s own edits: an admin can’t take a goal and check in on it in one change (#227 review)', () => {
+    const take = (who: string, owner: string) => planChanges({ tables: { goals: [{ __row: '2', key: goal.key!, owner: person(owner).name }], checkIns: [{ __row: '2', 'goal id': goal.id, week: String(week), value: onPlan }] }, snapshot: fresh, cycle, week, actor: person(who), now: '2026-11-05T13:00:00Z', newId: (p) => `${p}_o${++n}`, via: 'mcp' });
+    const admin = take('amara', 'amara');
+    expect(admin.commit).toBeNull();
+    expect(admin.issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/^Only Mateo .* \(its owner\) can check in on/);
+    // The owner handing it on and checking in for the week, at once, is the owner's check-in.
+    expect(take('mateo', 'rhea').commit!.checkIns![0]!.authorId).toBe('mateo');
+  });
+
   it('lets only the owner post, in the engine’s words: not someone else, and not an admin (Lane, 12 Nov)', () => {
     expect(() => postCheckIn(x(fresh, 'rhea'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);
     expect(() => postCheckIn(x(fresh, 'amara'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);

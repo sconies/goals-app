@@ -1,4 +1,4 @@
-/* The spreadsheets module on screen (src/core/app.tsx): Import at /data/import, the Spreadsheets menu on Data,
+/* The spreadsheets module on screen (src/core/app.tsx): Import at /data/import, Export and Import on Data,
    Goals' quiet "Export these goals", and the field table in Help's columns article. Its facts are in module.json. */
 import { lazy, Suspense, type ComponentType } from 'react';
 import type { AppModule, PlaceProps } from '../../core/app';
