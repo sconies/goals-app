@@ -6,7 +6,7 @@ What the real core rules give for every goal in every week of the demo workspace
 
 ## The input: workspace.json
 
-The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week goal year starting 2025-12-22), built for 2026-11-05T12:00:00.000Z (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews, and, under `modules`, the records of the modules that add rows here (metrics). Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under `requests` (the stored table’s name).
+The demo workspace (Platform Engineering, 126 goals, 5249 check-ins, a 53-week goal year starting 2025-12-22), built for 2026-11-05T12:00:00.000Z (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches, and, under `modules`, the records of the modules that add rows here (metrics). Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under `requests` (the stored table’s name).
 
 ## How each week is judged
 
@@ -43,6 +43,7 @@ Rows go by week, then goals in key order (G-1, G-2 … G-126).
 | [import.csv](import.csv) (not stage 1) | 52 | case of the change engine | `case`, `actor`, `sheet`, `rows`, `answers`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves` |
 | [readback.csv](readback.csv) (not stage 1) | 6 | draft New goal reads back | `case`, `viewer`, `draft`, `rows`, `after` |
 | [metrics.csv](metrics.csv) (the metrics module, not stage 1) | 54 | rule and what it is asked | `rule`, `ask`, `row`, `total`, `ids`, `goal`, `status`, `slice`, `now`, `target`, `vs_plan`, `owner`, `summary`, `needs` |
+| [home.csv](home.csv) (not stage 1) | 56 | viewer and day | `viewer`, `day`, `lead`, `title`, `quiet` |
 
 What each column is, and the rule that gives it:
 
@@ -64,6 +65,8 @@ What each column is, and the rule that gives it:
 - **readback.csv** ([the read-back](../core/rules/read-back.md)): not part of stage 1, scored like find.csv when asked (`"also": ["readback"]`; it is stage 3’s). One row per case: a draft goal (`draft`, the fields set over a blank goal, as JSON) on New goal’s last step, seen by `viewer`, on the workspace as it stood at `builtFor` (Thursday 5 Nov 2026, week 45, the review day), with the weekly rhythm and Reviews on, each question it raises taken as answered, the level as New goal starts it when the draft doesn’t say (rule 1 of [New goal](../core/rules/new-goal.md)), no metric, and the workspace called “Platform Engineering”. The reviews a goal joins read each review’s `scope` in workspace.json. `rows` is each row as `label: sentence`, separated by ` | `; `after` the “After you publish” lines, separated by ` | `.
 
 - **metrics.csv**: The metric library’s rules ([the library as a place](../modules/metrics/rules.md)), not part of stage 1, scored like find.csv when asked (`"also": ["metrics"]`). Made on the workspace as it stood at `builtFor` (the same `asOf`), with the metric records under `modules.metrics` in workspace.json (`metrics` and `metricLinks`); a link counts while its goal is live then. Three kinds of row, by `rule`: **find** (rule 1), one per search in a fixed list, `ask` the search as `key=value` joined by `&` (`q`, `unit`, `teamId`, `ownerId`, `dir`, `unused`, `sortout`, `sort`; empty for nothing asked), `total` how many match and `ids` every metric id found in order (every page); **goals** (rule 2), for each metric in use by id, a head row (`row` 0: `total` its goals, `summary` the lowest-and-highest line or empty), then one row per goal in order (`row` 1, 2…): `goal` its key, `status` its code, `slice`, `now`, `target`, `vs_plan` and `owner` in words; **needs** (rule 3), for each metric, `needs` the codes in order separated by spaces, empty for none. Every other column is empty.
+
+- **home.csv** ([Home](../core/rules/home.md)): not part of stage 1, scored like find.csv when asked (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead. No check-in draft is kept. Watches carry no date, so they are taken as they are now.
 
 Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.
 
