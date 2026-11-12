@@ -301,10 +301,7 @@ Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its o
     - `activate` asks `from-past` itself (`make_goal_active` takes `confirm`) and refuses a From outside week 0 to the plan's To.
   - #292, migration 0042: `range_bound` may be `between`, with `range_lower` below `range_limit`; applied by CI. Its limits row was added by #295 from another session.
 - **Open:** #300, the two-sided range code. Its gate is in the PR body; CI was running at hand-over. Merge it on green after merging main, using the habits below. If main moves, its usual conflicts are `whatsNew.ts`, `api/mcp.js` and `src/mcp/mcp.test.ts`.
-- **U31 (20 steps against a budget of 19):** not changed; it needs Lane. It was 18 before OB1 (#129, 12 Nov 03:26). OB1 added the "who and where" step, and rule 1's level choice for a lead whose team owns a north star (Mateo leads SRE): "Level: Team" plus Continue. Both are the onboarding spec's design (2.1–2.5, `startLevel`), so taking them out would undo an approved design. Options:
-  - (a) U31's 150% check runs as someone who isn't asked the level, so it measures the share question alone (recommended);
-  - (b) raise U31's budget to 20;
-  - (c) default a lead to Team and let Check change it.
+- **U31 (20 steps against a budget of 19):** settled by planning (23:15): goal entry stays as it is. It was 18 before OB1 (#129), whose "who and where" step and rule 1's level choice for a lead (Mateo) add Level: Team and Continue, by design. U31 still scores 9 for its budget.
 - **Next:** GE10's follow-up (F), from #270's body:
   - Home's two proposal rows (`proposalAsks`; needs seen and put-off state). Once built, restore the read-back line "{Owner} sees it on their Home as a proposal for them".
   - "Make it proposed again" (`backToProposed` is built; it has no action).
