@@ -3557,8 +3557,17 @@ function targetAt(g, c, week) {
 /**
 * How a goal did against its plan in one quarter. Open while the quarter runs; none when there was nothing due. Once the
 * owner calls it done, the quarter it closed in is judged on its final number, and any quarter after it has nothing due.
+* A quarter that ended before the goal was set up is never judged (MCP load, 12 Nov): it says so, and counts nowhere,
+* whatever week its baseline is from and whatever numbers were loaded for those weeks.
 */
 function quarterResult(g, c, checkIns, q, week) {
+	const born = bornWeek(g, c);
+	if (born >= q.to) return {
+		quarter: q,
+		kind: "none",
+		text: `${q.label}: before the goal was set up in week ${born}`,
+		before: true
+	};
 	const own = checkInsFor(g, checkIns).filter((x) => x.week <= q.to);
 	const last = own[own.length - 1];
 	const done = doneCheckIn(g, checkIns, week);
@@ -3619,7 +3628,7 @@ function yearWeeks(startDate) {
 	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$2, MONTHS$1;
+var isYear, DAY$2, MONTHS$1, bornWeek;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3642,6 +3651,7 @@ var init_year = __esmMin((() => {
 		"Nov",
 		"Dec"
 	];
+	bornWeek = (g, c) => g.createdAt ? currentWeek(c, new Date(g.createdAt)) : 0;
 }));
 // src/domain/chartStory.ts
 /** An amount people read at a glance: "£3.41m", "£61k", "83%", "12 days". Money units ("£k", "$m", "€") get the symbol
@@ -15093,7 +15103,7 @@ var CORE_ARTICLES = [
 						"late",
 						"missed"
 					].map((k) => define(RESULT[k])),
-					`Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+					`Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs. A quarter that ended before the goal was set up is not applicable: it is never judged and counts nowhere.`,
 					`At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`
 				]
 			},
@@ -15755,6 +15765,7 @@ var CORE_ARTICLES = [
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
 				"Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.",
 				"On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.",
+				"A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
 			]
 		}],
@@ -17489,6 +17500,13 @@ var WHATS_NEW = [
 		title: "AI tools get every list in one shape",
 		points: ["Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.", "The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback."],
 		articles: ["ai-assistants"]
+	},
+	{
+		id: "quarters-before-set-up",
+		date: "2026-11-12",
+		title: "Quarters before a goal existed are not judged",
+		points: ["A goal set up part way through the year no longer shows the quarters that ended before it as Not met. They say Not applicable, with the week it was set up.", "Those quarters are in no count of met or not met, and no longer raise “Last quarter not met” on the goal or in the overview."],
+		articles: ["history", "status"]
 	},
 	{
 		id: "set-up-check-in-owners",

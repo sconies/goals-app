@@ -124,8 +124,8 @@ function QuarterResults({ groups }: { groups: ViewGroup[] }) {
                         {rs.map((r) => (
                           <td key={r.quarter.n} className={'qcell q-' + r.kind + (r.quarter.n === nowQ ? ' q-now' : '')}>
                             <span className="qcell-label">{r.quarter.label} {r.quarter.months}{r.quarter.n === nowQ ? ' · now' : ''}</span>
-                            <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === nowQ ? quarterDone(r.quarter, app.week) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === nowQ ? QUARTER.open.label : 'To come') : 'Nothing due'}</span>
-                            {r.kind !== 'none' && <span className="hint qcell-text">{quarterWords(r.text, true)}</span>}
+                            <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === nowQ ? quarterDone(r.quarter, app.week) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === nowQ ? QUARTER.open.label : 'To come') : r.before ? 'Not applicable' : 'Nothing due'}</span>
+                            {(r.kind !== 'none' || r.before) && <span className="hint qcell-text">{quarterWords(r.text, true)}</span>}
                           </td>
                         ))}
                         <NowCell s={sums.get(goal.id)} quarter />
