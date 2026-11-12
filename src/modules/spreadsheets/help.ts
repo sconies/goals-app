@@ -16,7 +16,7 @@ const help: Article[] = [
         'Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.',
         `What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine('goals')} A check-in, ${requiredLine('checkIns')} A person, ${requiredLine('people')}`,
         'Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.',
-        'A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.',
+        'A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.',
         'Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.',
         'Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.',
         'Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.',
@@ -62,7 +62,8 @@ const help: Article[] = [
         'In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.',
       ] },
       { heading: 'What Undo puts back', list: [
-        'Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again and someone it marked as left comes back.',
+        'Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again, someone it marked as left comes back, and a team it added or changed goes back too.',
+        'A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.',
         'Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.',
         'When every row has changed since, there is nothing left to undo, and it says so.',
         'Once undone, the line says when and by whom, and Undo is gone.',

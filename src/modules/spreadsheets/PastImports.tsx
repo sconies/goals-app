@@ -57,7 +57,7 @@ function PastImport({ entry, undone }: { entry: Change; undone: boolean }) {
       <span className="removed-text">
         <Link className="removed-name linkish" to={`/data/import/done/${entry.entityId}`}>{importName(entry)}</Link>
         <span className="small muted">{who} · {whenText(entry.at, app.today)}{how ? ` · ${how}` : ''} · {importCounts(entry)}</span>
-        {undone ? <UndoneLine entry={entry} /> : k > 0 ? <span className="small">{k} of its {rows(k + m)} have changed since, so Undo would put back {m}.</span> : null}
+        {undone ? <UndoneLine entry={entry} /> : k > 0 ? <span className="small">{k} of its {rows(k + m)} {k === 1 ? 'has' : 'have'} changed since, so Undo would put back {m}.</span> : null}
       </span>
       {!undone && preview && (m > 0 ? <UndoImport entry={entry} label={k > 0 ? `Undo ${rows(m)}` : 'Undo'} className="btn" /> : null)}
     </li>
