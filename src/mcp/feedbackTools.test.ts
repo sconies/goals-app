@@ -1,6 +1,6 @@
 // @vitest-environment node
-/* The MCP server's feedback tools: any token lists every workspace's feedback with its status, opens one and triages
-   it, through the same operations and rules as the inbox (backlog O). A server with no inbox gives an admin's token
+/* The MCP server's feedback tools: any token lists every workspace's feedback with its status and opens one, and an
+   admin's triages it, through the same operations and rules as the inbox (backlog O). A server with no inbox gives an admin's token
    the workspace's own feedback, without statuses. */
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
@@ -46,7 +46,7 @@ async function setup(o: { inbox?: boolean; person?: string } = {}) {
 }
 
 describe('the MCP server’s feedback tools', () => {
-  it('let any token list every workspace’s feedback with its status, open one and triage it with the inbox’s rules', async () => {
+  it('let any token list every workspace’s feedback with its status and open one; only an admin’s triages it, with the inbox’s rules', async () => {
     // Oskar isn't an admin, and his is an ordinary token.
     const b = await setup({ person: 'oskar' });
     const listed = await b.call('list_feedback');
@@ -59,16 +59,22 @@ describe('the MCP server’s feedback tools', () => {
     const opened = await b.call('get_feedback', { id: 'fb_a' });
     expect(opened.content[0]!.text).toMatch(/fb_a · New\n“The reason box is too small”, saying It gets in the way\.\nFrom Mateo Fernández in Platform Engineering/);
     expect((await b.call('get_feedback', { id: 'fb_gone' })).isError).toBe(true);
+    // Only an admin changes a status (Lane, 12 Nov): Oskar's token is refused, and the feedback is as it was.
+    const refused = await b.call('update_feedback', { id: 'fb_a', status: 'in-hand' });
+    expect(refused.isError).toBe(true);
+    expect(refused.content[0]!.text).toContain('Only an admin can change the status of feedback.');
+    expect(b.list.find((f) => f.id === 'fb_a')!.status).toBe('new');
+    const a = await setup({ person: 'grace' });
     // The inbox's rules: fixed names a What's new entry that exists; won't fix needs a reason.
-    expect((await b.call('update_feedback', { id: 'fb_a', status: 'fixed' })).isError).toBe(true);
-    expect((await b.call('update_feedback', { id: 'fb_a', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
-    expect((await b.call('update_feedback', { id: 'fb_a', status: 'wont-fix' })).isError).toBe(true);
-    const fixed = await b.call('update_feedback', { id: 'fb_a', status: 'fixed', fixed_in: WHATS_NEW[0]!.id });
+    expect((await a.call('update_feedback', { id: 'fb_a', status: 'fixed' })).isError).toBe(true);
+    expect((await a.call('update_feedback', { id: 'fb_a', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
+    expect((await a.call('update_feedback', { id: 'fb_a', status: 'wont-fix' })).isError).toBe(true);
+    const fixed = await a.call('update_feedback', { id: 'fb_a', status: 'fixed', fixed_in: WHATS_NEW[0]!.id });
     expect(fixed.isError).toBe(false);
     expect(fixed.content[0]!.text).toBe(`fb_a is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);
-    expect(b.list.find((f) => f.id === 'fb_a')).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, statusAt: today.toISOString() });
-    expect(b.list.find((f) => f.id === 'fb_a')!.statusBy).toBe('Oskar Lindgren via MCP');
-    const wont = await b.call('update_feedback', { id: 'fb_b', status: 'wont-fix', reason: 'Calm is the point.' });
+    expect(a.list.find((f) => f.id === 'fb_a')).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, statusAt: today.toISOString() });
+    expect(a.list.find((f) => f.id === 'fb_a')!.statusBy).toBe('Grace Achterberg via MCP');
+    const wont = await a.call('update_feedback', { id: 'fb_b', status: 'wont-fix', reason: 'Calm is the point.' });
     expect(wont.content[0]!.text).toBe('fb_b is Won’t fix: Calm is the point.');
   });
 
