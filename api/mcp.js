@@ -1941,9 +1941,10 @@ function mayChangeGoal(actor, goal) {
 }
 /**
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
-* at the check-in screens, the one-table check-in and through the AI tools. Two admin doors stay open, for Lane to
-* decide, since closing them removes a feature: loading a workbook (a spreadsheet import, or setting up from an export)
-* brings in everyone's history, and Data's tables let an admin correct a past check-in.
+* at the check-in screens, the one-table check-in and through the AI tools. Two exceptions, both kept by Lane (12 Nov),
+* both for an admin: loading a workbook (a spreadsheet import, or setting up from an export) brings in everyone's
+* history, and Data's tables let an admin correct a past check-in. Each records the admin as author and actor, with
+* the door as its Via (postCheckIn.test).
 */
 function mayPostCheckIn(actor, goal, via) {
 	if (goal.ownerId === actor.id) return true;
