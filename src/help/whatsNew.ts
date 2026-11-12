@@ -46,6 +46,26 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'removing'],
   },
   {
+    id: 'mcp-new-goal-keys',
+    date: '2026-11-12',
+    title: 'AI tools hear each new goal’s key',
+    points: [
+      'When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.',
+      'A dry run says the key each new goal would get.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
+    id: 'question-in-view',
+    date: '2026-11-12',
+    title: 'A question about a number is where you can see it',
+    points: [
+      'In New goal and Change a goal, a question raised as you type, such as a target over 100%, now scrolls into view, on a phone too. The cursor stays where you are typing.',
+      'Continue or Save changes with a question open takes you straight to it.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
     id: 'import-headers-steadier',
     date: '2026-11-12',
     title: 'Import reads your headers more carefully',
