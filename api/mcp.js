@@ -17250,6 +17250,17 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "import-preview-steadier",
+		date: "2026-11-12",
+		title: "Checking an import: quicker and steadier",
+		points: [
+			"Typing why plans are changing no longer re-checks the whole file on every key.",
+			"Choosing a team, person or goal in an answer shows the search box as it should.",
+			"After an answer, the next question has the focus, so the keyboard carries on where you are."
+		],
+		articles: ["import"]
+	},
+	{
 		id: "publish-one-outcome",
 		date: "2026-11-12",
 		title: "Publishing a goal says one thing",
@@ -19217,6 +19228,7 @@ var _virtual_faro_modules_default = [{
 		"U94",
 		"U90",
 		"U95",
+		"U96",
 		"F7",
 		"F8",
 		"F17",

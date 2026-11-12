@@ -5427,6 +5427,28 @@ journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook 
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);
 
+journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara, a file with one goal that has no owner offers “Leave this row out and save the rest”; the sheet names the row and why; left out, the focus goes to Save, the rest saves, and Imported says 1 row was left out and offers it as a download', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u96.csv', 'Goal,Owner,Team,Unit,Start,Target\nKept cache hit rate,Rhea Kapoor,CI/CD,%,20,90\nOrphan cache size,,CI/CD,GB,20,10\n'));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await h.click(p.getByRole('button', { name: 'Leave this row out and save the rest' }));
+  const sheet = p.getByRole('dialog');
+  await see(sheet, 'Orphan cache size', 'the sheet does not name the row it leaves out');
+  await h.checkpoint('leave out');
+  await h.click(sheet.getByRole('button', { name: 'Leave them out' }));
+  await see(p, '1 row was left out at your choice', 'the preview does not say a row was left out');
+  await p.waitForTimeout(100);
+  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Save 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, '1 row was left out.', 'Imported does not say a row was left out');
+  h.set('errors', await p.getByRole('button', { name: 'Download them' }).isVisible(), 'the rows left out are not offered as a download');
+  const s = await h.snapshot();
+  h.set('finish', s.goals.some((g) => g.title === 'Kept cache hit rate') && !s.goals.some((g) => g.title === 'Orphan cache size'), 'the wrong goals were saved');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'entry', 'logged']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
