@@ -209,4 +209,35 @@ describe('one form, one save', () => {
   });
 });
 
+describe('the build review’s findings on ML2 and ML3 (11 Nov)', () => {
+  it('a goal being made for someone else can be measured in the same save, by whoever makes it', () => {
+    const w = world();
+    const x = w.x('rhea');
+    const g = { ...w.goal('ns-lead'), id: 'goal_new', key: undefined, ownerId: 'oskar' } as Goal;
+    refused(() => M.linkGoalMetric(x, { ...w.goal('ns-lead'), ownerId: 'oskar' } as Goal, 'metric_lead-time'), /Only the goal’s owner or an admin/);
+    const c = M.linkGoalMetric({ ...x, snapshot: { ...x.snapshot, goals: [...x.snapshot.goals, g] } }, g, 'metric_lead-time', null);
+    expect(c!.changes[0]!.summary).toBe('Measured by “Lead time for changes” for the whole company');
+  });
+  it('changing a unit goals use is asked at every door: refused without confirm, saved with it', () => {
+    const w = world();
+    const m = M.metricsOf(w.full).find((v) => v.id === 'metric_lead-time')!;
+    const q = M.metricChangeQuestion(m, { ...m, unit: 'days' }, w.full.goals, M.linksOf(w.full));
+    expect(q).toMatchObject({ changing: ['unit'], goals: 1, apart: 1 });
+    expect(q!.text).toBe('1 goal is measured by this metric. Changing its unit doesn’t change their numbers or plans; 1 of them will show a warning that they differ. Change it?');
+    refused(() => M.saveMetric(w.x('rhea'), { id: m.id, unit: 'days' }), /Ask first, then save it again with confirm/);
+    expect(M.saveMetric(w.x('rhea'), { id: m.id, unit: 'days', confirm: true }).commit).not.toBeNull();
+    // Other fields, or a metric no goal uses, ask nothing.
+    expect(M.metricChangeQuestion(m, { ...m, caveats: 'x' }, w.full.goals, M.linksOf(w.full))).toBeNull();
+  });
+  it('removing a metric unlinks a stopped goal too, and putting it back links it again', () => {
+    const w = world();
+    w.apply(R.stopGoal(w.x('rhea'), 'ns-lead', 'Folded into the delivery north star for the rest of the year.'));
+    expect(w.goal('ns-lead').stoppedAt).toBeTruthy();
+    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
+    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeTruthy();
+    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', 'metric_lead-time', MINE));
+    expect(M.linksOf(w.full).find((l) => l.goalId === 'ns-lead')!.removedAt).toBeNull();
+  });
+});
+
 function w0() { return world(); }

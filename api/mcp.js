@@ -4582,7 +4582,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4885,7 +4885,6 @@ var init_columns = __esmMin((() => {
 		means: "The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins).",
 		loaded: "Sets the plan numbers by hand; needs a reason once check-ins have started"
 	};
-	isWeekHeader = (h) => /^week \d+$/i.test(h.trim());
 	planWeekValue = (r, week) => {
 		const from = r.g.plan.fromWeek ?? 0, end = planEnd(r.g.plan, r.c.x.cycle.weeks);
 		return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
@@ -5031,7 +5030,6 @@ var init_columns = __esmMin((() => {
 		...sheets.map((x) => x.spec.name)
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
-	headersOf = (kind) => specOf(kind).columns.map((c) => c.header);
 	columnOf = (kind, header) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
 	isWorkedOut = (kind, header) => ["worked", "shown"].includes(columnOf(kind, header)?.role ?? "");
 	KEY_COLUMNS = {
@@ -6827,6 +6825,12 @@ var init_actions = __esmMin((() => {
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
 }));
 // src/domain/query.ts
+function addColumnParams(params) {
+	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
+		COLUMN_PARAMS.push(k);
+		QUERY_KEYS.push(k);
+	}
+}
 /** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
 function parseQuery(p) {
 	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
@@ -6947,7 +6951,7 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
@@ -7015,6 +7019,23 @@ var init_query = __esmMin((() => {
 		return Number.isInteger(n) && n > 0 ? n : null;
 	};
 	COLUMN_PARAMS = [];
+	QUERY_KEYS = [
+		"q",
+		"status",
+		"level",
+		"team",
+		"owner",
+		"kind",
+		"attention",
+		"needs",
+		"due",
+		"quiet",
+		"qtr",
+		"result",
+		"feeds",
+		"helps",
+		"sort"
+	];
 	GAP_RANK = {
 		off: 4,
 		risk: 3,
@@ -7280,7 +7301,8 @@ var init_find = __esmMin((() => {
 		s.story.doing ?? "",
 		s.story.needs ?? "",
 		s.goal.definition,
-		s.goal.source
+		s.goal.source,
+		s.goal.kind !== "milestone" ? s.goal.unit : ""
 	].join(" ");
 	goalRow = (s) => ({
 		kind: "goal",
@@ -8945,7 +8967,17 @@ function stagesFromNow(stages, week, weeks = 52) {
 	const scale = Math.min(1, room / last);
 	return parts.map((p) => p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`).join("; ");
 }
-var init_templates = __esmMin((() => {}));
+var init_templates = __esmMin((() => {})), LOADED;
+var init_sheets = __esmMin((() => {
+	init_columns();
+	LOADED = {
+		goals: "goals",
+		plan: "plan",
+		checkIns: "checkIns",
+		people: "people"
+	};
+	Object.keys(LOADED);
+}));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
 function editDistance(a, b) {
@@ -9041,7 +9073,6 @@ function groupTitle(kind, sheet, count, first) {
 		case "loop": return `${n$1(count, "goal")} would feed ${count === 1 ? "itself" : "themselves"}`;
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
-		case "near-header": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9315,84 +9346,6 @@ var init_problemLevels = __esmMin((() => {
 		note: 2
 	};
 }));
-// src/domain/sheets.ts
-/** Every name a sheet of a kind reads a column by, folded: its headers, the engine's extra ones, and the field table's `also`. */
-function namesOf(kind) {
-	const out = /* @__PURE__ */ new Map();
-	for (const h of headersOf(kind)) out.set(fold$1(h), h);
-	for (const h of ALSO_READ[kind] ?? []) out.set(fold$1(h), h);
-	if (FILL_SHEETS.includes(kind)) {
-		for (const row of fieldTable(kind)) for (const a of row.also ?? []) if (!out.has(fold$1(a))) out.set(fold$1(a), row.header);
-	}
-	return out;
-}
-/**
-* How a sheet of a kind reads one header: `exact` (its own, any case, or a plan's "Week N"), `also` (another name the
-* field table gives the column: "Goal name" is Goal), `near` (one letter out of exactly one of them: "Targett" is
-* Target, asked about), or `unknown`. `as` is the column it is read as.
-*/
-function headerMatch(kind, header) {
-	const h = header.trim();
-	if (!h) return {
-		how: "unknown",
-		as: null
-	};
-	if (kind === "plan" && isWeekHeader(h.toLowerCase())) return {
-		how: "exact",
-		as: h
-	};
-	const names = NAMES.get(kind);
-	const at = names.get(fold$1(h));
-	if (at) return alsoOf(kind, h) ? {
-		how: "also",
-		as: at
-	} : {
-		how: "exact",
-		as: at
-	};
-	const m = near(h, [...names.keys()]);
-	if ("near" in m) return {
-		how: "near",
-		as: names.get(m.near)
-	};
-	return {
-		how: "unknown",
-		as: null
-	};
-}
-var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
-var init_sheets = __esmMin((() => {
-	init_columns();
-	init_problemLevels();
-	LOADED = {
-		goals: "goals",
-		plan: "plan",
-		checkIns: "checkIns",
-		people: "people"
-	};
-	Object.keys(LOADED);
-	ALSO_READ = {
-		goals: [
-			"reason",
-			"reason for change",
-			"owner id"
-		],
-		plan: ["reason", "reason for change"],
-		checkIns: ["reason"],
-		people: []
-	};
-	ALL_KINDS = [
-		"goals",
-		"plan",
-		"checkIns",
-		"people",
-		"results",
-		"asks",
-		"notes"
-	];
-	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
-	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
-}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -9425,25 +9378,6 @@ function fileDiffs(file, changed, unchanged, left) {
 		from: "—",
 		to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ""}`
 	}];
-}
-/** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
-function namedHeaders(t, nearOk) {
-	const out = { ...t };
-	for (const [key, kind, sheet] of TABLE_SHEETS) {
-		const recs = t[key];
-		if (!recs?.length) continue;
-		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
-		const rename = /* @__PURE__ */ new Map();
-		for (const k of keys) {
-			const m = headerMatch(kind, k);
-			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
-			const to = m.as.toLowerCase();
-			if (keys.includes(to)) continue;
-			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
-		}
-		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
-	}
-	return out;
 }
 function planChanges(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
@@ -9478,26 +9412,6 @@ function planChanges(input) {
 			sheet,
 			row
 		});
-	};
-	input = {
-		...input,
-		tables: namedHeaders(input.tables, (sheet, header, as) => {
-			const a = answerOf("near-header", sheet, "Header", header);
-			if (a?.choice === "use") return true;
-			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
-				column: "Header",
-				found: header,
-				suggest: as,
-				answers: [{
-					choice: "use",
-					label: `Read it as ${as}`
-				}, {
-					choice: "ignore",
-					label: "Don’t read it"
-				}]
-			});
-			return false;
-		})
 	};
 	/**
 	* A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
@@ -11529,7 +11443,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11649,28 +11563,6 @@ var init_changeset = __esmMin((() => {
 		"feeds-lower",
 		"no-unit"
 	];
-	TABLE_SHEETS = [
-		[
-			"goals",
-			"goals",
-			"Goals"
-		],
-		[
-			"plan",
-			"plan",
-			"Plan"
-		],
-		[
-			"checkIns",
-			"checkIns",
-			"Check-ins"
-		],
-		[
-			"people",
-			"people",
-			"People"
-		]
-	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
 }));
@@ -11786,6 +11678,27 @@ function metricFields(m, s) {
 	};
 }
 /**
+* Changing the unit or which way is better of a metric that live goals use is asked first, at every door (the form's
+* confirm, save_metric's confirm): their numbers and plans don't change, and those that now differ show a warning
+* (linkProblems). Null when nothing needs asking.
+*/
+function metricChangeQuestion(before, next, goals, links) {
+	const linked = links.filter((l) => l.metricId === before.id && !l.removedAt).map((l) => goals.find((g) => g.id === l.goalId)).filter((g) => !!g && !g.removedAt && !g.stoppedAt);
+	const changing = linked.length ? [...next.unit.trim().toLowerCase() !== before.unit.trim().toLowerCase() ? ["unit"] : [], ...next.direction !== before.direction ? ["direction"] : []] : [];
+	if (!changing.length) return null;
+	const apart = linked.filter((g) => {
+		const p = linkProblems(g, next);
+		return p.errors.length + p.warnings.length > 0;
+	}).length;
+	const n = linked.length;
+	return {
+		changing,
+		goals: n,
+		apart,
+		text: `${n} ${n === 1 ? "goal is" : "goals are"} measured by this metric. Changing its ${changing.join(" and ")} doesn’t change their numbers or plans; ${apart} of them will show a warning that they differ. Change it?`
+	};
+}
+/**
 * Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
 * the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
 * nothing changed.
@@ -11796,6 +11709,8 @@ function saveMetric(x, input) {
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
 	if (problems.length) no(problems.join(" "));
+	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
+	if (ask && !input.confirm) no(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
 	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
 	if (before && !diffs.length) return {
 		commit: null,
@@ -11886,7 +11801,7 @@ function linkProblems(goal, m) {
 * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
 */
 function linkGoalMetric(x, goal, metricId, teamId = null) {
-	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
 	const m = live$1(x, metricId);
 	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const { errors } = linkProblems(goal, m);
@@ -12450,7 +12365,7 @@ var MODULE_RECORDS = [{
 				restore(x, m) {
 					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
 					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-					const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+					const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
 					const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
 					return {
 						...metricRows({
@@ -12504,12 +12419,21 @@ var MODULE_RECORDS = [{
 			})),
 			goalOf: (l) => l.goalId
 		}],
-		sheets: [METRICS_SHEET]
+		sheets: [METRICS_SHEET],
+		goalColumns: [{
+			param: "metric",
+			fill: (s) => {
+				const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
+				return (g) => by.get(g.id) ?? null;
+			}
+		}]
 	}
 }].map((p) => ({
 	...p.part,
 	module: p.id
 }));
+/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
+var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
@@ -14338,7 +14262,7 @@ var help$3 = [
 				"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
 				"While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.",
 				"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.",
-				"Changing the unit or which way is better of a metric goals use asks first: their numbers and plans don’t change, and the goals that now differ show a warning.",
+				"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
 				"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
 				"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
 			]
@@ -14409,10 +14333,8 @@ var help$2 = [
 				heading: "How to use it",
 				list: [
 					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
-					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -17157,16 +17079,17 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
-		id: "import-way-in",
+		id: "metric-fixes",
 		date: "2026-11-12",
-		title: "Paste rows, and headers that are nearly right",
+		title: "Metrics: a few things put right",
 		points: [
-			"Paste cells from a spreadsheet straight into Import.",
-			"A title row above the headers, or “Goal name” for Goal, is read.",
-			"A header one letter out is asked about once: “Read it as Target?”",
-			"A file Faro can’t use says what it found, and offers the template."
+			"New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.",
+			"A goal you make for someone else can be measured by a metric straight away.",
+			"A goal whose metric changed unit or direction since now says so on its page.",
+			"Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.",
+			"See goals in a unit finds the goals in that unit."
 		],
-		articles: ["import"]
+		articles: ["metrics"]
 	},
 	{
 		id: "past-imports",
@@ -19073,7 +18996,6 @@ var _virtual_faro_modules_default = [{
 		"U89",
 		"U94",
 		"U90",
-		"U95",
 		"F7",
 		"F8",
 		"F17",
@@ -22403,13 +22325,17 @@ var tools$1 = [
 	{
 		name: "save_metric",
 		title: "Add or change a metric",
-		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing.",
+		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
 				id: str$2("The metric to change, by ID or name. Leave out to add one."),
-				...FIELDS
+				...FIELDS,
+				confirm: {
+					type: "boolean",
+					description: "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+				}
 			}
 		},
 		annotations: WRITE,
@@ -22426,7 +22352,8 @@ var tools$1 = [
 					...a.source_owner !== void 0 ? { sourceOwner: String(a.source_owner) } : {},
 					...a.refresh !== void 0 ? { refresh: a.refresh ? String(a.refresh).toLowerCase() : null } : {},
 					...a.owner !== void 0 ? { ownerId: personOf(ctx, a.owner) } : {},
-					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {}
+					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
+					...a.confirm === true ? { confirm: true } : {}
 				};
 				const { commit, metric } = saveMetric(ax(ctx), input);
 				if (!commit) return {
@@ -23051,7 +22978,14 @@ var CORE_TOOLS = [
 				sort: asked.sort ? asked.sort + (asked.dir === -1 ? ".desc" : "") : null
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
-			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
+			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
+				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k);
+				return c && v ? [{
+					fill: c.fill(ctx.full ?? ctx.snapshot),
+					v
+				}] : [];
+			});
+			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
@@ -23436,6 +23370,7 @@ var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
 module's own (the spreadsheets module's export and export_table). */
+addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,

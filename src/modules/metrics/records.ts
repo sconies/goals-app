@@ -60,7 +60,8 @@ const metric: RecordDef<Metric> = {
     restore(x: ActionContext, m: Metric): Commit {
       const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
       if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-      const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+      // Any goal of the workspace still there, a stopped one or one in another cycle included, as removeMetric unlinked them all.
+      const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
       const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
       return {
         ...metricRows({ metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }], ...(back.length ? { metricLinks: back.map((l) => ({ ...l, removedAt: null, removedBy: null })) } : {}) }),
@@ -91,5 +92,8 @@ const goalMetric: RecordDef<MetricLink> = {
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [METRICS_SHEET],
+  // Goals' "Measured by" (?metric=): a goal's column is the metric its live link names. The app's filter (finder.ts)
+  // and find_goals both read it.
+  goalColumns: [{ param: 'metric', fill: (s) => { const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId])); return (g) => by.get(g.id) ?? null; } }],
 };
 export default records;
