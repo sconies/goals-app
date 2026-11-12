@@ -1,4 +1,5 @@
 /* The first moments in a workspace: saying who you are, and what to do once it's set up. */
+import { workspaceName } from '../domain/workspaceAttention';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -52,6 +53,7 @@ export function cantOpenWords(ws: string, why: NoEntry | null): { line: string; 
 function CantOpenYet() {
   const app = useApp();
   const { line, message } = cantOpenWords(app.ws.name, app.noEntry);
+  const others = app.workspaces.filter((w) => w.id !== app.ws.id);
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const copy = async () => {
     try { await navigator.clipboard.writeText(message!); setCopied('yes'); } catch { setCopied('no'); }
@@ -69,6 +71,17 @@ function CantOpenYet() {
           {message && <button type="button" className="btn primary" onClick={() => void copy()}>{copied === 'yes' ? 'Copied: send it to them' : 'Copy a message for them'}</button>}
           <button type="button" className={message ? 'btn ghost' : 'btn primary'} onClick={() => location.reload()}>Try again</button>
         </div>
+        {/* The switcher stays within reach here (outside review, 12 Nov): any other workspace opens from this page. */}
+        {others.length > 0 && (
+          <section className="stack" style={{ gap: 4 }} aria-labelledby="cant-open-others">
+            <h2 className="field-label" id="cant-open-others">Open another workspace</h2>
+            {others.map((w) => (
+              <button key={w.id} type="button" className="menuitem ws-pick" onClick={() => app.switchWorkspace(w.id)}>
+                <span className="strong ws-pick-name">{workspaceName(w, app.mode).name}</span>
+              </button>
+            ))}
+          </section>
+        )}
       </div>
     </div>
   );

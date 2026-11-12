@@ -11,6 +11,7 @@ import { Avatar, Sheet } from './bits';
 import { PROTOTYPE_LINE } from '../help/about';
 import { useSwitchWorkspace } from './WorkspaceSwitch';
 import { PickOne } from './Pick';
+import { mayStartOver } from '../domain/actions';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -129,7 +130,7 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
           </section>
         )}
         {/* A workspace made in the demo starts over by going: it and everything this browser kept about it (UX report, 8 Nov). */}
-        {own && (
+        {own && mayStartOver(app.viewer, 'own') && (
           <section className="stack" style={{ gap: 4 }} aria-label="Your workspace">
             <span className="field-label">Your workspace</span>
             {resetting
