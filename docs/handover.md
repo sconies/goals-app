@@ -300,7 +300,7 @@ Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its o
     - the Home line was dropped from `afterProposing`;
     - `activate` asks `from-past` itself (`make_goal_active` takes `confirm`) and refuses a From outside week 0 to the plan's To.
   - #292, migration 0042: `range_bound` may be `between`, with `range_lower` below `range_limit`; applied by CI. Its limits row was added by #295 from another session.
-- **Open:** #300, the two-sided range code. Its gate is in the PR body; CI was running at hand-over. Merge it on green after merging main, using the habits below. If main moves, its usual conflicts are `whatsNew.ts`, `api/mcp.js` and `src/mcp/mcp.test.ts`.
+  - #300, the two-sided range code: `range.ts`, `staysText`, between in goal entry, import/export, the MCP tools and the docs. The first download is 259.4 of 265 KB.
 - **U31 (20 steps against a budget of 19):** settled by planning (23:15): goal entry stays as it is. It was 18 before OB1 (#129), whose "who and where" step and rule 1's level choice for a lead (Mateo) add Level: Team and Continue, by design. U31 still scores 9 for its budget.
 - **Next:** GE10's follow-up (F), from #270's body:
   - Home's two proposal rows (`proposalAsks`; needs seen and put-off state). Once built, restore the read-back line "{Owner} sees it on their Home as a proposal for them".
@@ -317,8 +317,8 @@ Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its o
   - New from #293: "Make it active" could ask which past stages are done and save them as the first check-in; today they are marked at the first check-in.
   - The review's lows: `ask_for_update` on a proposed goal; two primary buttons with "Make it active" open; 22 px buttons; "Rhea see"; the scope rule written twice; no MCP test of `make_goal_active` beyond #293's.
 - **Habits:**
-  - The first download is 259.4 of 265 KB on #300's branch (main was 264.7 before #300 moved `RangeChart` out): keep new code lazy.
-  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or #300's new `range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
+  - The first download is 259.4 of 265 KB (#300 moved `RangeChart` out): keep new code lazy.
+  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or `src/domain/range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
   - A finish check runs alone with `FINISH=N12`, not `ONLY=`.
   - `enable_pr_auto_merge` still refuses (no branch protection), so merge by hand.
   - CI's vitest sometimes fails one timing test under load (`importSpeed`, `undoElsewhere`); they pass alone. One re-run each.
