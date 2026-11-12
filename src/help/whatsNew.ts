@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-entry-review-fixes',
+    date: '2026-11-12',
+    title: 'Goal forms that show you what’s left',
+    points: [
+      'On a phone, New goal’s steps take the whole screen, so the tab bar no longer covers Back and Continue.',
+      'Changing a goal, Save with a question still open takes you to it and says where it is. “No, I’ll change it” takes you back to the field.',
+      'A target on the worse side of the metric that measures a goal is asked about wherever the goal is changed, and your answer is kept in its History.',
+      'A spreadsheet row or the AI assistant can no longer save a new goal with an Effect that isn’t a number: it says so, in the form’s words.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
     id: 'metric-fixes',
     date: '2026-11-12',
     title: 'Metrics: a few things put right',

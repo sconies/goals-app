@@ -8,6 +8,9 @@ import { currentWeek, planAt } from './plan';
 import { goalStatus } from './status';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { MetricGoal } from './types';
+import type { ModuleRecords } from './records';
+import { blankGoal } from './goal';
+import { goalMustFix } from './goalEntry';
 
 const today = new Date('2026-11-05T12:00:00Z');
 const s = buildPlatformOrg(today);
@@ -75,6 +78,34 @@ describe('bulk changes', () => {
     expect(after.goals.find((g) => g.id === 'ns-ai')!.level).toBe('svp');
     expect(cs.commit!.changes.every((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Spreadsheet'))).toBe(true);
     expect(cs.commit!.changes.at(-1)!.entity).toBe('workspace');
+  });
+
+  it('refuses an Effect that isn’t a number on a new goal’s row, in the form’s words, though its parent is read later', () => {
+    const row = (o: Record<string, string>) => rec({ Goal: 'Runbooks with an owner', Owner: 'Mateo Fernández', Type: 'metric', Unit: '%', Start: '20', Target: '90', Effect: 'lots', ...o });
+    const form = goalMustFix({ ...blankGoal('cicd', 'mateo', ''), title: 'Runbooks with an owner', parentId: 'ns-lead', effect: 'lots' }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form' }).find((f) => f.field === 'effect')!.text;
+    const cs = planChanges(base('mateo', { goals: [row({ 'Feeds into ID': 'ns-lead' })] }));
+    expect(real(cs)).toContainEqual(expect.objectContaining({ kind: 'not-a-number', column: 'Effect', message: form }));
+    expect(cs.commit).toBeNull();
+    // With nothing to feed, an Effect says nothing, as on the form: it isn't kept, and isn't judged.
+    expect(real(planChanges(base('mateo', { goals: [row({})] }))).filter((i) => i.column === 'Effect')).toEqual([]);
+  });
+
+  it('asks about a target on the worse side of the metric that measures the goal (wrong-side), from a module’s records', () => {
+    const g = s.goals.find((x): x is MetricGoal => x.id === 'ns-lead')!;
+    const records: ModuleRecords[] = [{ module: 'test', records: [], measures: (_s, id) => (id === 'ns-lead' ? { name: 'Lead time for changes', direction: 'lower' } : null) }];
+    const row = [rec({ ID: 'ns-lead', Start: String(g.plan.target - 2), Target: String(g.plan.target - 1) })];
+    const wrong = (cs: ReturnType<typeof planChanges>) => cs.issues.filter((i) => i.found === 'wrong-side');
+    expect(wrong(planChanges(base('rhea', { goals: row }, { reason: 'Re-based on the new dashboard' })))).toEqual([]);
+    const cs = planChanges(base('rhea', { goals: row }, { reason: 'Re-based on the new dashboard', records }));
+    expect(wrong(cs)).toEqual([expect.objectContaining({ kind: 'odd-number', column: 'Target', message: expect.stringMatching(/^“Lead time for changes” is better lower, but the target/) })]);
+    expect(cs.commit).toBeNull();
+  });
+
+  it('asks about a unit a row clears, as the form does (no-unit)', () => {
+    const g = s.goals.find((x) => x.id === 'ns-lead')!;
+    const cs = planChanges(base('rhea', { goals: [rec({ ID: g.id, Unit: '' })] }));
+    expect(cs.issues).toEqual([expect.objectContaining({ kind: 'no-unit', column: 'Unit', message: 'This number has no unit. Is it a plain count?' })]);
+    expect(real(planChanges(base('rhea', { goals: [rec({ ID: g.id, Unit: 'hours' })] })))).toEqual([]);
   });
 
   it('only lets owners change their own goals; admins can change any; anyone may add a goal for anyone', () => {

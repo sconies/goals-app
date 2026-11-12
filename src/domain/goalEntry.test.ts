@@ -5,11 +5,12 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { blankGoal, decimalsFor, type GoalDraft } from './goal';
-import { formNeed, goalChecks, goalMustFix, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext } from './goalEntry';
+import { formNeed, goalChecks, goalMustFix, openLine, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { numberAsTyped } from './numbers';
 import { currentWeek } from './plan';
 import type { MetricGoal } from './types';
+import type { ModuleRecords } from './records';
 
 const ctx = (o: Partial<MustFixContext> = {}): MustFixContext => ({ cycleWeeks: 53, week: 45, existing: null, door: 'form', ...o });
 const draft = (o: Partial<GoalDraft> = {}): GoalDraft => ({ ...blankGoal('cicd', 'tunde', ''), title: 'Signed artifacts', start: '40', target: '90', unit: '%', ...o });
@@ -156,6 +157,9 @@ describe('what is asked (rule 3)', () => {
     expect(stepState(2, [], checks).says).toBe('Answer the question above, under Target.');
     expect(stepState(2, [], [...checks, ...goalChecks(draft({ start: '-5', target: '5' }), cctx())]).says).toBe('Answer the 2 questions above.');
     expect(stepState(2, [], checks, { 'over-100': checks[0]!.key }).go).toBe(true);
+    // The edit page's line above Save is the same line (GE2 review): one rule says it.
+    expect(openLine(checks)).toBe('Answer the question above, under Target.');
+    expect(openLine([])).toBe('');
     expect(stepState(2, [{ field: 'unit', id: 'decimals-range', text: '' }], checks).says).toBe('1 thing to fix above: Unit.');
   });
 });
@@ -202,6 +206,35 @@ describe('saving (rule 7)', () => {
     expect(() => planGoal(as(owner.id), { draft: d, goalId: g.id, confirm: true })).toThrow(REASON_EMPTY);
     const out = planGoal(as(owner.id), { draft: d, goalId: g.id, reason: 'Agreed at the review on Monday', confirm: true });
     expect(out.commit?.changes[0]?.diffs.find((x) => x.field === 'Why')?.to).toBe('Agreed at the review on Monday');
+  });
+  it('asks whether a target on the worse side of its metric is meant, and keeps the answer as Checked (wrong-side)', () => {
+    const team = full.people.find((p) => p.id === 'tunde')!.teamId!;
+    const metric = { name: 'Lead time', direction: 'lower' as const };
+    const d = draftAt({ teamId: team, unit: 'hours', start: '10', target: '20' });
+    expect(() => planGoal(as('tunde'), { draft: d, metric })).toThrow(/“Lead time” is better lower, but the target \(20 hours\) is above today \(10 hours\)\. Is that the plan\?/);
+    const out = planGoal(as('tunde'), { draft: d, metric, answers: { 'wrong-side': 'Lead time|10|20' } });
+    expect(out.commit?.changes[0]?.diffs).toContainEqual({ field: 'Checked', from: expect.stringMatching(/^“Lead time” is better lower/), to: 'Yes, this goal lets it rise to 20 hours' });
+  });
+  it('asks it of a goal being changed from what measures it now, when the form says nothing (a module’s records)', async () => {
+    const { draftOf } = await import('./goal');
+    const g = snapshot.goals.find((x): x is MetricGoal => x.kind === 'metric' && x.plan.target > x.plan.start && !x.plan.points?.length)!;
+    const owner = g.ownerId;
+    const d = { ...draftOf(g), target: String(g.plan.target + 1) };
+    const records: ModuleRecords[] = [{ module: 'test', records: [], measures: (_s, id) => (id === g.id ? { name: 'Cost', direction: 'lower' } : null) }];
+    const reason = 'Agreed at the review on Monday';
+    expect(() => planGoal(as(owner), { draft: d, goalId: g.id, reason })).not.toThrow();
+    expect(() => planGoal({ ...as(owner), records }, { draft: d, goalId: g.id, reason })).toThrow(/“Cost” is better lower, but the target .* is above today/);
+    // The form's own choice wins: "No metric" (null) asks nothing.
+    expect(() => planGoal({ ...as(owner), records }, { draft: d, goalId: g.id, reason, metric: null })).not.toThrow();
+  });
+  it('records only stages already past as done at set-up, whatever the draft says', () => {
+    const team = full.people.find((p) => p.id === 'tunde')!.teamId!;
+    const wk = currentWeek(cycle, today);
+    const d = draftAt({ teamId: team, kind: 'milestone', unit: '', start: '', target: '', stages: [{ id: 'st-a', name: 'Pilot', dueWeek: String(wk - 2), done: 'yes' }, { id: 'st-b', name: 'Rollout', dueWeek: String(wk + 3), done: 'yes' }] });
+    const out = planGoal(as('tunde'), { draft: d, answers: { 'stage-past:st-a': String(wk - 2) } });
+    const ci = out.commit?.checkIns?.[0];
+    expect(ci?.week).toBe(wk - 2);
+    expect(ci?.stages?.filter((u) => u.doneWeek != null).map((u) => u.stageId)).toEqual(['st-a']);
   });
   it('gives back no commit when nothing changed', async () => {
     const { draftFor } = await import('./goal');

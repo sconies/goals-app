@@ -54,6 +54,9 @@ describe('the demo’s library', () => {
     expect(M.measureOf(w.scoped, w.goal('lead-flaky'))).toMatchObject({ metric: { name: 'Flaky test rate' }, slice: 'CI/CD', target: { value: 2, kind: 'at most' }, targetText: 'At most 2.0%' });
     // A goal with no metric.
     expect(M.measureOf(w.scoped, w.goal('lead-mq'))).toBeNull();
+    // What the core's goal entry reads of it, for the wrong-side question at every door (domain/records goalMeasureOf).
+    expect(RECORDS.measures!(w.scoped, 'ns-lead')).toEqual({ name: 'Lead time for changes', direction: 'lower' });
+    expect(RECORDS.measures!(w.scoped, 'lead-mq')).toBeNull();
   });
   it('one metric can sit in the library measuring nothing yet', () => {
     expect(M.goalsMeasuredBy(w.scoped, w.scoped.goals, 'metric_ci-cost')).toEqual([]);
