@@ -33,6 +33,53 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['data', 'feedback'],
   },
   {
+    id: 'import-headers-steadier',
+    date: '2026-11-12',
+    title: 'Import reads your headers more carefully',
+    points: [
+      'A People sheet with a Title or Objective column is read as People, not refused.',
+      'Two columns that mean the same thing, like Goal and Goal name, are asked about: you choose which is read.',
+      'While a header one letter out is asked about, its column’s Must fix waits for your answer.',
+      'Download the rows to fix keeps a column whose header is one letter out.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'undo-import-every-kind',
+    date: '2026-11-12',
+    title: 'Undoing an import puts back teams too',
+    points: [
+      'An import that only changed a team can be undone, and Undo counts the team.',
+      'A goal that fed one Undo deletes moves up, as it does when a goal is deleted by hand.',
+      'Someone an import added stays while they lead a team, sit in a review or have an ask.',
+      'A corrected check-in and a bulk edit on People are named as such on Past imports.',
+    ],
+    articles: ['past-imports'],
+  },
+  {
+    id: 'read-back-holds',
+    date: '2026-11-12',
+    title: 'Check keeps your metric',
+    points: [
+      'On New goal’s Check, the metric you chose stays chosen after a reload or when you come back to a kept draft, and it is published with the goal.',
+      'Choose another team from Check and the metric is for the new team.',
+      'Check reads as one row under another at every width, and says truly when a goal with stages already done can only be stopped, not deleted.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'weeks-picked-steadier',
+    date: '2026-11-12',
+    title: 'Weeks in files and the week list: fewer surprises',
+    points: [
+      'A file with To filled in and Due week left empty now loads; a To before From says so in its own words.',
+      'In a file with no Start column, a bare number under From is asked about: it may be where the goal starts, not a week.',
+      'In the year’s last week, a new goal runs to the end of next year unless you choose otherwise.',
+      'In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list.',
+    ],
+    articles: ['import', 'new-goal'],
+  },
+  {
     id: 'correct-check-in',
     date: '2026-11-12',
     title: 'Correct this check-in corrects it',

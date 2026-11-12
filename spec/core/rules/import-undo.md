@@ -11,9 +11,9 @@ Every import, bulk edit and change through MCP is one entry in the change log th
 
 **Who.** Whoever made it, or an admin (`canUndoImport`); once.
 
-**What Undo does.** Every row goes back as it was before the import: a goal or check-in it added is deleted, one it changed gets its earlier version back, a person it added goes again unless they have done something since. A row changed by anything after the import **stays as it is**, with why, when and by whom (`KeptRow`), from the latest change that touched it: "{who} posted a check-in for week {w} on {date}", "Its {field} was changed on {date}", "The check-in was corrected on {date}", "{name} has made changes since". A goal the import added stays when a check-in has been posted on it since.
+**What Undo does.** Every row goes back as it was before the import: a goal or check-in it added is deleted, one it changed gets its earlier version back, a person it added goes again unless they are in use since (they have done something, own a goal, lead a team, sit in a review or have an ask), and a team it added goes once nothing sits in it. Every kind put back counts: an import that only changed a team objective puts back one row. A goal Undo deletes leaves the tree as a deleted goal does: what fed it moves up to what it fed, other goals stop listing it, and its open asks are withdrawn, even when the goal that fed it changed since. A row changed by anything after the import **stays as it is**, with why, when and by whom (`KeptRow`), from the latest change that touched it: "{who} posted a check-in for week {w} on {date}", "Its {field} was changed on {date}", "The check-in was corrected on {date}", "{name} has made changes since". A goal the import added stays when a check-in has been posted on it since.
 
-**Before it.** `undoPreview(x, importId)` is `undoImport` without the commit: `{ restores, skipped }`, the same numbers and reasons Undo then gives. A screen and the MCP tool (`undo_import` with `dry_run`) say it before anything is undone; when nothing can go back, they say "Nothing left to undo".
+**Before it.** `undoPreview(x, importId)` is `undoImport` without the commit: `{ restores, skipped }`, the same numbers and reasons Undo then gives. A screen and the MCP tool (`undo_import` with `dry_run`) say it before anything is undone; when nothing can go back, they say "Nothing left to undo" (`nothingToUndo`: "Nothing to undo: it changed no rows." when it wrote none), and `undoImport` refuses rather than mark it undone.
 
 ## Worked examples
 
@@ -57,4 +57,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - undoing an import (rule 9) › names a bulk change by where it was made
 - undoing an import (rule 9) › says beforehand what Undo does, and a row changed since stays, with who and when
 - undoing an import (rule 9) › a field changed since says which
+- undo puts back every kind, and leaves nothing hanging (IM4 review) › an import that only changes a team can be undone, and counts the team
+- undo puts back every kind, and leaves nothing hanging (IM4 review) › says plainly when an import changed nothing, and refuses to mark it undone
+- undo puts back every kind, and leaves nothing hanging (IM4 review) › a goal changed since that fed one Undo deletes moves up, as deleting it would
+- undo puts back every kind, and leaves nothing hanging (IM4 review) › someone the import added stays while they lead a team, sit in a review or have an ask
+- undo puts back every kind, and leaves nothing hanging (IM4 review) › names a corrected check-in and a bulk edit on People by what they are
 - Activity folds an import’s rows under it (spec 2.7) › folds rows whose summary is listed, and leaves a row found alone

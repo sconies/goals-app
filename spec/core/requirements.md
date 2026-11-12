@@ -267,7 +267,7 @@ New goal asks what, who and where, how it's measured, then reads it back in sent
 
 - **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
-- **Journeys and checks:** F16, U84, U137
+- **Journeys and checks:** F16, U84, U137, U145
 
 ### GOAL-ENTRY-REQUIRED
 

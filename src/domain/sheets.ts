@@ -165,6 +165,18 @@ const anyName = (cell: string): string | null => {
 };
 
 /**
+ * The sheet a header row is, judged with each kind's own names (#199 review): a People sheet's "Title" is a job title,
+ * not Goals' other name for Goal. The first kind whose names make it that kind; else, as any sheet reads the cells.
+ */
+function kindByOwnNames(head: readonly string[]): SheetKind | null {
+  for (const k of ALL_KINDS) {
+    const names = NAMES.get(k)!;
+    if (sheetKindOf(head.map((c) => names.get(fold(c)) ?? c)) === k) return k;
+  }
+  return sheetKindOf(head.map((c) => anyName(c) ?? c));
+}
+
+/**
  * Rule 3. A sheet's header row: of its first ten rows, the one with the most cells that some sheet reads (as written,
  * or by another name), at least two. A title row above the headers ("Platform goals FY27") is skipped. Gives the row
  * (from 1), each column as read, and the sheet it is (domain/columns sheetKindOf on the names it was read as). No row
@@ -175,7 +187,7 @@ export function readHeader(grid: Grid): { row: number; kind: SheetKind | null; c
   grid.slice(0, 10).forEach((r, i) => { const n = r.filter((c) => anyName(c) != null).length; if (n > score) { best = i; score = n; } });
   const at = best < 0 ? 0 : best;
   const head = grid[at] ?? [];
-  const kind = best < 0 ? sheetKindOf(head) : sheetKindOf(head.map((c) => anyName(c) ?? c));
+  const kind = best < 0 ? sheetKindOf(head) : kindByOwnNames(head);
   return {
     row: at + 1, kind,
     columns: head.map((header, index) => ({ index, header: header.trim(), ...(kind ? headerMatch(kind, header) : { how: 'unknown' as const, as: null }) })),

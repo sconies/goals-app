@@ -18,9 +18,10 @@ export function rowsSheets(read: ReadTables, tables: Tables, rows: readonly RowP
     const recs = tables[key] ?? [];
     if (!mine.length || !recs.length) return [];
     const head = read.headers[key] ?? Object.keys(recs[0]!).filter((k) => k !== '__row');
+    // A header one letter out keeps its key as written (domain/sheets readTables), so it is looked up both ways.
     const problems = new Map<number, string[]>();
     for (const x of mine) problems.set(x.row, [...new Set([...(problems.get(x.row) ?? []), x.problem])]);
-    const body = recs.filter((r, i) => problems.has(Number(r.__row ?? i + 2))).map((r, i) => [problems.get(Number(r.__row ?? i + 2))!.join(' '), ...head.map((h) => r[h.toLowerCase()] ?? '')]);
+    const body = recs.filter((r, i) => problems.has(Number(r.__row ?? i + 2))).map((r, i) => [problems.get(Number(r.__row ?? i + 2))!.join(' '), ...head.map((h) => r[h.toLowerCase()] ?? r[h] ?? '')]);
     const name = read.read.find((x) => x.kind === key)?.name.replace(/\.(csv|tsv|txt)$/i, '') ?? sheet;
     return [{ name, rows: [['Problem', ...head], ...body], bold: ['Problem'] }];
   });

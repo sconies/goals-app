@@ -6,7 +6,8 @@
    A goal year is a run of weeks from its week 1 (the week holding the first Thursday of the month the year starts in) to
    the week before the next one's week 1: 52 or 53 weeks (year.ts goalYear). In a goal year that starts in January its
    year and week are the ISO week date. The cycle's own goal year holds weeks 1 to `cycle.weeks`; week n of the cycle
-   beyond that is in the next goal year, and week 0 and below in the previous one.
+   beyond that is in the next goal year, and week 0 and below in the previous one. A cycle shorter than a goal year (under
+   48 weeks) names its weeks by their dates alone: the ISO week date, whatever its length (GE9 review).
 
    Reads a cycle's `startDate` and `weeks` and nothing else. Pure. */
 import { goalYear, startMonth, yearWeeks } from './year';
@@ -25,6 +26,11 @@ export const cycleYear = (c: C) => new Date(Date.parse(c.startDate + 'T00:00:00Z
 export interface Span { year: number; weeks: number; first: number }
 /** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
 export function spanOf(c: C, n: number): Span {
+  if (c.weeks < 48) {
+    // A shorter cycle: the calendar's own year of that week (the ISO week date), from the week's Thursday.
+    const year = new Date(mondayOf(c, n) + 3 * DAY).getUTCFullYear(), gy = goalYear(year, 0);
+    return { year, weeks: gy.weeks, first: Math.round((Date.parse(gy.startDate + 'T00:00:00Z') - mondayOf(c, 0)) / (7 * DAY)) + 1 };
+  }
   let s: Span = { year: cycleYear(c), weeks: c.weeks, first: 1 };
   // Later years: each starts the week after the one before ends, with its own length.
   while (n >= s.first + s.weeks) {
@@ -91,8 +97,8 @@ export function readWeekCode(c: C, raw: string): { n: number } | { problem: 'wee
   return { problem: 'week-unknown' };
 }
 
-/** "{Field} says “{raw}”. Write a year and a week, like 2026-W46, or the week’s number." (section 4, week-unknown) */
-export const weekUnknownText = (c: C, field: string, raw: string) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, 46)}, or the week’s number.`;
+/** "{Field} says “{raw}”. Write a year and a week, like 2026-W46 (this week), or the week’s number." (section 4, week-unknown) */
+export const weekUnknownText = (c: C, field: string, raw: string, now = 46) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, Math.max(now, 1))}, or the week’s number.`;
 
 /** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
 export function datesOf(c: C, n: number, withYear = true): string {
@@ -120,9 +126,11 @@ export function weekSays(c: C, n: number, form: 'field' | 'row' | 'sentence' | '
 }
 
 /** Rule 13. The latest week anything can be: the last week of the next goal year (105 in the demo's 2026). */
-export const lastWeekOffered = (c: C) => c.weeks + spanOf(c, c.weeks + 1).weeks;
+export const lastWeekOffered = (c: C) => { const own = spanOf(c, 1), next = spanOf(c, own.first + own.weeks); return next.first + next.weeks - 1; };
 /** The earliest week From can be: the first week of the previous goal year (−51 in the demo's 2026). */
-export const firstWeekOffered = (c: C) => spanOf(c, 0).first;
+export const firstWeekOffered = (c: C) => spanOf(c, spanOf(c, 1).first - 1).first;
+/** Rule 13. To when nothing says it: the cycle's end, or, for a From at or past it, the end of next year (GE9 review). */
+export const defaultTo = (c: C, from: number) => (from < c.weeks ? c.weeks : lastWeekOffered(c));
 
 /** "· starts week 50": the summary line's end for a goal not started yet (plan.ts notStarted). */
 export const startsSays = (c: C, from: number) => `starts ${weekSays(c, from, 'short')}`;

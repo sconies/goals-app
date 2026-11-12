@@ -54,6 +54,16 @@ describe('a cycle week as a goal year and its week (rule 13)', () => {
     expect(readWeek(y26, 46, '14 December 2026', 2026)).toBe(51);
     expect(readWeek(y26, 46, 'next spring', 2026)).toBeNull();
   });
+  it('names a shorter cycle’s weeks by their dates, inside it and past its end (GE9 review)', () => {
+    const q = { startDate: '2026-03-30', weeks: 13 };
+    expect(weekCode(q, 1)).toBe('2026-W15');
+    expect(weekCode(q, 14)).toBe('2026-W28');
+    expect(weekSays(q, 14, 'field')).toBe('Week 28 · 6–12 Jul 2026');
+    expect(weekCode(q, 40)).toBe('2027-W01');
+    expect(cycleWeek(q, { year: 2026, week: 28 })).toBe(14);
+    expect(cycleWeek(q, { year: 2027, week: 1 })).toBe(40);
+    expect(weeksProblem(q, 1, 13)).toBeNull();
+  });
   it('counts a goal year that starts in April from that April', () => {
     const april = goalYear(2026, 3);
     const n = 40;
