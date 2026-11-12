@@ -11,7 +11,6 @@ import { LEFT, STOPPED } from '../../domain/vocabulary';
 import { ListBar, ListSearch } from '../../ui/ListBar';
 import { PlanDiff, planWeeks } from '../../ui/Preview';
 import { useImportPlan } from './importPlan';
-import { importStore } from './importStore';
 import './import.css';
 
 const PAGE = 50;
@@ -46,7 +45,7 @@ export function Changes() {
   const save = async () => {
     if (!cs.commit) return;
     setBusy(true);
-    try { await app.applyChanges(cs); app.toast(`Saved: ${describe(cs).toLowerCase()}`); importStore.reset(); nav('/goals'); } catch { setBusy(false); }
+    try { await app.applyChanges(cs); app.toast(`Saved: ${describe(cs).toLowerCase()}`); nav('/goals'); } catch { setBusy(false); }
   };
   return (
     <div className="page narrow import-check">

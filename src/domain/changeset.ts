@@ -933,7 +933,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (!sameAsWritten(n!, was, g.decimals)) typed.set(w, n!);
     }
     const startChanged = startTyped != null && !sameAsWritten(startTyped, orig.plan.start, g.decimals);
-    if (!typed.size && !startChanged) { if (!touched.has(id)) same('Plan'); return; }
+    if (!typed.size && !startChanged) { if (!touched.has(id)) unchanged++; unchangedBy.Plan++; return; }
     if (removals.some((x) => x.g.id === id)) return raise('cant-change', 'Plan', row, g.title, `This file also stops or deletes “${g.title}”, so its plan can’t change in it.`);
     if (!create && !canChange(g)) {
       if (answerOf('not-allowed', 'Plan')?.choice === 'leave') return leave('Plan', row);

@@ -1643,7 +1643,9 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await h.click(p.getByRole('button', { name: 'Choose the corrected file' }));
   await input.setInputFiles(csv('history.csv', `Goal,Week,Value\nRunbooks with an owner,${NOW - 3},20\nRunbooks with an owner,${NOW - 2},20\n`));
   await see(p, '2 check-ins (2 for past weeks)');
-  h.set('attention', await p.getByText('Runbooks with an owner').first().isVisible(), 'the preview does not name the goal');
+  await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
+  await p.locator('.import-change').first().waitFor();
+  h.set('attention', await p.locator('.import-change').filter({ hasText: 'Runbooks with an owner' }).count() === 2, 'the changes do not name the goal');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
   await p.waitForURL(/\/goals$/);
   const s = await h.snapshot();
@@ -4185,7 +4187,8 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await h.checkpoint('import preview');
   await h.click(p.getByRole('link', { name: 'Show the 2 changes' }));
   await p.waitForURL(/\/data\/import\/check\/changes/);
-  h.set('attention', await p.getByText(stop.title).first().isVisible() && await p.getByText(move.title).first().isVisible(), 'the changes do not name both goals');
+  await p.locator('.import-change').first().waitFor();
+  h.set('attention', await p.locator('.import-change').filter({ hasText: stop.title }).count() === 1 && await p.locator('.import-change').filter({ hasText: move.title }).count() === 1, 'the changes do not name both goals');
   h.set('errors', (await h.snapshot()).goals.find((g) => g.id === stop.id) && !(await h.snapshot()).changes.some((c) => c.action === 'stopped'), 'something was saved before Save');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
   await p.waitForURL(/\/goals$/);
@@ -5158,8 +5161,9 @@ journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook 
   const start = book.find((x) => x.name === 'Start here').rows;
   start.find((r) => r[0] === 'File of')[1] = 'another-org';
   start[0][0] = String(start[0][0]).replace(/^[^,]+,/, 'Another Org,');
+  // Its Start here, and two of its goals.
   const other = path.join(OUT, `U89-${device}-other.xlsx`);
-  await writeWorkbook(book, other);
+  await writeWorkbook([{ name: 'Start here', rows: start.slice(0, 3) }, { name: 'Goals', rows: [goals[0].slice(0, -1), ...goals.slice(3, 5).map((r) => r.slice(0, -1).map((c, i) => (goals[0][i] === 'Goal' ? `${c} (theirs)` : c)))] }], other);
   await p.getByLabel('Choose a spreadsheet').setInputFiles(other);
   await see(p, 'This file was exported from “Another Org”', 'a file from another workspace is not asked about');
   h.set('attention', !(await p.getByRole('heading', { name: 'Must fix' }).count()) && !(await p.getByRole('heading', { name: 'What will be saved' }).count()), 'the preview went on before the workspace question');
@@ -5194,11 +5198,12 @@ journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tun
   await h.checkpoint('not yours');
   for (let i = 0; i < 2; i++) await h.click(p.getByRole('radio', { name: 'Leave these rows out' }).first());
   await see(p, '2 rows are left out', 'the rows left out are not said');
+  h.set('attention', (await p.locator('.import-answered').count()) === 2, 'the two answers do not close to their lines');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
   await p.waitForURL(/\/goals$/);
   const s = await h.snapshot();
   const g37 = s.goals.find((g) => g.key === 'G-37'), g14 = s.goals.find((g) => g.key === 'G-14');
-  h.set('finish', g37.target === Number(before.mine) + 2 && g14.target === Number(before.hers) && s.people.find((x) => x.id === 'rhea').role !== 'Pipeline lead', `G-37 ${g37.target}, G-14 ${g14.target}`);
+  h.set('finish', g37.plan.target === Number(before.mine) + 2 && g14.plan.target === Number(before.hers) && s.people.find((x) => x.id === 'rhea').role !== 'Pipeline lead', `G-37 ${g37.plan.target}, G-14 ${g14.plan.target}`);
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);

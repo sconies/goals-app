@@ -2,7 +2,7 @@
    numbers and check-ins, including past weeks, and a row's Action (stop or delete a goal, mark someone as left). Any
    file the app exports loads back: the workbook, the zipped CSVs, one CSV. Every row is checked with the app's own
    rules and shown before anything is saved; then all of it saves, or none. Set-up has its own upload (Onboarding). */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useApp } from '../../app/state';
 import { saveAndSay } from '../../app/files';
@@ -20,12 +20,12 @@ export function Import() {
   const file = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState('');
+  // Import is the way in: a file read before (saved, or left) is forgotten here, answers and all.
+  useEffect(() => importStore.reset(), []);
 
   // A file read goes to the preview (/data/import/check); a new file starts afresh (answers to the last one still apply).
   const pick = async (f: File | undefined) => {
     setProblem('');
-    // From the way in, a file starts afresh; a corrected file chosen on the preview keeps the answers given (Check).
-    importStore.reset();
     if (await chooseFile(f, setProblem)) nav('/data/import/check');
   };
   const template = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'goals-to-edit', scope: app.cycle.name, date: app.today }, { kind: 'xlsx', sheets: workbook({ ws: app.ws, snapshot: app.snapshot, cycle: app.cycle, week: app.week, today: app.today, sheets: MODULE_SHEETS }) }, 'Workbook saved');

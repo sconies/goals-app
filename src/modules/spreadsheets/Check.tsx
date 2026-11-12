@@ -101,7 +101,7 @@ export function Check() {
     try {
       await app.applyChanges(cs);
       app.toast(`Saved: ${describe(cs).toLowerCase()}`);
-      importStore.reset();
+      // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
       nav('/goals');
     } catch (e) {
       setProblem(`Nothing was saved: ${e instanceof Error ? e.message : String(e)}. Try again.`);
@@ -219,8 +219,8 @@ function Nothing({ cs, base, names }: { cs: ChangeSet; base: Tables; names: Part
   return (
     <section className="import-nothing" aria-labelledby="nothing">
       <h2 className="h2" id="nothing">Nothing would change</h2>
-      <p>All {n(cs.unchanged, 'row says', 'rows say')} what Faro already says.</p>
-      {rows > 0 && <p className="small">On {n(rows, 'row')}, {cols.length === 1 ? cols[0] : `${cols.slice(0, -1).join(', ')} and ${cols.at(-1)}`} {cols.length === 1 && rows === 1 ? 'differs' : 'differ'} from what Faro works out today. Faro never reads those columns: to change where a goal stands, post a check-in.</p>}
+      <p>All {n(Object.values(cs.unchangedBy).reduce((a, b) => a + b, 0), 'row says', 'rows say')} what Faro already says.</p>
+      {rows > 0 && <p className="small">On {n(rows, 'row')}, {cols.length === 1 ? cols[0] : `${cols.slice(0, -1).join(', ')} and ${cols.at(-1)}`} {cols.length === 1 ? 'differs' : 'differ'} from what Faro works out today. Faro never reads those columns: to change where a goal stands, post a check-in.</p>}
     </section>
   );
 }
