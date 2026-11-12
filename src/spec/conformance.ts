@@ -311,6 +311,11 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'over-100-answered', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '50', Target: '150' })], answers: { 'odd-number:goals:target:over-100': 'right' } },
     { case: 'margin-wide', actor: 'amara', sheet: 'goals', rows: [fresh({ Type: 'range', Start: '', Target: '', Limit: '12', Margin: '20' })] },
     { case: 'feeds-lower', actor: 'amara', sheet: 'goals', rows: [fresh({ Level: 'north star', 'Feeds into key': 'G-14' })] },
+    // Years and weeks (rule 13; GE9): From and To as a goal year's week, beside the old columns, read as Owner and Owner email are.
+    { case: 'to-before-from', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', To: '2026-W40' })] },
+    { case: 'week-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ To: '2027-W53' })] },
+    { case: 'from-pair-disagrees', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', 'Plan from week': '40' })] },
+    { case: 'to-next-year', actor: 'amara', sheet: 'goals', rows: [fresh({ From: '2026-W46', To: '2027-W13' })] },
     { case: 'removal-refused', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop' }] },
     { case: 'loop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', 'Feeds into key': 'G-1' }] },
     { case: 'near-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })] },

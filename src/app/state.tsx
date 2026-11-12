@@ -19,7 +19,7 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
-import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
+import { commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
 import * as R from '../domain/removal';
 import { forgetDemoBrowser, forgetWorkspaceBrowser } from './demoBrowser';
@@ -349,6 +349,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   }, []);
   // An Undo is for the workspace it was made in: once another is open it could only be refused, so it goes.
   useEffect(() => { setToasts((t) => t.filter((x) => !x.action)); }, [wsId]);
+  // The change engine loads once the first screen is up and the browser is idle, so a check-in doesn't wait for it.
+  useEffect(() => {
+    const load = () => { void loadEngine().catch(() => undefined); };
+    const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
+    if (w.requestIdleCallback) { const h = w.requestIdleCallback(load, { timeout: 4000 }); return () => w.cancelIdleCallback?.(h); }
+    const t = setTimeout(load, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Saves this browser won't keep (full, or blocked): said once as it happens, and shown for as long as it lasts.
   const [saveNote, setSaveNote] = useState<string | null>(() => store.saveProblem?.() ?? null);
@@ -580,6 +588,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       const before = snapshot;
       // Outside the demo, nobody signed in can't act: there is no stand-in to act as (AX3).
       if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+      await ready(name);
       let out: ReturnType<typeof perform<N>>;
       try { out = performAny(rx(), name, input) as ReturnType<typeof perform<N>>; } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
       // A token's secret is made where it's kept (the shared database makes its own) and shown once; only its hash is stored.

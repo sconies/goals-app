@@ -13,7 +13,7 @@ import { Place } from '../core/app';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
 import { historyStep } from '../domain/find';
-import { initials } from '../domain/importer';
+import { initials } from '../domain/via';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import { teamMembers } from '../domain/actions';
 import { LABEL, leftName } from '../domain/vocabulary';

@@ -7,6 +7,7 @@ import { asksOf, isOverdue } from './asks';
 import { isEveryday, levelName } from './levels';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
+import { weekCode } from './weeks';
 import { answerOf, saidIn } from './review';
 import { needsAttention, type Handled } from './attention';
 import { summariseAll, type GoalSummary } from './summary';
@@ -187,7 +188,7 @@ export function toJson(x: ExportInput) {
         feedsIntoId: g.parentId, whyItHelps: g.whyHelps || null, source: g.source || null, definition: g.definition || null,
         ...(g.kind === 'metric' ? {
           unit: g.unit, decimals: g.decimals,
-          plan: { start: g.plan.start, target: g.plan.target, shape: g.plan.shape, fromWeek: g.plan.fromWeek ?? 0, dueWeek: planEnd(g.plan, x.cycle.weeks), setByHand: !!g.plan.points?.length,
+          plan: { start: g.plan.start, target: g.plan.target, shape: g.plan.shape, from: weekCode(x.cycle, g.plan.fromWeek ?? 0), to: weekCode(x.cycle, planEnd(g.plan, x.cycle.weeks)), fromWeek: g.plan.fromWeek ?? 0, dueWeek: planEnd(g.plan, x.cycle.weeks), setByHand: !!g.plan.points?.length,
             byWeek: planCheckpoints(g.plan.fromWeek ?? 0, planEnd(g.plan, x.cycle.weeks)).map((w) => ({ week: w, value: Number(planAt(g.plan, w, x.cycle.weeks).toFixed(g.decimals)) })) },
           earlierPlans: planHistoryOf(g).map((v) => ({ untilWeek: v.untilWeek, start: v.plan.start, target: v.plan.target, shape: v.plan.shape })),
         } : {}),

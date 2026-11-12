@@ -13,7 +13,7 @@ import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
 import type { Metric, MetricDirection, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
-import { VIA_MCP } from '../../domain/changeset';
+import { VIA_MCP } from '../../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
