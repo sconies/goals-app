@@ -179,12 +179,10 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
 /** "After you propose it" (2.15, item 2): what proposing does, and the quieter line under it. */
 export function afterProposing(c: Pick<ReadBackContext, 'owner'>): { after: string[]; hint: string } {
   const you = !c.owner || c.owner.isViewer;
-  const owner = c.owner ? first(c.owner.name) : 'Its owner';
   return {
     after: [
       'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
       `Its plan is kept as you typed it. When ${you ? 'you make it' : 'it is made'} active, the plan starts from that week unless ${you ? 'you' : 'they'} say otherwise.`,
-      ...(you ? [] : [`${owner} sees it on their Home as a proposal for them. Faro doesn’t send email.`]),
     ],
     hint: 'You can change anything without giving a reason, or withdraw it.',
   };

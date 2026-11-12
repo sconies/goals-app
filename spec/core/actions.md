@@ -210,6 +210,8 @@ Every change a person makes, as the command port runs it ([the ports at company 
 - “That goal no longer exists. Reload to see the latest.”
 - ““…” is already active.”
 - “… or an admin can make this active.”
+- “From must be a week of this cycle before the plan’s To: week 0 to week ….”
+- “Not saved. Check with the person first: …”
 - ““…” can’t be made active yet: …”
 
 **AI tools that do the same:** none
