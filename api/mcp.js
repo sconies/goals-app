@@ -17084,6 +17084,7 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
+					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -17460,6 +17461,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "mcp-new-goal-keys",
+		date: "2026-11-12",
+		title: "AI tools hear each new goal’s key",
+		points: ["When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.", "A dry run says the key each new goal would get."],
+		articles: ["ai-assistants"]
+	},
 	{
 		id: "question-in-view",
 		date: "2026-11-12",
@@ -23284,6 +23292,7 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
 async function change(ctx, tables, opts) {
+	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
 		tables,
 		snapshot: ctx.snapshot,
@@ -23323,6 +23332,7 @@ async function change(ctx, tables, opts) {
 		summary: describe(cs),
 		changes: cs.items.map((x) => ({
 			goalId: x.goalId,
+			...x.goalId ? { key: keyOf(x.goalId) } : {},
 			goal: x.goal,
 			kind: x.kind,
 			summary: x.summary,
@@ -23357,8 +23367,15 @@ async function change(ctx, tables, opts) {
 			field: q.field,
 			question: q.text
 		}))),
-		needsConfirm: cs.needsConfirm
+		needsConfirm: cs.needsConfirm,
+		/** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
+		created: cs.items.filter((x) => x.kind === "new goal").map((x) => ({
+			id: x.goalId,
+			key: keyOf(x.goalId),
+			title: x.goal
+		}))
 	};
+	const createdLine = () => data.created.length ? `\nNew ${data.created.length === 1 ? "goal" : "goals"}: ${data.created.map((x) => `${x.key ?? "—"} · ${x.id} · ${x.title}`).join("; ")}.` : "";
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
 	if (errors.length) return {
 		isError: true,
@@ -23398,15 +23415,23 @@ async function change(ctx, tables, opts) {
 	})))}` : ""}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ""}${examples ? `\n${examples.trim()}` : ""}`;
 	if (opts.dry || !cs.commit) return {
 		data,
-		text: `Checked, not saved (dry run). Would save: ${what}`
+		text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
 	};
 	await ctx.save(cs.commit);
+	data.created = data.created.map((x) => ({
+		...x,
+		key: keyOf(x.id)
+	}));
+	data.changes = data.changes.map((x) => x.goalId ? {
+		...x,
+		key: keyOf(x.goalId)
+	} : x);
 	return {
 		data: {
 			...data,
 			saved: true
 		},
-		text: `Saved as ${ctx.actor.name}: ${what}`
+		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
 	};
 }
 /** A goal by its ID or its key (G-12). */
