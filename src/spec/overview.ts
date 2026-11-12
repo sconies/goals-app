@@ -67,6 +67,7 @@ export const INTERNAL_PAGES: [string, string, string][] = [
   ['r8-audit', 'R8. Audit', 'a record of who did what that no one can change, with exports and token use, kept 7 years'],
   ['r9-observability', 'R9. Observability and service levels', 'the signals sent to the company’s tools, the service levels promised, and what pages the on-call person'],
   ['r10-accessibility', 'R10. Accessibility', 'WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow'],
+  ['r11-large-imports', 'R11. Large imports, a server-side job', 'an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)'],
 ];
 
 export function systemOverview(): string {
