@@ -176,7 +176,7 @@ function EditSheet({ goal }: { goal: Goal }) {
                 <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
                 <div><WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" value={endChoice} onChange={(n) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} })} invalid={tried && !!errors.endWeek} dataField="endWeek" />{err('endWeek')}</div>
               </div>
-              <p className="hint">{spanSays(cycle, span.from, endChoice, week)}</p>
+              <p className="hint span-says">{spanSays(cycle, span.from, endChoice, week)}</p>
               {questions('unit')}
               {questions('start')}
               {questions('fromWeek')}

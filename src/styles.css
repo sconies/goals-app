@@ -1507,7 +1507,13 @@ fieldset > legend { padding: 0; }
 .weekpick-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: var(--s3); min-height: 44px; padding: var(--s1) var(--s2); text-align: left; background: none; border: 0; cursor: pointer; }
 .weekpick-row:hover, .weekpick-row:focus-visible { background: var(--accent-soft); }
 .weekpick-list:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.week-rows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--s3) var(--s4); align-items: start; }
-@media (max-width: 640px) { .week-rows { grid-template-columns: minmax(0, 1fr); } }
+/* Baseline beside From, Target beside To: a number and its week on one row, at every width (2.4, item 3). */
+.week-rows { display: grid; grid-template-columns: minmax(96px, 1fr) minmax(0, 1.4fr); gap: var(--s3) var(--s4); align-items: start; }
+@media (max-width: 640px) { .week-rows { grid-template-columns: minmax(72px, 0.5fr) minmax(0, 1.5fr); gap: var(--s2) var(--s3); } }
+.weekpick-open { white-space: normal; height: auto; }
+.weekpick-is-inline { display: none; }
+/* On a phone, what the week is sits beside its label, so a number and its week take one row's height. */
+@media (max-width: 640px) { .week-rows .weekpick-is-inline { display: inline; } .week-rows .weekpick-is { display: none; } }
+.week-rows-hint { grid-column: 1 / -1; margin-top: calc(-1 * var(--s2)); }
 
 @media (max-width: 640px) { .pick-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; } }

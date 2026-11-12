@@ -90,7 +90,7 @@ export function WeekPick({ cycle, week, field, label, value, onChange, from, lab
 
   return (
     <div className={'field weekpick' + (open ? ' open' : '')} ref={wrap} data-field={dataField}>
-      <span className={labelClass} id={`${id}-l`}>{label}</span>
+      <span className="weekpick-label"><span className={labelClass} id={`${id}-l`}>{label}</span>{value != null && <span className="hint weekpick-is-inline" aria-hidden="true"> · {weekIs(cycle, value, week)}</span>}</span>
       <button type="button" ref={opener} className={'input weekpick-open' + (invalid ? ' invalid' : '')} disabled={disabled}
         aria-haspopup="listbox" aria-expanded={open} aria-labelledby={`${id}-l ${id}-v`} aria-invalid={invalid || undefined} onClick={() => setOpen((o) => !o)}>
         <span id={`${id}-v`}>{says}</span>

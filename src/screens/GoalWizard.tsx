@@ -367,12 +367,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 <div className="week-rows">
                   <div className="field">
                     <label className="stack" style={{ gap: 4 }}><span className="small strong">Baseline</span><input className="input big-input" inputMode="decimal" data-field="start" value={d.start} onChange={(e) => set({ start: e.target.value })} onBlur={leave('start')} aria-invalid={invalid('start')} aria-describedby={invalid('start') ? 'start-fix' : 'start-hint'} /></label>
-                    {invalid('start') ? showErr('start') : <span className="hint" id="start-hint">The number in the week the plan runs from.</span>}{keepOffer('start')}
+                    {showErr('start')}{keepOffer('start')}
                   </div>
                   <div onBlur={leave('fromWeek')}>
                     <WeekPick cycle={cycle} week={week} field="from" label="From" labelClass="small strong" value={span.from} onChange={setFrom} invalid={invalid('fromWeek')} dataField="fromWeek" />
                     {showErr('fromWeek')}{questions('fromWeek')}
                   </div>
+                  {!invalid('start') && <span className="hint week-rows-hint" id="start-hint">The number in the week the plan runs from.</span>}
                   <div className="field">
                     <label className="stack" style={{ gap: 4 }}><span className="small strong">Target</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} /></label>
                     {showErr('target')}{keepOffer('target')}{holdOffer}

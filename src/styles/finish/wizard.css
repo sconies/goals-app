@@ -75,7 +75,7 @@
    row; an error sits 4px under the row it's about. On a small phone the name takes the row, the week and Remove go
    under it. Setting up a workspace uses the same rows. */
 :is(.goal-form, .focus-onboard) .stages { display: flex; flex-direction: column; gap: 12px; }
-:is(.goal-form, .focus-onboard) .stage-head, :is(.goal-form, .focus-onboard) .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 1.1fr) 44px; column-gap: 12px; align-items: start; }
+:is(.goal-form, .focus-onboard) .stage-head, :is(.goal-form, .focus-onboard) .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 1.1fr) 44px; column-gap: 12px; align-items: center; }
 :is(.goal-form, .focus-onboard) .stage-head { margin-bottom: -4px; }
 :is(.goal-form, .focus-onboard) .stage-head > span:last-child { grid-column: 2 / 4; }
 :is(.goal-form, .focus-onboard) .stage { display: flex; flex-direction: column; gap: 4px; }

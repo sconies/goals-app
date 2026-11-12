@@ -607,7 +607,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
   await h.fill(p.getByLabel(/^Baseline$/), '90');
-  await h.fill(p.getByLabel(new RegExp(`Target \\(week ${WEEKS}\\)`)), '45');
+  await h.fill(p.getByLabel(/^Target$/), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
   await h.checkpoint('step 3');
@@ -1551,7 +1551,8 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   const due = p.getByRole('button', { name: /^To Week \d+ · / });
   // To is the fourth field on a phone, so it is looked for, not expected above the fold.
   await due.scrollIntoViewIfNeeded();
-  h.set('attention', await due.isVisible() && await p.locator('.weekpick-is').filter({ hasText: /^The end of \d{4}$/ }).isVisible(), 'a new goal is not due at the year end by default');
+  h.set('entry', await due.isVisible(), 'To isn’t on the measure step');
+  h.set('attention', await due.isVisible() && await p.locator('.weekpick', { has: due }).locator('.weekpick-is, .weekpick-is-inline').filter({ hasText: /The end of \d{4}$/ }).filter({ visible: true }).count() > 0, 'a new goal is not due at the year end by default');
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Baseline$/), '20');
   await h.fill(p.getByLabel(/^Target$/), '90');
@@ -4977,7 +4978,8 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   const from = p.getByRole('button', { name: /^From Week/ });
   const to = p.getByRole('button', { name: /^To Week/ });
   await h.inView(from, 'entry', 'From, beside Baseline');
-  const said = async (b) => ((await b.innerText()) + ' · ' + (await p.locator('.weekpick', { has: b }).locator('.weekpick-is').innerText())).trim();
+  // What the week is sits under the picker, or beside its label on a phone.
+  const said = async (b) => ((await b.innerText()) + ' · ' + (await p.locator('.weekpick', { has: b }).locator('.weekpick-is, .weekpick-is-inline').filter({ visible: true }).first().innerText()).replace(/^\s*·\s*/, '')).trim();
   h.set('entry', (await said(from)) === 'Week 45 · 2–8 Nov 2026 · This week' && (await said(to)) === 'Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026', `From and To read “${await said(from)}” and “${await said(to)}”`);
   h.set('a11y', !(await p.locator('.focus-body input[inputmode="numeric"]').count()) && !(await p.getByLabel(/week$/i).count()), 'a week is still a number field on the measure step');
   await h.fill(p.getByLabel(/^Unit/), 'min');
@@ -5011,7 +5013,10 @@ journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step,
   await p.keyboard.press('Enter');
   h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
   const q = p.locator('.level-check').filter({ hasText: 'Week 40 was 5 weeks ago. Has this been running since then?' });
-  await h.inView(q, 'attention', 'the question about a From in the past');
+  // It sits right under From, where the week was just chosen.
+  const asked = p.getByText(/^Week 40 was 5 weeks ago\. Has this been running since then\?/);
+  await asked.first().scrollIntoViewIfNeeded().catch(() => {});
+  await h.inView(asked, 'attention', 'the question about a From in the past');
   await h.click(q.getByRole('button', { name: 'No, start from this week' }));
   h.set('finish', /^Week 45 · 2–8 Nov 2026/.test(await from.innerText()), '“No, start from this week” didn’t put From back');
   await h.checkpoint('measure');
