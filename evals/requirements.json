@@ -99,7 +99,7 @@
     {
       "id": "OWNER-ONLY",
       "area": "Check-in",
-      "text": "Only the goal's owner, or an admin, can post or correct its check-in (R1's access table says the same)."
+      "text": "Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal)."
     },
     {
       "id": "STALE",
