@@ -241,7 +241,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 Only the goal's owner can post its check-in.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U9
+- **Journeys and checks:** U9, U141
 
 ## Goals
 
@@ -552,14 +552,14 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U1, U2, U9
+- **Journeys and checks:** U1, U2, U9, U141
 
 ### ADMIN
 
 Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14, U60
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -1012,7 +1012,7 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Tests:** `evals/printMotion.eval.ts` (3)
+- **Tests:** `evals/layoutSwitch.eval.ts` (2), `evals/printMotion.eval.ts` (3)
 - **Journeys and checks:** N6
 
 ## Workspace

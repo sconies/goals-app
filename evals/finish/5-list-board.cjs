@@ -12,6 +12,24 @@ module.exports = {
     const chk = (ok, msg) => { if (!ok) fails.push(msg); };
     const r0 = (n) => Math.round(n);
 
+    // The review of 12 Nov, item 2: just after switching layout, Board and Table were drawn misaligned, every row sliding
+    // from where the old layout had it. A switch draws the new layout in place: nothing in it is moving.
+    {
+      const [c, p] = await open(1440, 900, 'amara', '/goals?scope=all');
+      await p.locator('.layout-menu > summary').waitFor();
+      for (const name of ['Board', 'Table', 'List', 'Table', 'Board']) {
+        await p.locator('.layout-menu > summary').click();
+        await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: new RegExp('^' + name) }).click();
+        let most = 0;
+        for (let t = 0; t < 500; t += 50) {
+          most = Math.max(most, await p.evaluate(() => document.getAnimations().filter((a) => a.id === 'flip' && a.playState === 'running' && /translate/.test(JSON.stringify(a.effect?.getKeyframes?.() ?? []))).length));
+          await p.waitForTimeout(50);
+        }
+        chk(most === 0, `Goals: switching to ${name}, ${most} rows slid from where the old layout had them`);
+      }
+      await c.close();
+    }
+
     // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
     // the title, beside New goal, so the header is one 44px row; the tabs one row; search and Filter and sort one row with
     // a short placeholder; the switch and View one row (GL2: View opens the sheet with Layout, Group and Saved views).

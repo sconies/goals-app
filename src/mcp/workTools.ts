@@ -31,7 +31,7 @@ import { startPage, startPageText } from '../domain/startYear';
 import type { McpContext, ToolDef, ToolResult } from './tools';
 import { MODULES, modulesOn } from '../core/registry';
 import { RULE_PAGES, systemOverview } from '../spec/overview';
-import { VIA_MCP } from '../domain/changeset';
+import { VIA_MCP } from '../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
