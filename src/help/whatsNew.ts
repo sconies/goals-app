@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'forms-close-in-words',
+    date: '2026-11-12',
+    title: 'Every form closes in words, and Back finds your list',
+    points: [
+      'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
+      'A goal opened from a saved view says “Back to” the view’s name.',
+      'From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.',
+      'Page not found has a Find field, so you can look for what you meant.',
+    ],
+    articles: ['getting-around', 'check-in'],
+  },
+  {
     id: 'range-between',
     date: '2026-11-12',
     title: 'Keep a number between two others',
