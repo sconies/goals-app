@@ -9,9 +9,9 @@ A sheet’s header row is found in its first ten rows; a column under another na
 
 **The header row** (`readHeader`): of a sheet's first ten rows, the one with the most cells that some sheet reads (its own header, any case, or another name the field table gives the column, its `also`), needing at least two. Rows above it (a title) are skipped and said: "Row 2 of Goals is the header row; 1 row above it was skipped." Each row keeps its number in the sheet. No such row: row 1, and the sheet is known only if its first row says so.
 
-**Which sheet** (`sheetKindOf`, on the names the headers were read as): Goals needs Goal or Key and one of Owner, Owner email, Type, Target, Level, Action; Check-ins Week and one of Value, Stages, Call; Plan a "Week N"; **People needs Email, or Name with another People column** (Team, Job title, Admin, ID): Name, Department and Salary band are no Faro sheet.
+**Which sheet** (`sheetKindOf`, judged with each kind's own names in turn, Goals first, so a People sheet's "Title" is a job title and never Goals' other name for Goal; else on the names any sheet reads): Goals needs Goal or Key and one of Owner, Owner email, Type, Target, Level, Action; Check-ins Week and one of Value, Stages, Call; Plan a "Week N"; **People needs Email, or Name with another People column** (Team, Job title, Admin, ID): Name, Department and Salary band are no Faro sheet.
 
-**Each header** (`headerMatch`): `exact`, `also` ("Goal name" is Goal, "Units" is Unit, read without a word), `near` (one letter out of exactly one name, rule 4: "Targett"), or `unknown` (named in the file line, never read). A near header is not listed as unread: the engine asks it as one Check per sheet and header, kind `near-header`, "A column on Goals is called “Targett”. Read it as Target?", answered "Read it as Target" or "Don't read it". The engine does this itself, so a paste, a file and MCP's bulk_change read headers the same way.
+**Each header** (`headerMatch`): `exact`, `also` ("Goal name" is Goal, "Units" is Unit, read without a word), `near` (one letter out of exactly one name, rule 4: "Targett"), or `unknown` (named in the file line, never read). A near header is not listed as unread: the engine asks it as one Check per sheet and header, kind `near-header`, "A column on Goals is called “Targett”. Read it as Target?", answered "Read it as Target" or "Don't read it". The engine does this itself, so a paste, a file and MCP's bulk_change read headers the same way. While it is unanswered, a Must fix on the column it may be ("has no Target") waits: it is raised only once the answer is "Don't read it". **Two columns read as one** ("Goal" and "Goal name") are never one dropped quietly: the engine asks one Check, kind `two-columns`, "Two columns on Goals are read as Goal: “Goal” and “Goal name”. Which should be read?", answered by naming one; until then neither is read, and the column's Must fix waits. The rows-to-fix download keeps a near header's column as the file wrote it.
 
 **The way in** (spec 2.1): a file (up to 20 MB and 30,000 rows; over, it says so and asks for parts), or rows pasted from a spreadsheet (read as a file called "Pasted rows"). A file with no Faro sheet names its first sheet's first five headers and offers the template.
 
@@ -23,6 +23,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 |---|---|
 | A Goals sheet whose first row is the title “Platform goals FY27”. | `header on row 2, goals` |
 | Headers Goal name, Owner name, Target value, Units. | `goals: Goal (also), Owner (also), Target (also), Unit (also)` |
+| Headers Name, Email, Title. | `people` |
 | Headers Name, Department, Salary band. | `no Faro sheet` |
 | Headers Key, Goal, Targett. | `Targett is near Target` |
 
@@ -48,7 +49,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 3: the header row › skips a title row above the headers
 - rule 3: the header row › reads other names as their column
 - rule 3: the header row › a Name with no other People column is no Faro sheet
+- rule 3: the header row › judges a People sheet with each kind’s own names: Title and Objective don’t make it Goals (#199 review)
 - rule 3: the header row › a header one letter out is near
 - rule 3: the header row › readTables keeps each row’s number in the sheet, says the header row, and doesn’t list a near header as not read
 - rule 3 in the engine (every door) › asks once about a header one letter out, and reads it once answered
+- rule 3 in the engine (every door) › a near header’s Must fix waits for its question (#199 review)
+- rule 3 in the engine (every door) › two columns read as one are asked about, and the one chosen is read (#199 review)
 - rule 3 in the engine (every door) › reads a header that differs only by punctuation, an accent or spacing as its column (#199 review)
