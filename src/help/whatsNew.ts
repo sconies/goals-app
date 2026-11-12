@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'undo-removal-sticks',
+    date: '2026-11-12',
+    title: 'Undo after a delete now lasts',
+    points: [
+      'Pressing Undo after deleting something, marking someone as left or stopping a goal brought it back, but it was gone again the next time the page loaded. It now stays back.',
+      'Anything this caught is still in Recently removed, where an admin can restore it.',
+    ],
+    articles: ['removing'],
+  },
+  {
     id: 'cant-open-why',
     date: '2026-11-11',
     title: 'When you can’t open a workspace, it says why',
