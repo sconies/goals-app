@@ -864,7 +864,7 @@
     {
       "id": "IMPORT-UNDO",
       "area": "Removing",
-      "text": "Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed."
+      "text": "Every import, bulk edit and bulk change through MCP is one line in Past imports and one entry in Activity, and can be undone as a whole by whoever made it or an admin. Undo says beforehand which rows have changed since and will stay."
     },
     {
       "id": "MODULES",

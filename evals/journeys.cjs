@@ -1631,7 +1631,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await see(p, '1 new goal');
   await h.checkpoint('preview');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
-  await see(p, 'Saved: 1 new goal');
+  await see(p, 'Saved 1 change from goals.csv.');
   // Its past weeks, by the old address (it leads to Data's Import): a week in the future is refused, and nothing saves
   // until it's fixed.
   await p.goto(url('/import'));
@@ -1647,7 +1647,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await p.locator('.import-change').first().waitFor();
   h.set('attention', await p.locator('.import-change').filter({ hasText: 'Runbooks with an owner' }).count() === 2, 'the changes do not name the goal');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
-  await p.waitForURL(/\/goals$/);
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const g = s.goals.find((x) => x.title === 'Runbooks with an owner');
   const cis = s.checkIns.filter((c) => c.goalId === g?.id);
@@ -4191,7 +4191,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   h.set('attention', await p.locator('.import-change').filter({ hasText: stop.title }).count() === 1 && await p.locator('.import-change').filter({ hasText: move.title }).count() === 1, 'the changes do not name both goals');
   h.set('errors', (await h.snapshot()).goals.find((g) => g.id === stop.id) && !(await h.snapshot()).changes.some((c) => c.action === 'stopped'), 'something was saved before Save');
   await h.click(p.getByRole('button', { name: 'Save 2 changes' }));
-  await p.waitForURL(/\/goals$/);
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s1 = await h.snapshot();
   const stopped = (s1.goals.find((g) => g.id === stop.id) || {});
   const moved = s1.goals.find((g) => g.id === move.id);
@@ -4201,8 +4201,8 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   // Undo it from Activity: both put back.
   await p.goto(url('/activity?kind=imports'));
   await h.click(p.getByRole('button', { name: 'Undo this import' }).first());
-  await h.click(p.getByRole('button', { name: 'Undo the import' }));
-  await see(p, 'Undid the import', 'the undo does not say it was done');
+  await h.click(p.getByRole('dialog').getByRole('button', { name: /^Undo \d+ rows?$/ }));
+  await see(p, 'Undone:', 'the undo does not say it was done');
   const s2 = await h.snapshot();
   h.set('finish', !s2.goals.find((g) => g.id === stop.id).stoppedAt && s2.goals.find((g) => g.id === move.id).ownerId === 'tariq', 'the undo did not put both goals back');
   // Workspace: someone added before emails existed is listed, and their email saved.
@@ -5163,7 +5163,7 @@ journey('U88', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'One answer for many rows: a
   await p.waitForURL(/\/data\/import\/check\/changes/);
   await see(p, 'the owner’s team; the row gave none', 'the changes list does not say where a default came from');
   await h.click(p.getByRole('button', { name: 'Save 18 changes' }));
-  await p.waitForURL(/\/goals$/);
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const runners = s.goals.filter((g) => /^Runner pool \d+ wait$/.test(g.title));
   h.set('logged', runners.length === 14 && runners.every((g) => g.teamId === 'cicd') && s.changes.some((c) => c.action === 'imported'), `${runners.length} goals saved, teams ${[...new Set(runners.map((g) => g.teamId))].join(', ')}`);
@@ -5237,13 +5237,64 @@ journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tun
   await see(p, '2 rows are left out', 'the rows left out are not said');
   h.set('attention', (await p.locator('.import-answered').count()) === 2, 'the two answers do not close to their lines');
   await h.click(p.getByRole('button', { name: 'Save 1 change' }));
-  await p.waitForURL(/\/goals$/);
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
   const s = await h.snapshot();
   const g37 = s.goals.find((g) => g.key === 'G-37'), g14 = s.goals.find((g) => g.key === 'G-14');
   h.set('finish', g37.plan.target === Number(before.mine) + 2 && g14.plan.target === Number(before.hers) && s.people.find((x) => x.id === 'rhea').role !== 'Pipeline lead', `G-37 ${g37.plan.target}, G-14 ${g14.plan.target}`);
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);
+
+journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import of 5 goals and 10 check-ins; Imported offers Undo; Data → Past imports lists it by the file’s name; Rhea posts a check-in on one imported goal; Undo says 14 rows go back and 1 stays, naming Rhea’s check-in; after it the line reads “Undone on…”; Activity shows one entry for the import with “Show the 15 changes”', 14, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  const titles = ['Mirror sync lag', 'Cache hit rate', 'Flaky test share', 'Queue wait p90', 'Runner idle time'].map((t) => `${t} (U90)`);
+  const goals = [['Goal', 'Owner', 'Team', 'Type', 'Unit', 'Start', 'Target'], ...titles.map((t) => [t, 'Rhea Kapoor', 'CI/CD', 'metric', '%', '20', '90'])];
+  const checkIns = [['Goal', 'Week', 'Value'], ...titles.flatMap((t) => [[t, String(NOW - 3), '20'], [t, String(NOW - 2), '20']])];
+  const file = path.join(OUT, `u90-${device}.xlsx`);
+  await writeWorkbook([{ name: 'Goals', rows: goals }, { name: 'Check-ins', rows: checkIns }], file);
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(file);
+  await p.waitForURL(/\/data\/import\/check$/);
+  await h.click(p.getByRole('button', { name: 'Save 15 changes' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, `Saved 15 changes from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
+  h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
+  await h.checkpoint('imported');
+  // Data → Spreadsheets → Past imports: the import by its file's name.
+  await p.goto(url('/data'));
+  const menu = p.locator('.data-export').first();
+  await h.click(menu);
+  await h.click(p.locator('.data-export').getByRole('button', { name: 'Past imports' }));
+  await p.waitForURL(/\/data\/imports/);
+  await see(p, `u90-${device}.xlsx`, 'Past imports does not list the import by its file');
+  // Rhea posts a check-in on one of the imported goals.
+  const s0 = await h.snapshot();
+  const first = s0.goals.find((g) => g.title === titles[0]);
+  await p.evaluate(async ({ goalId, week }) => {
+    const at = new Date().toISOString();
+    const ci = { id: 'ci_u90', goalId, authorId: 'rhea', week, postedAt: at, value: 30, stages: null, status: 'on', calculated: 'on', cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false };
+    await window.__goalsStore.commit('platform-org', { checkIns: [ci], changes: [{ id: 'chg_u90', at, actorId: 'rhea', goalId, entity: 'check-in', entityId: 'ci_u90', action: 'posted', summary: `Checked in for week ${week}`, diffs: [] }] });
+  }, { goalId: first.id, week: NOW });
+  await p.reload();
+  await see(p, '1 of its 15 rows have changed since, so Undo would put back 14.', 'Past imports does not say a row changed since');
+  await h.click(p.getByRole('button', { name: 'Undo 14 rows' }));
+  const sheet = p.getByRole('dialog');
+  await see(sheet, '14 rows go back to how they were on', 'the Undo sheet does not say how many rows go back');
+  await see(sheet, `Rhea Kapoor posted a check-in for week ${NOW}`, 'the Undo sheet does not name Rhea’s check-in');
+  await h.checkpoint('undo sheet');
+  await h.click(sheet.getByRole('button', { name: 'Undo 14 rows' }));
+  await see(p, 'Undone: 14 rows put back.', 'the undo does not say it was done');
+  await see(p, 'Undone on', 'the import’s line does not say it was undone');
+  const s1 = await h.snapshot();
+  const left = s1.goals.filter((g) => titles.includes(g.title) && !g.removedAt).map((g) => g.title);
+  h.set('finish', left.length === 1 && left[0] === titles[0], `goals left after Undo: ${left.join(', ')}`);
+  // Activity: the import is one entry, its rows folded under it.
+  await p.goto(url('/activity'));
+  await see(p, `imported u90-${device}.xlsx`, 'Activity does not show the import as one entry');
+  h.set('logged', await p.getByRole('button', { name: 'Show the 15 changes' }).first().isVisible(), 'the import’s rows are not folded under it');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'errors']);
 
 /** Until the app has drawn the page: the boot screen gone, and something in main. A screen that loads when it's opened
     (AX4: Data, Workspace, Feedback, Print, the wrap-up) leaves main empty until it arrives, so a fixed wait after going

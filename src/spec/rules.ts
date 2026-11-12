@@ -21,7 +21,8 @@ import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorec
 import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
-import { cycleStanding, leaveWorkspace } from '../domain/removal';
+import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
+import { applyCommit } from '../data/store';
 import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
 import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, typedDecimals } from '../domain/numbers';
@@ -742,7 +743,48 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'A file with Start here, a Goals sheet with two columns of the person’s own (Notes, Budget), a Results sheet and a sheet called Budget.', then: 'Read Goals. Not read: Results (for reading only); Budget (not a Faro sheet); the columns Notes and Budget on Goals.', run: () => readLine(readTables([{ name: 'Start here', rows: [['Platform, 2026. Exported 2026-11-11, week 46 of 52.'], ['File of', 'platform-org', 'y2026']] }, { name: 'Goals', rows: [['Key', 'Goal', 'Owner', 'Notes', 'Budget'], ['G-1', 'Lead time', 'Rhea Kapoor', '', '']] }, { name: 'Results', rows: [['Key', 'Goal', 'Result', 'Q1'], ['G-1', 'x', 'y', 'z']] }, { name: 'Budget', rows: [['Line', 'Amount'], ['Runners', '400']] }])) },
       { given: 'Leaving out Goals row 44 (a new goal) with 4 Check-ins rows for it and one goal (row 45) that feeds into it.', then: '5 rows go with it; row 45 because Feeds into names Goals row 44', run: () => { const r = (o: Record<string, string>, row: number): Rec => ({ __row: String(row), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k.toLowerCase(), v])) }); const out = leaveOut({ goals: [r({ Goal: 'Runner pool size', Owner: 'Rhea Kapoor' }, 44), r({ Goal: 'Runner spares', Owner: 'Rhea Kapoor', 'Feeds into': 'Runner pool size' }, 45)], checkIns: [2, 3, 4, 5].map((k) => r({ Goal: 'Runner pool size', Week: String(40 + k), Value: '12' }, k)) }, [{ sheet: 'Goals', row: 44 }]); const g = out.also.find((x) => x.sheet === 'Goals')!; return `${out.also.length} rows go with it; row ${g.row} because ${g.because}`; } },
     ],
-    unclear: ['The counts, the order of the blocks and the words of the preview are its screen\'s (spec/screens): a rebuild may lay them out its own way. Imported, Undo and Past imports come with IM4; paste and a header row below row 1 with IM5; large files with IM6.'],
+    unclear: ['The counts, the order of the blocks and the words of the preview are its screen\'s (spec/screens): a rebuild may lay them out its own way. Imported, Undo and Past imports are rule import-undo; paste and a header row below row 1 with IM5; large files with IM6.'],
+  },
+  /* ---------- an import's undo, and past imports (backlog IM4) ---------- */
+  {
+    id: 'import-undo',
+    title: 'Undoing an import, and past imports',
+    summary: 'Every import, bulk edit and change through MCP is one entry in the change log that can be undone as a whole by whoever made it or an admin; Undo says first which rows changed since and will stay, and why.',
+    code: [
+      { file: 'src/domain/removal.ts', names: ['undoImport', 'undoPreview', 'pastImports', 'importName', 'canUndoImport'] },
+      { file: 'src/domain/activity.ts', names: ['foldImports'] },
+    ],
+    tests: ['src/domain/removal.test.ts', 'src/domain/importUndo.test.ts'],
+    reqs: ['IMPORT-UNDO'],
+    body: `
+**One entry.** An import's summary change (\`action: 'imported'\`, its \`entityId\` the import's id) keeps what every record it wrote was before (\`undo\`), its Via, and for a file its **File** (the name) and **Rows** ("654 changed, 397 unchanged, 5 left out") diffs. Every row's change carries the import's id. \`pastImports(changes)\` lists the summaries newest first, each with the undo entry if it has been undone. Activity folds an import's rows under its summary (\`foldImports\`): a row folds only when its summary is in the same list, so a search that finds the row alone still shows it, and a goal's own history never folds.
+
+**Who.** Whoever made it, or an admin (\`canUndoImport\`); once.
+
+**What Undo does.** Every row goes back as it was before the import: a goal or check-in it added is deleted, one it changed gets its earlier version back, a person it added goes again unless they have done something since. A row changed by anything after the import **stays as it is**, with why, when and by whom (\`KeptRow\`), from the latest change that touched it: "{who} posted a check-in for week {w} on {date}", "Its {field} was changed on {date}", "The check-in was corrected on {date}", "{name} has made changes since". A goal the import added stays when a check-in has been posted on it since.
+
+**Before it.** \`undoPreview(x, importId)\` is \`undoImport\` without the commit: \`{ restores, skipped }\`, the same numbers and reasons Undo then gives. A screen and the MCP tool (\`undo_import\` with \`dry_run\`) say it before anything is undone; when nothing can go back, they say "Nothing left to undo".`,
+    examples: [
+      { given: 'Amara loads a file adding two goals for Rhea; later Rhea checks in on the first. Undo is previewed.', then: '1 row goes back; stays: Pipeline cache hit rate: Rhea Kapoor posted a check-in for week 45 on 5 Nov', run: () => {
+        const s = demo!; const cycle = s.cycles[0]!; const today = new Date(CHECK_IN_MOMENT); let k = 0;
+        const cs = change('amara', { goals: [rec({ Goal: 'Pipeline cache hit rate', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '20', Target: '90' }), { ...rec({ Goal: 'Runner idle time', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '20', Target: '90' }), __row: '3' }] }, { file: { name: 'goals.xlsx' } });
+        if (!cs.commit) return issues(cs);
+        const after = applyCommit(s, cs.commit);
+        const goal = cs.commit.goals!.find((g) => g.title === 'Pipeline cache hit rate')!;
+        const later = new Date(today.getTime() + 60_000).toISOString();
+        const ci = { id: 'ci_later', goalId: goal.id, authorId: 'rhea', week: currentWeek(cycle, today), postedAt: later, value: 30, stages: null, status: 'on' as const, calculated: 'on' as const, cause: null, why: '', greenerWhy: '', proposeTarget: null, pathToGreen: null, next: '', dataFlagged: false };
+        const s2 = applyCommit(after, { checkIns: [ci], changes: [{ id: 'chg_later', at: later, actorId: 'rhea', goalId: goal.id, entity: 'check-in', entityId: ci.id, action: 'posted', summary: 'Checked in', diffs: [] }] });
+        const imp = pastImports(s2.changes)[0]!.entry;
+        const p = undoPreview({ snapshot: s2, full: s2, cycle, week: currentWeek(cycle, today), actor: s.people.find((v) => v.id === 'amara')!, now: later, newId: (v) => `${v}_y${++k}` }, imp.entityId);
+        return `${p.restores} row${p.restores === 1 ? ' goes' : 's go'} back; stays: ${p.skipped.map(keptText).join('; ')}`;
+      } },
+      { given: 'A file’s import summary, by its name.', then: 'goals.xlsx · 1 changed, 0 unchanged', run: () => {
+        const cs = change('amara', { goals: [rec({ Goal: 'Pipeline cache hit rate', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '20', Target: '90' })] }, { file: { name: 'goals.xlsx' } });
+        const sum = cs.commit?.changes.find((c) => c.action === 'imported');
+        return sum ? `${importName(sum)} · ${sum.diffs.find((d) => d.field === 'Rows')!.to}` : issues(cs);
+      } },
+    ],
+    unclear: ['Past imports’ list bar (When, Who, How) waits for the find spec’s FS2; until then it is found by search only.'],
   },
   /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
   {
