@@ -46,6 +46,11 @@ export const REFRESH_LABEL: Record<MetricRefresh, string> = { live: 'Live', hour
 /** How a slice reads: a team's name, or the whole company. */
 export const COMPANY = 'The whole company';
 
+/** A metric's owner's name; null when it has none or they have left. */
+export const ownerName = (people: readonly Pick<Person, 'id' | 'name' | 'leftAt'>[], m: Pick<Metric, 'ownerId'>) => { const p = people.find((x) => x.id === m.ownerId); return p && !p.leftAt ? p.name : null; };
+/** Live metrics with no owner, or an owner who has left: Workspace → About's "{n} metrics have no owner", for admins (spec 2.8). */
+export const ownerlessMetrics = (r: { metrics: readonly Metric[]; people: readonly Pick<Person, 'id' | 'name' | 'leftAt'>[] }): Metric[] => r.metrics.filter((m) => !m.removedAt && !ownerName(r.people, m));
+
 /** The limits a metric's fields keep to: what the form, the tools and the database all check. */
 export const METRIC_LIMITS = { name: 120, unit: 20, text: 2000, decimals: 4 } as const;
 /** The fields a metric must have, and the ones it may leave empty. */

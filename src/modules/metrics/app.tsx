@@ -3,7 +3,7 @@
    owns or a team's goals use on their pages. Its facts are in module.json. */
 import { lazy, Suspense, type ComponentType } from 'react';
 import type { AppModule } from '../../core/app';
-import { measuredByFilter, metricFinder } from './finder';
+import { measuredByFilter, metricFinder, metricsToSortOut } from './finder';
 
 /* The library's screens, and its bits on other pages, load when first shown (the bundle budget, scripts/check-bundle.mjs). */
 const MetricsLibrary = lazy(() => import('./Metrics').then((m) => ({ default: m.MetricsLibrary })));
@@ -46,6 +46,7 @@ const metrics: AppModule = {
   },
   finders: [metricFinder],
   filters: [measuredByFilter],
+  toSortOut: metricsToSortOut,
 };
 
 export default metrics;

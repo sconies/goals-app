@@ -2,7 +2,7 @@
    module with records of its own. The core keeps, saves, scopes, removes and restores them without knowing what they are.
 
      metric       a metric in the library (okr_metrics), under modules.metrics.metrics; removable, and restorable from
-                  Recently removed (kind "metric") without its old links
+                  Recently removed (kind "metric") with the links it had to goals still there
      metric link  a goal's link to the metric that measures it (okr_goal_metrics), under modules.metrics.metricLinks;
                   one per goal (its id is the goal's), unlinked with removedAt and back with Undo
 
@@ -13,7 +13,7 @@
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
-import { LINKS_KEY, metricRows, metricsOf, METRICS_KEY } from './rules';
+import { LINKS_KEY, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
 import type { Metric, MetricLink } from './types';
 
@@ -55,13 +55,16 @@ const metric: RecordDef<Metric> = {
   removed: {
     label: 'Metric',
     name: (m) => m.name,
-    // The goals it measured stay unlinked (Undo, straight after removing, links them again).
+    // The links it had come back with it (spec 2.2): those removed in the same save, to a goal still there that
+    // nothing else measures since (a link's id is its goal's, so one linked again no longer carries that moment).
     restore(x: ActionContext, m: Metric): Commit {
       const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
       if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
+      const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+      const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
       return {
-        ...metricRows({ metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }] }),
-        changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'metric', entityId: m.id, action: 'restored', summary: `Restored the metric “${m.name}”`, diffs: [{ field: 'Metric', from: '—', to: m.name }] }],
+        ...metricRows({ metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }], ...(back.length ? { metricLinks: back.map((l) => ({ ...l, removedAt: null, removedBy: null })) } : {}) }),
+        changes: [{ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, entity: 'metric', entityId: m.id, action: 'restored', summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? 'goal' : 'goals'} again` : ''}`, diffs: [{ field: 'Metric', from: '—', to: m.name }] }],
       };
     },
   },

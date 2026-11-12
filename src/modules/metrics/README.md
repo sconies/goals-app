@@ -13,7 +13,7 @@ Since AS part 2 the module registers its actions in the dispatcher's table (`src
 | Call | Who | What it does |
 |---|---|---|
 | `app.run('saveMetric', input)` → `{ commit, metric }` (`metric.id` is the id) | anyone adds; owner or admin changes | `input` is `MetricInput & { id?: string }`. No `id`: a new metric. With `id`: fields given change, fields left out keep their value. Nothing is saved when nothing changed |
-| `app.run('removeMetric', { metricId })` | owner or admin | Removes it and unlinks every goal it measures, in one save. Shows a message with **Undo** (puts both back). Restorable later from Workspace → Recently removed (kind `metric`), without its old links |
+| `app.run('removeMetric', { metricId })` | owner or admin | Removes it and unlinks every goal it measures, in one save. Shows a message with **Undo** (puts both back). Restorable later from Workspace → Recently removed (kind `metric`), with the links it had |
 | `app.run('linkGoalMetric', { goalId, metricId, teamId })` | goal owner or admin | Measures the goal by the metric for a team, or the whole company when `teamId` is `null`. The same metric and slice again saves nothing |
 | `app.run('unlinkGoalMetric', { goalId })` | goal owner or admin | Stops measuring it, with **Undo**. Saves nothing if it isn't measured |
 

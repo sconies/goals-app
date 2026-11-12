@@ -11362,7 +11362,7 @@ function unlinkGoalMetric(x, goal) {
 		})]
 	};
 }
-var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
+var MODULE, METRICS_KEY, LINKS_KEY, metricsOf, linksOf, metricRows, no, DIRECTION_LABEL, REFRESHES, REFRESH_LABEL, COMPANY, ownerName, METRIC_LIMITS, liveMetrics, sliceName, clean$1, log, live$1, ownsOrAdmin, canEditMetric, canLinkGoal;
 var init_rules = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11402,6 +11402,10 @@ var init_rules = __esmMin((() => {
 		quarterly: "Quarterly"
 	};
 	COMPANY = "The whole company";
+	ownerName = (people, m) => {
+		const p = people.find((x) => x.id === m.ownerId);
+		return p && !p.leftAt ? p.name : null;
+	};
 	METRIC_LIMITS = {
 		name: 120,
 		unit: 20,
@@ -11857,13 +11861,22 @@ var MODULE_RECORDS = [{
 				restore(x, m) {
 					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
 					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
+					const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+					const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
 					return {
-						...metricRows({ metrics: [{
-							...m,
-							removedAt: null,
-							removedBy: null,
-							updatedAt: x.now
-						}] }),
+						...metricRows({
+							metrics: [{
+								...m,
+								removedAt: null,
+								removedBy: null,
+								updatedAt: x.now
+							}],
+							...back.length ? { metricLinks: back.map((l) => ({
+								...l,
+								removedAt: null,
+								removedBy: null
+							})) } : {}
+						}),
 						changes: [{
 							id: x.newId("chg"),
 							at: x.now,
@@ -11872,7 +11885,7 @@ var MODULE_RECORDS = [{
 							entity: "metric",
 							entityId: m.id,
 							action: "restored",
-							summary: `Restored the metric “${m.name}”`,
+							summary: `Restored the metric “${m.name}”${back.length ? `, measuring ${back.length} ${back.length === 1 ? "goal" : "goals"} again` : ""}`,
 							diffs: [{
 								field: "Metric",
 								from: "—",
@@ -13731,12 +13744,16 @@ var help$3 = [
 				"Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.",
 				"Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.",
 				"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
+				"While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.",
+				"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.",
+				"Changing the unit or which way is better of a metric goals use asks first: their numbers and plans don’t change, and the goals that now differ show a warning.",
+				"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
 				"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
 			]
 		}],
 		routes: ["/metrics/new", "/metrics/:metricId/edit"],
 		screens: [],
-		reqs: [],
+		reqs: ["METRICS-CARE"],
 		keywords: [
 			"add metric",
 			"new metric",
@@ -16473,6 +16490,17 @@ var WHATS_NEW = [
 		articles: ["new-goal", "ai-assistants"]
 	},
 	{
+		id: "metrics-sort-out",
+		date: "2026-11-12",
+		title: "Metrics say what they’re missing",
+		points: [
+			"A metric’s owner sees what it still needs: a meaning, a source, an owner, a goal.",
+			"Adding one with a name close to another asks first; removing one says which goals it leaves.",
+			"Put it back brings a removed metric back with the goals it measured."
+		],
+		articles: ["metric-add", "metrics"]
+	},
+	{
 		id: "measured-by-find",
 		date: "2026-11-12",
 		title: "Find a goal’s metric by typing",
@@ -18185,31 +18213,37 @@ var _virtual_faro_modules_default = [{
 		"metric-add",
 		"metric-measured-by"
 	],
-	requirements: ["METRICS-LIBRARY", "METRICS-MEASURED-BY"],
+	requirements: [
+		"METRICS-LIBRARY",
+		"METRICS-MEASURED-BY",
+		"METRICS-CARE"
+	],
 	journeys: [
 		"U81",
 		"U82",
+		"U83",
 		"F15",
 		"N16"
 	],
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric.",
+		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s. “Measured by” in the goal forms: find a metric by typing (or add one there); choosing it on a new goal fills in its unit, decimals and direction; Goals filters by the metric. Looking after one: what it still needs, the close-name question when adding, a confirm before changing a unit or direction goals use, and on Workspace → About how many metrics have no owner.",
 		"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
 		"exit": [
 			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
 			"Only a metric’s owner or an admin can change or remove it; only a goal’s owner or an admin can link or unlink the goal.",
 			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
-			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
+			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back with the links it had to goals still there.",
 			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
 			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
 			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
 			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16).",
-			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples)."
+			"In New goal, “Measured by” comes first on the measure step: a metric found by typing shows its meaning, fills in the unit, decimals and which way is better on a goal nobody typed them for, measures it for the goal’s team or the whole company, and Check says so; one added there is chosen; a goal with dated stages has none (journey U82, rule 5’s worked examples).",
+			"Adding a metric with a name close to one in use asks about it and still saves (rule 4’s worked examples); changing a unit or direction goals use asks first; Remove names the goals it stops measuring and Undo brings them back; admins see on Workspace → About how many metrics have no owner (journey U83)."
 		],
 		"gaps": [
-			"The close-name question, what a metric still needs on Workspace → About, and the confirm before changing a unit or direction goals use come with ML3 (docs/design/metrics/spec.md).",
+			"Owner-only rights and other governance, versions and draft states are left out on purpose (growth.md).",
 			"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
 			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
 		]
@@ -18252,7 +18286,8 @@ var _virtual_faro_modules_default = [{
 		}
 	],
 	finders: ["metric"],
-	filters: ["metric"]
+	filters: ["metric"],
+	toSortOut: true
 }, {
 	id: "spreadsheets",
 	name: "Spreadsheets",
@@ -21164,11 +21199,6 @@ var metricSlug = (id) => id.replace(/^metric_/, "");
 var metricPath = (m) => `/metrics/${encodeURIComponent(metricSlug(m.id))}`;
 /** A metric's links in force: not unlinked, to a live goal in the running cycle. */
 var liveLinks = (r, metricId) => r.links.filter((l) => l.metricId === metricId && !l.removedAt && r.goalIds.has(l.goalId));
-/** The owner's name, or null when none is set or they have left. */
-var ownerName = (people, m) => {
-	const p = people.find((x) => x.id === m.ownerId);
-	return p && !p.leftAt ? p.name : null;
-};
 /**
 * Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
 * that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
@@ -21289,7 +21319,8 @@ function summaryLine(rows) {
 	if (new Set(valued.map(shape)).size > 1) return null;
 	const sorted = [...valued].sort((a, b) => a.nowValue - b.nowValue || a.slice.localeCompare(b.slice));
 	const lo = sorted[0], hi = sorted[sorted.length - 1];
-	return `Lowest now: ${lo.slice}, ${lo.now}. Highest: ${hi.slice}, ${hi.now}.`;
+	const who = (r) => lo.slice === hi.slice ? r.goal.title : r.slice;
+	return `Lowest now: ${who(lo)}, ${lo.now}. Highest: ${who(hi)}, ${hi.now}.`;
 }
 /** A metric's goals by status, worst first, only the statuses it has: what a library row says ("1 off track · 2 on track"). */
 function goalsByStatus(statuses) {
@@ -21642,7 +21673,7 @@ var tools$1 = [
 	{
 		name: "remove_metric",
 		title: "Remove a metric",
-		description: "Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), without its old links.",
+		description: "Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), with the links it had.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

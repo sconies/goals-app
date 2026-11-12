@@ -35,6 +35,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'ai-assistants'],
   },
   {
+    id: 'metrics-sort-out',
+    date: '2026-11-12',
+    title: 'Metrics say what they’re missing',
+    points: [
+      'A metric’s owner sees what it still needs: a meaning, a source, an owner, a goal.',
+      'Adding one with a name close to another asks first; removing one says which goals it leaves.',
+      'Put it back brings a removed metric back with the goals it measured.',
+    ],
+    articles: ['metric-add', 'metrics'],
+  },
+  {
     id: 'measured-by-find',
     date: '2026-11-12',
     title: 'Find a goal’s metric by typing',
