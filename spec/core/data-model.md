@@ -6,6 +6,33 @@ Generated from `src/domain/types.ts` (every record, field and the comment writte
 
 Every screen, export and AI tool derives what it shows from these records with the pure rules in `src/domain` (see [the rules](rules/README.md)). Ids are strings. Dates are ISO 8601: a day is `yyyy-mm-dd`, a moment a full UTC timestamp. Weeks are counted from a cycle’s start: week 0 is the first seven days.
 
+## Keys, uniqueness and scope
+
+The logical model: what identifies each record, what must be unique, and what each points to, as rules a rebuild holds in its own schema. Build from this, not from [schema.sql](schema.sql), which is Faro’s Postgres dump for reading. The limits on single fields (a title of at least 3 characters, a review every 1 to 13 weeks) are on their rules’ pages, under “Limits the records hold”.
+
+- **Every record belongs to one workspace**, and a workspace is the unit of access ([R1](../requirements/internal/r1-sign-in-and-access.md)). Store the workspace on every row, and make it part of every key and every reference, so a reference to another workspace’s record can’t be stored. (Faro’s tables carry `workspace_id` but no foreign key to the workspace, and their references don’t include it.)
+- **Ids are unique within their workspace.** Faro’s are global text ids made in the browser (`newId`); a rebuild’s server makes them, of whatever kind its platform uses.
+- **References stay inside the workspace.** A goal’s owner, its team and the goal it feeds are all in its workspace.
+- **Removing is marking.** A record with `removedAt` is kept for 30 days for undo and history (REMOVE-ANYTHING); uniqueness counts only records not removed, except a goal’s key, which is never given again.
+- **Versions.** Goals and reviews carry a `version`; a save names the version it was based on and is refused if it has moved (NO-LOST-UPDATES). Other records are last write wins today: a rebuild extends versions to them and says how a clash is shown.
+
+| Record | Key | Unique | Points to | Also |
+|---|---|---|---|---|
+| Person | `id` | `email` within the workspace, when it has one, among people not removed; kept lower case | `teamId` → Team | Two people may share a name: the email is who someone is (SAME-NAMES). |
+| Team | `id` | nothing beyond the key | `leadId` → Person |  |
+| Cycle | `id` | `startDate` within the workspace, among goal years not removed | nothing |  |
+| Goal | `id` | `cycleId` + `key` within the workspace, and a key is never given twice in a workspace, even after its goal is removed | `cycleId` → Cycle, `ownerId` → Person, `teamId` → Team, `parentId` → Goal (the one it feeds) | Two goals may share a title. The goals that feed one another never loop. |
+| CheckIn | `id` | nothing beyond the key | `goalId` → Goal, `authorId` → Person | Not unique by goal and week: an owner may check in as often as they like, and the latest (by `postedAt`) is the week’s (ONE-PER-WEEK). A rebuild must not add that uniqueness. |
+| Decision | `id` | nothing beyond the key | `goalId` → Goal, `checkInId` → CheckIn, `reviewId` → Review, `byId` → Person, `assigneeId` → Person |  |
+| Ask | `id` | nothing beyond the key | `goalIds` → Goal (one or more), `askedBy` → Person, `recipientId` → Person, `reviewId` → Review, `checkInId` → CheckIn |  |
+| Review | `id` | nothing beyond the key | `createdBy` → Person |  |
+| Watch | `id` | `personId` + `kind` + `ref` within the workspace | `personId` → Person, `ref` → Goal, Goal (a tree) or a level, by `kind` |  |
+| Comment | `id` | nothing beyond the key | `goalId` → Goal, `authorId` → Person | Faro stores a comment as a change-log entry; a rebuild gives comments a table of their own ([don’t copy this](../rebuild/dont-copy.md)). |
+| Change | `id` | nothing beyond the key | `actorId` → Person, `goalId` → Goal | Never changed once written ([R8](../requirements/internal/r8-audit.md)). |
+| Retro | `id` | `goalId` + `cycleId` within the workspace | `goalId` → Goal, `cycleId` → Cycle, `byId` → Person |  |
+| SavedView | `id` | nothing beyond the key | `personId` → Person |  |
+| ApiToken | `id` | `tokenHash` within every workspace | `personId` → Person, `createdBy` → Person |  |
+
 ## The records the core rules read
 
 A rebuild of the core rules needs these: a **Cycle**, **Goal** (one of three kinds), **CheckIn**, **Person**, **Team**, **Decision** (what was said in a review), **Ask** and **Review**. The **Snapshot** holds a workspace’s records together. The rest (change log, watches, views, tokens, feedback, retros) belong to features around the rules.

@@ -326,6 +326,15 @@ A metric is **usable** with three things: a name, a unit and which way is better
 
 **Through the AI tools**, `save_metric` returns `checks` (each with its question and answers) and saves nothing while one is unanswered; it takes `answers`: `name` “keep” or “use:<id>” (nothing is saved; the result names the metric to use), `unit` “keep” or “use”, `meaning` “as-written”.
 
+### Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A metric’s name has 1 to 120 characters. (`okr_metrics_name_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
+- A metric’s unit has 1 to 20 characters. (`okr_metrics_unit_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
+- A metric keeps 0 to 4 decimal places (a goal keeps at most 3). (`okr_metrics_decimals_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
+- A metric’s meaning, source, source owner and caveats each have at most 2,000 characters. (`okr_metrics_meaning_check`; the code holds it too, in `src/modules/metrics/rules.ts`)
+
 ### Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

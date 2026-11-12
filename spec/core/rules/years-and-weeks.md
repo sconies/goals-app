@@ -21,6 +21,13 @@ A goal’s weeks are counted from its cycle’s start and shown as a goal year�
 
 **Carried.** A number goal carried into the next year starts from its last number in week 0 of the new year, so its plan is not flat for the weeks it already ran.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A goal year has 1 to 53 weeks. (`okr_cycles_weeks_check`)
+- A year’s review day is a day of the week, 0 to 6 (Monday is 0). (`okr_cycles_review_day_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

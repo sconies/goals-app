@@ -12,7 +12,8 @@ import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, level
 import { dayOneRows } from '../app/reads';
 import { arrived, DAY_ONE_DAYS, gettingStarted, invitedTo, inviteLink, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { arrivalIntro, arrivalLine, readInvitation } from '../domain/arrival';
-import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { describe, MIN_CORRECT_REASON, planChanges, planChangesInChunks, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { splitTables } from '../domain/splitFile';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { readHeader, readLine, readTables } from '../domain/sheets';
 import { leaveOut } from '../domain/leaveOut';
@@ -159,12 +160,15 @@ export async function prepareExamples() {
   await demoWorkspace();
   if (!dir) { const full = (await import('../data/platformOrg/generate')).buildPlatformOrg(DIR_NOW); dir = scopeToCycle(full, full.cycles[0]!); }
 }
-function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
+function changeInput(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}): ChangeInput {
   const s = demo!;
   const cycle = s.cycles[0]!;
   const today = new Date(CHECK_IN_MOMENT);
   let k = 0;
-  return planChanges({ tables, snapshot: s, cycle, week: currentWeek(cycle, today), actor: s.people.find((p) => p.id === actor)!, now: today.toISOString(), newId: (p) => `${p}_x${++k}`, via: 'spreadsheet', ...extra });
+  return { tables, snapshot: s, cycle, week: currentWeek(cycle, today), actor: s.people.find((p) => p.id === actor)!, now: today.toISOString(), newId: (p) => `${p}_x${++k}`, via: 'spreadsheet', ...extra };
+}
+function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
+  return planChanges(changeInput(actor, tables, extra));
 }
 /** An action in the demo workspace, by one of its people, for the metric library's examples. A rule that says no gives its words. */
 function asPerson<T>(actor: string, run: (x: ActionContext) => T): T | string {
@@ -662,10 +666,12 @@ For a range, better means further from the limit on its safe side.
 
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
 
-**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (\`src/domain/importSpeed.test.ts\`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in \`src/domain/importLimits.ts\`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (\`src/domain/importSpeed.test.ts\`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in \`src/domain/importLimits.ts\`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB. \`planChangesInChunks(input)\` is the same engine a chunk at a time: it yields how far it has got (rows read, and what they would add, change and must fix) every 500 rows, so the import's worker can report progress and stop between chunks; \`planChanges\` runs it to the end. A file that would change more than 5,000 rows is checked, not saved, and split into parts (\`splitTables\` in \`src/domain/splitFile.ts\`): people first, each goal with its plan and check-ins, a goal before the goals that feed into it, and a goal larger than a part on its own.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.`,
     examples: [
+      { given: 'A file of 6,000 new goals, the 6,000th feeding into the first; each part holds at most 5,000 rows.', then: '2 parts: 5,000 and 1,000 rows; the first goal in part 1', run: () => { const goals = Array.from({ length: 6000 }, (_, i) => ({ goal: `Goal ${i + 1}`, owner: 'Rhea', ...(i === 5999 ? { 'feeds into': 'Goal 1' } : {}) })); const parts = splitTables({ goals }, 5000); return `${parts.length} parts: ${parts.map((p) => p.goals!.length.toLocaleString('en-GB')).join(' and ')} rows; the first goal in part ${parts.findIndex((p) => p.goals!.some((g) => g.goal === 'Goal 1')) + 1}`; } },
+      { given: 'The engine run a chunk at a time over 1,200 new goals.', then: 'progress at 500 and 1,000 rows of 1,200', run: () => { const goals = Array.from({ length: 1200 }, (_, i) => ({ goal: `Chunked goal ${i + 1}`, owner: 'Rhea Kapoor', unit: '%', start: '1', target: '9' })); const run = planChangesInChunks(changeInput('amara', { goals })); const at: string[] = []; for (let s = run.next(); !s.done; s = run.next()) at.push(s.value.done.toLocaleString('en-GB')); return `progress at ${at.join(' and ')} rows of 1,200`; } },
       { given: 'A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12.', then: 'no change / a change', run: () => `${sameAsWritten('0.13', 0.125, 2) ? 'no change' : 'a change'} / ${sameAsWritten('0.12', 0.125, 2) ? 'no change' : 'a change'}` },
       { given: 'Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid.', then: 'mid feeds top, leaf feeds mid', run: () => { const g = (ref: string, t: string, x: Record<string, string> = {}) => rec({ Ref: ref, Goal: t, Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', ...x }); const cs = change('rhea', { goals: [g('top', 'Top'), g('mid', 'Mid', { 'Feeds into ref': 'top' }), g('leaf', 'Leaf', { 'Feeds into ref': 'mid' })].map((r, i) => ({ ...r, __row: String(i + 2) })) }); const made = cs.commit?.goals ?? []; const t = (id: string | null) => made.find((x) => x.id === id)?.title.toLowerCase() ?? 'nothing'; return made.filter((x) => x.parentId).map((x) => `${x.title.toLowerCase()} feeds ${t(x.parentId)}`).join(', '); } },
       { given: 'In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason.', then: 'needs a reason; nothing to save', run: () => { const cs = change('tariq', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }); return `${cs.needsReason ? 'needs a reason' : 'no reason needed'}; ${cs.commit ? 'ready to save' : 'nothing to save'}`; } },
@@ -795,7 +801,6 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Headers Name, Department, Salary band.', then: 'no Faro sheet', run: () => (readHeader([['Name', 'Department', 'Salary band']]).kind ? 'a Faro sheet' : 'no Faro sheet') },
       { given: 'Headers Key, Goal, Targett.', then: 'Targett is near Target', run: () => { const c = readHeader([['Key', 'Goal', 'Targett']]).columns[2]!; return `${c.header} is ${c.how} ${c.as}`; } },
     ],
-    unclear: ['Reading a file in a worker, with progress and Stop, is IM6.'],
   },
   /* ---------- an import's undo, and past imports (backlog IM4) ---------- */
   {

@@ -34,6 +34,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'edit-goal'],
   },
   {
+    id: 'map-comes-back-fresh',
+    date: '2026-11-12',
+    title: 'The Map behaves when you come back to it',
+    points: [
+      'Coming back to the Map from another layout no longer jumps to the last goal you found.',
+      'Emptying the Map’s search shows every goal again at once, without pressing Enter.',
+      'On the Map, Filters no longer offers a sort: the Map always shows the trees.',
+      'Goals takes its phone layout on any screen under 700 pixels wide, not only under 600.',
+    ],
+    articles: ['goal-map', 'goals'],
+  },
+  {
+    id: 'import-large',
+    date: '2026-11-12',
+    title: 'Large files show progress',
+    points: [
+      'Faro checks a big file without freezing and shows how far it has got, with Stop. Changes are shown 50 at a time.',
+      'It says up front how much it can save at once: a file that would change more than 5,000 rows is checked, then offered in parts to import one after the other.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'metric-defined',
     date: '2026-11-12',
     title: 'Metrics say what’s still to say',
