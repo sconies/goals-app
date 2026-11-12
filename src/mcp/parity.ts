@@ -92,6 +92,7 @@ export const SCREENS: Record<string, Entry> = {
   Import: ['bulk_change'],
   Export: ['export'],
   DataMenu: ['export', 'export_table', 'bulk_change'],
+  ColumnsHelp: ['get_help', 'export'],
   Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],
   StartNext: ['start_next_cycle', 'list_people'],
   Workspace: ['list_people', 'list_tokens', 'create_token', 'revoke_token', 'delete_workspace', 'rename_workspace', 'set_recording', 'set_feature', 'list_removed', 'restore_removed', 'delete_cycle', 'undo_start_cycle', 'start_next_cycle'],

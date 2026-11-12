@@ -175,6 +175,10 @@ describe('a typed cell is the same as what was written', () => {
     // 0.125 at 2 places is written 0.13: 0.005 away, which a tolerance of half a unit read as a change.
     expect(sameAsWritten('0.13', 0.125, 2)).toBe(true);
     expect(sameAsWritten(0.13, 0.125, 2)).toBe(true);
+    // An empty typed cell is never the written 0 (review of #130).
+    expect(sameAsWritten('', 0, 2)).toBe(false);
+    expect(sameAsWritten('  ', 0, 0)).toBe(false);
+    expect(sameAsWritten('0', 0, 2)).toBe(true);
     expect(sameAsWritten('0.41', 0.405, 2)).toBe(true);
     expect(sameAsWritten(' 6 ', 6, 0)).toBe(true);
     expect(sameAsWritten('0.12', 0.125, 2)).toBe(false);

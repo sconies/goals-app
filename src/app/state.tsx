@@ -16,7 +16,7 @@ import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import type { ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
+import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
@@ -151,7 +151,7 @@ export interface AppState {
   /** Admins: start the next cycle with the goals that carry on. Returns the new cycle's name. */
   startNextCycle(): Promise<string>;
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
-  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean): ChangeSet;
+  previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers): ChangeSet;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
@@ -713,7 +713,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
       // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
-      previewChanges: (tables, via, reason, confirm) => perform(rx(), 'planChanges', { tables, via, reason, confirm }),
+      previewChanges: (tables, via, reason, confirm, answers) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
         await save(cs.commit);

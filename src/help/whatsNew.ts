@@ -66,6 +66,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['features'],
   },
   {
+    id: 'import-levels',
+    date: '2026-11-11',
+    title: 'Imports ask instead of refusing',
+    points: [
+      'A name one letter out is a question: “Did you mean Platform?”',
+      'The same problem on 14 rows is said once, and one answer covers them all.',
+      'Numbers that look wrong are asked about before saving.',
+      'An empty Admin cell now keeps what is there, as Every column says, and Takes over accepts a name only one person has as well as an email.',
+    ],
+    articles: ['import', 'columns'],
+  },
+  {
     id: 'cant-open-why',
     date: '2026-11-11',
     title: 'When you can’t open a workspace, it says why',

@@ -104,7 +104,9 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
   });
   const notes: ImportIssue[] = [];
-  for (const i of cs.issues) (i.severity === 'error' ? issues : i.severity === 'note' ? notes : []).push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
+  // Must fix blocks set-up; a Check (a question set-up's own steps don't ask yet: IM8 brings it the import's preview) and
+  // how a row was read are said beside the row.
+  for (const i of cs.issues) (i.level === 'must' ? issues : notes).push({ table: i.sheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
   // The weekly review and the pinned views, set up by the first person (you).

@@ -1,22 +1,33 @@
 /* What a change set will do before it's saved: its problems, a reason when plans change, every change by goal, and Save.
-   Import and Data both use it, so a change looks the same whichever way it comes in. */
+   Import and Data both use it, so a change looks the same whichever way it comes in. Problems come in the engine's
+   levels (domain/problemLevels): Must fix, then Check, each a word with the warning mark. A Check is a question asked once for
+   its group, and one answer covers every row in it (backlog IM2); IM3 rewrites this screen as the preview of the import
+   spec, 2.3. */
 import { useRef, useState } from 'react';
 import { useApp } from '../app/state';
-import { describe, type ChangeSet, type Item } from '../domain/changeset';
+import { describe, type Answer, type Answers, type ChangeSet, type IssueGroup, type Item } from '../domain/changeset';
 import { fmt } from '../domain/format';
 import { planAt } from '../domain/plan';
 import type { Diff, Goal } from '../domain/types';
 import { LEFT, STOPPED } from '../domain/vocabulary';
 import { Icon } from './Icon';
+import { WarnMark } from './bits';
 
 /** What a change set will do, its problems, and Save. Used by Import and Data. */
-export function Preview({ cs, name, reason, setReason, onConfirm, busy, onApply, onAgain, againLabel = 'Choose another file', fixHint = 'Fix these in the file, then load it again.' }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; onConfirm: () => void; busy: boolean; onApply: () => void; onAgain: () => void; againLabel?: string; fixHint?: string }) {
+export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, onAnswer, busy, onApply, onAgain, againLabel = 'Choose another file', fixHint = 'Fix these in the file, then load it again.' }: { cs: ChangeSet; name: string; reason: string; setReason: (s: string) => void; onConfirm: () => void; answers?: Answers; onAnswer?: (group: string, answer: Answer | null) => void; busy: boolean; onApply: () => void; onAgain: () => void; againLabel?: string; fixHint?: string }) {
   const app = useApp();
   // The reason field is only marked once someone tries to save without it.
   const [tried, setTried] = useState(false);
   const why = useRef<HTMLTextAreaElement>(null);
-  const errors = cs.issues.filter((i) => i.severity === 'error');
-  const warnings = cs.issues.filter((i) => i.severity === 'warning');
+  const errors = cs.issues.filter((i) => i.level === 'must');
+  // The questions, one per group; a plan question keeps its own block below (with the reason it may need).
+  const checks = cs.groups.filter((g) => g.level === 'check' && g.kind !== 'plan-question');
+  // Questions answered here: shown closed, with Change, until the file is chosen again.
+  const answered = cs.groups.length ? Object.keys(answers).filter((id) => !cs.groups.some((g) => g.id === id)) : [];
+  const fixable = cs.groups.filter((g) => g.level === 'must' && usable(g).length);
+  // What each answer was to, so its closed line says "{what was asked}: {answer}".
+  const [said, setSaid] = useState<Record<string, { title: string; label: string }>>({});
+  const answer = onAnswer && ((g: IssueGroup, a: Answer, label: string) => { setSaid((x) => ({ ...x, [g.id]: { title: g.title, label } })); onAnswer(g.id, a); });
   // How rows were read: an owner found by their name rather than their email, say.
   const notes = cs.issues.filter((i) => i.severity === 'note');
   const groups = new Map<string, Item[]>();
@@ -36,7 +47,21 @@ export function Preview({ cs, name, reason, setReason, onConfirm, busy, onApply,
         <section className="block problems" aria-label="Problems to fix">
           <h2 className="block-title tone-off">{errors.length} {errors.length === 1 ? 'row needs' : 'rows need'} fixing first</h2>
           <p className="hint">Nothing is saved until every row is right. {fixHint}</p>
-          <ul className="issue-list">{errors.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
+          <ul className="issue-list">{errors.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.name ? ` · ${x.name}` : ''}</span><span>{x.message}</span></li>)}</ul>
+          {onAnswer && fixable.length > 0 && <ul className="issue-list group-answers" aria-label="Or settle here">{fixable.map((g) => <GroupQuestion key={g.id} g={g} onAnswer={answer!} />)}</ul>}
+        </section>
+      )}
+
+      {checks.length > 0 && (
+        <section className="block" aria-label="Check">
+          <h2 className="block-title"><WarnMark /> Check</h2>
+          <p className="hint">{checks.length} {checks.length === 1 ? 'question covers' : 'questions cover'} {checks.reduce((n, g) => n + g.count, 0)} {checks.reduce((n, g) => n + g.count, 0) === 1 ? 'row' : 'rows'}. One answer covers every row it names.</p>
+          <ul className="issue-list">{checks.map((g) => (onAnswer ? <GroupQuestion key={g.id} g={g} onAnswer={answer!} /> : <li key={g.id}><span className="label">{g.where}</span><span>{g.title}</span></li>))}</ul>
+        </section>
+      )}
+      {onAnswer && answered.length > 0 && (
+        <section className="block" aria-label="Your answers">
+          <ul className="issue-list">{answered.map((id) => <li key={id} className="answer-line"><span>{said[id] ? <>{said[id]!.title}: <span className="strong">{said[id]!.label}</span></> : answerText(answers[id]!)}</span><button type="button" className="btn ghost sm" onClick={() => onAnswer(id, null)}>Change</button></li>)}</ul>
         </section>
       )}
 
@@ -56,17 +81,10 @@ export function Preview({ cs, name, reason, setReason, onConfirm, busy, onApply,
         </section>
       )}
 
-      {warnings.length > 0 && (
-        <section className="block">
-          <h2 className="block-title tone-risk">Check before saving</h2>
-          <ul className="issue-list">{warnings.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
-        </section>
-      )}
-
       {notes.length > 0 && (
         <section className="block" aria-label="How rows were read">
           <h2 className="block-title">How rows were read</h2>
-          <ul className="issue-list">{notes.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.goal ? ` · ${x.goal}` : ''}</span><span>{x.message}</span></li>)}</ul>
+          <ul className="issue-list">{notes.map((x, i) => <li key={i}><span className="label">{x.sheet}, row {x.row}{x.name ? ` · ${x.name}` : ''}</span><span>{x.message}</span></li>)}</ul>
         </section>
       )}
 
@@ -93,12 +111,37 @@ export function Preview({ cs, name, reason, setReason, onConfirm, busy, onApply,
         </section>
       )}
 
-      {!cs.commit && total > 0 && <p className={'hint preview-hint' + (tried && onlyReason ? ' tone-off' : '')} role="status">{errors.length ? 'Fix the rows above to save.' : cs.needsReason ? 'Say why the plans are changing to save.' : cs.needsConfirm ? 'Confirm the plan changes above to save.' : ''}</p>}
+      {!cs.commit && total > 0 && <p className={'hint preview-hint' + (tried && onlyReason ? ' tone-off' : '')} role="status">{errors.length ? 'Fix the rows above to save.' : checks.length ? `Answer ${checks.length === 1 ? 'the question' : `${checks.length} questions`} above to save.` : cs.needsReason ? 'Say why the plans are changing to save.' : cs.needsConfirm ? 'Confirm the plan changes above to save.' : ''}</p>}
       <div className="foot-row import-foot">
         <button type="button" className="btn big-btn preview-again" onClick={onAgain}>{againLabel}</button>
         <button type="button" className="btn primary big-btn" disabled={(!cs.commit && !onlyReason) || busy} aria-disabled={onlyReason || undefined} onClick={save}>{busy ? 'Saving…' : total ? `Save ${total} ${total === 1 ? 'change' : 'changes'}` : 'Nothing to save'}</button>
       </div>
     </div>
+  );
+}
+
+/** The answers a group can be given here: each one that needs no value, and a column's words (a person or team to
+    choose is IM3's find-and-pick). */
+function usable(g: IssueGroup): { choice: string; label: string; value?: string }[] {
+  return g.answers.flatMap((a) => (!a.needsValue ? [{ choice: a.choice, label: a.label }] : a.options ? a.options.map((o) => ({ choice: a.choice, label: `Use “${o}”`, value: o })) : []));
+}
+
+/** An answer as the closed line says it. */
+const answerText = (a: Answer) => (a.value ? `Answered: use “${a.value}”` : `Answered: ${a.choice.replace(/-/g, ' ')}`);
+
+/** One group: its title, where its rows are, and its answers as a row of buttons; one press answers every row in it. */
+function GroupQuestion({ g, onAnswer }: { g: IssueGroup; onAnswer: (g: IssueGroup, answer: Answer, label: string) => void }) {
+  const list = usable(g);
+  return (
+    <li className="group-question">
+      <span className="label">{g.where}</span>
+      <span>{g.title}</span>
+      {list.length > 0 && (
+        <span className="answer-row" role="group" aria-label={g.title}>
+          {list.map((a) => <button key={a.choice + (a.value ?? '')} type="button" className="btn sm" onClick={() => onAnswer(g, { choice: a.choice, ...(a.value ? { value: a.value } : {}) }, a.label)}>{a.label}</button>)}
+        </span>
+      )}
+    </li>
   );
 }
 
