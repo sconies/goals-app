@@ -4923,7 +4923,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and, its last step started on “Not yet: propose it” and changed to “Yes”, the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4961,6 +4961,10 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
   // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
   // beside the “Published” toast.
+  // A goal for someone else starts on “Not yet: propose it” (GE10, decision 16): published as active, it is chosen.
+  const underWay = p.getByRole('group', { name: 'Is it under way?' });
+  h.set('finish', await underWay.getByRole('radio', { name: /Not yet: propose it/ }).isChecked(), 'a goal for Amara doesn’t start on “Not yet: propose it”');
+  await h.click(underWay.getByRole('radio', { name: /Yes: publish it as active/ }));
   await p.route('**/assets/**', async (r) => { await new Promise((res) => setTimeout(res, 1200)); await r.continue().catch(() => {}); });
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   const mixed = new Set();
