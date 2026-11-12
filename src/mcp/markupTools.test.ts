@@ -1,6 +1,6 @@
 // @vitest-environment node
-/* The MCP server's markup tools: any token (an ordinary one, of someone who isn't an admin, included) lists, opens and
-   triages markups, through the same operations as the inbox (backlog O: Faro's inbox is open on purpose). */
+/* The MCP server's markup tools: any token (an ordinary one, of someone who isn't an admin, included) lists and opens
+   markups, and an admin's triages them, through the same operations as the inbox (backlog O: Faro's inbox is open on purpose). */
 import { serve, type Deps } from '../../server/mcp';
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
@@ -57,7 +57,7 @@ async function setup(o: { inbox?: boolean; pictures?: boolean; person?: string }
 }
 
 describe('the MCP server’s markup tools', () => {
-  it('let any token list, open and triage markups, through the same operations as the inbox', async () => {
+  it('let any token list and open markups; only an admin’s triages them, through the same operations as the inbox', async () => {
     // Oskar isn't an admin, and his is an ordinary token.
     const b = await setup();
     const listed = await b.call('list_markups');
@@ -70,12 +70,17 @@ describe('the MCP server’s markup tools', () => {
     // When pictures can't be read, it says plainly why and what fixes it, and sends no picture.
     expect(opened.content[0]!.text).toContain('Migration 0031');
     expect(opened.content.filter((c) => c.type === 'image')).toEqual([]);
-    const fixed = await b.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'fixed', fixed_in: WHATS_NEW[0]!.id, issue_url: 'https://github.com/sconies/goals-app/issues/9' });
+    // Only an admin changes a status (Lane, 12 Nov): Oskar's token is refused, and the markup is as it was.
+    const refused = await b.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'in-hand' });
+    expect(refused.isError).toBe(true);
+    expect(b.list[0]!.status).toBe('new');
+    const a = await setup({ person: 'grace' });
+    const fixed = await a.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'fixed', fixed_in: WHATS_NEW[0]!.id, issue_url: 'https://github.com/sconies/goals-app/issues/9' });
     expect(fixed.isError).toBe(false);
-    expect(b.list[0]).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, issueUrl: 'https://github.com/sconies/goals-app/issues/9' });
-    expect(b.list[0]!.statusBy).toBe('Oskar Lindgren via MCP');
+    expect(a.list[0]).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, issueUrl: 'https://github.com/sconies/goals-app/issues/9' });
+    expect(a.list[0]!.statusBy).toBe('Grace Achterberg via MCP');
     // The rules are the inbox's: Won't fix needs a reason.
-    expect((await b.call('update_markup', { id: 'mk_bbbbbbbbbbbbbbbb', status: 'wont-fix' })).isError).toBe(true);
+    expect((await a.call('update_markup', { id: 'mk_bbbbbbbbbbbbbbbb', status: 'wont-fix' })).isError).toBe(true);
   });
 
   it('say plainly when the server has no inbox to read', async () => {

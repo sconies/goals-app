@@ -25,6 +25,8 @@ export interface FileName {
   scope?: string;
   /** The day it was saved for (the app's today). */
   date: Date;
+  /** A name made from a file the person chose ("{original}-rows-to-fix"): used as it is, made safe, with no date. */
+  as?: string;
 }
 
 const EXT: Record<FileContent['kind'], string> = { csv: 'csv', json: 'json', md: 'md', xlsx: 'xlsx', zip: 'zip', png: 'png' };
@@ -42,6 +44,7 @@ export const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[Ì
 
 /** The one naming rule: `<workspace>-<what>-<scope>-<date>.<ext>`, each part made safe, empty parts left out. */
 export function fileName(n: FileName, kind: FileContent['kind']): string {
+  if (n.as) return `${n.as.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'rows'}.${EXT[kind]}`;
   const parts = [slug(n.workspace) || 'goals', slug(n.what), slug(n.scope ?? ''), n.date.toISOString().slice(0, 10)].filter(Boolean);
   return `${parts.join('-')}.${EXT[kind]}`;
 }

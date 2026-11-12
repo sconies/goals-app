@@ -18,6 +18,7 @@ import { currentWeek } from './plan';
 import { sameAsWritten } from './numbers';
 import { parseDelimited, readTables, type NamedGrid } from './sheets';
 import type { Cycle, MetricGoal, Snapshot } from './types';
+import { MODULE_SHEETS } from '../core/records';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -48,7 +49,7 @@ const load = (d: ReturnType<typeof demos>[number], tables: Tables, actor = 'amar
   return planChanges({ tables, snapshot: s, cycle: d.cycle, week: d.week, actor: who, now: today.toISOString(), newId, via: 'spreadsheet', full: d.full });
 };
 const errors = (cs: ChangeSet) => cs.issues.filter((i) => i.severity === 'error').map((i) => `${i.sheet} ${i.row}: ${i.message}`);
-const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today });
+const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today, sheets: MODULE_SHEETS });
 
 describe('one format: export, load back, no change', () => {
   for (const d of demos()) {
@@ -56,6 +57,9 @@ describe('one format: export, load back, no change', () => {
       const read = readTables(await asXlsx(bookOf(d)));
       expect(read.read.map((x) => x.kind).sort()).toEqual(['checkIns', 'goals', 'people', 'plan']);
       expect(read.skipped.map((x) => x.name)).toEqual(['Start here', 'Results', 'Asks', 'Notes', 'Metrics']);
+      // Every column a workbook writes on a sheet that loads back is one the engine reads (C19), and the file says where it came from.
+      expect(read.unknownColumns).toEqual([]);
+      expect(read.origin).toEqual({ workspaceId: 'ws', workspaceName: d.name, cycleId: d.cycle.id });
       const cs = load(d, read.tables);
       expect(errors(cs)).toEqual([]);
       expect(cs.items).toEqual([]);
@@ -64,6 +68,7 @@ describe('one format: export, load back, no change', () => {
     it(`${d.name}: the zipped CSVs load back as no change at all`, async () => {
       const read = readTables(await asZip(bookOf(d)));
       expect(read.read.map((x) => x.name).sort()).toEqual(['Check-ins.csv', 'Goals.csv', 'People.csv', 'Plan.csv']);
+      expect(read.unknownColumns).toEqual([]);
       const cs = load(d, read.tables);
       expect(errors(cs)).toEqual([]);
       expect(cs.items).toEqual([]);
@@ -174,6 +179,10 @@ describe('a typed cell is the same as what was written', () => {
     // 0.125 at 2 places is written 0.13: 0.005 away, which a tolerance of half a unit read as a change.
     expect(sameAsWritten('0.13', 0.125, 2)).toBe(true);
     expect(sameAsWritten(0.13, 0.125, 2)).toBe(true);
+    // An empty typed cell is never the written 0 (review of #130).
+    expect(sameAsWritten('', 0, 2)).toBe(false);
+    expect(sameAsWritten('  ', 0, 0)).toBe(false);
+    expect(sameAsWritten('0', 0, 2)).toBe(true);
     expect(sameAsWritten('0.41', 0.405, 2)).toBe(true);
     expect(sameAsWritten(' 6 ', 6, 0)).toBe(true);
     expect(sameAsWritten('0.12', 0.125, 2)).toBe(false);
@@ -198,4 +207,30 @@ describe('one reader', () => {
     expect(r.read).toEqual([{ name: 'Sheet1.csv', kind: 'people' }, { name: 'export (3).csv', kind: 'goals' }]);
     expect(r.skipped.map((x) => x.name)).toEqual(['Goals']);
   });
+});
+
+describe('a module’s own sheet in a file loaded back (AS part 3)', () => {
+  it('is named as written for reading, not called unknown', async () => {
+    const { readTables } = await import('./sheets');
+    const metrics = { name: 'Metrics', columns: [{ header: 'ID' }, { header: 'Metric' }, { header: 'Unit' }] };
+    const out = readTables([{ name: 'Metrics', rows: [['ID', 'Metric', 'Unit'], ['m1', 'Build time', 'min']] }, { name: 'Other', rows: [['Colour'], ['red']] }], [metrics]);
+    expect(out.skipped).toEqual([
+      { name: 'Metrics', why: 'reading-only' },
+      { name: 'Other', why: 'not-faro' },
+    ]);
+    expect(out.tables).toEqual({});
+  });
+});
+
+describe('worked-out cells a file edited (rule 9, C19)', () => {
+  it('[IMPORT-PREVIEW] an unedited workbook has none; Status edited on two rows is named, and still changes nothing', async () => {
+    const { workedOutEdits } = await import('./workedOut');
+    const d = demos()[0]!;
+    const book = bookOf(d);
+    expect(workedOutEdits(readTables(await asXlsx(book)).tables, book)).toEqual([]);
+    const edited = book.map((t) => (t.name !== 'Goals' ? t : { ...t, rows: t.rows.map((r, i) => (i === 1 || i === 2 ? r.map((c, k) => (t.rows[0]![k] === 'Status' ? 'Done' : c)) : r)) }));
+    const read = readTables(await asXlsx(edited));
+    expect(workedOutEdits(read.tables, book)).toEqual([{ sheet: 'Goals', columns: ['Status'], rows: [2, 3] }]);
+    expect(load(d, read.tables).items).toEqual([]);
+  }, 30_000);
 });

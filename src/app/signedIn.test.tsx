@@ -44,6 +44,42 @@ describe('the sign-in seam', () => {
     view.unmount();
   });
 
+  it('a sign-in that can tell why it opens no one: the page says so, and offers a message to send and trying again', async () => {
+    const store = new BrowserStore(() => new Date('2026-01-14T12:00:00Z'), { storage: memory(), example: false, key: 'why' });
+    const data = contractWorkspace('why');
+    await store.createWorkspace({ id: 'ws_why', name: 'Platform', kind: 'own', createdAt: '2026-01-14T12:00:00.000Z' }, data);
+    const cases = [
+      [{ reason: 'shared', email: 'sam@example.com' }, /More than one person in Platform has the email sam@example.com/, true],
+      [{ reason: 'left', email: 'oskar@example.com' }, /Platform has you down as having left/, true],
+      [{ reason: 'no-one', email: 'kim@example.com' }, /No one in Platform has the email kim@example.com/, true],
+      [{ reason: 'signed-out' }, /You aren’t signed in\. Sign in with your company account/, false],
+    ] as const;
+    for (const [why, words, message] of cases) {
+      const view = render(<AppProvider store={store} identity={{ current: async () => null, why: async () => why }} mode="live"><WhoAreYou /></AppProvider>);
+      await waitFor(() => expect(view.getByText(words)).toBeTruthy());
+      expect(view.getByRole('heading', { name: 'You can’t open Platform yet' })).toBeTruthy();
+      expect(!!view.queryByRole('button', { name: 'Copy a message for them' })).toBe(message);
+      expect(view.getByRole('button', { name: 'Try again' })).toBeTruthy();
+      for (const p of data.people) expect(view.queryByText(p.name)).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it('a workspace you can’t open yet still lists the others, and opens one from there (outside review, 12 Nov)', async () => {
+    const store = new BrowserStore(() => new Date('2026-01-14T12:00:00Z'), { storage: memory(), example: false, key: 'others' });
+    await store.createWorkspace({ id: 'ws_shut', name: 'Shut', kind: 'own', createdAt: '2026-01-14T12:00:00.000Z' }, contractWorkspace('shut'));
+    await store.createWorkspace({ id: 'ws_open', name: 'Elsewhere', kind: 'own', createdAt: '2026-01-14T12:00:01.000Z' }, contractWorkspace('open'));
+    let app: AppState | null = null;
+    const Peek = () => { app = useApp(); return null; };
+    const view = render(<AppProvider store={store} identity={{ current: async () => null }} mode="live"><Peek /><WhoAreYou /></AppProvider>);
+    await waitFor(() => expect(view.getByRole('heading', { name: /^You can’t open .+ yet$/ })).toBeTruthy());
+    const here = app!.ws.id, other = here === 'ws_shut' ? 'Elsewhere' : 'Shut';
+    const pick = view.getByRole('button', { name: other });
+    await act(async () => { pick.click(); });
+    await waitFor(() => expect(app!.ws.id).not.toBe(here));
+    view.unmount();
+  });
+
   it('a sign-in that can’t be chosen: the app acts as the person signed in, and only them', async () => {
     let me: string | null = null;
     const { store, data, app } = await open({ current: async () => me });

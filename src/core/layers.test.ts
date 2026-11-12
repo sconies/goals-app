@@ -35,7 +35,15 @@ describe('The layers', () => {
     put('src/ui/Keep.tsx', "export const a = () => localStorage.getItem('x');\nexport const b = () => sessionStorage.setItem('y', '1');\n// localStorage in a comment is fine\n");
     put('src/adapters/kept.ts', "export const k = () => indexedDB.open('x');\n");
     put('src/ui/Gone.tsx', 'export const nothing = 1;\n');
-    put('scripts/browser-storage.json', '{ "files": { "src/ui/Keep.tsx": { "uses": 1 }, "src/ui/Gone.tsx": { "uses": 1 } } }');
+    // Spellings a regular expression missed: inside a template literal, after a string holding //, in JSX after an
+    // apostrophe, by a string index, and in a .jsx and a .mts file; and index.html's own script.
+    put('src/ui/Sly.tsx', "export const a = `${localStorage.getItem('k')}`;\nexport const b = ['http://x', sessionStorage.length];\nexport const C = () => <p>Don't {String(indexedDB)}</p>;\nexport const d = (window as never)['localStorage'];\n");
+    put('src/ui/Old.jsx', "export const e = () => localStorage.clear();\n");
+    put('src/ui/New.mts', "export const f = 'indexedDB' in globalThis;\nexport const g = 'not localStorage at all';\n");
+    put('index.html', "<html><script>try{localStorage.getItem('t')}catch(e){}</script><script src=\"/src/main.tsx\"></script></html>");
+    // A listed file using storage fewer times than listed: its count must come down.
+    put('src/ui/Less.tsx', "export const h = () => localStorage.getItem('x');\n");
+    put('scripts/browser-storage.json', '{ "files": { "src/ui/Keep.tsx": { "uses": 1 }, "src/ui/Gone.tsx": { "uses": 1 }, "src/ui/Less.tsx": { "uses": 3 } } }');
     const found = check(dir);
     fs.rmSync(dir, { recursive: true, force: true });
     expect(found).toEqual([
@@ -55,13 +63,18 @@ describe('The layers', () => {
       // Browser storage only behind the ports (AX9): the adapters may; a listed file no more than listed; a listed file that stopped leaves the list.
       expect.stringMatching(/^src\/domain\/b\.ts: uses browser storage .* 1 time\(s\); keep it behind a port/),
       expect.stringMatching(/^src\/ui\/Keep\.tsx: uses browser storage .* 2 time\(s\), more than the 1 scripts\/browser-storage\.json allows/),
+      expect.stringMatching(/^src\/ui\/Less\.tsx: uses browser storage 1 time\(s\), fewer than the 3 scripts\/browser-storage\.json lists; lower its count to 1/),
+      expect.stringMatching(/^src\/ui\/New\.mts: uses browser storage .* 1 time\(s\); keep it behind a port/),
+      expect.stringMatching(/^src\/ui\/Old\.jsx: uses browser storage .* 1 time\(s\); keep it behind a port/),
+      expect.stringMatching(/^src\/ui\/Sly\.tsx: uses browser storage .* 4 time\(s\); keep it behind a port/),
+      expect.stringMatching(/^index\.html: uses browser storage .* 1 time\(s\); keep it behind a port/),
       expect.stringMatching(/^src\/ui\/Gone\.tsx: no longer uses browser storage; take it off scripts\/browser-storage\.json/),
     ]);
   });
 });
 
 // @ts-expect-error: a plain JavaScript script, run by CI with node, has no type declarations.
-import { checkPickers, selectsOfEverything } from '../../scripts/check-pickers.mjs';
+import { checkPickers, selectsOfEverything, typedWeeks } from '../../scripts/check-pickers.mjs';
 
 describe('The pickers lint (find spec, N12)', () => {
   it('holds in this repository: nothing new is chosen from a list of everything', () => {
@@ -72,13 +85,27 @@ describe('The pickers lint (find spec, N12)', () => {
     expect(find('<label>\n<select value={x}>{app.snapshot.people.map((p) => <option key={p.id}>{p.name}</option>)}</select>')).toEqual([2]);
     expect(find('<select>{weeks.map((w) => <option key={w}>{w}</option>)}</select>')).toEqual([]);
   });
+  it('finds a week typed as a number, and not a field about a week (goal entry, N12)', () => {
+    const typed = typedWeeks as (s: string) => number[];
+    expect(typed('<input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} value={s.dueWeek} />')).toEqual([1]);
+    expect(typed('<input placeholder="Due week" />')).toEqual([1]);
+    expect(typed('<input aria-label={`Plan for week ${week}`} />')).toEqual([]);
+    expect(typed('<input placeholder="One thing that will move this before next week" />')).toEqual([]);
+  });
 });
 
 // @ts-expect-error: a plain JavaScript script, run by CI with node, has no type declarations.
-import { checkSettings } from '../../scripts/check-settings.mjs';
+import { checkSettings, lineProblems } from '../../scripts/check-settings.mjs';
 
 describe('The settings lint (workspace settings, CF1)', () => {
   it('holds in this repository: a level is read from src/domain/levels.ts only', () => {
     expect((checkSettings as (r: string) => string[])(root)).toEqual([]);
+  });
+  it("tells a goal's level from an import problem's level (must, check, note)", () => {
+    const flags = lineProblems as (code: string) => string[];
+    expect(flags("if (g.level === 'team') x();")).toHaveLength(1);
+    expect(flags("if ('svp' !== goal.level) x();")).toHaveLength(2);
+    expect(flags("issues.some((x) => x.level === 'must' || x.level === 'check')")).toEqual([]);
+    expect(flags("if ('note' === i.level) x();")).toEqual([]);
   });
 });

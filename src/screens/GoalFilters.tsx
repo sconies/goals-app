@@ -2,20 +2,17 @@
    can share; saving a view keeps that link under a name. What each filter means is in domain/query.ts. */
 import { isTableView } from '../domain/tableLayout';
 import { movedGoals } from '../domain/goalsPage';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { levelIds, levelName } from '../domain/levels';
+import { useGoalColumns } from '../core/app';
 import {
-  EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, queryParts, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
+  EMPTY_QUERY, parseQuery, QUERY_KEYS, queryEntries, queryParts, SORT_OPTIONS, without,
   type GoalQuery, type SortKey,
 } from '../domain/query';
-import type { Goal, Level, SavedView } from '../domain/types';
+import type { Goal, SavedView } from '../domain/types';
 import { findOnMap } from '../domain/map';
-import { PickOne } from '../ui/Pick';
 import { Sheet } from '../ui/bits';
-import { ATTENTION, QUARTER } from '../domain/vocabulary';
-import { Icon } from '../ui/Icon';
 import type { MenuItem } from '../ui/MenuButton';
 import { FilterLine } from '../ui/ListBar';
 
@@ -78,10 +75,16 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
+  const { col } = useGoalColumns();
+  // The sheet's code arrives a moment after Goals opens, not in the first download, so Filters opens at once.
+  // Mounted closed once its code is here, so opening it starts the slide at once.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => { let live = true; void loadSheet().then(() => { if (live) setWarm(true); }); return () => { live = false; }; }, []);
   const names = {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
     goal: (id: string) => app.goal(id)?.title ?? 'a goal',
+    col,
   };
   // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.
   const parts = queryParts(q, names);
@@ -91,7 +94,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
         <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} find={find} />
         {lead}
         {/* On a phone Sort is in the same sheet as the filters, so the button says both (goals spec, 2.4). */}
-        <button type="button" className="btn filters-open" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
+        <button type="button" className="btn filters-open" aria-haspopup="dialog" onPointerEnter={() => void loadSheet()} onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
         <label className="filter-sort inline-sort" title={sortOff}><span className="sr">Sort</span>
           <select className="input" disabled={!!sortOff} aria-description={sortOff} value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -106,7 +109,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
           filters. The count is the page's one count line (goals spec, rule 4), not said again here. Saving and sharing
           are in the Views menu (or the phone's View sheet), the same on every width (GL2). */}
       <FilterLine parts={parts} onRemove={(k) => setQ((cur) => without(cur, k))} onClear={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, attention: cur.attention, sort: cur.sort, dir: cur.dir }))} />
-      {open && <FilterSheet onClose={() => setOpen(false)} />}
+      {(open || warm) && <Suspense fallback={null}><FilterSheet open={open} onClose={() => setOpen(false)} /></Suspense>}
     </div>
   );
 }
@@ -263,84 +266,6 @@ function SaveViewSheet({ params, view, onClose }: { params: string; view?: Saved
   );
 }
 
-/** Every filter, changing the goals behind it as you go. */
-function FilterSheet({ onClose }: { onClose: () => void }) {
-  const app = useApp();
-  const [q, setQ] = useGoalQuery();
-  const [owner, setOwner] = useState('');
-  const toggle = <T extends string>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  type ListKey = 'status' | 'level' | 'team' | 'kind' | 'result';
-  const checks = <T extends string>(legend: string, opts: [T, string][], key: ListKey) => (
-    <fieldset className="filter-group"><legend className="field-label">{legend}</legend>
-      <span className="filter-options">{opts.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={(q[key] as string[]).includes(k)} onChange={() => setQ((cur) => ({ ...cur, [key]: toggle(cur[key] as string[], k) }))} /> {l}</label>)}</span>
-    </fieldset>
-  );
-  const levels: [Level, string][] = levelIds(app.cycle).map((l) => [l, levelName(app.cycle, l)]);
-  const people = app.snapshot.people.filter((p) => app.snapshot.goals.some((g) => g.ownerId === p.id));
-  const match = people.filter((p) => owner.trim() && p.name.toLowerCase().includes(owner.trim().toLowerCase()) && !q.owner.includes(p.id)).slice(0, 6);
-  return (
-    <Sheet open onClose={onClose} title="Filter goals" wide>
-      <div className="filter-sheet">
-        <fieldset className="filter-group"><legend className="field-label">Sort</legend>
-          <select className="input" aria-label="Sort" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
-            <option value="">As grouped</option>
-            {SORT_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>{l}, reversed</option>)}
-          </select>
-        </fieldset>
-        {checks('Status', STATUS_OPTIONS, 'status')}
-        {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
-        <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
-          <label className="check"><input type="checkbox" checked={q.attention} onChange={(e) => { const on = e.target.checked; setQ((cur) => ({ ...cur, attention: on, needs: on ? cur.needs : [] })); }} /> Only goals that need attention, with those {ATTENTION.handled.label.toLowerCase()} below them</label>
-          <span className="hint">Because… (any of these; leave them all clear for any reason)</span>
-          <span className="filter-options">{NEED_OPTIONS.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={q.needs.includes(k)} onChange={() => setQ((cur) => { const needs = toggle(cur.needs, k); return { ...cur, needs, attention: cur.attention || needs.length > 0 }; })} /> {l}</label>)}</span>
-        </fieldset>
-        {checks('Level', levels, 'level')}
-        {checks('Team', app.snapshot.teams.map((t) => [t.id, t.name] as [string, string]), 'team')}
-        <fieldset className="filter-group"><legend className="field-label">Owner</legend>
-          <span className="filter-options">{q.owner.map((id) => <button key={id} type="button" className="filter-chip" aria-label={`Remove owner ${app.person(id)?.name}`} onClick={() => setQ((cur) => ({ ...cur, owner: cur.owner.filter((x) => x !== id) }))}>{app.person(id)?.name}<Icon name="close" size={12} className="chip-x" /></button>)}</span>
-          <input className="input" type="search" placeholder="Find an owner" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Find an owner" />
-          {match.length > 0 && <span className="filter-options">{match.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setQ((cur) => ({ ...cur, owner: [...cur.owner, p.id] })); setOwner(''); }}>{p.name}</button>)}</span>}
-        </fieldset>
-      </div>
-      {/* Used less often: folded, and open when one of them is set. */}
-      <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps)}>
-        <summary>More filters: type, due date, no update for, last quarter, result, links</summary>
-      <div className="filter-sheet">
-        {checks('Type', KIND_OPTIONS, 'kind')}
-        <fieldset className="filter-group"><legend className="field-label">Due</legend>
-          <select className="input" aria-label="Due" value={q.due == null ? '' : String(q.due)} onChange={(e) => setQ((cur) => ({ ...cur, due: e.target.value === '' ? null : e.target.value === 'quarter' ? 'quarter' : Number(e.target.value) }))}>
-            <option value="">Any time</option>
-            <option value="quarter">This quarter</option>
-            {[app.week + 2, app.week + 4, app.week + 8].filter((w) => w <= app.cycle.weeks).map((w) => <option key={w} value={w}>By week {w}</option>)}
-          </select>
-        </fieldset>
-        {/* Counted as the No recent update rule counts: days since the latest check-in was posted, in weeks. */}
-        <fieldset className="filter-group"><legend className="field-label">No update for</legend>
-          <select className="input" aria-label="No update for" value={q.quiet == null ? '' : String(q.quiet)} onChange={(e) => setQ((cur) => ({ ...cur, quiet: e.target.value ? Number(e.target.value) : null }))}>
-            <option value="">Any time</option>
-            <option value="2">2 weeks or more</option>
-            <option value="4">4 weeks or more</option>
-          </select>
-        </fieldset>
-        <fieldset className="filter-group"><legend className="field-label">Last quarter</legend>
-          <select className="input" aria-label="Last quarter" value={q.quarter ?? ''} onChange={(e) => setQ((cur) => ({ ...cur, quarter: (e.target.value || null) as GoalQuery['quarter'] }))}>
-            <option value="">Any</option><option value="met">{QUARTER.met.label}</option><option value="missed">{QUARTER.missed.label}</option>
-          </select>
-        </fieldset>
-        {checks('Result', RESULT_OPTIONS, 'result')}
-        <fieldset className="filter-group"><legend className="field-label">Links</legend>
-          {/* Any goal: its tree is the goal and everything that feeds it (find-and-pick, never a list of every goal). */}
-          <PickOne kind="goal" label="In the tree of" none="Any tree" value={q.feeds} onChange={(id) => setQ((cur) => ({ ...cur, feeds: id }))} />
-          <label className="check"><input type="checkbox" checked={q.helps} onChange={(e) => setQ((cur) => ({ ...cur, helps: e.target.checked }))} /> With “also helps” links</label>
-        </fieldset>
-      </div>
-      </details>
-      {/* Always in view at the bottom of the sheet, however long it is. */}
-      <div className="sheet-foot">
-        <button type="button" className="linkish small" onClick={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, sort: cur.sort, dir: cur.dir }))}>Clear filters</button>
-        <button type="button" className="btn primary" onClick={onClose}>Show the goals</button>
-      </div>
-    </Sheet>
-  );
-}
+// The sheet with every filter loads when first opened.
+const loadSheet = () => import('./GoalFilterSheet');
+const FilterSheet = lazy(() => loadSheet().then((m) => ({ default: m.FilterSheet })));

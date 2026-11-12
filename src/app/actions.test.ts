@@ -7,7 +7,7 @@ import { NotAllowed } from '../domain/actions';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import { commandNames } from '../spec/rebuild';
-import { ACTIONS, commitOf, perform, type RunContext } from './actions';
+import { actionNames, commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, type RunContext } from './actions';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -23,7 +23,8 @@ function as(who: string): RunContext {
 
 describe('one way to run an action', () => {
   it('has every action the command port lists, and nothing the list leaves out', () => {
-    expect(Object.keys(ACTIONS).sort()).toEqual([...commandNames()].sort());
+    // The core's and every module's (the metric library registers its four through its actions.ts).
+    expect(actionNames().sort()).toEqual([...commandNames()].sort());
   });
 
   it('runs a rule by name, with the goal named by its id or its key', () => {
@@ -36,6 +37,16 @@ describe('one way to run an action', () => {
     }
   });
 
+  it('runs a module’s action from the same table, as its module says, and refuses it while the module is off', () => {
+    expect(MODULE_ACTIONS.saveMetric?.module).toBe('metrics');
+    const x = as('oskar');
+    const out = performAny(x, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower' }) as { commit: unknown; metric: { name: string } };
+    expect(out.metric.name).toBe('Build time');
+    expect(commitOf('saveMetric', out, {})).toBe(out.commit);
+    expect(() => performAny({ ...x, workspace: { ...x.workspace, modulesOff: ['metrics'] } }, 'saveMetric', { name: 'Build time', unit: 'min', direction: 'lower' })).toThrow(/switched off/);
+    expect(() => performAny(x, 'noSuchAction', {})).toThrow(/no action called noSuchAction/);
+  });
+
   it('refuses what the rule refuses, in the rule’s words', () => {
     const x = as('rhea');
     const notMine = x.snapshot.goals.find((g) => g.ownerId !== 'rhea')!;
@@ -44,7 +55,8 @@ describe('one way to run an action', () => {
     expect(() => perform(x, 'addNote', { goalId: 'no-such-goal', text: 'Hi' })).toThrow(/no longer exists/);
   });
 
-  it('previews a change set without saving it, and saves it only when asked to apply', () => {
+  it('previews a change set without saving it, and saves it only when asked to apply', async () => {
+    await loadEngine();
     const x = as('rhea');
     const goal = x.snapshot.goals.find((g) => g.ownerId === 'rhea')!;
     const input = { tables: { goals: [{ __row: '2', id: goal.id, goal: `${goal.title}, renamed` }] }, via: 'bulk' as const };

@@ -2,7 +2,9 @@
    with its requirement ID, so the scorecard can say which requirements hold. */
 import { describe, expect, it } from 'vitest';
 import { emptyDraft, evaluate, toCheckIn, type Draft } from '../src/domain/checkin';
-import { blankGoal, buildGoal, draftOf, goalAsOf, overHundredHint, validateGoal } from '../src/domain/goal';
+import { blankGoal, buildGoal, draftOf, goalAsOf } from '../src/domain/goal';
+import { goalChecks } from '../src/domain/goalEntry';
+import { goalMustFix } from '../src/domain/goalEntry';
 import { currentWeek, forecast, planAt, shapeProgress } from '../src/domain/plan';
 import { assessMetric, assessMilestone, assessRange, goalStatus } from '../src/domain/status';
 import type { CheckIn, Cycle, MetricGoal, MilestoneGoal, RangeGoal } from '../src/domain/types';
@@ -155,12 +157,13 @@ describe('what a check-in must say', () => {
 
 describe('goals', () => {
   it(R('GOAL-CREATE', 'a metric goal needs a name, a start and a different target'), () => {
-    expect(Object.keys(validateGoal(blankGoal('t', 'o', ''), cycle)).sort()).toEqual(['start', 'target', 'title']);
+    expect([...new Set(goalMustFix(blankGoal('t', 'o', ''), { cycleWeeks: cycle.weeks, week: 0, existing: null, door: 'form' }).map((f) => f.field))].sort()).toEqual(['start', 'target', 'title']);
   });
-  it(R('GOAL-CREATE', 'a range goal needs a limit'), () => expect(validateGoal({ ...blankGoal('t', 'o', ''), kind: 'range', title: 'CFR' }, cycle).limit).toBeTruthy());
+  it(R('GOAL-CREATE', 'a range goal needs a limit'), () => expect(goalMustFix({ ...blankGoal('t', 'o', ''), kind: 'range', title: 'CFR' }, { cycleWeeks: cycle.weeks, week: 0, existing: null, door: 'form' }).some((f) => f.id === 'limit-empty')).toBe(true));
   it(R('GOAL-CREATE', 'milestone stages must fall inside the cycle'), () => {
-    expect(validateGoal({ ...blankGoal('t', 'o', ''), kind: 'milestone', title: 'X', stages: [{ id: 's', name: 'Ship', dueWeek: '0' }] }, cycle).stages).toBeTruthy();
-    expect(validateGoal({ ...blankGoal('t', 'o', ''), kind: 'milestone', title: 'X', stages: [{ id: 's', name: 'Ship', dueWeek: '6' }] }, cycle).stages).toBeUndefined();
+    const stageFix = (dueWeek: string) => goalMustFix({ ...blankGoal('t', 'o', ''), kind: 'milestone', title: 'X', stages: [{ id: 's', name: 'Ship', dueWeek }] }, { cycleWeeks: cycle.weeks, week: 0, existing: null, door: 'form' }).filter((f) => f.field === 'stages');
+    expect(stageFix('0').map((f) => f.id)).toEqual(['stage-week']);
+    expect(stageFix('6')).toEqual([]);
   });
 });
 
@@ -203,9 +206,10 @@ describe('numbers people can trust (research round 1)', () => {
 });
 describe('numbers people can trust (research round 2)', () => {
   it(R('HONEST-NUMBERS', 'a percentage target over 100% asks whether it measures a share'), () => {
-    expect(overHundredHint('%', '0', '150')).toMatch(/can’t pass 100%/);
-    expect(overHundredHint('%', '20', '90')).toBeNull();
-    expect(overHundredHint('days', '0', '150')).toBeNull();
+    const asks = (unit: string, start: string, target: string) => goalChecks({ ...blankGoal('t', 'p', ''), title: 'Coverage', unit, start, target }, { week: 1, cycleWeeks: 53, existing: null, door: 'form' }).find((c) => c.id === 'over-100')?.question ?? null;
+    expect(asks('%', '1', '150')).toMatch(/can’t pass 100%/);
+    expect(asks('%', '20', '90')).toBeNull();
+    expect(asks('days', '1', '150')).toBeNull();
   });
 });
 function draftOfUp() { return draftOf(up); }

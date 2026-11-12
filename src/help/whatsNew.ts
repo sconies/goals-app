@@ -5,6 +5,8 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
+import { entriesAfter } from './match';
+
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -20,6 +22,393 @@ export interface NewsEntry {
 }
 
 export const WHATS_NEW: NewsEntry[] = [
+  {
+    id: 'home-asks-first',
+    date: '2026-11-12',
+    title: 'Home starts with what is asked of you today, and is quiet when nothing is',
+    points: [
+      'Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.',
+      'When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.',
+      'Your goals are counted once, in Your goals, and each count opens exactly those goals.',
+      'What’s new in Faro is now a line at the foot of Home.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'admins-triage-and-start-over',
+    date: '2026-11-12',
+    title: 'Where one workspace ends, and who you are there',
+    points: [
+      'The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.',
+      'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”',
+      'About says what a workspace is, in one sentence, under its name.',
+      'Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.',
+      'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
+    ],
+    articles: ['inbox', 'demo', 'workspace'],
+  },
+  {
+    id: 'polish-layout-switch',
+    date: '2026-11-12',
+    title: 'Board and Table line up straight away',
+    points: [
+      'Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.',
+      'Rows still slide when a sort or a filter changes their order within a layout.',
+    ],
+    articles: ['goals'],
+  },
+  {
+    id: 'polish-map-wait',
+    date: '2026-11-12',
+    title: 'The map opens without a flash',
+    points: [
+      'Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.',
+      'It says so only when drawing takes long enough to notice.',
+    ],
+    articles: ['goal-map'],
+  },
+  {
+    id: 'your-goals-worst-first',
+    date: '2026-11-12',
+    title: 'Your goals, worst first',
+    points: [
+      'On Home, the goals you own that have nothing flagged are listed worst first, then by name, as Goals lists them.',
+      'Home and Goals now read their lists and counts the same way, so the numbers on each agree.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'polish-no-check-in-for',
+    date: '2026-11-12',
+    title: 'No check-in offered that can’t be posted',
+    points: [
+      'A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.',
+      'The owner checks in from the button on the goal’s bar, as before.',
+    ],
+    articles: ['goal-page', 'check-in'],
+  },
+  {
+    id: 'import-preview-steadier',
+    date: '2026-11-12',
+    title: 'Checking an import: quicker and steadier',
+    points: [
+      'Typing why plans are changing no longer re-checks the whole file on every key.',
+      'Choosing a team, person or goal in an answer shows the search box as it should.',
+      'After an answer, the next question has the focus, so the keyboard carries on where you are.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'publish-one-outcome',
+    date: '2026-11-12',
+    title: 'Publishing a goal says one thing',
+    points: [
+      'Pressing Publish goal no longer shows a question still to answer, a stuck “Saving…” and “Published” all at once.',
+      'Once it is published, the goal’s page opens with the “Published” note, and it opens sooner.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'goal-read-back',
+    date: '2026-11-12',
+    title: 'Read your goal back before it’s published',
+    points: [
+      'The last step says, in sentences, what you typed and what was left as usual.',
+      'It says when the first check-in is due and how long you can still delete it.',
+      'It names the reviews that will walk the goal, and who sees it if it’s someone else’s.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'import-way-in',
+    date: '2026-11-12',
+    title: 'Paste rows, and headers that are nearly right',
+    points: [
+      'Paste cells from a spreadsheet straight into Import.',
+      'A title row above the headers, or “Goal name” for Goal, is read.',
+      'A header one letter out is asked about once: “Read it as Target?”',
+      'A file Faro can’t use says what it found, and offers the template.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'new-goal-fixes',
+    date: '2026-11-12',
+    title: 'New goal fixes',
+    points: [
+      'Change an answer on Check that a later step no longer fits (a number goal turned into dated stages) and Continue now takes you to that step and says what it needs, instead of doing nothing.',
+      'Check shows each answer in full, wrapping long ones instead of cutting them short.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'goal-entry-review-fixes',
+    date: '2026-11-12',
+    title: 'Goal forms that show you what’s left',
+    points: [
+      'On a phone, New goal’s steps take the whole screen, so the tab bar no longer covers Back and Continue.',
+      'Changing a goal, Save with a question still open takes you to it and says where it is. “No, I’ll change it” takes you back to the field.',
+      'A target on the worse side of the metric that measures a goal is asked about wherever the goal is changed, and your answer is kept in its History.',
+      'A spreadsheet row or the AI assistant can no longer save a new goal with an Effect that isn’t a number: it says so, in the form’s words.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'metric-fixes',
+    date: '2026-11-12',
+    title: 'Metrics: a few things put right',
+    points: [
+      'New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.',
+      'A goal you make for someone else can be measured by a metric straight away.',
+      'A goal whose metric changed unit or direction since now says so on its page.',
+      'Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.',
+      'See goals in a unit finds the goals in that unit.',
+    ],
+    articles: ['metrics'],
+  },
+  {
+    id: 'past-imports',
+    date: '2026-11-12',
+    title: 'Past imports, each with Undo',
+    points: [
+      'Data lists every import, who made it and what it changed: Spreadsheets, then Past imports.',
+      'Undo says first which rows have changed since, and why they will stay.',
+      'Saving an import ends on a page that says what was saved, with Undo beside it.',
+      'In Activity an import is one entry, its changes folded under it.',
+    ],
+    articles: ['past-imports', 'import'],
+  },
+  {
+    id: 'goal-dates-picked',
+    date: '2026-11-12',
+    title: 'Pick a goal’s weeks, with their dates',
+    points: [
+      'A number goal now says its baseline, From and To.',
+      'Choose each week from a list that shows its dates and year: this year or next.',
+      'A goal whose From is still to come isn’t due until then: it reads “No check-in yet · starts week 50”.',
+      'Spreadsheets write weeks as 2026-W46; old files still load.',
+    ],
+    articles: ['new-goal', 'edit-goal', 'import'],
+  },
+  {
+    id: 'import-preview',
+    date: '2026-11-12',
+    title: 'A clearer check before an import is saved',
+    points: [
+      'Counts by sheet first; then what must be fixed; then questions; then the changes, if you want them.',
+      'It says which sheets and columns it didn’t read.',
+      'Download just the rows to fix, or leave them out and save the rest.',
+      'An answered question stays on the page with Change, and a corrected file keeps your answers.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'smaller-first-download',
+    date: '2026-11-12',
+    title: 'Faro opens faster',
+    points: [
+      'The first visit downloads about a quarter less: each page other than Home loads when you first open it.',
+      'On a slow connection, a page you open for the first time may take a moment longer.',
+    ],
+    articles: ['any-device'],
+  },
+  {
+    id: 'goal-questions',
+    date: '2026-11-12',
+    title: 'Unlikely values are asked about, once',
+    points: [
+      'Over 100%, below zero, no unit, an owner in another team, a link to a lower level: New goal asks under the field, and remembers your answer.',
+      'Change the number and it asks again. Your answers are kept in the goal’s History.',
+      'A stage already past is asked about in the same way, and so are the numbers on set-up’s goal cards and the edit page.',
+      'Spreadsheets and assistants are asked the same questions.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
+    id: 'metrics-sort-out',
+    date: '2026-11-12',
+    title: 'Metrics say what they’re missing',
+    points: [
+      'A metric’s owner sees what it still needs: a meaning, a source, an owner, a goal.',
+      'Adding one with a name close to another asks first; removing one says which goals it leaves.',
+      'Put it back brings a removed metric back with the goals it measured.',
+    ],
+    articles: ['metric-add', 'metrics'],
+  },
+  {
+    id: 'measured-by-find',
+    date: '2026-11-12',
+    title: 'Find a goal’s metric by typing',
+    points: [
+      'In New goal, “Measured by” comes first: type to find a metric, or add one there.',
+      'Choosing one fills in its unit and which way is better.',
+      'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
+    ],
+    articles: ['metric-measured-by', 'new-goal', 'metrics'],
+  },
+  {
+    id: 'goal-needs-said',
+    date: '2026-11-12',
+    title: 'New goal says what it needs',
+    points: [
+      'Each step says what is needed and marks what is optional.',
+      'A problem shows under its field as you leave it, and is counted by the button.',
+      'The unit is yours to give: it no longer starts as %. Decimals follow what you type, and you can change them.',
+      'Anyone can add a goal for anyone, at any level, from New goal, a spreadsheet or an AI assistant. Choosing someone else as owner says who can change it afterwards: them, or an admin.',
+      'A spreadsheet, set-up and the AI assistant say a goal’s problems in the same words as New goal.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
+    id: 'offline-page-needs-connection',
+    date: '2026-11-12',
+    title: 'Offline, a page that hasn’t loaded says so',
+    points: [
+      'Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.',
+      'It says the page needs a connection, with Try again and Go back.',
+      'On a slow connection, such a page says “Opening…” while it loads.',
+    ],
+    articles: ['any-device'],
+  },
+  {
+    id: 'setup-near-miss-stops',
+    date: '2026-11-12',
+    title: 'Set-up says when a row is one letter out',
+    points: [
+      'Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.',
+      'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
+    ],
+    articles: ['set-up', 'check-in-table'],
+  },
+  {
+    id: 'goal-edit-one-page',
+    date: '2026-11-12',
+    title: 'Changing a goal is one page',
+    points: [
+      'Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.',
+      'Save changes stays at the foot of the window and never covers what you’re typing.',
+      'One way out: Close and keep the draft. What you typed is there when you come back.',
+      'Describe it on a goal with no definition opens the page at What it is.',
+    ],
+    articles: ['edit-goal'],
+  },
+  {
+    id: 'new-goal-order',
+    date: '2026-11-12',
+    title: 'New goal asks in a better order',
+    points: [
+      'What, then who and where, then how it’s measured, then check.',
+      'Type to find the owner, the team and the goal it feeds. “Also helps” can be set as you create it.',
+      'Your browser’s Back steps back a step.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'history-asks-by-review',
+    date: '2026-11-12',
+    title: 'Renaming a review keeps its asks under Reviews',
+    points: [
+      'In a goal’s History, an ask raised in a review stays under Reviews after the review is renamed. It used to move to Comments.',
+      'An ask raised outside a review is under Comments, whatever its words say.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
+    id: 'carry-stays-true',
+    date: '2026-11-12',
+    title: 'Next year’s goals follow this year’s last changes',
+    points: [
+      'Once next year is set up, a goal stopped, started again, changed or checked in this year updates its copy there, however the change was made, until someone uses that copy.',
+      'Stopping a goal and then carrying it on again brings back the same goal in next year, with its key, not a second one.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'undo-import-sticks',
+    date: '2026-11-12',
+    title: 'Undoing an import now lasts',
+    points: [
+      'Undo this import put back goals it had deleted or stopped and people it had marked as left, but they went again the next time the page loaded. They now stay back.',
+      'An Undo message now goes when you switch workspace, since it could only undo something in the one you left.',
+    ],
+    articles: ['removing'],
+  },
+  {
+    id: 'metrics-place',
+    date: '2026-11-12',
+    title: 'Metrics has its own place',
+    points: [
+      'Metrics is in the menu, beside People (on a phone, under More): every number goals are measured by, defined once.',
+      'Find a metric by its name, unit, owner or meaning, and narrow the list by unit, by the team that uses it, or by what still needs sorting out.',
+      'Each metric has a page with its meaning and every goal measured by it, side by side: status, who it is for, the latest number, the target and where it stands against plan.',
+      'A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.',
+      'Old links still work.',
+    ],
+    articles: ['metrics', 'metric-add'],
+  },
+  {
+    id: 'undo-removal-sticks',
+    date: '2026-11-12',
+    title: 'Undo after a delete now lasts',
+    points: [
+      'Pressing Undo after deleting something, marking someone as left or stopping a goal brought it back, but it was gone again the next time the page loaded. It now stays back.',
+      'Anything this caught is still in Recently removed, where an admin can restore it.',
+    ],
+    articles: ['removing'],
+  },
+  {
+    id: 'undo-stays-put',
+    date: '2026-11-12',
+    title: 'Undo stays in its own workspace',
+    points: [
+      'Pressing Undo after switching to another workspace no longer changes the one you switched to. It says the Undo was for another workspace, and changes nothing.',
+      'Open that workspace again to undo it there.',
+    ],
+    articles: ['features'],
+  },
+  {
+    id: 'import-levels',
+    date: '2026-11-11',
+    title: 'Imports ask instead of refusing',
+    points: [
+      'A name one letter out is a question: “Did you mean Platform?”',
+      'The same problem on 14 rows is said once, and one answer covers them all.',
+      'Numbers that look wrong are asked about before saving.',
+      'An empty Admin cell now keeps what is there, as Every column says, and Takes over accepts a name only one person has as well as an email.',
+    ],
+    articles: ['import', 'columns'],
+  },
+  {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
+    id: 'carry-right',
+    date: '2026-11-11',
+    title: 'Goals carry on with their history',
+    points: [
+      'A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.',
+      'Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.',
+      'A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
   {
     id: 'levels-one-style',
     date: '2026-11-11',
@@ -1198,10 +1587,7 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export function newsAfter(seenId: string | null): NewsEntry[] {
-  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
-  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
-}
+export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

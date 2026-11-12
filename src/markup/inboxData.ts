@@ -28,7 +28,7 @@ export interface InboxData {
   reload(): Promise<void>;
   /** Changes the status of every markup and piece of feedback named, through the shared rule, as the person using the
       app. Gives back the change that undoes it all. */
-  setStatus(ids: { markups: string[]; feedback: string[] }, c: Omit<StatusChange, 'by'>): Promise<() => Promise<void>>;
+  setStatus(ids: { markups: string[]; feedback: string[] }, c: Omit<StatusChange, 'by' | 'admin'>): Promise<() => Promise<void>>;
   /** Puts a markup changed elsewhere (the issue's address) into the list. */
   patchMarkup(m: Markup): void;
 }
@@ -69,7 +69,7 @@ export function useInboxData(): InboxData {
 
   const setStatus = useCallback<InboxData['setStatus']>(async (ids, c) => {
     if (!ops) throw new Error('The inbox isn’t ready yet.');
-    const by = appNow.current.viewer.name;
+    const by = appNow.current.viewer.name, admin = !!appNow.current.viewer.admin;
     const beforeM = new Map((markups ?? []).filter((m) => ids.markups.includes(m.id)).map((m) => [m.id, { status: m.status, fixedIn: m.fixedIn, wontFixReason: m.wontFixReason }]));
     const beforeF = new Map(feedback.filter((f) => ids.feedback.includes(f.id)).map((f) => [f.id, { status: f.status, fixedIn: f.fixedIn, wontFixReason: f.wontFixReason }]));
     const apply = async (forM: (id: string) => StatusChange, forF: (id: string) => StatusChange) => {
@@ -80,10 +80,10 @@ export function useInboxData(): InboxData {
       setMarkups((xs) => xs && xs.map((x) => (m.has(x.id) ? { ...x, ...m.get(x.id)! } : x)));
       setFeedback((xs) => xs.map((x) => (f.has(x.id) ? { ...x, ...f.get(x.id)! } : x)));
     };
-    await apply(() => ({ ...c, by }), () => ({ ...c, by }));
+    await apply(() => ({ ...c, by, admin }), () => ({ ...c, by, admin }));
     return async () => {
-      const who = appNow.current.viewer.name;
-      await apply((id) => undoChange(beforeM.get(id)!, who), (id) => undoChange(beforeF.get(id)!, who));
+      const who = appNow.current.viewer.name, still = !!appNow.current.viewer.admin;
+      await apply((id) => undoChange(beforeM.get(id)!, who, still), (id) => undoChange(beforeF.get(id)!, who, still));
     };
   }, [ops, fbOps, markups, feedback]);
 

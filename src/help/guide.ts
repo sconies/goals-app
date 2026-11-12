@@ -10,6 +10,7 @@ import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
+import { closestRoute, routePaths, routeScore } from './match';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -68,22 +69,28 @@ const CORE_ARTICLES: Article[] = [
     summary: 'Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch.',
     group: 'start',
     sections: [
-      { heading: 'What it’s for', text: ['Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it.'] },
+      { heading: 'What it’s for', text: ['Home is where you start each day. It answers one question first: what is asked of you today. If something is, it is the one big button on the page; if nothing is, Home says so in one line and has no big button at all.'] },
       { heading: 'How to use it', list: [
-        'The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.',
-        'Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.',
+        'The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.',
+        'With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.',
+        'This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.',
         'Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.',
-        'Your goals come next, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.',
-        'While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.',
+        'Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.',
         'On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.',
-        'Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.',
-        'After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross.',
+        'Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.',
+        'After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross.',
+      ] },
+      { heading: 'When Home has no button', list: [
+        'Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.',
+        'Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.',
+        'If you own and watch nothing, it says so, with a way to see the goals and to set one up.',
+        'It never tells you about a deadline you met.',
       ] },
       { heading: 'Who can', text: ['Everyone has a Home. What is on it depends on the goals you own, the goals you watch and the reviews you’re in. There are no role labels.'] },
     ],
     routes: ['/'],
     screens: ['Home'],
-    reqs: ['HOME-DASHBOARD', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
+    reqs: ['HOME-OWNER', 'PROFILES', 'SHAPE-MATCHES-WORD', 'DAY-ONE'],
     keywords: ['dashboard', 'start', 'streak', 'needs your response', 'today', 'this week'],
     related: ['check-in', 'needs-attention', 'requests', 'watching'],
   },
@@ -142,7 +149,7 @@ const CORE_ARTICLES: Article[] = [
         'Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.',
         'Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.',
         'A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.',
-        'Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.',
+        'Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.',
         'Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.',
         'A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.',
         'Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.',
@@ -157,7 +164,7 @@ const CORE_ARTICLES: Article[] = [
         'Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.',
         'In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.',
       ] },
-      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If you aren’t signed in, or no one there has that email, it says you can’t open the workspace yet and to ask whoever set it up to add you; nothing of the workspace is shown.'] },
+      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.'] },
     ],
     routes: ['/workspace/new', '/ready'],
     screens: ['Onboarding', 'Start'],
@@ -176,7 +183,7 @@ const CORE_ARTICLES: Article[] = [
         'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.',
         'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.',
         'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
-        'In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.',
+        'In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example. Only an admin of that workspace sees it; in the example anyone may start over.',
         'Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.',
         'Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload.',
       ] },
@@ -243,6 +250,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'On Home, choose “Or type all your numbers in one table” under Start check-in.',
         'Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.',
+        'Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.',
         'Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.',
         'After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.',
         'The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account.',
@@ -318,7 +326,7 @@ const CORE_ARTICLES: Article[] = [
         'Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.',
         'One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.',
         'By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.',
-        'Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link.',
+        'Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link. A new layout is drawn in place; rows slide only when the order changes within one, after a sort or a filter.',
         'Views, at the right of the tabs, holds your saved views (pinned ones first, the open one marked Current), then Save this view…, Copy link and Export these goals; with a saved view open, also Rename…, Pin for everyone (admins) and Delete this view…. It means the same on every screen.',
         'The title, the tabs and the bar stay exactly where they are whichever layout you choose; only the goals under the count line widen for Table, Board, History and the Map. On the Map, Group and Sort can’t be changed: the Map is always the trees.',
         'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole.',
@@ -361,7 +369,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Anyone saves their own views. Admins can pin a view for everyone.'] },
     ],
     routes: ['/goals?q=*', '/goals?status=*'],
-    screens: ['GoalFilters'],
+    screens: ['GoalFilters', 'GoalFilterSheet'],
     reqs: ['SAVED-VIEWS'],
     keywords: ['search', 'filter', 'sort', 'saved view', 'pin', 'copy link', 'share', 'find'],
     related: ['goals', 'data'],
@@ -421,6 +429,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
+        'Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.',
         'It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.',
         'Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.',
         'On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.',
@@ -457,7 +466,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'The buttons', list: [
         'One main button, for what you’d most likely do next, in this order: answer a question or a decision asked of you here; post the first check-in, or check in for this week when it’s due (the owner); mark your next step done; Add a next step, when the goal is behind and its owner has no next step open; ask a quiet goal’s owner for an update.',
         'Beside it, a plain button: the owner always has Check in again (unless the main button is the check-in); anyone else has Watch, or Watching once they do.',
-        'The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). An admin checks in for the owner from there.',
+        'The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). Only the owner checks in, from the bar.',
       ] },
       { heading: 'In order, on a computer and a phone', list: [
         'Under the scorecard, links to each section: Now, Next steps and asks (with how many are open), Why, Chart, What feeds it, History and About. A goal with no check-in yet says “The scorecard starts with the first check-in.” instead of empty cells.',
@@ -470,7 +479,7 @@ const CORE_ARTICLES: Article[] = [
         'The comment box is one line, Add a comment, until you press it. Open, it says who will see what you write before you post: everyone in the workspace can read it, and the owner and the people watching see it on Home. Cancel closes it and keeps what you typed.',
         'Watch opens a sheet that says what watching does: the goal’s check-ins, changes of status and new asks show on your Home and under Watching in Goals, your name is listed under Watched by, and Faro sends no email. With goals feeding it, choose this goal, or it and everything feeding it. Watching, the same sheet has Done and Stop watching; each says what it did, with Undo.',
         'This year by quarter, then History: every week from when the goal was set up to this one, newest first, with its check-in or “No check-in” (four or more missed in a row are one line, “Weeks 12 to 17 · No check-ins (6 weeks)”), and the goal’s comments, what reviews said and its changes, with a comment box at the top. This week’s check-in points to Why for its reason rather than saying it twice.',
-        'History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.',
+        'History’s filters, each with its count: All, Check-ins, Comments, Reviews (what was said in a review, and asks raised in one, even after the review is renamed) and Changes (edits to the goal, its plan, owner and the rest). The filter is in the address (?history=changes), so a link or a reload shows the same list; Show all is ?all=1. With more than 30 entries, find in the goal’s history, or go to a week. An old link to #activity opens History.',
         'About this goal: what it measures (or Describe it, for the owner, when it isn’t described yet), its plan and target week by week, level, team, what it feeds, who watches it, its key and every plan change, and one link: Change this goal. It’s open the first time you visit, and folded after.',
         'On a computer from about 1,100 px wide, Next steps and asks and Last time we talked sit in a side column; on a phone everything is in one column, in this order.',
       ] },
@@ -562,50 +571,66 @@ const CORE_ARTICLES: Article[] = [
   {
     id: 'new-goal',
     title: 'Setting up a goal',
-    summary: 'A new goal takes a few short steps: what you want to achieve, the type, the numbers or stages, and where it fits.',
+    summary: 'A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing.',
     group: 'goals',
     sections: [
       { heading: 'How to use it', list: [
-        'Choose New goal. Name it the way your team would say it.',
-        'Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.',
-        'For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.',
-        'Say what it feeds into by typing a few of its words or its key (or choose Nothing: top of its own tree) and, optionally, why it is expected to help. Type a name to find its team and its owner. Set its level: Team, SVP or North star, for goals reported at major reviews.',
-        'Check and publish. The owner is then offered the first check-in.',
-        'A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.',
-        'A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.',
-        'Decimals says how many decimal places the goal’s numbers have (0 to 3). A start, target, limit or plan number typed with more is refused, not rounded, so what you see is what was saved.',
-        'Some numbers are asked about, never refused: a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), and a billion or more.',
-        'Two goals can have the same name (two teams can both “Reduce latency”). You’re told when another goal has it, and wherever both could be on screen each shows its key beside the title.',
+        'Choose New goal. Step 1, what: name it the way your team would say it, and pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.',
+        'Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).',
+        'Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.',
+        'Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year; the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.',
+        'Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Feeds nothing.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first.',
+        'Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in). Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.',
+        'On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.',
+        'Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.',
+        'A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.',
+        'Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses, Escape closes.',
+        'To can run into next year: the line under the numbers says “It runs past the end of 2026 and carries into 2027 with this plan.” A From still to come is fine too: until that week nothing is due, and the goal reads “No check-in yet · starts week 50”. A From in the past is asked about (“Week 40 was 6 weeks ago. Has this been running since then?”); “No, start from this week” puts it back. A To already past, and a plan longer than a year, are asked about too. A stage is due within this goal year; a range applies from the week it is published to the end of the year.',
+        'An unfinished goal is kept as a draft.',
+        'Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.',
+        'A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.',
+        'A warning margin for a range is optional: left empty, it warns only once the limit is crossed.',
+        'Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).',
+        'Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.',
+        'Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.',
       ] },
-      { heading: 'Who can', text: ['Anyone can set up a goal, for themselves or for someone else. Someone publishing for another person can ask them for the first check-in.'] },
+      { heading: 'Who can', text: ['Anyone can set up a goal, for themselves or for anyone else, at any level: here, in a spreadsheet, or through an AI assistant, which all follow the same rules and say the same words. Choosing someone else as owner says “Amara will own it. After it is published, only Amara or an admin can change it.” Someone publishing for another person can ask them for the first check-in.'] },
     ],
-    routes: ['/goals/new'],
+    routes: ['/goals/new', '/goals/new/:step'],
     screens: ['GoalWizard'],
-    reqs: ['GOAL-CREATE', 'NEW-GOAL-TRUTH', 'PLAN-SHAPE', 'LEVELS', 'FIRST-CHECKIN', 'HIERARCHY', 'NO-SILENT-ROUNDING', 'SAME-NAMES'],
-    keywords: ['create', 'new goal', 'metric', 'range', 'milestone', 'stages', 'plan', 'target', 'guardrail', 'level', 'north star'],
+    reqs: ['GOAL-CREATE', 'GOAL-ENTRY-REQUIRED', 'GOAL-DATES', 'NEW-GOAL-STEPS', 'NEW-GOAL-TRUTH', 'PLAN-SHAPE', 'LEVELS', 'FIRST-CHECKIN', 'HIERARCHY', 'NO-SILENT-ROUNDING', 'SAME-NAMES'],
+    keywords: ['create', 'new goal', 'metric', 'range', 'milestone', 'stages', 'plan', 'target', 'guardrail', 'level', 'north star', 'baseline', 'from', 'to', 'week', 'date', 'year', 'read back', 'check', 'publish', 'first check-in'],
     related: ['edit-goal', 'check-in', 'goals'],
   },
   {
     id: 'edit-goal',
     title: 'Changing a goal or its plan',
-    summary: 'Edit a goal’s details, owner, links or plan. Once check-ins have started, a plan change needs a reason.',
+    summary: 'Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason.',
     group: 'goals',
     sections: [
       { heading: 'How to use it', list: [
-        'Open the goal and choose Edit.',
-        'Change the title, definition, data source, owner, level, what it feeds and what it also helps. The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.',
+        'Open the goal and choose Change this goal, in the “…” menu or at the foot of About this goal.',
+        'It is one page in four sections: What it is (the name, what it measures and the metric that measures it), Plan and target, Who and where (the owner, the team, the level, what it feeds and what it also helps) and More details (how much it moves the goal it feeds, whether it’s a guardrail, and the data source).',
+        'A link can open the page at a section: add #definition, #plan or #owner to the address. Describe it on a goal with no definition opens What it is. Older links that opened one part of the form land on the matching section.',
+        'The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.',
+        'Plan and target has the same two rows as a new goal: Baseline with From, Target with To, each week chosen from the list of weeks with their dates. Changing From or To after check-ins have started is a plan change, so it asks why.',
         'Plan by week shows the numbers week by week; type over any week.',
-        'After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.',
-        'Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.',
+        'After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.',
+        'Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.',
+        'Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.',
         'A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.',
         'The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.',
         'A goal’s type can’t change once check-ins have started.',
+      ] },
+      { heading: 'One way out', list: [
+        'Save changes stays at the foot of the window wherever you are on the page, and never covers the field you’re typing in.',
+        'Close and keep the draft, top right, is the only other way out. What you typed is kept on this device: open the page again and it says “Restored your unsaved edits”, with Discard them beside it.',
       ] },
       { heading: 'Who can', text: ['The goal’s owner, or an admin.'] },
     ],
     routes: ['/goals/:goalId/edit'],
     screens: ['GoalEdit'],
-    reqs: ['PLAN-CHANGE', 'REBASELINE', 'HONEST-NUMBERS'],
+    reqs: ['PLAN-CHANGE', 'REBASELINE', 'HONEST-NUMBERS', 'GOAL-EDIT-PAGE', 'GOAL-DATES'],
     keywords: ['edit', 'change plan', 're-plan', 'rebaseline', 'target', 'reason', 'owner', 'links'],
     related: ['new-goal', 'goal-page', 'activity'],
   },
@@ -674,7 +699,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
-        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
         'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',
@@ -697,7 +722,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.',
         'Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).',
-        'Then it says what next year starts with: the goals that carry on, the stages not done that come with them, any goal that loses its “Feeds into” because the goal above it finishes or stops, and when the first check-ins are due.',
+        'Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.',
+        'A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.',
+        'A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.',
         'Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.',
         'Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.',
         'Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from.',
@@ -726,7 +753,7 @@ const CORE_ARTICLES: Article[] = [
         'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
         'IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.',
       ] },
-      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
+      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems: Must fix, or a Check to answer there, as on Import. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
       { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a saved layout for everyone.'] },
     ],
     routes: ['/data'],
@@ -805,7 +832,9 @@ const CORE_ARTICLES: Article[] = [
         'Admins of a workspace of their own (not the example) can delete it at the foot of About, after typing its name. It can’t be undone. The example is put back as it was with Start over, in Demo controls, which only touches this browser.',
       ] },
       { heading: 'Switching, and setting one up', list: [
-        'The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace.',
+        'The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.',
+        'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.',
+        'A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.',
         'Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.',
         'Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.',
         'Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin.',
@@ -1051,7 +1080,7 @@ const CORE_ARTICLES: Article[] = [
         'Read every screen: what needs you, goals, a goal in full, requests, reviews, watching, people, activity, views, the wrap-up, this guide and what’s new.',
         'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.',
-        'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.',
+        'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
         'Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.',
       ] },
@@ -1106,7 +1135,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'Who can read it', list: [
         'The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.',
-        'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
+        'It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.',
         'It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.',
         'Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it.',
       ] },
@@ -1138,7 +1167,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Without a database', text: ['When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser.'] },
     ],
-    routes: ['/feedback', '/workspace/inbox'],
+    routes: ['/feedback', '/workspace/inbox', '/inbox'],
     screens: ['Feedback'],
     reqs: ['MARKUP-INBOX', 'FEEDBACK-INBOX', 'MCP-FEEDBACK', 'CONNECT-CLAUDE', 'MCP-PICTURES', 'INBOX-TRIAGE', 'FEEDBACK-PAGE'],
     keywords: ['inbox', 'markups', 'triage', 'github issue', 'undo', 'who changed it', 'fixed', 'won’t fix', 'in hand', 'feedback', 'mood', 'connect claude', 'token', 'review inbox', 'pictures'],
@@ -1164,6 +1193,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Your work is safe', list: [
         'Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.',
         'When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.',
+        'Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.',
         'Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro.',
       ] },
       { heading: 'On your home screen', list: [
@@ -1240,52 +1270,18 @@ export function searchGuide(query: string): Article[] {
   return scored.sort((x, y) => y.score - x.score || ARTICLES.indexOf(x.a) - ARTICLES.indexOf(y.a)).map((x) => x.a);
 }
 
-/** A route pattern's path and the query values it needs. */
-function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
-  const [path = '/', q = ''] = r.split('?');
-  return { segs: path.split('/').filter(Boolean), query: [...new URLSearchParams(q).entries()] };
-}
-
-/**
- * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
- * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
- * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
- */
-export function routeScore(route: string, pathname: string, search = ''): number | null {
-  const segs = pathname.split('/').filter(Boolean);
-  const p = parseRoute(route);
-  if (p.segs.length !== segs.length) return null;
-  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
-  const q = new URLSearchParams(search);
-  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
-  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-}
+/** How closely a route matches an address (src/help/match.ts, shared with the light index in src/help/lookup.ts). */
+export { routeScore };
 
 /** The article for a page: the one whose route matches the address most closely. */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
-  let best: { a: Article; score: number } | undefined;
-  for (const a of ARTICLES) {
-    for (const r of a.routes) {
-      const score = routeScore(r, pathname, search);
-      if (score !== null && (!best || score > best.score)) best = { a, score };
-    }
-  }
-  return best?.a;
-}
+export const articleForPath = (pathname: string, search = ''): Article | undefined => closestRoute(ARTICLES, (a) => a.routes, pathname, search)?.item;
 
 /** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
 let appRoutes: string[] | null = null;
-export function appRouteFor(pathname: string): string | undefined {
-  let best: { r: string; score: number } | undefined;
-  for (const r of (appRoutes ??= guideRoutes())) {
-    const score = routeScore(r, pathname);
-    if (score !== null && (!best || score > best.score)) best = { r, score };
-  }
-  return best?.r;
-}
+export const appRouteFor = (pathname: string): string | undefined => closestRoute(appRoutes ??= guideRoutes(), (r) => [r], pathname)?.route;
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */
-export const guideRoutes = (): string[] => [...new Set(ARTICLES.flatMap((a) => a.routes.map((r) => r.split('?')[0]!)))];
+export const guideRoutes = (): string[] => routePaths(ARTICLES);
 
 /** An article as plain text: for the AI assistant. */
 export function articleText(a: Article): string {

@@ -106,12 +106,12 @@ describe('the inbox', () => {
   });
   it('says what a status change needs: Fixed names a What’s new entry, Won’t fix a reason', () => {
     const now = '2026-11-06T09:00:00Z', ids = WHATS_NEW.map((e) => e.id);
-    expect(statusPatch({ status: 'in-hand', by: 'Lane' }, now, ids)).toEqual({ status: 'in-hand', fixedIn: null, wontFixReason: null, statusBy: 'Lane', statusAt: now });
-    expect(() => statusPatch({ status: 'fixed', by: 'Lane' }, now, ids)).toThrow(/What’s new/);
-    expect(() => statusPatch({ status: 'fixed', fixedIn: 'no-such-entry', by: 'Lane' }, now, ids)).toThrow(/no What’s new entry/);
-    expect(statusPatch({ status: 'fixed', fixedIn: ids[0], by: 'Lane' }, now, ids).fixedIn).toBe(ids[0]);
-    expect(() => statusPatch({ status: 'wont-fix', reason: ' ', by: 'Lane' }, now, ids)).toThrow(/why/);
-    expect(statusPatch({ status: 'wont-fix', reason: 'By design', by: 'Lane' }, now, ids).wontFixReason).toBe('By design');
+    expect(statusPatch({ status: 'in-hand', by: 'Lane', admin: true }, now, ids)).toEqual({ status: 'in-hand', fixedIn: null, wontFixReason: null, statusBy: 'Lane', statusAt: now });
+    expect(() => statusPatch({ status: 'fixed', by: 'Lane', admin: true }, now, ids)).toThrow(/What’s new/);
+    expect(() => statusPatch({ status: 'fixed', fixedIn: 'no-such-entry', by: 'Lane', admin: true }, now, ids)).toThrow(/no What’s new entry/);
+    expect(statusPatch({ status: 'fixed', fixedIn: ids[0], by: 'Lane', admin: true }, now, ids).fixedIn).toBe(ids[0]);
+    expect(() => statusPatch({ status: 'wont-fix', reason: ' ', by: 'Lane', admin: true }, now, ids)).toThrow(/why/);
+    expect(statusPatch({ status: 'wont-fix', reason: 'By design', by: 'Lane', admin: true }, now, ids).wontFixReason).toBe('By design');
   });
 });
 
@@ -184,7 +184,7 @@ describe('the inbox’s operations (anyone’s, in Faro’s open inbox)', () => 
     const o = ops(list);
     expect((await o.list()).map((m) => m.thumbUrl)).toEqual(['https://pictures.example/mk_1/thumb.jpg', null]);
     expect((await o.open('mk_1')).urls).toEqual({ screen: 'https://pictures.example/mk_1/screen.png', ink: 'https://pictures.example/mk_1/ink.png', marked: 'https://pictures.example/mk_1/marked.jpg' });
-    expect((await o.setStatus('mk_1', { status: 'in-hand', by: 'Lane' })).status).toBe('in-hand');
+    expect((await o.setStatus('mk_1', { status: 'in-hand', by: 'Lane', admin: true })).status).toBe('in-hand');
     expect(new URL(await o.issueLink('mk_1')).searchParams.get('body')).toContain('https://faro.example/workspace?markup=mk_1');
     await expect(o.setIssueUrl('mk_1', 'https://example.com/issue/1')).rejects.toThrow(/issue’s address/);
     expect((await o.setIssueUrl('mk_1', ' https://github.com/sconies/goals-app/issues/42?x=1 ')).issueUrl).toBe('https://github.com/sconies/goals-app/issues/42');
@@ -194,10 +194,10 @@ describe('the inbox’s operations (anyone’s, in Faro’s open inbox)', () => 
   it('undoes a status change through the same rule, putting back what it replaced, recorded as whoever undoes it', async () => {
     const list = [make({ id: 'mk_1' })];
     const o = ops(list);
-    const was = await o.setStatus('mk_1', { status: 'wont-fix', reason: 'Calm is the point.', by: 'Maya' });
-    await o.setStatus('mk_1', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Sam' });
-    expect(await o.setStatus('mk_1', undoChange(was, 'Lane'))).toMatchObject({ status: 'wont-fix', wontFixReason: 'Calm is the point.', fixedIn: null, statusBy: 'Lane' });
-    expect(undoChange({ status: 'new', fixedIn: null, wontFixReason: null }, 'Lane')).toEqual({ status: 'new', fixedIn: null, reason: null, by: 'Lane' });
+    const was = await o.setStatus('mk_1', { status: 'wont-fix', reason: 'Calm is the point.', by: 'Maya', admin: true });
+    await o.setStatus('mk_1', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Sam', admin: true });
+    expect(await o.setStatus('mk_1', undoChange(was, 'Lane', true))).toMatchObject({ status: 'wont-fix', wontFixReason: 'Calm is the point.', fixedIn: null, statusBy: 'Lane' });
+    expect(undoChange({ status: 'new', fixedIn: null, wontFixReason: null }, 'Lane', true)).toEqual({ status: 'new', fixedIn: null, reason: null, by: 'Lane', admin: true });
   });
 });
 
@@ -220,6 +220,6 @@ describe('names, never email addresses', () => {
     expect(JSON.stringify(back)).not.toMatch(/@example\.com/);
   });
   it('records a status change by name, even when the name given is an address', () => {
-    expect(statusPatch({ status: 'in-hand', by: 'lane@example.com' } as never, '2026-11-05T11:00:00.000Z', []).statusBy).toBe('Someone');
+    expect(statusPatch({ status: 'in-hand', by: 'lane@example.com', admin: true } as never, '2026-11-05T11:00:00.000Z', []).statusBy).toBe('Someone');
   });
 });

@@ -5,13 +5,17 @@ const box = (loc) => loc.first().evaluate((e) => { const r = e.getBoundingClient
 const css = (loc, prop) => loc.first().evaluate((e, p) => getComputedStyle(e)[p], prop);
 const col = (p) => box(p.locator('.focus-body'));
 const name = async (p, t = 'Runbooks with an owner') => p.getByLabel(/Name it the way/).fill(t);
+// Mateo leads SRE, which owns north stars, so New goal asks his level (OB1, rule 1).
+const team = (p) => p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
 const cont = async (p) => { await p.getByRole('button', { name: /Continue/ }).click(); await p.waitForTimeout(150); };
-const toNumbers = async (p) => {
-  await name(p); await cont(p);
+// New goal's order (OB1): what, who and where, how it's measured, check. The plan table is folded under the chart.
+const toNumbers = async (p, table = true) => {
+  await name(p); await cont(p); await team(p); await cont(p);
   await p.getByLabel('Unit').fill('%');
-  await p.getByLabel(/^Today \(week/).fill('20');
-  await p.getByLabel(/^Target \(week/).fill('90');
+  await p.getByLabel(/^Baseline$/).fill('20');
+  await p.getByLabel(/^Target$/).fill('90');
   await p.waitForTimeout(250);
+  if (table) { await p.getByText('Adjust the plan week by week').click(); await p.waitForTimeout(100); }
 };
 const noSideScroll = async (p, where, fail) => {
   const [sw, iw] = await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
@@ -44,13 +48,13 @@ module.exports = {
       if (Math.max(...segs.map((s) => s[0])) - Math.min(...segs.map((s) => s[0])) > 1) f('(9) the step bar segments are uneven');
       if (segs[0][1] !== segs[1][1]) f('(9) done and current steps are different colours');
       if (segs[3][1] !== 'rgb(210, 206, 196)') f(`(9) steps to come are ${segs[3][1]}`);
-      // (22) unit and decimals line up with today and target
-      const [u, dd, t, g] = [await box(p.getByLabel('Unit')), await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Today \(week/)), await box(p.getByLabel(/^Target \(week/))];
-      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(dd.r, g.r)) f(`(22) Unit/Decimals (${u.x}, ${dd.x}) don't line up with Today/Target (${t.x}, ${g.x})`);
-      // (8) a single due date is words
-      if (await p.getByRole('button', { name: 'Year end' }).count()) f('(8) a single due date is still a one-button choice');
-      const due = p.locator('.due-only');
-      if (!/^Year end · due week \d+/.test((await due.textContent()) || '') || (await css(due, 'fontSize')) !== '15px') f('(8) the due date is not said plainly at 15px');
+      // (22) the unit lines up with today (decimals are worked out and said in a line: goal entry 2.4)
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Baseline$/))];
+      if (!near(u.x, t.x)) f(`(22) Unit (${u.x}) doesn't line up with Today (${t.x})`);
+      if (await p.getByLabel('Decimals', { exact: true }).count()) f('(22) Decimals is still a field to fill in');
+      // (8) the due week is a picked week said in words, with what it is (GE9's week picker)
+      const due = p.getByRole('button', { name: /^To Week \d+ · / });
+      if (!(await due.count()) || !/^The end of \d{4}$/.test(((await p.locator('.weekpick', { has: due }).locator('.weekpick-is').textContent()) || '').trim())) f('(8) To does not start as the year’s end, said in words');
       // (5) segments 36px in a 44px track
       const seg = await box(p.locator('.seg').first()); const sb = await box(p.locator('.seg button').first());
       if (!near(seg.h, 44, 0.5) || !near(sb.h, 36, 0.5)) f(`(5) segmented track ${seg.h}px, segment ${sb.h}px`);
@@ -90,9 +94,9 @@ module.exports = {
       if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53' || xt.length < 4) f(`(2) at ${w} the x-axis is ${xt.map((t) => t[1]).join(', ')}`);
       const gaps = xt.slice(1).map((t, i) => t[0] - xt[i][0]);
       if (Math.min(...gaps) < 36) f(`(2) at ${w} week labels are ${Math.min(...gaps).toFixed(0)}px apart`);
-      const [u, t] = [await box(p.getByLabel('Unit')), await box(p.getByLabel(/^Today \(week/))];
-      const [dd, g] = [await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Target \(week/))];
-      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(t.y, g.y)) f(`(22) at ${w} Unit/Decimals and Today/Target aren't one grid`);
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Baseline$/))];
+      const g = await box(p.getByLabel(/^Target$/));
+      if (!near(u.x, t.x) || !near(t.x, g.x)) f(`(22) at ${w} Unit, Baseline and Target aren't one column`);
       // Each date on one line: its text has one line box.
       const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
         const r = document.createRange(); r.selectNodeContents(e);
@@ -114,32 +118,31 @@ module.exports = {
       const pi = await box(p.getByLabel(/^Plan for week \d+/));
       const row = await box(p.locator('.plantable tbody tr').nth(1));
       if (pi.h < 44 || row.h < 52) f(`(3) on touch plan inputs are ${pi.h}px in ${row.h}px rows`);
-      await cont(p);
       const sum = await box(p.locator('.disclose > summary'));
-      if (sum.h < 44) f(`(3) the data source disclosure is ${sum.h}px tall`);
-      // (21) Team and Owner stacked 24px apart
-      // Team and Owner are find-and-pick fields (FS1): their boxes are the fields themselves.
-      const [team, owner] = [await box(p.locator('.fit-pair > .field').nth(0)), await box(p.locator('.fit-pair > .field').nth(1))];
-      const teamField = team; const ownerField = owner;
-      if (owner.y > team.y + 1 && ownerField.y - teamField.b < 23.5) f(`(21) stacked Team and Owner are ${ownerField.y - teamField.b}px apart`);
+      if (sum.h < 44) f(`(3) the plan table's disclosure is ${sum.h}px tall`);
+      // Who and where, one step back (the browser's Back).
+      await p.goBack(); await p.waitForTimeout(200);
+      // (21) Owner and Team stacked 24px apart
+      const [ownerField, teamField] = [await box(p.locator('.fit-pair > .stack').nth(0)), await box(p.locator('.fit-pair > .stack').nth(1))];
+      if (teamField.y > ownerField.y + 1 && teamField.y - ownerField.b < 23.5) f(`(21) stacked Owner and Team are ${teamField.y - ownerField.b}px apart`);
       // (27) the guardrail box on the column's edge, level with the first line
       const cb = await box(p.locator('.check input')); const lab = await box(p.locator('.check span')); const c1 = await col(p);
       if (!near(cb.x, c1.x, 0.5)) f(`(27) the guardrail box is at ${cb.x}, the column at ${c1.x}`);
       if (!near(lab.x - cb.r, 12, 1)) f(`(27) the guardrail box is ${lab.x - cb.r}px from its words`);
       if (Math.abs((cb.y + cb.h / 2) - (lab.y + 11)) > 2) f('(27) the guardrail box is not level with the first line');
-      await cont(p);
+      await cont(p); await cont(p);
       const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
-      if (rr.length !== 3 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
-      const date = await box(p.locator('.summary-card .nobreak'));
-      if (date.h > 24) f('(23) the due date breaks inside itself');
+      if (rr.length < 4 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the read-back's rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
+      // (23) the plan is read back with its weeks' dates (GE9, GE3): "A number to move: from 20% in week 45 (2–8 Nov 2026) to 90% by week 53 (…)".
+      if (!/by week \d+ \(\d/.test((await p.locator('.review-rows li[data-row="what"]').textContent()) || '')) f('(23) Check doesn’t say the due week with its dates');
       await c.close();
     }
 
     // Limits (5) at 1280 and 390.
     for (const w of [1280, 390]) {
       const [c, p] = await open(w, 900, 'mateo', '/goals/new');
-      await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p);
+      await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p); await team(p); await cont(p);
       const [seg, lim, warn] = [await box(p.locator('.limits .seg')), await box(p.getByLabel('Limit')), await box(p.getByLabel('Warn this close'))];
       if (w > 600 && (!near(seg.b, lim.b) || !near(lim.b, warn.b))) f(`(5) at ${w} limit row bottoms ${seg.b}/${lim.b}/${warn.b}`);
       if (w > 600 && !near(seg.h, 44, 0.5)) f(`(5) at ${w} the Must stay track is ${seg.h}px`);
@@ -154,7 +157,7 @@ module.exports = {
     // Stages (12, 13, 14) at 1280 and 390.
     for (const w of [1280, 390]) {
       const [c, p] = await open(w, 900, 'mateo', '/goals/new');
-      await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await cont(p);
+      await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await team(p); await cont(p); await cont(p);
       const err = p.locator('.stage .field-error');
       if (!(await err.count())) f(`(13) at ${w} the stage error is not under Stage 1`);
       else {
@@ -166,7 +169,7 @@ module.exports = {
       }
       await p.getByLabel('Stage 1', { exact: true }).fill('Threat model');
       await p.getByRole('button', { name: 'Add a stage' }).click();
-      if ((await p.locator('.stage-head').count()) !== 1) f('(12) the Stage / Due week labels repeat');
+      if ((await p.locator('.stage-head').count()) !== 1) f('(12) the Stage / Due labels repeat');
       const rows = await p.locator('.stage').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.top, r.bottom]; }));
       if (w > 600 && !near(rows[1][0] - rows[0][1], 12, 1)) f(`(12) stage rows are ${rows[1][0] - rows[0][1]}px apart`);
       const [rm, inp] = [await box(p.getByRole('button', { name: 'Remove stage 1' })), await box(p.getByLabel('Stage 1', { exact: true }))];
@@ -176,27 +179,28 @@ module.exports = {
       await c.close();
     }
 
-    // Resume prompt (24) at 360.
+    // Picking up a draft (24, now OB1's line) at 360: one line above the heading, and "Start a new one" is 44px.
     {
-      const [c, p] = await open(360, 780, 'mateo', '/goals/new');
+      const [c, p] = await open(360, 780, 'mateo', '/goals/new', true);
       await name(p, 'Half-written');
-      await p.goto(p.url().replace('/goals/new', '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
-      const b = await p.locator('.resume-actions .btn').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.top, r.bottom]; }));
-      const c1 = await col(p);
-      if (b.length !== 2 || !near(b[0][0], c1.w) || !near(b[1][0], c1.w) || !near(b[1][1] - b[0][2], 12, 1)) f(`(24) resume buttons ${b.map((x) => x[0]).join('/')}px wide, column ${c1.w}`);
-      if (((await p.locator('.resume-actions .btn.primary').textContent()) || '').trim() !== 'Resume') f('(24) the resume button repeats the goal name');
+      await p.goto(p.url().replace(/\/goals\/new\/what/, '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
+      const [line, h1] = [await box(p.locator('.restored')), await box(p.locator('h1'))];
+      if (!(line.b <= h1.y)) f('(24) the pick-up line is not above the heading');
+      const sn = await box(p.getByRole('button', { name: 'Start a new one' }));
+      if (sn.h < 44) f(`(24) “Start a new one” is ${sn.h}px tall`);
       await c.close();
     }
 
-    // Edit goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
+    // Change a goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
     {
       const [c, p] = await open(1280, 900, 'tariq', '/goals/ns-ai/edit');
       const h1 = p.locator('h1');
-      if (((await h1.textContent()) || '') !== 'Edit Pull requests with AI-assisted review' || (await css(h1, 'fontSize')) !== '22px') f('(18) Edit goal has no 22px h1 with the goal name');
+      if (((await h1.textContent()) || '') !== 'Change Pull requests with AI-assisted review' || (await css(h1, 'fontSize')) !== '22px') f('(18) Change a goal has no 22px h1 with the goal name');
       const lv = p.locator('.seg[aria-labelledby="level-l"] button[aria-pressed]');
       if ((await lv.count()) !== 3 || (await p.locator('.optlist').count())) f('(17) Level is not the wizard\'s segmented control');
       await p.getByLabel(/^Target/).fill('85'); await p.waitForTimeout(150);
-      const [pair, reason] = [await box(p.locator('.pair').first()), await box(p.locator('.reason-field'))];
+      // The numbers end with the line saying their weeks (GE9); the reason comes straight after.
+      const [pair, reason] = [await box(p.locator('.goal-edit .span-says').first()), await box(p.locator('.reason-field'))];
       if (!near(reason.y - pair.b, 16, 1)) f(`(19) "Why change it?" is ${reason.y - pair.b}px under the numbers`);
       const help = p.locator('.reason-field > .hint'); const ta = await box(p.getByLabel('Why change it?'));
       if (!near((await box(help)).y - ta.b, 4, 1)) f('(19) the reason helper is not 4px under the box');
@@ -204,7 +208,7 @@ module.exports = {
       const vals = await p.getByLabel(/^Plan for week \d+/).evaluateAll((es) => es.map((e) => e.value));
       if (!vals.length || vals.some((v) => !/^\d+$/.test(v))) f(`(15) Edit plan numbers are not to the goal's decimals (${vals.slice(0, 3).join(', ')})`);
       await p.locator('summary', { hasText: 'More details' }).click();
-      for (const lab of ['Data source', 'Definition']) {
+      for (const lab of ['Data source', 'What it measures']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
         const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));
@@ -215,15 +219,19 @@ module.exports = {
       await c.close();
     }
 
-    // Wizard step 3 at 390 with the data source open (1).
+    // Wizard step 3 at 390: where the number comes from, focused, never under the footer (1).
     {
       const [c, p] = await open(390, 700, 'mateo', '/goals/new');
       await toNumbers(p);
-      // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T).
+      // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T); with the
+      // metric library on, once “No metric” is chosen under “Measured by” (metrics spec 2.4, ML2).
+      const measured = p.locator('.measured-by');
+      if (await measured.count()) {
+        await measured.getByRole('button', { name: /^Measured by/ }).click();
+        await p.locator('.pick.open').getByRole('option', { name: 'No metric' }).click();
+      }
       if (!(await p.getByRole('textbox', { name: /^How it’s measured/ }).isVisible())) f('(T7) New goal: “How it’s measured” is not shown on the numbers step');
-      await cont(p);
-      await p.getByText('Data source (optional)').click();
-      for (const lab of ['Data source']) {
+      for (const lab of ['Where the number comes from']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
         const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));
@@ -282,13 +290,18 @@ module.exports = {
     // team named as a team (it read "CI/CD · Rhea Kapoor" beside Where it fits).
     {
       const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
-      await toNumbers(p); await cont(p);
-      // Feeds into is find-and-pick (FS1): with nothing chosen its field says what nothing means.
-      const feeds = await p.getByRole('button', { name: /^Feeds into\b/ }).first().innerText().catch(() => null);
-      if (feeds?.trim() !== 'Nothing: top of its own tree') f(`new goal: Feeds into starts as “${feeds}”, not empty`);
+      await name(p); await cont(p);
+      if (!(await p.getByRole('button', { name: /^Feeds into\b.*(Choose a goal|Nothing: top of its own tree)/ }).isVisible().catch(() => false))) f('new goal: Feeds into does not start empty');
+      // Rhea leads a team with SVP goals, so her level is asked, not assumed (OB1, rule 1).
       await cont(p);
-      const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
-      if (!/Feeds nothing · CI\/CD team · Rhea Kapoor/.test(fits)) f(`new goal: Where it fits reads “${fits}”`);
+      if (!(await p.getByText('Choose a level.').isVisible().catch(() => false))) f('new goal: Rhea is not asked the level');
+      await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
+      await cont(p);
+      await p.getByLabel('Unit').fill('%'); await p.getByLabel(/^Baseline$/).fill('20'); await p.getByLabel(/^Target$/).fill('90');
+      await cont(p);
+      // The read-back (GE3) says the owner, team and level in one sentence.
+      const who = (await p.locator('.review-rows li[data-row="who"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+      if (!/Rhea Kapoor owns it, in CI\/CD\. It’s a Team goal and feeds nothing: it’s at the top of its own tree\./.test(who)) f(`new goal: Who and where reads “${who}”`);
       await c.close();
     }
     return fails;

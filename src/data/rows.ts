@@ -1,6 +1,7 @@
 /* Domain records ⇄ okr_ table rows. Pure, so both directions are tested without a database.
    Every row carries the workspace it belongs to. */
-import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, Metric, MetricLink, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
+import type { DbRow, ModuleRecords, ModuleRows } from '../domain/records';
+import type { ApiToken, Ask, SavedView, Change, CheckIn, Cycle, Decision, Goal, Level, MetricPlan, Person, Review, Stage, Team, Watch, Workspace, Retro, Feedback, RecoveryState } from '../domain/types';
 
 type W = { workspace_id: string };
 /** Removal columns (migration 0025): written only when the record says (a restore says null), so rows for older tables
@@ -53,24 +54,6 @@ export const personToRow = (ws: string, p: Person): PersonRow => ({ workspace_id
 export const personFromRow = (r: PersonRow): Person => ({ id: r.id, name: r.name, role: r.role, initials: r.initials, teamId: r.team_id, admin: !!r.is_admin, ...(r.email ? { email: r.email } : {}), ...when('leftAt', r.left_at), ...who('leftBy', r.left_by), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 export const cycleToRow = (ws: string, c: Cycle): CycleRow => ({ workspace_id: ws, id: c.id, name: c.name, start_date: c.startDate, weeks: c.weeks, review_day: c.reviewDay, ...set({ removed_at: c.removedAt, removed_by: c.removedBy }) });
 export const cycleFromRow = (r: CycleRow): Cycle => ({ id: r.id, name: r.name, startDate: r.start_date.slice(0, 10), weeks: Number(r.weeks), reviewDay: Number(r.review_day ?? 3), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
-
-/* ---------- the metric library (migration 0033) ---------- */
-export interface MetricRow extends W, Removal {
-  id: string; name: string; meaning: string; unit: string; decimals: number; direction: Metric['direction']; source: string; source_owner: string;
-  refresh: Metric['refresh']; owner_id: string; caveats: string; created_by: string; created_at: string; updated_at: string;
-}
-export interface GoalMetricRow extends W, Removal { id: string; goal_id: string; metric_id: string; team_id: string | null; linked_by: string; linked_at: string }
-export const metricToRow = (ws: string, m: Metric): MetricRow => ({
-  workspace_id: ws, id: m.id, name: m.name, meaning: m.meaning, unit: m.unit, decimals: m.decimals, direction: m.direction, source: m.source, source_owner: m.sourceOwner,
-  refresh: m.refresh, owner_id: m.ownerId, caveats: m.caveats, created_by: m.createdBy, created_at: m.createdAt, updated_at: m.updatedAt, ...set({ removed_at: m.removedAt, removed_by: m.removedBy }),
-});
-export const metricFromRow = (r: MetricRow): Metric => ({
-  id: r.id, name: r.name, meaning: r.meaning ?? '', unit: r.unit, decimals: Number(r.decimals ?? 0), direction: r.direction, source: r.source ?? '', sourceOwner: r.source_owner ?? '',
-  refresh: r.refresh ?? null, ownerId: r.owner_id, caveats: r.caveats ?? '', createdBy: r.created_by, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
-  ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by),
-});
-export const metricLinkToRow = (ws: string, l: MetricLink): GoalMetricRow => ({ workspace_id: ws, id: l.id, goal_id: l.goalId, metric_id: l.metricId, team_id: l.teamId, linked_by: l.linkedBy, linked_at: l.linkedAt, ...set({ removed_at: l.removedAt, removed_by: l.removedBy }) });
-export const metricLinkFromRow = (r: GoalMetricRow): MetricLink => ({ id: r.id, goalId: r.goal_id, metricId: r.metric_id, teamId: r.team_id ?? null, linkedBy: r.linked_by, linkedAt: iso(r.linked_at), ...when('removedAt', r.removed_at), ...who('removedBy', r.removed_by) });
 
 export function goalToRows(ws: string, g: Goal): { goal: GoalRow; stages: StageRow[] } {
   const goal: GoalRow = {
@@ -185,8 +168,23 @@ export const requestToRow = (ws: string, r: Ask): RequestRow => ({ workspace_id:
 export const requestFromRow = (r: RequestRow): Ask => ({ id: r.id, kind: r.kind ?? 'decision', goalIds: r.goal_ids ?? [], askedBy: r.asked_by, recipientId: r.recipient_id, ask: r.ask, status: r.status, dueWeek: r.due_week == null ? null : Number(r.due_week), reviewId: r.review_id ?? null, week: r.week == null ? null : Number(r.week), checkInId: r.check_in_id, answer: r.answer, answeredBy: r.answered_by, answeredAt: r.answered_at ? iso(r.answered_at) : null, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at) });
 export const tokenFromRow = (r: TokenRow): ApiToken => ({ id: r.id, personId: r.person_id, name: r.name, ...(r.token_hash ? { tokenHash: r.token_hash } : {}), createdBy: r.created_by, createdAt: iso(r.created_at), lastUsedAt: r.last_used_at ? iso(r.last_used_at) : null, revokedAt: r.revoked_at ? iso(r.revoked_at) : null, ...(r.builder ? { builder: true } : {}) });
 
-/** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. */
-export function commitPayload(ws: string, c: import('./store').Commit) {
+/**
+ * Each feature module's rows in a save, by table: what okr_commit's `modules` takes (migration 0039), for the records
+ * the modules in this build declare (domain/records). Empty when a save has none.
+ */
+export function moduleTableRows(ws: string, c: Pick<import('./store').Commit, 'modules'>, records: readonly ModuleRecords[]): Record<string, Record<string, unknown>[]> {
+  const out: Record<string, Record<string, unknown>[]> = {};
+  for (const m of records) for (const def of m.records) {
+    const rows = c.modules?.[m.module]?.[def.key] ?? [];
+    if (rows.length) out[def.table] = [...(out[def.table] ?? []), ...rows.map((r) => def.toRow(ws, r as never))];
+  }
+  return out;
+}
+
+/** One save as the payload okr_commit takes: rows for each table, stages per milestone, and what the save expects. The
+    feature modules' rows go under `modules`, by table, for the records `records` declares. */
+export function commitPayload(ws: string, c: import('./store').Commit, records: readonly ModuleRecords[] = []) {
+  const modules = moduleTableRows(ws, c, records);
   const goals = (c.goals ?? []).map((g) => ({ g, ...goalToRows(ws, g) }));
   return {
     cycles: (c.cycles ?? []).map((x) => cycleToRow(ws, x)),
@@ -203,9 +201,9 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
     tokens: (c.tokens ?? []).map((x) => tokenToRow(ws, x)),
     views: (c.views ?? []).map((x) => viewToRow(ws, x)),
     requests: (c.requests ?? []).map((x) => requestToRow(ws, x)),
-    // The metric library (migration 0033's okr_write); only when a save has some, so saves before it look as they did.
-    ...(c.metrics?.length ? { metrics: c.metrics.map((x) => metricToRow(ws, x)) } : {}),
-    ...(c.metricLinks?.length ? { goal_metrics: c.metricLinks.map((x) => metricLinkToRow(ws, x)) } : {}),
+    // Feature modules' rows by table (migration 0039's okr_write takes any table on its allowed list); only when a
+    // save has some, so saves without look as they did.
+    ...(Object.keys(modules).length ? { modules } : {}),
     // Teams (migration 0020 adds removing them and renaming the workspace to the same transaction).
     ...(c.teams?.length ? { teams: c.teams.map((x) => teamToRow(ws, x)) } : {}),
     ...(c.removeTeams?.length ? { remove_teams: c.removeTeams } : {}),
@@ -220,4 +218,17 @@ export function commitPayload(ws: string, c: import('./store').Commit) {
       check_ins: c.expect.checkIns.map((x) => ({ goal_id: x.goalId, week: x.week, id: x.id })),
     } : null,
   };
+}
+
+/** Every declared module record's rows in a workspace, read with `read(table)`, as the workspace holds them (domain/records). */
+export async function loadModules(records: readonly ModuleRecords[], read: (table: string) => Promise<DbRow[] | null>): Promise<ModuleRows | undefined> {
+  const out: ModuleRows = {};
+  await Promise.all(records.flatMap((m) => m.records.map(async (def) => {
+    const rows = await read(def.table);
+    if (!rows?.length) return;
+    const list = rows.map((r) => def.fromRow(r));
+    if (def.order) list.sort(def.order);
+    (out[m.module] ??= {})[def.key] = list;
+  })));
+  return Object.keys(out).length ? out : undefined;
 }

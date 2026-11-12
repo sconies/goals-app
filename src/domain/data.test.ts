@@ -44,7 +44,7 @@ describe('people in the data tables', () => {
     expect(dup.issues[0]).toMatchObject({ severity: 'note', message: expect.stringMatching(/already here. That’s fine: their email tells you apart/) });
     const team = planChanges(base('amara', { people: peopleRecs().map((r) => (r.id === 'oskar' ? { ...r, team: 'Nowhere' } : r)) }));
     expect(team.issues[0]!.message).toMatch(/no team called/);
-    const noAdmins = planChanges(base('amara', { people: peopleRecs().map((r) => ({ ...r, admin: '' })) }));
+    const noAdmins = planChanges(base('amara', { people: peopleRecs().map((r) => ({ ...r, admin: 'no' })) }));
     expect(noAdmins.issues.some((i) => /only admin stays one/.test(i.message))).toBe(true);
     const notAdmin = planChanges(base('rhea', { people: peopleRecs().map((r) => (r.id === 'oskar' ? { ...r, 'job title': 'x' } : r)) }));
     expect(notAdmin.issues[0]!.message).toMatch(/Only an admin/);

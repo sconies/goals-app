@@ -12,10 +12,11 @@ export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
-import { DIRECTION_LABEL, liveMetrics, REFRESH_LABEL, sliceName } from './metrics';
+import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
-import type { Ask, Cause, CheckIn, Cycle, Goal, Metric, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
+import type { ModuleSheet } from './records';
+import type { Ask, Cause, CheckIn, Cycle, Goal, Person, PlanShape, RecoveryState, Snapshot, Status, Workspace } from './types';
 import { ASK_KIND, FLAG, LABEL, LEFT, leftName, lower, QUARTER, STOPPED } from './vocabulary';
 
 export type Cell = string | number | null;
@@ -28,6 +29,8 @@ export interface ExportInput {
   today: Date;
   /** Only these goals (the current view); every goal in the cycle when left out. */
   goals?: Goal[];
+  /** The sheets feature modules add (domain/records), after the core's: those of the modules in this build. */
+  sheets?: readonly ModuleSheet[];
 }
 
 /** What a column is for. */
@@ -79,8 +82,6 @@ export interface CheckInRow { c: Ctx; g: Goal; ci: CheckIn }
 export interface PersonRow { c: Ctx; p: Person }
 export interface AskRow { c: Ctx; a: Ask }
 export interface NoteRow { c: Ctx; d: Said }
-/** A metric in the library, and the exported goals it measures, each with its slice. */
-export interface MetricRow { c: Ctx; m: Metric; measures: { g: Goal; slice: string }[] }
 
 /* ---------- the words a column takes ---------- */
 
@@ -105,8 +106,10 @@ export function codeOf<C extends string>(w: Words<C>, raw: string): C | null | u
   for (const [code, list] of Object.entries(w.prefix ?? {}) as [C, string[]][]) if (list.some((p) => v.startsWith(p))) return code;
   return undefined;
 }
-/** "Level “vp” isn’t one of: north star, svp or team." */
-export const unknownWord = <C extends string>(w: Words<C>, raw: string) => `${w.what} “${raw.trim()}” isn’t one of: ${oneOf(Object.values(w.word) as string[])}.`;
+/** "Level says “vp”. Use north star, svp or team." (import spec 3.1: the column, what was read, and what would be right.) */
+export const unknownWord = <C extends string>(w: Words<C>, raw: string) => `${w.what} says “${raw.trim()}”. Use ${oneOf(Object.values(w.word) as string[])}.`;
+/** Every way a column's words are written: each word, then the other spellings it reads (what a near miss is sought among). */
+export const wordsAndAlso = <C extends string>(w: Words<C>): string[] => [...(Object.values(w.word) as string[]), ...(Object.values(w.also) as string[][]).flat()];
 export const oneOf = (list: string[]) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} or ${list.at(-1)}`);
 /** "Goals, Plan and People" */
 export const andList = (list: string[]) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`);
@@ -134,9 +137,10 @@ export { isEmail, normalEmail } from './people';
 
 /* ---------- the sheets ---------- */
 
-export type SheetKind = 'goals' | 'plan' | 'checkIns' | 'people' | 'results' | 'asks' | 'notes' | 'metrics';
-export interface SheetSpec<C> {
-  kind: SheetKind;
+/** The core's sheets. A feature module's sheet (domain/records ModuleSheet) has a kind of its own. */
+export type SheetKind = 'goals' | 'plan' | 'checkIns' | 'people' | 'results' | 'asks' | 'notes';
+export interface SheetSpec<C, K extends string = SheetKind> {
+  kind: K;
   name: string;
   /** One row per… */
   rowIs: string;
@@ -150,6 +154,10 @@ const m = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: st
 const e = <C,>(header: string, means: string, write: (c: C) => Cell, loaded?: string): Column<C> => ({ header, role: 'edit', means, write, ...(loaded ? { loaded } : {}) });
 const w = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'worked', means, write });
 const sh = <C,>(header: string, means: string, write: (c: C) => Cell): Column<C> => ({ header, role: 'shown', means, write });
+/** Columns for a module's sheet (domain/records ModuleSheet): one that says which record a row is, and one only shown. */
+export const moduleColumn = { match: m, shown: sh };
+/** A cell: empty for nothing. */
+export const cellOr = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 const blank = () => null;
 const or = (v: string | number | null | undefined): Cell => (v == null || v === '' ? null : v);
 
@@ -198,7 +206,9 @@ export const GOALS: SheetSpec<GoalRow> = {
     e('Start', 'Number goals: where the plan starts.', (r) => metricOf(r.g)?.plan.start ?? null, 'Changes the plan; needs a reason once check-ins have started'),
     e('Target', 'Number goals: where the plan ends, by its due week.', (r) => metricOf(r.g)?.plan.target ?? null, 'Changes the plan; needs a reason once check-ins have started'),
     e('Plan', `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => { const g = metricOf(r.g); return g ? SHAPE_WORDS.word[g.plan.shape] : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('From', 'Number goals: the week the plan starts from (2026-W46).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Plan from week', 'Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).', (r) => { const g = metricOf(r.g); return g ? g.plan.fromWeek ?? 0 : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('To', 'Number goals: the week the target is due (2027-W13).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Due week', 'Number goals: the week the target is due, counted from the cycle’s start.', (r) => { const g = metricOf(r.g); return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Limit', 'Range goals: the number it must stay within.', (r) => rangeOf(r.g)?.range.limit ?? null),
     e('Must stay', `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => { const g = rangeOf(r.g); return g ? BOUND_WORDS.word[g.range.bound] : null; }),
@@ -354,33 +364,14 @@ export const NOTES: SheetSpec<NoteRow> = {
   ],
 };
 
-export const METRICS: SheetSpec<MetricRow> = {
-  kind: 'metrics', name: 'Metrics', rowIs: 'metric in the library', loaded: false,
-  about: 'The metric library: every number goals are measured by, defined once, and the exported goals each one measures. Metrics are added and changed in the app.',
-  columns: [
-    m('ID', 'The metric’s identity.', (r) => r.m.id),
-    sh('Metric', 'Its name.', (r) => r.m.name),
-    sh('Meaning', 'What it means and how it’s calculated.', (r) => or(r.m.meaning)),
-    sh('Unit', 'Its unit.', (r) => r.m.unit),
-    sh('Decimals', 'Places after the decimal point it’s shown with.', (r) => r.m.decimals),
-    sh('Direction', `${oneOf(Object.values(DIRECTION_LABEL))}.`, (r) => DIRECTION_LABEL[r.m.direction]),
-    sh('Source', 'Where the number comes from.', (r) => or(r.m.source)),
-    sh('Source owner', 'Who owns that source.', (r) => or(r.m.sourceOwner)),
-    sh('Refresh', `How often the source refreshes: ${oneOf(Object.values(REFRESH_LABEL))}, or empty when nobody has said.`, (r) => (r.m.refresh ? REFRESH_LABEL[r.m.refresh] : null)),
-    sh('Owner', 'Who answers for the definition.', (r) => or(r.c.name(r.m.ownerId))),
-    sh('Owner email', 'Who answers for it, by email.', (r) => r.c.email(r.m.ownerId)),
-    sh('Caveats', 'What to watch out for when reading it.', (r) => or(r.m.caveats)),
-    sh('Measures', 'The goals it measures, each with its slice: a team, or the whole company.', (r) => or(r.measures.map((x) => `${x.g.title} (${x.slice})`).join('; '))),
-    sh('Goal keys', 'Their keys.', (r) => or(r.measures.map((x) => x.g.key ?? '').filter(Boolean).join('; '))),
-  ],
-};
-
-/** Every sheet, in the workbook's order (the README comes last, made from these). */
-export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, METRICS] as const;
+/** The core's sheets, in the workbook's order (a module's sheets follow them; domain/records ModuleSheet). */
+export const SHEETS = [GOALS, PLAN, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES] as const;
 /** The workbook's first sheet: what the file is, and the field table (it replaced the README, which is still skipped). */
 export const START_HERE = 'Start here';
-/** Every sheet of the workbook, in order. */
+/** Every sheet of the core's workbook, in order. */
 export const SHEET_NAMES = [START_HERE, ...SHEETS.map((x) => x.name)] as const;
+/** Every sheet's name with the modules' sheets (domain/records) after the core's: Start here first. */
+export const sheetNamesWith = (sheets: readonly ModuleSheet[] = []): string[] => [START_HERE, ...SHEETS.map((x) => x.name), ...sheets.map((x) => x.spec.name)];
 export const specOf = (kind: SheetKind) => SHEETS.find((x) => x.kind === kind)! as SheetSpec<unknown>;
 export const headersOf = (kind: SheetKind) => specOf(kind).columns.map((c) => c.header);
 export const columnOf = (kind: SheetKind, header: string) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
@@ -395,7 +386,7 @@ export const isWorkedOut = (kind: SheetKind, header: string) => ['worked', 'show
  */
 export const KEY_COLUMNS: Record<SheetKind, string[]> = {
   goals: ['Key', 'ID'], plan: ['Key', 'ID'], checkIns: ['ID', 'Goal key', 'Goal ID', 'Week'], people: ['Email', 'ID'],
-  results: ['Key', 'ID'], asks: ['ID'], notes: ['Goal key', 'Goal ID'], metrics: ['ID'],
+  results: ['Key', 'ID'], asks: ['ID'], notes: ['Goal key', 'Goal ID'],
 };
 
 /**
@@ -409,10 +400,10 @@ export function sheetKindOf(header: readonly string[]): SheetKind | null {
   if (h.has('week') && any('value', 'stages', 'call', 'cause', 'why')) return 'checkIns';
   if (h.has('result') && any('q1', 'q2', 'q3', 'q4') && !h.has('type')) return 'results';
   if (h.has('ask') && any('asked by', 'asked of')) return 'asks';
-  if (h.has('metric') && any('unit', 'direction', 'measures')) return 'metrics';
   if (h.has('said by') || (h.has('text') && h.has('kind') && any('goal', 'goal id'))) return 'notes';
   if (any('goal', 'key') && !h.has('name')) return any('goal', 'type', 'owner', 'owner email', 'target', 'level', 'action', 'status') ? 'goals' : null;
-  if (any('name', 'email') && !h.has('goal')) return 'people';
+  // A People sheet (C17): Email, or Name with another People column (a Name and a Salary band are no Faro sheet).
+  if (any('name', 'email') && !h.has('goal')) return h.has('email') || any('team', 'job title', 'admin', 'id') ? 'people' : null;
   return null;
 }
 
@@ -437,10 +428,6 @@ export const rowsOf = <C,>(spec: SheetSpec<C>, items: C[]): Cell[][] => [spec.co
 
 /** Every ask on these goals, and every note, question and action said about them in a review. */
 export const asksFor = (s: Snapshot, ids: Set<string>) => asksOf(s).filter((r) => r.goalIds.some((id) => ids.has(id)));
-/** Every metric in use, with the goals among these it measures (and for which slice). */
-export const metricsFor = (s: Snapshot, ids: Set<string>) => liveMetrics(s).map((m) => ({
-  m, measures: (s.metricLinks ?? []).filter((l) => l.metricId === m.id && !l.removedAt && ids.has(l.goalId)).flatMap((l) => { const g = s.goals.find((v) => v.id === l.goalId); return g ? [{ g, slice: sliceName(s, l.teamId) }] : []; }),
-}));
 export const notesFor = (s: Snapshot, ids: Set<string>) => saidIn(s).filter((d) => ids.has(d.goalId) && ['note', 'ask', 'action'].includes(d.kind));
 
 /* ---------- the field table (backlog IM1; docs/design/import/spec.md, section 3 and rules 1 and 2) ----------
@@ -449,8 +436,9 @@ export const notesFor = (s: Snapshot, ids: Set<string>) => saidIn(s).filter((d) 
    and what it needs" and the Import page's three lines are all made from it. A column added to a sheet above gets its
    row here (a test fails while it has none): that is the whole of adding one.
 
-   It says what Faro does today. Where the import design changes a default (a Type read from the row, no "%" for a
-   missing Unit column), the build that changes the rule changes its row here. */
+   It says what Faro does. IM2 changed the defaults the import design marked (C1, C2, round 2's margin): a new goal's
+   Type is read from the columns it fills in, a number has no unit unless one is given (asked once a file), and a range
+   has no warning margin unless one is given. */
 
 /** A goal's type, said as people say it. */
 export const TYPE_NAME: Record<Goal['kind'], string> = { metric: 'number', range: 'range', milestone: 'stages' };
@@ -506,18 +494,20 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     Team: { required: { optional: 'the owner’s team' }, format: 'A team’s name', example: 'Platform', empty: 'The owner’s team', also: ['team name'] },
     Owner: { required: 'required', oneOf: 'owner', format: 'A name only one person has', example: 'Ben Ortiz', empty: 'Owner email says who; with neither, Must fix', also: ['owner name'] },
     'Owner email': { required: 'required', oneOf: 'owner', format: 'An email', example: 'ben.ortiz@example.com', empty: 'Owner says who; with neither, Must fix', also: ['owner e-mail', 'owner email address'] },
-    Type: { required: { optional: TYPE_WORDS.word.metric }, format: wordList(TYPE_WORDS), example: TYPE_WORDS.word.metric, empty: `A number goal (${TYPE_WORDS.word.metric}). A goal’s type can’t change later`, also: ['goal type'] },
-    Unit: { required: { optional: 'no unit' }, format: 'Text', example: 'days', empty: 'No unit', clears: true, also: ['units'] },
+    Type: { required: { optional: 'read from the row' }, format: wordList(TYPE_WORDS), example: TYPE_WORDS.word.metric, empty: 'Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later', also: ['goal type'] },
+    Unit: { required: { optional: 'no unit' }, format: 'Text', example: 'days', empty: 'No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts', clears: true, also: ['units'] },
     Decimals: { required: { optional: 'from the numbers typed' }, format: '0, 1, 2 or 3', example: '1', empty: 'The most decimal places typed in Start, Target or Limit, up to 3' },
-    Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline', 'from'] },
+    Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline'] },
     Target: { required: { for: ['metric'] }, format: 'A number, different from Start', example: '1', empty: 'Must fix for a number goal', also: ['target value', 'goal value'] },
     Plan: { required: { optional: SHAPE_WORDS.word.straight }, format: wordList(SHAPE_WORDS), example: SHAPE_WORDS.word.back, empty: SHAPE_WORDS.word.straight },
-    'Plan from week': { required: { optional: 'this week' }, format: 'A whole number, −104 to 104', example: '46', empty: 'This week (0 when setting up a workspace)' },
-    'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number, 1 to 104, after Plan from week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
+    From: { required: { optional: 'this week' }, format: 'A year and a week', example: '2026-W46', empty: 'This week', also: ['from week'] },
+    'Plan from week': { required: { optional: 'this week' }, format: 'A whole number of weeks from the cycle’s start', example: '46', empty: 'This week (0 when setting up a workspace)' },
+    To: { required: { optional: 'the cycle’s last week' }, format: 'A year and a week, after From', example: '2026-W53', empty: 'The cycle’s last week', also: ['to week'] },
+    'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number, after Plan from week; a date in the cycle is read as its week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
     Limit: { required: { for: ['range'] }, format: 'A number', example: '5', empty: 'Must fix for a range goal' },
     'Must stay': { required: { optional: BOUND_WORDS.word.atMost }, format: wordList(BOUND_WORDS), example: BOUND_WORDS.word.atMost, empty: BOUND_WORDS.word.atMost },
-    Margin: { required: { optional: '1' }, format: 'A number, zero or more', example: '0.5', empty: '1' },
-    Stages: { required: { for: ['milestone'] }, format: 'Name@week; Name@week (weeks from the cycle’s start)', example: 'Design@48; Pilot@52', empty: 'Must fix for a stages goal' },
+    Margin: { required: { optional: 'none' }, format: 'A number, zero or more', example: '0.5', empty: 'No warning margin (0)' },
+    Stages: { required: { for: ['milestone'] }, format: 'Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name)', example: 'Design@48; Pilot@52', empty: 'Must fix for a stages goal' },
     'Feeds into': { required: { optional: 'nothing' }, format: 'A goal’s name', example: 'Deploy lead time', empty: 'It feeds nothing', clears: true },
     'Feeds into key': { required: { optional: 'nothing' }, format: 'A goal’s key', example: 'G-1', empty: 'It feeds nothing', clears: true },
     'Why it helps': { required: { optional: 'empty' }, format: 'Text', example: 'Fewer failed deploys mean fewer rollbacks', empty: 'Nothing said', clears: true },
@@ -539,7 +529,7 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     'Goal key': { required: 'required', oneOf: 'goal', format: 'G- and a number', example: 'G-14', empty: 'Goal ID or Goal says which goal; with none of them, Must fix' },
     'Goal ID': { required: 'required', oneOf: 'goal', format: 'Faro’s own', example: 'goal_hzde4g', empty: 'Goal key or Goal says which goal' },
     Goal: { required: 'required', oneOf: 'goal', format: 'The goal’s exact name, when only one goal has it', example: 'Pipeline queue wait (p90)', empty: 'Goal key or Goal ID says which goal' },
-    Week: { required: 'required', format: 'A whole number from 1 to this week', example: '46', empty: 'Must fix' },
+    Week: { required: 'required', format: 'A whole number from 1 to this week; a date in the cycle is read as its week', example: '46', empty: 'Must fix' },
     Value: { required: { for: ['metric', 'range'] }, format: 'A number, at the goal’s decimal places', example: '6', empty: 'Must fix for a number or range goal' },
     Stages: { required: { for: ['milestone'] }, format: '“Pilot: done week 6; Rollout: expected week 9”', example: 'Pilot: done week 6', empty: 'Must fix for a stages goal' },
     Call: { required: { optional: 'the rules decide' }, format: wordList(CALL_WORDS), example: CALL_WORDS.word.risk, empty: 'The rules decide' },
@@ -564,6 +554,13 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     'Takes over': { required: { when: `with ${PERSON_ACTION_WORDS.word.left}, when they own goals, asks or teams` }, format: 'An email, or a name only one person has', example: 'chloe.wu@example.com', empty: `Must fix with ${PERSON_ACTION_WORDS.word.left} when they own anything` },
   },
 };
+
+/** Whether a new row must have a column (null when the column has no field facts: worked out). Goal entry's rule 1
+    (domain/goalEntry fieldNeed) reads the form's needs from here, so the form and a file can't disagree. */
+export const fieldNeedOf = (kind: FillKind, header: string): Required => FIELDS[kind][header]?.required ?? null;
+
+/** The headers a sheet's field table has facts for, as written in it (a test checks each is a real column). */
+export const fieldHeaders = (kind: FillKind): string[] => Object.keys(FIELDS[kind]);
 
 /** A sheet's columns as the field table: every column, with its field facts (a worked-out one has none). */
 export function fieldTable(kind: FillKind): FieldRow[] {

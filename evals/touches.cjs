@@ -15,6 +15,8 @@ const RULES = [
   // The spec (backlog 8a, 8b): generated files and their generator. npm test checks them; no screen reads them.
   [/^(spec\/|llms\.txt$|src\/spec\/|scripts\/spec\.mjs$)/, []],
   [/^src\/help\//, ['N7', 'U27', 'U29']],
+  // The build-time index of Help and What's new (#167): what the first download knows of them before they load.
+  [/^vite\.helpIndex\.ts$/, ['N7', 'U27', 'U29']],
   // Shared by every screen: the full suite.
   [/^(src\/(App|main)\.tsx|src\/styles\.css|src\/styles\/[^/]+\.css|src\/app\/state\.tsx|src\/ui\/|src\/domain\/(vocabulary|status|types|plan|cycle|year)\.ts|src\/data\/(store|examples)\.ts|src\/data\/platformOrg\/|index\.html|vite\.config\.ts|package(-lock)?\.json)/, [FULL]],
   [/^evals\/(journeys\.cjs|run\.mjs|shards\.cjs|touches\.cjs)$/, [FULL]],
@@ -29,25 +31,34 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'N10', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'U122', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
   [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'F2', 'F9', 'N8']],
-  [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/domain\/templates\.ts/, ['U4', 'U54', 'U18', 'U25', 'U85', 'F3', 'F9']],
-  [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
+  [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/ui\/GoalFields\.tsx|^src\/styles\/finish\/wizard\.css|^src\/domain\/(templates|newGoal|goalEntry|goalRights|readBack)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'U93', 'U137', 'U109', 'U136', 'U31', 'U24', 'U91', 'F3', 'F9', 'F16']],
+  // Years and weeks (goal entry, rule 13; GE9): the week picker and the rule it shows.
+  [/^src\/ui\/WeekPick\.tsx|^src\/domain\/week(s|Choices)\.ts/, ['U109', 'U93', 'U137', 'U18', 'U85', 'U136', 'U5', 'F3', 'F16']],
+  [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U141', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6', 'N10']],
   [/^src\/screens\/GoalMap\.tsx|^src\/domain\/(map|tree)\.ts/, ['U26', 'U30', 'U34', 'F6']],
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
+  // The import's preview (IM3): its rules and its two checks.
+  [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'F17', 'P19']],
+  [/^evals\/finish\/(17-import|18-import-design)\.cjs$/, ['F17', 'P19']],
+  [/^src\/modules\/spreadsheets\//, ['P19']],
   [/^src\/screens\/(Workspace|Settings|Onboarding|Start|Feedback)\.tsx|^src\/app\/appearance\.ts|^src\/domain\/workspaceAttention\.ts/, ['U5', 'U54', 'U11', 'U49', 'U14', 'U17', 'U22', 'U43', 'U51', 'U52', 'U53', 'U59', 'U60', 'U61', 'U62', 'U86', 'F7', 'F10', 'N4', 'N9', 'N10']],
   [/^src\/screens\/Activity\.tsx|^src\/domain\/activity\.ts/, ['U6', 'U35']],
   // People and Teams (app redesign WR1).
   [/^src\/screens\/People\.tsx|^src\/domain\/directory\.ts|^src\/styles\/notes\/people\.css/, ['U58', 'U60', 'U14', 'U43', 'U46', 'U51', 'U53', 'F7', 'F9', 'F10', 'N4', 'P6']],
   [/^evals\/finish\/10-people\.cjs$/, ['F10']],
+  // The metric library (ML1): its two checks.
+  [/^evals\/(finish\/15-metrics|notes\/16-metrics)\.cjs$/, ['F15', 'N16']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
   [/^src\/screens\/Help\.tsx/, ['N7']],

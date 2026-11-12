@@ -9,7 +9,7 @@ import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
-import { describe, planChanges, VIA_MCP, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, examplesLine, GOAL_QUESTION, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
@@ -25,6 +25,8 @@ import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById } from '../core/registry';
+import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
+import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
@@ -111,31 +113,49 @@ function rows(list: unknown, sheet: string): Rec[] {
 }
 
 /** Yes to a plan question (a target that flips which way is better, a number far outside the old plan). */
-const CONFIRM = bool('True once the person has said a plan change that was questioned (it flips which way is better, or a number is far outside the old plan) is right.');
+const CONFIRM = bool('True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan).');
 
-async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean }): Promise<ToolResult> {
-  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm });
-  const errors = cs.issues.filter((x) => x.severity === 'error');
-  const warnings = cs.issues.filter((x) => x.severity === 'warning');
-  const notes = cs.issues.filter((x) => x.severity === 'note');
+
+/** Answers to the questions a change asked, by group id: "use", or { "choice": "choose", "value": "Platform" }. */
+const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'object', properties: { choice: { type: 'string' }, value: { type: 'string' } }, required: ['choice'] }] }, description: 'Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them.' };
+/** The answers argument, as the engine takes them. */
+const answersOf = (a: unknown): Answers => Object.fromEntries(Object.entries((a ?? {}) as Record<string, unknown>).map(([k, v]) => [k, typeof v === 'string' ? { choice: v } : { choice: String((v as { choice?: unknown }).choice ?? ''), ...((v as { value?: unknown }).value != null ? { value: String((v as { value: unknown }).value) } : {}) }]));
+
+async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; reason?: string; confirm?: boolean; answers?: unknown }): Promise<ToolResult> {
+  const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers), records: recordsOn(ctx.ws) });
+  // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
+  const errors = cs.issues.filter((x) => x.level === 'must');
+  // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
+  // "answers", one per group.
+  const checks = cs.groups.filter((g) => g.level === 'check' && !(GOAL_QUESTION.includes(g.kind) && g.sheet !== 'Check-ins'));
+  const notes = cs.issues.filter((x) => x.level === 'note');
+  const group = (g: ChangeSet['groups'][number]) => ({ id: g.id, kind: g.kind, sheet: g.sheet, column: g.column ?? null, found: g.found ?? null, rows: g.count, firstRows: g.rows.slice(0, 20), sentence: g.title, example: g.example, answers: g.answers.map((a) => ({ choice: a.choice, label: a.label, ...(a.needsValue ? { needsValue: true } : {}), ...(a.options ? { options: a.options } : {}) })) });
   const data = {
     saved: false,
     summary: describe(cs),
     changes: cs.items.map((x) => ({ goalId: x.goalId, goal: x.goal, kind: x.kind, summary: x.summary, fields: x.diffs.filter((d) => d.field !== 'Via').map((d) => ({ field: d.field, from: d.from, to: d.to })), pastWeek: !!x.backfilled })),
     unchanged: cs.unchanged,
-    problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.goal, message: x.message })),
-    warnings: warnings.map((x) => ({ goal: x.goal, message: x.message })),
-    notes: notes.map((x) => ({ goal: x.goal, message: x.message })),
+    examples: cs.examples,
+    problems: errors.map((x) => ({ sheet: x.sheet, row: x.row, goal: x.name, kind: x.kind, message: x.message })),
+    must_fix: cs.groups.filter((g) => g.level === 'must').map(group),
+    check: checks.map(group),
+    notes: notes.map((x) => ({ goal: x.name, message: x.message })),
+    leftOut: cs.leftOut,
     needsReason: cs.needsReason,
-    questions: cs.items.filter((x) => x.question).map((x) => ({ goalId: x.goalId, goal: x.goal, question: x.question!.text })),
+    questions: cs.items.flatMap((x) => (x.questions ?? []).map((q) => ({ goalId: x.goalId, goal: x.goal, id: q.id, field: q.field, question: q.text }))),
     needsConfirm: cs.needsConfirm,
   };
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
-  if (errors.length) return { isError: true, data, text: `Not saved. Fix these and try again:\n${lines(errors)}` };
+  if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
-  if (cs.needsConfirm) return { isError: true, data, text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say it's right, call again with "confirm": true.` };
-  if (!cs.items.length) return { data, text: 'Nothing to change: it already says that.' };
-  const what = `${describe(cs)}.${warnings.length ? `\nNote:\n${lines(warnings)}` : ''}${notes.length ? `\nRead as:\n${lines(notes)}` : ''}`;
+  // Questions the person must answer: goal entry's, then any of the import's, each with how to answer it.
+  const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say yes to each, call again with "confirm": true.` : '';
+  if (asked && !checks.length) return { isError: true, data, text: asked };
+  if (checks.length) return { isError: true, data, text: `${asked ? asked + '\n' : ''}Not saved: answer ${checks.length === 1 ? 'this question' : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? ' with a value' : ''} = ${a.label}`).join('; ')}`).join('\n')}` };
+  // Example rows (Action says Example) are said wherever a file comes in, not only on Import (review of #130).
+  const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
+  if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
+  const what = `${describe(cs)}.${notes.length ? `\nRead as:\n${lines(notes.map((x) => ({ goal: x.name, message: x.message })))}` : ''}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ''}${examples ? `\n${examples.trim()}` : ''}`;
   if (opts.dry || !cs.commit) return { data, text: `Checked, not saved (dry run). Would save: ${what}` };
   await ctx.save(cs.commit);
   return { data: { ...data, saved: true }, text: `Saved as ${ctx.actor.name}: ${what}` };
@@ -167,7 +187,9 @@ const GOAL_FIELDS = {
   start: num('Move-a-number goals: where it starts.'),
   target: num('Move-a-number goals: the target.'),
   plan_shape: str('Move-a-number goals: how the plan moves from start to target.', { enum: ['straight', 'back-loaded', 'stepped'] }),
-  due_week: int('Move-a-number goals: the week the target is due, from the cycle start (weeks beyond the cycle run into the next one, up to 104).'),
+  from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
+  to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
+  due_week: int('Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year).'),
   limit: num('Keep-in-range goals: the limit.'),
   must_stay: str('Keep-in-range goals: which side of the limit is good.', { enum: ['at most', 'at least'] }),
   margin: num('Keep-in-range goals: how close to the limit counts as at risk.'),
@@ -177,7 +199,7 @@ const GOAL_FIELDS = {
   source: str('Where the number comes from.'),
   definition: str('Exactly what is counted.'),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
 
 
 const CORE_TOOLS: ToolDef[] = [
@@ -241,7 +263,9 @@ const CORE_TOOLS: ToolDef[] = [
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
-      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
+      // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns).
+      const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
+      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
@@ -284,34 +308,35 @@ const CORE_TOOLS: ToolDef[] = [
       back_on_plan_by_week: int('With a plan: the week it is back on plan by.'),
       needs: str('A decision or help needed, and from whom.'),
       next_step: str('The next step.'),
+      answers: ANSWERS_ARG,
       dry_run: DRY,
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       const r = row({ ...a, goal_id: g.id, week: a.week ?? ctx.week, call: a.call == null || a.call === '' ? undefined : statusIn(a.call, CALLS) }, { goal_id: 'goal id', week: 'week', value: 'value', stages: 'stages', call: 'call', cause: 'cause', why: 'why', why_greener: 'why greener', path_to_green: 'path to green', recovery: 'recovery', back_on_plan_by_week: 'back on plan by week', needs: 'needs', next_step: 'next step' });
-      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run });
+      return change(ctx, { checkIns: [r] }, { dry: !!a.dry_run, answers: a.answers });
     },
   },
   {
     name: 'update_goal',
     title: 'Change a goal',
     description: 'Change a goal’s details or plan. Only the fields you give change. A plan change (start, target, shape, due week, limit, stages) after check-ins have started needs a reason, which is logged with the old and new plan. One that flips which way is better, or puts a number far outside the old plan, is checked with the person first (confirm: true).',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), confirm: CONFIRM, dry_run: DRY } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), ...GOAL_FIELDS, reason: str('Why the plan is changing.'), confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true });
+      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
     name: 'create_goal',
     title: 'Add a goal',
-    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. You can add goals you own; admins can add goals for anyone.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, dry_run: DRY } },
+    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run });
+      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
@@ -346,7 +371,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'bulk_change',
     title: 'Change many goals at once',
-    description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change; nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+    description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       goals: { type: 'array', items: { type: 'object' }, description: 'Rows for the Goals sheet. Key (or ID) to change a goal; neither to add one.' },
       plan: { type: 'array', items: { type: 'object' }, description: 'Rows for the Plan sheet: Key (or ID), Start and "Week N" columns.' },
@@ -354,11 +379,12 @@ const CORE_TOOLS: ToolDef[] = [
       people: { type: 'array', items: { type: 'object' }, description: 'Rows for the People sheet (admins): Email (or ID) to change someone; a new Email, Name and Team to add someone; Action and Takes over to mark someone as left.' },
       reason: str('Why plans are changing, for any plan change that needs one.'),
       confirm: CONFIRM,
+      answers: ANSWERS_ARG,
       apply: bool('Save the changes. Leave out first to check them.'),
     } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true });
+      return change(ctx, { goals: rows(a.goals, 'goals'), plan: rows(a.plan, 'plan'), checkIns: rows(a.check_ins, 'check_ins'), people: rows(a.people, 'people') }, { dry: !a.apply, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
     },
   },
 ];
@@ -369,6 +395,9 @@ const TOOL_MODULE = new Map(MODULE_TOOLS.flatMap((m) => m.part.map((t) => [t.nam
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
     module's own (the spreadsheets module's export and export_table). */
+// The modules' Goals columns are read from a link here as in the app (core/app registers them for the screens).
+addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
+
 export const TOOLS: ToolDef[] = [...CORE_TOOLS, ...WORK_TOOLS, ...REMOVE_TOOLS, ...MARKUP_TOOLS, ...FEEDBACK_TOOLS, ...MODULE_TOOLS.flatMap((m) => m.part)];
 
 /** Runs a tool by name. Errors in the arguments come back as a tool error the assistant can read and fix. A module's

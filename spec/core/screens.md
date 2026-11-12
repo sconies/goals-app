@@ -13,9 +13,9 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/` (`Home`): Home shows what needs you this week: one main thing to do, what people have asked of you, and the goals you own and watch. Help: “Home and your week at a glance” (`home`).
 
-- **Named parts:** “Nothing is due yet”, “Your first check-in is next week”, “Nothing is due”, “No check-ins or reviews due”, “Your goals”, “Need attention”, “Nothing flagged”, “Needs your response”, “Goals you watch”, “Getting started”, “For you (region)”, “Your week at a glance (region)”
-- **Main action:** The week’s one main thing: your check-ins when they’re due, then the wrap-up at the end of the year, then the review you’re in.
-- **Primary buttons in its markup:** “Start the wrap-up”, “Find goals to watch”, “Set up the first goal”
+- **Named parts:** “Your goals”, “Needs your response”, “Goals you watch”, “Getting started”, “This week (region)”, “For you (region)”
+- **Main action:** The lead’s, or none: what is asked of you today (late check-ins, check-ins due tomorrow or before today’s review, the wrap-up, a review on its day), or one quiet line that nothing is.
+- **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_my_work`, `get_overview`
 
 ## CheckInFlow
@@ -106,9 +106,10 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalWizard.tsx](../../src/screens/GoalWizard.tsx)
 
-- `/goals/new` (`GoalWizard`): A new goal takes a few short steps: what you want to achieve, the type, the numbers or stages, and where it fits. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
+- `/goals/new/:step` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 
-- **Named parts:** “You have a goal you didn’t publish”, “What do you want to achieve?”, “Where does it fit?”, “Does this read right?”
+- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”, “After you publish”
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`
@@ -128,9 +129,9 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalEdit.tsx](../../src/screens/GoalEdit.tsx)
 
-- `/goals/:goalId/edit` (`GoalEdit`): Edit a goal’s details, owner, links or plan. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
+- `/goals/:goalId/edit` (`GoalEdit`): Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
 
-- **Named parts:** “Owner and links”
+- **Named parts:** “What it is”, “Who and where”
 - **Main action:** Save the change; a plan change after check-ins started needs a reason.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `update_goal`, `set_plan_numbers`
@@ -251,7 +252,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 - `/help/:id` (`HelpArticle`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 - `/whats-new` (`WhatsNew`): This guide says what everything in Faro does. What’s new lists each release, newest first. Help: “Help and what’s new” (`help`).
 
-- **Named parts:** “The columns”, “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
+- **Named parts:** “Help”, “Search results”, “Related”, “What’s new”, “Search results (region)”
 - **Main action:** Find an answer: search, or open an article.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `get_help`, `whats_new`
@@ -262,7 +263,7 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 - `/ready` (`Ready`): A workspace holds one organisation’s people, teams, goals and history. Setting one up takes about three minutes. Help: “Setting up a workspace” (`set-up`).
 
-- **Named parts:** “Who are you?”
+- **Named parts:** “Who are you?”, “Open another workspace”
 - **Main action:** Say who you are, then go on to Home.
 - **Primary buttons in its markup:** “See your goals”, “Set up the first goal”
 - **AI tools:** none, on purpose: The first screen, before a workspace exists.

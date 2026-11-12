@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { saveAndSay } from '../app/files';
 import { useApp } from '../app/state';
 import {
-  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, activityParts, activityFilter, activityRows, activityWords, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
+  ACTIVITY_KEYS, ACTIVITY_KINDS, activityEntries, foldImports, activityParts, activityFilter, activityRows, activityWords, describeActivity, EMPTY_ACTIVITY, kindOf, parseActivity, WHEN_OPTIONS, withoutActivity,
   type ActivityQuery, type When,
 } from '../domain/activity';
 import { toCsv } from '../domain/export';
@@ -57,7 +57,9 @@ export function Activity() {
   const near = !found.length && a.q.trim() ? nearMiss(a.q, all.map((c) => activityWords(c, app.person(c.actorId)?.name ?? '', (c.goalId && app.goal(c.goalId)?.title) || ''))) : null;
   const inScope = near ? all.filter(activityFilter({ ...base, q: near }, ctx)) : found;
   const list = a.kind.length ? inScope.filter((c) => a.kind.includes(kindOf(c))) : inScope;
-  const shown = list.slice(0, limit);
+  // An import is one entry, its rows folded under it (import spec 2.7); search still finds a row on its own.
+  const folded = foldImports(list);
+  const shown = folded.top.slice(0, limit);
   const groups: [string, Change[]][] = [];
   for (const c of shown) {
     const k = dayLabel(c.at, app.today);
@@ -113,12 +115,12 @@ export function Activity() {
           <h2 className="label">{day}</h2>
           <ol className="changes">{runs(items).map((r) => (r.length >= 3
             ? <ReviewedRun key={r[0]!.id} run={r} />
-            : r.map((c) => <ChangeItem key={c.id} c={c} showGoal />)))}</ol>
+            : r.map((c) => <ChangeItem key={c.id} c={c} showGoal rows={folded.rows.get(c.id)} />)))}</ol>
         </section>
       )) : narrowed || a.q.trim() ? (
         <NoneFound things={CHANGES} q={a.q} filtered={parts.length > 0} onClearSearch={() => setA((cur) => ({ ...cur, q: '' }))} onClearFilters={() => setA((cur) => ({ ...EMPTY_ACTIVITY, q: cur.q, watching: cur.watching, since: cur.since }))} />
       ) : <div className="activity-none"><p className="activity-none-title">Nothing here yet</p></div>}
-      {list.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({list.length - shown.length} older)</button>}
+      {folded.top.length > shown.length && <button className="btn" onClick={() => setLimit((n) => n + 40)}>Show more ({folded.top.length - shown.length} older)</button>}
       {open && <ActivityFilters onClose={() => setOpen(false)} onSave={list.length ? saveCsv : null} />}
     </div>
   );

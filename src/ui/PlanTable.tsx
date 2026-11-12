@@ -7,6 +7,7 @@ import { fmt } from '../domain/format';
 import { planAt, planCheckpoints, planEnd, weekDates } from '../domain/plan';
 import type { CheckIn, MetricPlan } from '../domain/types';
 import { isYear, quarters } from '../domain/year';
+import { planNote } from '../domain/newGoal';
 
 interface Numeric { unit: string; decimals: number }
 
@@ -47,6 +48,8 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
   label?: string;
 }) {
   const { cycle, week } = useApp();
+  // One sentence with this goal's own next quarter end (onboarding spec, rule 5).
+  const note = planNote(cycle, week);
   const from = plan.fromWeek ?? 0;
   const end = planEnd(plan, cycle.weeks);
   const rows = planCheckpoints(from, end);
@@ -59,7 +62,7 @@ export function PlanTable({ plan, unit, typed, onType, onReset, actuals, label =
         <span className="field-label">{label}{end > cycle.weeks ? ` · to week ${end}` : ''}</span>
         {edited && onReset && <button type="button" className="linkish small" onClick={onReset}>Use the shape’s numbers again</button>}
       </div>
-      {isYear(cycle) && <span className="hint">Each week’s number is checked in during that week, so the one that closes a quarter comes in the week after it ends: week {quarters(cycle)[0]!.to}, checked in {weekDates(cycle, quarters(cycle)[0]!.to)}, closes {quarters(cycle)[0]!.label} ({quarters(cycle)[0]!.months}).</span>}
+      {note && <span className="hint">{note}</span>}
       {editing && <span className="hint">Filled in from the shape. Type over any week to set it yourself; the plan then runs straight between the numbers you see.</span>}
       <table>
         <thead><tr><th scope="col">Week</th><th scope="col">Checked in</th><th scope="col" className="num">Plan</th>{actuals && <th scope="col" className="num">Actual</th>}</tr></thead>

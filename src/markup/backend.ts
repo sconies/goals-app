@@ -9,7 +9,7 @@
    Either way, the markups a person sent from this browser are remembered (ids only), so What's new can say "You raised
    this"; in the real app the database also says which of theirs were fixed. Feedback says it too: the app already has
    the feedback a person sent, and the database (or, with none, this browser's inbox) says which was fixed where. */
-import { WHATS_NEW } from '../help/whatsNew';
+import { NEWS } from '../help/newsIndex';
 import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';
@@ -109,14 +109,14 @@ export async function serverCheck(): Promise<{ ok: boolean; database: boolean; p
 /** The inbox's operations: on the shared database (anyone, no sign-in), or on this browser's markups. */
 export async function inboxOps(): Promise<MarkupOps> {
   const store: MarkupStore = markupsShared() ? (await database()).inbox() : local.store;
-  return markupOps({ store, entries: WHATS_NEW.map((e) => e.id), repo: MARKUP_REPO, inboxLink: (id) => inboxAddress(id) });
+  return markupOps({ store, entries: NEWS.map((e) => e.id), repo: MARKUP_REPO, inboxLink: (id) => inboxAddress(id) });
 }
 
 /** Feedback in the inbox, triaged like markups: every workspace's, for anyone, or (with no database) this
     workspace's, as the app has it. */
 export async function inboxFeedback(here: Parameters<typeof localFeedback>[0]): Promise<FeedbackOps> {
   const store = markupsShared() ? (await database()).feedback() : localFeedback(here);
-  return feedbackOps({ store, entries: WHATS_NEW.map((e) => e.id) });
+  return feedbackOps({ store, entries: NEWS.map((e) => e.id) });
 }
 
 /* ---------- kept in this browser, when there's no database ---------- */

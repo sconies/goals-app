@@ -7,7 +7,6 @@
    the bulk-change engine, and comments, reviews, watches and views go through the shared actions. Nothing here
    restates a rule. Randomness comes from a seeded generator, so the same day always gives the same workspace. */
 import * as A from '../../domain/actions';
-import * as M from '../../domain/metrics';
 import { checkInChange, goalChange, type Lookup } from '../../domain/changes';
 import { planChanges, type Rec } from '../../domain/changeset';
 import { emptyDraft, evaluate, isShare, toCheckIn, type Draft, type Evaluation } from '../../domain/checkin';
@@ -15,11 +14,12 @@ import { replanned } from '../../domain/goal';
 import { withKeys } from '../../domain/goalKey';
 import { goalAsOf, planAt } from '../../domain/plan';
 import { requestsAfterCheckIn } from '../../domain/asks';
+import { applyModuleRows } from '../../domain/records';
+import MODULE_DEMOS from 'virtual:faro-modules/demo';
 import type { Ask, Change, CheckIn, Cycle, Decision, Goal, MetricGoal, Review, SavedView, Snapshot, StageUpdate, Watch } from '../../domain/types';
 import { demoYear, yearName } from './year';
 import { CLOSED, COMMENTS, HELD, REVIEWS, SAID, UNDER_WAY, UPDATE_ASKS, VIEWS, WATCHES } from './conversation';
 import { GOALS, type GoalSpec, type Phase } from './goals';
-import { METRICS } from './metrics';
 import { PEOPLE, TEAMS } from './people';
 import { AHEAD, BEHIND, fill, MORE, PATHS, STEADY, type Said, type Theme } from './stories';
 
@@ -301,7 +301,8 @@ export function buildPlatformOrg(today: Date): Snapshot {
           });
         }
       }
-      const cs = planChanges({ tables: { checkIns: rows }, snapshot: S, cycle, week: w, actor: person(owner), now: at(w, 0, 11).toISOString(), newId, via: 'spreadsheet' });
+      // The owner has seen the numbers they load: an unlikely one is theirs to keep (confirm), as an answered Check is.
+      const cs = planChanges({ tables: { checkIns: rows }, snapshot: S, cycle, week: w, actor: person(owner), now: at(w, 0, 11).toISOString(), newId, via: 'spreadsheet', confirm: true });
       if (!cs.commit) throw new Error(`Platform example: the import for ${owner} didn’t pass: ${cs.issues.map((x) => x.message).join('; ')}`);
       save(cs.commit);
     }
@@ -420,24 +421,13 @@ export function buildPlatformOrg(today: Date): Snapshot {
     save(A.revokeToken(ctx('grace', at(T(38), 3, 16)), c.tokens![0]!.id));
   }
 
-  /* ---------- The metric library: set up the week before the year starts, each goal linked as it's created ---------- */
-  // Fixed ids of their own, so nothing else's id moves; linking changes no goal, so no number, status or date moves.
-  S.metrics = [];
-  S.metricLinks = [];
-  METRICS.forEach((m, i) => {
-    let k = 0;
-    const mid = (p: string) => (p === 'metric' ? `metric_${m.slug}` : `${p}_metric_${m.slug}_${++k}`);
-    const when = new Date(startMs - 3 * DAY + i * HOUR);
-    const { commit } = M.saveMetric({ ...ctx(m.ownerId, when), newId: mid }, m);
-    S.metrics!.push(...commit!.metrics!);
-    S.changes.push(...commit!.changes);
-    for (const [goalId, teamId] of m.measures) {
-      const g = goalOf(goalId);
-      const linkedAt = new Date(Math.max(when.getTime(), Date.parse(created[goalId]!.createdAt)) + HOUR);
-      const c = M.linkGoalMetric({ ...ctx(g.ownerId, linkedAt), newId: mid }, g, `metric_${m.slug}`, teamId)!;
-      S.metricLinks!.push(...c.metricLinks!);
-      S.changes.push(...c.changes);
-    }
+  /* ---------- Each feature module's own rows (domain/records): the metric library's, in this build ---------- */
+  // Added the way the app would, through each module's rules; a build without the module has none, and nothing else moves.
+  for (const { part: addRows } of MODULE_DEMOS) addRows({
+    save: (c) => { if (c.modules) S.modules = applyModuleRows(S.modules, c.modules); S.changes.push(...c.changes); },
+    start: new Date(startMs),
+    act: (by, when, ids) => ({ ...ctx(by, when), newId: ids }),
+    goal: (id) => ({ goal: goalOf(id), createdAt: created[id]!.createdAt }),
   });
 
   S.changes.sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));

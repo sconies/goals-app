@@ -1,14 +1,14 @@
 /* Help: what everything does (the guide, src/help/guide.ts) and what's new (src/help/whatsNew.ts).
    /help lists the articles by section with a search; /help/:id is one article; /whats-new is every release.
-   PageHelp is the small Help link at the foot of every page, chosen from the address by the guide's route map;
-   HomeNews is the one quiet line on Home after a release the person hasn't seen. */
+   The small Help link at the foot of every page and the line on Home after a release are in src/ui/HelpLinks.tsx, which
+   the first download carries without the guide's text; these screens load when first opened (src/App.tsx). */
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useParams, useSearchParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { historyStep } from '../domain/find';
 import { CountLine, ListSearch, NoneFound } from '../ui/ListBar';
-import { ARTICLES, GROUPS, articleById as anyArticle, articleForPath, articleWords, searchGuide, type Article } from '../help/guide';
+import { ARTICLES, GROUPS, articleById as anyArticle, articleWords, searchGuide, type Article } from '../help/guide';
 import { nearMiss } from '../domain/find';
-import { useModules } from '../core/app';
+import { Place, useModules } from '../core/app';
 
 /** A module's articles show only while it's on here (src/core/app.tsx); the core's always do. */
 function useShown() {
@@ -24,52 +24,6 @@ import { Icon } from '../ui/Icon';
 import { useApp } from '../app/state';
 import { raisedBy } from '../markup/backend';
 import { raisedIn, raisedText, type Raised } from '../markup/model';
-import { emptyText, fieldTable, FILL_SHEETS, isFillIn, requiredLine, requiredText, specOf, type FieldRow, type FillKind } from '../domain/columns';
-import { templateWorkbook } from '../domain/export';
-import { saveAndSay } from '../app/files';
-
-/** Optional columns, shown on request: the table leads with what a new row needs. */
-const isOptional = (c: FieldRow) => !!c.required && typeof c.required === 'object' && 'optional' in c.required;
-
-/**
- * "Every column, and what it needs" (backlog IM1, wireframe 8): the field table of each sheet that loads back, from
- * domain/columns, so Help can't say a column differently from the template's Start here sheet. A tab per sheet with its
- * count of fill-in columns; what a new row must have first, the optional columns on request; one list that reads the
- * same on a phone. The one action is the template.
- */
-function FieldTableHelp() {
-  const app = useApp();
-  const [kind, setKind] = useState<FillKind>('goals');
-  const [all, setAll] = useState(false);
-  const table = fieldTable(kind);
-  const fill = table.filter(isFillIn);
-  const shown = all ? fill : fill.filter((c) => !isOptional(c));
-  const more = fill.length - shown.length;
-  const worked = table.filter((c) => !isFillIn(c)).map((c) => c.header);
-  const spec = specOf(kind);
-  const line = kind === 'plan' ? 'Its Key or ID says which number goal it is; type a number into any week to set the plan by hand.' : `A new row needs: ${requiredLine(kind)}`;
-  const template = () => saveAndSay(app.toast, { workspace: app.ws.name, what: 'template', date: app.today }, { kind: 'xlsx', sheets: templateWorkbook({ ws: app.ws, cycle: app.cycle, week: app.week, today: app.today }) }, 'Template saved');
-  return (
-    <section className="help-section" aria-labelledby="help-columns">
-      <h2 className="h2" id="help-columns">The columns</h2>
-      <div className="seg tabs one-row" role="tablist" aria-label="Sheet">
-        {FILL_SHEETS.map((k) => <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => { setKind(k); setAll(false); }}>{specOf(k).name}<span className="tabcount">{fieldTable(k).filter(isFillIn).length}</span></button>)}
-      </div>
-      <p>One row per {spec.rowIs}. {line}</p>
-      <ul className="help-points" aria-label={`${spec.name} columns`}>
-        {shown.map((c) => (
-          <li key={c.header}>
-            <span className="strong">{c.header}</span>: {requiredText(c, table)}.{' '}
-            <span className="hint">{c.format}. For example, {c.example}. If it’s left empty: {emptyText(c)}.</span>
-          </li>
-        ))}
-        {worked.length > 0 && <li><span className="strong">{worked.slice(0, 3).join(', ')}{worked.length > 3 ? '…' : ''}</span>: {kind === 'plan' ? 'For reading' : 'Worked out'}. <span className="hint">Never read. Leave them or delete them.</span></li>}
-      </ul>
-      {more > 0 && <p>{more} more optional {more === 1 ? 'column' : 'columns'}: <button type="button" className="linkish tap" onClick={() => setAll(true)}>show them all</button>.</p>}
-      <p><button type="button" className="btn primary" onClick={() => void template()}>Download the template</button></p>
-    </section>
-  );
-}
 
 function ArticleRow({ a }: { a: Article }) {
   return (
@@ -151,7 +105,7 @@ export function HelpArticle() {
         <h1 className="title-xl">{a.title}</h1>
         <p className="help-lead">{a.summary}</p>
       </div>
-      {a.id === 'columns' && <FieldTableHelp />}
+      <Place name="help.article" article={a.id} />
       {a.id === 'status' && <StatusLegend kind="key" statuses={['on', 'risk', 'off', 'stale', 'done']} className="help-key" wordClass="strong" label="Status shapes" />}
       {a.sections.map((s) => (
         <section key={s.heading} className="help-section">
@@ -204,41 +158,5 @@ export function WhatsNew() {
         })}
       </ol>
     </div>
-  );
-}
-
-/** Pages that have no Help link of their own: Help itself, and the print views (nothing but the page prints). */
-const NO_PAGE_HELP = /^\/(help|whats-new)(\/|$)|\/print$/;
-
-/** The small Help link at the foot of every page: it opens the guide's article for the page you're on. */
-export function PageHelp() {
-  const { pathname, search } = useLocation();
-  if (NO_PAGE_HELP.test(pathname)) return null;
-  const a = articleForPath(pathname, search);
-  if (!a) return null;
-  return (
-    <footer className="page-help">
-      <Link to={'/help/' + a.id} className="page-help-link" title={a.title} data-article={a.id}>
-        <Icon name="help" />
-        <span>Help with this page</span>
-      </Link>
-    </footer>
-  );
-}
-
-/**
- * One quiet line on Home after a release this person hasn't seen. Dismissing it counts as seen. Under the greeting from a
- * tablet up; on a phone just after your goals that need attention, so the first screen is still the week's work and the
- * first goal needing you (backlog N, 8 Nov: at the foot of Home it went unseen).
- */
-export function HomeNews({ at }: { at: 'head' | 'phone' }) {
-  const unread = useUnreadNews();
-  const top = unread[0];
-  if (!top) return null;
-  return (
-    <p className={'home-news home-news-' + at}>
-      <span className="home-news-text"><span className="strong">New:</span> {top.title} · <Link to="/whats-new">See what’s new</Link></span>
-      <button type="button" className="home-news-close" aria-label="Dismiss what’s new" title="Dismiss" onClick={markWhatsNewSeen}><Icon name="close" size={14} /></button>
-    </p>
   );
 }

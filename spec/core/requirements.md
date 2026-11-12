@@ -41,7 +41,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** F9, U7
+- **Journeys and checks:** F9, U7, U136
 
 ### CHART-READ
 
@@ -241,7 +241,7 @@ The owner can post an update at any time from the goal page. It is the same chec
 Only the goal's owner can post its check-in.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U9
+- **Journeys and checks:** U9, U141
 
 ## Goals
 
@@ -259,7 +259,31 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** U4, U18, U25
+- **Journeys and checks:** F16, U4, U18, U25
+
+### NEW-GOAL-STEPS
+
+New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything.
+
+- **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** F16, U84, U137
+
+### GOAL-ENTRY-REQUIRED
+
+Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
+
+- **Rule:** [Goal entry](rules/goal-entry.md), [The read-back](rules/read-back.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U93, U137
+
+### GOAL-DATES
+
+A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools.
+
+- **Rule:** [Years and weeks](rules/years-and-weeks.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U109
 
 ### NEW-GOAL-TRUTH
 
@@ -311,7 +335,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
-- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
+- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`, `GoalFilterSheet`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** N10, U32, U33, U34, U135
 
@@ -362,6 +386,13 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 - **Rule:** [A goal’s history](rules/goal-history.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
+
+### GOAL-EDIT-PAGE
+
+Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section.
+
+- **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U136
 
 ### GOAL-SAYS
 
@@ -482,7 +513,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -497,7 +528,7 @@ Every address that worked before still lands on the right page, without a histor
 
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U58
+- **Journeys and checks:** U58, U81
 
 ### BRAND
 
@@ -521,14 +552,14 @@ Faro can be put on a phone's home screen and is easy to see there: a web app man
 There are no role labels: owners edit and check in on their goals; everyone else can view, watch and comment; admins manage people and settings.
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`; “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U1, U2, U9
+- **Journeys and checks:** U1, U2, U9, U141
 
 ### ADMIN
 
 Whoever sets up a workspace is its admin. Admins add people and change their details on People, and make someone an admin or take it back on Workspace, Access (Add an admin, Remove as admin, asked first, with Undo) or on that person's page; the last admin cannot be removed and has no button to try.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Workspace: Access” (`workspace-access`)
-- **Journeys and checks:** U5, U10, U14, U60
+- **Journeys and checks:** U5, U10, U14, U60, U141
 
 ### PEOPLE-DIRECTORY
 
@@ -708,7 +739,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
-- **Journeys and checks:** U46
+- **Journeys and checks:** U46, U89
 
 ## Demo
 
@@ -810,9 +841,9 @@ A cycle ends on its last day (its last week's Sunday) whether or not the next is
 
 ### CARRY-GOALS
 
-An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on.
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
 
-- **Rule:** [Starting the next year](rules/start-next-year.md)
+- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
 - **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
 - **Journeys and checks:** U115
 
@@ -910,7 +941,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6
+- **Journeys and checks:** F11, P6, P19
 
 ### SHAPE-MATCHES-WORD
 
@@ -929,7 +960,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
-- **Journeys and checks:** U30, U31, U34, U54
+- **Journeys and checks:** N16, U30, U31, U34, U54
 
 ## Layout
 
@@ -951,13 +982,14 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ## Home
 
-### HOME-DASHBOARD
+### HOME-OWNER
 
-Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals ("11 off track" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word.
+Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
 
+- **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10
+- **Journeys and checks:** N3, N10, N26, U122
 
 ## Interface
 
@@ -981,17 +1013,17 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Tests:** `evals/printMotion.eval.ts` (3)
+- **Tests:** `evals/layoutSwitch.eval.ts` (2), `evals/printMotion.eval.ts` (3)
 - **Journeys and checks:** N6
 
 ## Workspace
 
 ### WORKSPACE-ADMIN
 
-Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
+Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
-- **Tests:** `evals/workspace-admin.eval.ts` (6)
+- **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
@@ -1068,7 +1100,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Help:** “Getting around” (`getting-around`)
-- **Journeys and checks:** U72
+- **Journeys and checks:** U72, U136
 
 ## Finding
 
@@ -1084,7 +1116,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U91
+- **Journeys and checks:** F11, N12, U63, U82, U84, U91, U136
 
 ### FIND-ANYWHERE
 
@@ -1141,7 +1173,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8
@@ -1241,10 +1273,10 @@ Feedback sent with a mood and a few words joins the inbox (migration 0026): it i
 
 ### INBOX-TRIAGE
 
-The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
+The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U52
+- **Journeys and checks:** U42, U52
 
 ### MCP-FEEDBACK
 
@@ -1291,15 +1323,6 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`; “Removing, stopping and undoing” (`removing`)
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U44
-
-### IMPORT-UNDO
-
-Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed.
-
-- **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “The activity log” (`activity`), screens `Activity`; “Removing, stopping and undoing” (`removing`)
-- **Tests:** `evals/remove.eval.ts` (1)
-- **Journeys and checks:** U45, U46
 
 ## Architecture
 

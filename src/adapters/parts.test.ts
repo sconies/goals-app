@@ -1,20 +1,23 @@
 // @vitest-environment node
 /* The other outside parts pass their contracts (src/ports/contracts/parts.ts): markups and feedback on Supabase (its
    real adapters, on a stand-in client over Postgres with Faro's migrations) and in this browser; identity, the clock,
-   files, and the demo's number source. */
+   and files. (The demo's number source is the metric module's: src/modules/metrics/numbers.test.ts.) */
 import { feedbackToRow } from '../data/rows';
 import { buildExample } from '../data/examples';
 import { localFeedback } from '../markup/feedback';
 import { markupToRow } from '../markup/model';
 import type { Feedback, Person } from '../domain/types';
-import { clockContract, feedbackContract, filesContract, identityContract, markupContract, numberSourceContract, pickerContract } from '../ports/contracts/parts';
+import { clockContract, feedbackContract, filesContract, identityContract, markupContract, pickerContract } from '../ports/contracts/parts';
 import { signInIdentity } from './signIn';
 import { contractWorkspace } from '../ports/contracts/store';
-import { DEMO_SOURCE, demoNumbers } from './demo/numbers';
 import { browserPrefs, fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
 import { localSearch } from './localSearch';
+import { localGoals } from './localGoals';
+import { goalsContract } from '../ports/contracts/goals';
+import { asOf, type ConformanceWorkspace } from '../spec/conformance';
+import conformanceJson from '../../spec/conformance/workspace.json';
 import { prefsContract, searchContract, searchContractWorkspace } from '../ports/contracts/search';
-import { searchRows } from '../app/reads';
+import { goalRows, searchRows } from '../app/reads';
 import { currentWeek } from '../domain/plan';
 import { CHECK_IN_MOMENT } from '../spec/conformance';
 import { freshPostgres } from './postgres/testDb';
@@ -85,17 +88,18 @@ clockContract('the system clock', () => systemClock);
 clockContract('a fixed clock', () => fixedClock(new Date('2026-11-11T09:00:00Z')));
 filesContract('in memory', async () => memoryFiles());
 
-numberSourceContract('the demo’s CI analytics', async () => {
-  const s = await buildExample(new Date('2026-11-05T12:00:00Z'));
-  const metric = (s.metrics ?? []).find((m) => m.source === DEMO_SOURCE)!;
-  return { source: demoNumbers(() => s), metric, before: new Date('2025-01-01T00:00:00Z'), after: new Date('2026-11-05T12:00:00Z') };
-});
-
 searchContract('over the workspace in this browser', async () => {
   const at = new Date(CHECK_IN_MOMENT);
   const s = searchContractWorkspace(await buildExample(at));
   const cycle = s.cycles[0]!;
   return localSearch(searchRows(s, cycle, at, currentWeek(cycle, at)));
+});
+// The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
+const conf = conformanceJson as unknown as ConformanceWorkspace;
+const builtFor = new Date(conf.builtFor);
+goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s) => {
+  const rows = goalRows(s, conf.cycle, builtFor, currentWeek(conf.cycle, builtFor));
+  return localGoals(() => rows);
 });
 const prefsStorage = memory();
 prefsContract('in this browser', () => browserPrefs('faro-prefs:', () => prefsStorage));

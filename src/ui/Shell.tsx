@@ -18,7 +18,7 @@ import { Icon } from './Icon';
 import { FaroLogo, FaroMark } from './Brand';
 import { ProfileSheet } from './ProfileSheet';
 import { RailLabel } from './Label';
-import { PageHelp } from '../screens/Help';
+import { PageHelp } from './HelpLinks';
 import { useUnreadNews } from '../help/seen';
 import { isGoalTop, ShellTopContext } from './shellTop';
 import { MOODS } from '../markup/model';
@@ -222,7 +222,7 @@ function ShellBody({ children }: { children: ReactNode }) {
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }, [pathname, title, app.ws.name]);
 
-  const focusMode = !!moduleRoute?.focus || /^\/check-in\/|^\/quick-check-in$|^\/goals\/(new|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search)
+  const focusMode = !!moduleRoute?.focus || /^\/check-in\/|^\/quick-check-in$|^\/goals\/(new(\/[^/]+)?|[^/]+\/edit)$|^\/workspace\/new$|^\/reviews\/(new|[^/]+\/edit)$|^\/retro\/[^/]+$/.test(pathname) || /[?&]review=/.test(search)
     // Check-in's list keeps the sidebar (NV3); the walk it starts (?start=1) is focus mode, as a goal's form is.
     || (pathname === '/check-in' && /[?&]start=1/.test(search));
   const icons = look.sidebar === 'icons';

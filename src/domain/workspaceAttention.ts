@@ -6,7 +6,8 @@ import type { Cycle, Person, Snapshot } from './types';
 
 export interface WorkspaceNeed {
   /** Stable, for tests and keys. */
-  id: 'no-goals' | 'no-review' | 'only-admin' | 'no-email' | 'no-team' | 'no-lead';
+  id: 'no-goals' | 'no-review' | 'only-admin' | 'no-email' | 'no-team' | 'no-lead' | (string & {});
+  /* A module's own need (the metric library's `metric-no-owner`) comes after the core's, with an id of its own. */
   /** What needs sorting out, as a short sentence (shown in bold). */
   says: string;
   /** Why it matters, in a line under it. */
@@ -117,5 +118,14 @@ export function cycleLine(c: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, curren
   const when = live && current ? `Week ${Math.max(1, Math.min(week, c.weeks))} of ${c.weeks} · ${dates}` : `${dates} · ${c.weeks} weeks`;
   const goals = `${counts.goals.toLocaleString('en-GB')} ${counts.goals === 1 ? 'goal' : 'goals'}`;
   return { title, when, counts: `${goals} · ${counts.checkIns ? `${counts.checkIns.toLocaleString('en-GB')} ${counts.checkIns === 1 ? 'check-in' : 'check-ins'}` : 'no check-ins yet'}` };
+}
+
+/**
+ * The line said once a switch lands you in another workspace (outside review, 12 Nov): who you are there and your role,
+ * when either differs from where you came from. The same person with the same role needs no line.
+ */
+export function landingLine(before: { name: string; admin?: boolean } | null, after: { name: string; admin?: boolean }): string | null {
+  if (before && before.name === after.name && !!before.admin === !!after.admin) return null;
+  return `You’re ${after.name} here, ${after.admin ? 'an admin' : 'a member'}.`;
 }
 

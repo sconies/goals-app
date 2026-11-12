@@ -4,19 +4,21 @@
 
    | Part              | Interface        | Adapters today                                                           |
    | The goals store   | Store            | browser (data/store.ts), Supabase, plain Postgres (src/adapters/)       |
+   |                   |                  | (ports/store.ts; the demo's example plumbing is the browser store's)     |
    | Markups           | MarkupStore      | Supabase (adapters/supabase/markups.ts), this browser (markup/backend)  |
    | Feedback          | FeedbackStore    | Supabase (adapters/supabase/feedback.ts), this browser (markup/feedback)|
    | Who is viewing    | Identity         | the "Who are you?" picker (adapters/local.ts); your sign-in replaces it |
    | The time          | Clock            | the system clock, or one fixed for the demo and the evals               |
    | Files             | Files            | Supabase Storage (adapters/supabase/files.ts), memory (adapters/local)  |
-   | Numbers           | NumberSource     | the demo's (adapters/demo/numbers.ts); real connectors are yours        |
+   | Numbers           | NumberSource     | the metric module's demo (modules/metrics/numbers.ts); yours otherwise  |
    | Finding things    | Search           | over the loaded workspace (adapters/localSearch.ts); a server's search  |
+   | Goal lists, counts| Goals            | over the loaded workspace (adapters/localGoals.ts); a server's queries  |
    | Small preferences | Prefs            | this browser (adapters/local.ts); later, the server                      |
 
    Supabase is imported only by src/adapters/supabase/ (the layers lint, rule 4). */
-import type { Metric } from '../domain/types';
 
-export type { Store } from '../data/store';
+export type { Store } from './store';
+export type { Goals, GoalAsk, GoalPage, GoalCounts, GoalRow } from './goals';
 export type { MarkupStore } from '../markup/ops';
 export type { FeedbackStore } from '../markup/feedback';
 
@@ -30,6 +32,16 @@ export interface Identity {
   current(workspaceId: string): Promise<string | null>;
   /** Only on the demo's picker: says who is using it. A real sign-in has none, since who you are is not a choice. */
   choose?(workspaceId: string, personId: string): void;
+  /** Why `current` said nobody, when it can tell (a sign-in can): the page that turns someone away says so, and how to
+      get in. Null when `current` names someone. */
+  why?(workspaceId: string): Promise<NoEntry | null>;
+}
+
+/** Why a sign-in opens no one in a workspace: not signed in; no one there has the email; more than one person has it;
+    or the only ones who have it are marked as left or removed. With the email signed in with, where there is one. */
+export interface NoEntry {
+  reason: 'signed-out' | 'no-one' | 'shared' | 'left';
+  email?: string;
 }
 
 /** The demo's picker: an Identity that can be told who is using it. */
@@ -55,14 +67,23 @@ export interface Reading {
   at: string;
 }
 
+/** What a number source reads of a metric: which one, and where its numbers come from. The metric library's records
+    (src/modules/metrics) are a module's, not the core's, so the port names only what it reads. */
+export interface SourcedMetric {
+  id: string;
+  /** Where its number comes from: a number source of this name reads it. */
+  source: string;
+  removedAt?: string | null;
+}
+
 /** Where a metric's numbers come from (a dashboard, a warehouse, a monitoring tool), so it can fill itself in. */
 export interface NumberSource {
   /** Its name as a metric's `source` names it (e.g. "CI analytics"). */
   readonly name: string;
   /** Whether it can read this metric. */
-  reads(metric: Metric): boolean;
+  reads(metric: SourcedMetric): boolean;
   /** The latest reading at or before `at`; null when it has none yet. */
-  read(metric: Metric, at: Date): Promise<Reading | null>;
+  read(metric: SourcedMetric, at: Date): Promise<Reading | null>;
 }
 
 export type { Search, SearchKind, SearchAsk, SearchAnswer, FoundRow } from './search';

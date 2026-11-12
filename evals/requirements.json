@@ -117,6 +117,21 @@
       "text": "A lead can create a metric, range or milestone goal with a plan, and invalid input is explained."
     },
     {
+      "id": "NEW-GOAL-STEPS",
+      "area": "Goals",
+      "text": "New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything."
+    },
+    {
+      "id": "GOAL-ENTRY-REQUIRED",
+      "area": "Goals",
+      "text": "Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back."
+    },
+    {
+      "id": "GOAL-DATES",
+      "area": "Goals",
+      "text": "A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
@@ -299,7 +314,7 @@
     {
       "id": "CARRY-GOALS",
       "area": "Cycles",
-      "text": "An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on."
+      "text": "An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true."
     },
     {
       "id": "QUARTER-RESULTS",
@@ -462,6 +477,11 @@
       "text": "A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to."
     },
     {
+      "id": "GOAL-EDIT-PAGE",
+      "area": "Goals",
+      "text": "Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section."
+    },
+    {
       "id": "GOAL-SAYS",
       "area": "Goals",
       "text": "Watching and commenting say who will see what before you do them."
@@ -502,9 +522,9 @@
       "text": "Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card."
     },
     {
-      "id": "HOME-DASHBOARD",
+      "id": "HOME-OWNER",
       "area": "Home",
-      "text": "Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals (\"11 off track\" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word."
+      "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date."
     },
     {
       "id": "SETTINGS",
@@ -519,7 +539,7 @@
     {
       "id": "WORKSPACE-ADMIN",
       "area": "Workspace",
-      "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
+      "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may."
     },
     {
       "id": "GOALS-SCOPE",
@@ -602,6 +622,21 @@
       "text": "Anyone finds a person or a team, and gets from either to their goals (app redesign WR1). People (/people, in the sidebar; on a phone under More) lists everyone not marked as left, A to Z ignoring case and accents, 50 a page; a search matches when every word typed starts a word of the name, job title or team; filters for a team (its lead counts) or no team, and admins only; everything in the address. A row links to the person, with their job title, team and line (Admin; what they lead; their goals this year). A person's page: team, email, role here, goals counted by status as shape and word (each a link to those goals), reviews, and \"See {name}’s goals\". Teams (/teams) lists each team with its lead, people and goals by status, the same numbers as Goals' By team; a team's page says what it is here to do, its goals by status and its people, with \"See its goals\". Members see no control that changes anything; admins add, change and mark people as left, and add, change and remove teams there."
     },
     {
+      "id": "METRICS-LIBRARY",
+      "area": "Metrics",
+      "text": "Anyone can find a metric, read what it means, and see every goal measured by it side by side (ML1). Metrics (/metrics, in the menu after People; on a phone under More) lists every metric in use A to Z ignoring case and accents, 50 a page; a search matches the name, unit, \"lower is better\" or \"higher is better\", the owner and the meaning; filters for the unit, the team or the whole company a goal measures it for, the owner, which way is better, no goals, and something to sort out; sorts A to Z, most goals first and changed lately; everything in the address. A row links to the metric, says its unit, direction and owner, and its goals by status as shape and word, worst first. A metric's page says what it means and how it's calculated, then its goals as a table (status, goal, for, now, target with its week, against plan, owner), worst first, with the lowest and highest now when two or more have a number, then its source, the source's owner, refresh, caveats and who added and last changed it. Its owner and admins see what it still needs and can change or remove it; everyone else sees who can. A goal's summary says what measures it; a person's page lists the metrics they own and a team's the metrics its goals use. Old addresses under /data/metrics lead to the library, a metric or the form."
+    },
+    {
+      "id": "METRICS-MEASURED-BY",
+      "area": "Metrics",
+      "text": "A goal's metric is chosen by typing to find it where the goal is made or changed, or added there, and fills in what the metric already says (ML2). In New goal, \"Measured by\" is the first field on the measure step (under the name when changing a goal), never for a goal with dated stages or for someone who may not link the goal: find-and-pick with \"No metric\" first, metrics in the goal's unit offered first, and \"Add “…” as a new metric\" last. Choosing one shows its meaning, the goal's team or the whole company under \"For\", and, on a new goal whose unit and decimals nobody typed, sets them from the metric and says so in one line with \"Use different ones\". A unit that differs stops the save with the reason. Added in place, a metric needs a name, a unit and which way is better, is owned by whoever adds it, and is chosen. Check says \"Measured by {metric}, for {team}\". Goals filters by the metric (?metric=, \"Measured by\" in the filter line), and a metric's page opens Goals filtered to it."
+    },
+    {
+      "id": "METRICS-CARE",
+      "area": "Metrics",
+      "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" with Use that one, as a status that never stops the save. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them."
+    },
+    {
       "id": "OLD-ADDRESSES",
       "area": "Platform",
       "text": "Every address that worked before still lands on the right page, without a history entry and keeping its query: /workspace/people goes to /people, /workspace/people?team=<id> to that team's page, /workspace/teams to /teams, and /workspace#people and #teams to People and Teams (domain/directory movedTo)."
@@ -659,7 +694,7 @@
     {
       "id": "STALE-RELOAD",
       "area": "Observability",
-      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop."
+      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back."
     },
     {
       "id": "TELEMETRY-PRIVACY",
@@ -764,7 +799,7 @@
     {
       "id": "INBOX-TRIAGE",
       "area": "Feedback",
-      "text": "The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox."
+      "text": "The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox."
     },
     {
       "id": "MCP-FEEDBACK",
@@ -812,6 +847,16 @@
       "text": "Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from."
     },
     {
+      "id": "IMPORT-LEVELS",
+      "area": "Data",
+      "text": "Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused."
+    },
+    {
+      "id": "IMPORT-PREVIEW",
+      "area": "Data",
+      "text": "Before anything is saved an import says which sheets and columns it read and which it did not, then counts by sheet, then what must be fixed, then its questions, then the changes on request with before and after and every default it used. Saving is all or nothing unless the person chooses to leave named rows out."
+    },
+    {
       "id": "IMPORT-ACTIONS",
       "area": "Data",
       "text": "A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams."
@@ -824,7 +869,7 @@
     {
       "id": "IMPORT-UNDO",
       "area": "Removing",
-      "text": "Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed."
+      "text": "Every import, bulk edit and bulk change through MCP is one line in Past imports and one entry in Activity, and can be undone as a whole by whoever made it or an admin. Undo says beforehand which rows have changed since and will stay."
     },
     {
       "id": "MODULES",

@@ -1,18 +1,28 @@
 /* Starting the next year only prepares it (cycle-end spec, CY2: rules 3, 4, 7 and 9), and which goals carry on,
    finish or stop (rule 5's kinds). The example is the demo's: 2026 starts on 22 Dec 2025 (week 0) with 53 weeks. */
 import { describe, expect, it } from 'vitest';
-import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape } from './cycle';
+import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape, periodNow } from './cycle';
+import { wrapUpScope } from '../app/reads';
 import { carryKind, startReadBack } from './carry';
-import { NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
-import { canUndoStart, deleteCycle, undoStart } from './removal';
+import { mergeCommits, NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
+import { canUndoStart, deleteCycle, stopGoal, undoStart } from './removal';
 import { applyCommit } from '../data/store';
 import { startPage } from './startYear';
+import { recarry, withRecarry } from './recarry';
+import type { Commit } from './commit';
 import { buildPlatformOrg } from '../data/platformOrg';
-import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
+import type { CheckIn, Cycle, Goal, MetricGoal, Retro, Snapshot } from './types';
+import type { MetricLink } from '../modules/metrics/types';
+import metricsRecords from '../modules/metrics/records';
+import { postCheckIn } from './changeset';
+import { emptyDraft } from './checkin';
+import { planAt } from './plan';
 
 const y26: Cycle = { id: 'c26', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 };
 const y27: Cycle = { id: 'c27', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 };
 const on = (iso: string) => new Date(iso + 'T12:00:00Z');
+/** The metrics module's records, as the app hands them to the rules (core/records). */
+const RECORDS = [{ ...metricsRecords, module: 'metrics' }];
 
 describe('which cycle the app is in (rule 3)', () => {
   it('stays in the old year until the new one’s week 1', () => {
@@ -104,7 +114,7 @@ describe('starting and undoing (rules 6 and 9)', () => {
   const amara = s0.people.find((p) => p.id === 'amara')!;
   const rhea = s0.people.find((p) => p.id === 'rhea')!;
   let k = 0;
-  const ctx = (full: Snapshot, when: string, who = amara): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 52, actor: who, now: when + 'T10:00:00Z', newId: (p) => `${p}_t${++k}`, full });
+  const ctx = (full: Snapshot, when: string, who = amara): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 52, actor: who, now: when + 'T10:00:00Z', newId: (p) => `${p}_t${++k}`, full, records: RECORDS });
   const says = (f: () => unknown) => { try { f(); return 'done'; } catch (e) { return e instanceof NotAllowed ? e.message : String(e); } };
 
   it('can’t be started before the wrap-up opens, or by a member', () => {
@@ -153,6 +163,36 @@ describe('starting and undoing (rules 6 and 9)', () => {
   });
 });
 
+describe('last year’s wrap-up once the next year is current (rule 3; build review of #133, high)', () => {
+  const s0 = buildPlatformOrg(on('2026-11-05'));
+  const y26 = s0.cycles[0]!;
+  const amara = s0.people.find((p) => p.id === 'amara')!;
+  let k = 0;
+  const ctx = (full: Snapshot, cycle: Cycle, when: string): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt) }, cycle, week: 1, actor: amara, now: when + 'T10:00:00Z', newId: (p) => `${p}_w${++k}`, full });
+  const s1 = applyCommit(s0, startNextCycle({ ...ctx(s0, y26, '2026-12-22'), week: 52 }).commit);
+  const y27 = s1.cycles.find((c) => c.id !== y26.id)!;
+  const old = s1.goals.find((g) => g.cycleId === y26.id && !g.removedAt && !g.stoppedAt && !(s1.retros ?? []).some((r) => r.goalId === g.id))!;
+
+  it('on 11 Jan 2027, with 2027 current, the page is 2026’s and a 2026 goal’s wrap-up saves, in 2026', () => {
+    expect(currentCycle(s1.cycles, on('2027-01-11'))!.id).toBe(y27.id);
+    const scope = wrapUpScope(s1, y27, ctx(s1, y27, '2027-01-11').snapshot, 1, on('2027-01-11'));
+    expect(scope.cycle.id).toBe(y26.id);
+    expect(scope.earlier).toBe(true);
+    expect(scope.snapshot.goals.some((g) => g.id === old.id)).toBe(true);
+    const c = saveRetro(ctx(s1, y27, '2027-01-11'), old, { result: 'partly', learned: 'Moved more slowly than planned', next: 'carry' });
+    expect(c.retros![0]!.cycleId).toBe(y26.id);
+  });
+
+  it('after 2026’s wrap-up closes, the page is 2027’s and a 2026 wrap-up is refused', () => {
+    expect(wrapUpScope(s1, y27, s1, 5, on('2027-02-05')).cycle.id).toBe(y27.id);
+    expect(() => saveRetro(ctx(s1, y27, '2027-02-05'), old, { result: 'partly', learned: 'Moved more slowly than planned', next: 'carry' })).toThrow('2026’s wrap-up closed on Sun 31 Jan 2027.');
+  });
+
+  it('before a year’s first week, the period says when it starts, never week 0', () => {
+    expect(periodNow(y27, on('2026-12-29'))).toBe('2027 starts Mon 4 Jan 2027');
+  });
+});
+
 describe('the start page (2.4)', () => {
   const s = buildPlatformOrg(on('2026-11-05'));
   const cycle = s.cycles[0]!;
@@ -168,6 +208,155 @@ describe('the start page (2.4)', () => {
     expect(p.counts.map((c) => c.says)).toEqual(['carry on', 'finish', 'stop', 'not wrapped up yet']);
     expect(p.counts.reduce((n, c) => n + c.n, 0)).toBe(p.readBack!.total);
     expect(p.startsWith.at(-1)!.bold).toBe('Check-ins every week, due by Thursday');
-    expect(startPage(s, cycle, on('2027-01-11')).line).toMatch(/It opens for everyone as soon as you start it\.$/);
+    expect(startPage(s, cycle, on('2027-01-11')).line).toMatch(/It opens for everyone as soon as you start it\. 2026’s wrap-up stays open until Sun 31 Jan 2027\.$/);
+  });
+});
+
+describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)', () => {
+  const s0 = buildPlatformOrg(on('2026-11-05'));
+  const cycle = s0.cycles[0]!;
+  const amara = s0.people.find((p) => p.id === 'amara')!;
+  let k = 0;
+  const ctx = (full: Snapshot, when: string): ActionContext => ({ snapshot: { ...full, goals: full.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt), checkIns: full.checkIns.filter((c) => !c.removedAt) }, cycle, week: 52, actor: amara, now: when + 'T10:00:00Z', newId: (p) => `${p}_c${++k}`, full, records: RECORDS });
+
+  it('starts a number goal from its final number in week 1, due at the end of the new year; spreads stages over it; keeps a long plan', () => {
+    const made = nextCycle(y26, [num('g126', 0.42, 0.3, { plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } } as never)], [ci('g126', 53, 0.37 as never)], [], { cycle: 'c27', goal: (g) => g.id + '-2' }, '2026-12-21T10:00:00Z');
+    expect((made.goals[0] as never as { plan: unknown }).plan).toEqual({ start: 0.37, target: 0.3, shape: 'straight', fromWeek: 0 });
+    const stages: Goal = { ...base, id: 'g7', key: 'G-7', title: 'g7', kind: 'milestone', unit: '', stages: [{ id: 'a', name: 'A', dueWeek: 10 }, { id: 'b', name: 'B', dueWeek: 40 }, { id: 'c', name: 'C', dueWeek: 50 }] } as unknown as Goal;
+    const m = nextCycle(y26, [stages], [ci('g7', 30, null, { stages: [{ stageId: 'a', doneWeek: 9 }] as never })], [], { cycle: 'c27', goal: (g) => g.id + '-2' }, '2026-12-21T10:00:00Z');
+    expect((m.goals[0] as never as { stages: { dueWeek: number }[] }).stages.map((x) => x.dueWeek)).toEqual([26, 52]);
+    const long = nextCycle(y26, [num('g125', 0, 60, { plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } } as never)], [], [], { cycle: 'c27', goal: (g) => g.id + '-2' }, '2026-12-21T10:00:00Z');
+    expect((long.goals[0] as never as { plan: { fromWeek: number; endWeek: number } }).plan).toMatchObject({ fromWeek: -8, endWeek: 13 });
+  });
+
+  it('never makes a plan that turns round, starts late, or has a stage after the year’s end, in the whole example', () => {
+    const live = s0.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt && !g.stoppedAt);
+    const made = nextCycle(cycle, live, s0.checkIns, [], { cycle: 'c2', goal: (g) => g.id + '-2' }, '2026-12-21T10:00:00Z');
+    for (const g of made.goals) {
+      const from = live.find((x) => x.key === g.key)!;
+      if (g.kind === 'metric' && from.kind === 'metric' && (from.plan.endWeek ?? 0) <= cycle.weeks) {
+        expect(Math.sign(g.plan.target - g.plan.start)).toBe(Math.sign(from.plan.target - from.plan.start));
+        expect(g.plan.start).not.toBe(g.plan.target);
+        expect(g.plan.fromWeek ?? 0).toBe(0);
+      }
+      if (g.kind === 'milestone') for (const st of g.stages) expect(st.dueWeek).toBeLessThanOrEqual(made.cycle.weeks);
+    }
+  });
+
+  it('brings metric links, watches, open asks and reviews, and Undo puts every one back', () => {
+    const out = startNextCycle(ctx(s0, '2026-12-21'));
+    const c = out.commit;
+    const s1 = applyCommit(s0, c);
+    const copies = new Set(c.goals!.map((g) => g.id));
+    expect(c.watches!.length).toBeGreaterThan(0);
+    expect(c.watches!.every((w) => copies.has(w.ref))).toBe(true);
+    expect(c.requests!.every((r) => r.status === 'open' && r.goalIds.some((id) => copies.has(id)))).toBe(true);
+    const links = (c.modules?.metrics?.metricLinks ?? []) as MetricLink[];
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.every((l) => copies.has(l.goalId))).toBe(true);
+    expect(canUndoStart(s1, c.cycles![0]!.id)).toEqual({ ok: true });
+    const s2 = applyCommit(s1, undoStart(ctx(s1, '2026-12-22'), c.cycles![0]!.id));
+    const liveWatches = (s: Snapshot) => (s.watches ?? []).filter((w) => !w.removedAt).length;
+    const liveLinks = (s: Snapshot) => ((s.modules?.metrics?.metricLinks ?? []) as MetricLink[]).filter((l) => !l.removedAt).length;
+    expect(liveWatches(s2)).toBe(liveWatches(s0));
+    expect(liveLinks(s2)).toBe(liveLinks(s0));
+    for (const r of s0.requests ?? []) expect(s2.requests!.find((x) => x.id === r.id)!.goalIds).toEqual(r.goalIds);
+    for (const r of s0.reviews ?? []) expect(s2.reviews!.find((x) => x.id === r.id)!.scope).toEqual(r.scope);
+  });
+
+  it('keeps an untouched copy true: a later final number moves its start; a wrap-up “stop” takes it out', () => {
+    const out = startNextCycle(ctx(s0, '2026-12-21'));
+    const s1 = applyCommit(s0, out.commit);
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && g.kind === 'metric' && s1.goals.some((x) => x.cycleId !== cycle.id && x.key === g.key) && (g.plan.endWeek ?? 0) <= cycle.weeks)!;
+    const copyOf = (s: Snapshot) => s.goals.find((g) => g.cycleId !== cycle.id && g.key === old.key && !g.removedAt);
+    const final = ci(old.id, 53, 35, { postedAt: '2026-12-29T10:00:00Z' });
+    const re = recarry(old, s1, { checkIns: [final] }, { now: '2026-12-29T10:00:00Z', actorId: old.ownerId, newId: (p) => p + '_r' });
+    const s2 = applyCommit(s1, { checkIns: [final], ...re!, changes: re!.changes });
+    expect((copyOf(s2) as never as { plan: { start: number } }).plan.start).toBe(35);
+    const stop: Retro = { id: 'r-stop', goalId: old.id, cycleId: cycle.id, result: 'missed', learned: 'Not worth another year', next: 'stop', byId: old.ownerId, at: '2026-12-30T10:00:00Z' };
+    const gone = recarry(old, s2, { retro: stop }, { now: '2026-12-30T10:00:00Z', actorId: old.ownerId, newId: (p) => p + '_s' });
+    const s3 = applyCommit(s2, gone!);
+    expect(copyOf(s3)).toBeUndefined();
+    // Once the copy has a check-in of its own, nothing changes it.
+    const used = { ...s2, checkIns: [...s2.checkIns, ci(copyOf(s2)!.id, 1, 36)] };
+    expect(recarry(old, used, { retro: stop }, { now: '2027-01-12T10:00:00Z', actorId: old.ownerId, newId: (p) => p })).toBeNull();
+  });
+
+  // Every save runs recarry (withRecarry), as the app and the MCP server do.
+  const save = (s: Snapshot, c: Commit, when: string) => applyCommit(s, withRecarry(s, c, { now: when + 'T10:00:00Z', actorId: amara.id, newId: (p) => `${p}_r${++k}`, records: RECORDS }));
+  const later = (s: Snapshot) => s.cycles.find((c) => c.id !== cycle.id && !c.removedAt)!;
+  const copiesOf = (s: Snapshot, g: Goal) => s.goals.filter((x) => x.cycleId === later(s).id && x.key === g.key);
+  const live = (s: Snapshot, g: Goal) => copiesOf(s, g).filter((x) => !x.removedAt);
+  const wrap = (s: Snapshot, g: Goal, next: Retro['next'], when: string) => saveRetro({ ...ctx(s, when), week: 53 }, g, { result: 'partly', learned: 'Moved more slowly than planned', next });
+  const started = () => applyCommit(s0, startNextCycle(ctx(s0, '2026-12-21')).commit);
+
+  it('keeps the copy true for a check-in from the change engine too: the check-in screens, the tables and a spreadsheet', () => {
+    const s1 = started();
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && g.kind === 'metric' && s1.goals.some((x) => x.cycleId !== cycle.id && x.key === g.key) && (g.plan.endWeek ?? 0) <= cycle.weeks) as MetricGoal;
+    const value = Math.round(planAt(old.plan, 53, cycle.weeks));
+    const out = postCheckIn({ ...ctx(s1, '2026-12-29'), week: 53 }, { goalId: old.id, week: 53, draft: { ...emptyDraft(old, null), value: String(value) }, mode: 'new' });
+    const s2 = save(s1, out.commit, '2026-12-29');
+    // A final number on plan meets the target, so the goal now finishes and its untouched copy leaves 2027.
+    expect(live(s2, old)).toHaveLength(0);
+    expect(s2.changes.some((c) => /finishes in 2026, so it left 2027/.test(c.summary))).toBe(true);
+  });
+
+  it('stop, then carry it on, brings the same copy back; stopping again takes it out; never two (build review of #152, high 1)', () => {
+    const s1 = started();
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && !g.parentId)!;
+    const first = live(s1, old)[0]!;
+    const s2 = save(s1, wrap(s1, old, 'stop', '2026-12-29'), '2026-12-29');
+    expect(live(s2, old)).toHaveLength(0);
+    const s3 = save(s2, wrap(s2, old, 'carry', '2026-12-30'), '2026-12-30');
+    expect(live(s3, old).map((g) => g.id)).toEqual([first.id]);
+    expect(copiesOf(s3, old)).toHaveLength(1);
+    const s4 = save(s3, wrap(s3, old, 'stop', '2026-12-31'), '2026-12-31');
+    expect(live(s4, old)).toHaveLength(0);
+    // Nobody used 2027, so Undo is still offered (medium 5).
+    expect(canUndoStart(s3, later(s3).id)).toEqual({ ok: true });
+  });
+
+  it('a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)', () => {
+    const s1 = started();
+    const parent = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && s1.goals.some((c) => c.cycleId === cycle.id && c.parentId === g.id && live(s1, c).length === 1))!;
+    const copy = live(s1, parent)[0]!;
+    const kids = s1.goals.filter((c) => c.cycleId === later(s1).id && c.parentId === copy.id);
+    expect(kids.length).toBeGreaterThan(0);
+    const s2 = save(s1, wrap(s1, parent, 'stop', '2026-12-29'), '2026-12-29');
+    for (const k of kids) { const now = s2.goals.find((g) => g.id === k.id)!; expect(now.parentId).toBeNull(); expect(now.effect ?? null).toBeNull(); }
+    const s3 = save(s2, wrap(s2, parent, 'carry', '2026-12-30'), '2026-12-30');
+    for (const k of kids) expect(s3.goals.find((g) => g.id === k.id)!.parentId).toBe(copy.id);
+  });
+
+  it('a parent and its child leaving or coming back in one save: each row once, the child under its parent (build review of #179)', () => {
+    const s1 = started();
+    const parent = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && s1.goals.some((c) => c.cycleId === cycle.id && c.parentId === g.id && live(s1, c).length === 1))!;
+    const child = s1.goals.find((c) => c.cycleId === cycle.id && c.parentId === parent.id && live(s1, c).length === 1)!;
+    const both = (s: Snapshot, next: Retro['next'], when: string) => withRecarry(s, mergeCommits(wrap(s, parent, next, when), wrap(s, child, next, when)), { now: when + 'T10:00:00Z', actorId: amara.id, newId: (p) => `${p}_b${++k}`, records: RECORDS });
+    const out = both(s1, 'stop', '2026-12-29');
+    const ids = out.goals!.map((g) => g.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const key of ['requests', 'reviews', 'watches'] as const) { const rows = (out[key] ?? []) as { id: string }[]; expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length); }
+    const s2 = applyCommit(s1, out);
+    expect(live(s2, parent)).toHaveLength(0);
+    expect(live(s2, child)).toHaveLength(0);
+    // An ask that named both copies names neither.
+    const gone = new Set([...copiesOf(s2, parent), ...copiesOf(s2, child)].map((g) => g.id));
+    expect((s2.requests ?? []).some((r) => r.goalIds.some((g) => gone.has(g)))).toBe(false);
+    const s3 = applyCommit(s2, both(s2, 'carry', '2026-12-30'));
+    expect(live(s3, child)[0]!.parentId).toBe(live(s3, parent)[0]!.id);
+  });
+
+  it('stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)', () => {
+    const s1 = started();
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && !g.parentId && g.kind === 'metric')!;
+    const s2 = save(s1, stopGoal(ctx(s1, '2026-12-29'), old.id, 'Not worth another year'), '2026-12-29');
+    expect(live(s2, old)).toHaveLength(0);
+    // As a database store reads it back: fields in another order, and no fromWeek when it is 0.
+    const copy = live(s1, old)[0]! as MetricGoal;
+    const { fromWeek: _f, ...plan } = copy.plan;
+    const reread = Object.fromEntries(Object.entries({ ...copy, plan }).reverse()) as unknown as Goal;
+    const s3 = { ...s1, goals: s1.goals.map((g) => (g.id === copy.id ? reread : g)) };
+    expect(recarry(old, s3, {}, { now: '2026-12-29T10:00:00Z', actorId: amara.id, newId: (p) => p, records: RECORDS })).toBeNull();
   });
 });

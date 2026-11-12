@@ -2,6 +2,54 @@
    goal edit, the spreadsheet import and the AI tools. A number is never rounded quietly: one typed with more decimal places
    than its goal keeps is refused with the reason, so what is saved is what is shown. */
 
+/**
+ * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
+ * Anything else (hex, exponents, words) is not a number. Where the goal's unit is known, `numberAsTyped` also says
+ * whether the words after the number are its unit.
+ */
+export function parseNumber(s: string): number | null {
+  return readDigits(splitTyped(s).digits);
+}
+
+/** A typed value as its digits and the words after them: "12 days" is "12" and "days"; "62%" is "62" and "%". */
+function splitTyped(s: string): { digits: string; words: string } {
+  const t = s.trim();
+  const m = /\s*(%|[a-z]+(\s[a-z]+)*)$/i.exec(t);
+  return m ? { digits: t.slice(0, m.index), words: m[0].trim() } : { digits: t, words: '' };
+}
+
+/** The digits of a typed number: a decimal comma, grouping commas and spaces read; anything else is not a number. */
+function readDigits(raw: string): number | null {
+  let t = raw.replace(/\s/g, '');
+  if (!t) return null;
+  if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(',', '.');
+  else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : null;
+}
+
+/** A unit as it is compared: lower case, one space, and the usual short and plural forms the same ("mins" is "min"). */
+const UNIT_SAME: Record<string, string> = { minute: 'min', minutes: 'min', mins: 'min', min: 'min', day: 'day', days: 'day', hr: 'hour', hrs: 'hour', hour: 'hour', hours: 'hour', h: 'hour' };
+export function unitKey(unit: string): string {
+  const u = unit.trim().toLowerCase().replace(/\s+/g, ' ');
+  return UNIT_SAME[u] ?? u.replace(/s$/, '');
+}
+
+/**
+ * Rule 12 (goal entry, section 3's table). A number typed into a goal with `unit`: the number; or `has-words` when the
+ * words after it aren't the goal's unit ("12 days" in a % goal, "12%" in a days goal, any words with no unit); or
+ * `not-number`. "12%" in a % goal and "12 days" in a days goal are the number.
+ */
+export function numberAsTyped(raw: string, unit: string): { n: number } | { problem: 'has-words' | 'not-number'; n?: number } {
+  const { digits, words } = splitTyped(raw);
+  const n = readDigits(digits);
+  if (n == null) return { problem: 'not-number' };
+  if (!words) return { n };
+  if (unit.trim() && unitKey(words) === unitKey(unit)) return { n };
+  return { problem: 'has-words', n };
+}
+
 /** How many decimal places a typed number has: "12.5" 1, "1,250" 0, "29,4" (a decimal comma) 1. */
 export function typedDecimals(raw: string): number {
   let t = raw.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, '').replace(/\s/g, '');
@@ -58,6 +106,8 @@ export const asWritten = (v: number, decimals: number) => Number(v.toFixed(decim
  */
 export function sameAsWritten(cell: string | number, written: number | null | undefined, decimals: number): boolean {
   if (written == null) return false;
+  // An empty cell says nothing, never a 0 (Number('') is 0): beside a written number it is a change.
+  if (String(cell).trim() === '') return false;
   if (String(cell).trim() === String(asWritten(written, decimals))) return true;
   const n = typeof cell === 'number' ? cell : Number(String(cell).trim().replace(/,/g, ''));
   return Number.isFinite(n) && asWritten(n, decimals) === asWritten(written, decimals);
@@ -84,14 +134,3 @@ export function farOutside(n: number, lo: number, hi: number): boolean {
   return n < Math.min(lo, hi) - FAR_OUTSIDE * width || n > Math.max(lo, hi) + FAR_OUTSIDE * width;
 }
 
-/** A plan's start and target (or a range's limit) worth questioning as typed, or null. Asked, never refused. */
-export function setupProblem(unit: string, start: number | null, target: number | null): string | null {
-  const nums = [start, target].filter((x): x is number => x != null);
-  if (nums.some((x) => x < 0) && usuallyPositive(unit)) return `Below zero${unit.trim() ? ' ' + unit.trim() : ''}. Fine for a change or a balance; otherwise check the sign.`;
-  if (start != null && target != null && start !== 0 && target !== 0 && Math.sign(start) === Math.sign(target)) {
-    const r = Math.abs(target / start);
-    if (r >= FAR_RATIO || r <= 1 / FAR_RATIO) return `The target is ${r >= 1 ? 'over ' + FAR_RATIO + ' times' : 'under a ' + FAR_RATIO + 'th of'} the start (${groupDigits(String(start))} to ${groupDigits(String(target))}). Is that right?`;
-  }
-  if (nums.some((x) => Math.abs(x) >= 1e9)) return 'That’s a billion or more. Is it right?';
-  return null;
-}

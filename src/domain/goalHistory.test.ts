@@ -2,6 +2,7 @@
 /* A goal's history shows its gaps (goal spec, rule 4; GT2): every week, checked in or not, with four filters and counts. */
 import { buildPlatformOrg } from '../data/platformOrg';
 import { currentCycle, scopeToCycle } from './cycle';
+import { asksOf } from './asks';
 import { goalHistory, historyKind, type HistoryEntry } from './goalPage';
 import { currentWeek } from './plan';
 import { checkInsFor } from './status';
@@ -13,7 +14,7 @@ const cycle = currentCycle(full.cycles, today)!;
 const s = scopeToCycle(full, cycle);
 const week = currentWeek(cycle, today);
 const goal = (id: string) => s.goals.find((g) => g.id === id)!;
-const input = (g: Goal, checkIns: CheckIn[] = s.checkIns, w = week) => ({ goal: g, checkIns, changes: s.changes.filter((c) => c.goalId === g.id), cycle, week: w, reviews: s.reviews });
+const input = (g: Goal, checkIns: CheckIn[] = s.checkIns, w = week) => ({ goal: g, checkIns, changes: s.changes.filter((c) => c.goalId === g.id), cycle, week: w, asks: asksOf(s).filter((r) => r.goalIds.includes(g.id)) });
 const label = (x: HistoryEntry) => (x.kind === 'missed' ? (x.from === x.to ? `Week ${x.from} · ${x.yet ? 'No check-in yet' : 'No check-in'}` : `Weeks ${x.from} to ${x.to} · No check-ins (${x.weeks} weeks)`) : x.kind === 'checkin' ? `Week ${x.checkIn.week}` : x.kind === 'checkins' ? `Weeks ${x.from}–${x.to}` : x.kind);
 
 describe('a goal’s history (rule 4)', () => {
@@ -38,8 +39,21 @@ describe('a goal’s history (rule 4)', () => {
     const h = goalHistory(input(goal('ns-lead')));
     expect(goalHistory(input(goal('ns-lead')), 'changes').entries.every((x) => x.kind === 'change' && x.change.entity !== 'decision')).toBe(true);
     expect(goalHistory(input(goal('ns-lead')), 'reviews').entries.length).toBeGreaterThan(0);
-    expect(goalHistory(input(goal('ns-lead')), 'reviews').entries.every((x) => historyKind(x, s.reviews) === 'reviews')).toBe(true);
+    expect(goalHistory(input(goal('ns-lead')), 'reviews').entries.every((x) => historyKind(x, asksOf(s)) === 'reviews')).toBe(true);
     expect(h.counts.all).toBe(h.counts.checkins + h.counts.comments + h.counts.reviews + h.counts.changes);
+  });
+
+  it('an ask raised in a review stays under Reviews when the review is renamed; one raised outside a review is a comment', () => {
+    const g = goal('ns-lead');
+    const asks = asksOf(s).filter((r) => r.goalIds.includes(g.id));
+    const inReview = asks.find((r) => r.reviewId);
+    expect(inReview).toBeDefined();
+    expect(input(g).changes.some((c) => c.entity === 'request' && c.entityId === inReview!.id)).toBe(true);
+    const renamed = { ...input(g), changes: input(g).changes.map((c) => ({ ...c, summary: c.summary.replace(/ in .*$/, ' in a renamed review') })) };
+    const before = goalHistory(input(g), 'reviews').entries.length;
+    expect(goalHistory(renamed, 'reviews').entries.length).toBe(before);
+    const loose = { kind: 'change', at: '', change: { id: 'c', at: '', actorId: 'p', goalId: g.id, entity: 'request', entityId: 'not-in-a-review', action: 'asked', summary: 'Asked a question in Weekly platform review', diffs: [] } } as unknown as HistoryEntry;
+    expect(historyKind(loose, asks)).toBe('comments');
   });
 
   it('a goal checked in every week has a week entry for each, none missed', () => {

@@ -62,4 +62,30 @@ describe('set-up that tells the truth', () => {
     expect(s.teams.length).toBeGreaterThan(0);
     expect(s.teams.every((t) => !t.leadId)).toBe(true);
   });
+
+  // A row one letter out is asked about (IM2), and set-up asks nothing yet (IM8): a row it can't build stops set-up,
+  // with the question as its problem, never a goal quietly left out (build review of #145).
+  const typo = (from: string, to: string) => GOALS_TEMPLATE.split('\n').map((l) => (l.split('\t').includes('Deploys rolled back') ? l.replace(from, to) : l)).join('\n');
+  const build = (goals: string) => buildWorkspace({ name: 'Day one', startDate: START, reviewDay: 3, people: PEOPLE_TEMPLATE, goals, now: NOW, idSuffix: 'd1' });
+
+  it('stops set-up on a goal whose owner is one letter out, and says why', () => {
+    const { issues } = build(typo('ben.ortiz@example.com\tBen Ortiz', '\tBen Ortz'));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ table: 'Goals', row: 3 });
+    expect(issues[0]!.message).toContain('Ben Ortiz');
+  });
+
+  it('stops set-up on a goal whose type is one letter out, and says why', () => {
+    const { issues } = build(typo('\trange\t', '\tNumbr\t'));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ table: 'Goals', row: 3 });
+    expect(issues[0]!.message).toContain('Numbr');
+  });
+
+  it('still builds a row it reads on past a question, and says the question beside it', () => {
+    const { issues, notes, snapshot } = build(typo('\t%\t', '\t\t'));
+    expect(issues).toEqual([]);
+    expect(snapshot.goals).toHaveLength(3);
+    expect(notes?.some((n) => n.table === 'Goals' && n.row === 3)).toBe(true);
+  });
 });
