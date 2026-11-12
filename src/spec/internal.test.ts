@@ -43,4 +43,10 @@ describe('the requirements for the internal app', () => {
   it('has a page for each requirement in the overview’s list, with the same title', () => {
     expect(INTERNAL.map((q) => [q.file, q.title])).toEqual(INTERNAL_PAGES.map(([f, t]) => [f, t]));
   });
+
+  it('tags every requirement copy, demo or replace with a requirement written here', () => {
+    const reqs = (JSON.parse(fs.readFileSync(path.join(root, 'evals/requirements.json'), 'utf8')) as { requirements: { id: string; rebuild?: string }[] }).requirements;
+    const ok = new Set(['copy', 'demo', ...INTERNAL.map((q) => `replace ${q.id}`)]);
+    expect(reqs.filter((q) => !ok.has(q.rebuild ?? '')).map((q) => `${q.id}: ${q.rebuild ?? 'no tag'}`)).toEqual([]);
+  });
 });

@@ -218,7 +218,10 @@ export function checks(r: Repo): Check[] {
 
 /* ---------- requirements, routes, screens, modules ---------- */
 
-export interface Requirement { id: string; area: string; text: string }
+/** `rebuild` says what the internal rebuild does with it (gap 7): `copy` it, `replace R<n>` with that requirement for
+    the internal app (spec/requirements/internal/), or `demo`: Faro's own (the demo, research, the builders' inbox), not
+    to copy. */
+export interface Requirement { id: string; area: string; text: string; rebuild: string }
 export interface RequirementsFile {
   requirements: Requirement[];
   journeys: { id: string; rank: number; title: string; who: string }[];
