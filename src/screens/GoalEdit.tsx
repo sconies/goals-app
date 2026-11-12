@@ -218,18 +218,20 @@ function EditSheet({ goal }: { goal: Goal }) {
             </>
           )}
           {goal.kind === 'range' && (
-            <div className="limits">
+            <div className={'limits' + (d.bound === 'between' ? ' between' : '')}>
               <div className="field limits-bound"><span className="field-label" id="bound">Must stay</span>
                 <div className="seg full" role="group" aria-labelledby="bound">
                   <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
+                  <button type="button" aria-pressed={d.bound === 'between'} onClick={() => set({ bound: 'between' })}>Between</button>
                 </div>
               </div>
-              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              {d.bound === 'between' && <label className="field"><span className="field-label">Lower limit</span><input className="input" inputMode="decimal" data-field="lower" value={d.lower} onChange={(e) => set({ lower: e.target.value })} aria-invalid={tried && !!errors.lower} />{err('lower')}</label>}
+              <label className="field"><span className="field-label">{d.bound === 'between' ? 'Upper limit' : 'Limit'}</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
               <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
-          {goal.kind === 'range' && <>{questions('unit')}{questions('limit')}{questions('margin')}</>}
+          {goal.kind === 'range' && <>{questions('unit')}{questions('lower')}{questions('limit')}{questions('margin')}</>}
           {goal.kind === 'milestone' && (
             <StageFields stages={d.stages} cycle={cycle} week={week} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />

@@ -32,7 +32,7 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_goals_title_check', holds: ['>= 3'], rule: 'goal-entry', words: 'A goal’s title has at least 3 characters (spaces at either end not counted).', code: 'src/domain/thresholds.ts#MIN_NAME' },
   { constraint: 'okr_goals_decimals_check', holds: ['decimals >= 0', 'decimals <= 3'], rule: 'goal-entry', words: 'A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.)' },
   { constraint: 'okr_goals_check', holds: ["kind <> 'metric'", 'plan_start <> plan_target'], rule: 'goal-entry', words: 'A number goal has a start, a target and a plan shape, and its start and target differ.' },
-  { constraint: 'okr_goals_check1', holds: ["kind <> 'range'", 'range_margin IS NOT NULL'], rule: 'goal-entry', words: 'A range goal has a bound (at most or at least), a limit and a warning margin.' },
+  { constraint: 'okr_goals_check1', holds: ["kind <> 'range'", 'range_margin IS NOT NULL'], rule: 'goal-entry', words: 'A range goal has a bound (at most, at least or between), a limit and a warning margin.' },
   { constraint: 'okr_goals_range_lower_ok', holds: ["range_bound = 'between'", 'range_lower < range_limit', 'range_lower IS NULL'], rule: 'goal-entry', words: 'A range goal kept between two numbers has a lower number below its limit; any other range goal has no lower number.' },
   { constraint: 'okr_goals_range_margin_check', holds: ['range_margin >='], rule: 'goal-entry', words: 'A range goal’s warning margin is 0 or more.' },
   { constraint: 'okr_goals_check2', holds: ['NOT headline', 'parent_id IS NULL'], rule: 'goal-entry', words: 'A headline goal feeds nothing.' },

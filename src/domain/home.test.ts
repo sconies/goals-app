@@ -90,3 +90,11 @@ describe('Home rule 2: the lead', () => {
     }
   });
 });
+
+describe('Home after the build review of HM1', () => {
+  it('while asks wait, the quiet line doesn’t say nothing is asked', () => {
+    expect(quietLine(facts({ today: '2026-11-13', asks: 2 }, { done: 0, due: [] })).sentence).toBe('2 asks wait for your response.');
+    expect(quietLine(facts({ today: '2026-11-13', asks: 1 }, { done: 0, due: [] })).sentence).toBe('One ask waits for your response.');
+    expect(quietLine(facts({ today: '2026-11-13', asks: 0 }, { done: 0, due: [] })).sentence).toBe('Nothing is asked of you today.');
+  });
+});

@@ -83,10 +83,11 @@ export function goalsMeasuredBy(s: Rows, goals: readonly Goal[], metricId: strin
   return goals.filter((g) => ids.has(g.id));
 }
 
-/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit. Milestones have none. */
-export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most' | 'at least' } | null {
+/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
+    with the lower beside it). Milestones have none. */
+export function goalTarget(g: Goal): { value: number; kind: 'target' | 'at most' | 'at least' | 'between'; lower?: number } | null {
   if (g.kind === 'metric') return { value: g.plan.target, kind: 'target' };
-  if (g.kind === 'range') return { value: g.range.limit, kind: g.range.bound === 'atMost' ? 'at most' : 'at least' };
+  if (g.kind === 'range') return g.range.bound === 'between' ? { value: g.range.limit, kind: 'between', lower: g.range.lower! } : { value: g.range.limit, kind: g.range.bound === 'atMost' ? 'at most' : 'at least' };
   return null;
 }
 
@@ -98,7 +99,7 @@ export function measureOf(s: Rows & { teams: Team[] }, goal: Goal): Measure | nu
   if (!link) return null;
   const metric = liveMetrics(s).find((m) => m.id === link.metricId)!;
   const target = goalTarget(goal);
-  const targetText = target && goal.kind !== 'milestone' ? `${target.kind === 'target' ? 'Target' : target.kind === 'at most' ? 'At most' : 'At least'} ${fmt(target.value, goal)}` : null;
+  const targetText = target && goal.kind !== 'milestone' ? `${target.kind === 'target' ? 'Target' : target.kind === 'at most' ? 'At most' : target.kind === 'at least' ? 'At least' : `Between ${fmt(target.lower!, goal)} and`} ${fmt(target.value, goal)}` : null;
   return { link, metric, slice: sliceName(s, link.teamId), part: (link.part ?? '').trim(), target, targetText };
 }
 /** A slice in words: the team's name (or "a removed team"), or the whole company. */
@@ -252,7 +253,8 @@ export function linkProblems(goal: Goal, m: Metric): { errors: string[]; warning
   else {
     if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || 'no unit'} and the metric is in ${m.unit}. Use the same unit for both.`);
     const up = goal.kind === 'metric' ? goal.plan.target > goal.plan.start : goal.range.bound === 'atLeast';
-    const flat = goal.kind === 'metric' && goal.plan.target === goal.plan.start;
+    // A range between two numbers aims neither way, as a flat plan doesn't.
+    const flat = goal.kind === 'metric' ? goal.plan.target === goal.plan.start : goal.range.bound === 'between';
     // One number, two precisions would read differently on the goal and in the library (domain/numbers).
     if (goal.decimals > m.decimals) warnings.push(`The goal keeps ${placesText(goal.decimals)} and ${m.name} ${placesText(m.decimals)}. Check which is meant.`);
     if (!flat && (up ? 'higher' : 'lower') !== m.direction) warnings.push(`The goal aims ${up ? 'up' : 'down'}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
