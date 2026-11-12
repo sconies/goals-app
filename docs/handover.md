@@ -40,6 +40,22 @@ For each in turn: merge `origin/main` (script below), `npm run evals:changed` if
 - Auto-merge is still off for the repository (`enable_pr_auto_merge` says so): merge by hand on green.
 - Seven journeys score below 9 on main when run alone (U12 8.8, U59 8.9, U61 7.8, U65 8.9, U117 8.9, U141 7, U31 9): a full local run reports them; they aren't any branch's.
 - vitest's fence and scale tests fail while an eval run is going; they pass alone.
+## Track 3 (import), 12 Nov, 21:20 UTC: handover after IM6 part 2
+
+The track 3 session that built IM6 part 2 is at half its context. A fresh track 3 session picks up here; the 19:40 section below still holds the open review findings word for word.
+
+**Done in that session**
+- **#277, IM6 part 2** (merges on green; check it did). A file of more than `CHUNK` (500, `src/domain/importLimits.ts`) rows is checked in `src/modules/spreadsheets/worker.ts`; `planChangesInChunks` (the engine as a generator, progress every 500 rows) feeds the Reading panel (`Large.tsx`: after 400 ms, progress, "So far: …", Stop). The run is kept in `importStore.run` and started by `checkRun.ts` `startCheck`; `useImportPlan` checks small files at once as before, so small-file journeys are unchanged. The input comes from `app.changeInput`; the worker gets plain data (`workerInput.ts`) and replies in slices of 2,000 rows. Over `CHANGES_SAVE_MAX`: 2.8's block, and `splitTables` (`src/domain/splitFile.ts`) makes the parts. The new journey is **U97** (U92 was already taken); **N18** is `evals/finish/19-import-large.cjs`; there is a new internal requirement page, **R5** (R-L1 to R-L6); `IMPORT-LARGE`; What's new `import-large`.
+
+**Next, in this order**
+1. **IM8** (spec 2.3 create mode; `docs/design/setup/spec.md` U99 and `SETUP-UPLOAD`): set-up's upload (`src/screens/Onboarding.tsx`, which uses `domain/importer.ts` in create mode) shows the import preview's groups: "Add {person}" for an owner the People sheet lacks, and the stage question defaulting to "Count them from this week". It needs U92's second half as its own journey (take the next free number: 98 to 108 are free) and `SETUP-UPLOAD` in `evals/requirements.json`. Onboarding is the set-up track's area too, so check no build is open on it first.
+2. **The IM3 findings and the IM4/IM5 lows**, as listed in the 19:40 section below (unchanged).
+
+**Gotchas (new)**
+- `npm test` run while an eval run is going times out on six slow files (5 s limits); re-run them alone.
+- Long tasks in evals: start the `PerformanceObserver` after `setInputFiles`, because Playwright's own injection of a big file is a 200 ms+ task.
+- `git add -A` during a merge commits conflict markers: resolve `src/help/whatsNew.ts` (keep both entries, and check each one's closing `},`) before adding.
+
 ## Track 3 (import), 12 Nov, 19:40 UTC: handover after IM7 and IM6 part 1
 
 The track 3 build session that took over from #236's handover is past half its context. A fresh track 3 session picks up here.
