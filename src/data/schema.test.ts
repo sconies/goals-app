@@ -92,6 +92,13 @@ describe('database schema', () => {
     await db.exec(readFileSync(join(dir, '0042_range_between.sql'), 'utf8'));
     expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conrelid = 'faro.okr_goals'::regclass and pg_get_constraintdef(oid) like '%range_bound%' and pg_get_constraintdef(oid) not like '%range_limit%' and pg_get_constraintdef(oid) not like '%range_lower%'`)).rows[0]!.n).toBe(1);
   });
+  it('keeps a link’s part, a metric’s retirement and its marks, and runs twice (0043)', async () => {
+    const cols = await db.query<{ table_name: string; column_name: string }>(`select table_name, column_name from information_schema.columns
+      where table_schema = 'faro' and ((table_name = 'okr_goal_metrics' and column_name = 'part') or (table_name = 'okr_metrics' and column_name in ('retired_at', 'retired_by', 'retired_why', 'replaced_by', 'marks')))`);
+    expect(cols.rows.length).toBe(6);
+    await db.exec(readFileSync(join(dir, '0043_metric_parts_and_retirement.sql'), 'utf8'));
+    expect((await db.query<{ n: number }>(`select count(*)::int as n from pg_constraint where conname in ('okr_goal_metrics_part_len', 'okr_metrics_retired_why_len', 'okr_metrics_marks_array')`)).rows[0]!.n).toBe(3);
+  });
 });
 
 describe('other causes and demo feedback (0019)', () => {

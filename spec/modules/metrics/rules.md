@@ -210,6 +210,12 @@ A goal's metric is chosen where the goal is made or changed, by typing part of i
 
 **Goals, filtered by a metric.** Goals' address takes `?metric=<id>`: the goals a metric measures now (a link in force). The filter line says “Measured by {metric}”. It is declared as data (a column of each goal's summary, the metric its link names), so a server compares the column itself.
 
+### Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- The part of a metric a goal is measured by (“Which part”) has at most 60 characters; empty means all of it. (`okr_goal_metrics_part_len`)
+
 ### Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
@@ -272,6 +278,12 @@ A name close to one already in the library (rule 4), and what an admin is told o
 **Changing what goals rely on.** When goals in force are measured by a metric and its unit or direction is changed, the form asks first: how many goals, and how many of them will then show a warning that they differ (linking's checks). Their numbers and plans don't change.
 
 **Workspace → About** tells admins how many metrics in use have no owner, or an owner who has left: “{n} metrics have no owner”, because an owner keeps a metric's meaning true, with See them (the library's Something to sort out).
+
+### Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- Why a metric was retired has at most 300 characters. (`okr_metrics_retired_why_len`)
 
 ### Worked examples
 
