@@ -35,8 +35,8 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Plan from week | Optional | A whole number of weeks from the cycle’s start | 46 | This week (0 when setting up a workspace) |
 | To | Optional | A year and a week, after From | 2026-W53 | The cycle’s last week |
 | Due week | Optional | A whole number, after Plan from week; a date in the cycle is read as its week | 53 | The cycle’s last week. On a row already here, empty clears it |
-| Limit | Required for a range goal | A number | 5 | Must fix for a range goal |
-| Must stay | Optional | at most or at least | at most | at most |
+| Limit | Required for a range goal | A number, or two (99.5–99.95, 99.5 to 99.95) | 5 | Must fix for a range goal |
+| Must stay | Optional | at most, at least or between | at most | at most |
 | Margin | Optional | A number, zero or more | 0.5 | No warning margin (0) |
 | Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name) | Design@48; Pilot@52 | Must fix for a stages goal |
 | Feeds into | Optional | A goal’s name | Deploy lead time | It feeds nothing. On a row already here, empty clears it |

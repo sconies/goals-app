@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'range-between',
+    date: '2026-11-12',
+    title: 'Keep a number between two others',
+    points: [
+      'A range can now keep a number between two others: “keep it between 99.5% and 99.95%”. Must stay has Between beside At most and At least, in New goal and Change this goal.',
+      'It is out of range above the upper limit or below the lower one, and at risk within the warning margin of either. The chart draws both limits.',
+      'In a spreadsheet, write both numbers in Limit (99.5–99.95, or 99.5 to 99.95); an export writes them the same way.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
     id: 'metric-defined',
     date: '2026-11-12',
     title: 'Metrics say what’s still to say',

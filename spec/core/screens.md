@@ -460,7 +460,8 @@ None: nothing to type or choose here.
 | “From” | WeekPick | `step === 2` and `d.kind === 'metric'` |
 | “Target” | text | `step === 2` and `d.kind === 'metric'` |
 | “To” | WeekPick | `step === 2` and `d.kind === 'metric'` |
-| “Limit …” | text | `step === 2` and `d.kind === 'range'` |
+| “Lower limit …” | text | `step === 2` and `d.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `step === 2` and `d.kind === 'range'` |
 | “Warn this close … How near the limit counts as at risk, in …. Left empty, it warns only once the limit is cro…” | text | `step === 2` and `d.kind === 'range'` |
 | “How it’s measured · optional” | textarea | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
 | “Where the number comes from · optional” | text | `step === 2` and `((noMetric && (!measurePlace \|\| saidNone \|\| !!d.definition.trim() \|\| !!d.source.trim())) \|\| d.kind === 'miles…` |
@@ -482,6 +483,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it” | button | `asking` |
 | “At most” | button | `step === 2` and `d.kind === 'range'` |
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
+| “Between” | button | `step === 2` and `d.kind === 'range'` |
 | “Change” | button | `step === 3` and `read` and `r.step != null` |
 | “Back” | button | `step > 0` |
 | “Skip: say how it’s measured later” | button | `step === 1` and `proposing` |
@@ -582,7 +584,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “From” | WeekPick | `goal.kind === 'metric'` |
 | “Target (…) …” | text | `goal.kind === 'metric'` |
 | “To” | WeekPick | `goal.kind === 'metric'` |
-| “Limit …” | text | `goal.kind === 'range'` |
+| “Lower limit …” | text | `goal.kind === 'range'` and `d.bound === 'between'` |
+| “Upper limit / Limit …” | text | `goal.kind === 'range'` |
 | “Warn this close …” | text | `goal.kind === 'range'` |
 | “Owner” | PickOne | always |
 | “Team” | PickOne | always |
@@ -609,6 +612,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Discard them” | button | `restored` |
 | “At most” | button | `goal.kind === 'range'` |
 | “At least” | button | `goal.kind === 'range'` |
+| “Between” | button | `goal.kind === 'range'` |
 | “… (worked out when it shows)” | primary | always |
 
 ## Print

@@ -56,6 +56,9 @@
    Must stay takes the row and Limit and Warn sit side by side under it. */
 .goal-form .limits { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); column-gap: 12px; row-gap: 24px; align-items: start; }
 .goal-form .limits .seg button { min-height: 36px; height: 36px; }
+/* Between two numbers: the side on its own row, then the lower and upper limits and the margin. */
+.goal-form .limits.between { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.goal-form .limits.between .limits-bound { grid-column: 1 / -1; }
 .goal-form .limits .input { min-height: 44px; height: 44px; }
 @media (pointer: coarse) {
   .goal-form .limits .seg button { min-height: 44px; height: 44px; }

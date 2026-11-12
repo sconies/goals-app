@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import type { CheckInPost } from '../domain/changeset';
 import { CAUSES_AHEAD, CAUSES_BEHIND, checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, unanswered, type Answers, type Draft, type Missing } from '../domain/checkin';
-import { fmt } from '../domain/format';
+import { fmt, targetText } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
 import type { Cause, Goal, MetricGoal, RangeGoal } from '../domain/types';
@@ -135,7 +135,7 @@ export function QuickCheckIn() {
               const invalidNumber = !!problem?.block;
               const e = invalidNumber ? null : judgedE;
               const last = checkInsFor(g, app.snapshot.checkIns).filter((c) => c.value != null).pop();
-              const plan = g.kind === 'metric' ? fmt(planAt(g.plan, app.week, app.cycle.weeks), g) : (g.range.bound === 'atMost' ? '≤ ' : '≥ ') + fmt(g.range.limit, g);
+              const plan = g.kind === 'metric' ? fmt(planAt(g.plan, app.week, app.cycle.weeks), g) : targetText(g);
               const behind = e?.reason === 'behind';
               const showWhy = !!e?.reason;
               const showPath = !!e?.needsPath;

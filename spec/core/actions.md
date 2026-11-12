@@ -1782,8 +1782,10 @@ export interface GoalDraft {
   start: string;
   target: string;
   shape: PlanShape;
-  bound: 'atMost' | 'atLeast';
+  bound: 'atMost' | 'atLeast' | 'between';
   limit: string;
+  /** A range between two numbers: the lower one (the limit is then the upper one). */
+  lower: string;
   margin: string;
   /** `done`: for a stage due before this week, whether it is already done (rule 3): asked, then 'yes' or 'no'. */
   stages: { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' }[];

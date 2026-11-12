@@ -1,6 +1,7 @@
 import type { Assessment } from './status';
 import type { Goal, MetricGoal, RangeGoal } from './types';
 import { fixed } from './numbers';
+import { rangeSide } from './range';
 import { GAP, gapPhrase, LABEL, STAGE } from './vocabulary';
 
 type Numeric = Pick<MetricGoal | RangeGoal, 'unit' | 'decimals'>;
@@ -61,13 +62,19 @@ export function kindLabel(g: Goal): string {
 
 export function directionLabel(g: Goal): string {
   if (g.kind === 'metric') return g.plan.target < g.plan.start ? 'lower is better' : 'higher is better';
-  if (g.kind === 'range') return g.range.bound === 'atMost' ? 'at most ' + fmt(g.range.limit, g) : 'at least ' + fmt(g.range.limit, g);
+  if (g.kind === 'range') return staysText(g);
   return g.stages.length + ' dated stages';
+}
+
+/** What a range must stay, in words: "at most 2%", "at least 99%", "between 99.5% and 99.95%". */
+export function staysText(g: RangeGoal): string {
+  const { bound, limit, lower } = g.range;
+  return bound === 'between' ? `between ${fmt(lower!, g)} and ${fmt(limit, g)}` : `${bound === 'atMost' ? 'at most' : 'at least'} ${fmt(limit, g)}`;
 }
 
 export function targetText(g: Goal): string {
   if (g.kind === 'metric') return fmt(g.plan.target, g);
-  if (g.kind === 'range') return (g.range.bound === 'atMost' ? '≤ ' : '≥ ') + fmt(g.range.limit, g);
+  if (g.kind === 'range') return g.range.bound === 'between' ? `${fmt(g.range.lower!, g)}–${fmt(g.range.limit, g)}` : (g.range.bound === 'atMost' ? '≤ ' : '≥ ') + fmt(g.range.limit, g);
   const last = g.stages[g.stages.length - 1];
   return last ? 'All by week ' + last.dueWeek : 'No stages';
 }
@@ -98,13 +105,16 @@ export function gapText(g: Goal, a: Assessment): { short: string; long: string; 
   }
   if (a.kind === 'range') {
     // Say what happened and show the limit: "over the limit" is a breach, "near the limit" is a warning.
-    const lim = g.kind === 'range' ? fmt(g.range.limit, g) : '';
-    const side = g.kind === 'range' && g.range.bound === 'atLeast' ? 'Under' : 'Over';
+    // A range between two numbers is judged against the bound nearer its number.
+    const r = g.kind === 'range' ? g.range : null, at = r && rangeSide(r, a.actual);
+    const lim = at ? fmt(at.limit, g as RangeGoal) : '';
+    const side = at?.bound === 'atLeast' ? 'Under' : 'Over';
+    const within = r?.bound === 'between' ? staysText(g as RangeGoal) : `inside the ${lim} limit`;
     if (a.calc === 'off') return { short: `${side} the ${lim} limit, 2 weeks running`, long: 'The guardrail has been breached two weeks running', tone: 'off' };
     if (a.out) return { short: `${side} the ${lim} limit`, long: 'The guardrail was breached this week; two weeks running makes it off track', tone: 'risk' };
-    if (a.previousOut) return { short: `Back inside the ${lim} limit`, long: 'Over the limit last week, back inside this week', tone: 'risk' };
+    if (a.previousOut) return { short: `Back ${within}`, long: 'Over the limit last week, back inside this week', tone: 'risk' };
     if (a.near) return { short: `Near the ${lim} limit`, long: 'Inside the warning margin, not yet breached', tone: 'risk' };
-    return { short: `Inside the ${lim} limit`, long: 'Inside the limit', tone: 'on' };
+    return { short: within[0]!.toUpperCase() + within.slice(1), long: 'Inside the limit', tone: 'on' };
   }
   if (a.kind === 'milestone') {
     if (a.calc === 'done') return { short: GAP.reached.label, long: 'Every stage is done', tone: 'on' };

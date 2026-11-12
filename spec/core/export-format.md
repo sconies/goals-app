@@ -57,8 +57,8 @@ A new row needs Goal, and Owner or Owner email. A number goal also needs Start a
 | Plan from week | Optional | A whole number of weeks from the cycle’s start | `46` | This week (0 when setting up a workspace) | Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle). | Changes the plan; needs a reason once check-ins have started |
 | To | Optional | A year and a week, after From | `2026-W53` | The cycle’s last week | Number goals: the week the target is due (2027-W13). | Changes the plan; needs a reason once check-ins have started |
 | Due week | Optional | A whole number, after Plan from week; a date in the cycle is read as its week | `53` | The cycle’s last week. On a row already here, empty clears it | Number goals: the week the target is due, counted from the cycle’s start. | Changes the plan; needs a reason once check-ins have started |
-| Limit | Required for a range goal | A number | `5` | Must fix for a range goal | Range goals: the number it must stay within. | Changed when loaded back |
-| Must stay | Optional | at most or at least | `at most` | at most | Range goals: at most or at least the limit. | Changed when loaded back |
+| Limit | Required for a range goal | A number, or two (99.5–99.95, 99.5 to 99.95) | `5` | Must fix for a range goal | Range goals: the number it must stay within, or both of two (99.5–99.95). | Changed when loaded back |
+| Must stay | Optional | at most, at least or between | `at most` | at most | Range goals: at most, at least or between the limit. | Changed when loaded back |
 | Margin | Optional | A number, zero or more | `0.5` | No warning margin (0) | Range goals: how close to the limit counts as at risk. | Changed when loaded back |
 | Stages | Required for a stages goal | Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name) | `Design@48; Pilot@52` | Must fix for a stages goal | Milestone goals: each stage as Name@week, separated by semicolons. | Changed when loaded back |
 | Feeds into | Optional | A goal’s name | `Deploy lead time` | It feeds nothing. On a row already here, empty clears it | The goal this one feeds, by name. | Changed when loaded back |
@@ -260,7 +260,7 @@ The words the import reads, as the export writes them (other ways people write t
 - Level: `north star`, `svp`, `team`
 - Type: `metric`, `range`, `milestone`
 - Plan: `straight`, `back-loaded`, `stepped`
-- Must stay: `at most`, `at least`
+- Must stay: `at most`, `at least`, `between`
 - Call: `On track`, `At risk`, `Off track`, `Done`
 - Cause: `Plan too aggressive`, `Delivery slower`, `Blocked by a dependency`, `External factor`, `Data problem`, `Something else`, `Plan too cautious`, `Change landed early`, `One-off, won’t last`
 - Recovery: `Plan`, `Still investigating`, `Needs a decision or help`, `Target should change`
@@ -288,7 +288,7 @@ Everything in the cycle, each goal with its plan by week and its check-ins insid
     "team": "…", "owner": "…", "ownerId": "…", "ownerEmail": "… or null", "feedsIntoId": "… or null", "whyItHelps": "…", "source": "…", "definition": "…",
     // metric:    "unit", "decimals", "plan": { start, target, shape, fromWeek, dueWeek, setByHand, byWeek: [{ week, value }] },
     //            "earlierPlans": [{ untilWeek, start, target, shape }]  (each applied to the weeks before untilWeek)
-    // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast", limit, margin }
+    // range:     "unit", "decimals", "range": { mustStay: "atMost | atLeast | between", lower (between only), limit, margin }
     // milestone: "stages": [{ id, name, dueWeek }]
     // stopped:   "stopped": { at, by, reason }
     "now": { "status": "on | risk | off | stale | none | planned | done", "statusLabel": "…", "statusMeaning": "…", "value": 29.4, "text": "29.4 days",

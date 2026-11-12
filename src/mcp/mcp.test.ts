@@ -6,7 +6,7 @@ import { asksOf } from '../domain/asks';
 import { currentWeek, planAt } from '../domain/plan';
 import { applyQuery, parseQuery } from '../domain/query';
 import { summariseAll } from '../domain/summary';
-import type { ApiToken, MetricGoal, Snapshot } from '../domain/types';
+import type { ApiToken, MetricGoal, RangeGoal, Snapshot } from '../domain/types';
 import { hashToken, newToken } from './protocol';
 
 // Monday of week 45, before this week's check-ins.
@@ -216,6 +216,23 @@ describe('MCP server', () => {
     const saved = (await call('bulk_change', { ...rows, apply: true })).structuredContent!.created as Created;
     for (const x of saved) expect(data().goals.find((g) => g.id === x.id)?.key).toBe(x.key);
     expect(new Set(saved.map((x) => x.key)).size).toBe(2);
+  });
+
+  it('creates and changes a range between two numbers (lower and limit)', async () => {
+    const { call, data } = await setup('amara');
+    const made = await call('create_goal', { type: 'range', title: 'API uptime', owner: 'Mateo Fernández', unit: '%', decimals: 2, lower: 99.5, limit: 99.95, margin: 0.1 });
+    expect(made.isError).toBe(false);
+    const g = data().goals.find((x) => x.title === 'API uptime')!;
+    expect(g.kind === 'range' && g.range).toEqual({ bound: 'between', lower: 99.5, limit: 99.95, margin: 0.1 });
+    // A lower bound alone keeps the upper one; at most drops the lower.
+    expect((await call('update_goal', { goal_id: g.id, lower: 99.6 })).isError).toBe(false);
+    expect(data().goals.find((x) => x.id === g.id)!).toMatchObject({ range: { bound: 'between', lower: 99.6, limit: 99.95 } });
+    expect((await call('update_goal', { goal_id: g.id, must_stay: 'at least', limit: 99.5 })).isError).toBe(false);
+    expect(data().goals.find((x) => x.id === g.id)!).toMatchObject({ range: { bound: 'atLeast', limit: 99.5, margin: 0.1 } });
+    expect((data().goals.find((x) => x.id === g.id) as RangeGoal).range.lower).toBeUndefined();
+    // Lower at or above the upper is goal entry's Must fix.
+    const bad = await call('create_goal', { type: 'range', title: 'Error budget left', owner: 'Mateo Fernández', unit: '%', lower: 5, limit: 2 });
+    expect(bad.content[0]!.text).toContain('The lower number (5%) must be below the upper one (2%).');
   });
 
   it('answers every list the same way, filtered or not: its data as JSON, as structured content and as text (MCP load, 12 Nov)', async () => {

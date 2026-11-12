@@ -108,6 +108,15 @@ function row(args: Record<string, unknown>, map: Record<string, string>): Rec {
   return r;
 }
 /** Rows given as objects with column names, any case, spaces or underscores. */
+/** A range between two numbers as the Goals sheet says it: both in Limit (99.5–99.95), the same rule as an import. A
+    lower bound given alone keeps the goal's own upper one. */
+function withLower(a: Record<string, unknown>, was?: Goal): Record<string, unknown> {
+  if (a.lower == null) return a;
+  const upper = a.limit ?? (was?.kind === 'range' ? was.range.limit : undefined);
+  if (upper == null) throw new Error('A range between two numbers needs limit, the upper number, as well as lower.');
+  return { ...a, limit: `${a.lower}–${upper}`, must_stay: 'between' };
+}
+
 function rows(list: unknown, sheet: string): Rec[] {
   if (list == null) return [];
   if (!Array.isArray(list)) throw new Error(`${sheet} should be a list of rows.`);
@@ -205,8 +214,9 @@ const GOAL_FIELDS = {
   from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
   to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
   due_week: int('Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year).'),
-  limit: num('Keep-in-range goals: the limit.'),
-  must_stay: str('Keep-in-range goals: which side of the limit is good.', { enum: ['at most', 'at least'] }),
+  limit: num('Keep-in-range goals: the limit; for a range between two numbers, the upper one.'),
+  lower: num('Keep-in-range goals between two numbers ("keep it between 99.5 and 99.95"): the lower one, below limit. Giving it makes must_stay "between".'),
+  must_stay: str('Keep-in-range goals: which side of the limit is good, or between lower and limit.', { enum: ['at most', 'at least', 'between'] }),
   margin: num('Keep-in-range goals: how close to the limit counts as at risk.'),
   stages: { type: 'array', items: { type: 'string' }, description: 'Milestone goals: each stage as "Name@week", e.g. "Pilot@6".' },
   feeds_into_id: str('The ID or key (G-12) of the goal this one feeds. Empty string to unlink.'),
@@ -358,7 +368,7 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+      return change(ctx, { goals: [row(withLower({ ...a, goal_id: g.id }, g), { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
@@ -386,7 +396,7 @@ const CORE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
+      return change(ctx, { goals: [row(withLower({ owner: ctx.actor.name, ...a }), { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {
