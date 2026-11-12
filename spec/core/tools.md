@@ -400,7 +400,7 @@ No arguments.
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;
@@ -566,7 +566,7 @@ No arguments.
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;
@@ -5126,7 +5126,7 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
 ## save_metric
 
-**Add or change a metric.** Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true.
+**Add or change a metric.** Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true. A likely mistake is questioned before anything is saved (a name one letter or a word from another metric’s, or one a metric used to have; a unit spelt differently from one in use; a percentage whose meaning doesn’t say out of what): the call returns `checks`, each with its question and answers, and saves nothing. Ask the person, then call again with `answers`. The result says what the metric still needs to say (“Fully defined”, or “Still to say: …”); it is never a score.
 
 From the [metrics](../modules/metrics/README.md) module: switched off with it.
 
@@ -5148,6 +5148,10 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
 | `owner` | string | no | Who answers for the definition, by ID, email or name. Whoever adds it, when left out. |
 | `caveats` | string | no | What to watch out for when reading it. |
 | `confirm` | boolean | no | Yes to changing the unit or direction of a metric goals use, once the person has said so. |
+| `answers` | object | no | The person’s answers to the checks a previous call returned. |
+| `answers.name` | string | no | “keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved). |
+| `answers.unit` | one of `keep`, `use` | no | “keep” the unit as typed, or “use” the one in use. |
+| `answers.meaning` | one of `as-written` | no | “as-written”: the meaning is right as written. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -5218,6 +5222,32 @@ From the [metrics](../modules/metrics/README.md) module: switched off with it.
     "confirm": {
       "type": "boolean",
       "description": "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The person’s answers to the checks a previous call returned.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "“keep” (mine is different), or “use:<id>” to use that metric instead (nothing is saved)."
+        },
+        "unit": {
+          "type": "string",
+          "description": "“keep” the unit as typed, or “use” the one in use.",
+          "enum": [
+            "keep",
+            "use"
+          ]
+        },
+        "meaning": {
+          "type": "string",
+          "description": "“as-written”: the meaning is right as written.",
+          "enum": [
+            "as-written"
+          ]
+        }
+      }
     }
   }
 }
@@ -5570,7 +5600,7 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
         key: string | null;
         title: string;
         level: string;
-        type: 'milestone' | 'metric' | 'range';
+        type: 'metric' | 'range' | 'milestone';
         team: string | null;
         owner: string | null;
         ownerId: string;

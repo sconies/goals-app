@@ -21,6 +21,16 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 
 **Why points, it doesn’t repeat**: with a decision or help open, Why says "Waiting on a decision from {name}: see Next steps and asks" ("from {name} and {name}" for several; "Waiting on a decision: see Next steps and asks" when asked of no one in particular). The ask’s words are said only in the list.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A stopped goal has a reason of 1 to 2,000 characters. (The app asks for at least 10.) (`okr_goals_stop_reason_check`; the code holds it too, in `src/domain/thresholds.ts`)
+- An ask says something: 1 to 2,000 characters. (`okr_requests_ask_check`)
+- An answered ask has its answer and when it was answered. (`okr_requests_check`)
+- An ask’s due week, when it has one, is 0 to 60. (`okr_requests_due_week_check`)
+- An ask is about at least one goal. (`okr_requests_goal_ids_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

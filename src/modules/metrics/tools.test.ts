@@ -46,6 +46,8 @@ describe('metric library tools', () => {
     // Rule 2's row, as its page's table shows it; what it needs only for its owner and admins.
     expect(one.structuredContent).toMatchObject({ goals: [{ key: 'G-1', status: 'off', slice: 'The whole company', now: '37 hours', target: '24 hours by year end', vsPlan: expect.stringMatching(/^\d+ hours behind plan$/), owner: 'Rhea Kapoor' }], summary: null, needs: [] });
     expect((await call('get_metric', { metric: 'nope' })).isError).toBe(true);
+    // Rule 1’s line, in words: never a score.
+    expect((await call('get_metric', { metric: 'metric_lead-time' })).structuredContent).toMatchObject({ stillToSay: { full: true, missing: [], line: 'Fully defined' } });
   });
 
   it('narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)', async () => {
@@ -66,8 +68,14 @@ describe('metric library tools', () => {
 
   it('adds a metric as the person, via the assistant; a second with the same name is refused', async () => {
     const { call, data } = await setup('oskar');
-    const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily' });
-    expect(r.isError).toBe(false);
+    // A name close to another's is a Check (rule 1): nothing is saved until the person answers it.
+    const asked = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily' });
+    expect(asked.isError).toBe(false);
+    expect(asked.structuredContent).toMatchObject({ saved: false, checks: [{ field: 'name', answers: [{ answer: 'use:metric_cache-hit' }, { answer: 'keep' }] }] });
+    expect(metricsOf(data()).some((x) => x.name === 'Build time')).toBe(false);
+    const r = await call('save_metric', { name: 'Build time', unit: 'min', direction: 'lower', refresh: 'daily', answers: { name: 'keep' } });
+    expect(r.isError, r.content[0]!.text).toBe(false);
+    expect(r.content[0]!.text).toMatch(/Still to say: what it means, where the number comes from, who owns that source\.$/);
     const m = metricsOf(data()).find((x) => x.name === 'Build time')!;
     expect(m).toMatchObject({ ownerId: 'oskar', refresh: 'daily', decimals: 0 });
     const log = data().changes.find((c) => c.entityId === m.id)!;

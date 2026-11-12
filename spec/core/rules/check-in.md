@@ -39,6 +39,14 @@ It can be posted when nothing is missing.
 
 **The record** (`toCheckIn`): the number (or the stages), the owner's call as `status`, the calculation as `calculated`, the cause only when a reason was needed, the why, the greener reason only when greener, the proposed target only when one could be asked, the path to green only when needed (its week only for the `plan` state), what's next, and whether the data is flagged. It refuses a draft that can't be posted. The why stored when nothing needed explaining was once "On plan."; it is never shown or counted as a reason.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A check-in’s week is 1 or later. (`okr_check_ins_week_check`)
+- A status greener than the calculated one has a reason of at least 10 characters (spaces at either end not counted). (`okr_check_ins_check1`; the code holds it too, in `src/domain/checkin.ts`)
+- At risk or Off track has a path to green of at least 8 characters, and either a state other than “a plan” or a back-on-plan week after the check-in’s week. (`okr_check_ins_way_back`; the code holds it too, in `src/domain/checkin.ts`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

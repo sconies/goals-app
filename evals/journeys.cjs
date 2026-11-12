@@ -5588,11 +5588,14 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/new'));
   await h.fill(p.getByLabel('Name', { exact: true }), 'CI cost per pipeline run');
-  const asked = p.locator('.metric-close');
-  await see(asked, 'This looks like “CI compute cost per pipeline run”', 'a close name is not asked about');
-  h.set('entry', (await asked.getAttribute('role')) === 'status', 'the close-name question is not a status');
   await h.fill(p.getByLabel('Unit', { exact: true }), 'USD');
+  // A close name is a Check (MT1): asked once the name is left, answered once, then it saves.
+  const asked = p.locator('[data-check="name"]');
+  await see(asked, 'This looks like “CI compute cost per pipeline run”', 'a close name is not asked about');
+  h.set('entry', (await asked.getByRole('button', { name: 'Use that one' }).count()) === 1, 'the close-name question has no Use that one');
   await h.click(p.getByRole('button', { name: 'Lower is better' }));
+  await h.click(asked.getByRole('button', { name: 'Mine is different: keep it' }));
+  await see(p.locator('.check-said'), 'You said: mine is different.', 'an answered Check does not close to one line');
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   await p.getByRole('heading', { level: 1, name: 'CI cost per pipeline run' }).waitFor();
   // What it still needs, each with the button that opens the form at that field.
@@ -5649,6 +5652,80 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
   await h.click(row.getByRole('link', { name: 'See them' }));
   await a.waitForURL(/\/metrics\?sortout=1/);
   await a.context().close();
+}, []);
+
+journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.
+  await p.goto(url('/metrics'));
+  await h.click(p.getByRole('link', { name: 'Add a metric' }).first());
+  await p.waitForURL(/\/metrics\/new/);
+  h.set('entry', true);
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy success rate');
+  await h.fill(p.getByLabel('Unit', { exact: true }), '%');
+  await h.click(p.getByRole('button', { name: 'Higher is better' }));
+  await h.fill(p.getByLabel(/What it means and how/), 'Production deploys with no rollback, out of all production deploys, over 28 days.');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { level: 1, name: 'Deploy success rate' }).waitFor();
+  // The typo: one to fix, two to check.
+  await p.goto(url('/metrics/new'));
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy sucess rate');
+  await h.fill(p.getByLabel('Unit', { exact: true }), '%');
+  await h.fill(p.getByLabel(/What it means and how/), 'Deploys that worked.');
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await see(p.locator('.metric-count'), '1 to fix, 2 to check.', 'the foot does not count what is to fix and to check');
+  const fix = p.locator('#metric-direction .level-fix');
+  await see(fix, 'Must fix', 'the Must fix is not under Which way is better');
+  await see(fix, 'Say which way is better: higher or lower.');
+  h.set('errors', (await p.locator('#metric-direction .seg[aria-invalid="true"]').count()) === 1 && (await fix.locator('.status-shape, svg.shape').count()) === 0, 'the direction is not outlined, or the Must fix uses a status shape');
+  const name = p.locator('[data-check="name"]');
+  await see(name, 'This is one letter from “Deploy success rate” (%, higher is better, owned by Rhea Kapoor, 0 goals).', 'the name’s Check does not name Deploy success rate');
+  const meaning = p.locator('[data-check="meaning"]');
+  await see(meaning, 'This is a percentage, and the words don’t say out of what.', 'the meaning’s Check is not asked');
+  await h.checkpoint('asked');
+  // Use that one opens it; the draft is kept.
+  await h.click(name.getByRole('button', { name: 'Use that one' }));
+  await p.getByRole('heading', { level: 1, name: 'Deploy success rate' }).waitFor();
+  await p.goto(url('/metrics/new'));
+  await see(p, 'Picked up what you hadn’t saved.', 'the draft was not kept after Use that one');
+  h.set('progress', (await p.getByLabel('Name', { exact: true }).inputValue()) === 'Deploy sucess rate', 'the draft was not kept after Use that one');
+  // Answered and given a direction, it saves.
+  await h.click(p.getByRole('button', { name: 'Higher is better' }));
+  await p.getByRole('button', { name: 'Higher is better', pressed: true }).waitFor();
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await see(p.locator('.fix-line'), 'Answer the question above first.', 'an unanswered Check does not stop the save');
+  await h.click(p.locator('[data-check="name"]').getByRole('button', { name: 'Mine is different: keep it' }));
+  await h.click(p.locator('[data-check="meaning"]').getByRole('button', { name: 'It’s right as written' }));
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { level: 1, name: 'Deploy sucess rate' }).waitFor();
+  const still = p.locator('.metric-head .metric-still');
+  await see(still, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'the page does not say what is still to say');
+  const words = await still.innerText();
+  h.set('attention', !/\d/.test(words) && (await p.locator('.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]').count()) === 0, `the line is a score: “${words}”`);
+  const address = new URL(p.url()).pathname.replace(/^\/demo/, '');
+  // Tunde reads the same line, with nothing to click in it (the same browser, whose demo holds the new metric).
+  const viewerKey = 'goals-app-viewer:platform-org';
+  await p.evaluate((k) => localStorage.setItem(k, 'tunde'), viewerKey);
+  await p.goto(url(address));
+  const his = p.locator('.metric-head .metric-still');
+  await see(his, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'Tunde does not see the line');
+  h.set('parity', (await his.getByRole('link').count()) === 0, 'Tunde is offered links to change a metric he doesn’t own');
+  await p.evaluate((k) => localStorage.setItem(k, 'rhea'), viewerKey);
+  await p.goto(url(address));
+  await still.waitFor();
+  // Each item opens the form at its field; with the three said, it is Fully defined.
+  await h.click(still.getByRole('link', { name: 'where the number comes from' }));
+  await p.waitForURL(/\/edit\?field=source/);
+  await h.fill(p.getByLabel('Source', { exact: true }), 'Release dashboard');
+  await h.fill(p.getByLabel('Who owns that source'), 'Release engineering');
+  await p.getByLabel('How often it refreshes').selectOption('daily');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  await see(p.locator('.metric-head .metric-still'), 'Fully defined', 'the page does not say Fully defined');
+  const s = await h.snapshot();
+  const added = (s.changes ?? []).filter((c) => c.entity === 'metric' && /Deploy sucess rate/.test(c.summary)).map((c) => c.action);
+  h.set('logged', added.includes('created') && added.includes('edited'), `the change log has ${added.join(', ') || 'nothing'} for the new metric`);
+  h.set('finish', true);
+  await p.context().close();
 }, []);
 
 journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
@@ -5859,6 +5936,43 @@ journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara,
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged']);
+journey('U98', ['IMPORT-LARGE'], 'Size: as Amara, a file of 6,000 new goals shows “Reading” with how far the check has got and what it has found so far; checked, it is not saved but offered as 2 files of 5,000 rows, which download with the file’s name; chosen again, Stop says nothing was saved and nothing is; a file of 1,200 goals is checked off the page’s thread, its changes drawn 50 at a time, and saves', 16, async (h, device) => {
+  const rows = (k, word) => 'Goal,Owner,Team,Unit,Start,Target\n' + Array.from({ length: k }, (_, i) => `${word} queue ${i + 1},Rhea Kapoor,CI/CD,min,10,5\n`).join('');
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  const big = csvFile('u97.csv', rows(6000, 'Sized'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
+  await see(p, 'Reading u97.csv', 'a large file shows no Reading panel', 10000);
+  await see(p, 'Checking each row', 'the Reading panel does not say how far the check has got');
+  await see(p, 'So far:', 'the Reading panel does not say what the check has found so far', 10000);
+  await h.checkpoint('reading');
+  await see(p, 'This file would change 6,000 rows. Faro saves up to 5,000 at a time.', 'a file over the limit is not stopped before saving', 30000);
+  h.set('errors', !(await p.getByRole('button', { name: /^Save / }).count()), 'a file over the limit still offers Save');
+  const names = [];
+  p.on('download', (d) => names.push(d.suggestedFilename()));
+  await h.click(p.getByRole('button', { name: 'Download as 2 files of 5,000 rows' }));
+  await see(p, 'Saved 2 files', 'the parts do not download', 10000);
+  h.set('finish', names.length === 2 && /^u97-part-1-of-2/.test(names[0] ?? '') && /^u97-part-2-of-2/.test(names[1] ?? ''), `the parts are named ${names.join(', ')}`);
+  await h.checkpoint('too many');
+  await h.click(p.getByRole('button', { name: 'Choose another file' }));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(big);
+  await see(p, 'Reading u97.csv', 'a large file chosen again shows no Reading panel', 10000);
+  await h.click(p.getByRole('button', { name: 'Stop' }));
+  await p.waitForURL(/\/data\/import$/);
+  await see(p, 'Stopped. Nothing was saved.', 'Stop does not say nothing was saved');
+  h.set('logged', !(await h.snapshot()).goals.some((g) => g.title.startsWith('Sized queue')), 'a stopped import saved something');
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u97-small.csv', rows(1200, 'Paged')));
+  await see(p, 'Save 1,200 changes', 'a file of 1,200 rows does not offer to save', 15000);
+  await h.click(p.getByRole('link', { name: 'Show the 1,200 changes' }));
+  const drawn = await p.locator('main li, main tr').count();
+  h.set('attention', drawn <= 60, `the changes list draws ${drawn} rows at once`);
+  await p.goBack();
+  await h.click(p.getByRole('button', { name: 'Save 1,200 changes' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/, { timeout: 20000 });
+  const s = await h.snapshot();
+  h.set('progress', s.goals.filter((g) => g.title.startsWith('Paged queue')).length === 1200, 'the 1,200 goals were not all saved');
+  await p.context().close();
+}, ['parity', 'entry']);
 journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));

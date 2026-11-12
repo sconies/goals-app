@@ -21,6 +21,12 @@ What Workspace says about each cycle and team, the longest name a workspace may 
 
 **The workspace in words.** Its name is the stored name without the example's own "Example: ", with its kind as a quieter line: "example data", "kept in this browser" (made in the demo) or nothing (a real one). The admins are named A to Z as a sentence; beyond three, the first two and how many others. The Year fact says the week ("2026, week 46 of 53.") and when the wrap-up opens: the first day of the first week the wrap-up is open (`wrapUpOpen`), or, once it's open, how many goals are still to wrap up; once the year's last day is past, when it ended and until when the wrap-up stays open; a cycle not begun says when its week 1 starts.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A workspace has a name. (The app asks for 3 to 80 characters.) (`okr_workspaces_name_check`; the code holds it too, in `src/domain/thresholds.ts`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

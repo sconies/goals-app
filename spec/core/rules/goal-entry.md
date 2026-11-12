@@ -25,6 +25,17 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Saving (rule 7, `planGoal`).** Refused, in these words, unless the actor may, nothing must be fixed, every question is answered (“Not saved. Check with the person first: …”, with the questions' words), and a plan change after check-ins have started has a reason (“Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.”). Then one commit: the goal (a new one with the workspace's next key), its History entry with Why and each answer as *Checked* (the question, then the answer given), and a new goal's stages already done (only those due before this week, whatever the draft says).
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A goal’s title has at least 3 characters (spaces at either end not counted). (`okr_goals_title_check`; the code holds it too, in `src/domain/thresholds.ts`)
+- A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.) (`okr_goals_decimals_check`)
+- A number goal has a start, a target and a plan shape, and its start and target differ. (`okr_goals_check`)
+- A range goal has a bound (at most or at least), a limit and a warning margin. (`okr_goals_check1`)
+- A range goal’s warning margin is 0 or more. (`okr_goals_range_margin_check`)
+- A headline goal feeds nothing. (`okr_goals_check2`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
