@@ -186,8 +186,9 @@ describe('the inbox’s operations (anyone’s, in Faro’s open inbox)', () => 
     expect((await o.open('mk_1')).urls).toEqual({ screen: 'https://pictures.example/mk_1/screen.png', ink: 'https://pictures.example/mk_1/ink.png', marked: 'https://pictures.example/mk_1/marked.jpg' });
     expect((await o.setStatus('mk_1', { status: 'in-hand', by: 'Lane', admin: true })).status).toBe('in-hand');
     expect(new URL(await o.issueLink('mk_1')).searchParams.get('body')).toContain('https://faro.example/workspace?markup=mk_1');
-    await expect(o.setIssueUrl('mk_1', 'https://example.com/issue/1')).rejects.toThrow(/issue’s address/);
-    expect((await o.setIssueUrl('mk_1', ' https://github.com/sconies/goals-app/issues/42?x=1 ')).issueUrl).toBe('https://github.com/sconies/goals-app/issues/42');
+    await expect(o.setIssueUrl('mk_1', 'https://example.com/issue/1', true)).rejects.toThrow(/issue’s address/);
+    await expect(o.setIssueUrl('mk_1', 'https://github.com/sconies/goals-app/issues/41', false)).rejects.toThrow(/Only an admin/);
+    expect((await o.setIssueUrl('mk_1', ' https://github.com/sconies/goals-app/issues/42?x=1 ', true)).issueUrl).toBe('https://github.com/sconies/goals-app/issues/42');
     await expect(o.open('mk_none')).rejects.toThrow(/no markup/);
   });
 

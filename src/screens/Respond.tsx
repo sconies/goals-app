@@ -6,6 +6,7 @@
    - an action: mark it done, with an optional note.
    Someone who needs more before deciding asks the owner a question, which is an ask of its own, open until answered;
    the ask they're responding to stays open. Review coverage ("Reviewed & next") is separate and never answers an ask. */
+import { mayPostCheckIn } from '../domain/goalRights';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
@@ -72,7 +73,8 @@ export function RespondForm({ ask: r, onClose, focus }: { ask: Ask; onClose: () 
       <span className="hint">{goals.length > 1 ? `${goals.length} goals are waiting on this: ` : 'For '}{goals.map((g, i) => <span key={g.id}>{i ? ', ' : ''}<Link className="linkish" to={'/goals/' + g.id}>{g.title}</Link></span>)}. {action ? 'Agreed' : 'Asked'} by {asker?.name ?? 'the owner'} {timeAgo(r.createdAt, app.today)}{r.dueWeek != null ? `, due week ${r.dueWeek}` : ''}.</span>
       {allowed ? (
         <>
-          {r.kind === 'update' && goals[0] && <Link className="btn" to={'/check-in/' + goals[0].id}>Check in for week {app.week}</Link>}
+          {/* Check-ins are the owner's (R1): anyone else answers in a sentence. */}
+          {r.kind === 'update' && goals[0] && mayPostCheckIn(app.viewer, goals[0], 'form') && <Link className="btn" to={'/check-in/' + goals[0].id}>Check in for week {app.week}</Link>}
           {canAskBack && (
             <div className="seg full" role="group" aria-label="How to respond">
               <button type="button" aria-pressed={mode === 'answer'} onClick={() => setMode('answer')}>Answer it</button>

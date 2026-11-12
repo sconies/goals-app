@@ -644,7 +644,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
   await see(p, 'MTTR for P1 incidents');
-  h.set('finish', await p.getByText(/Published/).first().waitFor({ timeout: 3000 }).then(() => true, () => false) || await p.getByRole('link', { name: /Check in/ }).isVisible(), 'publishing is not confirmed');
+  h.set('finish', await p.getByText(/is published\.|^Published$/).first().waitFor({ timeout: 8000 }).then(() => true, () => false) || await p.getByRole('link', { name: /Check in/ }).isVisible(), 'publishing is not confirmed');
   const s = await h.snapshot();
   const c = s.changes.filter((x) => x.action === 'created' && x.actorId === 'mateo').pop();
   h.set('logged', !!c && c.diffs.some((d) => d.field === 'Target' && d.to === '45 min') && c.diffs.some((d) => d.field === 'Plan shape' && d.to === 'Back-loaded') && c.diffs.some((d) => d.field === 'Level' && d.to === 'SVP'), 'the new goal is not logged with its fields and level');

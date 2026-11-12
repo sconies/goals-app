@@ -710,11 +710,13 @@ function WhySection({ goal, why }: { goal: Goal; why: ReturnType<typeof whyLine>
   const ptgState = latest?.pathToGreen?.state ?? 'plan';
   const isOwner = app.viewer.id === goal.ownerId;
   const ownerFirst = app.person(goal.ownerId)?.name.split(' ')[0] ?? 'The owner';
+  // A check-in an admin loaded (a workbook, or a correction in Data) is said as theirs, by name: not as the owner's.
+  const sayer = latest && latest.authorId !== goal.ownerId ? app.person(latest.authorId)?.name ?? 'Someone else' : null;
   const [title, purpose] = !latest ? ['Why', 'Nothing said yet. The first check-in will say where it stands.']
-    : stale ? [`Why it has ${lower(STATUS.stale)}`, 'When the owner last said where it stands.']
-    : behind ? [`Why it ${STATUS[status].short}`, `The owner’s reason, from ${when ?? 'their check-in'}.`]
+    : stale ? [`Why it has ${lower(STATUS.stale)}`, `When ${sayer ?? 'the owner'} last said where it stands.`]
+    : behind ? [`Why it ${STATUS[status].short}`, `${sayer ? `${sayer}’s` : 'The owner’s'} reason, from ${when ?? 'their check-in'}.`]
     : onlySignals ? ['Worth knowing', 'What the numbers flag that the status doesn’t say.']
-    : ['The latest word', when ? `What the owner said in ${when}.` : 'What the owner has said so far.'];
+    : ['The latest word', when ? `What ${sayer ?? 'the owner'} said in ${when}.` : 'What the owner has said so far.'];
   return (
     <section className="block why-block goal-section" id="why" aria-labelledby="g-why" data-part="Why">
       <SectionHead id="g-why" title={title} purpose={purpose} />
