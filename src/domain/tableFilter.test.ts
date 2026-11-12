@@ -47,4 +47,16 @@ describe('property filters on a data table', () => {
     expect(describeFilter(f[0]!)).toBe('Owner is any of Sam Patel or Kofi Boateng');
     expect(describeFilter({ col: 'Week', op: 'gte', value: '40' })).toBe('Week ≥ 40');
   });
+
+  it('searches by find’s rule 1 over the shown columns: each word starts a word, a key finds its goal (build review of #115)', () => {
+    const head = ['Key', 'Goal', 'Owner email'];
+    const rows = [{ cells: ['G-48', 'Rollback in five minutes', 'rhea@example.com'] }, { cells: ['G-7', 'Fallback runner for builds', 'jun@example.com'] }];
+    const keys = (q: string, shown?: string[]) => applyTable(rows, head, q, [], null, shown).map((r) => r.cells[0]);
+    expect(keys('back')).toEqual([]);
+    expect(keys('roll')).toEqual(['G-48']);
+    expect(keys('g48')).toEqual(['G-48']);
+    expect(keys('48')).toEqual(['G-48']);
+    expect(keys('rhea', ['Key', 'Goal'])).toEqual([]);
+    expect(keys('rhea')).toEqual(['G-48']);
+  });
 });
