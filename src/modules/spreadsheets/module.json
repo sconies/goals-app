@@ -11,7 +11,7 @@
   "aiTools": ["export", "export_table"],
   "help": ["import", "past-imports", "export", "columns"],
   "requirements": ["EXPORT", "BULK-IMPORT", "IMPORT-ACTIONS", "SPREADSHEETS-ON-DATA", "FIELD-TABLE", "IMPORT-LEVELS", "IMPORT-PREVIEW", "IMPORT-UNDO"],
-  "journeys": ["U19", "U20", "U46", "U48", "U87", "U88", "U89", "U94", "U90", "F7", "F8", "F17", "N5"],
+  "journeys": ["U19", "U20", "U46", "U48", "U87", "U88", "U89", "U94", "U90", "U96", "F7", "F8", "F17", "N5"],
   "elsewhere": [],
   "rebuild": {
     "status": "outline",
