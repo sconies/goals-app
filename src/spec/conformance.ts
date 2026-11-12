@@ -7,9 +7,10 @@ import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
 import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
 import { goalScorecard } from '../domain/scorecard';
 import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../domain/status';
-import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
+import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team, Watch } from '../domain/types';
 import { search } from '../domain/find';
-import { goalRows, personRows, teamRows } from '../app/reads';
+import { goalRows, homeFacts, personRows, teamRows } from '../app/reads';
+import { homeFor } from '../domain/home';
 import { localGoals } from '../adapters/localGoals';
 import { allGoalsNow } from '../ports/goals';
 import { parseQuery } from '../domain/query';
@@ -38,8 +39,10 @@ export interface ConformanceWorkspace {
   checkIns: CheckIn[];
   decisions: Decision[];
   requests: Ask[];
-  /** Each review's picks (`scope`) too, for the reviews a new goal joins (readback.csv). */
-  reviews: Pick<Review, 'id' | 'name' | 'scope'>[];
+  /** Each review's picks (`scope`) too, for the reviews a new goal joins (readback.csv); its rhythm and people for home.csv. */
+  reviews: Pick<Review, 'id' | 'name' | 'everyWeeks' | 'weekday' | 'scope' | 'people'>[];
+  /** Who watches what (home.csv reads it). Watches carry no date: they are taken as they are now in every week. */
+  watches: Pick<Watch, 'id' | 'personId' | 'kind' | 'ref'>[];
   /** Feature modules' own records (domain/records), by module and record, for the rows a module adds (ModuleConformance). */
   modules?: ModuleRows;
 }
@@ -75,7 +78,8 @@ export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
     checkIns: live(s.checkIns),
     decisions: live(s.decisions),
     requests: s.requests ?? [],
-    reviews: live(s.reviews).filter((r) => !r.endedAt).map((r) => ({ id: r.id, name: r.name, scope: r.scope })),
+    reviews: live(s.reviews).filter((r) => !r.endedAt).map((r) => ({ id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people })),
+    watches: live(s.watches).map((x) => ({ id: x.id, personId: x.personId, kind: x.kind, ref: x.ref })),
     ...(MODULE_FILES.length && s.modules ? { modules: Object.fromEntries(Object.entries(s.modules).filter(([id]) => MODULE_FILES.some((f) => f.module === id))) } : {}),
   };
 }
@@ -101,8 +105,8 @@ export function asOf(w: ConformanceWorkspace, moment: Date): Snapshot {
     goals: w.goals.filter((g) => by(g.createdAt) && !by(g.stoppedAt)),
     checkIns: w.checkIns.filter((c) => by(c.postedAt)),
     decisions: w.decisions.filter((d) => by(d.at)),
-    changes: [], watches: [], retros: [],
-    reviews: w.reviews.map((r) => ({ ...r, everyWeeks: 1, weekday: 0, scope: { goals: [], trees: [], levels: [] }, people: [], createdBy: '', createdAt: '' })),
+    changes: [], watches: w.watches ?? [], retros: [],
+    reviews: w.reviews.map((r) => ({ ...r, createdBy: '', createdAt: '' })),
     requests,
     ...(w.modules ? { modules: w.modules } : {}),
   };
@@ -269,6 +273,25 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
   return rows;
 }
 
+/* ---------- home ---------- */
+
+/** Home's viewers (docs/design/home/spec.md): an owner, a manager in a review, a leader who owns none, someone who only watches. */
+export const HOME_VIEWERS = ['tunde', 'rhea', 'amara', 'oskar'];
+export const HOME_HEADER = ['viewer', 'day', 'lead', 'title', 'quiet'];
+/** The fourteen days up to the moment the workspace is built for, each at noon UTC. */
+export const homeDays = (w: ConformanceWorkspace) => Array.from({ length: 14 }, (_, i) => new Date(Date.parse(w.builtFor) - (13 - i) * 86_400_000));
+
+/** For each viewer on each day: the lead's kind and title (none: empty), or the quiet sentence and its line. No draft is kept. */
+export function homeRowsOf(w: ConformanceWorkspace): string[][] {
+  const rows: string[][] = [];
+  for (const viewer of HOME_VIEWERS) for (const day of homeDays(w)) {
+    const s = asOf(w, day);
+    const plan = homeFor(homeFacts(viewer, s, w.cycle, currentWeek(w.cycle, day), day, { workspace: 'Platform Engineering', draft: false }));
+    rows.push([viewer, day.toISOString().slice(0, 10), plan.lead?.kind ?? '', plan.lead?.title ?? '', plan.quiet ? [plan.quiet.sentence, plan.quiet.line].filter(Boolean).join(' ') : '']);
+  }
+  return rows;
+}
+
 /* ---------- kinds, levels and near misses (backlog IM2) ---------- */
 
 /**
@@ -410,7 +433,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

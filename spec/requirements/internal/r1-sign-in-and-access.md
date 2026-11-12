@@ -30,7 +30,8 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`postCheckIn`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayChangeGoal`](../../../src/domain/goalRights.ts) |
+| Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov). An admin may bring someone’s check-ins in from a workbook (an import, or setting up from an export) and correct one in Data’s tables: two doors left open for Lane to decide | [`postCheckIn`](../../../src/domain/changeset.ts), [`mayPostCheckIn`](../../../src/domain/goalRights.ts) |
+| Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayChangeGoal`](../../../src/domain/goalRights.ts) |
 | Add a goal, at any level, owned by anyone | Anyone, for anyone (Lane, 11 Nov) | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayAddGoal`](../../../src/domain/goalRights.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
@@ -131,7 +132,7 @@ An example marked **Faro today** is run against Faro’s code by `src/spec/inter
 1. For every line of the access table, someone outside its “who” is refused by the server, called directly with their own sign-in (not through the app), with the words the app shows. Someone inside it is allowed.
 2. Every table refuses a write made with the public key, and every read of a workspace by someone who isn’t a member returns nothing.
 3. Opening the app without signing in shows the sign-in, never a workspace or a list of workspaces.
-4. A person marked as left can’t open the workspace, and a request with their token is refused within a minute of their leaving.
+4. A person an admin marks as left in the app can’t open the workspace, and a request with their token is refused within a minute of being marked. (Leaving the company through the directory is R2’s, check 4: within the company’s policy, an hour at most.)
 5. A token’s secret appears once, in the answer that made it, and nowhere stored: the database holds its SHA-256 hash.
 6. Every change in the change log names the signed-in person (or the token’s person, marked via MCP); no change names someone else.
 7. In the internal app: a builder token reads the builder inbox; an ordinary token, an admin’s included, is told it isn’t a builder token. Removing a builder from the builders stops their token reaching the inbox at once. (Faro’s open inbox fails this check on purpose.)

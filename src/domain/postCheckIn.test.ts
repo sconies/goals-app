@@ -3,7 +3,8 @@
 import { applyCommit } from '../data/store';
 import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed } from './actions';
-import { planChanges, postCheckIn, type CheckInPost } from './changeset';
+import { planChanges, postCheckIn, type CheckInPost, type Via } from './changeset';
+import { ADMIN_CHECK_IN_DOORS } from './goalRights';
 import { checkInLevels, earlierThisWeek, emptyDraft, lastValueOf, previousFor, stepState, unanswered, type Answers, type Draft } from './checkin';
 import { currentWeek, planAt } from './plan';
 import { fmt } from './format';
@@ -71,9 +72,22 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(() => postCheckIn(x(), post({ week: week - 1, mode: 'again' }))).toThrow(`Week ${week - 1} has passed. Correct it, or add it, with a reason.`);
   });
 
-  it('lets only the owner or an admin post, in the engine’s words', () => {
-    expect(() => postCheckIn(x(fresh, 'rhea'), post())).toThrow(/Only Mateo .* \(its owner\) or an admin can change/);
-    expect(postCheckIn(x(fresh, 'amara'), post()).checkIn.authorId).toBe('amara');
+  it('lets only the owner post, in the engine’s words: not someone else, and not an admin (Lane, 12 Nov)', () => {
+    expect(() => postCheckIn(x(fresh, 'rhea'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);
+    expect(() => postCheckIn(x(fresh, 'amara'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);
+    expect(postCheckIn(x(fresh, 'mateo'), post()).checkIn.authorId).toBe('mateo');
+  });
+
+  it('closes every door to posting for someone else but the admin’s workbook and Data tables, which stay for Lane to decide', () => {
+    const row = { __row: '2', 'goal id': goal.id, week: String(week), value: post().draft.value };
+    const as = (who: string, via: Via) => planChanges({ tables: { checkIns: [row] }, snapshot: fresh, cycle, week, actor: person(who), now: today.toISOString(), newId: (p) => `${p}_d${++n}`, via });
+    const refused = (cs: ReturnType<typeof as>) => cs.issues.some((i) => i.kind === 'not-allowed' && /can check in on/.test(i.message));
+    // The one-table check-in and the AI tools: the owner only, an admin included.
+    for (const via of ['bulk', 'mcp', 'form'] as const) expect(refused(as('amara', via)), via).toBe(true);
+    expect(refused(as('rhea', 'table')), 'a member in Data').toBe(true);
+    // Left open on purpose, and named in mayPostCheckIn: an admin's import and setting up, and an admin's correction in Data.
+    for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(false);
+    expect(refused(as('mateo', 'mcp')), 'the owner').toBe(false);
   });
 });
 

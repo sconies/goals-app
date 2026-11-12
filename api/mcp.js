@@ -1939,7 +1939,24 @@ function mayAddGoal(_actor, _ownerId) {
 function mayChangeGoal(actor, goal) {
 	return !!actor.admin || goal.ownerId === actor.id;
 }
-var init_goalRights = __esmMin((() => {}));
+/**
+* Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+* at the check-in screens, the one-table check-in and through the AI tools. Two admin doors stay open, for Lane to
+* decide, since closing them removes a feature: loading a workbook (a spreadsheet import, or setting up from an export)
+* brings in everyone's history, and Data's tables let an admin correct a past check-in.
+*/
+function mayPostCheckIn(actor, goal, via) {
+	if (goal.ownerId === actor.id) return true;
+	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+var ADMIN_CHECK_IN_DOORS;
+var init_goalRights = __esmMin((() => {
+	ADMIN_CHECK_IN_DOORS = [
+		"spreadsheet",
+		"setup",
+		"table"
+	];
+}));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
@@ -11024,12 +11041,15 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
-		if (!create && !canChange(g)) {
+		if (!create && !mayPostCheckIn({
+			id: actor.id,
+			admin: admin()
+		}, g, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -12769,6 +12789,8 @@ function summariseAll(goals, s, cycle, today, week) {
 init_cycle();
 init_plan();
 init_review();
+init_progress();
+init_asks();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week, columns) {
@@ -14132,7 +14154,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			label: "Room to the limit",
 			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
 			sub: `warning within ${amount(margin, goal)}`,
-			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+			tone: room < 0 ? "bad" : a.near || a.out ? "flat" : "good"
 		});
 		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
 	}
@@ -14896,19 +14918,28 @@ var CORE_ARTICLES = [
 		sections: [
 			{
 				heading: "What it’s for",
-				text: ["Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it."]
+				text: ["Home is where you start each day. It answers one question first: what is asked of you today. If something is, it is the one big button on the page; if nothing is, Home says so in one line and has no big button at all."]
 			},
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
+					"The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.",
+					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
+					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
-					"Your goals come next, worst first, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
-					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
+					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
-					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.",
-					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
+					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
+					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
+				]
+			},
+			{
+				heading: "When Home has no button",
+				list: [
+					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
+					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
+					"It never tells you about a deadline you met."
 				]
 			},
 			{
@@ -14919,7 +14950,7 @@ var CORE_ARTICLES = [
 		routes: ["/"],
 		screens: ["Home"],
 		reqs: [
-			"HOME-DASHBOARD",
+			"HOME-OWNER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -15214,7 +15245,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -17377,6 +17408,32 @@ var WHATS_NEW = [
 		articles: ["past-imports"]
 	},
 	{
+		id: "check-ins-owner-only",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s",
+		points: ["Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.", "An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet."],
+		articles: ["check-in"]
+	},
+	{
+		id: "room-agrees-with-limit",
+		date: "2026-11-12",
+		title: "A number kept in range: two cells that agree",
+		points: ["On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.", "A number exactly the warning margin inside its limit is not near: both cells now say so."],
+		articles: ["goal-page"]
+	},
+	{
+		id: "home-asks-first",
+		date: "2026-11-12",
+		title: "Home starts with what is asked of you today, and is quiet when nothing is",
+		points: [
+			"Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.",
+			"When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.",
+			"Your goals are counted once, in Your goals, and each count opens exactly those goals.",
+			"What’s new in Faro is now a line at the foot of Home."
+		],
+		articles: ["home"]
+	},
+	{
 		id: "admins-triage-and-start-over",
 		date: "2026-11-12",
 		title: "Where one workspace ends, and who you are there",
@@ -19521,6 +19578,34 @@ var RULE_PAGES = [
 		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
 	]
 ];
+/** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
+(src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
+var MORE_RULE_PAGES = [
+	["field-table", "The field table"],
+	["import-levels", "Kinds, levels and near misses"],
+	["import-preview", "What an import read, and leaving rows out"],
+	["import-header", "The header row, and headers that are nearly right"],
+	["import-undo", "Undoing an import, and past imports"],
+	["review-decide", "Deciding in a review"],
+	["start-next-year", "Starting the next year"],
+	["carry", "The carry rule, and what comes with a goal"],
+	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
+	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
+	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["map", "The goal map"],
+	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
+	["goal-history", "A goal’s history"],
+	["comment-reach", "Who a comment reaches"],
+	["goal-entry", "Goal entry"],
+	["years-and-weeks", "Years and weeks"],
+	["new-goal", "New goal"],
+	["read-back", "The read-back"],
+	["not-born-late", "A goal not born late"],
+	["finding", "Finding things"],
+	["navigation", "Navigation: the menu, the lit item and a page’s name"],
+	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
+	["home", "Home: what is asked of you today"]
+];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
 var INTERNAL_PAGES = [
@@ -19578,7 +19663,7 @@ function systemOverview() {
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
 		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
 		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
-		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.",
+		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
 		"## The spec",
@@ -19587,6 +19672,7 @@ function systemOverview() {
 		"- [The data model](spec/core/data-model.md): every record and field, and the database tables",
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
