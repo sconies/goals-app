@@ -65,8 +65,6 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['ai-assistants'],
   },
   {
-  },
-  {
     id: 'quarters-before-set-up',
     date: '2026-11-12',
     title: 'Quarters before a goal existed are not judged',

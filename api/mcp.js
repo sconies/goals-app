@@ -17543,7 +17543,6 @@ var WHATS_NEW = [
 		points: ["Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.", "The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback."],
 		articles: ["ai-assistants"]
 	},
-	{},
 	{
 		id: "quarters-before-set-up",
 		date: "2026-11-12",
