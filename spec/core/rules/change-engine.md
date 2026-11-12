@@ -17,6 +17,8 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
 
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (`src/domain/importSpeed.test.ts`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in `src/domain/importLimits.ts`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
+
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
 ## Worked examples
@@ -128,3 +130,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - removing, archiving and undoing › ends a review that was held, deletes one that never was, and edits and removes comments and notes
 - removing, archiving and undoing › undoes an import: every row back as it was, rows changed since skipped and listed
 - removing, archiving and undoing › round trip: removes and restores every kind of record, leaving nothing orphaned or lost
+
+### [src/domain/importSpeed.test.ts](../../../src/domain/importSpeed.test.ts)
+
+- rule 10: a large file is checked in about the time it takes to read › checks ${k.toLocaleString('en-GB')} new rows within ${ms / 1000} s
+- rule 10: a large file is checked in about the time it takes to read › checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change
+- rule 10: a large file is checked in about the time it takes to read › costs about what its rows do: five times the rows, well under twenty-five times the time
+- rule 10: a large file is checked in about the time it takes to read › says fourteen rows with one typo once, as one group, among thousands
