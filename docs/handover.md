@@ -103,7 +103,7 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
 
 Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
 
-- **#229, #193's four review mediums** (open as a draft when this was written; merge it on green CI if it hasn't merged, and report the merge to planning, session_012kbr91PHhQvhHZRqaiFs6n):
+- **#229, #193's four review mediums** (open as a draft when this was written; merge it on green CI if it hasn't merged, and report the merge to planning, now session_012kbr939zneZWtAo7UQEHRP: finished results and blockers only):
   1. **A failed engine load says so.** `run` in `src/app/state.tsx` toasts `ENGINE_OFFLINE` (offline, #183's words) or reloads once through `recoverFromStaleCode`. When it has just reloaded, it offers Reload (`ENGINE_FAILED`). Chromium keeps a module that failed to load, so a reload is the only real retry. N8 (`evals/notes/8-telemetry.cjs`) has the case.
   2. **Home asks for `sort: 'worst'`.**
   3. **The query port names scopes.** `GoalAsk.scope` is `'mine' | 'team' | 'watching' | 'all' | 'team:<id>'`, answered by `scopeIds` in `domain/goalsPage.ts` with `scopeFacts` from `app/reads.ts`. With no sort, a list comes worst first, then by title (`localGoals.ts`). `goals.csv` and the contract follow.
