@@ -76,6 +76,8 @@ The ground rules:
 
 - **KT8, gap 6's last items.** `src/spec/thresholds.ts` (`NAMED_THRESHOLDS`, `thresholdClashes`): every page of `spec/` and `llms.txt` that names a threshold in words must give the code's number; a new named threshold gets a line there. `RULE_PAGES`' third column is now each rule's `summary` from `src/spec/rules.ts`, word for word (`spec.test.ts` checks), so `llms.txt` says what the rule page says.
 
+- **KT9, gap 7 part 1.** Every requirement in `evals/requirements.json` has `rebuild`: `copy`, `demo` (Faro's own) or `replace R<n>` (an internal requirement does it instead); `internal.test.ts` fails on a missing or unknown tag. `rebuildWords` in `src/spec/build.ts` shows it on the core requirements page and module pages, with the counts. `dont-copy.md` gained the review's section 5 items (demo-only requirements listed from the tags, `schema.sql`, comments as change-log entries, risk accepted as a note, telemetry in the app's database, formatting quirks scored). A new requirement needs a tag.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -91,7 +93,7 @@ The ground rules:
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
 2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-3. **Gaps 7 to 9:** the rest, in the review's order (gap 6 is done: KT1 and KT8).
+3. **Gap 7 part 2:** a logical data model with keys, uniqueness and workspace scoping stated as rules, and every SQL-only limit moved into its rule page. Then **gaps 8 and 9**, in the review's order.
 
 ## Things to know
 

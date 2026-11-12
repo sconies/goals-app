@@ -18,6 +18,7 @@ import { MAIN_ACTION, OTHER_VIEWS, SHOTS, WIDTHS, shotFile } from './screens';
 import { screenFacts, whoWords, type ScreenFacts } from './screenFacts';
 import { GROUPS as HELP_GROUPS } from '../help/guide';
 import { RULE_PAGES, systemOverview } from './overview';
+import { INTERNAL } from './internal';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
@@ -304,6 +305,7 @@ function requirementsPage(r: Repo, mods: ModuleFacts[], tests: TestCase[]): stri
   for (const rule of RULE_LIST) for (const id of rule.reqs) rules.set(id, [...(rules.get(id) ?? []), rule]);
   const out = [GENERATED('evals/requirements.json, src/help/guide.ts, src/spec/rules.ts, the tests and the evals'), '# The core requirements', '',
     `Every requirement in \`evals/requirements.json\` that no module owns (a module’s are in its section). For each: the rule that implements it (when it is one of the core rules), the Help article that explains it and the screens that article covers, the tests tagged with it (\`[ID]\` in a test’s title), and the journeys and checks that exercise it.`, '',
+    `Each also says what the rebuild does with it: **copy** it; **replace** it with a requirement for the internal app, whose platform provides the machinery ([the requirements for the internal app](../requirements/internal/README.md)); or **demo only**, Faro’s own, not to copy. ${(() => { const n = (t: (x: string) => boolean) => req.requirements.filter((q) => t(q.rebuild)).length; return `Of all ${req.requirements.length}: ${n((t) => t === 'copy')} copy, ${n((t) => t.startsWith('replace'))} replace, ${n((t) => t === 'demo')} demo only.`; })()}`, '',
     `${UNCLEAR} a requirement with no rule, test or journey listed is checked only by the screens and Help named, or not yet by anything automatic; its words are the spec.`, ''];
   const byArea = new Map<string, typeof req.requirements>();
   for (const q of req.requirements.filter((q) => !theirs.has(q.id))) byArea.set(q.area, [...(byArea.get(q.area) ?? []), q]);
@@ -314,7 +316,7 @@ function requirementsPage(r: Repo, mods: ModuleFacts[], tests: TestCase[]): stri
       const t = tests.filter((x) => x.reqs.includes(q.id));
       const c = all.filter((x) => x.reqs.includes(q.id));
       const rs = rules.get(q.id) ?? [];
-      out.push(`### ${q.id}`, '', q.text, '');
+      out.push(`### ${q.id}`, '', q.text, '', `- **Rebuild:** ${rebuildWords(q.rebuild, '../')}`);
       if (rs.length) out.push(`- **Rule:** ${rs.map((x) => `[${x.title}](rules/${x.id}.md)`).join(', ')}`);
       if (arts.length) out.push(`- **Help:** ${arts.map((a) => `“${a.title}” (\`${a.id}\`)${a.screens.length ? `, screens ${a.screens.map((s) => `\`${s}\``).join(', ')}` : ''}`).join('; ')}`);
       if (t.length) out.push(`- **Tests:** ${[...new Set(t.map((x) => x.file))].map((f) => `\`${f}\` (${t.filter((x) => x.file === f).length})`).join(', ')}`);
@@ -323,6 +325,16 @@ function requirementsPage(r: Repo, mods: ModuleFacts[], tests: TestCase[]): stri
     }
   }
   return out.join('\n');
+}
+
+
+/** What the rebuild does with a requirement, as words with a link: `up` is the path from the page to spec/. */
+export function rebuildWords(tag: string, up: string): string {
+  if (tag === 'copy') return 'copy';
+  if (tag === 'demo') return 'demo only: Faro’s own, don’t copy ([don’t copy this](' + up + 'rebuild/dont-copy.md))';
+  const q = INTERNAL.find((x) => `replace ${x.id}` === tag);
+  if (!q) throw new Error(`Unknown rebuild tag “${tag}”: copy, demo, or replace and an R in spec/requirements/internal/.`);
+  return `replace, with [${q.title}](${up}requirements/internal/${q.file}.md)`;
 }
 
 /* ---------- modules ---------- */
@@ -361,7 +373,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '',
     '## Requirements',
     '',
-    ...m.requirements.map((id) => `- \`${id}\`: ${req.requirements.find((q) => q.id === id)?.text ?? '(not in evals/requirements.json)'}${tests.some((t) => t.reqs.includes(id)) ? ` Tests: ${[...new Set(tests.filter((t) => t.reqs.includes(id)).map((t) => `\`${t.file}\``))].join(', ')}.` : ''}`),
+    ...m.requirements.map((id) => `- \`${id}\`: ${req.requirements.find((q) => q.id === id)?.text ?? '(not in evals/requirements.json)'} Rebuild: ${rebuildWords(req.requirements.find((q) => q.id === id)?.rebuild ?? 'copy', '../../')}.${tests.some((t) => t.reqs.includes(id)) ? ` Tests: ${[...new Set(tests.filter((t) => t.reqs.includes(id)).map((t) => `\`${t.file}\``))].join(', ')}.` : ''}`),
     '',
     '## Journeys and checks',
     '',
@@ -565,7 +577,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;
   Object.assign(out, internalFiles());
   const later = Object.fromEntries([...STAGE_FILES[2], ...STAGE_FILES[3]].map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: files[`${f}.csv`]!.split('\n')[0]!.split(',') }]));
-  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later));
+  Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files, later, requirements(r).requirements.filter((q) => q.rebuild === 'demo').map((q) => q.id)));
   Object.assign(out, await databaseFiles(root));
   return out;
 }
