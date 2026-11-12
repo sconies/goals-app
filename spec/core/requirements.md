@@ -327,7 +327,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
-- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
+- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`, `GoalFilterSheet`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** N10, U32, U33, U34, U135
 
@@ -1107,7 +1107,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U84, U91, U136
+- **Journeys and checks:** F11, N12, U63, U82, U84, U91, U136
 
 ### FIND-ANYWHERE
 

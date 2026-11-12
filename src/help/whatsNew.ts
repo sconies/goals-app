@@ -35,6 +35,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'ai-assistants'],
   },
   {
+    id: 'measured-by-find',
+    date: '2026-11-12',
+    title: 'Find a goal’s metric by typing',
+    points: [
+      'In New goal, “Measured by” comes first: type to find a metric, or add one there.',
+      'Choosing one fills in its unit and which way is better.',
+      'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
+    ],
+    articles: ['metric-measured-by', 'new-goal', 'metrics'],
+  },
+  {
     id: 'goal-needs-said',
     date: '2026-11-12',
     title: 'New goal says what it needs',

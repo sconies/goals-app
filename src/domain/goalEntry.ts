@@ -205,10 +205,10 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
 
 /* ---------- rule 3: what is asked ---------- */
 
-/** The questions goal entry asks (section 4's Check table), in its order: the order they are shown in. `wrong-side` and
-    `far-from-metric` wait for ML2 (the metric's direction and latest number); the dates' three come with GE9. */
+/** The questions goal entry asks (section 4's Check table), in its order: the order they are shown in. `far-from-metric`
+    waits for a metric's latest number for a slice (the metrics module has none yet); the dates' three come with GE9. */
 export const CHECK_IDS = [
-  'stage-past', 'no-unit', 'below-zero', 'over-100', 'hundredfold', 'billion', 'same-name', 'owner-other-team', 'feeds-lower',
+  'stage-past', 'no-unit', 'below-zero', 'over-100', 'hundredfold', 'billion', 'wrong-side', 'same-name', 'owner-other-team', 'feeds-lower',
   'margin-wide', 'late-plan', 'direction', 'far-from-plan',
 ] as const;
 export type GoalCheckId = (typeof CHECK_IDS)[number];
@@ -249,6 +249,8 @@ export interface ChecksContext {
   team?: { id: string; name: string } | null;
   parent?: { id: string; title: string; level: Level } | null;
   sameNamed?: readonly { id: string; key: string; title: string; ownerName: string }[];
+  /** What measures it, when a module says (the goal.measure place, ML2): its name and which way is better. */
+  metric?: { name: string; direction: 'lower' | 'higher' } | null;
   mustFix?: readonly MustFix[];
 }
 
@@ -310,6 +312,11 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     if (s != null && t != null && s !== 0 && t !== 0 && Math.sign(s) === Math.sign(t)) {
       const r = Math.abs(t / s);
       if (r >= FAR_RATIO || r <= 1 / FAR_RATIO) ask({ id: 'hundredfold', field: 'target', key: `${s}|${t}`, question: `The target (${said(t)}) is ${r >= 1 ? `over ${FAR_RATIO} times` : 'under a hundredth of'} where it starts (${said(s)}). Is that right?`, yes: `Yes, ${said(s)} to ${said(t)} is right`, no: 'No, I’ll change it', readBack: `You said ${said(s)} to ${said(t)} is right.` });
+    }
+    // A target on the worse side of the start for the metric that measures it.
+    if (ctx.metric && s != null && t != null && s !== t && (ctx.metric.direction === 'lower') === (t > s)) {
+      const better = ctx.metric.direction;
+      ask({ id: 'wrong-side', field: 'target', key: `${ctx.metric.name}|${s}|${t}`, question: `“${ctx.metric.name}” is better ${better}, but the target (${said(t)}) is ${t > s ? 'above' : 'below'} today (${said(s)}). Is that the plan?`, yes: `Yes, this goal lets it ${t > s ? 'rise' : 'fall'} to ${said(t)}`, no: 'No, I’ll change the numbers', readBack: `You said the target is right though “${ctx.metric.name}” is better ${better}.` });
     }
     const big = given.find(([, , n]) => Math.abs(n) >= 1e9);
     if (big) ask({ id: 'billion', field: big[0], key: String(big[2]), question: `${said(big[2])} is a billion or more. Is it right?`, yes: 'Yes, it’s right', no: 'No, I’ll change it', readBack: `You said ${said(big[2])} is right.` });
@@ -375,7 +382,7 @@ export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: s
   sameTitleGoals(title, null, goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt));
 
 /** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named. */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix'>): ChecksContext {
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric'>): ChecksContext {
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   const team = d.teamId ? look.team(d.teamId) : undefined;
   const parent = d.parentId ? look.goal(d.parentId) : undefined;

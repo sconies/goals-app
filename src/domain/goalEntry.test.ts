@@ -116,6 +116,11 @@ describe('what is asked (rule 3)', () => {
     const saved = { id: 'g', kind: 'metric', title: 'Signed artifacts', teamId: 'cicd', ownerId: 'tunde', io: 'input', level: 'team', guardrail: false, parentId: null, effect: null, source: '', definition: '', unit: '', decimals: 0, plan: { start: 1, target: 5, shape: 'straight' } } as unknown as MetricGoal;
     expect(goalChecks({ ...draft({ unit: '', start: '1', target: '6' }) }, cctx({ existing: saved })).map((c) => c.id)).toEqual([]);
   });
+  it('asks about a target on the worse side of the start for the metric that measures it', () => {
+    const metric = { name: 'Pipeline queue wait', direction: 'lower' as const };
+    expect(words({ unit: 'min', start: '7', target: '9' }, { metric })).toEqual(['“Pipeline queue wait” is better lower, but the target (9 min) is above today (7 min). Is that the plan?']);
+    expect(asked({ unit: 'min', start: '9', target: '7' }, { metric })).toEqual([]);
+  });
   it('asks about a warning margin as wide as the limit', () => {
     expect(asked({ kind: 'range', limit: '12', margin: '20' })).toEqual(['margin-wide']);
     expect(asked({ kind: 'range', limit: '12', margin: '1' })).toEqual([]);

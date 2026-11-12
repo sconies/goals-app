@@ -4849,10 +4849,16 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   const seeIt = p.getByRole('link', { name: 'See its goal' });
   await h.inView(seeIt, 'entry', 'See its goal');
   await h.click(seeIt);
-  await p.waitForURL(/\/demo\/goals\/lead-ci-time/);
+  // Goals, filtered to the metric (ML2): the filter line says so, and its one goal opens.
+  await p.waitForURL(/\/demo\/goals\?.*metric=/);
+  await see(p, 'Measured by Pipeline queue wait (p90)', 'Goals filtered to the metric does not say so in its filter line');
+  await h.click(p.locator('main a', { hasText: 'Pipeline queue wait (p90)' }).first());
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)/);
   await p.locator('.goal-bar').waitFor();
   // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
   await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
+  // Back twice: to Goals filtered to it, then to the metric.
+  await p.goBack();
   await p.goBack();
   await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
   await p.goto(url('/metrics/lead-time'));
@@ -4869,6 +4875,79 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
     if (!to.test(p.url())) wrong.push(`${from} → ${p.url()}`);
   }
   h.set('logged', !wrong.length, `old addresses: ${wrong.join('; ')}`);
+  await p.context().close();
+}, []);
+
+/* "Measured by", found by typing (ML2, docs/design/metrics/spec.md 2.4): a goal's metric chosen where the goal is made. */
+journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where it is made: as Rhea in New goal, “Measured by” comes first on the measure step; typing “queue” finds Pipeline queue wait (p90); choosing it shows its meaning, “min, whole numbers, lower is better: from the metric.” and For: CI/CD; Check has its row; after publishing, the goal says Measured by and the metric’s page lists it for CI/CD. Again with “Add “runner wait” as a new metric”: the small form, the goal carries on, and the library has it with “No meaning yet” for Rhea. A dated-stages goal has no “Measured by”', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const start = async (title, kind) => {
+    await p.goto(url('/goals/new'));
+    await see(p, 'What do you want to achieve?');
+    await h.fill(p.getByLabel(/Name it the way/), title);
+    if (kind) await h.click(p.getByRole('button', { name: kind }));
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    // Rhea leads a team with SVP goals, so she is asked the level (OB1, rule 1).
+    await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  };
+  const publish = async () => {
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+    const read = (await p.locator('.review-rows').innerText()).replace(/\s+/g, ' ');
+    await h.click(p.getByRole('button', { name: 'Publish goal' }));
+    await p.waitForURL(/\/demo\/goals\/[^/?]+\?.*published=1/);
+    return read;
+  };
+  await start('Shorter runner queues');
+  // "Measured by" comes first on the step: before the unit and the numbers.
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  const first = await p.evaluate(() => { const m = document.querySelector('.measured-by'); const n = document.querySelector('.focus-body input.big-input'); return !!m && !!n && !!(m.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING); });
+  h.set('entry', first, '“Measured by” is not the first field on the measure step');
+  await see(field, 'A metric says exactly what the number means.', 'the field does not say what a metric is for');
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'queue');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await see(field, '90th percentile of minutes a pipeline job waits', 'choosing a metric does not show its meaning');
+  await see(field, 'min, whole numbers, lower is better: from the metric.', 'choosing a metric does not say what it fills in');
+  const forTeam = await field.getByRole('group', { name: 'For' }).getByRole('button', { name: 'CI/CD' }).getAttribute('aria-pressed');
+  h.set('progress', forTeam === 'true' && (await p.getByLabel('Unit', { exact: true }).count()) === 0, `For is not CI/CD (${forTeam}), or the unit field still shows beside the metric’s line`);
+  await h.checkpoint('chosen');
+  await h.fill(p.getByLabel(/^Today \(week/), '9');
+  await h.fill(p.getByLabel(/^Target \(week/), '4');
+  const read = await publish();
+  h.set('finish', /Measured by Pipeline queue wait \(p90\), for CI\/CD\./.test(read), `Check does not say what measures it: ${read}`);
+  const goalUrl = p.url();
+  await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the new goal does not say what measures it');
+  await p.goto(url('/metrics/queue-wait'));
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  const listed = await p.locator('.metric-goals tr, .metric-goals li', { hasText: 'Shorter runner queues' }).innerText().catch(() => '');
+  h.set('logged', /CI\/CD/.test(listed), `the metric’s page does not list the new goal for CI/CD: “${listed.replace(/\s+/g, ' ')}” (${goalUrl})`);
+  // Added in place: the small form, then the goal carries on.
+  await start('Runner wait under five minutes');
+  await h.click(p.locator('.measured-by').getByRole('button', { name: /^Measured by/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'runner wait');
+  await h.click(p.getByRole('button', { name: 'Add “runner wait” as a new metric' }));
+  const here = p.getByRole('group', { name: 'A new metric' });
+  await here.waitFor();
+  await h.fill(here.getByLabel('Unit'), 'min');
+  await h.click(here.getByRole('button', { name: 'Lower is better' }));
+  await h.click(here.getByRole('button', { name: 'Add this metric' }));
+  await see(p, 'Added runner wait. Say more about it on its page when you can.', 'adding a metric in place is not confirmed');
+  await see(p.locator('.measured-by'), 'Its meaning hasn’t been written yet.', 'the metric added in place is not chosen');
+  await h.fill(p.getByLabel(/^Today \(week/), '8');
+  await h.fill(p.getByLabel(/^Target \(week/), '5');
+  const again = await publish();
+  await p.goto(url('/metrics?q=runner+wait'));
+  const row = (await p.locator('.metric-row', { hasText: 'runner wait' }).first().innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('attention', /Measured by runner wait/.test(again) && /No meaning yet/.test(row), `the library row for the new metric says “${row}”; Check said “${again}”`);
+  // A goal with dated stages has no number, so nothing measures it.
+  await start('Runner fleet migrated', /Hit dated stages/);
+  await see(p, 'What are the stages, and when is each due?');
+  h.set('errors', (await p.locator('.measured-by').count()) === 0, 'a dated-stages goal offers “Measured by”');
   await p.context().close();
 }, []);
 

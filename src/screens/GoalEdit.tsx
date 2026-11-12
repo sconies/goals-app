@@ -82,9 +82,11 @@ function EditSheet({ goal }: { goal: Goal }) {
   // What is asked (goal entry, rule 3): the same questions as New goal, under the field each is about, and only what this
   // change makes new (a target that flips which way is better, a number far outside the old plan, an unlikely number, a
   // link to a lower level, an owner in another team). An answer holds for the values it was about.
+  // What measures the goal, when a module offers it (the goal.measure place): saved with the goal.
+  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const answers: GoalAnswers = d.answers ?? {};
   const checks = goalChecks(d, checksContext(d, { person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals) },
-    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, mustFix: fix }));
+    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, mustFix: fix, metric: goal.kind === 'metric' ? measure?.metric ?? null : null }));
   const open = unanswered(checks, answers);
   const confirmed = open.length === 0;
   const onNo = (c: GoalCheck) => { if (c.opens) nav('/goals/' + c.opens); else if (c.noDoes) set(c.noDoes); };
@@ -106,19 +108,18 @@ function EditSheet({ goal }: { goal: Goal }) {
   const parent = app.goal(d.parentId);
   const back = () => nav('/goals/' + goal.id);
 
-  // What measures the goal, when a module offers it (the goal.measure place): saved after the goal.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const save = async () => {
     setTried(true);
-    if (!built || saving || (replanning && !reasonOk) || !confirmed) return;
+    if (!built || saving || (replanning && !reasonOk) || !confirmed || measure?.blocks) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
       const { reason, answers: _a, ...draft } = d;
-      const saved = changed ? await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers }) : after;
-      if (measure) await app.run(measure.action, measure.input(saved));
+      // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
+      if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, ...(measure ? { also: measure } : {}) });
+      else if (measure) await app.run(measure.action, measure.input(after));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
       back();
@@ -157,7 +158,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           {goal.kind !== 'milestone' && (
             <label className="field"><span className="field-label">What it measures</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
           )}
-          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />
+          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} />
         </section>
 
         <section className="stack edit-part" id="plan" aria-labelledby="plan-h">

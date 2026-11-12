@@ -225,8 +225,8 @@ export function MetricPage() {
           <h1 className="title-xl">{m.name}</h1>
           <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'}</span>
         </div>
-        {/* With one goal, it opens; Goals filtered to a metric comes with "Measured by" found by typing (ML2). */}
-        {one && <Link className="btn primary" to={`/goals/${encodeURIComponent(one.goal.id)}`}>See its goal</Link>}
+        {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
+        {rows.length > 0 && <Link className="btn primary" to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
       </div>
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
