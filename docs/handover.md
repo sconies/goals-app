@@ -34,6 +34,52 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Thursday 12 November, 12:40 UTC (session past half full, handing over)
+
+_Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) merged GT3's edit page (#184), GE1 (#186), GE2 (#189), GE9 (#194) and the GT3/GE1/GE2 review mediums (#197), and continues with GE3, GE10 and ST1._
+
+- **Merged:**
+  - OB1 (#129): New goal in four steps with addresses, plus find-and-pick, `startLevel`, `parentSuggestions` and `planNote` in `src/domain/newGoal.ts`.
+  - The reviewId fix (#135): a review-decision ask reads as a decision in History.
+  - Goal sections into About (#140).
+  - #129's mediums 1, 2, 3 and 6 (#192):
+    - Continue after a Change on Check goes to the first step that no longer holds, with its faults shown;
+    - focus mode covers `/goals/new/<step>`;
+    - F16 checks that nothing covers Back or Continue and that the tab bar is hidden.
+- **GE1 and GE2 reached main from another session** (#189 and before). Check `docs/backlog.md` before starting either; GE9 and GE3 are next.
+- **Next for a fresh track-2 session, in order:**
+  1. GT3's edit page.
+  2. GE9 and GE3; GE10 (IM1 and IM2 are merged).
+  3. ST1.
+  4. If GE work reworks `saveGoal`, route it through `app.run` (AX2) and tell track 4.
+- **#129's mediums:** 1 to 3 and 6 (Check's values wrap now) are fixed in #192. 4 was fixed on main. 5 is withdrawn: Lane decided on 11 Nov that a member may add a goal for anyone.
+- **Build review of #184 (GT3), #186 (GE1) and #189 (GE2)** (reviewer, 12 Nov; full text in the build-reviews log on draft PR #134, branch `build-reviews`). Do the mediums first.
+  - **Mediums:**
+    - A file or MCP row for a new goal with an Effect that isn't a number saves and drops the Effect; the form refuses it. `changeset.ts` runs `goalMustFix` before reading the row's parent, and `goalEntry.ts:137` checks Effect only when there is a parent.
+    - On Change a goal, Save with an unanswered question off screen does nothing visible. Add the line above Save and focus the first open question (`GoalEdit.tsx:113`).
+    - The wrong-side question is asked only by the screens: it needs `ctx.metric`, and only GoalWizard and GoalEdit pass it. Its answer isn't recorded as Checked in History, and no journey covers it.
+    - A kept or stale edit draft reverts what someone else changed meanwhile and logs it as the saver's. GE4's patch is the planned fix.
+  - **Lows:**
+    - Close and Save push a history entry, so Back returns to the form.
+    - A stage goal's "How it's measured" can't be changed.
+    - `confirm:true` writes "Checked … Yes" for questions nobody saw.
+    - "No, I'll change it" does nothing on Change a goal and set-up cards.
+    - Clearing a unit is asked by the form's rule, not the engine.
+    - The saving rule accepts a stage done in a future week.
+    - MCP restates the question kinds (`mcp/tools.ts:116`).
+    - A stopped goal's edit page refuses only at Save.
+- **#129's lows:**
+  - focus on each step's first field when it opens;
+  - the effect that blocks Continue while loading;
+  - Enter on a refused "Feeds into" match;
+  - `fromCheck` survives the browser's Back;
+  - `?parent=` with a draft already open;
+  - focus after the discard dialog;
+  - `startLevel` counts removed and stopped goals;
+  - the feeds-lower rule lives only in the form;
+  - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
+- **U23 (entry)** scored 8.6 locally and is track 2's to lift.
+
 ## Track 4, Thursday 12 November, 00:20 UTC (session past half full, handing over)
 
 - **Merged tonight:**
