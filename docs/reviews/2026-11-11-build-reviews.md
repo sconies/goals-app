@@ -105,13 +105,15 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #252 Check-ins are the owner's, said everywhere | polish | 0 | 0 | 0 |
 | #245, #253, #263 KT3 to KT5: contracts, import issue kinds and screens in the kit | track 6 | 0 | 0 | 0 |
 | #251, #258 Two journeys' checks | evals | 0 | 0 | 0 |
-| #259 BT: a batch names its own rows with Ref | import | 0 | 1 | 1 |
-| #239 Quarters before a goal existed are not judged | 5 | 0 | 0 | 5 |
-| #242 MCP: every create says the new goal's id and key | 5 | 0 | 1 | 2 |
-| #249 MCP: every list answers in one shape | 5 | 0 | 1 | 3 |
-| #261 find_goals: a pasted Goals link keeps its tab | 5 | 0 | 0 | 3 |
+| #259 BT: a batch names its own rows with Ref | MCP load | 0 | 1 | 1 |
+| #239 Quarters before a goal existed are not judged | MCP load | 0 | 0 | 5 |
+| #242 MCP: every create says the new goal's id and key | MCP load | 0 | 1 | 2 |
+| #249 MCP: every list answers in one shape | MCP load | 0 | 1 | 3 |
+| #261 find_goals: a pasted Goals link keeps its tab | MCP load | 0 | 0 | 3 |
 | #234 FS2: search words on Data and Feedback | 1 | 0 | 3 | 2 |
 | #255 CK2: the table check-in | 1 | 0 | 0 | 2 |
+| #248 IM7: Export is one button | 3 | 0 | 2 | 5 |
+| #257 IM6 part 1: large files | 3 | 0 | 2 | 3 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1166,3 +1168,26 @@ Read first by a reviewing session working on the merged code at `1900c84e`, with
 **#255 CK2: the table check-in.** No medium. Owner-only holds through the table's path (an admin and two members are each refused on another's goal), and a double press posts once.
 
 - Low. Two questions still build the unit by hand: "the target of 1 incidents", "(2 to 1 hours)" (`src/domain/checkin.ts:113, 117`). Low. A "Yes" answer to a question is lost on refresh; the draft keeps the number but not the answer (`src/screens/QuickCheckIn.tsx:57`).
+
+### #257 IM6 part 1: large files (track 3, merged 20:12 UTC, 12 Nov)
+
+The engine now finds goals through an index (`GoalSet`) where it scanned. Read first by a reviewing session, which compared the whole result of `planChanges` before and after the merge over 6,551 runs: the demo and its own export, 14 seeded fuzz files, set-up mode, screen posts, a 700-goal new file and a scaled workspace, by four doors, as an admin, a lead and a member, with and without answers. 6,539 are byte-identical; the 12 that differ all sit in a workspace where two goals share a key (low 1). No high finding. Timings there: 5,000 rows 0.49 s (32.7 s before).
+
+**1. Medium (ran). The headline speed test does not test what its title says.** `src/domain/importSpeed.test.ts`, "an unedited workbook of nearly 30,000 rows … and nothing would change": `scaleWorkspace(s0, 5)` gives 630 goals with only 126 distinct keys and titles, so the check returns 21,880 Must fix and a null commit, and `expect(cs.items).toEqual([])` passes only because blocked rows plan nothing. The claim itself holds: with the copies made sound, 27,350 unedited rows took 10.7 s before and 1.45 s after, no issue, all unchanged. Fix: give the copies unique keys and titles, and assert no issue and `unchanged` equal to the row count.
+
+**2. Medium (ran by me on main at `a7144ae5`; older than this PR). A new goal row whose Action is Stop or Delete crashes the check.** `planChanges` throws "Cannot read properties of null (reading 'id')" for a Goals row with no key, a name, an owner and Action "Stop" (`src/domain/changeset.ts`, where the removal is pushed with `existing!`). On screen a one-row file shows "Something went wrong on this page" (first reader). Nothing is saved. Fix: a Must fix, "There's no goal to stop on this row".
+
+**Lows.**
+- With two goals sharing a key, the key resolves to a different goal than the old scan once the first holder is set again (`GoalSet.set` and `unindex`); a sound workspace has unique keys, so nobody meets it today.
+- The size limits are checked on the Import screen only (`Check.tsx`); MCP and set-up's upload have none, `CHANGES_SAVE_MAX` is read nowhere (part 2), and Import says "Up to 5,000 rows a file" beside a download of 5,665 rows that loads back without a word.
+- The growth-ratio test is one wall-clock sample with about twice its headroom (3.1 to 6.8 against a limit of 12).
+
+### #248 IM7: Export is one button (track 3, merged 19:55 UTC, 12 Nov)
+
+Read first by the same reviewing session, on screen at 1440 and 390. No high finding. Contents match the scope, every export read back through Import says "Nothing would change", and there is one primary action.
+
+**1. Medium (ran). A filtered All tab saves under the same name as everything.** The scope in the name is the view's name or `all` (`src/modules/spreadsheets/Export.tsx`). Goals, All tab, search "lead": the sheet says "The 4 shown now: All" and saves `example-platform-engineering-goals-all-2026-11-11.xlsx` holding 4 goals, the name an export of all 126 gets. Fix: never write `all` for a partial view.
+
+**2. Medium (ran). "Everything in 2026" understates the file once a goal is stopped.** The count line reads the live goals only; the workbook adds the archive (`src/domain/export.ts:44`). With G-2 stopped the sheet says 125 goals and 5,302 check-ins, and the file holds 126 and 5,347. The file is right; the new count line is not.
+
+**Lows.** Focus goes to `body` when the sheet closes from Data's Export. An empty view exports an empty workbook, preselected. Import's "Download the workbook" still uses the old name and toast (`Import.tsx:53,109`). The footnote "{n} goals, as of week {w}" is gone, zipped CSVs are three clicks away where What's new says one, and no journey opens Data's "Everything…" or exports a filtered All tab. The file name no longer carries the year (read).
