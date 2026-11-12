@@ -38,7 +38,8 @@ describe('metric library tools', () => {
     const list = await call('list_metrics');
     expect(list.isError).toBe(false);
     expect((list.structuredContent!.metrics as unknown[]).length).toBe(13);
-    expect(list.content[0]!.text).toMatch(/metric_flaky-rate · Flaky test rate \(%, lower is better\) · owner Rhea Kapoor · 1 at risk/);
+    expect(JSON.parse(list.content[0]!.text)).toEqual(list.structuredContent);
+    expect((list.structuredContent!.metrics as { id: string; owner: string | null }[]).find((m) => m.id === 'metric_flaky-rate')).toMatchObject({ owner: 'Rhea Kapoor' });
     expect(((await call('list_metrics', { search: 'dora' })).structuredContent!.metrics as unknown[]).length).toBe(3);
     const one = await call('get_metric', { metric: 'lead time for changes' });
     expect(one.structuredContent).toMatchObject({ id: 'metric_lead-time', unit: 'hours', direction: 'lower', youCanChange: false, measures: [{ goalId: 'ns-lead', slice: 'The whole company', target: { value: 24, kind: 'target' } }] });

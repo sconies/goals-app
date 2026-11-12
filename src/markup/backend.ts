@@ -9,7 +9,7 @@
    Either way, the markups a person sent from this browser are remembered (ids only), so What's new can say "You raised
    this"; in the real app the database also says which of theirs were fixed. Feedback says it too: the app already has
    the feedback a person sent, and the database (or, with none, this browser's inbox) says which was fixed where. */
-import { NEWS } from '../help/lookup';
+import { NEWS } from '../help/newsIndex';
 import type { Pictures } from './ink';
 import { MARKUP_REPO, markupFromRow, markupToRow, type Markup, type MarkupRow, type Raised } from './model';
 import { markupOps, type MarkupOps, type MarkupStore } from './ops';

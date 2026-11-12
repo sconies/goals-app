@@ -120,3 +120,12 @@ export function cycleLine(c: Pick<Cycle, 'name' | 'startDate' | 'weeks'>, curren
   return { title, when, counts: `${goals} · ${counts.checkIns ? `${counts.checkIns.toLocaleString('en-GB')} ${counts.checkIns === 1 ? 'check-in' : 'check-ins'}` : 'no check-ins yet'}` };
 }
 
+/**
+ * The line said once a switch lands you in another workspace (outside review, 12 Nov): who you are there and your role,
+ * when either differs from where you came from. The same person with the same role needs no line.
+ */
+export function landingLine(before: { name: string; admin?: boolean } | null, after: { name: string; admin?: boolean }): string | null {
+  if (before && before.name === after.name && !!before.admin === !!after.admin) return null;
+  return `You’re ${after.name} here, ${after.admin ? 'an admin' : 'a member'}.`;
+}
+

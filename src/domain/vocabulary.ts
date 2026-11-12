@@ -402,6 +402,12 @@ export const COMMENT_REMOVED = REMOVAL['comment-removed'].label;
 export const NOTE_REMOVED = REMOVAL['note-removed'].label;
 export const EDITED = REMOVAL.edited.label;
 
+/* ---------- a workspace ---------- */
+
+/** What a workspace is, in one sentence (outside review and Lane, 12 Nov). Workspace's About says it under the workspace's name, and
+    docs/glossary.md quotes it; the rebuild states its own the same way (R6a). Not a status word, so not a term. */
+export const WORKSPACE_MEANS = 'A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. What you can do in it depends on your role there: an admin or a member.';
+
 /* ---------- every group, and helpers ---------- */
 
 export const GROUPS = {

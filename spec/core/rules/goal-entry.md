@@ -110,6 +110,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a number goal’s From and To (rules 2, 3 and 13; GE9) › asks about a To already past, and a plan longer than a year
 - a number goal’s From and To (rules 2, 3 and 13; GE9) › asks nothing of the defaults: this week to the end of the year
 - a number goal’s From and To (rules 2, 3 and 13; GE9) › refuses To before From, and a week that isn’t one
+- a number goal’s From and To (rules 2, 3 and 13; GE9) › in the year’s last week, a new goal’s untouched From and To run to the end of next year (GE9 review)
+- a number goal’s From and To (rules 2, 3 and 13; GE9) › gives a week that isn’t one an example from this week, not a fixed one
 - a number goal’s From and To (rules 2, 3 and 13; GE9) › doesn’t ask again of a goal whose From and To didn’t change
 
 ### [evals/goalEntry.eval.ts](../../../evals/goalEntry.eval.ts)

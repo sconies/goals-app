@@ -5,7 +5,26 @@
    (app/state.tsx `run`) for a call to its server and changes no screen. No screens, storage or network here. */
 import * as A from '../domain/actions';
 import * as R from '../domain/removal';
-import { planChanges, postCheckIn, type Answers, type PostMode, type Via } from '../domain/changeset';
+import type { Answers, PostMode, Via } from '../domain/changeset';
+
+/*
+ * The change engine (domain/changeset: check-ins, plan and goal edits, bulk edits, spreadsheets) is a large module a
+ * first visit doesn't need, so it loads on its own: on the first action that uses it (the dispatcher awaits `ready`),
+ * or earlier, when the browser is idle after the first screen (`loadEngine`). A screen that previews changes while it
+ * renders (Quick check-in, Data, bulk edit, People, Import) imports src/app/engineReady.ts, which sets it as the screen
+ * loads. The actions stay synchronous rules.
+ */
+type Engine = typeof import('../domain/changeset');
+let engine: Engine | null = null;
+export async function loadEngine(): Promise<Engine> { return (engine ??= await import('../domain/changeset')); }
+/** Sets the engine from a screen that imports it statically (src/app/engineReady.ts), so the screen's previews can run
+    during its first render. */
+export function setEngine(e: Engine) { engine ??= e; }
+/** The actions that need the change engine. */
+const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn']);
+/** Loads what an action needs before it runs: the dispatcher calls it first. */
+export async function ready(name: string): Promise<void> { if (NEEDS_ENGINE.has(name)) await loadEngine(); }
+const eng = (): Engine => { if (!engine) throw new Error('The change engine hasn’t loaded yet: call ready() first.'); return engine; };
 import type { Draft } from '../domain/checkin';
 import { planGoal, type SaveGoalInput } from '../domain/goalEntry';
 import { findGoal } from '../domain/goalKey';
@@ -43,10 +62,10 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number } }) =>
-    planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) =>
-    postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),
+    eng().postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),
   /* A goal from New goal or the edit page (goal entry, rule 7): the same rights and Must fix as every other door. */
   saveGoal: (x: RunContext, i: SaveGoalInput) => planGoal(x, i),
   stopGoal: (x: RunContext, i: { goalId: string; reason: string }) => R.stopGoal(x, goalOf(x, i.goalId).id, i.reason),

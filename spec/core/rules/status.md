@@ -64,10 +64,11 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 1. *week* = the cycle's week that day. *latest* = the goal's check-in posted most recently (by when it was posted, whatever week it was for).
 2. If *latest*'s call is `done`: **Done**.
 3. Else if *week* is 0: **Not started**.
-4. Else if the days without an update are under 14: *latest*'s call (the owner's), or **No check-in yet** if there is none.
-5. Else: **No recent update** (`stale`).
+4. Else if the cycle's last day is past ([a year's end](year-end.md)): *latest*'s call, or **No check-in yet** if there is none. After the last day no goal becomes No recent update for want of a check-in.
+5. Else if the days without an update are under 14: *latest*'s call (the owner's), or **No check-in yet** if there is none.
+6. Else: **No recent update** (`stale`).
 
-*Days without an update* are the days since *latest* was posted; with no check-in, since the goal began (the cycle's start, or the day it was added if later).
+*Days without an update* are the days since *latest* was posted; with no check-in, since the goal began: the latest of the cycle's start, the day it was added, and, for a number goal whose plan starts later (`fromWeek` > 0), that week's day (the cycle's start + 7 × `fromWeek` days; [years and weeks](years-and-weeks.md): a plan not yet started is not due).
 
 The owner's call is official, even where the numbers disagree. A call is *greener* when it ranks better than what the rules calculated when it was posted: the check-in's stored `calculated`, never a recalculation (the two can differ, for example when a stage becomes late after posting). Ranks: `done` 0, `planned` 0, `none` 0, `on` 1, `risk` 2, `stale` 2, `off` 3; lower is better.
 
@@ -82,6 +83,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A straight plan from 30 to 75 over 13 weeks (plan 43.846 in week 4). Week 4 numbers at 95%, 94%, 80% and 79% of the planned change. | `on, risk, risk, off` |
 | The same goal: 58 in week 4 (ratio 2.0) and 40 (ratio 0.72). | `58: on, well ahead; 40: off, behind` |
 | Lower is better: back-loaded from 34 to 18 over 13 weeks; 29.4 and 35 in week 6. | `29.4: risk; 35: off` |
+| The 30→75 goal, its last check-in in week 11 (Monday 23 November 2026), in the 13-week cycle whose last day is Sunday 13 December: seen on the last day (20 days without an update), then the day after (21 days, boundary). | `stale, on` |
 | Week 0 with 30, and week 3 with no number. | `planned, none` |
 | A stepped plan from 10 to 40 in week 2 (before its first step): 10, then 8. | `on, risk` |
 | A cost in USD with 2 decimals, 0.42 down to 0.30 over 13 weeks (week 1 plan 0.4108): 0.41, 0.42 and 0.40 in week 1. | `0.41: on; 0.42: off, behind; 0.40: on, well ahead` |

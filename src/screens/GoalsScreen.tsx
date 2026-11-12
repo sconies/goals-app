@@ -20,18 +20,17 @@ import { GoalTable } from './GoalTable';
 import { GoalBoard } from './GoalBoard';
 import { HistoryGrid } from './GoalHistory';
 import { StatusLegend } from '../ui/StatusLegend';
-import { Place, useGoalColumns } from '../core/app';
+import { Place } from '../core/app';
 import { FilterBar, useGoalQuery, useLatestParams, useViewActions } from './GoalFilters';
 import { MenuButton } from '../ui/MenuButton';
-import { applyQuery, EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
-import { goalWords, nearMiss } from '../domain/find';
+import { EMPTY_QUERY, filters, SORT_OPTIONS } from '../domain/query';
+import { useGoalCounts, useGoalList } from '../app/goals';
 import { NoneFound } from '../ui/ListBar';
 import { usePrefs } from '../app/search';
 import { scopeFacts } from '../app/reads';
-import { attentionCount, goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
+import { goalsLine, GROUPS, movedGoals, ownGroup, scopesFor, type Group, type Scope } from '../domain/goalsPage';
 
 const GOAL_WORDS = { thing: 'goal', things: 'goals' };
-import { summariseAll } from '../domain/summary';
 import { withAncestors } from '../domain/map';
 import { FirstReports } from '../ui/FirstReports';
 import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
@@ -112,21 +111,15 @@ export function GoalsScreen() {
     [show, app.snapshot, app.viewer.id, att, handled, inScope]);
   // Search, filters and sort apply on top of the grouping, in every layout and in exports.
   const [query, setQuery] = useGoalQuery();
-  const { columns } = useGoalColumns();
   const narrowed = filters(query);
   const refined = narrowed || !!query.sort || scope !== 'all';
   const attentionOn = query.attention || query.needs.length > 0;
   // A search that finds nothing tries a near miss (find rule 5): the goals that match it are shown, and said so.
-  const [ranked, near] = useMemo((): [string[] | null, string | null] => {
-    if (!refined) return [null, null];
-    const sums = summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week);
-    const ctx = { goals: app.snapshot.goals, cycle: app.cycle, week: app.week, columns };
-    const ids = applyQuery(sums, query, ctx).map((x) => x.goal.id);
-    if (ids.length || !query.q.trim()) return [ids, null];
-    const fix = nearMiss(query.q, sums.map(goalWords));
-    const again = fix ? applyQuery(sums, { ...query, q: fix }, ctx).map((x) => x.goal.id) : [];
-    return again.length ? [again, fix] : [ids, null];
-  }, [refined, query, app.snapshot, app.cycle, app.today, app.week, inScope, columns]);
+  // Through the query port (AX5): the scope's goals that match, in the query's order, or its near miss's.
+  const among = useMemo(() => [...inScope], [inScope]);
+  const found = useGoalList(refined ? { query, among } : null);
+  const ranked = refined ? (found?.rows.map((r) => r.goal.id) ?? []) : null;
+  const near = found?.near ?? null;
   // Saved views and what can be done with this one: the Views menu, or the phone's View sheet (goals spec, 2.1, 2.4).
   const actions = useViewActions();
   const { views, active: activeView } = actions;
@@ -178,10 +171,10 @@ export function GoalsScreen() {
   const mapGoals = narrowed ? (() => { const keep = withAncestors(app.snapshot.goals, new Set(shown.map((g) => g.id))); return app.snapshot.goals.filter((g) => keep.has(g.id)); })() : shown;
   const alt = layout !== 'list';
   // The switch's count (rule 3): the scope's goals needing attention, after the search and filters.
-  const sumsInScope = useMemo(() => summariseAll(app.snapshot.goals.filter((g) => inScope.has(g.id)), app.snapshot, app.cycle, app.today, app.week), [app.snapshot, inScope, app.cycle, app.today, app.week]);
-  const switchCount = useMemo(() => attentionCount(sumsInScope, query, { goals: app.snapshot.goals, cycle: app.cycle, week: app.week }), [sumsInScope, query, app.snapshot.goals, app.cycle, app.week]);
+  const rowsInScope = useGoalList({ query: EMPTY_QUERY, among })?.rows ?? [];
+  const switchCount = useGoalCounts({ query, among })?.attention ?? 0;
   const shownIds = new Set(shown.map((g) => g.id));
-  const line = goalsLine(sumsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
+  const line = goalsLine(rowsInScope.filter((x) => shownIds.has(x.goal.id)), narrowed, query.sort ? (SORT_OPTIONS.find(([k]) => k === query.sort)?.[1] ?? '').toLowerCase() : group === 'tree' ? 'as trees' : 'worst first', switchOn);
   const linkNote = moved?.text ?? null;
   // Each kind of view gets the room it needs: a list reads best narrow, a table or board wants width, the map wants everything.
   const frame = (!alt ? 'page' : layout === 'map' ? 'page full' : 'page wide') + ' goals-page' + (show === 'watching' && !alt ? ' watching' : '');
@@ -292,7 +285,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} goTo={goTo} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<MapWait />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} goTo={goTo} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (
@@ -433,4 +426,17 @@ function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave,
 function teamsWorstFirst(app: ReturnType<typeof useApp>) {
   const teams = app.snapshot.teams.map((team) => ({ team, goals: app.snapshot.goals.filter((g) => g.teamId === team.id).sort(worstFirst(app)) })).filter((t) => t.goals.length);
   return worstGroupsFirst(teams, (t) => t.goals.map((g) => app.statusOf(g).status), (t) => t.team.name);
+}
+
+/** How long the map may take before it says it is drawing: a wait shorter than this is not worth a message. */
+const MAP_WAIT_MS = 300;
+
+/**
+ * While the map's code loads: an empty space the map's size, and "Drawing the map…" only once it has taken a noticeable
+ * time (review of 12 Nov: the line flashed for a moment on every switch to Map).
+ */
+function MapWait() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), MAP_WAIT_MS); return () => clearTimeout(t); }, []);
+  return slow ? <div className="map-wait" role="status">Drawing the map…</div> : <div style={{ minHeight: '50vh' }} aria-hidden="true" />;
 }

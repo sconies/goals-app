@@ -56,7 +56,7 @@ const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? o
 function draftPlan(d: GoalDraft, c: ReadBackContext): (MetricPlan & { from: number; to: number }) | null {
   const s = parseNumber(d.start), t = parseNumber(d.target);
   if (d.kind !== 'metric' || s == null || t == null) return null;
-  const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null });
+  const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null, startDate: c.cycle.startDate });
   const plan = withPoints({ start: s, target: t, shape: d.shape, fromWeek: span.from, endWeek: span.to }, d.points, c.cycle.weeks);
   return { ...plan, from: span.from, to: span.to };
 }
@@ -69,7 +69,7 @@ export function leftAsUsual(d: GoalDraft, c: Pick<ReadBackContext, 'cycle' | 'we
   const out: { text: string; step: number }[] = [];
   if (d.kind !== 'milestone' && (decimalsFor(d) ?? 0) === 0) out.push({ text: 'Whole numbers.', step: 2 });
   if (d.kind === 'metric') {
-    const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null });
+    const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null, startDate: c.cycle.startDate });
     const fromNow = span.from === c.week, toEnd = span.to === c.cycle.weeks, year = cycleYear(c.cycle);
     if (fromNow && toEnd) out.push({ text: `From this week to the end of ${year}.`, step: 2 });
     else if (fromNow) out.push({ text: 'From this week.', step: 2 });
@@ -77,7 +77,7 @@ export function leftAsUsual(d: GoalDraft, c: Pick<ReadBackContext, 'cycle' | 'we
     if (d.shape === 'straight' && !handSet(d)) out.push({ text: 'Steady.', step: 2 });
   }
   if (d.kind === 'range' && !d.margin.trim()) out.push({ text: 'No early warning.', step: 2 });
-  if (!d.parentId) out.push({ text: 'Feeds nothing.', step: 1 });
+  // "Feeds nothing" is said once, in Who and where ("… and feeds nothing: it's at the top of its own tree.").
   if (!d.guardrail) out.push({ text: 'Not a guardrail.', step: 1 });
   if (!(d.alsoHelps ?? []).length) out.push({ text: 'Helps no other goal.', step: 1 });
   return out;
@@ -142,7 +142,12 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
   // After you publish.
   const after: string[] = [];
   const ownerFirst = c.owner ? first(c.owner.name) : 'Its owner';
-  if (c.rhythm === 'weekly') {
+  // Stages said to be already done are saved as its first check-in (OB2's rule 3): from then it is stopped, not deleted.
+  const named = d.kind === 'milestone' ? d.stages.filter((s) => s.name.trim()) : [];
+  const doneNow = named.filter((s) => s.done === 'yes').length;
+  if (named.length && doneNow === named.length) {
+    after.push('Every stage is already done, so no check-in is due.');
+  } else if (c.rhythm === 'weekly') {
     const dueWeek = Math.max(firstReview(cy, c.today).week, plan ? plan.from : 0);
     const asks = d.kind === 'milestone' ? 'It asks which stages are done.'
       : d.kind === 'range' ? 'It asks for this week’s number.'
@@ -157,9 +162,10 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
     const j = c.reviewsJoined;
     after.push(!j.length ? 'It joins no review yet.' : j.length === 1 ? `It joins ${j[0]!.name}, which walks ${j[0]!.why}.` : `It joins ${andList(j.map((r) => r.name))}.`);
   }
+  const stopped = doneNow ? `${doneNow === 1 ? 'Its stage already done is' : 'Its stages already done are'} its first check-in, so it can be stopped, with a reason, but not deleted.` : '';
   after.push(c.owner?.isViewer
-    ? 'Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason.'
-    : `Only ${ownerFirst} or an admin can change it once it is published. Until its first check-in they can change anything, or delete it.`);
+    ? (stopped ? `${stopped} A change to the plan needs a reason.` : 'Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason.')
+    : `Only ${ownerFirst} or an admin can change it once it is published. ${stopped || 'Until its first check-in they can change anything, or delete it.'}`);
   return { rows, after };
 }
 
