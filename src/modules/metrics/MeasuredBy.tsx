@@ -185,10 +185,10 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
           {inUse.length > 0 && <p className="small">Parts other goals on this metric use: {inUse.map((x, i) => <span key={x}>{i ? ', ' : ''}<button type="button" className="linkish" onClick={() => { setPart(x); setShown(true); }}>{x}</button></span>)}</p>}
           {(shown || part.trim().length > PART_MAX) && partChecks.map((c) => <LinkQuestion key={c.words} c={c} onAnswer={(choice) => { if (choice.startsWith('use:')) setPart(choice.slice(4)); setAnswered([...answered, c.words]); }} />)}
           {changing && (
-            <label className="field" htmlFor="measured-why"><span className="field-label">Why</span>
-              <textarea id="measured-why" className="input" rows={2} maxLength={LINK_REASON_MAX} value={reason} aria-invalid={!!whyFix || undefined} onChange={(e) => setReason(e.target.value)} />
-              <span className="hint">It shows in its History.</span>
-            </label>
+            <div className="field"><label className="field-label" htmlFor="measured-why">Why</label>
+              <textarea id="measured-why" className="input" rows={2} maxLength={LINK_REASON_MAX} value={reason} aria-invalid={!!whyFix || undefined} aria-describedby="measured-why-hint" onChange={(e) => setReason(e.target.value)} />
+              <span className="hint" id="measured-why-hint">It shows in its History.</span>
+            </div>
           )}
           {changing && whyFix && <LinkQuestion c={whyFix} onAnswer={() => undefined} />}
           {problems.errors.map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>)}
