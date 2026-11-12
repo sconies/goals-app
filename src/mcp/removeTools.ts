@@ -2,7 +2,7 @@
    an assistant can mark someone as left, stop or delete a goal, delete a check-in, end a review, edit or remove a
    comment, undo an import, and list and restore what was removed, exactly as the person it acts for could. Every change
    is logged as that person, via the AI assistant. */
-import { MODULE_RECORDS } from '../core/records';
+import { MODULE_RECORDS, recordsOn } from '../core/records';
 import type { Commit } from '../data/store';
 import { editCall, type ActionContext } from '../domain/actions';
 import { findGoal, isKey } from '../domain/goalKey';
@@ -47,7 +47,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(_a, ctx) {
-      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, MODULE_RECORDS).filter((r) => R.canRestore(ctx.actor, r));
+      const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws)).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
       return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };
@@ -61,7 +61,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
     annotations: WRITE,
     async run(a, ctx) {
       if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(', ')}.`);
-      const c = R.restoreRemoved(ax(ctx), String(a.kind), String(a.id ?? ''), MODULE_RECORDS);
+      const c = R.restoreRemoved(ax(ctx), String(a.kind), String(a.id ?? ''), recordsOn(ctx.ws));
       await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
       return { text: `${c.changes[0]?.summary ?? 'Restored'} (as ${ctx.actor.name}).` };
     },

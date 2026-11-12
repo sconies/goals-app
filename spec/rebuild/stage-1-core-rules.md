@@ -57,6 +57,6 @@ When a file is close, the first differences for one goal usually name the rule t
 
 ## Exit criteria
 
-1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all five files match (43373 rows).
+1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all five files match (65283 rows).
 2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.
 3. `rebuild/GAPS.md` lists everything you had to guess.

@@ -10,3 +10,8 @@ export const MODULE_RECORDS: readonly ModuleRecords[] = PARTS.map((p) => ({ ...p
 
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 export const MODULE_SHEETS: readonly ModuleSheet[] = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
+
+/** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
+    keeps its rows untouched, and none of them is offered back until it is on again. */
+export const recordsOn = (ws: { modulesOff?: readonly string[] } | null | undefined): readonly ModuleRecords[] =>
+  MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
