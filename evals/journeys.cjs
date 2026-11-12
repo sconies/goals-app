@@ -4620,6 +4620,47 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
+journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // An old link to one part of the form lands on that section of the one page, and the address says so.
+  await p.goto(url('/goals/ns-lead/edit?part=plan'));
+  await p.waitForURL(/\/goals\/ns-lead\/edit\?today=[^#]*#plan$/, { timeout: 5000 }).catch(() => fail(`?part=plan did not become #plan (${p.url()})`));
+  await see(p, 'Change Lead time for changes');
+  await p.waitForTimeout(500);
+  await h.inView(p.getByRole('heading', { name: 'Plan and target' }), 'entry', 'Plan and target, opened from ?part=plan');
+  const heads = await p.locator('.goal-edit .edit-part').evaluateAll((es) => es.map((e) => `${e.id}:${(e.querySelector('h2, summary')?.textContent || '').trim()}`));
+  const want = ['definition:What it is', 'plan:Plan and target', 'owner:Who and where', 'more:More details'];
+  if (heads.join('|') !== want.join('|')) fail(`the sections read ${heads.join(', ')}`);
+  // One way out, in words; no second exit.
+  const exits = await p.locator('.focus-top').getByRole('button').count() + await p.locator('.focus-top a').count();
+  h.set('attention', exits === 1 && await p.getByRole('button', { name: 'Close and keep the draft' }).isVisible() && !(await p.getByRole('link', { name: /^Back to/ }).count()), `the edit page has ${exits} ways out`);
+  await see(p, 'Check-ins have started, so a change here needs a reason. Watchers see it flagged.');
+  // A new target asks why; Save changes is in view at the foot and the reason box, focused, is not under it.
+  await h.fill(p.getByLabel(/^Target/), '20');
+  const reason = p.getByLabel('Why change it?');
+  await reason.focus();
+  await p.waitForTimeout(250);
+  const [rb, fb] = [await reason.boundingBox(), await p.locator('.focus-foot').boundingBox()];
+  const vh = p.viewportSize().height;
+  h.set('progress', !!rb && !!fb && rb.y + rb.height <= fb.y && fb.y + fb.height <= vh + 1, `the reason box (${rb && Math.round(rb.y + rb.height)}) is under Save changes (${fb && Math.round(fb.y)}), or the bar is off the screen`);
+  await h.inView(p.getByRole('button', { name: 'Save changes' }), 'progress', 'Save changes, held at the foot');
+  await h.checkpoint('plan');
+  // Closing keeps the draft: back on the goal, nothing saved; opened again, the new target is there.
+  await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
+  const s = await h.snapshot();
+  h.set('logged', s.goals.find((g) => g.id === 'ns-lead').plan.target !== 20, 'closing saved the change');
+  await p.goto(url('/goals/ns-lead/edit') + '#owner');
+  await see(p, 'Restored your unsaved edits', 'closing did not keep the draft');
+  h.set('finish', (await p.getByLabel(/^Target/).inputValue()) === '20', 'the kept draft lost the new target');
+  await p.waitForTimeout(500);
+  // #owner opens at Who and where; its owner is a find-and-pick, not a list.
+  await h.inView(p.getByRole('heading', { name: 'Who and where' }), 'entry', 'Who and where, opened from #owner');
+  h.set('errors', await p.getByRole('button', { name: /^Owner: Rhea Kapoor\. Change$/ }).isVisible() && await p.getByRole('button', { name: /^Feeds into\b/ }).first().isVisible(), 'the owner or Feeds into is not a find-and-pick');
+  await h.checkpoint('owner');
+  await p.context().close();
+}, []);
+
 journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order people think: what, then who and where (Tunde as owner, his team, Team level, his team’s SVP goals suggested for “Feeds into”, one chosen by typing, “Also helps” set), then how it’s measured, then Check reads it all back; each step is an address, the browser’s Back steps back with the numbers kept, a reload stays put and says the draft was picked up, and no select lists people, teams or goals', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
