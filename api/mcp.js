@@ -8623,6 +8623,74 @@ function undoPlan(x, importId) {
 			importId
 		}));
 	}
+	const goalsBack = goals.length;
+	const removing = new Map(goals.filter((g) => g.removedAt).map((g) => [g.id, g]));
+	const goalNow = (id) => goals.find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
+	for (const g of full.goals) {
+		if (g.removedAt || removing.has(g.id)) continue;
+		const cur = goalNow(g.id);
+		const fed = cur.parentId ? removing.get(cur.parentId) : void 0;
+		const helps = (cur.alsoHelps ?? []).filter((id) => removing.has(id));
+		if (!fed && !helps.length) continue;
+		const next = { ...cur };
+		let to;
+		if (fed) {
+			let up = fed.parentId;
+			while (up && removing.has(up)) up = removing.get(up).parentId;
+			to = up ? goalNow(up) : void 0;
+			if (to && (to.removedAt || to.stoppedAt)) to = void 0;
+			next.parentId = to?.id ?? null;
+			if (!to) {
+				next.effect = null;
+				delete next.whyHelps;
+			}
+		}
+		if (helps.length) next.alsoHelps = cur.alsoHelps.filter((id) => !removing.has(id));
+		if (next.alsoHelps && !next.alsoHelps.length) delete next.alsoHelps;
+		const i = goals.findIndex((v) => v.id === g.id);
+		if (i >= 0) goals[i] = next;
+		else goals.push(next);
+		if (fed) changes.push(log$1(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `Now feeds ${to ? to.title : "nothing"}, as ${fed.title} was deleted by undoing an import`,
+			diffs: [{
+				field: "Feeds into",
+				from: fed.title,
+				to: to?.title ?? "—"
+			}],
+			importId
+		}));
+		for (const id of helps) changes.push(log$1(x, {
+			entity: "goal",
+			entityId: g.id,
+			goalId: g.id,
+			action: "edited",
+			summary: `No longer also helps ${removing.get(id).title}, as it was deleted by undoing an import`,
+			diffs: [{
+				field: "Also helps",
+				from: removing.get(id).title,
+				to: "—"
+			}],
+			importId
+		}));
+	}
+	const ownAsks = new Set(u.requests.map((r) => r.id));
+	for (const g of removing.values()) for (const r of openAsksFor(g.id, full)) {
+		if (ownAsks.has(r.id) || requests.some((v) => v.id === r.id)) continue;
+		const w = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId, "Withdrawn: the goal was deleted by undoing an import");
+		requests.push(w.request);
+		changes.push(...w.changes.map((c) => ({
+			...c,
+			importId
+		})));
+	}
+	const added = (gid) => u.goals.some((v) => v.id === gid && !v.before);
+	const addedTeams = new Set((u.teams ?? []).filter((t) => !t.before).map((t) => t.id));
+	const teamBefore = new Map((u.teams ?? []).filter((t) => t.before).map((t) => [t.id, t.before]));
+	const going = /* @__PURE__ */ new Map();
 	for (const { id, before } of u.people) {
 		const cur = full.people.find((p) => p.id === id);
 		if (!cur || cur.removedAt) continue;
@@ -8631,30 +8699,30 @@ function undoPlan(x, importId) {
 			keep(cur.name, by, "person");
 			continue;
 		}
-		const added = (gid) => u.goals.some((v) => v.id === gid && !v.before);
 		if (!before) {
 			const acted = latest((c) => c.actorId === id);
 			const owns = full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id));
-			if (acted || owns) {
+			const inReview = (full.reviews ?? []).some((r) => r.people.includes(id) && !r.removedAt && !(u.reviews ?? []).some((v) => v.id === r.id));
+			const asked = asksOf(full).some((r) => !ownAsks.has(r.id) && (r.askedBy === id || r.recipientId === id || r.answeredBy === id));
+			const why = acted || owns ? "has made changes since" : inReview ? "is in a review since" : asked ? "has an ask since" : "";
+			if (why) {
 				skipped.push({
 					name: cur.name,
-					reason: `${cur.name} has made changes since`,
+					reason: `${cur.name} ${why}`,
 					at: acted?.at ?? entry.at,
 					by: id
 				});
 				continue;
 			}
+			going.set(id, cur);
+			continue;
 		}
-		people.push(before ? asBefore(cur, before) : {
-			...cur,
-			removedAt: x.now,
-			removedBy: x.actor.id
-		});
+		people.push(asBefore(cur, before));
 		changes.push(log$1(x, {
 			entity: "person",
 			entityId: id,
-			action: before ? "edited" : "removed",
-			summary: before ? `Put ${before.name} back as they were before an import` : `Deleted ${cur.name}: an import that added them was undone`,
+			action: "edited",
+			summary: `Put ${before.name} back as they were before an import`,
 			importId
 		}));
 	}
@@ -8673,9 +8741,36 @@ function undoPlan(x, importId) {
 		});
 	}
 	const teams = (u.teams ?? []).flatMap(({ id, before }) => before && full.teams.some((t) => t.id === id) ? [before] : []);
-	const goneGoals = new Set(goals.filter((g) => g.removedAt).map((g) => g.id));
-	const gonePeople = new Set(people.filter((p) => p.removedAt).map((p) => p.id));
-	const removeTeams = (u.teams ?? []).filter(({ id, before }) => !before && full.teams.some((t) => t.id === id) && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id)) && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !gonePeople.has(p.id))).map(({ id }) => id);
+	const goneGoals = new Set(removing.keys());
+	let removeTeams = [];
+	for (;;) {
+		removeTeams = [...addedTeams].filter((id) => full.teams.some((t) => t.id === id) && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id)) && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !going.has(p.id)));
+		const leads = [...going.values()].filter((p) => full.teams.some((t) => t.leadId === p.id && !removeTeams.includes(t.id) && (teamBefore.get(t.id)?.leadId ?? p.id) === p.id));
+		if (!leads.length) break;
+		for (const p of leads) {
+			going.delete(p.id);
+			skipped.push({
+				name: p.name,
+				reason: `${p.name} leads the team ${full.teams.find((t) => t.leadId === p.id).name}`,
+				at: entry.at,
+				by: p.id
+			});
+		}
+	}
+	for (const p of going.values()) {
+		people.push({
+			...p,
+			removedAt: x.now,
+			removedBy: x.actor.id
+		});
+		changes.push(log$1(x, {
+			entity: "person",
+			entityId: p.id,
+			action: "removed",
+			summary: `Deleted ${p.name}: an import that added them was undone`,
+			importId
+		}));
+	}
 	for (const id of removeTeams) changes.push(log$1(x, {
 		entity: "workspace",
 		entityId: id,
@@ -8713,7 +8808,7 @@ function undoPlan(x, importId) {
 		} : null);
 		if (back) requests.push(back);
 	}
-	const restored = goals.length + checkIns.length + people.length;
+	const restored = goalsBack + checkIns.length + people.length + reviews.length + teams.length + removeTeams.length + requests.filter((r) => ownAsks.has(r.id)).length;
 	changes.unshift(log$1(x, {
 		entity: "workspace",
 		entityId: importId,
@@ -8751,7 +8846,9 @@ function undoPlan(x, importId) {
 * anything since is left alone and listed in `skipped`, with why, when and by whom (rule 9).
 */
 function undoImport(x, importId) {
-	return undoPlan(x, importId);
+	const out = undoPlan(x, importId);
+	if (!out.restored) no$1(nothingToUndo(out.skipped.length));
+	return out;
 }
 /** Rule 9: what Undo would do, saving nothing: how many rows go back, and which stay as they are, and why. */
 function undoPreview(x, importId) {
@@ -8760,6 +8857,10 @@ function undoPreview(x, importId) {
 		restores: out.restored,
 		skipped: out.skipped
 	};
+}
+/** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
+function nothingToUndo(skipped) {
+	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$2(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
 function recentlyRemoved(full, now, days = 30, records = []) {
@@ -9129,6 +9230,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
 		case "near-header": return first.message;
+		case "two-columns": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9204,6 +9306,7 @@ var init_problemLevels = __esmMin((() => {
 		"near-ref",
 		"near-word",
 		"near-header",
+		"two-columns",
 		"new-team",
 		"same-person",
 		"same-goal",
@@ -9514,22 +9617,38 @@ function fileDiffs(file, changed, unchanged, left) {
 	}];
 }
 /** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
-function namedHeaders(t, nearOk) {
+function namedHeaders(t, nearOk, whichOf) {
 	const out = { ...t };
 	for (const [key, kind, sheet] of TABLE_SHEETS) {
 		const recs = t[key];
 		if (!recs?.length) continue;
 		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
-		const rename = /* @__PURE__ */ new Map();
+		const by = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
 			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
-			if (k === to) continue;
-			if (keys.includes(to)) continue;
-			if (m.how !== "near" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			const at = by.get(to) ?? {
+				as: m.as,
+				keys: [],
+				near: []
+			};
+			at.keys.push(k);
+			if (m.how === "near" && k !== to) at.near.push(k);
+			by.set(to, at);
 		}
-		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+		const rename = /* @__PURE__ */ new Map();
+		const drop = /* @__PURE__ */ new Set();
+		for (const [to, { as, keys: from, near: nearKeys }] of by) {
+			let use = from[0];
+			if (from.length > 1) {
+				use = whichOf(sheet, as, from);
+				for (const k of from) if (k !== use) drop.add(k);
+				if (!use) continue;
+			} else if (nearKeys.includes(use) && !nearOk(sheet, use, as)) continue;
+			if (use && use !== to) rename.set(use, to);
+		}
+		if (rename.size || drop.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k)).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
 	return out;
 }
@@ -9555,7 +9674,10 @@ function planChanges(input) {
 	let examples = 0;
 	const changes = [];
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
+	/** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
+	const held = /* @__PURE__ */ new Set();
 	const raise = (kind, sheet, row, name, message, x = {}) => {
+		if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === "must") return;
 		issues.push(issueOf(kind, sheet, row, name, message, x));
 	};
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
@@ -9572,19 +9694,36 @@ function planChanges(input) {
 		tables: namedHeaders(input.tables, (sheet, header, as) => {
 			const a = answerOf("near-header", sheet, "Header", header);
 			if (a?.choice === "use") return true;
-			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
-				column: "Header",
-				found: header,
-				suggest: as,
-				answers: [{
-					choice: "use",
-					label: `Read it as ${as}`
-				}, {
-					choice: "ignore",
-					label: "Don’t read it"
-				}]
-			});
+			if (!a) {
+				raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
+					column: "Header",
+					found: header,
+					suggest: as,
+					answers: [{
+						choice: "use",
+						label: `Read it as ${as}`
+					}, {
+						choice: "ignore",
+						label: "Don’t read it"
+					}]
+				});
+				held.add(`${sheet}|${as.toLowerCase()}`);
+			}
 			return false;
+		}, (sheet, as, headers) => {
+			const a = answerOf("two-columns", sheet, "Header", as);
+			const pick = a?.choice.startsWith("use:") ? a.choice.slice(4) : null;
+			if (pick && headers.includes(pick)) return pick;
+			raise("two-columns", sheet, 1, as, `Two columns on ${sheet} are read as ${as}: ${headers.map((h) => `“${h}”`).join(" and ")}. Which should be read?`, {
+				column: "Header",
+				found: as,
+				answers: headers.map((h) => ({
+					choice: `use:${h}`,
+					label: `Read “${h}”`
+				}))
+			});
+			held.add(`${sheet}|${as.toLowerCase()}`);
+			return null;
 		})
 	};
 	/**
@@ -14553,7 +14692,7 @@ var help$2 = [
 					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
+					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -14666,7 +14805,8 @@ var help$2 = [
 			{
 				heading: "What Undo puts back",
 				list: [
-					"Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again and someone it marked as left comes back.",
+					"Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again, someone it marked as left comes back, and a team it added or changed goes back too.",
+					"A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.",
 					"Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.",
 					"When every row has changed since, there is nothing left to undo, and it says so.",
 					"Once undone, the line says when and by whom, and Undo is gone."
@@ -17320,6 +17460,30 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "import-headers-steadier",
+		date: "2026-11-12",
+		title: "Import reads your headers more carefully",
+		points: [
+			"A People sheet with a Title or Objective column is read as People, not refused.",
+			"Two columns that mean the same thing, like Goal and Goal name, are asked about: you choose which is read.",
+			"While a header one letter out is asked about, its column’s Must fix waits for your answer.",
+			"Download the rows to fix keeps a column whose header is one letter out."
+		],
+		articles: ["import"]
+	},
+	{
+		id: "undo-import-every-kind",
+		date: "2026-11-12",
+		title: "Undoing an import puts back teams too",
+		points: [
+			"An import that only changed a team can be undone, and Undo counts the team.",
+			"A goal that fed one Undo deletes moves up, as it does when a goal is deleted by hand.",
+			"Someone an import added stays while they lead a team, sit in a review or have an ask.",
+			"A corrected check-in and a bulk edit on People are named as such on Past imports."
+		],
+		articles: ["past-imports"]
+	},
 	{
 		id: "read-back-holds",
 		date: "2026-11-12",
@@ -22307,7 +22471,7 @@ var REMOVE_TOOLS = [
 						skipped: p.skipped.map(kept),
 						saved: false
 					},
-					text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
+					text: !p.restores ? `Nothing saved. ${nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(keptText).join("; ")}.` : ""}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? "row" : "rows"}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(keptText).join("; ")}.` : ""}`
 				};
 			}
 			const out = undoImport(ax$1(ctx), String(a.import_id ?? ""));
