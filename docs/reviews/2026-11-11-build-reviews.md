@@ -101,6 +101,11 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #235 KT2: changes.csv and drills for stages 2 and 3 | planning | 0 | 0 | 0 |
 | #241 U93: a question about a number is where you can see it | 2 | 0 | 2 | 2 |
 | #238, #237, #240 Handovers | planning, 5 | 0 | 0 | 0 |
+| #247 Set-up check-ins are the owner's; delete and undo ask R1 too | polish | 0 | 0 | 0 |
+| #252 Check-ins are the owner's, said everywhere | polish | 0 | 0 | 0 |
+| #245, #253, #263 KT3 to KT5: contracts, import issue kinds and screens in the kit | track 6 | 0 | 0 | 0 |
+| #251, #258 Two journeys' checks | evals | 0 | 0 | 0 |
+| #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -119,7 +124,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Fixed** by #180; the reproduction re-run in both orders: no record twice, and the child's copy returns under its parent |
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
 | #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
-| #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Open** |
+| #227: any member can put a check-in on someone else's goal by creating it with stages already done | Its builder (session …91EAkyS7gzPSYrnJPg), 18:15 UTC, 12 Nov | **Fixed** by #247 (read, with its tests): the set-up check-in asks the rule at the form, a sheet, MCP and `recordStagesDone`; from anyone but the owner the goal is published without it, and the stage question says who marks it |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -1084,3 +1089,19 @@ Read first by the same reviewing session. No high finding. At 390 by 844 the que
 **2. Medium (read). With a real on-screen keyboard the question can still be behind it**: the fold is taken from `window.innerHeight`, never `visualViewport` (`questionInView.ts:11-22`). U93 and the unit test use a full-height screen.
 
 **Lows.** The page jumps back after the person scrolls away and types one more digit; typing in Baseline scrolls to Target's question. Set-up's Continue does not use the helper (`src/screens/Onboarding.tsx:253-257`), and no journey covers Change a goal or set-up (read).
+
+### #247 Set-up check-ins are the owner's; delete and undo ask R1 too (polish, merged 19:00 UTC, 12 Nov)
+
+Fixes #227's high and its medium 4, and #225's medium 1. The set-up check-in now asks `mayPostCheckIn` in all three places: the form's save (`src/domain/goalEntry.ts`, `done`), the engine's rows (`src/domain/changeset.ts`, `marks`) and `recordStagesDone` (`src/domain/actions.ts`). Someone creating a goal for another owner publishes it without the check-in, and the stage question says "{owner} marks done stages at the first check-in". Deleting a check-in is the owner's, whoever posted it (`src/domain/removal.ts`, `canDeleteCheckIn`). Undoing an import puts a check-in back only for someone who may check in by the door the import came in by, so an admin may undo a workbook but not an owner's own correction, and a goal handed on since is its new owner's. Read, with its unit tests; not re-run on screen. No finding.
+
+### #252 Check-ins are the owner's, said everywhere (polish, merged 19:28 UTC, 12 Nov)
+
+Takes #227's mediums 2 and 5 and #222's medium 2. The engine asks the rule of the goal's owner as stored, before the file's own changes, so one change cannot take a goal and check in on it (`changeset.ts`, `owned`). `post_check_in`'s description, the check-in rule page and the delegates requirement no longer say an admin may check in. `update_markup` checks the address and the status before it saves anything, and keeping an issue's address is admins only (`src/markup/ops.ts`, `src/mcp/markupTools.ts`). Read. No finding.
+
+### #245, #253 and #263 KT3 to KT5: the handoff kit (track 6, merged 18:53 to 20:12 UTC, 12 Nov)
+
+The search and preferences contracts as data, run by the drill through a shim; what raises each import issue kind as data (`src/domain/issueKinds.ts`), with a test that every kind the engine raises has a case; and each screen's fields, states and buttons read from its markup into the spec. These change the spec's generator, the drill script and the contracts' form, not the app's behaviour. Skimmed, not reviewed in depth: the generated pages were not checked against the screens. No finding.
+
+### #251 and #258 Two journeys' checks; #244, #246, #254 and #260 Backlog and handovers
+
+U4 now confirms publishing by the page's lasting line, not the toast, and U141 sets the three marks it never set. Evals only. The rest are documents. Not reviewed.
