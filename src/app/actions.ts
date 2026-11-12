@@ -14,7 +14,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import type { Goal, Person, Retro, Review, Watch, Workspace } from '../domain/types';
 import type { Commit } from '../domain/commit';
 import MODULE_PARTS from 'virtual:faro-modules/actions';
-import { MODULE_RECORDS } from '../core/records';
+import { recordsOn } from '../core/records';
 import { isModuleOn, moduleById } from '../core/registry';
 
 /** What the dispatcher hands each action: the rules' context, and the workspace itself for the few that change it. */
@@ -104,7 +104,7 @@ export const ACTIONS = {
   renameWorkspace: (x: RunContext, i: { name: string }) => A.renameWorkspace(x, x.workspace, i.name),
   setRecording: (x: RunContext, i: { on: boolean }) => A.setRecording(x, x.workspace, i.on),
   setModule: (x: RunContext, i: { moduleId: string; on: boolean }) => A.setModule(x, x.workspace, x.modules, i.moduleId, i.on),
-  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, MODULE_RECORDS),
+  restoreRemoved: (x: RunContext, i: { kind: R.RemovedKind; id: string }) => R.restoreRemoved(x, i.kind, i.id, recordsOn(x.workspace)),
   createToken: (x: RunContext, i: { personId: string; name: string }) => A.createToken(x, i.personId, i.name),
   revokeToken: (x: RunContext, i: { tokenId: string }) => A.revokeToken(x, i.tokenId),
   sendFeedback: (x: RunContext, i: { mood: 'good' | 'meh' | 'bad'; text: string; path: string }) => A.sendFeedback(x, i.mood, i.text, i.path),

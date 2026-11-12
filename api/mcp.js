@@ -11586,6 +11586,9 @@ var MODULE_RECORDS = [{
 }));
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
+/** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
+keeps its rows untouched, and none of them is offered back until it is on again. */
+var recordsOn = (ws) => MODULE_RECORDS.filter((m) => !(ws?.modulesOff ?? []).includes(m.module));
 // src/domain/summary.ts
 init_checkin();
 init_format();
@@ -20449,7 +20452,7 @@ var REMOVE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(_a, ctx) {
-			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, MODULE_RECORDS).filter((r) => canRestore(ctx.actor, r));
+			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
 			const list = all.map((r) => ({
 				kind: r.kind,
@@ -20481,7 +20484,7 @@ var REMOVE_TOOLS = [
 		annotations: WRITE$1,
 		async run(a, ctx) {
 			if (!KINDS.includes(String(a.kind))) throw new Error(`kind is one of ${KINDS.join(", ")}.`);
-			const c = restoreRemoved(ax$1(ctx), String(a.kind), String(a.id ?? ""), MODULE_RECORDS);
+			const c = restoreRemoved(ax$1(ctx), String(a.kind), String(a.id ?? ""), recordsOn(ctx.ws));
 			await ctx.save({
 				...c,
 				changes: c.changes.map((x) => ({
