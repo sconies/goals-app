@@ -55,7 +55,7 @@ export function FilterSheet({ onClose }: { onClose: () => void }) {
       </div>
       {/* Used less often: folded, and open when one of them is set. */}
       <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps || Object.keys(q.cols).length)}>
-        <summary>More filters: type{modFilters.map((f) => `, ${f.label.toLowerCase()}`).join('')}, due date, no update for, last quarter, result, links</summary>
+        <summary>More filters: type, due date, no update for, last quarter, result, links</summary>
       <div className="filter-sheet">
         {checks('Type', KIND_OPTIONS, 'kind')}
         {/* A module's filters (Measured by): each chosen by find-and-pick, as the module's kind is found anywhere. */}

@@ -14126,7 +14126,7 @@ var CORE_ARTICLES = [
 			text: ["Anyone saves their own views. Admins can pin a view for everyone."]
 		}],
 		routes: ["/goals?q=*", "/goals?status=*"],
-		screens: ["GoalFilters"],
+		screens: ["GoalFilters", "GoalFilterSheet"],
 		reqs: ["SAVED-VIEWS"],
 		keywords: [
 			"search",

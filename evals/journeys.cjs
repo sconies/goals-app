@@ -4725,7 +4725,7 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
 }, []);
 
 /* "Measured by", found by typing (ML2, docs/design/metrics/spec.md 2.4): a goal's metric chosen where the goal is made. */
-journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where it is made: as Rhea in New goal, “Measured by” comes first on the measure step; typing “queue” finds Pipeline queue wait (p90); choosing it shows its meaning, “min, whole numbers, lower is better: from the metric.” and For: CI/CD; Check has its row; after publishing, the goal says Measured by and the metric’s page lists it for CI/CD. Again with “Add “runner wait” as a new metric”: the small form, the goal carries on, and the library has it with “No meaning yet” for Rhea. A dated-stages goal has no “Measured by”', 20, async (h, device) => {
+journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where it is made: as Rhea in New goal, “Measured by” comes first on the measure step; typing “queue” finds Pipeline queue wait (p90); choosing it shows its meaning, “min, whole numbers, lower is better: from the metric.” and For: CI/CD; Check has its row; after publishing, the goal says Measured by and the metric’s page lists it for CI/CD. Again with “Add “runner wait” as a new metric”: the small form, the goal carries on, and the library has it with “No meaning yet” for Rhea. A dated-stages goal has no “Measured by”', 28, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   const start = async (title, kind) => {
     await p.goto(url('/goals/new'));
