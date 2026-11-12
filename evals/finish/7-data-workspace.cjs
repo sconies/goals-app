@@ -254,6 +254,7 @@ module.exports = {
     [c, r] = await open(1280, 800, 'rhea', '/goals?scope=all');
     await r.locator('.views-menu > summary').click();
     await r.getByRole('button', { name: 'Export these goals' }).click(); await r.waitForTimeout(400);
+    await r.getByRole('button', { name: 'Other formats' }).click(); await r.waitForTimeout(200);
     const ex = await r.evaluate(() => { const dlg = document.querySelector('[role="dialog"]'); const row = dlg.querySelector('.export-list .opt.static'); const [a, b] = row.children; return { w: dlg.getBoundingClientRect().width, gap: b.getBoundingClientRect().left - a.getBoundingClientRect().right, bw: b.getBoundingClientRect().width }; });
     if (!near(ex.w, 520) || !near(ex.gap, 16) || ex.bw < 112) fails.push(`[W22] export sheet ${Math.round(ex.w)}px, ${Math.round(ex.gap)}px gap, buttons ${Math.round(ex.bw)}px`);
     await c.close();
