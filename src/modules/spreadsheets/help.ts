@@ -62,7 +62,8 @@ const help: Article[] = [
         'In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.',
       ] },
       { heading: 'What Undo puts back', list: [
-        'Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again and someone it marked as left comes back.',
+        'Undo puts every row the import wrote back as it was: a goal or check-in it added is deleted, one it changed gets its earlier version back, a goal it stopped is live again, someone it marked as left comes back, and a team it added or changed goes back too.',
+        'A goal that fed one Undo deletes moves up to what that goal fed. Someone the import added stays while they lead a team, sit in a review or have an ask.',
         'Before anything is undone, it says how many rows go back and which stay as they are because they changed after the import, each with why: “Rhea Kapoor posted a check-in for week 45 on 12 Nov”, “Its target was changed on 10 Nov”.',
         'When every row has changed since, there is nothing left to undo, and it says so.',
         'Once undone, the line says when and by whom, and Undo is gone.',
