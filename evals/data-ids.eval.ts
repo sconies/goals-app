@@ -149,7 +149,7 @@ describe('readable goal keys', () => {
     const mateo = await as('mateo');
     const found = await mateo.call('find_goals', { text: 'G-6' });
     expect(found.data!.goals.map((g: { id: string; key: string }) => [g.key, g.id])).toEqual([['G-6', 'lead-merge']]);
-    expect(found.text).toMatch(/^G-6 · lead-merge · Merge-to-deploy time/);
+    expect(JSON.parse(found.text).goals[0]).toMatchObject({ key: 'G-6', id: 'lead-merge', title: expect.stringMatching(/^Merge-to-deploy time/) });
     const full = await mateo.call('get_goal', { goal_id: 'g-102' });
     expect(full.data!.goal).toMatchObject({ id: 'env-search', key: 'G-102' });
     expect((await mateo.call('post_check_in', { goal_id: 'G-49', value: 61, cause: 'Change landed early', why: 'Rules tuned for the noisiest services', path_to_green: 'Add two reviewers on call', back_on_plan_by_week: 48, dry_run: true })).text).toMatch(/Checked, not saved/);
