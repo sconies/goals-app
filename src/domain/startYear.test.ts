@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape, periodNow } from './cycle';
 import { wrapUpScope } from '../app/reads';
 import { carryKind, startReadBack } from './carry';
-import { NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
+import { mergeCommits, NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
 import { canUndoStart, deleteCycle, stopGoal, undoStart } from './removal';
 import { applyCommit } from '../data/store';
 import { startPage } from './startYear';
@@ -326,6 +326,25 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
     for (const k of kids) { const now = s2.goals.find((g) => g.id === k.id)!; expect(now.parentId).toBeNull(); expect(now.effect ?? null).toBeNull(); }
     const s3 = save(s2, wrap(s2, parent, 'carry', '2026-12-30'), '2026-12-30');
     for (const k of kids) expect(s3.goals.find((g) => g.id === k.id)!.parentId).toBe(copy.id);
+  });
+
+  it('a parent and its child leaving or coming back in one save: each row once, the child under its parent (build review of #179)', () => {
+    const s1 = started();
+    const parent = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && s1.goals.some((c) => c.cycleId === cycle.id && c.parentId === g.id && live(s1, c).length === 1))!;
+    const child = s1.goals.find((c) => c.cycleId === cycle.id && c.parentId === parent.id && live(s1, c).length === 1)!;
+    const both = (s: Snapshot, next: Retro['next'], when: string) => withRecarry(s, mergeCommits(wrap(s, parent, next, when), wrap(s, child, next, when)), { now: when + 'T10:00:00Z', actorId: amara.id, newId: (p) => `${p}_b${++k}`, records: RECORDS });
+    const out = both(s1, 'stop', '2026-12-29');
+    const ids = out.goals!.map((g) => g.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const key of ['requests', 'reviews', 'watches'] as const) { const rows = (out[key] ?? []) as { id: string }[]; expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length); }
+    const s2 = applyCommit(s1, out);
+    expect(live(s2, parent)).toHaveLength(0);
+    expect(live(s2, child)).toHaveLength(0);
+    // An ask that named both copies names neither.
+    const gone = new Set([...copiesOf(s2, parent), ...copiesOf(s2, child)].map((g) => g.id));
+    expect((s2.requests ?? []).some((r) => r.goalIds.some((g) => gone.has(g)))).toBe(false);
+    const s3 = applyCommit(s2, both(s2, 'carry', '2026-12-30'));
+    expect(live(s3, child)[0]!.parentId).toBe(live(s3, parent)[0]!.id);
   });
 
   it('stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)', () => {

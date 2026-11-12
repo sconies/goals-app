@@ -1750,7 +1750,7 @@ function withModuleRows(module, rows) {
 	return Object.keys(kept).length ? { modules: { [module]: kept } } : {};
 }
 /** Rows added to or changed in a list, by id: the later one wins, new ones go at the end. */
-function upsert(list, items) {
+function upsert$1(list, items) {
 	const ids = new Set(items.map((x) => x.id));
 	return [...list.filter((x) => !ids.has(x.id)), ...items];
 }
@@ -1760,7 +1760,7 @@ function applyModuleRows(s, c) {
 	const out = { ...s ?? {} };
 	for (const [mod, keys] of Object.entries(c)) {
 		const mine = { ...out[mod] ?? {} };
-		for (const [key, rows] of Object.entries(keys)) if (rows.length || mine[key]) mine[key] = upsert(mine[key] ?? [], rows);
+		for (const [key, rows] of Object.entries(keys)) if (rows.length || mine[key]) mine[key] = upsert$1(mine[key] ?? [], rows);
 		out[mod] = mine;
 	}
 	return out;
@@ -8117,14 +8117,14 @@ function suggest(rows, viewerId, recents) {
 		}
 	}
 }
-var fold$1, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
+var fold$2, wordsOf, MAX_PAGE, goalWords, goalRow, personRow, collator, byName;
 var init_find = __esmMin((() => {
 	init_levels();
 	init_goalKey();
 	init_query();
 	init_vocabulary();
-	fold$1 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-	wordsOf = (s) => fold$1(s).split(/[\s/\-,.:()]+/).filter(Boolean);
+	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
 	MAX_PAGE = 200;
 	goalWords = (s) => [
 		s.goal.title,
@@ -8179,17 +8179,17 @@ function editDistance(a, b) {
 * characters, nor when two candidates are within reach: that is asked by name, never guessed.
 */
 function near(v, candidates) {
-	const f = fold(v);
+	const f = fold$1(v);
 	if (!f) return { none: true };
-	const exact = candidates.find((c) => fold(c) === f);
+	const exact = candidates.find((c) => fold$1(c) === f);
 	if (exact != null) return { exact };
 	if (f.length <= 2) return { none: true };
 	const reach = f.length < 8 ? 1 : 2;
 	const within = [...new Set(candidates)].filter((c) => {
-		const g = fold(c);
+		const g = fold$1(c);
 		return Math.abs(g.length - f.length) <= reach && editDistance(f, g) <= reach;
 	});
-	return [...new Set(within.map(fold))].length === 1 ? { near: within[0] } : { none: true };
+	return [...new Set(within.map(fold$1))].length === 1 ? { near: within[0] } : { none: true };
 }
 /** An issue, with its level and group worked out from its kind. */
 function issueOf(kind, sheet, row, name, message, x = {}) {
@@ -8297,10 +8297,10 @@ function groupIssues(issues) {
 		};
 	}).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || b.count - a.count);
 }
-var fold, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
+var fold$1, MUST_KINDS, CHECK_KINDS, levelOf, SEVERITY, SHEET_ORDER, groupId, LEAVE, RIGHT, ANSWERS, n$1, THING, LEVEL_RANK;
 var init_problemLevels = __esmMin((() => {
 	init_find();
-	fold = (s) => fold$1(s).replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+	fold$1 = (s) => fold$2(s).replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 	MUST_KINDS = [
 		"required-empty",
 		"not-a-number",
@@ -8359,7 +8359,7 @@ var init_problemLevels = __esmMin((() => {
 		kind,
 		sheet,
 		column ?? "",
-		fold(found ?? "")
+		fold$1(found ?? "")
 	].map((p) => p.replace(/\s+/g, "-")).join(":").toLowerCase();
 	LEAVE = {
 		choice: "leave",
@@ -8578,9 +8578,9 @@ function planChanges(input) {
 	};
 	const people = new Map(s.people.map((p) => [p.id, p]));
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
-	const teamNamed = (name) => [...teams.values()].find((t) => fold(t.name) === fold(name));
+	const teamNamed = (name) => [...teams.values()].find((t) => fold$1(t.name) === fold$1(name));
 	const byEmail = (e) => [...people.values()].find((p) => normalEmail(p.email) === e);
-	const named = (n) => [...people.values()].filter((p) => fold(p.name) === fold(n));
+	const named = (n) => [...people.values()].filter((p) => fold$1(p.name) === fold$1(n));
 	const peopleTouched = /* @__PURE__ */ new Map();
 	const teamsTouched = /* @__PURE__ */ new Map();
 	let actor = input.actor;
@@ -8724,11 +8724,11 @@ function planChanges(input) {
 	const pickPerson = (sheet, r, cols, current, what) => {
 		const header = (k) => k === "email" ? cols.name ? `${what} email` : what : k === "id" ? `${what} ID` : what;
 		const given = Object.entries(cols).filter(([, c]) => has(r, c) && ref(r, c)).map(([k, c]) => [k, ref(r, c)]);
-		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold(current.name) === fold(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
+		const says = (k, v) => !!current && (k === "email" ? normalEmail(current.email) === normalEmail(v) : k === "id" ? current.id === v : fold$1(current.name) === fold$1(v) || current.id === v || v.includes("@") && normalEmail(current.email) === normalEmail(v));
 		let changed = given.filter(([k, v]) => !says(k, v));
 		if (!changed.length) return {};
 		const exact = changed.filter(([k]) => k !== "name").map(([k, v]) => personFrom(sheet, header(k), k, v).p).find(Boolean);
-		if (exact) changed = changed.filter(([k, v]) => k !== "name" || fold(v) !== fold(exact.name));
+		if (exact) changed = changed.filter(([k, v]) => k !== "name" || fold$1(v) !== fold$1(exact.name));
 		const found = changed.map(([k, v]) => ({
 			k,
 			v,
@@ -8822,7 +8822,7 @@ function planChanges(input) {
 		return {
 			row,
 			name: val(r, "name") || email,
-			id: p ? "p:" + p.id : email ? "e:" + email : id ? "i:" + id : val(r, "name") ? "n:" + fold(val(r, "name")) : ""
+			id: p ? "p:" + p.id : email ? "e:" + email : id ? "i:" + id : val(r, "name") ? "n:" + fold$1(val(r, "name")) : ""
 		};
 	}), (rows) => `${rows.name} is on rows ${rows.list}. Give each person one row.`, "Email");
 	const newAdminRows = create ? [] : personRows.filter(({ r }) => codeOf(YES_WORDS, val(r, "admin")) === "yes" && (() => {
@@ -8998,7 +8998,7 @@ function planChanges(input) {
 	for (const [id, t] of peopleTouched) {
 		const after = people.get(id);
 		for (const problem of personProblems(after, [...people.values()], t.before)) raise(/look like an email/.test(problem) ? "unknown-word" : /already has the email/.test(problem) ? "duplicate" : /taken away|only admin/.test(problem) ? "cant-change" : "required-empty", "People", t.row, t.before?.name ?? after.name, problem, { column: /admin/.test(problem) ? "Admin" : /name/.test(problem) && !/email/.test(problem) ? "Name" : "Email" });
-		if (t.before && fold(t.before.name) !== fold(after.name)) {
+		if (t.before && fold$1(t.before.name) !== fold$1(after.name)) {
 			const same = sameNameNote(after, [...people.values()], (tid) => teams.get(tid)?.name ?? "");
 			if (same) note("same-name", "People", t.row, after.name, same);
 		}
@@ -9017,7 +9017,7 @@ function planChanges(input) {
 		return { g: byKey ?? byId };
 	};
 	/** The goals with a name (folded), but one. */
-	const titled = (t, but = "") => [...work.values()].filter((g) => g.id !== but && fold(g.title) === fold(t));
+	const titled = (t, but = "") => [...work.values()].filter((g) => g.id !== but && fold$1(g.title) === fold$1(t));
 	/**
 	* The goal a name names (Feeds into, a check-in's Goal): the one goal with that name; one one letter out is asked
 	* about; several with it, or none, is Must fix. Undefined with the problem raised.
@@ -9149,7 +9149,7 @@ function planChanges(input) {
 		return {
 			row,
 			name: val(r, "goal") || keyRef || id,
-			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : val(r, "goal") ? `n:${fold(val(r, "goal"))}|${fold(ref(r, "team"))}` : ""
+			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
 		};
 	}), (x) => /^G-/i.test(x.name) ? `Key ${x.name} is on rows ${x.list}. Give each goal one row.` : `“${x.name}” is on rows ${x.list}. Give each goal one row.`, "Key");
 	const removalRows = [...goalRows.filter(({ r }) => ["stop", "delete"].includes(codeOf(GOAL_ACTION_WORDS, val(r, "action")) ?? "")).map(({ row }) => ({
@@ -9195,8 +9195,8 @@ function planChanges(input) {
 				const owner = people.get(existing.ownerId);
 				const ownerGiven = [ref(r, "owner"), ref(r, "owner email")].filter(Boolean);
 				const teamGiven = ref(r, "team");
-				const ownerDiffers = ownerGiven.every((v) => !owner || fold(v) !== fold(owner.name) && normalEmail(v) !== normalEmail(owner.email));
-				const teamDiffers = !teamGiven || fold(teamGiven) !== fold(teams.get(existing.teamId)?.name ?? "");
+				const ownerDiffers = ownerGiven.every((v) => !owner || fold$1(v) !== fold$1(owner.name) && normalEmail(v) !== normalEmail(owner.email));
+				const teamDiffers = !teamGiven || fold$1(teamGiven) !== fold$1(teams.get(existing.teamId)?.name ?? "");
 				if (ownerDiffers && teamDiffers) {
 					const k = existing.key ?? existing.id;
 					const a = ask("other-goal", "Goals", row, title, `${k} is “${existing.title}” here, owned by ${owner?.name ?? "someone"}. Row ${row} calls it “${title}”${ownerGiven.length || teamGiven ? ", with another owner and team" : ""}. Is it the same goal?`, {
@@ -9214,7 +9214,7 @@ function planChanges(input) {
 		}
 		if (!existing) {
 			if (!title) return raise("required-empty", "Goals", row, "", "Name the goal in the Goal column.", { column: "Goal" });
-			if (/^(total|totals|sum|grand total)$/.test(fold(title)) && !ref(r, "owner") && !ref(r, "owner email") && !ref(r, "owner id")) {
+			if (/^(total|totals|sum|grand total)$/.test(fold$1(title)) && !ref(r, "owner") && !ref(r, "owner email") && !ref(r, "owner id")) {
 				const a = ask("totals-row", "Goals", row, title, `Row ${row} is called “${title}” and has no owner. It looks like a totals row.`, {
 					column: "Goal",
 					found: title,
@@ -9375,8 +9375,8 @@ function planChanges(input) {
 				const read = weekCell(m[2], "Goals", row, d.title);
 				if (read.problem) return raise("stage-format", "Goals", row, d.title, `“${x}”: ${read.problem}`, { column: "Stages" });
 				if (read.n != null && Number.isInteger(read.n) && read.n > cycle.weeks) return raise("stage-format", "Goals", row, d.title, `“${x}”: week ${read.n} is past the end of ${cycle.name} (week ${cycle.weeks}).`, { column: "Stages" });
-				if (stages.some((st) => fold(st.name) === fold(name))) return raise("stage-format", "Goals", row, d.title, `Two stages are called “${name}”. Give each stage its own name: check-ins find a stage by it.`, { column: "Stages" });
-				const old = existing?.kind === "milestone" ? existing.stages.find((st) => fold(st.name) === fold(name)) : void 0;
+				if (stages.some((st) => fold$1(st.name) === fold$1(name))) return raise("stage-format", "Goals", row, d.title, `Two stages are called “${name}”. Give each stage its own name: check-ins find a stage by it.`, { column: "Stages" });
+				const old = existing?.kind === "milestone" ? existing.stages.find((st) => fold$1(st.name) === fold$1(name)) : void 0;
 				stages.push({
 					id: old?.id ?? "s" + (k + 1) + "-" + newId("st").slice(-4),
 					name,
@@ -9518,7 +9518,7 @@ function planChanges(input) {
 			"feeds into id",
 			"feeds into"
 		].filter((c) => has(l.r, c));
-		const says = (c, v) => !current ? v === "" : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold(v) === fold(current.title);
+		const says = (c, v) => !current ? v === "" : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
 		const changed = cols.map((c) => [c, ref(l.r, c)]).filter(([c, v]) => !(before && says(c, v)) && (before || v));
 		if (!changed.length) continue;
 		let missing = false;
@@ -9932,7 +9932,7 @@ function planChanges(input) {
 		}
 		const name = val(r, "goal") || refText;
 		let g = goalFor(r);
-		const stopped = !g ? stoppedByRef(val(r, "goal key")) ?? stoppedByRef(val(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold(x.title) === fold(val(r, "goal"))) : void 0;
+		const stopped = !g ? stoppedByRef(val(r, "goal key")) ?? stoppedByRef(val(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold$1(x.title) === fold$1(val(r, "goal"))) : void 0;
 		if (stopped) {
 			leftAlone("Check-ins", row, stopped);
 			continue;
@@ -9994,7 +9994,7 @@ function planChanges(input) {
 			let bad = false;
 			for (const part of (has(r, "stages") ? val(r, "stages") : "").split(/;|\n/).map((x) => x.trim()).filter(Boolean)) {
 				const m = /^(.*?):\s*(done|expected|due)\s*(?:week|wk)?\s*(\d+)$/i.exec(part);
-				let st = m ? goal.stages.find((x) => fold(x.name) === fold(m[1])) : void 0;
+				let st = m ? goal.stages.find((x) => fold$1(x.name) === fold$1(m[1])) : void 0;
 				if (m && !st) {
 					const hit = near(m[1], goal.stages.map((x) => x.name));
 					const nearOne = "near" in hit ? goal.stages.find((x) => x.name === hit.near) : void 0;
@@ -10428,9 +10428,9 @@ function planChanges(input) {
 * letter out. A goal renamed keeps a word or two ("Lead time for changes" → "Lead time to production"), so isn't asked.
 */
 function unrelated(a, b) {
-	const words = (s) => new Set(fold(s).split(" ").filter((w) => w.length >= 4));
+	const words = (s) => new Set(fold$1(s).split(" ").filter((w) => w.length >= 4));
 	const wa = words(a), wb = words(b);
-	return ![...wa].some((w) => wb.has(w)) && !("near" in near(a, [b])) && fold(a) !== fold(b);
+	return ![...wa].some((w) => wb.has(w)) && !("near" in near(a, [b])) && fold$1(a) !== fold$1(b);
 }
 /** A check-in's number in a sentence ("1.9%", "2 of 4 stages done"). */
 function headlineOf(c, g) {
@@ -11121,17 +11121,44 @@ function withRecarry(full, c, x) {
 		...(c.checkIns ?? []).map((ci) => ci.goalId),
 		...(c.retros ?? []).map((r) => r.goalId)
 	]);
+	let work = fold(full, c);
 	let out = c;
 	for (const id of ids) {
 		const goal = (c.goals ?? []).find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
 		if (!goal) continue;
 		const retro = (c.retros ?? []).find((r) => r.goalId === id);
-		const re = recarry(goal, full, {
+		const re = recarry(goal, work, {
 			checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id),
 			...retro ? { retro } : {}
 		}, x);
-		if (re) out = mergeCommits(out, re);
+		if (re) {
+			out = mergeCommits(out, re);
+			work = fold(work, re);
+		}
 	}
+	return onePerId(out);
+}
+/** Rows by ID, the later one winning, each where it first appeared (a new goal still comes before its children). */
+var byId = (rows) => [...new Map(rows.map((r) => [r.id, r])).values()];
+var upsert = (rows, more) => byId([...rows ?? [], ...more ?? []]);
+/** The rows as they will be once a commit is saved: what recarry reads for the next goal. */
+function fold(full, c) {
+	return {
+		...full,
+		goals: upsert(full.goals, c.goals),
+		checkIns: upsert(full.checkIns, c.checkIns),
+		changes: [...full.changes, ...c.changes],
+		retros: upsert(full.retros, c.retros),
+		watches: upsert(full.watches, c.watches),
+		requests: upsert(full.requests, c.requests),
+		reviews: upsert(full.reviews, c.reviews),
+		modules: applyModuleRows(full.modules, c.modules)
+	};
+}
+/** A commit with each record once, its latest version (a store writes a row once per save). */
+function onePerId(c) {
+	const out = { ...c };
+	for (const [k, v] of Object.entries(c)) if (Array.isArray(v) && v.every((r) => r && typeof r.id === "string")) out[k] = byId(v);
 	return out;
 }
 /** Whether a removed copy was taken out by recarry: its latest change says so. */
@@ -20534,7 +20561,7 @@ function findMetrics(r, ask = {}) {
 			m.meaning,
 			m.source
 		].join(" "), ask.q)) return false;
-		if (ask.unit && fold$1(m.unit) !== fold$1(ask.unit)) return false;
+		if (ask.unit && fold$2(m.unit) !== fold$2(ask.unit)) return false;
 		if (ask.teamId && !links.some((l) => ask.teamId === "company" ? l.teamId == null : l.teamId === ask.teamId)) return false;
 		if (ask.ownerId && m.ownerId !== ask.ownerId) return false;
 		if (ask.dir && m.direction !== ask.dir) return false;
@@ -20542,7 +20569,7 @@ function findMetrics(r, ask = {}) {
 		if (ask.sortout && !needs.length) return false;
 		return true;
 	}).map(({ links: _, ...row }) => row);
-	const byName = (a, b) => fold$1(a.metric.name).localeCompare(fold$1(b.metric.name));
+	const byName = (a, b) => fold$2(a.metric.name).localeCompare(fold$2(b.metric.name));
 	rows.sort(ask.sort === "goals" ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b) : ask.sort === "changed" ? (a, b) => b.metric.updatedAt.localeCompare(a.metric.updatedAt) || byName(a, b) : byName);
 	const pages = Math.max(1, Math.ceil(rows.length / size));
 	const page = Math.min(Math.max(1, Math.floor(ask.page ?? 1)), pages);
@@ -20588,7 +20615,7 @@ function metricGoals(metricId, links, goals, teams, cycle) {
 function summaryLine(rows) {
 	const valued = rows.filter((r) => r.nowValue != null && r.goal.kind !== "milestone");
 	if (valued.length < 2) return null;
-	const shape = (r) => r.goal.kind === "milestone" ? "" : `${fold$1(r.goal.unit)}|${r.goal.decimals}`;
+	const shape = (r) => r.goal.kind === "milestone" ? "" : `${fold$2(r.goal.unit)}|${r.goal.decimals}`;
 	if (new Set(valued.map(shape)).size > 1) return null;
 	const sorted = [...valued].sort((a, b) => a.nowValue - b.nowValue || a.slice.localeCompare(b.slice));
 	const lo = sorted[0], hi = sorted[sorted.length - 1];
