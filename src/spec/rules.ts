@@ -12,7 +12,7 @@ import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
-import { readLine, readTables } from '../domain/sheets';
+import { readHeader, readLine, readTables } from '../domain/sheets';
 import { leaveOut } from '../domain/leaveOut';
 import { planQuestion } from '../domain/goal';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
@@ -747,6 +747,34 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Leaving out Goals row 44 (a new goal) with 4 Check-ins rows for it and one goal (row 45) that feeds into it.', then: '5 rows go with it; row 45 because Feeds into names Goals row 44', run: () => { const r = (o: Record<string, string>, row: number): Rec => ({ __row: String(row), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k.toLowerCase(), v])) }); const out = leaveOut({ goals: [r({ Goal: 'Runner pool size', Owner: 'Rhea Kapoor' }, 44), r({ Goal: 'Runner spares', Owner: 'Rhea Kapoor', 'Feeds into': 'Runner pool size' }, 45)], checkIns: [2, 3, 4, 5].map((k) => r({ Goal: 'Runner pool size', Week: String(40 + k), Value: '12' }, k)) }, [{ sheet: 'Goals', row: 44 }]); const g = out.also.find((x) => x.sheet === 'Goals')!; return `${out.also.length} rows go with it; row ${g.row} because ${g.because}`; } },
     ],
     unclear: ['The counts, the order of the blocks and the words of the preview are its screen\'s (spec/screens): a rebuild may lay them out its own way. Imported, Undo and Past imports are rule import-undo; paste and a header row below row 1 with IM5; large files with IM6.'],
+  },
+  /* ---------- the header row (backlog IM5, C17) ---------- */
+  {
+    id: 'import-header',
+    title: 'The header row, and headers that are nearly right',
+    summary: 'A sheet’s header row is found in its first ten rows; a column under another name the field table gives it is read as that column, and one a letter out is asked about once, at every door.',
+    code: [
+      { file: 'src/domain/sheets.ts', names: ['readHeader', 'headerMatch', 'readTables'] },
+      { file: 'src/domain/columns.ts', names: ['sheetKindOf'] },
+      { file: 'src/domain/changeset.ts', names: ['planChanges'] },
+    ],
+    tests: ['src/domain/headerRow.test.ts'],
+    reqs: ['BULK-IMPORT', 'IMPORT-LEVELS'],
+    body: `
+**The header row** (\`readHeader\`): of a sheet's first ten rows, the one with the most cells that some sheet reads (its own header, any case, or another name the field table gives the column, its \`also\`), needing at least two. Rows above it (a title) are skipped and said: "Row 2 of Goals is the header row; 1 row above it was skipped." Each row keeps its number in the sheet. No such row: row 1, and the sheet is known only if its first row says so.
+
+**Which sheet** (\`sheetKindOf\`, on the names the headers were read as): Goals needs Goal or Key and one of Owner, Owner email, Type, Target, Level, Action; Check-ins Week and one of Value, Stages, Call; Plan a "Week N"; **People needs Email, or Name with another People column** (Team, Job title, Admin, ID): Name, Department and Salary band are no Faro sheet.
+
+**Each header** (\`headerMatch\`): \`exact\`, \`also\` ("Goal name" is Goal, "Units" is Unit, read without a word), \`near\` (one letter out of exactly one name, rule 4: "Targett"), or \`unknown\` (named in the file line, never read). A near header is not listed as unread: the engine asks it as one Check per sheet and header, kind \`near-header\`, "A column on Goals is called “Targett”. Read it as Target?", answered "Read it as Target" or "Don't read it". The engine does this itself, so a paste, a file and MCP's bulk_change read headers the same way.
+
+**The way in** (spec 2.1): a file (up to 20 MB and 30,000 rows; over, it says so and asks for parts), or rows pasted from a spreadsheet (read as a file called "Pasted rows"). A file with no Faro sheet names its first sheet's first five headers and offers the template.`,
+    examples: [
+      { given: 'A Goals sheet whose first row is the title “Platform goals FY27”.', then: 'header on row 2, goals', run: () => { const h = readHeader([['Platform goals FY27', ''], ['Goal', 'Level', 'Team', 'Owner']]); return `header on row ${h.row}, ${h.kind}`; } },
+      { given: 'Headers Goal name, Owner name, Target value, Units.', then: 'goals: Goal (also), Owner (also), Target (also), Unit (also)', run: () => { const h = readHeader([['Goal name', 'Owner name', 'Target value', 'Units']]); return `${h.kind}: ${h.columns.map((c) => `${c.as} (${c.how})`).join(', ')}`; } },
+      { given: 'Headers Name, Department, Salary band.', then: 'no Faro sheet', run: () => (readHeader([['Name', 'Department', 'Salary band']]).kind ? 'a Faro sheet' : 'no Faro sheet') },
+      { given: 'Headers Key, Goal, Targett.', then: 'Targett is near Target', run: () => { const c = readHeader([['Key', 'Goal', 'Targett']]).columns[2]!; return `${c.header} is ${c.how} ${c.as}`; } },
+    ],
+    unclear: ['Reading a file in a worker, with progress and Stop, is IM6.'],
   },
   /* ---------- an import's undo, and past imports (backlog IM4) ---------- */
   {

@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-way-in',
+    date: '2026-11-12',
+    title: 'Paste rows, and headers that are nearly right',
+    points: [
+      'Paste cells from a spreadsheet straight into Import.',
+      'A title row above the headers, or “Goal name” for Goal, is read.',
+      'A header one letter out is asked about once: “Read it as Target?”',
+      'A file Faro can’t use says what it found, and offers the template.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'new-goal-fixes',
     date: '2026-11-12',
     title: 'New goal fixes',

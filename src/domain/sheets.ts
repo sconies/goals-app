@@ -3,7 +3,8 @@
    doubled inside them, line breaks inside a cell, a byte-order mark), and each grid is recognised by its header row,
    never its name (domain/columns sheetKindOf). The apostrophe the export puts before a cell that would otherwise run as
    a formula (=, +, -, @) is taken off again here, so a file loaded back says exactly what was exported. */
-import { andList, headersOf, isWeekHeader, sheetKindOf, START_HERE, type SheetKind } from './columns';
+import { andList, fieldTable, FILL_SHEETS, headersOf, isWeekHeader, sheetKindOf, START_HERE, type FillKind, type SheetKind } from './columns';
+import { fold, near } from './problemLevels';
 
 export type Grid = string[][];
 /** A sheet as read: its name (for messages) and its rows of text. */
@@ -104,6 +105,12 @@ export interface ReadTables {
   headers: Partial<Record<keyof Tables, string[]>>;
   /** The Start here sheet's origin, when the file has one. */
   origin: FileOrigin | null;
+  /** Sheets whose header row isn't row 1 (rule 3): the rows above it were skipped. */
+  headerRows: { sheet: string; row: number }[];
+  /** The first sheet's first five headers when nothing was read: Import says what it found. */
+  firstHeaders: string[];
+  /** Rows in the file's loaded sheets, for Import's size limit. */
+  rowCount: number;
 }
 
 /** Headers the change engine reads besides each sheet's own columns. */
@@ -113,6 +120,67 @@ export const readsHeader = (kind: SheetKind, header: string): boolean => {
   const h = header.trim().toLowerCase();
   return !h || headersOf(kind).some((x) => x.toLowerCase() === h) || (ALSO_READ[kind] ?? []).includes(h) || (kind === 'plan' && isWeekHeader(h));
 };
+
+/* ---------- rule 3: the header row (backlog IM5, C17) ---------- */
+
+/** How a header cell was read: as written, by another name the field table gives it, one letter out, or not at all. */
+export type HeaderHow = 'exact' | 'also' | 'near' | 'unknown';
+const ALL_KINDS: SheetKind[] = ['goals', 'plan', 'checkIns', 'people', 'results', 'asks', 'notes'];
+
+/** Every name a sheet of a kind reads a column by, folded: its headers, the engine's extra ones, and the field table's `also`. */
+function namesOf(kind: SheetKind): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const h of headersOf(kind)) out.set(fold(h), h);
+  for (const h of ALSO_READ[kind] ?? []) out.set(fold(h), h);
+  if ((FILL_SHEETS as SheetKind[]).includes(kind)) for (const row of fieldTable(kind as FillKind)) for (const a of row.also ?? []) if (!out.has(fold(a))) out.set(fold(a), row.header);
+  return out;
+}
+const NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
+const alsoOf = (kind: SheetKind, header: string) => (NAMES.get(kind)!.has(fold(header)) && fold(NAMES.get(kind)!.get(fold(header))!) !== fold(header));
+
+/**
+ * How a sheet of a kind reads one header: `exact` (its own, any case, or a plan's "Week N"), `also` (another name the
+ * field table gives the column: "Goal name" is Goal), `near` (one letter out of exactly one of them: "Targett" is
+ * Target, asked about), or `unknown`. `as` is the column it is read as.
+ */
+export function headerMatch(kind: SheetKind, header: string): { how: HeaderHow; as: string | null } {
+  const h = header.trim();
+  if (!h) return { how: 'unknown', as: null };
+  if (kind === 'plan' && isWeekHeader(h.toLowerCase())) return { how: 'exact', as: h };
+  const names = NAMES.get(kind)!;
+  const at = names.get(fold(h));
+  if (at) return alsoOf(kind, h) ? { how: 'also', as: at } : { how: 'exact', as: at };
+  const m = near(h, [...names.keys()]);
+  if ('near' in m) return { how: 'near', as: names.get(m.near)! };
+  return { how: 'unknown', as: null };
+}
+
+/** A header cell any sheet reads, as that sheet's column name ("Goal name" → Goal); null when no sheet reads it. */
+const anyName = (cell: string): string | null => {
+  const f = fold(cell);
+  if (!f) return null;
+  if (isWeekHeader(cell.trim().toLowerCase())) return cell.trim();
+  for (const k of ALL_KINDS) { const at = NAMES.get(k)!.get(f); if (at) return at; }
+  return null;
+};
+
+/**
+ * Rule 3. A sheet's header row: of its first ten rows, the one with the most cells that some sheet reads (as written,
+ * or by another name), at least two. A title row above the headers ("Platform goals FY27") is skipped. Gives the row
+ * (from 1), each column as read, and the sheet it is (domain/columns sheetKindOf on the names it was read as). No row
+ * with two known headers: row 1, and no kind.
+ */
+export function readHeader(grid: Grid): { row: number; kind: SheetKind | null; columns: { index: number; header: string; as: string | null; how: HeaderHow }[] } {
+  let best = -1, score = 1;
+  grid.slice(0, 10).forEach((r, i) => { const n = r.filter((c) => anyName(c) != null).length; if (n > score) { best = i; score = n; } });
+  const at = best < 0 ? 0 : best;
+  const head = grid[at] ?? [];
+  const kind = best < 0 ? sheetKindOf(head) : sheetKindOf(head.map((c) => anyName(c) ?? c));
+  return {
+    row: at + 1, kind,
+    columns: head.map((header, index) => ({ index, header: header.trim(), ...(kind ? headerMatch(kind, header) : { how: 'unknown' as const, as: null }) })),
+  };
+}
 
 /** A Start here (or README) sheet's "File of" row, as written by the export. */
 function originOf(rows: Grid): FileOrigin | null {
@@ -124,7 +192,7 @@ function originOf(rows: Grid): FileOrigin | null {
 
 /** Named grids (a workbook's sheets, a zip's files, one CSV) as the tables the engine reads, each by its header. */
 export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: string; columns: readonly { header: string }[] }[] = []): ReadTables {
-  const out: ReadTables = { tables: {}, read: [], skipped: [], unknownColumns: [], headers: {}, origin: null };
+  const out: ReadTables = { tables: {}, read: [], skipped: [], unknownColumns: [], headers: {}, origin: null, headerRows: [], firstHeaders: [], rowCount: 0 };
   // A module's own sheet (Metrics), known by its header: the same columns the export writes, in any order.
   const ownSheet = (head: readonly string[]) => {
     const h = new Set(head.map((x) => x.trim().toLowerCase()).filter(Boolean));
@@ -135,16 +203,24 @@ export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: st
     const bare = g.name.replace(/\.(csv|tsv|txt)$/i, '').trim().toLowerCase();
     if (bare === START_HERE.toLowerCase() || bare === 'readme') { out.origin ??= originOf(g.rows); out.skipped.push({ name: g.name, why: 'start-here' }); continue; }
     if (ownSheet(g.rows[0]!)) { out.skipped.push({ name: g.name, why: 'reading-only' }); continue; }
-    const kind = sheetKindOf(g.rows[0]!);
+    const head = readHeader(g.rows);
+    const kind = head.kind;
     const key = kind ? LOADED[kind] : undefined;
-    if (!kind) out.skipped.push({ name: g.name, why: 'not-faro' });
+    if (!kind) { out.skipped.push({ name: g.name, why: 'not-faro' }); if (!out.firstHeaders.length) out.firstHeaders = g.rows[0]!.map((h) => h.trim()).filter(Boolean).slice(0, 5); }
     else if (!key) out.skipped.push({ name: g.name, why: 'reading-only' });
     else if (out.tables[key]) out.skipped.push({ name: g.name, why: 'second' });
     else {
-      out.tables[key] = recordsOf(g.rows);
+      out.rowCount += Math.max(0, g.rows.length - head.row);
+      // Rows above the header row (a title) are skipped and said; rows keep their number in the sheet.
+      const rows = g.rows.slice(head.row - 1);
+      // A header one letter out keeps its own spelling, so the question says it as the file does ("Targett").
+      const asWritten = new Map(head.columns.filter((c) => c.how === 'near').map((c) => [c.header.toLowerCase(), c.header]));
+      out.tables[key] = recordsOf(rows).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [asWritten.get(k) ?? k, k === '__row' ? String(Number(v) + head.row - 1) : v])) as Rec);
       out.read.push({ name: g.name, kind });
-      out.headers[key] = g.rows[0]!.map((h) => h.trim());
-      const unknown = g.rows[0]!.map((h) => h.trim()).filter((h) => h && !readsHeader(kind, h));
+      if (head.row > 1) out.headerRows.push({ sheet: g.name, row: head.row });
+      out.headers[key] = rows[0]!.map((h) => h.trim());
+      // A header one letter out is asked about by the engine (near-header), so it isn't listed as not read.
+      const unknown = head.columns.filter((c) => c.header && c.how === 'unknown' && !readsHeader(kind, c.header)).map((c) => c.header);
       if (unknown.length) out.unknownColumns.push({ sheet: g.name, headers: unknown });
     }
   }
