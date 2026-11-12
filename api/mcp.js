@@ -21,7 +21,7 @@ function logFailure(where, e) {
 function daysBetween(fromIso, to) {
 	const from = Date.parse(fromIso.slice(0, 10) + "T00:00:00Z");
 	const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-	return Math.floor((toDay - from) / DAY$2);
+	return Math.floor((toDay - from) / DAY$3);
 }
 /** The cycle's week today: 0 in the first seven days, capped at the last checkpoint. */
 function currentWeek(cycle, today) {
@@ -51,12 +51,12 @@ function firstWeekFrom(cycle, iso, weekday) {
 	const day = (iso ?? "").slice(0, 10);
 	if (!day || day <= cycle.startDate) return 1;
 	const w = currentWeek(cycle, /* @__PURE__ */ new Date(day + "T12:00:00Z"));
-	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$2).toISOString().slice(0, 10);
+	const due = new Date(Date.parse(weekDate(cycle, w) + "T00:00:00Z") + weekday * DAY$3).toISOString().slice(0, 10);
 	return Math.max(1, due < day ? w + 1 : w);
 }
 /** The ISO date of a week's checkpoint. */
 function weekDate(cycle, week) {
-	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$2;
+	const t = Date.parse(cycle.startDate + "T00:00:00Z") + week * 7 * DAY$3;
 	return new Date(t).toISOString().slice(0, 10);
 }
 /** Share of the change planned by a week, 0..1. */
@@ -228,9 +228,9 @@ function goalAsOf(g, week) {
 		plan
 	};
 }
-var DAY$2, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
+var DAY$3, hasEnded, planEnd, NOT_A_COUNT, DAY_ONLY, DAY_MONTH;
 var init_plan = __esmMin((() => {
-	DAY$2 = 864e5;
+	DAY$3 = 864e5;
 	hasEnded = (cycle, today) => resultWeek(cycle, today) > cycle.weeks;
 	planEnd = (plan, weeks) => plan.endWeek ?? weeks;
 	NOT_A_COUNT = /^(days?|hours?|hrs?|mins?|minutes?|weeks?|secs?|seconds?|ms|pts?|points?|score|nps)$|usd|gbp|eur|\$|£|€|°/;
@@ -3283,7 +3283,7 @@ var init_goal = __esmMin((() => {
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
 function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$1).getUTCMonth();
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$2).getUTCMonth();
 }
 function quarters(c) {
 	if (!isYear(c)) return [{
@@ -3372,22 +3372,22 @@ function quarterResults(g, c, checkIns, week) {
 /** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
 function weekOneOf(year, month) {
 	const first = Date.UTC(year, month, 1);
-	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$1 - 3 * DAY$1;
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$2 - 3 * DAY$2;
 }
 /** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
 function goalYear(year, month) {
 	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
 	return {
-		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$1)).toISOString().slice(0, 10),
-		weeks: Math.round((b - a) / (7 * DAY$1))
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$2)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$2))
 	};
 }
 /** How many weeks the goal year starting on this date has: 52, or 53 in a long calendar year. */
 function yearWeeks(startDate) {
-	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$1);
+	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$1, MONTHS$1;
+var isYear, DAY$2, MONTHS$1;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3395,7 +3395,7 @@ var init_year = __esmMin((() => {
 	init_status();
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
-	DAY$1 = 864e5;
+	DAY$2 = 864e5;
 	MONTHS$1 = [
 		"Jan",
 		"Feb",
@@ -4003,7 +4003,7 @@ function dayWithYear(iso) {
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
 	const a = /* @__PURE__ */ new Date(startDate + "T00:00:00Z");
-	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$1);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
@@ -4051,7 +4051,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
+var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4062,8 +4062,8 @@ var init_cycle = __esmMin((() => {
 	init_yearName();
 	init_status();
 	init_records();
-	DAY = 864e5;
-	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY).toISOString().slice(0, 10);
+	DAY$1 = 864e5;
+	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
@@ -13014,184 +13014,277 @@ function dashboard(personId, s, cycle, week, today) {
 		missed: missedReviews(personId, s, cycle, week, today)
 	};
 }
+// src/modules/metrics/help.ts
+var help$3 = [{
+	id: "metrics",
+	title: "Metrics: what each number means",
+	summary: "The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.",
+	group: "you",
+	after: "people",
+	sections: [
+		{
+			heading: "What it’s for",
+			text: ["A metric says exactly what a number means (what is counted, over what, its unit and which way is better), so two teams’ “build time” mean the same thing. Metrics is in the menu after People (on a phone, under More), for everyone."]
+		},
+		{
+			heading: "How to use it",
+			list: [
+				"The library lists every metric A to Z, 50 a page. Each row says its unit, which way is better and who owns it, and its goals by status, worst first, or “No goals yet”.",
+				"Find a metric by its name, unit, owner or meaning: “min lower” finds those in minutes where lower is better. Unit and Used by narrow the list beside the search; Filters has Owner, Which way is better, No goals use it and Something to sort out. Sort by A to Z, Most goals first or Changed lately. The filter line says what is on, each with Remove.",
+				"A search that finds nothing offers to add it as a new metric.",
+				"Open a metric to see what it means and how it’s calculated, then every goal measured by it as a table: its status as a shape and a word, the goal, who it is for (a team, or the whole company), the latest number, the target with its week, and where it stands against plan (for a goal kept in range, its room to the limit). When two or more goals have a number, a line says the lowest and highest now.",
+				"Below them: where the number comes from, who owns that source, how often it refreshes, any caveats, and who added and last changed it. With one goal, See its goal opens it.",
+				"On a goal measured by a metric, its summary says “Measured by …”, and its page has a block with the metric’s meaning and a link to the other goals measured by it. A person’s page lists the metrics they own, and a team’s the metrics its goals use.",
+				"Old links to Metrics under Data still work: they open the library, a metric, or the form."
+			]
+		},
+		{
+			heading: "Who can",
+			list: ["Anyone reads the library and every metric, and anyone adds a metric.", "A metric’s owner and admins change or remove it. They also see what it still needs (an owner, a meaning, a source, a goal that uses it) on its page, under To sort out, and as a warning on its row in the library. Everyone else sees who can change it."]
+		}
+	],
+	routes: [
+		"/metrics",
+		"/metrics/:metricId",
+		"/data/metrics"
+	],
+	screens: ["Metrics", "MetricPlaces"],
+	reqs: ["METRICS-LIBRARY"],
+	keywords: [
+		"metric",
+		"metrics",
+		"library",
+		"measure",
+		"measured by",
+		"unit",
+		"definition",
+		"meaning",
+		"source",
+		"kpi",
+		"number"
+	],
+	related: [
+		"metric-add",
+		"people",
+		"goal-page"
+	]
+}, {
+	id: "metric-add",
+	title: "Adding or changing a metric",
+	summary: "Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.",
+	group: "you",
+	after: "metrics",
+	sections: [{
+		heading: "How to use it",
+		list: [
+			"In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.",
+			"Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.",
+			"What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.",
+			"Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.",
+			"Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.",
+			"Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.",
+			"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
+			"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
+		]
+	}],
+	routes: ["/metrics/new", "/metrics/:metricId/edit"],
+	screens: [],
+	reqs: [],
+	keywords: [
+		"add metric",
+		"new metric",
+		"change metric",
+		"edit metric",
+		"remove metric",
+		"unit",
+		"decimals",
+		"owner",
+		"caveats"
+	],
+	related: ["metrics", "removing"]
+}];
 // src/modules/spreadsheets/help.ts
 init_columns();
-// \0virtual:faro-modules/help
-var help_default = [{
-	id: "spreadsheets",
-	part: [
-		{
-			id: "import",
-			title: "Importing from a spreadsheet",
-			summary: "Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.",
-			group: "data",
-			after: "data",
-			sections: [
-				{
-					heading: "How to use it",
-					list: [
-						"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
-						`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
-						"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-						"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
-						"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
-						"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
-						"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
-						"Every row is checked with the app’s own rules and shown before anything is saved. Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is listed under Check these plan changes and saves only once you say yes.",
-						"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
-						"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
-					]
-				},
-				{
-					heading: "Must fix, and Check",
-					list: [
-						"Must fix is what Faro can’t record as it is: a required column left empty, a word a column doesn’t know (a level of “vp”), text where a number goes, a key used twice, an owner who isn’t here. Nothing saves while one is left; fix it in the file and choose it again.",
-						"Check is a question about something possible but unlikely: a name one letter out (“Did you mean Platform?”), a number with no unit, a stage already past, a target a hundred times its start, a goal with a name its team already uses. Answer it on the page, and it saves.",
-						"The same problem on many rows is said once, with how many rows and where, and one answer covers them all: fourteen rows naming “Platfrom” are one question.",
-						"A name or word one letter out is always asked about, never guessed and never quietly refused. Case, accents, “&” for “and” and punctuation don’t count, so “ci cd” is CI/CD.",
-						"Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.",
-						"An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal."
-					]
-				},
-				{
-					heading: "Who can",
-					text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
-				}
-			],
-			routes: ["/data/import", "/import"],
-			screens: ["Import"],
-			reqs: [
-				"BULK-IMPORT",
-				"WORKSPACES",
-				"HONEST-NUMBERS",
-				"ONE-FORMAT",
-				"ROUND-TRIP",
-				"IMPORT-ACTIONS",
-				"SPREADSHEETS-ON-DATA",
-				"IMPORT-LEVELS"
-			],
-			keywords: [
-				"import",
-				"upload",
-				"excel",
-				"csv",
-				"zip",
-				"spreadsheet",
-				"workbook",
-				"load",
-				"bulk",
-				"undo",
-				"action",
-				"stop",
-				"delete",
-				"left",
-				"email",
-				"round trip",
-				"must fix",
-				"check",
-				"question",
-				"typo",
-				"near miss",
-				"did you mean"
-			],
-			related: [
-				"columns",
-				"export",
-				"data",
-				"keys",
-				"removing"
-			]
-		},
-		{
-			id: "export",
-			title: "Exporting",
-			summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
-			group: "data",
-			after: "import",
-			sections: [{
+var help$2 = [
+	{
+		id: "import",
+		title: "Importing from a spreadsheet",
+		summary: "Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.",
+		group: "data",
+		after: "data",
+		sections: [
+			{
 				heading: "How to use it",
 				list: [
-					"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-					"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.",
-					"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
-					"The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.",
-					"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
-					"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
-					"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
-					"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-					"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
+					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
+					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
+					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
+					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
+					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
+					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
+					"Every row is checked with the app’s own rules and shown before anything is saved. Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is listed under Check these plan changes and saves only once you say yes.",
+					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
+					"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
 				]
-			}],
-			routes: [],
-			screens: ["Export", "DataMenu"],
-			reqs: [
-				"EXPORT",
-				"SHARED-DOWNLOADS",
-				"ONE-FORMAT"
-			],
-			keywords: [
-				"export",
-				"download",
-				"excel",
-				"xlsx",
-				"csv",
-				"zip",
-				"json",
-				"markdown",
-				"brief",
-				"ai chat",
-				"results",
-				"year end",
-				"format",
-				"template",
-				"blank"
-			],
-			related: [
-				"import",
-				"columns",
-				"print",
-				"data"
-			]
-		},
-		{
-			id: "columns",
-			title: "Every column, and what it needs",
-			summary: "For every column of Goals, Plan, Check-ins and People: whether a new row must have it, its format, an example, and what happens when it’s left empty.",
-			group: "data",
-			after: "export",
-			sections: [{
-				heading: "What it’s for",
-				text: ["The same table is the first sheet of the template and of every workbook, Start here, and docs/export-format.md is made from it too, so none of them can disagree."]
-			}, {
-				heading: "What the words mean",
+			},
+			{
+				heading: "Must fix, and Check",
 				list: [
-					"Required: a new row can’t be saved without it. Owner or Owner email: one of the two is enough.",
-					"Required for a number goal (or a range or stages goal): required when the goal is of that type, such as Target for a number goal. Required when…: in that situation only, such as Cause when a check-in is behind plan.",
-					"Optional: it can be left out; the table says what an empty cell gives.",
-					"Leave empty: Faro fills it in, such as a new goal’s Key.",
-					"Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.",
-					"On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away."
+					"Must fix is what Faro can’t record as it is: a required column left empty, a word a column doesn’t know (a level of “vp”), text where a number goes, a key used twice, an owner who isn’t here. Nothing saves while one is left; fix it in the file and choose it again.",
+					"Check is a question about something possible but unlikely: a name one letter out (“Did you mean Platform?”), a number with no unit, a stage already past, a target a hundred times its start, a goal with a name its team already uses. Answer it on the page, and it saves.",
+					"The same problem on many rows is said once, with how many rows and where, and one answer covers them all: fourteen rows naming “Platfrom” are one question.",
+					"A name or word one letter out is always asked about, never guessed and never quietly refused. Case, accents, “&” for “and” and punctuation don’t count, so “ci cd” is CI/CD.",
+					"Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.",
+					"An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal."
 				]
-			}],
-			routes: [],
-			screens: ["ColumnsHelp"],
-			reqs: ["FIELD-TABLE", "ONE-FORMAT"],
-			keywords: [
-				"columns",
-				"required",
-				"optional",
-				"format",
-				"example",
-				"template",
-				"start here",
-				"field",
-				"headers",
-				"empty",
-				"what a new row needs"
-			],
-			related: ["import", "export"]
-		}
-	]
+			},
+			{
+				heading: "Who can",
+				text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
+			}
+		],
+		routes: ["/data/import", "/import"],
+		screens: ["Import"],
+		reqs: [
+			"BULK-IMPORT",
+			"WORKSPACES",
+			"HONEST-NUMBERS",
+			"ONE-FORMAT",
+			"ROUND-TRIP",
+			"IMPORT-ACTIONS",
+			"SPREADSHEETS-ON-DATA",
+			"IMPORT-LEVELS"
+		],
+		keywords: [
+			"import",
+			"upload",
+			"excel",
+			"csv",
+			"zip",
+			"spreadsheet",
+			"workbook",
+			"load",
+			"bulk",
+			"undo",
+			"action",
+			"stop",
+			"delete",
+			"left",
+			"email",
+			"round trip",
+			"must fix",
+			"check",
+			"question",
+			"typo",
+			"near miss",
+			"did you mean"
+		],
+		related: [
+			"columns",
+			"export",
+			"data",
+			"keys",
+			"removing"
+		]
+	},
+	{
+		id: "export",
+		title: "Exporting",
+		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
+		group: "data",
+		after: "import",
+		sections: [{
+			heading: "How to use it",
+			list: [
+				"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
+				"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.",
+				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
+				"The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.",
+				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
+				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
+				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
+				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+			]
+		}],
+		routes: [],
+		screens: ["Export", "DataMenu"],
+		reqs: [
+			"EXPORT",
+			"SHARED-DOWNLOADS",
+			"ONE-FORMAT"
+		],
+		keywords: [
+			"export",
+			"download",
+			"excel",
+			"xlsx",
+			"csv",
+			"zip",
+			"json",
+			"markdown",
+			"brief",
+			"ai chat",
+			"results",
+			"year end",
+			"format",
+			"template",
+			"blank"
+		],
+		related: [
+			"import",
+			"columns",
+			"print",
+			"data"
+		]
+	},
+	{
+		id: "columns",
+		title: "Every column, and what it needs",
+		summary: "For every column of Goals, Plan, Check-ins and People: whether a new row must have it, its format, an example, and what happens when it’s left empty.",
+		group: "data",
+		after: "export",
+		sections: [{
+			heading: "What it’s for",
+			text: ["The same table is the first sheet of the template and of every workbook, Start here, and docs/export-format.md is made from it too, so none of them can disagree."]
+		}, {
+			heading: "What the words mean",
+			list: [
+				"Required: a new row can’t be saved without it. Owner or Owner email: one of the two is enough.",
+				"Required for a number goal (or a range or stages goal): required when the goal is of that type, such as Target for a number goal. Required when…: in that situation only, such as Cause when a check-in is behind plan.",
+				"Optional: it can be left out; the table says what an empty cell gives.",
+				"Leave empty: Faro fills it in, such as a new goal’s Key.",
+				"Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.",
+				"On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away."
+			]
+		}],
+		routes: [],
+		screens: ["ColumnsHelp"],
+		reqs: ["FIELD-TABLE", "ONE-FORMAT"],
+		keywords: [
+			"columns",
+			"required",
+			"optional",
+			"format",
+			"example",
+			"template",
+			"start here",
+			"field",
+			"headers",
+			"empty",
+			"what a new row needs"
+		],
+		related: ["import", "export"]
+	}
+];
+// \0virtual:faro-modules/help
+var help_default = [{
+	id: "metrics",
+	part: help$3
+}, {
+	id: "spreadsheets",
+	part: help$2
 }];
 // src/help/about.ts
 var PROTOTYPE_LINE = "Faro is a prototype: a working model of a goals app, built to be copied and rebuilt inside a company. It isn’t a product, and nothing here is for sale.";
@@ -15667,6 +15760,19 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "metrics-place",
+		date: "2026-11-12",
+		title: "Metrics has its own place",
+		points: [
+			"Metrics is in the menu, beside People (on a phone, under More): every number goals are measured by, defined once.",
+			"Find a metric by its name, unit, owner or meaning, and narrow the list by unit, by the team that uses it, or by what still needs sorting out.",
+			"Each metric has a page with its meaning and every goal measured by it, side by side: status, who it is for, the latest number, the target and where it stands against plan.",
+			"A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.",
+			"Old links still work."
+		],
+		articles: ["metrics", "metric-add"]
+	},
+	{
 		id: "undo-removal-sticks",
 		date: "2026-11-12",
 		title: "Undo after a delete now lasts",
@@ -17229,10 +17335,20 @@ var _virtual_faro_modules_default = [{
 	name: "Metric library",
 	summary: "Define each number goals are measured by once (its meaning and calculation, unit, direction, source and owner), and say which metric measures a goal, for a team or the whole company.",
 	needs: [],
-	routes: [],
-	redirects: [],
-	navigation: [],
-	places: [],
+	routes: [
+		"/metrics",
+		"/metrics/new",
+		"/metrics/:metricId",
+		"/metrics/:metricId/edit"
+	],
+	redirects: [["/data/metrics", "/metrics"]],
+	navigation: ["Metrics"],
+	places: [
+		"goal.facts",
+		"goal.sections",
+		"people.person",
+		"people.team"
+	],
 	tables: [{
 		"name": "okr_metrics",
 		"migration": "0033_metric_library.sql",
@@ -17260,13 +17376,17 @@ var _virtual_faro_modules_default = [{
 		"remove_metric",
 		"link_goal_metric"
 	],
-	help: [],
-	requirements: [],
-	journeys: [],
+	help: ["metrics", "metric-add"],
+	requirements: ["METRICS-LIBRARY"],
+	journeys: [
+		"U81",
+		"F15",
+		"N16"
+	],
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s.",
+		"builds": "The metric library, and the worked example of a module with records of its own. A metric (name, meaning and calculation, unit, decimals, which way is better, source and its owner, refresh, owner, caveats) is defined once per workspace, and a goal links to one metric for a slice (a team, or the whole company), the goal’s own target being the target in it. Anyone adds a metric; its owner or an admin changes or removes it; the goal’s owner or an admin links and unlinks. Every change is logged, removing and unlinking keep the row and come back with Undo or Recently removed, and the AI tools do the same under the same rules. Its two records are its own, not the core’s: the module declares each (what one row is, its table, where a save and the workspace file it, whether it can be removed) with its rows each way, what a new cycle carries over (every metric not removed; the links in force to the cycle’s live goals) and how a removed metric comes back, and the core’s store, removal, restore, cycle and export keep them without knowing what they are. Its rules sit in its own folder, as pure as the core’s. Its own place, /metrics: the library (find by name, unit, owner or meaning; filter by unit, the team or the whole company a goal measures it for, owner, direction, unused, or something to sort out; sort A to Z, by most goals or by the latest change; 50 a page), a page per metric with its meaning, every goal measured by it side by side (status, slice, now, target, against plan) and what it still needs, an item in the menu after People, and the metric on a goal’s page and on a person’s and a team’s.",
 		"entry": ["The core keeps a module’s own records (stage 2): a save carries them with the core’s, in one transaction; the workspace holds them by module and record; a removal saves them as changed, and Undo puts each back as it was just before.", "Goals have a unit (metric and range goals) and teams have ids, so a link can check its unit and slice."],
 		"exit": [
 			"A metric with a name, a unit and a direction saves; without any one of them it is refused with what is missing, and a second metric with the same name (any case) is refused.",
@@ -17274,11 +17394,13 @@ var _virtual_faro_modules_default = [{
 			"A goal in hours can’t be measured by a metric in minutes, and a goal with dated stages can’t be measured at all; a goal aiming the other way from the metric’s better direction links, with a warning.",
 			"Removing a metric unlinks every goal it measured in the same save; Undo straight after brings the metric and the links back; restoring it later brings the metric back without its links.",
 			"The demo workspace’s 13 metrics and 12 links load, and every goal’s numbers, status and dates are exactly as without them (the conformance rows don’t move).",
-			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there."
+			"Built without the module, a workspace that holds its rows loads and saves, and none of its rows is changed or deleted; with the module back, they are all there.",
+			"The library finds what each of rule 1’s worked examples says, a metric’s goals are rule 2’s rows in its order, and what a metric needs is rule 3’s, in order: every row of spec/conformance/metrics.csv matches.",
+			"The library is in the menu after People (under More on a phone); the old addresses of Metrics under Data lead to the library, a metric or the form; a metric’s row in the library counts the same goals by status as its page’s table lists (journey U81, checks F15 and N16)."
 		],
 		"gaps": [
-			"No screens yet: the Metrics page under Data and “Measured by” in the goal forms are to be built (src/modules/metrics/README.md says what they call).",
-			"No conformance rows for the metric rules yet, so nothing scores this stage; its worked examples are in the rules page and src/modules/metrics/rules.test.ts.",
+			"“Measured by” found by typing in the goal forms, the Goals filter by a metric (so a metric with several goals opens them on Goals), and the close-name question come with ML2 and ML3 (docs/design/metrics/spec.md).",
+			"The goals table is where slices side by side and numbers read from the source would grow (growth.md: dimensions an admin defines; numbers from the source).",
 			"Left out on purpose and written down as ways to grow: spec/modules/metrics/growth.md."
 		]
 	},
@@ -20214,10 +20336,184 @@ var REMOVE_TOOLS = [
 		}
 	}
 ];
+// src/modules/metrics/rulesLibrary.ts
+init_find();
+init_numbers();
+init_status();
+init_rules();
+var DAY = 864e5;
+/** "lower is better", as a row and a search read it. */
+var directionWords = (d) => d === "lower" ? "lower is better" : "higher is better";
+/** Decimals in words (spec 2.2): "whole numbers", "to 1 decimal place", "to 2 decimal places". */
+var decimalsWords = (d) => d === 0 ? "whole numbers" : `to ${placesText(d)}`;
+/** A metric's part of an address: its id without "metric_" (the demo's are slugs, "lead-time"); any other id as it is. */
+var metricSlug = (id) => id.replace(/^metric_/, "");
+/** A metric's page. */
+var metricPath = (m) => `/metrics/${encodeURIComponent(metricSlug(m.id))}`;
+/** A metric's links in force: not unlinked, to a live goal in the running cycle. */
+var liveLinks = (r, metricId) => r.links.filter((l) => l.metricId === metricId && !l.removedAt && r.goalIds.has(l.goalId));
+/** The owner's name, or null when none is set or they have left. */
+var ownerName = (people, m) => {
+	const p = people.find((x) => x.id === m.ownerId);
+	return p && !p.leftAt ? p.name : null;
+};
+/**
+* Rule 3. What a metric still needs, in this order: an owner (unset, or they have left), a meaning, a source, and a goal
+* that uses it (once it was added more than 14 days ago). Each with the sentence the page and the library say, and one
+* button that opens the form at that field, or Goals in its unit.
+*/
+function metricNeeds(m, r) {
+	const out = [];
+	const edit = (field) => `${metricPath(m)}/edit?field=${field}`;
+	const owner = r.people.find((p) => p.id === m.ownerId);
+	if (!owner || owner.leftAt) out.push({
+		id: "no-owner",
+		sentence: owner ? "Its owner has left" : "It has no owner",
+		button: "Choose an owner",
+		to: edit("owner")
+	});
+	if (!m.meaning.trim()) out.push({
+		id: "no-meaning",
+		sentence: "No meaning yet",
+		button: "Say what it means",
+		to: edit("meaning")
+	});
+	if (!m.source.trim()) out.push({
+		id: "no-source",
+		sentence: "No source named",
+		button: "Say where the number comes from",
+		to: edit("source")
+	});
+	if (Date.parse(r.now) - Date.parse(m.createdAt) > 14 * DAY && !liveLinks(r, m.id).length) out.push({
+		id: "unused",
+		sentence: "No goal uses it",
+		button: `See goals in ${m.unit}`,
+		to: `/goals?scope=all&q=${encodeURIComponent(m.unit)}`
+	});
+	return out;
+}
+/**
+* Rule 1. The metrics that match, a page at a time. Removed metrics are never listed. A search matches the name, the
+* unit, "lower is better" or "higher is better", the owner's name, the meaning and the source, word by word as every
+* list does (find rule 1). A team keeps the metrics a live goal is measured by for it ("company": for the whole
+* company); "unused" those no live goal uses; "sort out" those rule 3 says need something (for anyone: it's the same
+* filter for everyone). Sorted A to Z ignoring case and accents, by most goals first, or by the latest change first.
+*/
+function findMetrics(r, ask = {}) {
+	const size = ask.size ?? 50;
+	const rows = r.metrics.filter((m) => !m.removedAt).map((m) => {
+		const links = liveLinks(r, m.id);
+		return {
+			metric: m,
+			owner: ownerName(r.people, m),
+			goalIds: links.map((l) => l.goalId),
+			needs: metricNeeds(m, r),
+			links
+		};
+	}).filter(({ metric: m, owner, links, needs }) => {
+		if (ask.q?.trim() && !textMatches([
+			m.name,
+			m.unit,
+			directionWords(m.direction),
+			owner ?? "",
+			m.meaning,
+			m.source
+		].join(" "), ask.q)) return false;
+		if (ask.unit && fold$1(m.unit) !== fold$1(ask.unit)) return false;
+		if (ask.teamId && !links.some((l) => ask.teamId === "company" ? l.teamId == null : l.teamId === ask.teamId)) return false;
+		if (ask.ownerId && m.ownerId !== ask.ownerId) return false;
+		if (ask.dir && m.direction !== ask.dir) return false;
+		if (ask.unused && links.length) return false;
+		if (ask.sortout && !needs.length) return false;
+		return true;
+	}).map(({ links: _, ...row }) => row);
+	const byName = (a, b) => fold$1(a.metric.name).localeCompare(fold$1(b.metric.name));
+	rows.sort(ask.sort === "goals" ? (a, b) => b.goalIds.length - a.goalIds.length || byName(a, b) : ask.sort === "changed" ? (a, b) => b.metric.updatedAt.localeCompare(a.metric.updatedAt) || byName(a, b) : byName);
+	const pages = Math.max(1, Math.ceil(rows.length / size));
+	const page = Math.min(Math.max(1, Math.floor(ask.page ?? 1)), pages);
+	const from = rows.length ? (page - 1) * size + 1 : 0;
+	const to = Math.min(rows.length, page * size);
+	return {
+		total: rows.length,
+		page,
+		pages,
+		from,
+		to,
+		rows: rows.slice(from ? from - 1 : 0, to)
+	};
+}
+/**
+* Rule 2. Every goal a metric measures now, one row per link in force to a live goal of the running cycle, worst
+* status first, then by slice name, then title. Each row is the goal's own summary (domain/summary), with its slice.
+*/
+function metricGoals(metricId, links, goals, teams, cycle) {
+	const byGoal = new Map(goals.filter((s) => !s.goal.stoppedAt).map((s) => [s.goal.id, s]));
+	const rows = [];
+	for (const l of links) {
+		const s = l.metricId === metricId && !l.removedAt ? byGoal.get(l.goalId) : void 0;
+		if (!s) continue;
+		const slice = l.teamId == null ? COMPANY : teams.find((t) => t.id === l.teamId)?.name ?? "A removed team";
+		rows.push({
+			goal: s.goal,
+			status: s.status,
+			slice,
+			now: s.now,
+			nowValue: s.nowValue,
+			target: `${s.target} ${byWeekWords(cycle, s.dueWeek)}`,
+			vsPlan: s.gap,
+			owner: s.owner
+		});
+	}
+	return rows.sort((a, b) => RANK[b.status] - RANK[a.status] || a.slice.localeCompare(b.slice) || a.goal.title.localeCompare(b.goal.title));
+}
+/**
+* Rule 2's line under the table: "Lowest now: Build & Release, 4 min. Highest: CI/CD, 7 min." when two or more rows
+* have a value in the same unit and decimals; otherwise null. A row with no value yet is left out.
+*/
+function summaryLine(rows) {
+	const valued = rows.filter((r) => r.nowValue != null && r.goal.kind !== "milestone");
+	if (valued.length < 2) return null;
+	const shape = (r) => r.goal.kind === "milestone" ? "" : `${fold$1(r.goal.unit)}|${r.goal.decimals}`;
+	if (new Set(valued.map(shape)).size > 1) return null;
+	const sorted = [...valued].sort((a, b) => a.nowValue - b.nowValue || a.slice.localeCompare(b.slice));
+	const lo = sorted[0], hi = sorted[sorted.length - 1];
+	return `Lowest now: ${lo.slice}, ${lo.now}. Highest: ${hi.slice}, ${hi.now}.`;
+}
+/** A metric's goals by status, worst first, only the statuses it has: what a library row says ("1 off track · 2 on track"). */
+function goalsByStatus(statuses) {
+	const n = /* @__PURE__ */ new Map();
+	for (const s of statuses) n.set(s, (n.get(s) ?? 0) + 1);
+	return [...n.entries()].map(([status, k]) => ({
+		status,
+		n: k
+	})).sort((a, b) => RANK[b.status] - RANK[a.status] || a.status.localeCompare(b.status));
+}
+// src/modules/metrics/reads.ts
+init_rules();
+/** The running cycle's live goals: not removed, not stopped. */
+var liveGoals = (s) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
+/** Rule 1's and rule 3's rows: every metric and link, the cycle's live goal ids, the people, and now. */
+function libraryReads(s, now) {
+	return {
+		metrics: metricsOf(s),
+		links: linksOf(s),
+		goalIds: new Set(liveGoals(s).map((g) => g.id)),
+		people: s.people,
+		now
+	};
+}
+/** Rule 2 for one metric: its goals' summary rows (domain/summary), side by side. */
+function goalsOfMetric(s, cycle, today, week, metricId) {
+	const links = linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt);
+	const ids = new Set(links.map((l) => l.goalId));
+	return metricGoals(metricId, links, summariseAll(liveGoals(s).filter((g) => ids.has(g.id)), s, cycle, today, week), s.teams, cycle);
+}
 // src/modules/metrics/tools.ts
 init_actions();
 init_goalKey();
 init_rules();
+init_status();
+init_vocabulary();
 init_changeset();
 var str$2 = (description, extra = {}) => ({
 	type: "string",
@@ -20343,37 +20639,94 @@ var tools$1 = [
 	{
 		name: "list_metrics",
 		title: "List the metric library",
-		description: "Every metric in the library, by name: its unit, which way is better, its owner and how many goals it measures. Give a search to narrow it by name, meaning or source. get_metric has one in full.",
+		description: "The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
-			properties: { search: str$2("Words to look for in the name, meaning or source.") }
+			properties: {
+				search: str$2("Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source."),
+				unit: str$2("Only metrics in this unit (any case)."),
+				team: str$2("Only metrics a goal measures for this team (ID or name), or “company” for the whole company."),
+				owner: str$2("Only metrics this person owns, by ID, email or name."),
+				direction: str$2("Only metrics where this way is better.", { enum: ["higher", "lower"] }),
+				unused: {
+					type: "boolean",
+					description: "Only metrics no live goal uses."
+				},
+				sort_out: {
+					type: "boolean",
+					description: "Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days."
+				},
+				sort: str$2("A to Z (name, the default), most goals first (goals), or the latest change first (changed).", { enum: [
+					"name",
+					"goals",
+					"changed"
+				] }),
+				page: {
+					type: "integer",
+					minimum: 1,
+					description: "Which page of 50."
+				}
+			}
 		},
 		annotations: READ$1,
 		async run(a, ctx) {
-			const q = String(a.search ?? "").trim().toLowerCase();
-			const rows = liveMetrics(ctx.snapshot).filter((m) => !q || [
-				m.name,
-				m.meaning,
-				m.source
-			].some((t) => t.toLowerCase().includes(q))).map((m) => ({
-				id: m.id,
-				name: m.name,
-				unit: m.unit,
-				direction: m.direction,
-				owner: name(ctx, m.ownerId),
-				goals: goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).length
-			}));
-			return {
-				data: { metrics: rows },
-				text: rows.length ? rows.map((r) => `${r.id} · ${r.name} (${r.unit}, ${DIRECTION_LABEL[r.direction].toLowerCase()}) · owner ${r.owner ?? "—"} · measures ${r.goals} ${r.goals === 1 ? "goal" : "goals"}`).join("\n") : q ? `No metric matches “${q}”.` : "The metric library is empty. Add one with save_metric."
-			};
+			return ruled(async () => {
+				const team = a.team == null || a.team === "" ? void 0 : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? "company" : sliceOf(ctx, a.team) ?? void 0;
+				const ask = {
+					q: String(a.search ?? ""),
+					unit: a.unit ? String(a.unit) : void 0,
+					teamId: team,
+					ownerId: a.owner ? personOf(ctx, a.owner) : void 0,
+					dir: a.direction === "higher" || a.direction === "lower" ? a.direction : void 0,
+					unused: a.unused === true,
+					sortout: a.sort_out === true,
+					sort: a.sort === "goals" || a.sort === "changed" ? a.sort : "name",
+					page: typeof a.page === "number" ? a.page : 1
+				};
+				const found = findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+				const statusOf = (id) => {
+					const g = ctx.snapshot.goals.find((x) => x.id === id);
+					return g ? goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status : null;
+				};
+				const rows = found.rows.map(({ metric: m, owner, goalIds, needs }) => {
+					const byStatus = goalsByStatus(goalIds.map(statusOf).filter((s) => !!s));
+					return {
+						id: m.id,
+						name: m.name,
+						unit: m.unit,
+						direction: m.direction,
+						owner,
+						goals: goalIds.length,
+						goalsByStatus: byStatus.map((c) => ({
+							status: c.status,
+							count: c.n,
+							label: LABEL[c.status]
+						})),
+						needs: canEditMetric(ctx.actor, m) ? needs.map((x) => ({
+							id: x.id,
+							sentence: x.sentence
+						})) : []
+					};
+				});
+				const words = (r) => `${r.id} · ${r.name} (${r.unit}, ${directionWords(r.direction)}) · ${r.owner ? `owner ${r.owner}` : "no owner"} · ${r.goalsByStatus.length ? r.goalsByStatus.map((c) => `${c.count} ${c.label.toLowerCase()}`).join(", ") : "no goals yet"}${r.needs.length ? ` · to sort out: ${r.needs.map((x) => x.sentence).join("; ")}` : ""}`;
+				const head = found.total > found.rows.length ? `${found.from} to ${found.to} of ${found.total} metrics.\n` : "";
+				return {
+					data: {
+						total: found.total,
+						page: found.page,
+						pages: found.pages,
+						metrics: rows
+					},
+					text: rows.length ? head + rows.map(words).join("\n") : liveMetrics(ctx.snapshot).length ? "No metric matches." : "The metric library is empty. Add one with save_metric."
+				};
+			});
 		}
 	},
 	{
 		name: "get_metric",
 		title: "Read a metric",
-		description: "One metric in full, by ID or name: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats, and every goal it measures with its slice (a team, or the whole company) and the goal’s target.",
+		description: "One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -20383,18 +20736,45 @@ var tools$1 = [
 		annotations: READ$1,
 		async run(a, ctx) {
 			return ruled(async () => {
-				const d = metricData(ctx, metricOf(ctx, a.metric));
+				const m = metricOf(ctx, a.metric);
+				const d = metricData(ctx, m);
+				const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
+				const goals = side.map((r) => ({
+					goalId: r.goal.id,
+					key: r.goal.key ?? null,
+					goal: r.goal.title,
+					status: r.status,
+					statusLabel: LABEL[r.status],
+					slice: r.slice,
+					now: r.now,
+					target: r.target,
+					vsPlan: r.vsPlan,
+					owner: r.owner
+				}));
+				const summary = summaryLine(side);
+				const needs = canEditMetric(ctx.actor, m) ? metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({
+					id: x.id,
+					sentence: x.sentence
+				})) : [];
+				const lines = [
+					`${d.name} (${d.id})`,
+					`Unit: ${d.unit}, ${decimalsWords(d.decimals)} · ${d.directionLabel}`,
+					`Meaning: ${d.meaning || "—"}`,
+					`Source: ${d.source || "—"} (owned by ${d.sourceOwner || "—"}) · refresh: ${d.refresh ?? "not said"}`,
+					`Owner: ${d.owner ?? "—"}`,
+					`Caveats: ${d.caveats || "—"}`,
+					goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join("\n")}` : "Measures no goal yet.",
+					...summary ? [summary] : [],
+					...needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join("; ")}`] : []
+				];
 				return {
-					data: d,
-					text: [
-						`${d.name} (${d.id})`,
-						`Unit: ${d.unit}, ${d.decimals} decimals · ${d.directionLabel}`,
-						`Meaning: ${d.meaning || "—"}`,
-						`Source: ${d.source || "—"} (owned by ${d.sourceOwner || "—"}) · refresh: ${d.refresh ?? "not said"}`,
-						`Owner: ${d.owner ?? "—"}`,
-						`Caveats: ${d.caveats || "—"}`,
-						d.measures.length ? `Measures: ${d.measures.map((x) => `${x.key ?? x.goalId} ${x.goal} (${x.slice})`).join("; ")}` : "Measures no goal yet."
-					].join("\n")
+					data: {
+						...d,
+						goals,
+						summary,
+						needs
+					},
+					text: lines.join("\n")
 				};
 			});
 		}

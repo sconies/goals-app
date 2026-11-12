@@ -16,7 +16,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, IMPORT_HEADER, NAV_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -279,7 +279,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '',
     stage ? `Its rebuild stage: [stage ${stage.n}](../../rebuild/${stage.file}) (${stage.status === 'drill' ? 'with a drill' : 'an outline, with no drill yet'}).` : `${UNCLEAR} it has no rebuild stage: add \`rebuild\` to its module.json (CI fails until it has one).`,
     ...(RULE_LIST.some((x) => x.module === m.id)
-      ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md)`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${UNCLEAR} it has no conformance rows of its own yet.`]
+      ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md)`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${MODULE_FILES.some((f) => f.module === m.id) ? `Its conformance rows: ${MODULE_FILES.filter((f) => f.module === m.id).map((f) => `[${f.file}.csv](../../conformance/${f.file}.csv)`).join(', ')} ([what each column is](../../conformance/README.md#the-files)).` : `${UNCLEAR} it has no conformance rows of its own yet.`}`]
       : [`${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`]),
     ...(m.records?.length ? ['', `Its own records, every field: [its records](records.md).`] : []),
     ...(m.growth?.length ? ['', `What was left out on purpose, and how it could grow: [growth notes](growth.md).`] : []),
@@ -331,7 +331,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '## The input: workspace.json',
     '',
-    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
+    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews${w.modules ? `, and, under \`modules\`, the records of the modules that add rows here (${Object.keys(w.modules).join(', ')})` : ''}. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
     '',
     '## How each week is judged',
     '',
@@ -363,6 +363,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[find.csv](find.csv) (not stage 1)', String(rows('find.csv')), 'search', FIND_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[navigation.csv](navigation.csv) (not stage 1)', String(rows('navigation.csv')), 'viewer and address', NAV_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[import.csv](import.csv) (not stage 1)', String(rows('import.csv')), 'case of the change engine', IMPORT_HEADER.map((x) => `\`${x}\``).join(', ')],
+      ...MODULE_FILES.map((f) => [`[${f.file}.csv](${f.file}.csv) (the ${f.module} module, not stage 1)`, String(rows(`${f.file}.csv`)), 'rule and what it is asked', f.header.map((x) => `\`${x}\``).join(', ')]),
     ]),
     '',
     'What each column is, and the rule that gives it:',
@@ -379,6 +380,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '- **import.csv** ([kinds, levels and near misses](../core/rules/import-levels.md)): not part of stage 1, scored like find.csv when asked (`"also": ["import"]`; it is the spreadsheets stage’s). One row per case: a set of rows loaded through the change engine on the workspace as it stood at `builtFor` (week 45), by `actor` (amara is an admin; tunde is not), into `sheet` (`goals`, `checkIns` or `people`). `rows` is the rows as JSON, column name to cell, numbered from row 2 in order; `answers` the answers given, as JSON, group id to choice (empty for none). People in workspace.json have no email, so their email is empty and rows name them by name or ID. Then what the engine says: `kind`, `level` (`must` or `check`), `group` (its group id) and `message` (its sentence) of the first problem or question in the file’s order (sheet, then row; a note is neither), empty when there is none; `must` and `questions` how many Must-fix groups and Check groups; `saves` `yes` when it would save.',
     '',
+    ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
     '## How a rebuild proves itself',
@@ -396,8 +398,11 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
 
 /** workspace.json: one record per line, so a change reads as the lines it changed. */
 export function workspaceJson(w: ConformanceWorkspace): string {
-  const parts = Object.entries(w).map(([k, v]) => Array.isArray(v)
-    ? `  ${JSON.stringify(k)}: [\n${v.map((x) => '    ' + JSON.stringify(x)).join(',\n')}\n  ]`
+  const list = (k: string, v: unknown[], pad: string) => `${pad}${JSON.stringify(k)}: [\n${v.map((x) => pad + '  ' + JSON.stringify(x)).join(',\n')}\n${pad}]`;
+  // A module's records (modules.<id>.<key>) are one record per line too.
+  const nested = (v: Record<string, Record<string, unknown[]>>) => `{\n${Object.entries(v).map(([id, recs]) => `    ${JSON.stringify(id)}: {\n${Object.entries(recs).map(([k, rows]) => list(k, rows, '      ')).join(',\n')}\n    }`).join(',\n')}\n  }`;
+  const parts = Object.entries(w).map(([k, v]) => Array.isArray(v) ? list(k, v, '  ')
+    : k === 'modules' && v ? `  ${JSON.stringify(k)}: ${nested(v as Record<string, Record<string, unknown[]>>)}`
     : `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`);
   return `{\n${parts.join(',\n')}\n}\n`;
 }
@@ -436,7 +441,7 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
   // Stage 1's files only: find.csv belongs to the find rules, scored when asked.
-  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'find.csv' && f !== 'navigation.csv' && f !== 'import.csv').map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f.replace('.csv', '') in HEADERS).map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
   Object.assign(out, internalFiles());
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files));
   Object.assign(out, await databaseFiles(root));

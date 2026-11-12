@@ -482,7 +482,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, P10
+- **Journeys and checks:** F10, F15, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -497,7 +497,7 @@ Every address that worked before still lands on the right page, without a histor
 
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U58
+- **Journeys and checks:** U58, U81
 
 ### BRAND
 
@@ -929,7 +929,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
-- **Journeys and checks:** U30, U31, U34, U54
+- **Journeys and checks:** N16, U30, U31, U34, U54
 
 ## Layout
 

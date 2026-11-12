@@ -23,6 +23,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metrics-place',
+    date: '2026-11-12',
+    title: 'Metrics has its own place',
+    points: [
+      'Metrics is in the menu, beside People (on a phone, under More): every number goals are measured by, defined once.',
+      'Find a metric by its name, unit, owner or meaning, and narrow the list by unit, by the team that uses it, or by what still needs sorting out.',
+      'Each metric has a page with its meaning and every goal measured by it, side by side: status, who it is for, the latest number, the target and where it stands against plan.',
+      'A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.',
+      'Old links still work.',
+    ],
+    articles: ['metrics', 'metric-add'],
+  },
+  {
     id: 'undo-removal-sticks',
     date: '2026-11-12',
     title: 'Undo after a delete now lasts',

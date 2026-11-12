@@ -11,32 +11,38 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | Extension point | What |
 |---|---|
 | Needs | none |
-| Routes | none |
-| Old addresses | none |
-| Navigation | none |
-| Places on core screens | none |
+| Routes | `/metrics`, `/metrics/new`, `/metrics/:metricId`, `/metrics/:metricId/edit` |
+| Old addresses | `/data/metrics` → `/metrics` |
+| Navigation | Metrics |
+| Places on core screens | `goal.facts`, `goal.sections`, `people.person`, `people.team` |
 | Workspace sections | none |
 | Database tables | `okr_metrics` (0033_metric_library.sql): The metric library: one row per metric, never deleted (removed_at when removed).; `okr_goal_metrics` (0033_metric_library.sql): Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked. |
 | Its own records | metric (`okr_metrics`, filed under `modules.metrics.metrics`; removable and restorable); metric link (`okr_goal_metrics`, filed under `modules.metrics.metricLinks`) |
 | AI tools | `list_metrics`, `get_metric`, `save_metric`, `remove_metric`, `link_goal_metric` |
-| Help articles | none |
+| Help articles | “Metrics: what each number means” (`metrics`), “Adding or changing a metric” (`metric-add`) |
 | Outside its folder | none |
 
 ## Requirements
 
+- `METRICS-LIBRARY`: Anyone can find a metric, read what it means, and see every goal measured by it side by side (ML1). Metrics (/metrics, in the menu after People; on a phone under More) lists every metric in use A to Z ignoring case and accents, 50 a page; a search matches the name, unit, "lower is better" or "higher is better", the owner and the meaning; filters for the unit, the team or the whole company a goal measures it for, the owner, which way is better, no goals, and something to sort out; sorts A to Z, most goals first and changed lately; everything in the address. A row links to the metric, says its unit, direction and owner, and its goals by status as shape and word, worst first. A metric's page says what it means and how it's calculated, then its goals as a table (status, goal, for, now, target with its week, against plan, owner), worst first, with the lowest and highest now when two or more have a number, then its source, the source's owner, refresh, caveats and who added and last changed it. Its owner and admins see what it still needs and can change or remove it; everyone else sees who can. A goal's summary says what measures it; a person's page lists the metrics they own and a team's the metrics its goals use. Old addresses under /data/metrics lead to the library, a metric or the form.
 
 ## Journeys and checks
 
-_None._
+| Id | What | Where |
+|---|---|---|
+| U81 | The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands | `evals/journeys.cjs` |
+| F15 | The metric library on a phone: the first metric near the top, rows of at most three lines, a metric’s goals as rows, nothing scrolls sideways | `evals/finish/15-metrics.cjs` |
+| N16 | One set of numbers: a metric’s row in the library counts the goals its page lists, status by status | `evals/notes/16-metrics.cjs` |
 
 ## Help
 
-_None._
+- **Metrics: what each number means** (`metrics`): The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.
+- **Adding or changing a metric** (`metric-add`): Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.
 
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 4](../../rebuild/stage-4-module-metrics.md) (an outline, with no drill yet).
-Its rules: [The metric library](rules.md), in plain words with worked examples (run against the code by the spec’s own test). **Not self-explanatory:** it has no conformance rows of its own yet.
+Its rules: [The metric library](rules.md), [The library as a place](rules.md), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
 
 Its own records, every field: [its records](records.md).
 

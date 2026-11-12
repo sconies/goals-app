@@ -12,6 +12,8 @@ import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { planChanges } from '../domain/changeset';
+import type { ModuleRows } from '../domain/records';
+import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
 /** The moment the demo workspace is built for: Thursday 5 November 2026, noon UTC (week 45), as the evals pin it. */
 export const CHECK_IN_MOMENT = '2026-11-05T12:00:00.000Z';
@@ -29,7 +31,27 @@ export interface ConformanceWorkspace {
   decisions: Decision[];
   requests: Ask[];
   reviews: Pick<Review, 'id' | 'name'>[];
+  /** Feature modules' own records (domain/records), by module and record, for the rows a module adds (ModuleConformance). */
+  modules?: ModuleRows;
 }
+
+/**
+ * A feature module's rows in the conformance data (its conformance.ts, through the module registry): one CSV file of
+ * what its rules give in the demo workspace as it stood at `builtFor`. Not part of stage 1: the drill scores it when
+ * asked (`"also"` in drill.json). `rows` is given `asOf`, so a module needs nothing else from here.
+ */
+export interface ModuleConformance {
+  /** The file's name, without .csv. */
+  file: string;
+  header: string[];
+  /** The columns that name a row (the drill matches rows by them). */
+  keys: string[];
+  /** What the file holds, for the conformance README: Markdown, one paragraph. */
+  about: string;
+  rows(w: ConformanceWorkspace, kit: { asOf: typeof asOf }): string[][];
+}
+/** The modules' conformance files in this build. */
+export const MODULE_FILES: (ModuleConformance & { module: string })[] = MODULE_CONFORMANCE.flatMap((m) => m.part.map((c) => ({ ...c, module: m.id })));
 
 /** The demo's records, trimmed to what the rules read, as workspace.json holds them. */
 export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
@@ -45,6 +67,7 @@ export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
     decisions: live(s.decisions),
     requests: s.requests ?? [],
     reviews: live(s.reviews).map((r) => ({ id: r.id, name: r.name })),
+    ...(MODULE_FILES.length && s.modules ? { modules: Object.fromEntries(Object.entries(s.modules).filter(([id]) => MODULE_FILES.some((f) => f.module === id))) } : {}),
   };
 }
 
@@ -72,6 +95,7 @@ export function asOf(w: ConformanceWorkspace, moment: Date): Snapshot {
     changes: [], watches: [], retros: [],
     reviews: w.reviews.map((r) => ({ ...r, everyWeeks: 1, weekday: 0, scope: { goals: [], trees: [], levels: [] }, people: [], createdBy: '', createdAt: '' })),
     requests,
+    ...(w.modules ? { modules: w.modules } : {}),
   };
 }
 
@@ -298,5 +322,8 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 /** The CSV files, by name. */
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
-  return { ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)) };
+  return {
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)),
+    ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
+  };
 }
