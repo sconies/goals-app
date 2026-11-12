@@ -36,6 +36,8 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, 12:40 UTC (session past half full, handing over)
 
+_Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) merged GT3's edit page (#184), GE1 (#186), GE2 (#189), GE9 (#194) and the GT3/GE1/GE2 review mediums (#197), and continues with GE3, GE10 and ST1._
+
 - **Merged:**
   - OB1 (#129): New goal in four steps with addresses, plus find-and-pick, `startLevel`, `parentSuggestions` and `planNote` in `src/domain/newGoal.ts`.
   - The reviewId fix (#135): a review-decision ask reads as a decision in History.
@@ -76,7 +78,6 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
   - `startLevel` counts removed and stopped goals;
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
-- **Bundle budgets (Lane, 12 Nov):** each is the size on the day it was set plus a 3 KB margin (`MARGIN_KB` in `scripts/check-bundle.mjs`): 295 and 353 KB. Main had sat 20 bytes under 350, which failed every visible change. Lowering a budget keeps the margin.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
 ## Track 4, Thursday 12 November, 00:20 UTC (session past half full, handing over)
