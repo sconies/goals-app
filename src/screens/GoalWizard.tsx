@@ -46,7 +46,7 @@ const SHAPES: [PlanShape, string, string][] = [
 const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 /** What New goal keeps in its draft beyond the goal: where it stopped, and what was chosen by hand rather than followed. */
-type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers };
+type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers; measureKept?: string };
 
 /** /goals/new (and /goals/new/<step>): a draft's step, or the first. */
 export function GoalWizard() {
@@ -357,7 +357,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {stepSays(stepFields(2, d.kind).filter((f) => noMetric || (f !== 'definition' && f !== 'source')), d.kind) && <p className="small muted step-says">{STEP_SAYS}</p>}
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })}
               untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} onNone={setSaidNone} />}
             {number && !filled && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">Unit{optional('unit')}</span>

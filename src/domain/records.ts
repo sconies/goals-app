@@ -106,6 +106,9 @@ export interface ModuleRecords {
   records: RecordDef<any>[];
   /** The workbook's sheets it adds, if any. */
   sheets?: ModuleSheet<any>[];
+  /** The columns it adds to Goals' rows, by their address parameter (?metric=): what each goal holds, from the open
+      workspace. The app's Goals filter (core/app ModuleFilter) and the AI's find_goals read the same ones. */
+  goalColumns?: { param: string; fill: (s: import('./types').Snapshot) => (g: Goal) => string | null }[];
 }
 
 /* ---------- reading and writing a module's rows ---------- */

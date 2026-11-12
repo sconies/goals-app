@@ -6825,6 +6825,12 @@ var init_actions = __esmMin((() => {
 	liveView = (x, id) => (x.snapshot.views ?? []).find((v) => v.id === id && !v.deletedAt);
 }));
 // src/domain/query.ts
+function addColumnParams(params) {
+	for (const k of params) if (!COLUMN_PARAMS.includes(k) && !QUERY_KEYS.includes(k)) {
+		COLUMN_PARAMS.push(k);
+		QUERY_KEYS.push(k);
+	}
+}
 /** Read a query from a URL's search params (unknown or bad values are ignored, never an error). */
 function parseQuery(p) {
 	const [sortKey, dir] = (p.get("sort") ?? "").split(".");
@@ -6945,7 +6951,7 @@ function applyQuery(sums, q, ctx) {
 	const out = sums.filter((s) => matches(s, q, ctx, tree));
 	return q.sort ? out.sort(compare(q, ctx.week)) : out;
 }
-var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, GAP_RANK;
+var EMPTY_QUERY, STATUS_OPTIONS, NEED_OPTIONS, OLD_NEEDS, RESULT_OPTIONS, KIND_OPTIONS, SORT_OPTIONS, list$1, int$3, COLUMN_PARAMS, QUERY_KEYS, GAP_RANK;
 var init_query = __esmMin((() => {
 	init_levels();
 	init_attention();
@@ -7013,6 +7019,23 @@ var init_query = __esmMin((() => {
 		return Number.isInteger(n) && n > 0 ? n : null;
 	};
 	COLUMN_PARAMS = [];
+	QUERY_KEYS = [
+		"q",
+		"status",
+		"level",
+		"team",
+		"owner",
+		"kind",
+		"attention",
+		"needs",
+		"due",
+		"quiet",
+		"qtr",
+		"result",
+		"feeds",
+		"helps",
+		"sort"
+	];
 	GAP_RANK = {
 		off: 4,
 		risk: 3,
@@ -7278,7 +7301,8 @@ var init_find = __esmMin((() => {
 		s.story.doing ?? "",
 		s.story.needs ?? "",
 		s.goal.definition,
-		s.goal.source
+		s.goal.source,
+		s.goal.kind !== "milestone" ? s.goal.unit : ""
 	].join(" ");
 	goalRow = (s) => ({
 		kind: "goal",
@@ -11654,6 +11678,27 @@ function metricFields(m, s) {
 	};
 }
 /**
+* Changing the unit or which way is better of a metric that live goals use is asked first, at every door (the form's
+* confirm, save_metric's confirm): their numbers and plans don't change, and those that now differ show a warning
+* (linkProblems). Null when nothing needs asking.
+*/
+function metricChangeQuestion(before, next, goals, links) {
+	const linked = links.filter((l) => l.metricId === before.id && !l.removedAt).map((l) => goals.find((g) => g.id === l.goalId)).filter((g) => !!g && !g.removedAt && !g.stoppedAt);
+	const changing = linked.length ? [...next.unit.trim().toLowerCase() !== before.unit.trim().toLowerCase() ? ["unit"] : [], ...next.direction !== before.direction ? ["direction"] : []] : [];
+	if (!changing.length) return null;
+	const apart = linked.filter((g) => {
+		const p = linkProblems(g, next);
+		return p.errors.length + p.warnings.length > 0;
+	}).length;
+	const n = linked.length;
+	return {
+		changing,
+		goals: n,
+		apart,
+		text: `${n} ${n === 1 ? "goal is" : "goals are"} measured by this metric. Changing its ${changing.join(" and ")} doesn’t change their numbers or plans; ${apart} of them will show a warning that they differ. Change it?`
+	};
+}
+/**
 * Add a metric (anyone; they own it unless they name someone else), or change one (its owner or an admin). `id` names
 * the metric to change; left out, it's a new one. Returns the commit and the metric as saved; the commit is null when
 * nothing changed.
@@ -11664,6 +11709,8 @@ function saveMetric(x, input) {
 	const m = metricFrom(input, before, x);
 	const problems = metricProblems(m, x.snapshot);
 	if (problems.length) no(problems.join(" "));
+	const ask = before ? metricChangeQuestion(before, m, (x.full ?? x.snapshot).goals, linksOf(x.full ?? x.snapshot)) : null;
+	if (ask && !input.confirm) no(ask.text.replace(/ Change it\?$/, " Ask first, then save it again with confirm."));
 	const diffs = diffFields(before ? metricFields(before, x.snapshot) : null, metricFields(m, x.snapshot));
 	if (before && !diffs.length) return {
 		commit: null,
@@ -11754,7 +11801,7 @@ function linkProblems(goal, m) {
 * Linking again with the same metric and slice changes nothing (null); with another, it's changed and logged.
 */
 function linkGoalMetric(x, goal, metricId, teamId = null) {
-	if (!canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
+	if (!(!!x.full && !x.full.goals.some((g) => g.id === goal.id) && x.snapshot.goals.some((g) => g.id === goal.id)) && !canLinkGoal(x.actor, goal)) no("Only the goal’s owner or an admin can choose what measures it.");
 	const m = live$1(x, metricId);
 	if (teamId != null && !x.snapshot.teams.some((t) => t.id === teamId)) no("There’s no team with that ID. Leave the slice empty for the whole company.");
 	const { errors } = linkProblems(goal, m);
@@ -12318,7 +12365,7 @@ var MODULE_RECORDS = [{
 				restore(x, m) {
 					const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
 					if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-					const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+					const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
 					const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
 					return {
 						...metricRows({
@@ -12372,12 +12419,21 @@ var MODULE_RECORDS = [{
 			})),
 			goalOf: (l) => l.goalId
 		}],
-		sheets: [METRICS_SHEET]
+		sheets: [METRICS_SHEET],
+		goalColumns: [{
+			param: "metric",
+			fill: (s) => {
+				const by = new Map(linksOf(s).filter((l) => !l.removedAt).map((l) => [l.goalId, l.metricId]));
+				return (g) => by.get(g.id) ?? null;
+			}
+		}]
 	}
 }].map((p) => ({
 	...p.part,
 	module: p.id
 }));
+/** The columns the modules add to Goals' rows (?metric=): the app's filters (core/app) and the AI's find_goals read them. */
+var MODULE_GOAL_COLUMNS = MODULE_RECORDS.flatMap((m) => m.goalColumns ?? []);
 /** The workbook's sheets the modules add (domain/export), in module id order. */
 var MODULE_SHEETS = MODULE_RECORDS.flatMap((m) => m.sheets ?? []);
 /** The records of the modules switched on in a workspace: what Recently removed lists and restores. A module that's off
@@ -14206,7 +14262,7 @@ var help$3 = [
 				"Opened from a metric’s To sort out, the form opens at the field that needs filling.",
 				"While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.",
 				"What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.",
-				"Changing the unit or which way is better of a metric goals use asks first: their numbers and plans don’t change, and the goals that now differ show a warning.",
+				"Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.",
 				"Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.",
 				"On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back."
 			]
@@ -17032,6 +17088,19 @@ var WHATS_NEW = [
 			"Check shows each answer in full, wrapping long ones instead of cutting them short."
 		],
 		articles: ["new-goal"]
+	},
+	{
+		id: "metric-fixes",
+		date: "2026-11-12",
+		title: "Metrics: a few things put right",
+		points: [
+			"New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.",
+			"A goal you make for someone else can be measured by a metric straight away.",
+			"A goal whose metric changed unit or direction since now says so on its page.",
+			"Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.",
+			"See goals in a unit finds the goals in that unit."
+		],
+		articles: ["metrics"]
 	},
 	{
 		id: "past-imports",
@@ -22267,13 +22336,17 @@ var tools$1 = [
 	{
 		name: "save_metric",
 		title: "Add or change a metric",
-		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing.",
+		description: "Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
 				id: str$2("The metric to change, by ID or name. Leave out to add one."),
-				...FIELDS
+				...FIELDS,
+				confirm: {
+					type: "boolean",
+					description: "Yes to changing the unit or direction of a metric goals use, once the person has said so."
+				}
 			}
 		},
 		annotations: WRITE,
@@ -22290,7 +22363,8 @@ var tools$1 = [
 					...a.source_owner !== void 0 ? { sourceOwner: String(a.source_owner) } : {},
 					...a.refresh !== void 0 ? { refresh: a.refresh ? String(a.refresh).toLowerCase() : null } : {},
 					...a.owner !== void 0 ? { ownerId: personOf(ctx, a.owner) } : {},
-					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {}
+					...a.caveats !== void 0 ? { caveats: String(a.caveats) } : {},
+					...a.confirm === true ? { confirm: true } : {}
 				};
 				const { commit, metric } = saveMetric(ax(ctx), input);
 				if (!commit) return {
@@ -22915,7 +22989,14 @@ var CORE_TOOLS = [
 				sort: asked.sort ? asked.sort + (asked.dir === -1 ? ".desc" : "") : null
 			});
 			const byId = new Map(rows.goal().summaries.map((s) => [s.goal.id, s]));
-			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
+			const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => {
+				const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k);
+				return c && v ? [{
+					fill: c.fill(ctx.full ?? ctx.snapshot),
+					v
+				}] : [];
+			});
+			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
@@ -23300,6 +23381,7 @@ var TOOL_MODULE = new Map(tools_default.flatMap((m) => m.part.map((t) => [t.name
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
 requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
 module's own (the spreadsheets module's export and export_table). */
+addColumnParams(MODULE_GOAL_COLUMNS.map((c) => c.param));
 var TOOLS = [
 	...CORE_TOOLS,
 	...WORK_TOOLS,

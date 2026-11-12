@@ -21,7 +21,7 @@ const rules: Rule[] = [
   id: 'metrics',
   title: 'The metric library',
   summary: 'What a metric must say, who may add, change, remove, link and unlink one, and which metric measures a goal, for which slice.',
-  code: [{ file: 'src/modules/metrics/rules.ts', names: ['metricProblems', 'saveMetric', 'removeMetric', 'linkProblems', 'linkGoalMetric', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }, { file: 'src/modules/metrics/records.ts', names: ['metricToRow', 'metricFromRow'] }],
+  code: [{ file: 'src/modules/metrics/rules.ts', names: ['metricProblems', 'metricChangeQuestion', 'saveMetric', 'removeMetric', 'linkProblems', 'linkGoalMetric', 'unlinkGoalMetric', 'measureOf', 'goalTarget'] }, { file: 'src/domain/removal.ts', names: ['undoRemoval', 'restoreRemoved'] }, { file: 'src/modules/metrics/records.ts', names: ['metricToRow', 'metricFromRow'] }],
   tests: ['src/modules/metrics/rules.test.ts', 'src/modules/metrics/tools.test.ts'],
   reqs: [],
   body: `
