@@ -54,6 +54,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #166 An action made in one workspace never saves into another | 4 | 0 | 0 | 2 |
 | #175 Undo after a removal stays undone on the database stores | 4 | 1 | 0 | 1 |
 | #144 ML1: the metric library as a place, and a page per metric | 3 | 0 | 4 | 10 |
+| #177 Undoing an import puts deleted, stopped and left rows back for good | 4 | 0 | 0 | 0 |
+| #179 Carried copies stay true after every save (review of #152) | 5 | 1 | 1 | 0 |
 
 **High findings, and where each stands**
 
@@ -65,10 +67,11 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Fixed** by #166; re-run on screen at 01:10 UTC on 12 Nov: the Undo is refused, says so once, and neither workspace changes |
 | #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Fixed** by #170 (read, with its new unit tests; not re-run on screen) |
 | Met in #139, older: on the database stores, Undo after a removal doesn't bring the record back | Track 4, 23:56 UTC | **Fixed** by #175 for Undo from a toast (read; its new store contract case passes on all four stores) |
-| #175: undoing an import or bulk edit that deleted or stopped a goal, or marked someone as left, has the same fault and was not fixed | Track 4, 01:15 UTC, 12 Nov | **Open** |
-| #152: after an early start, "Stop" then "Carry it on" makes a second copy under a new key | Track 5, 00:35 UTC, 12 Nov | **Open** |
-| #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Open** |
-| #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Open** |
+| #175: undoing an import or bulk edit that deleted or stopped a goal, or marked someone as left, has the same fault and was not fixed | Track 4, 01:15 UTC, 12 Nov | **Fixed** by #177 (read; its store contract case is the reproduction, on all four stores) |
+| #152: after an early start, "Stop" then "Carry it on" makes a second copy under a new key | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
+| #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
+| #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
+| #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -564,3 +567,20 @@ Read first by a separate reviewing session, in the demo at 1440 and 390 and in t
 - Restatements: "The whole company" typed out beside `COMPANY`; `Metrics.tsx:88` reworks `liveLinks`; `scripts/drill.mjs` hard-codes key columns the module's conformance already declares.
 
 **Checked and fine.** The core imports no module, and saves go through `app.run`. Row and page statuses agree on six dates, and the screens and both AI tools share the same reads. Permissions hold for a non-owner. Design rules hold at both sizes. The module's 51 unit tests, the spec check, `check-rebuild` and the drill (100%) pass. The build leaves the rebuild stage out of `dist` while the spec and MCP builds still see it.
+
+### #177 Undoing an import puts deleted, stopped and left rows back for good (track 4, merged 01:59 UTC, 12 Nov)
+
+Fixes #175's high. `undoImport` passes each earlier record through `asBefore` (`src/domain/removal.ts:479`, `:487`, `:497`, `:506`), and the new store contract case is this review's reproduction with a person marked as left added. It also takes #166's two lows: `saveGoal` and `applyChanges` now go through `save`, and a toast's Undo goes when the workspace changes. `asBefore` still works from a list of names, now with `email`; the goal's other optional columns are always written (`src/data/rows.ts:62-71`), so nothing else was found that the list misses. No finding.
+
+### #179 Carried copies stay true after every save (track 5, merged 02:41 UTC, 12 Nov)
+
+Fixes #152's three highs and four of its mediums. `recarry` brings back the copy it took out, clears and restores the children's parent, and now runs on every save in one place each for the app (`src/app/state.tsx:431-433`) and the MCP server (`server/mcp.ts:133`). A unit test covers each high. Re-run here: stop a parent in the old year and Undo it; its copy and all four children's copies come back under it.
+
+**1. High (re-run by this reviewer). On the database stores, a save that moves a parent's copy and its child's copy together is refused whole.** `withRecarry` (`src/domain/recarry.ts:79-91`) runs `recarry` once per goal against the workspace as loaded, and `mergeCommits` (`src/domain/actions.ts:325-331`) joins the results end to end. When a parent and its child both leave the next year in one save, the commit holds the child's copy twice: once with its parent cleared (from the parent's turn) and once removed (from its own).
+- Pure probe: both wrap-ups set to "stop" in one commit gives 9 goal rows for 8 goals.
+- On plain Postgres and on the Supabase adapter (PGlite), a commit with one goal twice fails: "Saving: ON CONFLICT DO UPDATE command cannot affect row a second time". Nothing is saved.
+- The ordinary way there is a table or spreadsheet of final numbers at year end, after an early start, where a parent and its child both finish or stop. The browser store takes the last row, so the demo does not show it.
+- An ask or review that holds two leaving copies is written twice in the same way, each row dropping only one of them (read, not run): refused on a database, and in the browser the later row puts the first goal's ID back.
+- Fix: have `withRecarry` fold each result into the rows the next `recarry` reads, or merge rows by ID, and add a two-goal save to the store contract.
+
+**2. Medium (re-run). A parent and child brought back in one save return with the child's copy at the top level.** The child's turn looks for its parent's live copy in the rows as loaded (`recarry.ts:39`, `:43`), where it is still removed; the parent's turn only re-attaches children that are already live (`:50-53`). Probe: both wrap-ups set back to "carry" in one commit; the child's copy returns with `parentId` null. Same fix as 1.
