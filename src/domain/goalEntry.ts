@@ -21,7 +21,8 @@ import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { fold } from './find';
 import { FAR_RATIO, groupDigits, notNumberText, numberAsTyped, parseNumber, placesText, typedDecimals, usuallyPositive } from './numbers';
 import { isTop, levelIds, levelName, levelRank, type LevelsOf } from './levels';
-import { lateShare } from './plan';
+import { lateShare, planAt, planEnd } from './plan';
+import { weekSays, weeksProblem, yearWeek } from './weeks';
 import { sameTitleGoals } from './people';
 
 export { decimalsFor, unanswered };
@@ -34,17 +35,18 @@ import type { CheckIn, Goal, GoalKind, Level, MetricGoal, Person, Team } from '.
 /* ---------- rule 1: what a field needs ---------- */
 
 /** The goal's fields as the form names them (GoalDraft's keys), in the form's order: the order Must fix is listed in. */
-export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'target', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
+export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
 export type GoalField = (typeof GOAL_FIELDS)[number];
 
 /** Each form field's column in the field table (FIELDS.goals): what its need is read from. */
 const COLUMN: Partial<Record<GoalField, string>> = {
   title: 'Goal', kind: 'Type', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'Effect', unit: 'Unit', decimals: 'Decimals',
-  start: 'Start', target: 'Target', points: 'Plan', bound: 'Must stay', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
+  start: 'Start', fromWeek: 'Plan from week', target: 'Target', endWeek: 'Due week', points: 'Plan', bound: 'Must stay', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
 };
 /** Fields the form always shows holding a value (a default the person can see), so they are required there, whatever
-    an empty cell gives in a file: the type, the owner's team, the level, and which side a range keeps to. */
-const ALWAYS_SET: GoalField[] = ['kind', 'teamId', 'level', 'bound'];
+    an empty cell gives in a file: the type, the owner's team, the level, which side a range keeps to, and a plan's From
+    and To (this week and the year's end until chosen; GE9). */
+const ALWAYS_SET: GoalField[] = ['kind', 'teamId', 'level', 'bound', 'fromWeek', 'endWeek'];
 
 export type Need = 'required' | 'optional' | 'worked' | 'not-asked';
 
@@ -58,7 +60,7 @@ export function fieldNeed(required: Required, kind: GoalKind): Need {
 }
 
 /** The fields only some types of goal have: a unit and decimals for a number, the plan for a number to move, and so on. */
-const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], target: ['metric'], points: ['metric'], bound: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
+const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], fromWeek: ['metric'], target: ['metric'], endWeek: ['metric'], points: ['metric'], bound: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
 
 /** Rule 1, for a field of the form: "· optional" is said after the label of each field whose need is optional. */
 export function formNeed(field: GoalField, kind: GoalKind): Need {
@@ -82,7 +84,8 @@ export const STEP_SAYS = 'Everything here is needed unless it says optional.';
 export type MustFixId =
   | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty'
   | 'not-number' | 'has-words' | 'too-precise' | 'decimals-range' | 'same-as-start' | 'plan-point' | 'margin-negative'
-  | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose';
+  | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose'
+  | 'to-before-from' | 'week-unknown' | 'week-beyond';
 
 /**
  * One thing to fix: the field it is under, its id (section 4), the words, and for a stage the row (an index into the
@@ -103,12 +106,27 @@ export interface MustFixContext {
   parent?: { title: string } | null;
   loops?: boolean;
   door: 'form' | 'setup' | 'table';
+  /** The cycle's first day (week 0): with it, a plan's From and To are judged and said with their dates (rule 13). */
+  startDate?: string;
   /** What the name is of: a goal, or set-up's outcome. */
   noun?: 'goal' | 'outcome';
 }
 
 /** A unit after a number, as sentences say it: "50%", "12 days", "12" with no unit. */
 const withUnit = (v: string, unit: string) => (unit.trim() === '%' ? v + '%' : unit.trim() ? `${v} ${unit.trim()}` : v);
+
+/**
+ * A number draft's From and To as cycle weeks (rule 13): what it says, else what the goal has, else this week and the
+ * cycle's end. `bad`: the field whose week isn't a whole number (a file or a tool).
+ */
+export function planSpanOf(d: Pick<GoalDraft, 'fromWeek' | 'endWeek'>, ctx: { week: number; cycleWeeks: number; existing: Goal | null }): { from: number; to: number; bad?: 'fromWeek' | 'endWeek' } {
+  const was = ctx.existing?.kind === 'metric' ? ctx.existing.plan : null;
+  const whole = (v: string | undefined) => { const n = v != null && v.trim() !== '' ? parseNumber(v) : null; return n != null && Number.isInteger(n) ? n : null; };
+  const fromSet = d.fromWeek != null && d.fromWeek.trim() !== '', toSet = d.endWeek.trim() !== '';
+  const from = fromSet ? whole(d.fromWeek) : was ? was.fromWeek ?? 0 : Math.max(0, ctx.week);
+  const to = toSet ? whole(d.endWeek) : ctx.cycleWeeks;
+  return { from: from ?? 0, to: to ?? ctx.cycleWeeks, ...(from == null ? { bad: 'fromWeek' as const } : to == null ? { bad: 'endWeek' as const } : {}) };
+}
 
 /** The words for a number that has more places than its goal keeps (section 4, `too-precise`). */
 function tooPrecise(raw: string, n: number, places: number): { text: string; keep?: number } | null {
@@ -160,6 +178,13 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       const stored = new Map(ctx.existing?.kind === 'metric' ? (ctx.existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
       const typed = Object.entries(d.points).filter(([w, v]) => v.trim() !== '' && parseNumber(v) !== stored.get(w)).sort(([a], [b]) => Number(a) - Number(b));
       for (const [w, v] of typed) { const before = out.length; number('points', v, null, `Week ${w}: `); if (out.length > before) { out[out.length - 1]!.id = 'plan-point'; break; } }
+      // From and To (rule 13): a week a file or a tool gives that isn't one, runs backwards, or is past next year.
+      const span = planSpanOf(d, ctx);
+      if (span.bad) add(span.bad, 'week-unknown', `${span.bad === 'fromWeek' ? 'From' : 'To'} says “${(span.bad === 'fromWeek' ? d.fromWeek : d.endWeek) ?? ''}”. Write a year and a week, like 2026-W46, or the week’s number.`);
+      else if (ctx.startDate) {
+        const p = weeksProblem({ startDate: ctx.startDate, weeks: ctx.cycleWeeks }, span.from, span.to);
+        if (p) add(p.field === 'from' ? 'fromWeek' : 'endWeek', p.id, p.text);
+      } else if (span.to <= span.from) add('endWeek', 'to-before-from', `To (week ${span.to}) isn’t after From (week ${span.from}). The plan has to run forwards.`);
     }
     if (d.kind === 'range') {
       number('limit', d.limit, ['limit-empty', 'Enter the limit.']);
@@ -206,10 +231,10 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
 /* ---------- rule 3: what is asked ---------- */
 
 /** The questions goal entry asks (section 4's Check table), in its order: the order they are shown in. `far-from-metric`
-    waits for a metric's latest number for a slice (the metrics module has none yet); the dates' three come with GE9. */
+    waits for a metric's latest number for a slice (the metrics module has none yet). */
 export const CHECK_IDS = [
   'stage-past', 'no-unit', 'below-zero', 'over-100', 'hundredfold', 'billion', 'wrong-side', 'same-name', 'owner-other-team', 'feeds-lower',
-  'margin-wide', 'late-plan', 'direction', 'far-from-plan',
+  'margin-wide', 'late-plan', 'from-past', 'to-past', 'long-plan', 'direction', 'far-from-plan',
 ] as const;
 export type GoalCheckId = (typeof CHECK_IDS)[number];
 
@@ -252,6 +277,8 @@ export interface ChecksContext {
   /** What measures it, when a module says (the goal.measure place, ML2): its name and which way is better. */
   metric?: { name: string; direction: 'lower' | 'higher' } | null;
   mustFix?: readonly MustFix[];
+  /** The cycle's first day (week 0): with it, From and To are asked about, with their dates (rule 13). */
+  startDate?: string;
 }
 
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
@@ -350,6 +377,10 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
       const late = lateShare(plan, ctx.cycleWeeks);
       if (late.share > 0.6) ask({ id: 'late-plan', field: 'points', key: typed.map(([w, v]) => `${w}:${v.trim()}`).join(','), question: `This plan leaves ${Math.round(late.share * 100)}% of the change to the last ${late.k} of ${late.n} weeks. Is that the plan?`, yes: 'Yes, that’s the plan', no: 'No, I’ll change it', readBack: `You said most of the change comes in the last ${late.k} weeks.` });
     }
+    // From and To (rule 13): a plan that began before this week, a target already due, a plan longer than a year. Asked of
+    // a new goal, and of a goal whose From or To changed. A file is asked only the last: its own past-plan question asks
+    // about a plan already over, and a past From there is a goal's record, not a slip.
+    if (ctx.startDate && !fixed.has('fromWeek') && !fixed.has('endWeek')) askDates(d, ctx, s, t, ask, said);
     // A changed plan whose target flips which way is better, or a number far outside the old plan (today's planQuestion).
     if (ctx.existing?.kind === 'metric' && s != null && t != null) {
       const after: MetricGoal = { ...ctx.existing, plan: lateShapeOf(d, s, t, ctx) };
@@ -358,6 +389,36 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     }
   }
   return out.sort((a, b) => CHECK_IDS.indexOf(a.id) - CHECK_IDS.indexOf(b.id));
+}
+
+/** Rule 3's three questions about From and To (section 4): `from-past`, `to-past` and `long-plan`. */
+function askDates(d: GoalDraft, ctx: ChecksContext, s: number | null, t: number | null, ask: (c: Omit<GoalCheck, 'slot'> & { slot?: string }) => void, said: (n: number) => string) {
+  const c = { startDate: ctx.startDate!, weeks: ctx.cycleWeeks };
+  const span = planSpanOf(d, ctx);
+  if (span.bad) return;
+  const { from, to } = span;
+  const was = ctx.existing?.kind === 'metric' ? ctx.existing.plan : null;
+  const fromNew = !was || (was.fromWeek ?? 0) !== from, toNew = !was || planEnd(was, ctx.cycleWeeks) !== to;
+  const form = ctx.door !== 'table';
+  if (form && from < ctx.week && fromNew && s != null && t != null) {
+    const ago = ctx.week - from;
+    const now = planAt({ start: s, target: t, shape: d.shape, fromWeek: from, endWeek: to }, ctx.week, ctx.cycleWeeks);
+    const w = weekSays(c, from, 'short');
+    ask({
+      id: 'from-past', field: 'fromWeek', key: `${from}|${s}|${t}|${to}`,
+      question: `${capital(w)} was ${ago} week${ago === 1 ? '' : 's'} ago. Has this been running since then? The plan would expect ${said(Number(now.toFixed(decimalsFor(d) ?? 0)))} by this week.`,
+      yes: `Yes, it was ${said(s)} in ${w}`, no: 'No, start from this week', noDoes: { fromWeek: String(Math.max(0, ctx.week)) },
+      readBack: `You said it has been running since ${weekSays(c, from, 'sentence')}.`,
+    });
+  }
+  if (form && to < ctx.week && toNew) {
+    const w = weekSays(c, to, 'short');
+    ask({ id: 'to-past', field: 'endWeek', key: String(to), question: `${capital(w)} has already passed. Was the target due then?`, yes: `Yes, it was due in ${w}`, no: 'No, I’ll choose a later week', readBack: `You said the target was due in ${w}.` });
+  }
+  if (to - from > 53 && (fromNew || toNew)) {
+    const k = to - from, y = yearWeek(c, to);
+    ask({ id: 'long-plan', field: 'endWeek', key: `${from}|${to}`, question: `This plan runs ${k} weeks, to week ${y.week} of ${y.year}. Is that right?`, yes: `Yes, ${k} weeks`, no: 'No, I’ll change it', readBack: `You said the plan runs ${k} weeks.` });
+  }
 }
 
 /** The plan a number draft would have: its own start and end weeks (or the goal's, or this week), with hand-set weeks. */
@@ -382,7 +443,7 @@ export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: s
   sameTitleGoals(title, null, goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt));
 
 /** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named. */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric'>): ChecksContext {
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'>): ChecksContext {
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   const team = d.teamId ? look.team(d.teamId) : undefined;
   const parent = d.parentId ? look.goal(d.parentId) : undefined;
@@ -407,7 +468,7 @@ export const checkedDiffs = (d: GoalDraft, checks: readonly GoalCheck[], answers
 export const STEP_FIELDS: GoalField[][] = [
   ['title', 'kind'],
   ['ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail'],
-  ['unit', 'decimals', 'start', 'target', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'],
+  ['unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'],
   [],
 ];
 /** The fields the step of a goal of `kind` shows: the number fields only for a number, the stages only for stages. */
@@ -418,7 +479,7 @@ export function stepFields(step: number, kind: GoalKind): GoalField[] {
 /** A field's label in the line above the button. */
 export const FIELD_LABEL: Partial<Record<GoalField, string>> = {
   title: 'Name', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'How much it moves', unit: 'Unit', decimals: 'Decimals',
-  start: 'Today', target: 'Target', points: 'The plan', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
+  start: 'Baseline', fromWeek: 'From', target: 'Target', endWeek: 'To', points: 'The plan', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
 };
 
 /**
@@ -482,14 +543,14 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   if (i.draft.parentId && !parent) throw new NotAllowed('The goal it feeds isn’t here any more. Choose another, or nothing.');
   const checkIns = existing ? checkInsFor(existing, s.checkIns) : [];
   const fix = goalMustFix(i.draft, {
-    cycleWeeks: x.cycle.weeks, week: x.week, existing, checkIns, door: 'form',
+    cycleWeeks: x.cycle.weeks, week: x.week, existing, checkIns, door: 'form', startDate: x.cycle.startDate,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null } : null, parent: parent ? { title: parent.title } : null,
     loops: !!(existing && parent && makesLoop(existing.id, parent.id, s.goals)),
   });
   if (fix.length) throw new NotAllowed(`Not saved. Must fix: ${fix.map((f) => f.text).join(' ')}`);
   const checks = goalChecks(i.draft, checksContext(i.draft, {
     person: ownerOf, team: (id) => s.teams.find((t) => t.id === id), goal: (id) => findGoal(s.goals, id), sameNamed: sameNamedIn(s.goals),
-  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', levels: x.cycle }));
+  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', levels: x.cycle, startDate: x.cycle.startDate }));
   const answers: GoalAnswers = i.confirm ? Object.fromEntries(checks.map((c) => [c.slot, c.key])) : i.answers ?? {};
   const open = unanswered(checks, answers);
   if (open.length) throw new NotAllowed(`Not saved. Check with the person first: ${open.map((c) => c.question).join(' ')}`);

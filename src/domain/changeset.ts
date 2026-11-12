@@ -30,6 +30,7 @@ import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
+import { readWeekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
@@ -177,7 +178,7 @@ export const examplesLine = (n: number): string => (n ? `${plural(n, 'example ro
 
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 /** A goal field's column on the Goals sheet, where a Must fix from goal entry's rule 2 (domain/goalEntry) is said. */
-const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit' };
+const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
 /** Each Must fix's kind among the engine's (domain/problemLevels): every one is a Must fix; the kind says which sort. */
 const MUST_KIND: Record<MustFixId, IssueKind> = {
   'name-empty': 'required-empty', 'name-short': 'required-empty', 'owner-empty': 'required-empty', 'team-empty': 'required-empty', 'level-empty': 'required-empty',
@@ -185,11 +186,12 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
   'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number',
   'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
+  'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong',
 };
 
 /** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
 const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
-  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number',
+  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
 const GOAL_QUESTION: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
@@ -548,6 +550,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
    * A date outside the cycle is never read as a week.
    */
   const weekCell = (raw: string, sheet: Sheet, row: number, name: string, say = true): { n: number | null; problem?: string } => {
+    // A goal year and its week (2026-W48; goal entry, rule 13).
+    if (/^\d{4}\s*-?\s*W\s*\d{1,2}$/i.test(raw.trim())) { const r = readWeekCode({ startDate: cycle.startDate, weeks: cycle.weeks }, raw); return 'n' in r ? { n: r.n } : { n: null, problem: r.text ?? weekUnknownText(cycle, 'The week', raw) }; }
     const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim()) ?? (() => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw.trim()); return m ? [m[0], m[3], m[2]!.padStart(2, '0'), m[1]!.padStart(2, '0')] as unknown as RegExpExecArray : null; })();
     if (!iso) return { n: parseNumber(raw) };
     const at = Date.parse(`${iso[1]}-${iso[2]}-${iso[3]}T00:00:00Z`);
@@ -727,30 +731,61 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const shape = readWord(SHAPE_WORDS, val(r, 'plan'), 'Goals', row, d.title);
     if (shape === undefined) return;
     if (shape && shape !== d.shape) { d.shape = shape; d.points = {}; }
-    if (has(r, 'plan from week') && d.kind === 'metric' && val(r, 'plan from week')) {
-      const n = parseNumber(val(r, 'plan from week'));
-      if (n == null || !Number.isInteger(n) || n < -104 || n > 104) return raise('week-wrong', 'Goals', row, d.title, 'Plan from week should be a whole number of weeks from the cycle start.', { column: 'Plan from week' });
-      const cur = existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : null;
-      if (cur == null || n !== cur) d.fromWeek = String(n);
-    }
+    // From and To (goal entry, rule 13) beside Plan from week and Due week, read as Owner and Owner email are: a column that
+    // says what the goal says now is ignored, the one that differs counts, and two that differ and disagree are a Must fix.
+    // From and To are a goal year and its week (2026-W46); the old columns are weeks from the cycle's start.
     let dueChanged = false;
-    if (has(r, 'due week') && d.kind === 'metric') {
-      const w = val(r, 'due week');
-      const read = w ? weekCell(w, 'Goals', row, d.title) : { n: null };
-      if (read.problem) return raise('week-wrong', 'Goals', row, d.title, read.problem, { column: 'Due week' });
-      const n = read.n;
-      if (w && (n == null || !Number.isInteger(n) || n < 1 || n > 104)) return raise('week-wrong', 'Goals', row, d.title, 'Due week should be a whole number of weeks from the cycle start, up to 104.', { column: 'Due week' });
-      const next = w && n !== cycle.weeks ? String(n) : '';
-      dueChanged = next !== d.endWeek;
-      d.endWeek = next;
+    if (d.kind === 'metric') {
+      const C = { startDate: cycle.startDate, weeks: cycle.weeks };
+      const was = existing?.kind === 'metric' ? existing.plan : null;
+      const coded = (col: 'from' | 'to', head: string): number | null | false => {
+        const raw = has(r, col) ? val(r, col) : '';
+        if (!raw) return null;
+        const read = readWeekCode(C, raw);
+        if ('problem' in read) { raise('week-wrong', 'Goals', row, d.title, read.text ?? weekUnknownText(C, head, raw), { column: head }); return false; }
+        return read.n;
+      };
+      const pick = (a: number | null, b: number | null, cur: number | null, head: string, oldHead: string, rawA: string, rawB: string): number | null | false => {
+        const differ = [a, b].filter((v): v is number => v != null && v !== cur);
+        if (differ.length === 2 && differ[0] !== differ[1]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${rawA} and ${oldHead} says ${rawB}. Change just one of them.`, { column: head }); return false; }
+        return differ[0] ?? null;
+      };
+      const fromCode = coded('from', 'From');
+      if (fromCode === false) return;
+      let fromOld: number | null = null;
+      if (has(r, 'plan from week') && val(r, 'plan from week')) {
+        const n = parseNumber(val(r, 'plan from week'));
+        if (n == null || !Number.isInteger(n)) return raise('week-wrong', 'Goals', row, d.title, weekUnknownText(C, 'Plan from week', val(r, 'plan from week')), { column: 'Plan from week' });
+        fromOld = n;
+      }
+      const from = pick(fromCode, fromOld, was ? was.fromWeek ?? 0 : null, 'From', 'Plan from week', val(r, 'from'), val(r, 'plan from week'));
+      if (from === false) return;
+      if (from != null) d.fromWeek = String(from);
+      const toCode = coded('to', 'To');
+      if (toCode === false) return;
+      let toOld: number | null = null;
+      if (has(r, 'due week')) {
+        const w = val(r, 'due week');
+        const read = w ? weekCell(w, 'Goals', row, d.title) : { n: cycle.weeks };
+        if (read.problem) return raise('week-wrong', 'Goals', row, d.title, read.problem, { column: 'Due week' });
+        if (read.n == null || !Number.isInteger(read.n)) return raise('week-wrong', 'Goals', row, d.title, weekUnknownText(C, 'Due week', w), { column: 'Due week' });
+        toOld = read.n;
+      }
+      const to = pick(toCode, toOld, was ? planEnd(was, cycle.weeks) : null, 'To', 'Due week', val(r, 'to'), val(r, 'due week'));
+      if (to === false) return;
+      if (to != null) {
+        const next = to !== cycle.weeks ? String(to) : '';
+        dueChanged = next !== d.endWeek;
+        d.endWeek = next;
+      }
     }
     if (d.kind === 'metric' && (!existing || d.fromWeek != null || dueChanged)) {
-      // The due week against the start the goal will have, always (C3): its own Plan from week, else what it has, else this week.
+      // The due week against the start the goal will have, always (C3): its own From, else what it has, else this week.
+      // One that isn't after it is goal entry's Must fix (to-before-from), said below in its words.
       const from = d.fromWeek != null ? Number(d.fromWeek) : existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : week > 0 ? week : 0;
       const end = parseNumber(d.endWeek) ?? cycle.weeks;
-      if (from >= end) return raise('plan-order', 'Goals', row, d.title, `Due week (${end}) has to come after the plan starts (week ${from}).`, { column: 'Due week' });
       // A new goal whose whole plan is already past: a finished goal added for the record, or a mistake (past-plan).
-      if (!existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
+      if (from < end && !existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
     }
     if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
@@ -796,7 +831,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (has(r, 'definition')) d.definition = val(r, 'definition');
     // What can't be saved: goal entry's rule 2, the same rule and words as New goal, the edit page and set-up's cards.
     const ownerNow = people.get(d.ownerId);
-    const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
+    const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
     if (fix.length) {
       for (const f of fix) raise(MUST_KIND[f.id], 'Goals', row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? 'Goal' });
       return;
@@ -812,7 +847,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // past (past-stage); a changed plan's question is asked once the change is known (plan-question, below), and a link
     // to a lower level once the links are read (feeds-lower). An owner in another team isn't asked of a file: its Team
     // column says the team in so many words, where the form's team follows the owner until chosen by hand.
-    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle });
+    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle, startDate: cycle.startDate });
     for (const c of checks) {
       const kind = ENGINE_CHECK[c.id];
       if (!kind) continue;

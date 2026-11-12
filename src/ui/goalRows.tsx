@@ -6,7 +6,8 @@ import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { fmt, gapBeside, nowText } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
-import { daysSince, resultWeek } from '../domain/plan';
+import { daysSince, notStarted, resultWeek } from '../domain/plan';
+import { startsSays } from '../domain/weeks';
 import { coveringWatches, watchOf } from '../domain/review';
 import { assessPosted, checkInsFor, LABEL, projects } from '../domain/status';
 import { goalResult, RESULT_TEXT } from '../domain/story';
@@ -22,11 +23,12 @@ import { LABEL as STATUS_WORD } from '../domain/vocabulary';
 
 type App = ReturnType<typeof useApp>;
 
-/** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet". */
+/** "Checked in 2 days ago", "No check-in for 24 days", "No check-in yet", "No check-in yet · starts week 50". */
 export function freshness(g: Goal, app: App): { text: string; stale: boolean } {
   const own = checkInsFor(g, app.snapshot.checkIns);
   const last = own[own.length - 1];
-  if (!last) return { text: STATUS_WORD.none, stale: app.week > 1 };
+  // A plan whose From is still to come says when it starts (goal entry, rule 13), and isn't late.
+  if (!last) return notStarted(g, app.week) && g.kind === 'metric' ? { text: `${STATUS_WORD.none} · ${startsSays(app.cycle, g.plan.fromWeek!)}`, stale: false } : { text: STATUS_WORD.none, stale: app.week > 1 };
   const d = daysSince(last.postedAt, app.today);
   const stale = app.statusOf(g).status === 'stale';
   return { text: stale ? `No check-in for ${d} days` : d < 1 ? 'Checked in today' : d === 1 ? 'Checked in yesterday' : `Checked in ${d} days ago`, stale };

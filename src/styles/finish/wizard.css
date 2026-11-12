@@ -71,11 +71,11 @@
 /* Dates never break inside themselves (23). */
 .goal-form .nobreak { white-space: nowrap; }
 
-/* Stages (12, 13): "Stage" and "Due week" once above the rows; 12px between rows; Remove is 44px and centred on its
+/* Stages (12, 13): "Stage" and "Due" once above the rows, each Due the week picker (GE9); 12px between rows; Remove is 44px and centred on its
    row; an error sits 4px under the row it's about. On a small phone the name takes the row, the week and Remove go
    under it. Setting up a workspace uses the same rows. */
 :is(.goal-form, .focus-onboard) .stages { display: flex; flex-direction: column; gap: 12px; }
-:is(.goal-form, .focus-onboard) .stage-head, :is(.goal-form, .focus-onboard) .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 44px; column-gap: 12px; align-items: center; }
+:is(.goal-form, .focus-onboard) .stage-head, :is(.goal-form, .focus-onboard) .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 1.1fr) 44px; column-gap: 12px; align-items: start; }
 :is(.goal-form, .focus-onboard) .stage-head { margin-bottom: -4px; }
 :is(.goal-form, .focus-onboard) .stage-head > span:last-child { grid-column: 2 / 4; }
 :is(.goal-form, .focus-onboard) .stage { display: flex; flex-direction: column; gap: 4px; }
@@ -84,11 +84,13 @@
 @container app (max-width: 420px) {
   :is(.goal-form, .focus-onboard) .stages { gap: 24px; }
   :is(.goal-form, .focus-onboard) .stage-head { margin-bottom: -16px; }
-  :is(.goal-form, .focus-onboard) .stage-row { grid-template-columns: 96px 44px minmax(0, 1fr); row-gap: 8px; }
+  :is(.goal-form, .focus-onboard) .stage-row { grid-template-columns: minmax(0, 1fr) 44px; row-gap: 8px; }
   :is(.goal-form, .focus-onboard) .stage-row > .stage-name { grid-column: 1 / -1; }
   :is(.goal-form, .focus-onboard) .stage-head { grid-template-columns: minmax(0, 1fr); }
   :is(.goal-form, .focus-onboard) .stage-head > span:last-child { display: none; }
 }
+:is(.goal-form, .focus-onboard) .stage-week { min-width: 0; }
+:is(.goal-form, .focus-onboard) .stage-week .weekpick-is { display: none; }
 
 /* Team and Owner (21): side by side, or stacked 24px apart. */
 .goal-form .fit-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); column-gap: 12px; row-gap: 24px; align-items: start; }

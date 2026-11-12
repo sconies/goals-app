@@ -29,8 +29,10 @@ The workbook's first sheet, **Start here**, is this table (with a "File of" row 
 | Start | Required for a number goal | A number | 5 | Must fix for a number goal |
 | Target | Required for a number goal | A number, different from Start | 1 | Must fix for a number goal |
 | Plan | Optional | straight, back-loaded or stepped | back-loaded | straight |
-| Plan from week | Optional | A whole number, −104 to 104 | 46 | This week (0 when setting up a workspace) |
-| Due week | Optional | A whole number, 1 to 104, after Plan from week; a date in the cycle is read as its week | 53 | The cycle’s last week. On a row already here, empty clears it |
+| From | Optional | A year and a week, from week 1 of last year to the last week of next year | 2026-W46 | This week; Plan from week, when it says otherwise |
+| Plan from week | Optional | A whole number of weeks from the cycle’s start (0 is the week before week 1) | 46 | This week (0 when setting up a workspace) |
+| To | Optional | A year and a week after From, up to the last week of next year | 2026-W53 | The cycle’s last week; Due week, when it says otherwise |
+| Due week | Optional | A whole number of weeks from the cycle’s start, after Plan from week, up to the last week of next year; a date in the cycle is read as its week | 53 | The cycle’s last week. On a row already here, empty clears it |
 | Limit | Required for a range goal | A number | 5 | Must fix for a range goal |
 | Must stay | Optional | at most or at least | at most | at most |
 | Margin | Optional | A number, zero or more | 0.5 | No warning margin (0) |

@@ -12,6 +12,7 @@ export { LEVEL_WORDS };
 import { ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf } from './asks';
 import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, MIN_PATH, MIN_REASON } from './checkin';
 import { planAsOf, planAt, planEnd, weekDate } from './plan';
+import { weekCode } from './weeks';
 import { answerOf, saidIn, type Said } from './review';
 import type { GoalSummary } from './summary';
 import type { ModuleSheet } from './records';
@@ -205,7 +206,9 @@ export const GOALS: SheetSpec<GoalRow> = {
     e('Start', 'Number goals: where the plan starts.', (r) => metricOf(r.g)?.plan.start ?? null, 'Changes the plan; needs a reason once check-ins have started'),
     e('Target', 'Number goals: where the plan ends, by its due week.', (r) => metricOf(r.g)?.plan.target ?? null, 'Changes the plan; needs a reason once check-ins have started'),
     e('Plan', `Number goals: the plan’s shape, ${oneOf(Object.values(SHAPE_WORDS.word))}.`, (r) => { const g = metricOf(r.g); return g ? SHAPE_WORDS.word[g.plan.shape] : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('From', 'Number goals: the week the baseline (Start) was true and the plan starts, as a year and a week (2026-W46).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null; }, 'Changes the plan; needs a reason once check-ins have started. When From and Plan from week disagree, the one you changed counts'),
     e('Plan from week', 'Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).', (r) => { const g = metricOf(r.g); return g ? g.plan.fromWeek ?? 0 : null; }, 'Changes the plan; needs a reason once check-ins have started'),
+    e('To', 'Number goals: the week the target is due, as a year and a week (2027-W13).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null; }, 'Changes the plan; needs a reason once check-ins have started. When To and Due week disagree, the one you changed counts'),
     e('Due week', 'Number goals: the week the target is due, counted from the cycle’s start.', (r) => { const g = metricOf(r.g); return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Limit', 'Range goals: the number it must stay within.', (r) => rangeOf(r.g)?.range.limit ?? null),
     e('Must stay', `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => { const g = rangeOf(r.g); return g ? BOUND_WORDS.word[g.range.bound] : null; }),
@@ -493,11 +496,13 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     Type: { required: { optional: 'read from the row' }, format: wordList(TYPE_WORDS), example: TYPE_WORDS.word.metric, empty: 'Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later', also: ['goal type'] },
     Unit: { required: { optional: 'no unit' }, format: 'Text', example: 'days', empty: 'No unit, never “%” by default: a Check asks once a file whether the numbers are plain counts', clears: true, also: ['units'] },
     Decimals: { required: { optional: 'from the numbers typed' }, format: '0, 1, 2 or 3', example: '1', empty: 'The most decimal places typed in Start, Target or Limit, up to 3' },
-    Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline', 'from'] },
+    Start: { required: { for: ['metric'] }, format: 'A number', example: '5', empty: 'Must fix for a number goal', also: ['baseline'] },
     Target: { required: { for: ['metric'] }, format: 'A number, different from Start', example: '1', empty: 'Must fix for a number goal', also: ['target value', 'goal value'] },
     Plan: { required: { optional: SHAPE_WORDS.word.straight }, format: wordList(SHAPE_WORDS), example: SHAPE_WORDS.word.back, empty: SHAPE_WORDS.word.straight },
-    'Plan from week': { required: { optional: 'this week' }, format: 'A whole number, −104 to 104', example: '46', empty: 'This week (0 when setting up a workspace)' },
-    'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number, 1 to 104, after Plan from week; a date in the cycle is read as its week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
+    From: { required: { optional: 'this week' }, format: 'A year and a week, from week 1 of last year to the last week of next year', example: '2026-W46', empty: 'This week; Plan from week, when it says otherwise', also: ['from week', 'baseline week'] },
+    'Plan from week': { required: { optional: 'this week' }, format: 'A whole number of weeks from the cycle’s start (0 is the week before week 1)', example: '46', empty: 'This week (0 when setting up a workspace)' },
+    To: { required: { optional: 'the cycle’s last week' }, format: 'A year and a week after From, up to the last week of next year', example: '2026-W53', empty: 'The cycle’s last week; Due week, when it says otherwise', also: ['to week', 'due by'] },
+    'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number of weeks from the cycle’s start, after Plan from week, up to the last week of next year; a date in the cycle is read as its week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
     Limit: { required: { for: ['range'] }, format: 'A number', example: '5', empty: 'Must fix for a range goal' },
     'Must stay': { required: { optional: BOUND_WORDS.word.atMost }, format: wordList(BOUND_WORDS), example: BOUND_WORDS.word.atMost, empty: BOUND_WORDS.word.atMost },
     Margin: { required: { optional: 'none' }, format: 'A number, zero or more', example: '0.5', empty: 'No warning margin (0)' },

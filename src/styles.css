@@ -1496,4 +1496,15 @@ fieldset > legend { padding: 0; }
 .dcell .pick-panel .input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 6px; }
 .dcell .pick.compact .pick-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .pick-head { display: none; }
+/* The week picker (goal entry 2.13): a field that opens a short list of weeks, with their dates. */
+.weekpick { position: relative; display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.weekpick-open { text-align: left; cursor: pointer; min-height: 44px; }
+.weekpick-open:disabled { cursor: default; color: var(--muted); }
+.weekpick-named .pick-row { padding: 0; }
+.weekpick-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: var(--s3); min-height: 44px; padding: var(--s1) var(--s2); text-align: left; background: none; border: 0; cursor: pointer; }
+.weekpick-row:hover, .weekpick-row:focus-visible { background: var(--accent-soft); }
+.weekpick-list:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.week-rows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--s3) var(--s4); align-items: start; }
+@media (max-width: 640px) { .week-rows { grid-template-columns: minmax(0, 1fr); } }
+
 @media (max-width: 640px) { .pick-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; } }
