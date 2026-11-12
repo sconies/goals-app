@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-headers-steadier',
+    date: '2026-11-12',
+    title: 'Import reads your headers more carefully',
+    points: [
+      'A People sheet with a Title or Objective column is read as People, not refused.',
+      'Two columns that mean the same thing, like Goal and Goal name, are asked about: you choose which is read.',
+      'While a header one letter out is asked about, its column’s Must fix waits for your answer.',
+      'Download the rows to fix keeps a column whose header is one letter out.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'undo-import-every-kind',
     date: '2026-11-12',
     title: 'Undoing an import puts back teams too',

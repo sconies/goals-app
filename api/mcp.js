@@ -9230,6 +9230,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
 		case "near-header": return first.message;
+		case "two-columns": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9305,6 +9306,7 @@ var init_problemLevels = __esmMin((() => {
 		"near-ref",
 		"near-word",
 		"near-header",
+		"two-columns",
 		"new-team",
 		"same-person",
 		"same-goal",
@@ -9615,22 +9617,38 @@ function fileDiffs(file, changed, unchanged, left) {
 	}];
 }
 /** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
-function namedHeaders(t, nearOk) {
+function namedHeaders(t, nearOk, whichOf) {
 	const out = { ...t };
 	for (const [key, kind, sheet] of TABLE_SHEETS) {
 		const recs = t[key];
 		if (!recs?.length) continue;
 		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
-		const rename = /* @__PURE__ */ new Map();
+		const by = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
 			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
-			if (k === to) continue;
-			if (keys.includes(to)) continue;
-			if (m.how !== "near" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			const at = by.get(to) ?? {
+				as: m.as,
+				keys: [],
+				near: []
+			};
+			at.keys.push(k);
+			if (m.how === "near" && k !== to) at.near.push(k);
+			by.set(to, at);
 		}
-		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+		const rename = /* @__PURE__ */ new Map();
+		const drop = /* @__PURE__ */ new Set();
+		for (const [to, { as, keys: from, near: nearKeys }] of by) {
+			let use = from[0];
+			if (from.length > 1) {
+				use = whichOf(sheet, as, from);
+				for (const k of from) if (k !== use) drop.add(k);
+				if (!use) continue;
+			} else if (nearKeys.includes(use) && !nearOk(sheet, use, as)) continue;
+			if (use && use !== to) rename.set(use, to);
+		}
+		if (rename.size || drop.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !drop.has(k)).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
 	return out;
 }
@@ -9656,7 +9674,10 @@ function planChanges(input) {
 	let examples = 0;
 	const changes = [];
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
+	/** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
+	const held = /* @__PURE__ */ new Set();
 	const raise = (kind, sheet, row, name, message, x = {}) => {
+		if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === "must") return;
 		issues.push(issueOf(kind, sheet, row, name, message, x));
 	};
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
@@ -9673,19 +9694,36 @@ function planChanges(input) {
 		tables: namedHeaders(input.tables, (sheet, header, as) => {
 			const a = answerOf("near-header", sheet, "Header", header);
 			if (a?.choice === "use") return true;
-			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
-				column: "Header",
-				found: header,
-				suggest: as,
-				answers: [{
-					choice: "use",
-					label: `Read it as ${as}`
-				}, {
-					choice: "ignore",
-					label: "Don’t read it"
-				}]
-			});
+			if (!a) {
+				raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
+					column: "Header",
+					found: header,
+					suggest: as,
+					answers: [{
+						choice: "use",
+						label: `Read it as ${as}`
+					}, {
+						choice: "ignore",
+						label: "Don’t read it"
+					}]
+				});
+				held.add(`${sheet}|${as.toLowerCase()}`);
+			}
 			return false;
+		}, (sheet, as, headers) => {
+			const a = answerOf("two-columns", sheet, "Header", as);
+			const pick = a?.choice.startsWith("use:") ? a.choice.slice(4) : null;
+			if (pick && headers.includes(pick)) return pick;
+			raise("two-columns", sheet, 1, as, `Two columns on ${sheet} are read as ${as}: ${headers.map((h) => `“${h}”`).join(" and ")}. Which should be read?`, {
+				column: "Header",
+				found: as,
+				answers: headers.map((h) => ({
+					choice: `use:${h}`,
+					label: `Read “${h}”`
+				}))
+			});
+			held.add(`${sheet}|${as.toLowerCase()}`);
+			return null;
 		})
 	};
 	/**
@@ -14654,7 +14692,7 @@ var help$2 = [
 					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
-					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
+					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -17422,6 +17460,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "import-headers-steadier",
+		date: "2026-11-12",
+		title: "Import reads your headers more carefully",
+		points: [
+			"A People sheet with a Title or Objective column is read as People, not refused.",
+			"Two columns that mean the same thing, like Goal and Goal name, are asked about: you choose which is read.",
+			"While a header one letter out is asked about, its column’s Must fix waits for your answer.",
+			"Download the rows to fix keeps a column whose header is one letter out."
+		],
+		articles: ["import"]
+	},
 	{
 		id: "undo-import-every-kind",
 		date: "2026-11-12",
