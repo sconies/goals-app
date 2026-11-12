@@ -1378,7 +1378,7 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await h.checkpoint('posted');
 });
 
-journey('U138', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 8, async (h, device) => {
+journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 8, async (h, device) => {
   // Rhea's image slimming (ci-docker), due this week: she posts the plan's number, then corrects it.
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/check-in/ci-docker'));
