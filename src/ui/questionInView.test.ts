@@ -56,4 +56,23 @@ describe('a question about a number is seen where it is asked (goal entry 2.1, i
     focusQuestion(document, 'over-100');
     expect(document.activeElement).toBe(q);
   });
+
+  it('keeps the field at least the page’s scroll-padding-top from the top, so it and the browser don’t fight (#241 review)', () => {
+    const { input, q } = form();
+    document.documentElement.style.scrollPaddingTop = '72px';
+    at(q, 700, 900);
+    bringIntoView(q, input);
+    expect(by).toEqual([596 - 72]);
+    document.documentElement.style.scrollPaddingTop = '';
+  });
+
+  it('with an on-screen keyboard, the fold is the top of the keyboard, not the bottom of the window', () => {
+    const { input, q } = form();
+    Object.defineProperty(window, 'visualViewport', { value: { offsetTop: 0, height: 500 }, configurable: true });
+    at(q, 450, 100);
+    input.focus();
+    questionAppeared(q);
+    expect(by).toEqual([450 + 100 - (500 - 16)]);
+    Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+  });
 });
