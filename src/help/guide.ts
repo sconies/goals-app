@@ -111,7 +111,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Results, once a goal is due', list: [
         ...(['completed', 'late', 'missed'] as const).map((k) => define(RESULT[k])),
-        `Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+        `Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs. A quarter that ended before the goal was set up is not applicable: it is never judged and counts nowhere.`,
         `At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`,
       ] },
       { heading: 'Against the plan', list: [
@@ -412,6 +412,7 @@ const CORE_ARTICLES: Article[] = [
         'Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.',
         'Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.',
         'On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.',
+        'A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.',
         'A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan.',
       ] },
     ],
