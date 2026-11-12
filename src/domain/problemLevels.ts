@@ -69,7 +69,7 @@ export const MUST_KINDS = [
 ] as const;
 /** What is possible but unlikely: asked, once per group. */
 export const CHECK_KINDS = [
-  'near-ref', 'near-word', 'near-header', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
+  'near-ref', 'near-word', 'near-header', 'two-columns', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
   'feeds-lower',
 ] as const;
@@ -251,6 +251,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'near-ref': return `${n(count, 'row')} name${count === 1 ? 's' : ''} a ${THING[col] ?? 'record'} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
     case 'near-word': return `${col} says “${v}” on ${n(count, 'row')}. Read it as ${first.suggest}?`;
     case 'near-header': return first.message;
+    case 'two-columns': return first.message;
     case 'same-person': return first.message;
     case 'same-goal': return `${n(count, 'new goal')} ${count === 1 ? 'has a name its team already uses' : 'have names their teams already use'}: “${v}”. Are they new?`;
     case 'other-goal': return first.message;

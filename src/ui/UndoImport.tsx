@@ -3,7 +3,7 @@
    with why. Opened from Imported, Past imports and the import's line in Activity; the same sheet at all three. */
 import { useState } from 'react';
 import { useApp } from '../app/state';
-import { canUndoImport, importName, importUndone, keptText, type KeptRow } from '../domain/removal';
+import { canUndoImport, importName, importUndone, keptText, nothingToUndo, type KeptRow } from '../domain/removal';
 import type { Change } from '../domain/types';
 import { Sheet } from './bits';
 
@@ -53,11 +53,10 @@ function UndoSheet({ entry, onClose }: { entry: Change; onClose: () => void }) {
   };
   if (!plan) return <Sheet open onClose={onClose} title={`Undo ${name}?`}><p>{problem}</p><div className="sheet-foot"><button type="button" className="btn" onClick={onClose}>Close</button></div></Sheet>;
   const { restores, skipped } = plan;
-  const all = restores + skipped.length;
   if (!restores) {
     return (
       <Sheet open onClose={onClose} title={`Undo ${name}?`}>
-        <p className="undo-sheet-lead">Nothing left to undo: all {rows(all)} have changed since.</p>
+        <p className="undo-sheet-lead">{nothingToUndo(skipped.length)}</p>
         <Kept rows={skipped} />
         <div className="sheet-foot"><button type="button" className="btn primary" onClick={onClose}>Close</button></div>
       </Sheet>
