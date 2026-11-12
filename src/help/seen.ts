@@ -3,7 +3,7 @@
    Storage can be blocked (private windows, previews): then it lives in memory for this tab. */
 import { useSyncExternalStore } from 'react';
 import { onDemoBrowserCleared } from '../app/demoBrowser';
-import { latestNewsId, newsAfter } from './lookup';
+import { latestNewsId, unreadSince } from './lookup';
 
 export const SEEN_KEY = 'goals-whats-new-seen';
 let memory: string | null = null;
@@ -32,8 +32,8 @@ const subscribe = (l: () => void) => {
   return () => { listeners.delete(l); window.removeEventListener('storage', onStorage); };
 };
 
-/** The entries this person hasn't seen yet, newest first. */
+/** What's new for this person: the newest release when they haven't seen it, else nothing. */
 export function useUnreadNews() {
   const seen = useSyncExternalStore(subscribe, read, () => null);
-  return newsAfter(seen);
+  return unreadSince(seen);
 }
