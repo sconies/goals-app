@@ -5,7 +5,6 @@ import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
-import { GoalEdit } from './screens/GoalEdit';
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { Watching } from './screens/Watching';
@@ -33,6 +32,8 @@ const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
+// Changing a goal is opened by its owner now and then, never on a first visit.
+const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));

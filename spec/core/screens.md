@@ -129,9 +129,9 @@ Feature modules add their own screens: see [the modules](../modules/README.md). 
 
 [src/screens/GoalEdit.tsx](../../src/screens/GoalEdit.tsx)
 
-- `/goals/:goalId/edit` (`GoalEdit`): Edit a goal’s details, owner, links or plan. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
+- `/goals/:goalId/edit` (`GoalEdit`): Change a goal on one page: what it is, its plan and target, who owns it and where it fits. Once check-ins have started, a plan change needs a reason. Help: “Changing a goal or its plan” (`edit-goal`).
 
-- **Named parts:** “Owner and links”
+- **Named parts:** “What it is”, “Who and where”
 - **Main action:** Save the change; a plan change after check-ins started needs a reason.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `update_goal`, `set_plan_numbers`

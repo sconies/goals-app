@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-edit-one-page',
+    date: '2026-11-12',
+    title: 'Changing a goal is one page',
+    points: [
+      'Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.',
+      'Save changes stays at the foot of the window and never covers what you’re typing.',
+      'One way out: Close and keep the draft. What you typed is there when you come back.',
+      'Describe it on a goal with no definition opens the page at What it is.',
+    ],
+    articles: ['edit-goal'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',
