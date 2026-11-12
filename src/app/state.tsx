@@ -343,6 +343,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     setToasts((t) => [...(kind === 'success' ? t.filter((x) => x.kind === 'error') : t), { id, kind, text, ...(act ? { action: act } : {}) }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? UNDO_MS : kind === 'error' ? 7000 : 3200);
   }, []);
+  // An Undo is for the workspace it was made in: once another is open it could only be refused, so it goes.
+  useEffect(() => { setToasts((t) => t.filter((x) => !x.action)); }, [wsId]);
 
   // Saves this browser won't keep (full, or blocked): said once as it happens, and shown for as long as it lasts.
   const [saveNote, setSaveNote] = useState<string | null>(() => store.saveProblem?.() ?? null);
@@ -690,7 +692,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!before && opts?.stagesDone?.length) {
           try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
         }
-        await commit({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
+        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
@@ -714,7 +716,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       previewChanges: (tables, via, reason, confirm, answers) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');
-        await commit(cs.commit);
+        await save(cs.commit);
       },
       createToken: (personId, name) => run('createToken', { personId, name }),
       saveView: async (v) => (await run('saveView', v)).id,

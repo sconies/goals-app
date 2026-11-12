@@ -476,7 +476,7 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     // A goal the import deleted (an Action row) comes back; one deleted some other way since is left alone.
     if (!cur || (cur.removedAt && (!before || before.removedAt))) continue;
     if (touched('goal', id) || (!before && since.some((c) => c.goalId === id))) { skipped.push(`${cur.title}: changed since`); continue; }
-    goals.push(before ? ({ ...before, ...(cur.key ? { key: cur.key } : {}) } as Goal) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
+    goals.push(before ? ({ ...asBefore(cur, before), ...(cur.key ? { key: cur.key } : {}) } as Goal) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'goal', entityId: id, goalId: id, action: before ? 'edited' : 'removed', summary: before ? 'Put back as it was before an import' : `Deleted ${cur.title}: an import that added it was undone`, importId }));
   }
   for (const { id, before } of u.checkIns) {
@@ -484,7 +484,7 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     if (!cur || cur.removedAt) continue;
     const goal = full.goals.find((g) => g.id === cur.goalId);
     if (touched('check-in', id)) { skipped.push(`${goal?.title ?? 'A goal'}, week ${cur.week}: changed since`); continue; }
-    checkIns.push(before ?? { ...cur, removedAt: x.now, removedBy: x.actor.id });
+    checkIns.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'check-in', entityId: id, goalId: cur.goalId, action: before ? 'edited' : 'removed', summary: before ? `Put the check-in for week ${cur.week} back as it was before an import` : `Deleted the check-in for week ${cur.week}: an import that added it was undone`, importId }));
   }
   for (const { id, before } of u.people) {
@@ -494,7 +494,7 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     // Someone the import added goes again, unless they've done something since (then they're skipped, like any change).
     const added = (gid: string) => u.goals.some((v) => v.id === gid && !v.before);
     if (!before && (since.some((c) => c.actorId === id) || full.goals.some((g) => g.ownerId === id && !g.removedAt && !added(g.id)))) { skipped.push(`${cur.name}: has history since`); continue; }
-    people.push(before ?? { ...cur, removedAt: x.now, removedBy: x.actor.id });
+    people.push(before ? asBefore(cur, before) : { ...cur, removedAt: x.now, removedBy: x.actor.id });
     changes.push(log(x, { entity: 'person', entityId: id, action: before ? 'edited' : 'removed', summary: before ? `Put ${before.name} back as they were before an import` : `Deleted ${cur.name}: an import that added them was undone`, importId }));
   }
   // What marking someone as left changed besides: the reviews they left and the teams they led.
@@ -503,7 +503,7 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     const cur = (full.reviews ?? []).find((r) => r.id === id);
     if (!cur || !before) continue;
     if (touched('review', id)) { skipped.push(`The review “${cur.name}”: changed since`); continue; }
-    reviews.push({ ...before, version: cur.version });
+    reviews.push({ ...asBefore(cur, before), version: cur.version });
   }
   const teams = (u.teams ?? []).flatMap(({ id, before }) => (before && full.teams.some((t) => t.id === id) ? [before] : []));
   for (const { id, before } of u.requests) {

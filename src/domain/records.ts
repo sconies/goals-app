@@ -195,12 +195,15 @@ export function restorableModuleRow(full: { modules?: ModuleRows }, records: rea
   return null;
 }
 
-/** The fields a removal sets: removed, left, stopped (with its reason), ended or deleted, and by whom. */
-const REMOVAL_FIELD = /^(?:(?:removed|left|stopped|ended|deleted)(?:At|By)|stopReason)$/;
+/**
+ * The fields the stores write only when a record has them (data/rows `set`): a removal's (removed, left, stopped with its
+ * reason, ended or deleted, and by whom), and a person's email. Missing, the database keeps what it had.
+ */
+const REMOVAL_FIELD = /^(?:(?:removed|left|stopped|ended|deleted)(?:At|By)|stopReason|email)$/;
 
 /**
- * A row as it was before a removal, to save back on Undo. Every removal field the removal set and the row before didn't
- * have is null, not missing: a store writes only the columns a row carries, so a missing one kept the removal's time and
+ * A row as it was before a removal or an import, to save back on Undo. Every such field set since that the row before
+ * didn't have is null, not missing: a store writes only the columns a row carries, so a missing one kept the removal's time and
  * the record was removed again on the next load (build review: Undo on the database stores).
  */
 export function asBefore<T extends object>(removed: T, before: T): T {
