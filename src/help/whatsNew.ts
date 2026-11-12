@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'check-ins-owner-only',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s',
+    points: [
+      'Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.',
+      'An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'room-agrees-with-limit',
     date: '2026-11-12',
     title: 'A number kept in range: two cells that agree',
