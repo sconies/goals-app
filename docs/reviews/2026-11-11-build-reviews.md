@@ -56,6 +56,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #144 ML1: the metric library as a place, and a page per metric | 3 | 0 | 4 | 10 |
 | #177 Undoing an import puts deleted, stopped and left rows back for good | 4 | 0 | 0 | 0 |
 | #179 Carried copies stay true after every save (review of #152) | 5 | 1 | 1 | 0 |
+| #145 IM2: problem levels | 3 | 1 | 6 | 5 |
 
 **High findings, and where each stands**
 
@@ -72,6 +73,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Open** |
+| #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -584,3 +586,33 @@ Fixes #152's three highs and four of its mediums. `recarry` brings back the copy
 - Fix: have `withRecarry` fold each result into the rows the next `recarry` reads, or merge rows by ID, and add a two-goal save to the store contract.
 
 **2. Medium (re-run). A parent and child brought back in one save return with the child's copy at the top level.** The child's turn looks for its parent's live copy in the rows as loaded (`recarry.ts:39`, `:43`), where it is still removed; the parent's turn only re-attaches children that are already live (`:50-53`). Probe: both wrap-ups set back to "carry" in one commit; the child's copy returns with `parentId` null. Same fix as 1.
+
+### #145 IM2: problem levels (track 3, merged 02:20 UTC, 12 Nov)
+
+Read first by a separate reviewing session, in the engine (throwaway tests against this merge and its parent) and on screen at 1440 and 390; finding 1 was then re-run by this reviewer. The levels work for the main import path; the faults are in the two doors that cannot answer a question, and around answers.
+
+**1. High (re-run by this reviewer). Set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing.** `buildWorkspace` (`src/domain/importer.ts:104-106`) blocks only on Must fix and sends every Check to `notes`. In create mode a near miss raises its Check and returns without building the row (`src/domain/changeset.ts:253-258`, `:654`). Set-up shows notes for People rows only (`src/screens/Onboarding.tsx:190`).
+- Re-run: the goals template with "Ben Ortz" as the owner of "Deploys rolled back" and no email. Result: `issues` is empty, the workspace has two goals where the template has three, and the only trace is a Goals note no screen reads. Before this PR the same row blocked set-up.
+- The first reader saw the same for a Type of "Numbr". The wizard was not walked on screen.
+- Fix: until IM8 brings set-up the import's preview, treat a Check that stops a row as blocking in create mode.
+
+**2. Medium (first reader, on screen). The bulk check-in grid can no longer post a number typed with a decimal comma.** `changeset.ts:1048` asks `decimal-comma` at every door but a form post; `src/screens/QuickCheckIn.tsx:99-100` passes no answers. "3,9" gives an error toast and nothing posts; the parent commit saved it. Fix: don't ask it when `via` is `bulk`.
+
+**3. Medium (first reader). A near-miss goal name on Check-ins gets past the duplicate-row rule**, so one import saves two check-ins for one goal and week: `twice()` (`changeset.ts:1017-1022`) keys rows before the answer is applied (`:1124`).
+
+**4. Medium (first reader). Two rows answered "They're the same" for one goal: the earlier row is dropped without a word** (`changeset.ts:645-647` after the duplicate check at `:616`).
+
+**5. Medium (first reader). Undoing an import that added a team leaves the team behind, led by a deleted person** (`src/domain/removal.ts:507` restores only teams with a `before`).
+
+**6. Medium (first reader). An answer to one unlikely-number question covers different numbers, including those in the next file chosen.** The group's identity is kind, sheet, column and a coarse label (`changeset.ts:151`, `:1082`); `Import.tsx:30` and `DataTables.tsx:232` keep answers across files and reviews.
+
+**7. Medium (first reader, on screen). Once the last question is answered, the "Your answers" lines and their Change buttons disappear** (`src/ui/Preview.tsx:26`), against the PR's own "an answered question closes to what was asked and the answer".
+
+**Lows (first reader).**
+- "Leave these rows out" does nothing on two Must fix cases (`changeset.ts:397`, `:467`).
+- Any word answers a Check through MCP: `answers: {"no-unit:goals:unit:": "banana"}` saved (`changeset.ts:203-206`, `src/mcp/tools.ts:109`).
+- Questions arrive in waves, and the first screen says "Nothing in this file changes anything" while questions wait (`Preview.tsx:114`).
+- Wording: the Type question mixes "Read it as number" with "Use “metric”"; a rename by key through MCP now asks "Row 2 calls it…", and `confirm: true` does not answer it.
+- No browser journey covers the answer buttons; finding 7 sits in that gap.
+
+**Checked and fine.** The same row gives the same Check through spreadsheet, table, bulk and MCP. The preview's count matches what is saved. Exact duplicates and unknown names are Must fix. `problemLevels.ts` is pure, and screens and tools call the engine. No stripes, pills or emoji; Check is the warning mark plus the word. Help, What's new, the requirement and the spec rows are there. **Unconfirmed:** whether `replaces-others` blocks the bulk grid, and renaming in the data tables.
