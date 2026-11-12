@@ -3,7 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
-import { homeFor, type HomeFacts } from '../domain/home';
+import { homeFor, waiting, type HomeFacts } from '../domain/home';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -1578,7 +1578,7 @@ for (const m of MODULE_SPEC) RULE_LIST.push(...m.part.map((r) => ({ ...r, module
 /** Home's facts for the examples: weekly, due Thursday 12 Nov 2026, week 46 of 53. */
 const HOME_F = (p: Partial<HomeFacts> & { today: string }, c: Partial<HomeFacts['checkIns']> = {}): HomeFacts => ({
   week: 46, lastWeek: 53, cycleName: '2026', workspace: 'Platform Engineering', starts: null, ended: false, rhythm: { dueDate: '2026-11-12', nextDueDate: '2026-11-19' },
-  wrap: null, sessions: [], owns: 2, watches: 1, asks: 0, ...p, checkIns: { total: 2, done: 0, due: [], draft: false, allInOnTimeToday: false, streak: 0, ...c },
+  wrap: null, sessions: [], owns: 2, watches: 1, asks: [], ...p, checkIns: { total: 2, done: 0, due: [], draft: false, allInOnTimeToday: false, streak: 0, ...c },
 });
 const HOME_DUE = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number: true }));
 const HOME_REVIEW = { id: 'dp', name: 'Developer Productivity fortnightly', date: '2026-11-10', held: false, discuss: 14, healthy: 21, done: 0, total: 35, started: false, nextGoal: null, nextDate: '2026-11-24' };
@@ -1588,7 +1588,7 @@ RULE_LIST.push({
   id: 'home',
   title: 'Home: what is asked of you today',
   summary: 'Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is.',
-  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay'] }],
+  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay', 'waiting', 'waitingOrder', 'askLead'] }],
   tests: ['src/domain/home.test.ts'],
   reqs: ['HOME-OWNER'],
   body: `
@@ -1598,6 +1598,9 @@ RULE_LIST.push({
 2. *Check-ins*: a rhythm is set, a check-in is still to do, and it is due within \`LEAD_DAYS\` (1) day, or a draft is kept (**Pick up where you left off**), or a review the viewer is in is today and isn't held ("{Review} is today" · "{n} check-ins to do before it").
 3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
 4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
+5. *An ask*: the first ask waiting on the viewer in the order below, when it is late, due this week, or has waited 7 days or more with no date. "Needs your response · {its line}" · "{First name} needs a decision" (asked a question, asked for an update; "A next step you agreed is due") · "“{ask}”. About {goal}." · **Respond**, **Answer**, **Check in** or **Mark done**. It is then not listed again under "Also needs your response".
+
+**An ask that waits** (\`waiting\`). Its due date is its own due week's Sunday; else, for a question raised in a review, the first session after the one it was raised in, fixed when asked (it does not move on when that session passes); else none. Late: today is after the due date. Its line, said after who asked and when: late, with the warning mark, "Was due week {w} ({dates})" or "Was due before {review}’s session on {Tue 10 Nov}"; "Due before today’s session" / "tomorrow’s" with the warning mark; "Due this week ({dates})"; "Due week {w} ({dates})"; "Before its next session, {Tue 24 Nov}"; no date and 7 days or more, "Waiting since {4 Aug}, {8 days | 14 weeks}" (weeks from 14 days); newer, "Asked today", "yesterday" or "on {Tuesday}". **Order** (\`waitingOrder\`): late; due this week; no date and waited 7 days or more, oldest first; the rest, newest first; within each, decisions, questions, updates, next steps.
 
 With two or more number goals to check in on, the check-in leads add the quiet link "Or type all your numbers in one table". A ring counts what the lead counts (check-ins, reviewed, wrapped).
 
@@ -1612,6 +1615,8 @@ Never said: "You’re all set", a deadline that has passed for someone who met i
     { given: 'Rhea, Tuesday 10 Nov, 6 to do, her Developer Productivity fortnightly today.', then: 'check-in: Developer Productivity fortnightly is today · 6 check-ins to do before it · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 1, due: HOME_DUE(6) })) },
     { given: 'Rhea, Tuesday 10 Nov, all 7 in.', then: 'review: Developer Productivity fortnightly is today · your 7 check-ins are in · 14 goals to discuss · Open the review', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 7 })) },
     { given: 'Someone who owns, watches and is asked nothing.', then: 'Nothing is asked of you today. You don’t own or watch a goal in Platform Engineering yet. [See the goals] [Set up a goal]', run: () => homeSays(HOME_F({ today: '2026-11-11', owns: 0, watches: 0 }, { total: 0 })) },
+    { given: 'Daniel’s question, raised on Tuesday 3 Nov in the Developer Productivity fortnightly, whose next session is Tuesday 10 Nov: its line on Monday 9 Nov, then on Wednesday 11 Nov unanswered.', then: 'Due before tomorrow’s session / Was due before Developer Productivity fortnightly’s session on Tue 10 Nov', run: () => ['2026-11-09', '2026-11-11'].map((t) => waiting({ id: 'q', kind: 'question', by: 'Daniel', goals: [{ id: 'g', title: 'Pipeline queue wait' }], said: 'Is the budget approved?', askedOn: '2026-11-03', dueWeek: null, session: { name: 'Developer Productivity fortnightly', date: '2026-11-10' }, where: 'Developer Productivity fortnightly' }, t).line).join(' / ') },
+    { given: 'Amara, Monday 9 Nov, no check-ins of her own; Rhea’s decision for her asked on 4 Aug, with no date.', then: 'ask: Needs your response · waiting since 4 Aug, 13 weeks · Rhea needs a decision · Respond', run: () => homeSays(HOME_F({ today: '2026-11-09', owns: 0, asks: [waiting({ id: 'd', kind: 'decision', by: 'Rhea', goals: [{ id: 'g', title: 'Lead time for changes' }], said: 'Approve the runner budget', askedOn: '2026-08-04', dueWeek: null, session: null, where: null }, '2026-11-09')] }, { total: 0 })) },
     { given: 'Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open.', then: 'wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up', run: () => homeSays(HOME_F({ today: '2026-12-23', week: 52, rhythm: { dueDate: '2026-12-24', nextDueDate: '2026-12-31' }, wrap: { ends: '2027-01-03', ended: false, left: [{ id: 'g1', title: 'Goal 1' }, { id: 'g2', title: 'Goal 2' }], total: 2 } }, { done: 2 })) },
   ],
   unclear: ['The ring and its words are drawn by the screen from the lead’s counts; the conformance rows (home.csv) give the lead’s kind and the quiet sentence for each demo person on each day of two weeks.'],
