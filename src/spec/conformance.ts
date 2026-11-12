@@ -2,6 +2,7 @@
    plain CSV files under spec/conformance/, made by the real rules. A rebuild proves its rules by reading the same
    workspace (spec/conformance/workspace.json) and matching every row. src/spec/conformance.test.ts recomputes them
    from workspace.json and fails on any difference. Pure: no files are read or written here. */
+import { ZONE_CASE, ZONE_HEADER, zoneRowsOf, type ZoneCase } from './zones';
 import { attentionFor, attentionGroup, needsAttention } from '../domain/attention';
 import { draftFrom, emptyDraft, evaluate } from '../domain/checkin';
 import { currentWeek, goalAsOf, projectionFor, valueSeries, weekDate } from '../domain/plan';
@@ -43,6 +44,8 @@ export interface ConformanceWorkspace {
   reviews: Pick<Review, 'id' | 'name' | 'everyWeeks' | 'weekday' | 'scope' | 'people'>[];
   /** Who watches what (home.csv reads it). Watches carry no date: they are taken as they are now in every week. */
   watches: Pick<Watch, 'id' | 'personId' | 'kind' | 'ref'>[];
+  /** R3's home-zone case, scored in zone.csv (src/spec/zones.ts): separate from the records above, which are judged in UTC. */
+  zone?: ZoneCase;
   /** Feature modules' own records (domain/records), by module and record, for the rows a module adds (ModuleConformance). */
   modules?: ModuleRows;
 }
@@ -80,6 +83,7 @@ export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
     requests: s.requests ?? [],
     reviews: live(s.reviews).filter((r) => !r.endedAt).map((r) => ({ id: r.id, name: r.name, everyWeeks: r.everyWeeks, weekday: r.weekday, scope: r.scope, people: r.people })),
     watches: live(s.watches).map((x) => ({ id: x.id, personId: x.personId, kind: x.kind, ref: x.ref })),
+    zone: ZONE_CASE,
     ...(MODULE_FILES.length && s.modules ? { modules: Object.fromEntries(Object.entries(s.modules).filter(([id]) => MODULE_FILES.some((f) => f.module === id))) } : {}),
   };
 }
@@ -508,7 +512,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)), 'zone.csv': toCsv(ZONE_HEADER, zoneRowsOf(w.zone)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }
