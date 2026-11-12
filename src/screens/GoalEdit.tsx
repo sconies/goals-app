@@ -16,6 +16,7 @@ import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
 import { FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { FixLine } from '../ui/Levels';
+import { focusQuestion } from '../ui/questionInView';
 import { WeekPick } from '../ui/WeekPick';
 import { defaultTo } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
@@ -124,7 +125,7 @@ function EditSheet({ goal }: { goal: Goal }) {
     setTried(true);
     // A question still open, maybe off screen: focus goes to the first, which scrolls it into view (goal entry rule 4,
     // as New goal's Continue does), and the line above Save says where it is.
-    if (built && !confirmed) { const slot = open[0]!.slot; setTimeout(() => form.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); return; }
+    if (built && !confirmed) { focusQuestion(form.current, open[0]!.slot); return; }
     if (!built || saving || (replanning && !reasonOk) || measure?.blocks) return;
     setSaving(true);
     try {
