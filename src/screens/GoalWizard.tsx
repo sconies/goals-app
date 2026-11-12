@@ -10,6 +10,7 @@ import { parseNumber } from '../domain/checkin';
 import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
 import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
+import { focusQuestion } from '../ui/questionInView';
 import { fmt } from '../domain/format';
 import { placesText } from '../domain/numbers';
 import { isTop, levelName } from '../domain/levels';
@@ -182,9 +183,12 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const atStep = (i: number) => `/goals/new/${NEW_GOAL_STEPS[i]!.slug}`;
   const focusField = (f: GoalField | null) => {
     if (!f) return;
-    setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`)?.focus(), 0);
+    // At once when it is drawn (this step), so focus has moved by the time the line above the button shows; else once it is.
+    const find = () => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`);
+    const now = find();
+    if (now) now.focus(); else setTimeout(() => find()?.focus(), 0);
   };
-  const focusCheck = (slot: string | null) => { if (slot) setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); };
+  const focusCheck = (slot: string | null) => focusQuestion(top.current, slot);
   // After "Change" on Check, Continue comes straight back to it: said in the history entry Change made, so it holds for
   // that entry only (the browser's Back to another step doesn't carry it).
   const fromCheck = step < 3 && !!(loc.state as { fromCheck?: boolean } | null)?.fromCheck;
