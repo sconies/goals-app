@@ -477,7 +477,6 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Keep it at … or under” | button | `hold != null` |
 | “Keep it at … or over” | button | `hold != null` |
 | “Keep …” | button | `e?.id === 'too-precise' && e.keep != null` |
-| “(Close and keep the draft)” | button | always |
 | “Start a new one” | button | `restored` and `!asking` |
 | “Discard it” | button | `asking` |
 | “Keep it” | button | `asking` |
@@ -1170,7 +1169,7 @@ None: nothing to type or choose here.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Close” | button | always |
+| “Close” | button | `!inline` |
 | “Try again” | button | `failed` |
 
 ### The workspace switcher
