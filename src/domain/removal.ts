@@ -8,14 +8,14 @@
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
 import type { Commit } from './commit';
-import { byRecarry } from './recarry';
+import { byRecarry } from './copies';
 import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsUndone, type ModuleRecords } from './records';
+import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsLeaving, rowsUndone, applyModuleRows, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -413,7 +413,8 @@ export function canUndoStart(full: { cycles: Pick<Cycle, 'id' | 'startDate' | 'r
   const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
   if (checkIns) return { ok: false, why: `${plural(checkIns, 'check-in is', 'check-ins are')} in it` };
   const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
-  const changed = new Set([...ids].filter((id) => !made.has(id)));
+  // A copy recarry added later (the goal carried on after all) was made by the start's rules, not by a person.
+  const changed = new Set([...ids].filter((id) => !made.has(id) && !full.changes.some((ch) => ch.goalId === id && /carries on into /.test(ch.summary))));
   for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId) && !byRecarry(ch.summary)) changed.add(ch.goalId);
   if (changed.size) return { ok: false, why: `${plural(changed.size, 'goal in it has', 'goals in it have')} been changed` };
   if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return { ok: false, why: 'a later cycle has been started' };
@@ -436,10 +437,14 @@ export function undoStart(x: ActionContext, cycleId: string): Commit {
   // reviews restored.
   const u = startOf(full, cycleId)!.undo!;
   const gone = { removedAt: x.now, removedBy: x.actor.id };
-  const watches = (full.watches ?? []).filter((w) => (u.watches ?? []).includes(w.id) && !w.removedAt).map((w) => ({ ...w, ...gone }));
-  const modules = rowsUndone(full.modules, u.modules ?? [], gone);
-  const requests = u.requests.map((r) => r.before).filter((r): r is Ask => !!r).map((r) => { const now = (full.requests ?? []).find((v) => v.id === r.id); return now ? { ...now, goalIds: now.goalIds.filter((id) => !(u.goals ?? []).some((g) => g.id === id)) } : r; });
-  const reviews = (u.reviews ?? []).map((r) => r.before).filter((r): r is Review => !!r).map((r) => { const now = (full.reviews ?? []).find((v) => v.id === r.id) ?? r; const added = new Set(u.goals.map((g) => g.id)); return { ...now, scope: { ...now.scope, goals: now.scope.goals.filter((id) => !added.has(id)), trees: now.scope.trees.filter((id) => !added.has(id)) } }; });
+  // Everything in the cycle goes, the start's copies and any recarry added later, with what came with them.
+  const added = new Set([...u.goals.map((g) => g.id), ...full.goals.filter((g) => g.cycleId === cycleId).map((g) => g.id)]);
+  const watches = (full.watches ?? []).filter((w) => ((u.watches ?? []).includes(w.id) || added.has(w.ref)) && !w.removedAt).map((w) => ({ ...w, ...gone }));
+  const modules = applyModuleRows(rowsUndone(full.modules, u.modules ?? [], gone), rowsLeaving(full.modules, added, x.records ?? [], gone)) ?? {};
+  const asks = new Map(u.requests.map((r) => r.before).filter((r): r is Ask => !!r).map((r) => [r.id, r]));
+  for (const r of full.requests ?? []) if (r.goalIds.some((id) => added.has(id)) && !asks.has(r.id)) asks.set(r.id, r);
+  const requests = [...asks.values()].map((r) => { const now = (full.requests ?? []).find((v) => v.id === r.id); return now ? { ...now, goalIds: now.goalIds.filter((id) => !added.has(id)) } : r; });
+  const reviews = (u.reviews ?? []).map((r) => r.before).filter((r): r is Review => !!r).map((r) => { const now = (full.reviews ?? []).find((v) => v.id === r.id) ?? r; return { ...now, scope: { ...now.scope, goals: now.scope.goals.filter((id) => !added.has(id)), trees: now.scope.trees.filter((id) => !added.has(id)) } }; });
   return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], watches, ...(hasModuleRows(modules) ? { modules } : {}), requests, reviews, changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
 }
 
@@ -663,3 +668,4 @@ export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot)
   if (main && !(main.entity === 'note' && main.action === 'removed')) out.changes.push(log(x, { entity: main.entity, entityId: main.entityId, goalId: main.goalId, action: 'restored', summary: `Undid: ${main.summary.charAt(0).toLowerCase()}${main.summary.slice(1)}` }));
   return out;
 }
+

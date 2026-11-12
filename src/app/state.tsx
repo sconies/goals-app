@@ -420,11 +420,17 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     return snap;
   }, [store]);
 
-  const commit = useCallback(async (c: Commit) => {
+  const commit = useCallback(async (given: Commit) => {
     const cur = loadedRef.current;
     saving.current++;
     try {
       if (!cur) throw new Error('no workspace is open');
+      // Every save keeps a carried copy in the next year true while nobody has used it (cycle-end rule 6), whatever made it.
+      // Only a workspace with more than one cycle can have a copy, so the rule loads then, not on a first visit.
+      const first = given.changes[0];
+      const c = cur.snap.cycles.filter((v) => !v.removedAt).length > 1
+        ? (await import('../domain/recarry')).withRecarry(cur.snap, given, { now: first?.at ?? new Date().toISOString(), actorId: first?.actorId ?? '', newId, records: MODULE_RECORDS })
+        : given;
       if (!signedIn.current) throw new Error(NOBODY);
       try {
         // Says what the save was based on, so it is refused rather than overwriting a newer change.

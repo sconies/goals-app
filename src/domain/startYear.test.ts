@@ -5,10 +5,11 @@ import { beforeStart, beforeStartLine, currentCycle, nextCycle, nextCycleShape, 
 import { wrapUpScope } from '../app/reads';
 import { carryKind, startReadBack } from './carry';
 import { NotAllowed, saveRetro, startNextCycle, type ActionContext } from './actions';
-import { canUndoStart, deleteCycle, undoStart } from './removal';
+import { canUndoStart, deleteCycle, stopGoal, undoStart } from './removal';
 import { applyCommit } from '../data/store';
 import { startPage } from './startYear';
-import { recarry } from './recarry';
+import { recarry, withRecarry } from './recarry';
+import type { Commit } from './commit';
 import { buildPlatformOrg } from '../data/platformOrg';
 import type { CheckIn, Cycle, Goal, MetricGoal, Retro, Snapshot } from './types';
 import type { MetricLink } from '../modules/metrics/types';
@@ -281,14 +282,62 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
     expect(recarry(old, used, { retro: stop }, { now: '2027-01-12T10:00:00Z', actorId: old.ownerId, newId: (p) => p })).toBeNull();
   });
 
+  // Every save runs recarry (withRecarry), as the app and the MCP server do.
+  const save = (s: Snapshot, c: Commit, when: string) => applyCommit(s, withRecarry(s, c, { now: when + 'T10:00:00Z', actorId: amara.id, newId: (p) => `${p}_r${++k}`, records: RECORDS }));
+  const later = (s: Snapshot) => s.cycles.find((c) => c.id !== cycle.id && !c.removedAt)!;
+  const copiesOf = (s: Snapshot, g: Goal) => s.goals.filter((x) => x.cycleId === later(s).id && x.key === g.key);
+  const live = (s: Snapshot, g: Goal) => copiesOf(s, g).filter((x) => !x.removedAt);
+  const wrap = (s: Snapshot, g: Goal, next: Retro['next'], when: string) => saveRetro({ ...ctx(s, when), week: 53 }, g, { result: 'partly', learned: 'Moved more slowly than planned', next });
+  const started = () => applyCommit(s0, startNextCycle(ctx(s0, '2026-12-21')).commit);
+
   it('keeps the copy true for a check-in from the change engine too: the check-in screens, the tables and a spreadsheet', () => {
-    const s1 = applyCommit(s0, startNextCycle(ctx(s0, '2026-12-21')).commit);
+    const s1 = started();
     const old = s1.goals.find((g) => g.cycleId === cycle.id && g.kind === 'metric' && s1.goals.some((x) => x.cycleId !== cycle.id && x.key === g.key) && (g.plan.endWeek ?? 0) <= cycle.weeks) as MetricGoal;
     const value = Math.round(planAt(old.plan, 53, cycle.weeks));
     const out = postCheckIn({ ...ctx(s1, '2026-12-29'), week: 53 }, { goalId: old.id, week: 53, draft: { ...emptyDraft(old, null), value: String(value) }, mode: 'new' });
-    const s2 = applyCommit(s1, out.commit);
+    const s2 = save(s1, out.commit, '2026-12-29');
     // A final number on plan meets the target, so the goal now finishes and its untouched copy leaves 2027.
-    expect(s2.goals.find((g) => g.cycleId !== cycle.id && g.key === old.key && !g.removedAt)).toBeUndefined();
-    expect(out.commit.changes.some((c) => /finishes in 2026, so it left 2027/.test(c.summary))).toBe(true);
+    expect(live(s2, old)).toHaveLength(0);
+    expect(s2.changes.some((c) => /finishes in 2026, so it left 2027/.test(c.summary))).toBe(true);
+  });
+
+  it('stop, then carry it on, brings the same copy back; stopping again takes it out; never two (build review of #152, high 1)', () => {
+    const s1 = started();
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && !g.parentId)!;
+    const first = live(s1, old)[0]!;
+    const s2 = save(s1, wrap(s1, old, 'stop', '2026-12-29'), '2026-12-29');
+    expect(live(s2, old)).toHaveLength(0);
+    const s3 = save(s2, wrap(s2, old, 'carry', '2026-12-30'), '2026-12-30');
+    expect(live(s3, old).map((g) => g.id)).toEqual([first.id]);
+    expect(copiesOf(s3, old)).toHaveLength(1);
+    const s4 = save(s3, wrap(s3, old, 'stop', '2026-12-31'), '2026-12-31');
+    expect(live(s4, old)).toHaveLength(0);
+    // Nobody used 2027, so Undo is still offered (medium 5).
+    expect(canUndoStart(s3, later(s3).id)).toEqual({ ok: true });
+  });
+
+  it('a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)', () => {
+    const s1 = started();
+    const parent = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && s1.goals.some((c) => c.cycleId === cycle.id && c.parentId === g.id && live(s1, c).length === 1))!;
+    const copy = live(s1, parent)[0]!;
+    const kids = s1.goals.filter((c) => c.cycleId === later(s1).id && c.parentId === copy.id);
+    expect(kids.length).toBeGreaterThan(0);
+    const s2 = save(s1, wrap(s1, parent, 'stop', '2026-12-29'), '2026-12-29');
+    for (const k of kids) { const now = s2.goals.find((g) => g.id === k.id)!; expect(now.parentId).toBeNull(); expect(now.effect ?? null).toBeNull(); }
+    const s3 = save(s2, wrap(s2, parent, 'carry', '2026-12-30'), '2026-12-30');
+    for (const k of kids) expect(s3.goals.find((g) => g.id === k.id)!.parentId).toBe(copy.id);
+  });
+
+  it('stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)', () => {
+    const s1 = started();
+    const old = s1.goals.find((g) => g.cycleId === cycle.id && live(s1, g).length === 1 && !g.parentId && g.kind === 'metric')!;
+    const s2 = save(s1, stopGoal(ctx(s1, '2026-12-29'), old.id, 'Not worth another year'), '2026-12-29');
+    expect(live(s2, old)).toHaveLength(0);
+    // As a database store reads it back: fields in another order, and no fromWeek when it is 0.
+    const copy = live(s1, old)[0]! as MetricGoal;
+    const { fromWeek: _f, ...plan } = copy.plan;
+    const reread = Object.fromEntries(Object.entries({ ...copy, plan }).reverse()) as unknown as Goal;
+    const s3 = { ...s1, goals: s1.goals.map((g) => (g.id === copy.id ? reread : g)) };
+    expect(recarry(old, s3, {}, { now: '2026-12-29T10:00:00Z', actorId: amara.id, newId: (p) => p, records: RECORDS })).toBeNull();
   });
 });

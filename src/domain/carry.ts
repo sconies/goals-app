@@ -146,6 +146,8 @@ export interface CopyCtx {
   /** The parent's copy, when the parent carries too; otherwise null (and the copy loses its effect). */
   parentId: string | null;
   now: string;
+  /** The copies of the goals it also helps, when they carry too (never the old year's). */
+  alsoHelps?: string[];
 }
 
 /**
@@ -156,7 +158,7 @@ export interface CopyCtx {
  * (\`round((i + 1) × weeks / n)\`, never after its last week). A limit is unchanged.
  */
 export function carryCopy(g: Goal, ctx: CopyCtx): Goal {
-  const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, createdAt: ctx.now, pending: null } as Goal;
+  const base = { ...g, id: ctx.id, cycleId: ctx.next.id, parentId: ctx.parentId, alsoHelps: ctx.alsoHelps ?? [], createdAt: ctx.now, pending: null } as Goal;
   if (!base.parentId) base.effect = null;
   if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > ctx.old.weeks) {
     const shift = (w: number) => w - ctx.old.weeks;

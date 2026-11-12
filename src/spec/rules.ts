@@ -844,8 +844,9 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
     summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
     code: [
       { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
-      { file: 'src/domain/recarry.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
-      { file: 'src/domain/actions.ts', names: ['saveRetro', 'mergeCommits'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'withRecarry'] },
+      { file: 'src/domain/copies.ts', names: ['copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/actions.ts', names: ['saveRetro'] },
     ],
     tests: ['src/domain/startYear.test.ts'],
     reqs: ['CARRY-GOALS'],
@@ -854,13 +855,13 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
 
 **What comes with it** (\`carryExtras\`): its metric link (same metric and team, linked by the same person); each watch of it or of its tree (same person); each open ask or next step on it, with the copy added, so it shows in both years; and each review that names it or its tree, with the copy added. The start keeps all of it, so Undo removes the watches and links it added and takes the copies back out of the asks and reviews.
 
-**Keeping a copy true** (\`recarry\`): a check-in or a wrap-up on a goal of a year that has a later cycle works its kind out again and, only while its copy is untouched (no check-in in it, no change to it by a person), replaces the copy's plan or stages, removes the copy and what came with it, or adds one. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead."`,
+**Keeping a copy true** (\`recarry\`, run by \`withRecarry\` on every save, from the app and the AI tools alike): whenever a save touches a goal of a year that has a later cycle (a check-in posted, corrected, deleted or restored; a wrap-up; its plan; stopped, removed or brought back; an import or its Undo), its kind is worked out again and, only while its copy is untouched (no check-in in it, no change to it by a person), the copy's plan or stages are replaced, or the copy leaves with what came with it (a goal stopped or removed in its own year leaves too) and its children's copies lose it as parent and their effect, or the copy comes back. A copy that left comes back as it was, the same ID and key, with its children's copies under it again; one a person removed stays removed. Copies are compared field by field, so a store's own order changes nothing. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead." Copies recarry added don't stop the start being undone, and Undo takes them out too.`,
     examples: [
       { given: 'A 2026 goal from 0.42 to 0.30 USD planned from week 45, with a number set by hand, whose final number is 0.37: its plan in 2027.', then: 'start 0.37, target 0.3, from week 0, no end week, no hand-set numbers', run: () => { const g = metric(0.42, 0.3, 'straight', { id: 'u', plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } }); const c = carryCopy(g, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [checkIn('u', 53, 0.37)], id: 'u2', parentId: null, now: '2026-12-21T10:00:00Z' }) as MetricGoal; return `start ${c.plan.start}, target ${c.plan.target}, from week ${c.plan.fromWeek}, ${c.plan.endWeek == null ? 'no end week' : 'end week ' + c.plan.endWeek}, ${c.plan.points ? 'hand-set numbers' : 'no hand-set numbers'}`; } },
       { given: 'A goal with stages due in weeks 3 and 7, neither done, into a 52-week year; and with the first done.', then: 'due weeks 26, 52; due weeks 52', run: () => { const due = (cis: ReturnType<typeof checkIn>[]) => `due weeks ${(carryCopy(MILESTONE, { old: { weeks: 13 }, next: { id: 'n', weeks: 52 }, checkIns: cis, id: 's2', parentId: null, now: '' }) as typeof MILESTONE).stages.map((x) => x.dueWeek).join(', ')}`; return `${due([])}; ${due([checkIn(MILESTONE.id, 4, null, { stages: [{ stageId: 'a', doneWeek: 3 }] as never })])}`; } },
       { given: 'A goal planned from week 45 to week 66 of a 53-week year.', then: 'from week -8 to week 13', run: () => { const c = carryCopy(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'k2', parentId: null, now: '' }) as MetricGoal; return `from week ${c.plan.fromWeek} to week ${c.plan.endWeek}`; } },
     ],
-    unclear: ['Recarry runs on every check-in that goes through the change engine (the check-in screens, the data tables and a spreadsheet) and on a wrap-up; the AI tools’ bulk changes after the start don’t move the copy yet, and undoing an import leaves a copy it moved where it is.'],
+    unclear: ['A copy recarry took out shows on Recently removed like any removed goal; restoring it there brings back the goal only, not what came with it, while its goal in the old year still says stop.'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */

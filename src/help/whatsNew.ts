@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'carry-stays-true',
+    date: '2026-11-12',
+    title: 'Next year’s goals follow this year’s last changes',
+    points: [
+      'Once next year is set up, a goal stopped, started again, changed or checked in this year updates its copy there, however the change was made, until someone uses that copy.',
+      'Stopping a goal and then carrying it on again brings back the same goal in next year, with its key, not a second one.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
     id: 'undo-import-sticks',
     date: '2026-11-12',
     title: 'Undoing an import now lasts',
