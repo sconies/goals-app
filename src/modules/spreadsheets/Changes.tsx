@@ -27,7 +27,8 @@ const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-
 export function Changes() {
   const app = useApp();
   const nav = useNavigate();
-  const { cs, base, left } = useImportPlan();
+  const { st, cs, base, left, toSave } = useImportPlan();
+  const [problem, setProblem] = useState('');
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const show = (params.get('show') ?? 'all') as Show;
@@ -44,16 +45,23 @@ export function Changes() {
   const set = (k: string, v: string) => { const p = new URLSearchParams(params); if (v && v !== 'all') p.set(k, v); else p.delete(k); setParams(p, { replace: true }); setCount(PAGE); };
   const notes = (x: Item) => cs.issues.filter((i) => i.level === 'note' && i.sheet === x.sheet && i.row === x.row);
   const shown = found.slice(0, count);
+  // Ready with no reason needed, or once one is typed on the summary (worked out with it only when saving).
+  const ready = !!cs.commit || (cs.needsReason && !!st.reason.trim() && !cs.groups.some((g) => g.level === 'must' || g.level === 'check'));
   const save = async () => {
-    if (!cs.commit) return;
+    const final = toSave();
+    if (!final?.commit) return;
     setBusy(true);
-    const importId = cs.commit.changes.find((c) => c.action === 'imported')?.entityId;
+    setProblem('');
+    const importId = final.commit.changes.find((c) => c.action === 'imported')?.entityId;
     try {
-      await app.applyChanges(cs);
+      await app.applyChanges(final);
       if (importId && base) importStore.set({ done: { importId, tables: base, rows: leftRowsOf(left) } });
       else app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       nav(importId ? `/data/import/done/${importId}` : '/goals');
-    } catch { setBusy(false); }
+    } catch (e) {
+      setProblem(`Nothing was saved: ${e instanceof Error ? e.message : String(e)}. Try again.`);
+      setBusy(false);
+    }
   };
   return (
     <div className="page narrow import-check">
@@ -82,9 +90,10 @@ export function Changes() {
         ))}
       </ul>
       {found.length > shown.length && <div><button type="button" className="btn" onClick={() => setCount(count + PAGE)}>Show 50 more</button></div>}
+      {problem && <p className="hint tone-off" role="alert">{problem}</p>}
       <div className="foot-row import-foot">
         <Link className="btn big-btn preview-again" to="/data/import/check">Back to the summary</Link>
-        <button type="button" className="btn primary big-btn" disabled={!cs.commit || busy} onClick={() => void save()}>{busy ? 'Saving…' : `Save ${n(items.length, 'change')}`}</button>
+        <button type="button" className="btn primary big-btn" disabled={!ready || busy} onClick={() => void save()}>{busy ? 'Saving…' : `Save ${n(items.length, 'change')}`}</button>
       </div>
     </div>
   );

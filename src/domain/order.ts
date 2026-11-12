@@ -21,6 +21,11 @@ export function statusCounts(statuses: DisplayStatus[]): { status: DisplayStatus
   return STATUS_ORDER.filter((k) => by.get(k)).map((k) => ({ status: k, n: by.get(k)! }));
 }
 
+/** The same list from counts already made (the query port's counts()): worst first, statuses with none left out. */
+export function countList(counted: Partial<Record<DisplayStatus, number>>): { status: DisplayStatus; n: number }[] {
+  return STATUS_ORDER.filter((k) => counted[k]).map((k) => ({ status: k, n: counted[k]! }));
+}
+
 /** The statuses a group of goals is judged by, worst first: off track, at risk, no recent update, no check-in yet. */
 const TROUBLE: DisplayStatus[] = ['off', 'risk', 'stale', 'none'];
 

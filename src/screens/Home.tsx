@@ -1,7 +1,10 @@
 import { Place } from '../core/app';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
+import { useGoalCounts, useGoalList } from '../app/goals';
+import { EMPTY_QUERY } from '../domain/query';
+import { countList } from '../domain/order';
 import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
 import { dayOneRows, wrapUpScope } from '../app/reads';
@@ -71,7 +74,8 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
   const app = useApp();
   const p = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
   const streak = onTimeStreak(app.viewer.id, app.snapshot, app.cycle, app.week);
-  const mine = app.snapshot.goals.filter((g) => g.ownerId === app.viewer.id);
+  // Your goals through the query port (AX5), worst first.
+  const mine = useGoalList(useMineAsk(app.viewer.id))?.rows.map((r) => r.goal) ?? [];
   const att = attentionList(app.snapshot, app.cycle, app.today, { goals: mine });
   // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
   const { needs, handled } = splitAttention(att);
@@ -419,6 +423,19 @@ function DashStrip({ d, streakNote }: { d: Dashboard; streakNote: string }) {
   );
 }
 
+/** Your goals, as the query port is asked for them: every goal you own. */
+function useMineAsk(viewerId: string) { return useMemo(() => ({ query: { ...EMPTY_QUERY, owner: [viewerId] } }), [viewerId]); }
+
+/** The week at a glance, its goal counts from the query port (AX5): yours, or every goal when you own none. */
+function useDashboard(): Dashboard {
+  const app = useApp();
+  const mine = useGoalCounts(useMineAsk(app.viewer.id));
+  const all = useGoalCounts(mine && !mine.total ? { query: EMPTY_QUERY } : null);
+  const d = dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today);
+  const counted = mine?.total ? mine : all;
+  return counted ? { ...d, scope: mine?.total ? 'mine' : 'all', counts: countList(counted.status), total: counted.total } : d;
+}
+
 export function Home() {
   const app = useApp();
   const first = app.viewer.name.split(' ')[0];
@@ -430,7 +447,7 @@ export function Home() {
         <HomeNews at="head" />
       </div>
       <GettingStarted />
-      <DashStrip d={dashboard(app.viewer.id, app.snapshot, app.cycle, app.week, app.today)} streakNote={streakNote(app)} />
+      <DashStrip d={useDashboard()} streakNote={streakNote(app)} />
       <div className="home-grid split">
         <MyWeek news={<HomeNews at="phone" />} side={<><NeedsYou /><AdminCard /></>} after={<><WatchedGoals />{/* Modules' blocks (the home.blocks place). */}<Place name="home.blocks" /></>} />
       </div>

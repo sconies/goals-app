@@ -12,7 +12,7 @@ import { deleteGoal, markPersonLeft, undoImport, undoRemoval } from '../../domai
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
 import type { Snapshot } from '../../domain/types';
 import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
-import { isStale, withExpectations, type Commit, type Store } from '../../data/store';
+import { examplesOf, isStale, withExpectations, type Commit, type Store } from '../../data/store';
 
 const NOW = new Date('2026-10-30T12:00:00Z');
 
@@ -210,9 +210,12 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       expect((await store.workspaces()).map((w) => w.id)).toContain(ws);
     });
 
-    it('resets the example only when it has one', async () => {
-      if (store.hasExample) expect((await store.resetExample()).goals.length).toBeGreaterThan(0);
-      else await expect(store.resetExample()).rejects.toThrow();
+    it('resets the example only when it has one (the demo’s plumbing, not the port’s)', async () => {
+      const demo = examplesOf(store);
+      if (demo) expect((await demo.resetExample()).goals.length).toBeGreaterThan(0);
+      // A store without the example has nothing to reset: the shared stores have no such method, and a browser store
+      // made without the example refuses.
+      else if ('resetExample' in store) await expect((store as { resetExample(): Promise<unknown> }).resetExample()).rejects.toThrow();
     });
   });
 }
