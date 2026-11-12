@@ -89,6 +89,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “… (worked out when it shows)” | link | `quiet.buttons.length > 0` |
 | “Show the … with nothing flagged” | button | `rest.length > 0` and `rest.length > shown.length` |
 | “Check in” | link | `a.goal.ownerId === app.viewer.id && a.flags.some((f) => f.kind === 'due' \|\| f.kind === 'stale' \|\| f.kind === …` |
+| “See the wrap-up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
+| “See Cycles / Start …” | link | always |
 | “… (worked out when it shows)” | button | `r.id === 'invite'` |
 | “… (worked out when it shows)” | link | `!(r.id === 'invite')` and `r.to` |
 | “Hide this” | button | always |

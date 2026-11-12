@@ -68,3 +68,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - Home rule 2: the lead › no set rhythm: a check-in is never the lead, nothing is due or late
 - Home rule 2: the lead › before the cycle starts, and after it ends
 - Home rule 2: the lead › never says “You’re all set” or “0 weeks”
+- Home after the build review of HM1 › while asks wait, the quiet line doesn’t say nothing is asked

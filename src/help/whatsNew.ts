@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'home-after-review',
+    date: '2026-11-12',
+    title: 'Home says what waits, and keeps every review',
+    points: [
+      'While an ask waits for your response, Home no longer says nothing is asked of you.',
+      'On a phone, the lead’s line and the quiet line wrap instead of being cut short.',
+      'Two reviews on one day both show on Home, and once the year has ended no review is said to be not held.',
+      'Admins see again when the year is ending, with Start for the next one.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'forms-close-in-words',
     date: '2026-11-12',
     title: 'Every form closes in words, and Back finds your list',
