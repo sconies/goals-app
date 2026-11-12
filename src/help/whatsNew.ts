@@ -33,6 +33,28 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['ai-assistants'],
   },
   {
+    id: 'table-check-in-answers',
+    date: '2026-11-12',
+    title: 'The table check-in keeps your answers',
+    points: [
+      'When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.',
+      'A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.',
+      'Questions about a number use the goal’s unit properly: 1 hour, not 1 hours.',
+    ],
+    articles: ['check-in-table', 'check-in'],
+  },
+  {
+    id: 'export-one-button',
+    date: '2026-11-12',
+    title: 'Export is one button',
+    points: [
+      'Excel by default; other formats one click away.',
+      'File names say what’s in them: all, the view’s name, or as-shown.',
+      'On Data, Export and Import sit side by side. Past imports and the template are on the Import page.',
+    ],
+    articles: ['export', 'data'],
+  },
+  {
     id: 'data-feedback-search-words',
     date: '2026-11-12',
     title: 'Data and Feedback search the way Goals does',

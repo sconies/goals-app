@@ -1748,26 +1748,28 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   // Export: a workbook, and JSON another tool can read.
   await h.click(await exportButton(h, p));
   await h.checkpoint('export');
-  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: /Excel workbook/ }))]);
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
+  // The other formats are one click away (import spec 2.9).
+  await h.click(p.getByRole('button', { name: 'Other formats' }));
   const [json] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .json' }))]);
   const data = JSON.parse(fs.readFileSync(await json.path(), 'utf8'));
   const [md] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Save .md' }))]);
   const brief = fs.readFileSync(await md.path(), 'utf8');
   const s = await h.snapshot();
-  h.set('finish', /\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, 'the workbook was not saved');
+  h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, `the workbook was not saved as …-goals-all-{date}.xlsx: ${xlsx.suggestedFilename()}`);
   h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
   await p.context().close();
 }, ['errors']);
 
 journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'mateo'));
-  // Spreadsheets live on Data (the spreadsheets module): its menu opens Import.
+  // Spreadsheets live on Data (the spreadsheets module): Export, a menu, and Import, a link (import spec 2.9).
   await p.goto(url('/data'));
   const menu = p.locator('.data-export > summary');
-  await h.inView(menu, 'entry', 'Spreadsheets on Data');
-  h.set('parity', (await menu.innerText()).trim() === 'Spreadsheets', `Data's menu says “${(await menu.innerText()).trim()}”`);
-  await h.click(menu);
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
+  const link = p.locator('.data-tools .data-import');
+  await h.inView(link, 'entry', 'Import on Data');
+  h.set('parity', (await menu.innerText()).trim() === 'Export' && (await link.innerText()).trim() === 'Import', `Data's tools say “${(await menu.innerText()).trim()}” and “${(await link.innerText()).trim()}”`);
+  await h.click(link);
   await p.waitForURL(/\/data\/import/);
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await h.checkpoint('import');
@@ -2232,7 +2234,7 @@ journey('U34', ['HONEST-NUMBERS', 'SAVED-VIEWS', 'DRAFTS'], 'What you see is wha
   h.set('logged', /attention=1/.test(p.url()), 'the attention filter is not in the link');
   await see(p, /\d+ needs? attention: /, 'the attention filter does not show in the count');
   await h.click(await exportButton(h, p));
-  const scope = p.getByRole('dialog', { name: 'Export goals' }).getByLabel(/What’s shown now/);
+  const scope = p.getByRole('dialog', { name: 'Export', exact: true }).getByLabel(/shown now: /);
   h.set('attention', await scope.isChecked().catch(() => false), 'a filtered export does not start from what is shown');
   await p.keyboard.press('Escape');
   await h.checkpoint('map attention');
@@ -4316,12 +4318,13 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await direct.scrollIntoViewIfNeeded();
   await h.inView(direct, 'entry', 'Export these goals on the Goals screen');
   await h.click(direct);
-  const sheet = p.getByRole('dialog', { name: 'Export goals' });
+  const sheet = p.getByRole('dialog', { name: 'Export', exact: true });
   await sheet.waitFor();
   await see(sheet, 'Results', 'the workbook does not say it has every sheet');
-  await see(sheet, 'CSV files', 'the zipped CSVs are not offered beside the workbook');
+  await h.click(sheet.getByRole('button', { name: 'Other formats' }));
+  await see(sheet, 'CSV files, zipped', 'the zipped CSVs are not offered behind Other formats');
   await h.checkpoint('export choices');
-  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(sheet.getByRole('button', { name: /Excel workbook/ }))]);
+  const [xlsx] = await Promise.all([p.waitForEvent('download'), h.click(sheet.getByRole('button', { name: 'Export .xlsx' }))]);
   const file = path.join(OUT, `U46-${device}.xlsx`);
   await xlsx.saveAs(file);
   const book = await readWorkbook(file);
@@ -4341,8 +4344,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.keyboard.press('Escape');
   // Load it back on Data's Import: exactly those two changes, the stop shown as such, before anything is saved.
   await p.goto(url('/data'));
-  await h.click(p.locator('.data-export > summary'));
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
+  await h.click(p.locator('.data-tools .data-import'));
   await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
@@ -5739,11 +5741,10 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
   await see(p, `Saved 15 changes from u90-${device}.xlsx.`, 'Imported does not say what was saved from which file');
   h.set('entry', await p.getByRole('button', { name: 'Undo this import' }).isVisible(), 'Imported does not offer Undo');
   await h.checkpoint('imported');
-  // Data → Spreadsheets → Past imports: the import by its file's name.
+  // Data → Import → All {n} past imports: the import by its file's name.
   await p.goto(url('/data'));
-  const menu = p.locator('.data-export').first();
-  await h.click(menu);
-  await h.click(p.locator('.data-export').getByRole('button', { name: 'Past imports' }));
+  await h.click(p.locator('.data-tools .data-import'));
+  await h.click(p.getByRole('link', { name: /^All \d+ past imports?$/ }));
   await p.waitForURL(/\/data\/imports/);
   await see(p, `u90-${device}.xlsx`, 'Past imports does not list the import by its file');
   // Rhea posts a check-in on one of the imported goals.

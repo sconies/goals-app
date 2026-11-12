@@ -2181,6 +2181,135 @@ var init_numbers = __esmMin((() => {
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
 }));
+// src/domain/format.ts
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+function unitFor(n, unit) {
+	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
+function fmt(v, g) {
+	const n = fixed(v, g.decimals);
+	if (!g.unit) return n;
+	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
+}
+/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+function nowText(g, a) {
+	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
+}
+/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
+function fmtDiff(v, g) {
+	const n = fixed(Math.abs(v), g.decimals);
+	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
+	return g.unit ? n + " " + unitFor(n, g.unit) : n;
+}
+/**
+* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
+* 0–100% (`share`); the range never says less than nothing or more than everything.
+*/
+function rangeText(p, g, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
+	if (lo === hi) return lo;
+	const bare = (v) => fixed(clamp(v), g.decimals);
+	return `${bare(p.low)}–${hi}`;
+}
+function kindLabel(g) {
+	if (g.kind === "milestone") return "Hit dated stages";
+	if (g.kind === "range") return "Keep a number in range";
+	return "Move a number";
+}
+function targetText(g) {
+	if (g.kind === "metric") return fmt(g.plan.target, g);
+	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
+	const last = g.stages[g.stages.length - 1];
+	return last ? "All by week " + last.dueWeek : "No stages";
+}
+/** Short words for the gap against plan, and its tone for colour. */
+function gapText(g, a) {
+	if (a.calc === "planned") return {
+		short: LABEL.planned,
+		long: "It starts this week",
+		tone: "stale"
+	};
+	if (a.calc === "none") return {
+		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
+		long: LABEL.none,
+		tone: "stale"
+	};
+	if (a.kind === "metric" && g.kind === "metric") {
+		const actual = a.actual;
+		if (a.ratio == null) return {
+			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
+			long: "No change planned yet",
+			tone: a.behind ? "risk" : "on"
+		};
+		const pct = Math.round(a.ratio * 100);
+		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
+		return {
+			short: gapPhrase(better, fmtDiff(better, g)),
+			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
+			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
+		};
+	}
+	if (a.kind === "range") {
+		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
+		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
+		if (a.calc === "off") return {
+			short: `${side} the ${lim} limit, 2 weeks running`,
+			long: "The guardrail has been breached two weeks running",
+			tone: "off"
+		};
+		if (a.out) return {
+			short: `${side} the ${lim} limit`,
+			long: "The guardrail was breached this week; two weeks running makes it off track",
+			tone: "risk"
+		};
+		if (a.previousOut) return {
+			short: `Back inside the ${lim} limit`,
+			long: "Over the limit last week, back inside this week",
+			tone: "risk"
+		};
+		if (a.near) return {
+			short: `Near the ${lim} limit`,
+			long: "Inside the warning margin, not yet breached",
+			tone: "risk"
+		};
+		return {
+			short: `Inside the ${lim} limit`,
+			long: "Inside the limit",
+			tone: "on"
+		};
+	}
+	if (a.kind === "milestone") {
+		if (a.calc === "done") return {
+			short: GAP.reached.label,
+			long: "Every stage is done",
+			tone: "on"
+		};
+		const first = a.late[0];
+		if (first) return {
+			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
+			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
+			tone: a.calc === "off" ? "off" : "risk"
+		};
+		return {
+			short: STAGE.planned.label,
+			long: "Every stage " + STAGE.planned.label.toLowerCase(),
+			tone: "on"
+		};
+	}
+	return {
+		short: "",
+		long: "",
+		tone: "stale"
+	};
+}
+var NO_VALUE$1, weekLabel;
+var init_format = __esmMin((() => {
+	init_numbers();
+	init_vocabulary();
+	NO_VALUE$1 = "No value yet";
+	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
+}));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
 function unchangedStory(draft, reason, path) {
@@ -2347,7 +2476,7 @@ function checkInLevels(goal, week, draft, own) {
 	const last = previousFor(own, week).number;
 	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
 	const n = parseNumber(draft.value);
-	const u = (v) => fixed(v, goal.decimals) + (goal.unit === "%" ? "%" : goal.unit ? " " + goal.unit : "");
+	const u = (v) => fmt(v, goal);
 	if (p?.block) mustFix.push({
 		field: "This week’s number",
 		says: p.text
@@ -2379,6 +2508,7 @@ var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_COD
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
+	init_format();
 	init_numbers();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
@@ -2423,135 +2553,6 @@ var init_checkin = __esmMin((() => {
 		from: c.question,
 		to: said(c)
 	}));
-}));
-// src/domain/format.ts
-/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
-function unitFor(n, unit) {
-	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
-}
-function fmt(v, g) {
-	const n = fixed(v, g.decimals);
-	if (!g.unit) return n;
-	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
-}
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
-function nowText(g, a) {
-	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
-}
-/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
-function fmtDiff(v, g) {
-	const n = fixed(Math.abs(v), g.decimals);
-	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	return g.unit ? n + " " + unitFor(n, g.unit) : n;
-}
-/**
-* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
-* 0–100% (`share`); the range never says less than nothing or more than everything.
-*/
-function rangeText(p, g, share = false) {
-	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
-	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
-	if (lo === hi) return lo;
-	const bare = (v) => fixed(clamp(v), g.decimals);
-	return `${bare(p.low)}–${hi}`;
-}
-function kindLabel(g) {
-	if (g.kind === "milestone") return "Hit dated stages";
-	if (g.kind === "range") return "Keep a number in range";
-	return "Move a number";
-}
-function targetText(g) {
-	if (g.kind === "metric") return fmt(g.plan.target, g);
-	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
-	const last = g.stages[g.stages.length - 1];
-	return last ? "All by week " + last.dueWeek : "No stages";
-}
-/** Short words for the gap against plan, and its tone for colour. */
-function gapText(g, a) {
-	if (a.calc === "planned") return {
-		short: LABEL.planned,
-		long: "It starts this week",
-		tone: "stale"
-	};
-	if (a.calc === "none") return {
-		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
-		long: LABEL.none,
-		tone: "stale"
-	};
-	if (a.kind === "metric" && g.kind === "metric") {
-		const actual = a.actual;
-		if (a.ratio == null) return {
-			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
-			long: "No change planned yet",
-			tone: a.behind ? "risk" : "on"
-		};
-		const pct = Math.round(a.ratio * 100);
-		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
-		return {
-			short: gapPhrase(better, fmtDiff(better, g)),
-			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
-			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
-		};
-	}
-	if (a.kind === "range") {
-		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
-		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
-		if (a.calc === "off") return {
-			short: `${side} the ${lim} limit, 2 weeks running`,
-			long: "The guardrail has been breached two weeks running",
-			tone: "off"
-		};
-		if (a.out) return {
-			short: `${side} the ${lim} limit`,
-			long: "The guardrail was breached this week; two weeks running makes it off track",
-			tone: "risk"
-		};
-		if (a.previousOut) return {
-			short: `Back inside the ${lim} limit`,
-			long: "Over the limit last week, back inside this week",
-			tone: "risk"
-		};
-		if (a.near) return {
-			short: `Near the ${lim} limit`,
-			long: "Inside the warning margin, not yet breached",
-			tone: "risk"
-		};
-		return {
-			short: `Inside the ${lim} limit`,
-			long: "Inside the limit",
-			tone: "on"
-		};
-	}
-	if (a.kind === "milestone") {
-		if (a.calc === "done") return {
-			short: GAP.reached.label,
-			long: "Every stage is done",
-			tone: "on"
-		};
-		const first = a.late[0];
-		if (first) return {
-			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
-			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
-			tone: a.calc === "off" ? "off" : "risk"
-		};
-		return {
-			short: STAGE.planned.label,
-			long: "Every stage " + STAGE.planned.label.toLowerCase(),
-			tone: "on"
-		};
-	}
-	return {
-		short: "",
-		long: "",
-		tone: "stale"
-	};
-}
-var NO_VALUE$1, weekLabel;
-var init_format = __esmMin((() => {
-	init_numbers();
-	init_vocabulary();
-	NO_VALUE$1 = "No value yet";
-	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
 }));
 // src/domain/trend.ts
 /**
@@ -14730,7 +14731,7 @@ var help$2 = [
 			{
 				heading: "How to use it",
 				list: [
-					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
+					"On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.",
 					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
@@ -14839,7 +14840,7 @@ var help$2 = [
 			{
 				heading: "The list",
 				list: [
-					"On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
+					"On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
 					"Find one by its file, by who made it or by what it changed. Open one to see what it saved.",
 					"In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own."
 				]
@@ -14878,21 +14879,23 @@ var help$2 = [
 	{
 		id: "export",
 		title: "Exporting",
-		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
+		summary: "One button: Export .xlsx. Zipped CSVs, one sheet as CSV, JSON and a brief for an AI chat are under Other formats.",
 		group: "data",
 		after: "import",
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-				"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.",
+				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.",
+				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
+				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
-				"The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.",
-				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
+				"Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.",
+				"The template is on the Import page and in Every column, and what it needs: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported. It is saved as faro-template.xlsx.",
 				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
 				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
+				"Exports hold names and the owners’ reasons. Share them as you would the app."
 			]
 		}],
 		routes: [],
@@ -15420,6 +15423,7 @@ var CORE_ARTICLES = [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
 					"Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.",
+					"A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.",
 					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
 					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
 					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
@@ -16440,7 +16444,7 @@ var CORE_ARTICLES = [
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
-					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
+					"Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -17010,7 +17014,7 @@ var CORE_ARTICLES = [
 					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
-					"Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
+					"Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
 				]
 			},
 			{
@@ -17512,6 +17516,28 @@ var WHATS_NEW = [
 		title: "A pasted Goals link keeps its tab",
 		points: ["Give an AI assistant a Goals link and it finds the goals the link shows: a link to Mine finds your goals, not everyone’s.", "Asking for a tab in words (“my team’s goals”) still wins over the link’s."],
 		articles: ["ai-assistants"]
+	},
+	{
+		id: "table-check-in-answers",
+		date: "2026-11-12",
+		title: "The table check-in keeps your answers",
+		points: [
+			"When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.",
+			"A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.",
+			"Questions about a number use the goal’s unit properly: 1 hour, not 1 hours."
+		],
+		articles: ["check-in-table", "check-in"]
+	},
+	{
+		id: "export-one-button",
+		date: "2026-11-12",
+		title: "Export is one button",
+		points: [
+			"Excel by default; other formats one click away.",
+			"File names say what’s in them: all, the view’s name, or as-shown.",
+			"On Data, Export and Import sit side by side. Past imports and the template are on the Import page."
+		],
+		articles: ["export", "data"]
 	},
 	{
 		id: "data-feedback-search-words",
@@ -19698,9 +19724,10 @@ var _virtual_faro_modules_default = [{
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
+			"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
 			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
 			"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
 			"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
