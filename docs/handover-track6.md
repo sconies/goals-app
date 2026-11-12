@@ -69,6 +69,13 @@ The ground rules:
   - **Tests:** `src/spec/calls.test.ts`.
   - **Not done:** the command port still has no contract *test* (nothing runs the actions against a server). `MetricInput` is missing from the types appendix because the checker loses its alias inside an intersection; its fields are listed on the action.
 
+- **KT7, gap 5 (this PR).** Five more requirements for the internal app, in `src/spec/platform.ts` (the same `InternalRequirement` shape as R1 to R4, spliced into `INTERNAL` in `src/spec/internal.ts`, listed in `INTERNAL_PAGES`):
+  - **R5** notifications and the weekly habit: channels, what is sent and when, the digest's words, check-in from a notification, never shame, streaks that forgive, the habit measure ("before the review, without a nudge"), one sign-in with a role per workspace, feedback per workspace. One example runs `onTimeStreak` to show today's streak doesn't forgive.
+  - **R7** retention, privacy and erasure; **R8** audit; **R9** observability and service levels (replaces the "Observability, as an idea" note, now gone); **R10** accessibility (WCAG 2.2 AA).
+  - Decisions taken with the 12 Nov evaluation's recommended answers (habit measure 2a, digests 3a); every figure is marked a proposal.
+
+- **KT8, gap 6's last items.** `src/spec/thresholds.ts` (`NAMED_THRESHOLDS`, `thresholdClashes`): every page of `spec/` and `llms.txt` that names a threshold in words must give the code's number; a new named threshold gets a line there. `RULE_PAGES`' third column is now each rule's `summary` from `src/spec/rules.ts`, word for word (`spec.test.ts` checks), so `llms.txt` says what the rule page says.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -82,9 +89,9 @@ The ground rules:
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
      - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
-2. **Gap 5 (next to build unless track 4 has merged):** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
+2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-3. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
+3. **Gaps 7 to 9:** the rest, in the review's order (gap 6 is done: KT1 and KT8).
 
 ## Things to know
 
