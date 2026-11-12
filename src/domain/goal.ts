@@ -1,6 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
-import { farOutside, fixed, setupProblem, typedDecimals } from './numbers';
+import { farOutside, fixed, typedDecimals } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { CheckIn, Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, Status } from './types';
 import { assessMilestone } from './status';
@@ -82,22 +82,12 @@ export function decimalsFor(d: Pick<GoalDraft, 'kind' | 'decimals' | 'start' | '
 }
 
 /**
- * Checks worth making on a goal's numbers as typed: asked beside the field, never refused (backlog N). Over 100% first
- * (overHundredHint), then a negative time, money or percentage, a target a hundred times the start, or a billion or more.
- */
-export function planHint(d: Pick<GoalDraft, 'kind' | 'unit' | 'start' | 'target' | 'limit'>): string | null {
-  if (d.kind === 'metric') return overHundredHint(d.unit, d.start, d.target) ?? setupProblem(d.unit, parseNumber(d.start), parseNumber(d.target));
-  if (d.kind === 'range') return setupProblem(d.unit, parseNumber(d.limit), null);
-  return null;
-}
-
-/**
  * A question a number goal's changed plan must answer before it's saved (backlog N, the same plausibility rule as a
  * check-in's, applied to target and plan edits in the app, the import and the AI tools). Confirmed, never silent, never
  * refused:
  * - `direction`: the new target is on the other side of the start, so which way is better flips;
  * - `far`: a new start, target or hand-set week is far outside the plan it replaces (`farOutside`).
- * Null when the plan is unchanged, or for a new goal (its numbers are asked about by `planHint`).
+ * Null when the plan is unchanged, or for a new goal. Goal entry's rule 3 (domain/goalEntry goalChecks) asks it.
  */
 export interface PlanQuestion { code: 'direction' | 'far'; text: string; confirm: string }
 
@@ -203,17 +193,6 @@ export function replanned(existing: MetricGoal, plan: MetricPlan, started: boole
 }
 
 export { goalAsOf, planAsOf, planHistoryOf } from './plan';
-
-/**
- * A percentage goal planned past 100% is either growth (fine) or a share like coverage that can't pass 100% (a mistake).
- * Only the person setting it up knows which, so ask, in the same words everywhere a goal is set.
- */
-export function overHundredHint(unit: string, start: string, target: string): string | null {
-  if (unit.trim() !== '%') return null;
-  const s = parseNumber(start), t = parseNumber(target);
-  if ((s == null || s <= 100) && (t == null || t <= 100)) return null;
-  return 'Over 100%. Fine for growth; but if this is a share of something (coverage, adoption), it can’t pass 100%, so check the target.';
-}
 
 /* ---------- a stage already past at set-up (onboarding spec, rule 3; OB2) ---------- */
 

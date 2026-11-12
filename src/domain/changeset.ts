@@ -22,8 +22,8 @@ import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
 } from './columns';
-import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planHint, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
-import { goalMustFix, type GoalField, type MustFixId } from './goalEntry';
+import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
+import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
@@ -80,6 +80,8 @@ export interface Item {
   needsReason?: boolean;
   /** A plan change that must be confirmed before it's saved (goal planQuestion): what it asks, and the yes. */
   question?: { text: string; confirm: string };
+  /** Every question the row asks and nobody has answered yet (goal entry, rule 3): its id, the column, the words. */
+  questions?: { id: string; field: string; text: string }[];
 }
 export interface ChangeSet {
   items: Item[];
@@ -182,8 +184,17 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
   'start-empty': 'required-empty', 'target-empty': 'required-empty', 'limit-empty': 'required-empty', 'stage-none': 'required-empty',
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
   'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number',
-  'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-past': 'stage-format', 'stage-done-removed': 'cant-change',
+  'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
 };
+
+/** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
+const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
+  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number',
+};
+/** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
+const GOAL_QUESTION: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
+/** What `confirm` (the tools' and older screens' one switch) answers yes: every question of rule 3 the engine asks here. */
+const CONFIRMED: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit'];
 
 /* ---------- the change set ---------- */
 
@@ -209,7 +220,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
    * question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
    */
   const ask = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra): Answer | 'leave' | null => {
-    const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && kind === 'odd-number' ? { choice: 'right' } : undefined);
+    const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : undefined);
     if (a?.choice === 'leave') { leave(sheet, row); return 'leave'; }
     if (a) return a;
     raise(kind, sheet, row, name, message, x);
@@ -790,14 +801,23 @@ export function planChanges(input: ChangeInput): ChangeSet {
       for (const f of fix) raise(MUST_KIND[f.id], 'Goals', row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? 'Goal' });
       return;
     }
-    const hint = planHint(d) ?? (d.kind === 'range' && Number(d.margin) > 0 && Number(d.margin) >= Math.abs(Number(d.limit)) && Number(d.limit) !== 0 ? `The warning margin (${d.margin}) is as large as the limit (${d.limit}). Is that right?` : null);
     // Two goals may share a title (two teams can both "Reduce latency"): a new one that does is said, never refused.
     if (!existing) {
       const twin = sameTitleNote(d.title, null, s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt), (t) => teams.get(t)?.name ?? '');
       if (twin) note('same-name', 'Goals', row, d.title, twin);
     }
-    // An unlikely number is asked, never refused; and only once: a goal already set up this way isn't asked again.
-    if (hint && (!existing || planHint(draftOf(existing)) !== hint) && ask('odd-number', 'Goals', row, d.title, hint, { column: d.kind === 'range' ? 'Limit' : 'Target', found: oddKind(hint), answers: ANSWERS.odd }) === 'leave') return;
+    // What is asked (goal entry, rule 3): the same questions, in the same words, as New goal and the edit page. A goal
+    // already set up this way isn't asked again (goalChecks asks only what a change makes new). The import keeps its own
+    // forms of three of them, with their richer answers: no unit (no-unit), the same name (same-goal) and stages already
+    // past (past-stage); a changed plan's question is asked once the change is known (plan-question, below), and a link
+    // to a lower level once the links are read (feeds-lower). An owner in another team isn't asked of a file: its Team
+    // column says the team in so many words, where the form's team follows the owner until chosen by hand.
+    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle });
+    for (const c of checks) {
+      const kind = ENGINE_CHECK[c.id];
+      if (!kind) continue;
+      if (ask(kind, 'Goals', row, d.title, c.question, { column: FIELD_COLUMN[c.field] ?? 'Goal', found: c.id, answers: ANSWERS.odd }) === 'leave') return;
+    }
 
     const gid = existing?.id ?? newId('goal', d.title);
     if (create && id) fileIds.set(id, gid);
@@ -862,6 +882,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (parentId === l.id) { raise('loop', 'Goals', l.row, g.title, 'A goal can’t feed into itself.', { column: 'Feeds into' }); continue; }
     if (parentId && makesLoop(l.id, parentId, [...work.values()])) { raise('loop', 'Goals', l.row, g.title, 'That link would make a loop: the goal it feeds already feeds into it.', { column: 'Feeds into' }); continue; }
     const next = { ...g, parentId } as Goal;
+    // A link to a goal at a lower level is asked about (goal entry, rule 3's feeds-lower), never refused.
+    const up = parentId ? work.get(parentId) : undefined;
+    if (up) {
+      const q = goalChecks(draftOf(next), { week, cycleWeeks: cycle.weeks, existing: before, door: 'table', levels: cycle, parent: { id: up.id, title: up.title, level: up.level } }).find((c) => c.id === 'feeds-lower');
+      if (q && ask('feeds-lower', 'Goals', l.row, g.title, q.question, { column: 'Feeds into', found: `${g.level}>${up.level}`, answers: ANSWERS.feedsLower }) === 'leave') { touched.delete(l.id); continue; }
+    }
     if (!parentId) { next.effect = null; delete next.whyHelps; }
     else {
       // Why it helps and the effect belong to the link: a goal given one now takes them from its row.
@@ -993,7 +1019,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     goalOut.set(id, after);
     changes.push(ch);
-    items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs, ...(q ? { question: { text: q.text, confirm: q.confirm } } : {}) });
+    // Every question this row asks (goal entry, rule 3), said on its item: the preview's and the tools' questions.
+    const asked = issues.filter((x) => x.sheet === t.sheet && x.row === t.row && x.level === 'check' && GOAL_QUESTION.includes(x.kind)).map((x) => ({ id: x.kind === 'plan-question' ? (x.found === 'direction' ? 'direction' : 'far-from-plan') : x.kind === 'no-unit' || !x.found || x.kind === 'feeds-lower' ? x.kind : x.found, field: x.column ?? 'Goal', text: x.message }));
+    items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs, ...(q ? { question: { text: q.text, confirm: q.confirm } } : {}), ...(asked.length ? { questions: asked } : {}) });
   }
 
   /* ---------- check-ins ---------- */

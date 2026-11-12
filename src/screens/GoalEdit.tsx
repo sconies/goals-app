@@ -5,15 +5,15 @@ import { useApp } from '../app/state';
 import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { buildGoal, draftOf, planHint, planChanged, planQuestion, type GoalDraft } from '../domain/goal';
-import { goalMustFix, REASON_EMPTY, type GoalField } from '../domain/goalEntry';
+import { buildGoal, draftOf, planChanged, type GoalDraft } from '../domain/goal';
+import { checksContext, goalChecks, goalMustFix, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
-import { DueField, FieldError, LevelField, StageFields, stageErrors } from '../ui/GoalFields';
+import { DueField, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
@@ -49,7 +49,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
-  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
+  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const loc = useLocation();
@@ -79,11 +79,19 @@ function EditSheet({ goal }: { goal: Goal }) {
   const valid = fix.length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
-  // A target that flips which way is better, or a number far outside the plan, is confirmed before it's saved (domain/goal
-  // planQuestion). The yes answers that question only: change the numbers again and it's asked again.
-  const question = built ? planQuestion(goal, built) : null;
-  const [yesTo, setYesTo] = useState('');
-  const confirmed = !question || yesTo === question.text;
+  // What is asked (goal entry, rule 3): the same questions as New goal, under the field each is about, and only what this
+  // change makes new (a target that flips which way is better, a number far outside the old plan, an unlikely number, a
+  // link to a lower level, an owner in another team). An answer holds for the values it was about.
+  const answers: GoalAnswers = d.answers ?? {};
+  const checks = goalChecks(d, checksContext(d, { person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals) },
+    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, mustFix: fix }));
+  const open = unanswered(checks, answers);
+  const confirmed = open.length === 0;
+  const onNo = (c: GoalCheck) => { if (c.opens) nav('/goals/' + c.opens); else if (c.noDoes) set(c.noDoes); };
+  const questions = (f: GoalField) => (
+    <Questions checks={checks.filter((c) => c.field === f)} answers={answers} onAnswer={(c) => set({ answers: { ...answers, [c.slot]: c.key } })} onNo={onNo}
+      onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest }); }} alertSlot={tried ? open[0]?.slot ?? null : null} />
+  );
   // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
   const yearEnd = yearEndWeek(cycle);
   const endOptions = dueOptions(cycle, week, yearEnd);
@@ -108,8 +116,8 @@ function EditSheet({ goal }: { goal: Goal }) {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
       // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
-      const { reason, ...draft } = d;
-      const saved = changed ? await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), confirm: !!question && confirmed }) : after;
+      const { reason, answers: _a, ...draft } = d;
+      const saved = changed ? await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers }) : after;
       if (measure) await app.run(measure.action, measure.input(saved));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
@@ -161,15 +169,11 @@ function EditSheet({ goal }: { goal: Goal }) {
             <>
               <div className="pair">
                 <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
-                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
+                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
               </div>
-              {question && (
-                <div className={'field plan-question' + (tried && !confirmed ? ' invalid' : '')} role={tried && !confirmed ? 'alert' : 'status'}>
-                  <span className="hint tone-risk">{question.text}</span>
-                  <label className="check"><input type="checkbox" checked={yesTo === question.text} onChange={(e) => setYesTo(e.target.checked ? question.text : '')} /><span>{question.confirm}</span></label>
-                  {tried && !confirmed && <FieldError>Confirm this to save, or change the numbers.</FieldError>}
-                </div>
-              )}
+              {questions('unit')}
+              {questions('start')}
+              {questions('target')}
               {reasonField}
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
@@ -185,6 +189,7 @@ function EditSheet({ goal }: { goal: Goal }) {
                 </details>
               )}
               {err('points')}
+              {questions('points')}
             </>
           )}
           {goal.kind === 'range' && (
@@ -195,10 +200,11 @@ function EditSheet({ goal }: { goal: Goal }) {
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                 </div>
               </div>
-              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}{planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
+              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
               <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
+          {goal.kind === 'range' && <>{questions('unit')}{questions('limit')}{questions('margin')}</>}
           {goal.kind === 'milestone' && (
             <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
@@ -212,9 +218,11 @@ function EditSheet({ goal }: { goal: Goal }) {
             <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => id && set({ ownerId: id })} />
             <PickOne kind="team" label="Team" value={d.teamId || null} onChange={(id) => id && set({ teamId: id })} />
           </div>
+          {questions('teamId')}
           <LevelField level={d.level} onChange={(level) => set({ level })} labelClass="field-label" />
           <PickOne kind="goal" label="Feeds into" none="Nothing: top of its own tree" value={d.parentId || null} onChange={(id) => set({ parentId: id ?? '', alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })}
             hide={[goal.id]} refuse={(row) => (below.has(row.id) ? 'Feeds this goal already' : null)} />
+          {questions('parentId')}
           <Pick kind="goal" several label="Also helps" hint="optional · a dotted line on the map" value={d.alsoHelps ?? []} onChange={(alsoHelps) => set({ alsoHelps })}
             hide={[goal.id]} refuse={(row) => (row.id === d.parentId ? 'It feeds this one already' : null)} />
           {d.parentId && (

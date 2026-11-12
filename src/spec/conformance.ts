@@ -277,6 +277,11 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'same-as-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '10' })] },
     { case: 'stage-twice', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@50; design@51' }] },
     { case: 'for-someone-else', actor: 'tunde', sheet: 'goals', rows: [fresh({ Goal: 'A north star for Rhea', Level: 'north star' })] },
+    // Goal entry's rule 3 (GE2): the same questions and words as New goal, each that applies, one answer per question.
+    { case: 'over-100-and-hundredfold', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '10', Target: '1500' })] },
+    { case: 'over-100-answered', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '50', Target: '150' })], answers: { 'odd-number:goals:target:over-100': 'right' } },
+    { case: 'margin-wide', actor: 'amara', sheet: 'goals', rows: [fresh({ Type: 'range', Start: '', Target: '', Limit: '12', Margin: '20' })] },
+    { case: 'feeds-lower', actor: 'amara', sheet: 'goals', rows: [fresh({ Level: 'north star', 'Feeds into key': 'G-14' })] },
     { case: 'removal-refused', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop' }] },
     { case: 'loop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', 'Feeds into key': 'G-1' }] },
     { case: 'near-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })] },

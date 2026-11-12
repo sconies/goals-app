@@ -5,7 +5,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { blankGoal, decimalsFor, type GoalDraft } from './goal';
-import { formNeed, goalMustFix, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, type MustFixContext } from './goalEntry';
+import { formNeed, goalChecks, goalMustFix, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { numberAsTyped } from './numbers';
 import { currentWeek } from './plan';
@@ -84,14 +84,78 @@ describe('what can’t be saved (rule 2)', () => {
 describe('whether a step goes on (rule 4)', () => {
   it('counts each field with a Must fix, in the form’s order, and names the first to focus', () => {
     const fix = goalMustFix(draft({ start: '', target: '30 mins' }), ctx());
-    expect(stepState(2, fix)).toEqual({ go: false, focus: 'start', says: '2 things to fix above: Today and Target.' });
+    expect(stepState(2, fix)).toEqual({ go: false, focus: 'start', check: null, says: '2 things to fix above: Today and Target.' });
     expect(stepState(2, [{ field: 'start', id: 'start-empty', text: '' }, { field: 'target', id: 'target-empty', text: '' }, { field: 'limit', id: 'limit-empty', text: '' }, { field: 'margin', id: 'margin-negative', text: '' }]).says).toBe('4 things to fix above: Today, Target and 2 more.');
-    expect(stepState(2, [])).toEqual({ go: true, focus: null, says: '' });
+    expect(stepState(2, [])).toEqual({ go: true, focus: null, check: null, says: '' });
     // A fault on another step doesn't hold this one.
     expect(stepState(0, fix).go).toBe(true);
   });
 });
 
+describe('what is asked (rule 3)', () => {
+  const cctx = (o: Partial<ChecksContext> = {}): ChecksContext => ({ week: 45, cycleWeeks: 53, existing: null, door: 'form', ...o });
+  const asked = (d: Partial<GoalDraft>, o: Partial<ChecksContext> = {}) => goalChecks(draft(d), cctx(o)).map((c) => c.id);
+  const words = (d: Partial<GoalDraft>, o: Partial<ChecksContext> = {}) => goalChecks(draft(d), cctx(o)).map((c) => c.question);
+  it('asks about unlikely numbers, each that applies, in section 4’s order', () => {
+    expect(asked({ start: '-5', target: '5' })).toEqual(['below-zero']);
+    expect(words({ start: '-5', target: '5' })).toEqual(['-5% is below zero. That’s fine for a change or a balance. Is it right here?']);
+    expect(asked({ start: '10', target: '1500' })).toEqual(['over-100', 'hundredfold']);
+    expect(words({ start: '10', target: '1500' })[1]).toBe('The target (1,500%) is over 100 times where it starts (10%). Is that right?');
+    expect(asked({ unit: 'days', start: '5', target: '2' })).toEqual([]);
+    expect(asked({ unit: 'requests', start: '1', target: '2000000000' })).toEqual(['hundredfold', 'billion']);
+  });
+  it('keys an answer on the values it was about: changing them asks again', () => {
+    const at = (t: string) => goalChecks(draft({ start: '50', target: t }), cctx());
+    const answers = { 'over-100': at('150')[0]!.key };
+    expect(unanswered(at('150'), answers)).toEqual([]);
+    expect(unanswered(at('160'), answers).map((c) => c.id)).toEqual(['over-100']);
+  });
+  it('asks about no unit once, and not of a goal already saved without one', () => {
+    expect(asked({ unit: '', start: '1', target: '5' })).toEqual(['no-unit']);
+    expect(words({ unit: '', start: '1', target: '5' })).toEqual(['This number has no unit. Is it a plain count?']);
+    const saved = { id: 'g', kind: 'metric', title: 'Signed artifacts', teamId: 'cicd', ownerId: 'tunde', io: 'input', level: 'team', guardrail: false, parentId: null, effect: null, source: '', definition: '', unit: '', decimals: 0, plan: { start: 1, target: 5, shape: 'straight' } } as unknown as MetricGoal;
+    expect(goalChecks({ ...draft({ unit: '', start: '1', target: '6' }) }, cctx({ existing: saved })).map((c) => c.id)).toEqual([]);
+  });
+  it('asks about a warning margin as wide as the limit', () => {
+    expect(asked({ kind: 'range', limit: '12', margin: '20' })).toEqual(['margin-wide']);
+    expect(asked({ kind: 'range', limit: '12', margin: '1' })).toEqual([]);
+  });
+  it('asks about a link to a lower level, an owner in another team and the same name in the same team', () => {
+    const parent = { id: 'p', title: 'Flaky test rate', level: 'team' as const };
+    expect(asked({ level: 'north-star', parentId: 'p' }, { parent })).toEqual(['feeds-lower']);
+    expect(words({ level: 'north-star', parentId: 'p' }, { parent })).toEqual(['A north star usually feeds nothing, and “Flaky test rate” is a Team goal. Is this link right?']);
+    expect(words({ level: 'svp', parentId: 'p' }, { parent })).toEqual(['An SVP goal usually feeds a north star, and “Flaky test rate” is a Team goal. Is this link right?']);
+    expect(asked({ level: 'svp', parentId: 'p' }, { parent: { ...parent, level: 'svp' } })).toEqual([]);
+    const other = goalChecks(draft({ ownerId: 'amara' }), cctx({ owner: { name: 'Amara Nwosu', teamId: 'vp', teamName: 'Office of the VP' }, team: { id: 'cicd', name: 'Build & Release' } }));
+    expect(other.map((c) => [c.question, c.yes, c.no])).toEqual([['Amara is in Office of the VP, not Build & Release. Which team is this goal for?', 'Keep it in Build & Release', 'Move it to Office of the VP']]);
+    expect(other[0]!.noDoes).toEqual({ teamId: 'vp' });
+    const twin = { id: 'g73', key: 'G-73', title: 'Signed artifacts', ownerName: 'Rhea Kapoor' };
+    expect(words({}, { team: { id: 'cicd', name: 'Build & Release' }, sameNamed: [twin] })).toEqual(['Build & Release already has a goal called “Signed artifacts” (G-73, owned by Rhea Kapoor). Is this a different goal?']);
+  });
+  it('asks about a hand-set plan that leaves most of the change to the end; a chosen shape never', () => {
+    const points = Object.fromEntries([10, 10, 10, 10, 9, 8].map((v, i) => [String(i + 1), String(v)]));
+    expect(words({ unit: 'days', start: '10', target: '5', endWeek: '7', fromWeek: '0', points })).toEqual(['This plan leaves 80% of the change to the last 2 of 7 weeks. Is that the plan?']);
+    expect(asked({ unit: 'days', start: '10', target: '5', endWeek: '7', fromWeek: '0', shape: 'back' })).toEqual([]);
+  });
+  it('asks whether a stage already past is done; either answer is an answer', () => {
+    const c: GoalCheck[] = goalChecks(draft({ kind: 'milestone', stages: [{ id: 'a', name: 'Design', dueWeek: '43' }, { id: 'b', name: 'Build', dueWeek: '50' }] }), cctx());
+    expect(c.map((x) => [x.slot, x.question, x.yes, x.no])).toEqual([['stage-past:a', 'Week 43 was 2 weeks ago. Is this stage already done?', 'Yes, done in week 43', 'No, it’s overdue']]);
+    expect(c[0]!.noAnswers).toBe(true);
+  });
+  it('asks nothing about a field with a Must fix', () => {
+    const d = draft({ start: '-5', target: '5' });
+    expect(goalChecks(d, cctx({ mustFix: [{ field: 'start', id: 'not-number', text: '' }] })).map((x) => x.id)).toEqual([]);
+  });
+  it('holds a step until its questions are answered, after its Must fix (rule 4)', () => {
+    const checks = goalChecks(draft({ start: '50', target: '150' }), cctx());
+    expect(stepState(2, [], checks).says).toBe('Answer the question above, under Target.');
+    expect(stepState(2, [], [...checks, ...goalChecks(draft({ start: '-5', target: '5' }), cctx())]).says).toBe('Answer the 2 questions above.');
+    expect(stepState(2, [], checks, { 'over-100': checks[0]!.key }).go).toBe(true);
+    expect(stepState(2, [{ field: 'unit', id: 'decimals-range', text: '' }], checks).says).toBe('1 thing to fix above: Unit.');
+  });
+});
+
+const draftAt = (o: Partial<GoalDraft>) => draft(o);
 describe('saving (rule 7)', () => {
   const today = new Date('2026-11-05T12:00:00Z');
   const full = buildPlatformOrg(today);
@@ -101,10 +165,21 @@ describe('saving (rule 7)', () => {
   const as = (who: string): ActionContext => ({ snapshot, cycle, week: currentWeek(cycle, today), actor: full.people.find((p) => p.id === who)!, now: today.toISOString(), newId: (p) => `${p}_t${++n}` });
 
   it('saves a north star Tunde adds for Amara, with the next key and its History entry', () => {
-    const out = planGoal(as('tunde'), { draft: draft({ ownerId: 'amara', level: 'north' }) });
+    // Amara is in another team than CI/CD: asked first, and the answer is kept in History as "Checked".
+    expect(() => planGoal(as('tunde'), { draft: draft({ ownerId: 'amara', level: 'north' }) })).toThrow(/Check with the person first: Amara is in .*, not CI\/CD\. Which team is this goal for\?/);
+    const out = planGoal(as('tunde'), { draft: draft({ ownerId: 'amara', level: 'north' }), answers: { 'owner-other-team': 'amara|cicd' } });
     expect(out.goal).toMatchObject({ ownerId: 'amara', level: 'north', unit: '%', decimals: 0 });
     expect(out.goal.key).toMatch(/^G-\d+$/);
     expect(out.commit?.changes[0]?.actorId).toBe('tunde');
+    expect(out.commit?.changes[0]?.diffs).toContainEqual({ field: 'Checked', from: expect.stringMatching(/^Amara is in /), to: 'Keep it in CI/CD' });
+  });
+  it('refuses a question not yet answered, in its words; confirm answers them all', () => {
+    const team = full.people.find((p) => p.id === 'tunde')!.teamId!;
+    const draft = (o: Partial<GoalDraft>) => draftAt({ teamId: team, ...o });
+    expect(() => planGoal(as('tunde'), { draft: draft({ start: '50', target: '150' }) })).toThrow(/The target is over 100%\. .* Is 150% right\?/);
+    expect(() => planGoal(as('tunde'), { draft: draft({ start: '50', target: '150' }), answers: { 'over-100': '50|150' } })).not.toThrow();
+    expect(() => planGoal(as('tunde'), { draft: draft({ start: '50', target: '160' }), answers: { 'over-100': '50|150' } })).toThrow(/Is 160% right\?/);
+    expect(() => planGoal(as('tunde'), { draft: draft({ start: '50', target: '160' }), confirm: true })).not.toThrow();
   });
   it('refuses what must be fixed, in its words', () => {
     expect(() => planGoal(as('tunde'), { draft: draft({ start: '12 days' }) })).toThrow(/has words in it/);
