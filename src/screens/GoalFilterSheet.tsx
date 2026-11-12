@@ -13,7 +13,7 @@ import { PickOne } from '../ui/Pick';
 import { useGoalQuery } from './GoalFilters';
 
 /** Every filter, changing the goals behind it as you go. */
-export function FilterSheet({ onClose }: { onClose: () => void }) {
+export function FilterSheet({ open = true, onClose }: { open?: boolean; onClose: () => void }) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const { filters: modFilters } = useGoalColumns();
@@ -29,7 +29,7 @@ export function FilterSheet({ onClose }: { onClose: () => void }) {
   const people = app.snapshot.people.filter((p) => app.snapshot.goals.some((g) => g.ownerId === p.id));
   const match = people.filter((p) => owner.trim() && p.name.toLowerCase().includes(owner.trim().toLowerCase()) && !q.owner.includes(p.id)).slice(0, 6);
   return (
-    <Sheet open onClose={onClose} title="Filter goals" wide>
+    <Sheet open={open} onClose={onClose} title="Filter goals" wide>
       <div className="filter-sheet">
         <fieldset className="filter-group"><legend className="field-label">Sort</legend>
           <select className="input" aria-label="Sort" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>

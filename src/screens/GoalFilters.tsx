@@ -77,7 +77,9 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
   const [open, setOpen] = useState(false);
   const { col } = useGoalColumns();
   // The sheet's code arrives a moment after Goals opens, not in the first download, so Filters opens at once.
-  useEffect(() => { const t = window.setTimeout(() => { void loadSheet(); }, 0); return () => window.clearTimeout(t); }, []);
+  // Mounted closed once its code is here, so opening it starts the slide at once.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => { let live = true; void loadSheet().then(() => { if (live) setWarm(true); }); return () => { live = false; }; }, []);
   const names = {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
@@ -107,7 +109,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
           filters. The count is the page's one count line (goals spec, rule 4), not said again here. Saving and sharing
           are in the Views menu (or the phone's View sheet), the same on every width (GL2). */}
       <FilterLine parts={parts} onRemove={(k) => setQ((cur) => without(cur, k))} onClear={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, attention: cur.attention, sort: cur.sort, dir: cur.dir }))} />
-      {open && <Suspense fallback={null}><FilterSheet onClose={() => setOpen(false)} /></Suspense>}
+      {(open || warm) && <Suspense fallback={null}><FilterSheet open={open} onClose={() => setOpen(false)} /></Suspense>}
     </div>
   );
 }
