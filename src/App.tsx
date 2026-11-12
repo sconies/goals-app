@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AppProvider, useApp } from './app/state';
 import type { Mode, Store } from './data/store';
-import type { Identity } from './ports';
+import type { Clock, Identity } from './ports';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalEdit } from './screens/GoalEdit';
@@ -14,27 +14,34 @@ import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
 import { movedTo } from './domain/directory';
-import { Onboarding, Welcome } from './screens/Onboarding';
 import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
-import { Research } from './screens/Research';
-import { Settings } from './screens/Settings';
 import { MotionLayer } from './ui/Count';
-import { MotionLab } from './ui/MotionLab';
-import { HelpArticle, HelpHome, WhatsNew } from './screens/Help';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
 // Screens a first visit never needs load when first opened, to keep the first download small (AX4; the bundle budget
 // is scripts/check-bundle.mjs).
+// Screens a first visit doesn't open load when they are opened (the bundle budget, scripts/check-bundle.mjs).
+const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
+// Set-up (a new workspace, and the welcome of an empty one) is opened once, not on a usual first visit.
+const Onboarding = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })));
+const Welcome = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Welcome })));
+const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
+const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
+const StartNext = lazy(() => import('./screens/StartNext').then((m) => ({ default: m.StartNext })));
 const RetroGoal = lazy(() => import('./screens/Retro').then((m) => ({ default: m.RetroGoal })));
+// Help and What's new carry the whole guide and every release (about 200 KB): the first download has only their index.
+const HelpHome = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpHome })));
+const HelpArticle = lazy(() => import('./screens/Help').then((m) => ({ default: m.HelpArticle })));
+const WhatsNew = lazy(() => import('./screens/Help').then((m) => ({ default: m.WhatsNew })));
 
 export function Routed() {
   const app = useApp();
@@ -45,7 +52,7 @@ export function Routed() {
   return (
     <Shell>
       <MotionLayer />
-      <MotionLab />
+      <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
       <Suspense fallback={null}>
@@ -87,6 +94,7 @@ export function Routed() {
         {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
         <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
         <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
+        <Route path="/workspace/cycles/next" element={<StartNext />} />
         <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />
         <Route path="/workspace/access" element={<WorkspaceHome section="access" />} />
         <Route path="/workspace/features" element={<WorkspaceHome section="features" />} />
@@ -108,10 +116,11 @@ export function Routed() {
   );
 }
 
-export function App({ store, identity, mode = 'demo', today }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date }) {
+/** `clock` is the real time (the Clock port, the system's by default); `today` pins the app's day for the demo and the evals. */
+export function App({ store, identity, mode = 'demo', clock, today }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date }) {
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
-      <AppProvider store={store} identity={identity} mode={mode} today={today} empty={() => <Welcome />}>
+      <AppProvider store={store} identity={identity} mode={mode} clock={clock} today={today} empty={() => <Suspense fallback={null}><Welcome /></Suspense>}>
         <TelemetryRoutes />
         <Routed />
       </AppProvider>

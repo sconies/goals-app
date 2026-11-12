@@ -188,11 +188,11 @@ A reason (cause and explanation) is required when behind plan (below 95%).
 
 ### HONEST-CHECKIN
 
-A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation.
+A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History.
 
 - **Rule:** [What a check-in must say](rules/check-in.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`; “Typing all your numbers in one table” (`check-in-table`), screens `QuickCheckIn`
-- **Journeys and checks:** U57
+- **Journeys and checks:** U57, U111
 
 ### REASON-AHEAD
 
@@ -223,10 +223,11 @@ The check-in shows actual against plan today, the gap, the forecast and the calc
 
 ### ONE-PER-WEEK
 
-Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such.
+Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools.
 
+- **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1
+- **Journeys and checks:** U1, U111
 
 ### UPDATE-ANYTIME
 
@@ -287,6 +288,7 @@ Goals are shown as trees: each goal that feeds nothing heads a tree, with what f
 
 Every goal has a level, Team by default, or SVP or North star for goals reported at major reviews. The owner sets it; it is separate from what a goal feeds, and changes are logged.
 
+- **Rule:** [Levels](rules/levels.md)
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`; “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U4, U9, U13
 
@@ -311,7 +313,7 @@ Search, filter and sort the goals in every layout and in exports. Search covers 
 
 - **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** N10, U32, U33, U34, U87
+- **Journeys and checks:** N10, U32, U33, U34, U135
 
 ### GOAL-SUMMARY
 
@@ -430,7 +432,7 @@ Goals' address names the scope, the group, the layout and the switch; every old 
 Goals' Layout, Group and Views are menus with one meaning on every width: Layout says the open layout and what each one is; Views holds the saved views, Save this view, Copy link and Export these goals. On a phone one View sheet holds Layout, Group, Saved views and the same actions, opened from a button that says the layout and group. The head and the bar keep their place and width in every layout, and on the Map Group and Sort say the Map is always the trees.
 
 - **Help:** “Goals and its layouts” (`goals`), screens `GoalsScreen`, `GoalViews`, `GoalTable`, `GoalBoard`, `BulkEdit`
-- **Journeys and checks:** U87
+- **Journeys and checks:** U135
 
 ## Platform
 
@@ -480,7 +482,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, P10
+- **Journeys and checks:** F10, F15, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -495,7 +497,7 @@ Every address that worked before still lands on the right page, without a histor
 
 - **Rule:** [The directory: who People lists, what a search finds, and where old addresses lead](rules/directory.md)
 - **Help:** “People: finding someone” (`people`), screens `People`
-- **Journeys and checks:** U58
+- **Journeys and checks:** U58, U81
 
 ### BRAND
 
@@ -802,9 +804,17 @@ Goals are set for the year: a goal year starting in the month each workspace pic
 
 A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun.
 
-- **Rule:** [A year’s end](rules/year-end.md)
-- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Workspace: Cycles” (`workspace-cycles`)
+- **Rule:** [A year’s end](rules/year-end.md), [Starting the next year](rules/start-next-year.md)
+- **Help:** “Wrapping up the year, and the next one” (`wrap-up`), screens `Retro`; “Starting the next year” (`start-next-year`), screens `StartNext`; “Workspace: Cycles” (`workspace-cycles`)
 - **Journeys and checks:** U117
+
+### CARRY-GOALS
+
+An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true.
+
+- **Rule:** [Starting the next year](rules/start-next-year.md), [The carry rule, and what comes with a goal](rules/carry.md)
+- **Help:** “Starting the next year” (`start-next-year`), screens `StartNext`
+- **Journeys and checks:** U115
 
 ### CALENDAR-WEEKS
 
@@ -830,7 +840,7 @@ A goal map shows every goal on a canvas that can be panned, zoomed and rearrange
 
 - **Rule:** [The goal map](rules/map.md)
 - **Help:** “The goal map” (`goal-map`), screens `GoalMap`
-- **Journeys and checks:** U26, U30, U87
+- **Journeys and checks:** U26, U30, U135
 
 ## AI assistants
 
@@ -919,7 +929,7 @@ Numbers people can trust. A whole workbook loads back for a goal owner, with onl
 - **Rule:** [A goal’s status](rules/status.md), [The scorecard](rules/scorecard.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Tests:** `evals/scenarios.eval.ts` (5)
-- **Journeys and checks:** U30, U31, U34, U54
+- **Journeys and checks:** N16, U30, U31, U34, U54
 
 ## Layout
 

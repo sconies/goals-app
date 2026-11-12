@@ -1,6 +1,6 @@
 /* Search, filters and sort for the goals: one definition of what each means, used by the Goals screen in every layout,
    by exports, by saved views and shared links (as a query string), and by the AI assistant's find_goals. */
-import { LEVEL_LABEL } from './format';
+import { isLevel, levelName, levelRank } from './levels';
 import { onAttentionList } from './attention';
 import { RANK } from './status';
 import { formatKey, normalKey } from './goalKey';
@@ -54,7 +54,6 @@ const OLD_NEEDS: Record<string, Need | null> = { 'no-recovery': 'no-path', 'miss
 export const RESULT_OPTIONS: [Result, string][] = (['completed', 'late', 'missed', 'open'] as const).map((k) => [k, RESULT[k].label]);
 export const KIND_OPTIONS: [GoalKind, string][] = [['metric', 'Move a number'], ['range', 'Keep in range'], ['milestone', 'Dated stages']];
 export const SORT_OPTIONS: [SortKey, string][] = [['worst', 'Worst first'], ['title', 'Name'], ['owner', 'Owner'], ['team', 'Team'], ['level', 'Level'], ['gap', 'Furthest from plan'], ['last', 'Longest since a check-in'], ['due', 'Due soonest']];
-export const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 const list = <T extends string>(v: string | null, ok: readonly T[]): T[] => (v ? v.split(',').filter((x): x is T => (ok as readonly string[]).includes(x)) : []);
 const int = (v: string | null) => { const n = v == null ? NaN : Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
@@ -67,7 +66,7 @@ export function parseQuery(p: URLSearchParams): GoalQuery {
   return {
     q: (p.get('q') ?? '').slice(0, 200),
     status: list(p.get('status'), STATUS_OPTIONS.map(([k]) => k)),
-    level: list(p.get('level'), LEVELS),
+    level: (p.get('level') ?? '').split(',').filter((l) => isLevel(null, l)),
     team: (p.get('team') ?? '').split(',').filter(Boolean),
     owner: (p.get('owner') ?? '').split(',').filter(Boolean),
     kind: list(p.get('kind'), KIND_OPTIONS.map(([k]) => k)),
@@ -165,7 +164,6 @@ export function matches(s: GoalSummary, q: GoalQuery, ctx: QueryContext, tree?: 
 }
 
 const GAP_RANK = { off: 4, risk: 3, stale: 2, on: 1, ahead: 0 } as const;
-const LEVEL_RANK: Record<Level, number> = { 'north-star': 0, svp: 1, team: 2 };
 
 /** Order summaries by the query's sort (worst first when none is set). Ties go worst first, then by name. */
 export function compare(q: GoalQuery, _week?: number): (a: GoalSummary, b: GoalSummary) => number {
@@ -177,7 +175,7 @@ export function compare(q: GoalQuery, _week?: number): (a: GoalSummary, b: GoalS
     title: name,
     owner: (a, b) => a.owner.localeCompare(b.owner),
     team: (a, b) => a.team.localeCompare(b.team),
-    level: (a, b) => LEVEL_RANK[a.goal.level] - LEVEL_RANK[b.goal.level],
+    level: (a, b) => levelRank(null, a.goal.level) - levelRank(null, b.goal.level),
     gap: (a, b) => GAP_RANK[b.gapTone] - GAP_RANK[a.gapTone],
     last: (a, b) => b.quietDays - a.quietDays,
     due: (a, b) => a.dueWeek - b.dueWeek,
@@ -198,7 +196,7 @@ export function describeQuery(q: GoalQuery, names: { team: (id: string) => strin
   const label = <T extends string>(opts: [T, string][], v: T) => opts.find(([k]) => k === v)?.[1] ?? v;
   if (q.q.trim()) out.push({ key: 'q', text: `“${q.q.trim()}”` });
   if (q.status.length) out.push({ key: 'status', text: q.status.map((s) => label(STATUS_OPTIONS, s)).join(' or ') });
-  if (q.level.length) out.push({ key: 'level', text: q.level.map((l) => LEVEL_LABEL[l]).join(' or ') });
+  if (q.level.length) out.push({ key: 'level', text: q.level.map((l) => levelName(null, l)).join(' or ') });
   if (q.team.length) out.push({ key: 'team', text: q.team.map(names.team).join(' or ') });
   if (q.owner.length) out.push({ key: 'owner', text: 'Owned by ' + q.owner.map(names.person).join(' or ') });
   if (q.kind.length) out.push({ key: 'kind', text: q.kind.map((k) => label(KIND_OPTIONS, k)).join(' or ') });
@@ -220,7 +218,7 @@ export function queryParts(q: GoalQuery, names: { team: (id: string) => string; 
   const label = <T extends string>(opts: [T, string][], v: T) => opts.find(([k]) => k === v)?.[1] ?? v;
   const out: FilterPart[] = [];
   if (q.status.length) out.push({ key: 'status', label: 'Status', values: q.status.map((s) => label(STATUS_OPTIONS, s)) });
-  if (q.level.length) out.push({ key: 'level', label: 'Level', values: q.level.map((l) => LEVEL_LABEL[l]) });
+  if (q.level.length) out.push({ key: 'level', label: 'Level', values: q.level.map((l) => levelName(null, l)) });
   if (q.team.length) out.push({ key: 'team', label: 'Team', values: q.team.map(names.team) });
   if (q.owner.length) out.push({ key: 'owner', label: 'Owner', values: q.owner.map(names.person) });
   if (q.kind.length) out.push({ key: 'kind', label: 'Kind', values: q.kind.map((k) => label(KIND_OPTIONS, k)) });

@@ -50,3 +50,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - getting started (rule 7) › once there is a second person, no add-people; a copied link, no invite
 - getting started (rule 7) › a goal given an owner leaves the assign count
 - getting started (rule 7) › nothing 15 days on, when hidden, or in the example
+- getting started (rule 7) › asks for no first check-in once the year has ended (cycle-end rule 2)

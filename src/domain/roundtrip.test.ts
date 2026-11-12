@@ -18,6 +18,7 @@ import { currentWeek } from './plan';
 import { sameAsWritten } from './numbers';
 import { parseDelimited, readTables, type NamedGrid } from './sheets';
 import type { Cycle, MetricGoal, Snapshot } from './types';
+import { MODULE_SHEETS } from '../core/records';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -48,7 +49,7 @@ const load = (d: ReturnType<typeof demos>[number], tables: Tables, actor = 'amar
   return planChanges({ tables, snapshot: s, cycle: d.cycle, week: d.week, actor: who, now: today.toISOString(), newId, via: 'spreadsheet', full: d.full });
 };
 const errors = (cs: ChangeSet) => cs.issues.filter((i) => i.severity === 'error').map((i) => `${i.sheet} ${i.row}: ${i.message}`);
-const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today });
+const bookOf = (d: ReturnType<typeof demos>[number], full = d.full) => workbook({ ws: { id: 'ws', name: d.name }, snapshot: scopeToCycle(full, d.cycle), cycle: d.cycle, week: d.week, today, sheets: MODULE_SHEETS });
 
 describe('one format: export, load back, no change', () => {
   for (const d of demos()) {
@@ -174,6 +175,10 @@ describe('a typed cell is the same as what was written', () => {
     // 0.125 at 2 places is written 0.13: 0.005 away, which a tolerance of half a unit read as a change.
     expect(sameAsWritten('0.13', 0.125, 2)).toBe(true);
     expect(sameAsWritten(0.13, 0.125, 2)).toBe(true);
+    // An empty typed cell is never the written 0 (review of #130).
+    expect(sameAsWritten('', 0, 2)).toBe(false);
+    expect(sameAsWritten('  ', 0, 0)).toBe(false);
+    expect(sameAsWritten('0', 0, 2)).toBe(true);
     expect(sameAsWritten('0.41', 0.405, 2)).toBe(true);
     expect(sameAsWritten(' 6 ', 6, 0)).toBe(true);
     expect(sameAsWritten('0.12', 0.125, 2)).toBe(false);

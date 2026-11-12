@@ -3,9 +3,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { useApp } from '../app/state';
-import { addNote, readNotes, screenName, TASKS, writeSession, type ResearchNote } from '../app/research';
-import { useResearch } from '../screens/Research';
+import { addNote, readNotes, readSession, screenName, TASKS, writeSession, type ResearchNote, type ResearchSession } from '../app/research';
 import { personaOf } from './Demo';
+
+/** The research session, kept in step as it changes. Here, not on the Research screen, so that screen loads when opened. */
+export function useResearch(): ResearchSession | null {
+  const [s, set] = useState(readSession);
+  useEffect(() => {
+    const on = () => set(readSession());
+    window.addEventListener('goals-research', on);
+    return () => window.removeEventListener('goals-research', on);
+  }, []);
+  return s;
+}
 
 type Card = { kind: 'glance' } | { kind: 'pick' } | { kind: 'comment'; target: string } | { kind: 'task' } | null;
 

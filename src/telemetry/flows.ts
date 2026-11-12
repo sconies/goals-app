@@ -1,7 +1,7 @@
 /* Where people are in the named flows (src/help/flows.ts): which flows they've started, the step each has reached,
    and when one finishes or is left without finishing. Fed the route on each page change, each named action that
    worked, and each mark a screen sets; returns what happened, for telemetry to record. Pure: no browser needed. */
-import { routeScore } from '../help/guide';
+import { routeScore } from '../help/match';
 import { FLOWS, type Flow, type FlowStep } from '../help/flows';
 
 export interface FlowEvent {

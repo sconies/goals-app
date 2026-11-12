@@ -1,21 +1,12 @@
 /* The research hub: everything a researcher (a person or an AI agent) needs to try the app and report back:
    what it's for, what's deliberately not built yet, the tasks, how to leave notes, and where the report goes. */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../app/state';
-import { addNote, notesMarkdown, readNotes, readSession, REPORT_TEMPLATE, startSession, TASKS, writeSession, type ResearchSession } from '../app/research';
+import { addNote, notesMarkdown, readNotes, REPORT_TEMPLATE, startSession, TASKS, writeSession } from '../app/research';
 import { saveAndSay } from '../app/files';
 import { personaOf } from '../ui/Demo';
-
-export function useResearch(): ResearchSession | null {
-  const [s, set] = useState(readSession);
-  useEffect(() => {
-    const on = () => set(readSession());
-    window.addEventListener('goals-research', on);
-    return () => window.removeEventListener('goals-research', on);
-  }, []);
-  return s;
-}
+import { useResearch } from '../ui/ResearchBar';
 
 export function Research() {
   const app = useApp();

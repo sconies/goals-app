@@ -5,6 +5,8 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
+import { entriesAfter } from './match';
+
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -29,6 +31,164 @@ export const WHATS_NEW: NewsEntry[] = [
       'An ask raised outside a review is under Comments, whatever its words say.',
     ],
     articles: ['goal-page'],
+  },
+  {
+    id: 'carry-stays-true',
+    date: '2026-11-12',
+    title: 'Next year’s goals follow this year’s last changes',
+    points: [
+      'Once next year is set up, a goal stopped, started again, changed or checked in this year updates its copy there, however the change was made, until someone uses that copy.',
+      'Stopping a goal and then carrying it on again brings back the same goal in next year, with its key, not a second one.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'undo-import-sticks',
+    date: '2026-11-12',
+    title: 'Undoing an import now lasts',
+    points: [
+      'Undo this import put back goals it had deleted or stopped and people it had marked as left, but they went again the next time the page loaded. They now stay back.',
+      'An Undo message now goes when you switch workspace, since it could only undo something in the one you left.',
+    ],
+    articles: ['removing'],
+  },
+  {
+    id: 'metrics-place',
+    date: '2026-11-12',
+    title: 'Metrics has its own place',
+    points: [
+      'Metrics is in the menu, beside People (on a phone, under More): every number goals are measured by, defined once.',
+      'Find a metric by its name, unit, owner or meaning, and narrow the list by unit, by the team that uses it, or by what still needs sorting out.',
+      'Each metric has a page with its meaning and every goal measured by it, side by side: status, who it is for, the latest number, the target and where it stands against plan.',
+      'A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.',
+      'Old links still work.',
+    ],
+    articles: ['metrics', 'metric-add'],
+  },
+  {
+    id: 'undo-removal-sticks',
+    date: '2026-11-12',
+    title: 'Undo after a delete now lasts',
+    points: [
+      'Pressing Undo after deleting something, marking someone as left or stopping a goal brought it back, but it was gone again the next time the page loaded. It now stays back.',
+      'Anything this caught is still in Recently removed, where an admin can restore it.',
+    ],
+    articles: ['removing'],
+  },
+  {
+    id: 'undo-stays-put',
+    date: '2026-11-12',
+    title: 'Undo stays in its own workspace',
+    points: [
+      'Pressing Undo after switching to another workspace no longer changes the one you switched to. It says the Undo was for another workspace, and changes nothing.',
+      'Open that workspace again to undo it there.',
+    ],
+    articles: ['features'],
+  },
+  {
+    id: 'import-levels',
+    date: '2026-11-11',
+    title: 'Imports ask instead of refusing',
+    points: [
+      'A name one letter out is a question: “Did you mean Platform?”',
+      'The same problem on 14 rows is said once, and one answer covers them all.',
+      'Numbers that look wrong are asked about before saving.',
+      'An empty Admin cell now keeps what is there, as Every column says, and Takes over accepts a name only one person has as well as an email.',
+    ],
+    articles: ['import', 'columns'],
+  },
+  {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
+    id: 'carry-right',
+    date: '2026-11-11',
+    title: 'Goals carry on with their history',
+    points: [
+      'A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.',
+      'Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.',
+      'A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'levels-one-style',
+    date: '2026-11-11',
+    title: 'Levels look the same',
+    points: [
+      'A goal’s level (North star, SVP) is shown in one plain style everywhere: North star no longer has a coloured tag of its own.',
+      'Team goals still carry no tag. Nothing else about levels has changed.',
+    ],
+    articles: ['goals'],
+  },
+  {
+    id: 'check-in-asks',
+    date: '2026-11-11',
+    title: 'Faro asks about a number that looks wrong',
+    points: [
+      'Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.',
+      'The same number as last week asks whether you measured it again.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'cant-open-yet',
+    date: '2026-11-11',
+    title: 'Plainer words when you can’t open a workspace',
+    points: [
+      'If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.',
+      'Nothing of the workspace shows until you can open it; ask an admin there to add you.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
+    points: [
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
+    ],
+    articles: ['finding', 'settings'],
+  },
+  {
+    id: 'check-in-one-way',
+    date: '2026-11-11',
+    title: 'Checking in again, or correcting',
+    points: [
+      'A second check-in in the same week is now compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+      'Checking in again adds a check-in beside the first; correcting one replaces it and keeps your reason with it.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'start-prepares',
+    date: '2026-11-11',
+    title: 'Starting next year doesn’t move anyone early',
+    points: [
+      'An admin can set next year up as soon as the wrap-up opens. Everyone stays in this year until its last day; next year opens on its first Monday.',
+      'Before starting, you see what will carry on, finish and stop, in counts that add up to every goal. Afterwards Cycles offers Undo, until someone uses the new year.',
+      'A goal that met its target finishes instead of carrying on.',
+      'Before a year’s first week, Home says when it starts and that nothing is due until then.',
+    ],
+    articles: ['start-next-year', 'workspace-cycles'],
   },
   {
     id: 'mcp-goal-scopes',
@@ -1146,10 +1306,7 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export function newsAfter(seenId: string | null): NewsEntry[] {
-  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
-  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
-}
+export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

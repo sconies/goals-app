@@ -4,6 +4,8 @@
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
+import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
+import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
 import type { ScopeFacts } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
@@ -53,4 +55,12 @@ export function dayOneRows(s: Pick<Snapshot, 'people' | 'goals' | 'checkIns' | '
     checkedIn: new Set(live(s.checkIns).map((c) => c.goalId)),
     watchers: new Set(live(s.watches ?? []).map((w) => w.personId)),
   };
+}
+
+/** The year a wrap-up page is for (cycle-end rule 3): the current one; or, once the next year is current, the year
+    before while its wrap-up is still open, so it can be finished until the day it closes. */
+export function wrapUpScope(full: Snapshot, cycle: Cycle, snapshot: Snapshot, week: number, today: Date): { cycle: Cycle; snapshot: Snapshot; week: number; earlier: boolean } {
+  const w = wrapUpCycle(full.cycles, today);
+  if (!w || w.id === cycle.id) return { cycle, snapshot, week, earlier: false };
+  return { cycle: w, snapshot: scopeToCycle(full, w), week: currentWeek(w, today), earlier: true };
 }

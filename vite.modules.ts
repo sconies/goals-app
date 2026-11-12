@@ -5,6 +5,11 @@
      virtual:faro-modules/help   each module's help.ts (its Help articles)
      virtual:faro-modules/tools  each module's tools.ts (its AI tools)
      virtual:faro-modules/app    each module's app.tsx (its routes, navigation and places on core screens)
+     virtual:faro-modules/records each module's records.ts (its own records and sheets: domain/records, AS part 2)
+     virtual:faro-modules/actions each module's actions.ts (its actions, run by app.run like the core's: app/actions)
+     virtual:faro-modules/spec   each module's spec.ts (its rules in plain words, with worked examples: src/spec/rules)
+     virtual:faro-modules/conformance each module's conformance.ts (its rules' rows in the conformance data: src/spec/conformance)
+     virtual:faro-modules/demo   each module's demo.ts (its rows in the demo workspace: only the demo builder loads it)
 
    FARO_WITHOUT=spreadsheets[,other] builds Faro with those modules left out, and anything that needs them: CI builds
    it that way for each module and runs the core journeys (.github/workflows/ci.yml). */
@@ -12,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
-const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx' } as const;
+const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx', '/records': 'records.ts', '/actions': 'actions.ts', '/spec': 'spec.ts', '/conformance': 'conformance.ts', '/demo': 'demo.ts' } as const;
 const PREFIX = 'virtual:faro-modules';
 
 interface Found { id: string; needs: string[]; dir: string }
@@ -37,17 +42,19 @@ export function findModules(root: string, without: string[] = []): { kept: Found
 export function faroModules(): Plugin {
   const without = (process.env.FARO_WITHOUT ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   let root = process.cwd();
+  let building = false;
   return {
     name: 'faro-modules',
     configResolved(c) {
       root = c.root;
+      building = c.command === 'build';
       const { left } = findModules(root, without);
       if (left.length) c.logger.info(`Faro modules left out of this build: ${left.join(', ')}`);
     },
     resolveId(id) {
       return id === PREFIX || id.startsWith(PREFIX + '/') ? '\0' + id : null;
     },
-    load(id) {
+    load(id, options) {
       if (!id.startsWith('\0' + PREFIX)) return null;
       const part = id.slice(PREFIX.length + 1) as keyof typeof PARTS;
       const file = PARTS[part];
@@ -59,7 +66,14 @@ export function faroModules(): Plugin {
         const f = path.join(m.dir, file);
         if (!fs.existsSync(f)) continue;
         this.addWatchFile(f);
-        lines.push(`import m${i} from ${JSON.stringify(f.split(path.sep).join('/'))};`);
+        /* The app's own build leaves out a module's rebuild stage: only the spec reads it (src/spec/rebuild.ts, run by
+           npm run spec and the tests, never the browser), and its prose would otherwise count in the first download. */
+        if (file === 'module.json' && building && !options?.ssr) {
+          const { rebuild: _, ...facts } = JSON.parse(fs.readFileSync(f, 'utf8')) as Record<string, unknown>;
+          lines.push(`const m${i} = ${JSON.stringify(facts)};`);
+        } else {
+          lines.push(`import m${i} from ${JSON.stringify(f.split(path.sep).join('/'))};`);
+        }
         entries.push(file === 'module.json' ? `m${i}` : `{ id: ${JSON.stringify(m.id)}, part: m${i} }`);
       }
       return `${lines.join('\n')}\nexport default [${entries.join(', ')}];\n`;

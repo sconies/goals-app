@@ -9,7 +9,7 @@ import { useApp } from '../app/state';
 import { useModules } from '../core/app';
 import { Icon } from './Icon';
 import { viewParams } from '../screens/GoalFilters';
-import { articleById } from '../help/guide';
+import { articleRef } from '../help/lookup';
 import { backTo, FORM, type PlaceNames } from '../domain/navigation';
 import { useSectionNames } from '../screens/workspaceSections';
 
@@ -35,7 +35,7 @@ export function usePlaceNames(): PlaceNames {
       goal: (id) => app.goal(id)?.title ?? null,
       review: (id) => app.snapshot.reviews.find((r) => r.id === id)?.name ?? null,
       view: (sp) => { const vp = viewParams(sp); return (app.snapshot.views ?? []).find((v) => !v.deletedAt && !!v.params && v.params === vp && (v.pinned || v.personId === app.viewer.id))?.name ?? null; },
-      article: (id) => articleById(id)?.title ?? null,
+      article: (id) => articleRef(id)?.title ?? null,
       person: (id) => app.person(id)?.name ?? null,
       team: (id) => app.team(id)?.name ?? null,
       section: (id) => sections[id] ?? null,
