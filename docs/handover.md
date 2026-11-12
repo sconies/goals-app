@@ -10,7 +10,7 @@ Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: searc
 
 | Branch | What | Local evals | PR |
 |---|---|---|---|
-| `gl2-gated` | GL2's map fixes (the Map fresh on return, no sort offered there, phone layout under 700px) | `evals:changed` was running at handover | none yet |
+| `gl2-gated` | GL2's map fixes (the Map fresh on return, no sort offered there, phone layout under 700px) | full suite 176/177: **F5 fails on GL2's own new check**: at 650 px Goals shows neither a computer's menus nor the phone's View button ("under 700px is the phone's bar" isn't fully built; the scores below 9 are main's) | none yet |
 | `nv2-gated` | NV2: forms close in words, Back finds your list | not run | none yet |
 | `hm1-review-fixes` | the build reviewer's HM1 mediums (below) | not run | none yet |
 | `hm2-gated` | HM2, stacked on `hm1-review-fixes` | not run | none yet |
