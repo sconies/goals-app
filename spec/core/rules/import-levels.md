@@ -70,6 +70,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 7: one answer covers every row in its group › an admin may add the team instead (C8); someone else isn’t offered it
 - rule 7: one answer covers every row in its group › “Leave these rows out” leaves them out and saves the rest
 - rule 7: one answer covers every row in its group › “Keep 2 decimal places for these goals” gives each goal the places, so its check-ins save
+- rule 7: one answer covers every row in its group › a decimal comma is asked about in a file, and read as a decimal point in the check-in grid, where it’s typed
 - rule 7: one answer covers every row in its group › a stage already past (C4): “They’re done” records them done in their due weeks; “Count them from this week” moves them
 - rule 7: one answer covers every row in its group › a duplicate (C14): both rows named, neither applied; “Use the last row for each” applies the last
 - section 4: a case per kind, with its sentence and level › %s (as %s)
