@@ -9,16 +9,16 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 /** The rule pages under spec/core/rules/, in reading order: [file, title, what it decides]. */
 export const RULE_PAGES: [string, string, string][] = [
-  ['weeks-and-plans', 'Weeks and plans', 'which week it is, and what the plan says a number should be'],
-  ['year-end', 'A year’s end', 'a cycle’s real first and last days; after the last day results close and nothing is due or out of date'],
-  ['status', 'A goal’s status', 'what the numbers say, and the official status (the owner’s call unless stale)'],
-  ['projection', 'The projection', 'where a number lands by its due week, as a range'],
-  ['check-in', 'What a check-in must say', 'what is needed before a check-in can be posted'],
-  ['numbers-and-names', 'Numbers and names', 'a number kept as typed, never rounded quietly; odd numbers questioned; shared names told apart'],
-  ['levels', 'Levels', 'which levels a goal can have, what each is called, which is untagged, and how they sort'],
-  ['flags', 'Flags, the trend and needs attention', 'why a goal is flagged, and whether it needs attention'],
-  ['scorecard', 'The scorecard', 'vs plan, since last week, to target, and how likely it is to hit'],
-  ['change-engine', 'The change engine', 'spreadsheets, bulk edits and changes through MCP, checked by the same rules'],
+  ['weeks-and-plans', 'Weeks and plans', 'Which week it is, and what a goal’s plan says its number should be in any week.'],
+  ['year-end', 'A year’s end', 'A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year.'],
+  ['status', 'A goal’s status', 'What the numbers say (the calculated status), and the official status everyone sees: the owner’s call, unless it has gone stale.'],
+  ['projection', 'The projection', 'Where a number lands by its due week if the recent trend holds: the likeliest value and a range around it.'],
+  ['check-in', 'What a check-in must say', 'What a check-in needs before it can be posted, and the record it becomes.'],
+  ['numbers-and-names', 'Numbers and names', 'How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.'],
+  ['levels', 'Levels', 'Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place.'],
+  ['flags', 'Flags, the trend and needs attention', 'Why a goal is flagged, which way it is heading, and whether it needs attention or is being handled.'],
+  ['scorecard', 'The scorecard', 'The cells at the top of a goal’s page: against plan, since last week, what’s left, and how likely it is to hit the target.'],
+  ['change-engine', 'The change engine', 'The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.'],
 ];
 
 /** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
@@ -35,6 +35,7 @@ export const MORE_RULE_PAGES: [string, string][] = [
   ['workspace', 'The workspace: cycles, teams, names, leaving and what needs attention'],
   ['directory', 'The directory: who People lists, what a search finds, and where old addresses lead'],
   ['day-one', 'Day one: set-up’s steps and “Getting started”'],
+  ['welcome', 'Welcome and the invitation'],
   ['map', 'The goal map'],
   ['goal-act', 'Acting on a goal: its buttons, and next steps and asks'],
   ['goal-history', 'A goal’s history'],
@@ -58,10 +59,14 @@ export const INTERNAL_PAGES: [string, string, string][] = [
   ['r2-single-sign-on', 'R2. Company single sign-on', 'signing in through the company’s identity provider, and leavers losing access the day they leave'],
   ['r3-time-zones', 'R3. Time zones', 'real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone'],
   ['r4-scale-and-safety', 'R4. Scale and safety', '15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key'],
+  ['r5-notifications-and-habits', 'R5. Notifications and the weekly habit', 'asks, one reminder and a weekly digest in set words, check-in from a notification, never shame, streaks that forgive, the habit measure, a role per workspace'],
   ['r6a-organisation', 'R6a. The organisation', 'teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company'],
   ['r6b-delegates', 'R6b. Delegates', 'someone named to check in and answer asks for an owner while they are away, recorded as acting for them'],
   ['r6c-planning-round', 'R6c. The planning round', 'next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then'],
-  ['observability', 'Observability, as an idea', 'not a requirement: what Faro records today, and what the internal app might take from it'],
+  ['r7-retention-and-privacy', 'R7. Data retention, privacy and erasure', 'what is personal, how long each record is kept, leavers, seeing everything held about you, erasure'],
+  ['r8-audit', 'R8. Audit', 'a record of who did what that no one can change, with exports and token use, kept 7 years'],
+  ['r9-observability', 'R9. Observability and service levels', 'the signals sent to the company’s tools, the service levels promised, and what pages the on-call person'],
+  ['r10-accessibility', 'R10. Accessibility', 'WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow'],
 ];
 
 export function systemOverview(): string {

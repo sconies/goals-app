@@ -732,12 +732,13 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
 journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app: from empty to a filled-in workspace with a template, then a teammate joins', 14, async (h, device) => {
   const p = h.use(await newPage(device));
   await p.goto(live('/'));
-  // The empty real app explains itself and offers the demo, with one thing to do.
+  // The empty real app explains itself and offers the demo, with one thing to do (Welcome, set-up spec 2.1).
   await see(p, 'Run the company on outcomes, and manage by exception');
-  h.set('attention', await p.getByRole('link', { name: /try the demo/i }).isVisible(), 'the empty app does not offer the demo');
-  await h.inView(p.getByRole('button', { name: 'Set up your workspace' }), 'entry', 'Set up your workspace');
+  h.set('attention', await p.getByRole('link', { name: /Look around the demo/ }).isVisible(), 'the empty app does not offer the demo');
+  await h.inView(p.getByRole('link', { name: 'Set up a workspace' }), 'entry', 'Set up a workspace');
   await h.checkpoint('welcome');
-  await h.click(p.getByRole('button', { name: 'Set up your workspace' }));
+  await h.click(p.getByRole('link', { name: 'Set up a workspace' }));
+  await p.locator('.steps').first().waitFor();
   await h.progressShown('set up');
   await p.getByRole('button', { name: 'Next' }).click();
   h.set('errors', await p.getByRole('alert').filter({ hasText: 'Give the workspace a name' }).isVisible(), 'an empty name is not explained');
@@ -776,9 +777,82 @@ journey('U11', ['ONBOARDING', 'IDENTITY', 'DEMO-MODE', 'CHANGE-LOG'], 'Real app:
   const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => !x.name.startsWith('goals-live-me:')) })) } });
   const q = await other.newPage();
   await q.goto(live('/'));
-  await see(q, 'Who are you?');
-  await pickIn(q, /^Your name\b/, 'omar', /Omar Haddad/);
+  await see(q, 'Welcome to Growth');
+  await h.click(q.getByRole('button', { name: /^Omar Haddad\b/ }));
   await see(q, 'Omar', 'the teammate lands on their own home');
+  await other.close();
+  await p.context().close();
+});
+
+journey('U97', ['SETUP-FIRST-SCREEN', 'IDENTITY', 'ONBOARDING'], 'The first screen and the way in: Welcome at its own address with one main action; set-up at its own; the invitation opens the workspace it names, says who set it up and asks which one you are; a link to nothing opens nothing; Welcome back remembers', 22, async (h, device) => {
+  const p = h.use(await newPage(device));
+  // A browser with nothing: the root leads to Welcome, never into a workspace.
+  await p.goto(live('/'));
+  await p.waitForURL(/\/welcome(\?|$)/, { timeout: 5000 }).catch(() => fail('the root with nothing on this device did not lead to /welcome: ' + p.url()));
+  await see(p, 'Run the company on outcomes, and manage by exception');
+  const primaries = await p.locator('.welcome .btn.primary').allInnerTexts();
+  h.set('entry', primaries.length === 1 && primaries[0].trim() === 'Set up a workspace' && await p.getByRole('link', { name: /^Look around the demo/ }).isVisible() && await p.getByRole('button', { name: /^Join a workspace you were invited to/ }).isVisible(), `Welcome’s main action and doors: ${primaries.join(' | ')}`);
+  await h.checkpoint('welcome');
+  // A pasted link that isn't an invitation is said, under the field.
+  await h.click(p.getByRole('button', { name: /^Join a workspace you were invited to/ }));
+  await h.fill(p.getByLabel('The link you were sent'), 'https://example.com/goals');
+  await h.click(p.getByRole('button', { name: 'Open it' }));
+  h.set('errors', await p.getByRole('alert').filter({ hasText: 'That isn’t a Faro invitation.' }).isVisible(), 'a link that isn’t an invitation is not explained');
+  // Set-up has its own address, with nothing open.
+  await p.goto(live('/workspace/new'));
+  await p.getByLabel('Name', { exact: true }).waitFor({ timeout: 5000 }).catch(() => fail('/workspace/new with nothing open did not open set-up'));
+  if (await p.getByRole('heading', { name: 'Run the company on outcomes, and manage by exception' }).count()) fail('/workspace/new drew Welcome');
+  await h.fill(p.getByLabel('Name', { exact: true }), 'Field Operations');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.fill(p.getByLabel('Your name'), 'Ana Silva');
+  await h.fill(p.getByLabel('Your team'), 'Field Ops');
+  await h.fill(p.getByLabel('Your email'), 'ana.silva@example.com');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await p.getByLabel('Person 1: name').fill('Ben Carter');
+  await p.getByLabel('Person 1: email').fill('ben.carter@example.com');
+  await p.getByLabel('Person 2: name').fill('Cara Diaz');
+  await p.getByLabel('Person 2: email').fill('cara.diaz@example.com');
+  await p.getByLabel('Person 2: team').fill('Dispatch');
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('radio', { name: /Set goals up later/ }));
+  await h.click(p.getByRole('button', { name: 'Next' }));
+  await h.click(p.getByRole('button', { name: 'Create workspace' }));
+  await p.waitForURL(/\/ready/);
+  const wsId = await p.evaluate(() => localStorage.getItem('goals-live-workspace'));
+  await p.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+  await h.click(p.getByRole('button', { name: 'Copy the link to send' }));
+  const link = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+  h.set('finish', link.endsWith('/join/' + encodeURIComponent(wsId)), 'the invitation is not /join/<workspace>: ' + link);
+  // A teammate on another device, with this browser's store but no one chosen: the link opens the arrival.
+  const state = await p.context().storageState();
+  const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => !/^goals-live-(me:|workspace$|seen$)/.test(x.name)) })) } });
+  const q = await other.newPage();
+  await q.goto(live('/join/' + encodeURIComponent(wsId)));
+  await see(q, 'Welcome to Field Operations', 'the invitation does not open the workspace it names');
+  await see(q, 'Ana Silva set this up on', 'the arrival does not say who set it up');
+  const rows = await q.locator('.arrival-person').allInnerTexts();
+  h.set('attention', rows.length === 3 && rows.some((r) => /Ana Silva[\s\S]*Set this up · admin/.test(r)) && rows.some((r) => /Ben Carter[\s\S]*No goals yet/.test(r)) && await q.getByText('Not on the list?').isVisible(), 'the arrival’s people: ' + rows.map((r) => r.replace(/\s+/g, ' ')).join(' | '));
+  if (await q.locator('.side:visible, .tabbar:visible').count()) fail('the arrival shows the workspace’s shell before anyone is chosen');
+  await h.checkpoint('arrival');
+  await h.click(q.getByRole('button', { name: /^Ben Carter\b/ }));
+  await q.waitForURL((u) => !/\/join\//.test(u.pathname), { timeout: 5000 }).catch(() => fail('choosing a name stayed on the invitation’s address'));
+  await q.locator('section.getting-started').first().waitFor({ timeout: 5000 }).catch(() => fail('choosing a name did not open Home with the first-week block'));
+  const log = await q.evaluate((w) => (JSON.parse(localStorage.getItem('goals-live-v1:' + w) || '{"changes":[]}').changes || []).filter((c) => c.entity === 'person' && c.action === 'acknowledged').map((c) => c.summary), wsId);
+  h.set('logged', log.length === 1 && log[0] === 'Ben Carter opened Field Operations for the first time', 'the arrival is not logged once: ' + JSON.stringify(log));
+  // A link to a workspace that isn't there opens nothing else.
+  await q.goto(live('/join/ws_nope'));
+  await see(q, 'This invitation doesn’t open a workspace', 'a link to nothing is not said');
+  if (await q.locator('.side:visible, .tabbar:visible').count()) fail('a link to nothing opened a workspace');
+  // The old link leads to the invitation's address; someone known there lands on Home.
+  await q.goto(live('/?workspace=' + encodeURIComponent(wsId)));
+  await q.locator('section.getting-started, .page-head').first().waitFor({ timeout: 5000 }).catch(() => fail('the old /?workspace= link did not open the workspace'));
+  // Welcome back: what this device remembers, with Open.
+  await q.goto(live('/welcome'));
+  await see(q, 'Welcome back', 'Welcome does not greet someone returning');
+  await see(q, 'You’re Ben Carter here', 'Welcome back does not say who you are in the workspace');
+  h.set('progress', await q.getByRole('button', { name: 'Open Field Operations' }).isVisible(), 'Welcome back has no Open for the workspace');
+  await h.click(q.getByRole('button', { name: 'Open Field Operations' }));
+  await q.locator('section.getting-started, .page-head').first().waitFor({ timeout: 5000 }).catch(() => fail('Open did not open the workspace'));
   await other.close();
   await p.context().close();
 });
@@ -960,7 +1034,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   await p.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
   await h.click(p.getByRole('button', { name: 'Copy the link to send' }));
   const link = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
-  if (!link.endsWith('/demo?workspace=' + encodeURIComponent(wsId))) fail('the invitation link doesn’t name the workspace: ' + link);
+  if (!link.endsWith('/demo/join/' + encodeURIComponent(wsId))) fail('the invitation link doesn’t name the workspace: ' + link);
   // U6: on day one the first-check-in count agrees with Ready, and nothing is late.
   await p.goto(url('/goals?scope=all&attention=1'));
   const first = await p.locator('.first-reports').first().innerText().catch(() => '');
@@ -973,7 +1047,7 @@ journey('U54', ['ONBOARDING', 'WORKSPACES', 'HONEST-NUMBERS'], 'Set up from the 
   const state = await p.context().storageState();
   const other = await browser.newContext({ viewport: DEVICES[device], storageState: { cookies: [], origins: state.origins.map((o) => ({ ...o, localStorage: o.localStorage.filter((x) => x.name !== 'goals-app-workspace' && !x.name.startsWith('goals-app-viewer:')) })) } });
   const q = await other.newPage();
-  await q.goto(link + '&today=' + TODAY);
+  await q.goto(link + (link.includes('?') ? '&' : '?') + 'today=' + TODAY);
   await q.locator('.side:visible, .tabbar:visible').first().waitFor();
   const remembered = await q.waitForFunction((id) => localStorage.getItem('goals-app-workspace') === id && id, wsId, { timeout: 8000 }).then((x) => x.jsonValue(), () => null);
   const opened = (await q.locator('.ws-switch:visible, .ws-switch-top:visible').first().innerText().catch(() => '')).trim();
@@ -1579,7 +1653,7 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
   await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
   await h.click(p.getByRole('button', { name: /Save/ }));
-  await p.waitForURL(/\/retro/);
+  await p.waitForURL(/\/retro\/?(\?.*)?$/); // the list, not the wrap-up page (its address matches /retro too)
   const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
   const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
   h.set('finish', wrapRows > 0 && saved && cyclesAfter > 0, `with 2027 current on 11 Jan, 2026’s wrap-up showed ${wrapRows} goals, saving said “Wrapped up” ${saved}, and Cycles offered 2026’s wrap-up ${cyclesAfter} time(s)`);
@@ -3284,8 +3358,10 @@ journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s 
   await h.fill(box, 'rhea');
   await see(find, 'People · 1', 'Rhea is not found under People');
   const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
-  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  // The core's three kinds, then whatever a module adds: Metrics' own group (ML2, 12 Nov) comes after, and finds metrics only.
+  const core = groups.filter((g) => !/^Metrics · /.test(g));
+  h.set('attention', JSON.stringify(core) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics · /.test(g)) || (await find.getByRole('group', { name: /^Metrics · / }).getByRole('option').evaluateAll((os) => os.every((o) => /\/metrics[/?]/.test(o.getAttribute('href') || '')))), 'a Metrics group shows rows that are not metrics');
   const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
   h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
   const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
@@ -3527,7 +3603,7 @@ journey('U59', ['WORKSPACE-ABOUT', 'WORKSPACE-SECTIONS'], 'Workspace opens on Ab
   if (phone) { await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' })); await h.click(p.getByRole('dialog').getByRole('link', { name: 'Workspace', exact: true })); }
   else await h.click(p.locator('.side').getByRole('link', { name: 'Workspace', exact: true }));
   await p.locator('.ws-facts').waitFor();
-  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  await h.inView(p.locator('.ws-facts dt').first(), 'entry', 'the first fact'); // the block grew with "What it is" (12 Nov), so the whole of it no longer fits a phone
   const line = await p.locator('.ws-role-line').innerText();
   const head = await p.locator('.page-head').first().innerText();
   h.set('progress', line === 'Platform Engineering · you’re an admin here' && !/permissions|stays in this browser/i.test(head), `the header says “${head.replace(/\s+/g, ' ')}”`);
@@ -3573,14 +3649,14 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
     const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
     const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
     localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
-    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
+    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
     localStorage.setItem('goals-app-workspace', 'ws_field');
     localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
   }, n);
   await seed(2);
   await p.goto(url('/workspace'));
   await p.locator('.ws-facts').waitFor();
-  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  await h.inView(p.locator('.ws-facts dt').first(), 'entry', 'the first fact');
   const quiet = await p.getByRole('heading', { name: /To sort out/ }).count() === 0;
   await h.checkpoint('about');
   await p.goto(url('/teams'));
