@@ -45,6 +45,7 @@ export function useImportPlan(): ImportPlan {
   const base = useMemo(() => (st.read ? (st.asNew ? asNewTables(st.read.tables) : st.read.tables) : null), [st.read, st.asNew]);
   const out = useMemo(() => (base && st.leftOut.length ? leaveOut(base, st.leftOut, isNewIn(app.snapshot)) : null), [base, st.leftOut, app.snapshot]);
   const tables = out?.tables ?? base;
-  const cs = useMemo(() => (tables && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers) : null), [tables, otherWorkspace, st.reason, st.answers, app]);
-  return { st, base, left: [...st.leftOut, ...(out?.also ?? [])], also: out?.also ?? [], cs, otherWorkspace };
+  const left = [...st.leftOut, ...(out?.also ?? [])];
+  const cs = useMemo(() => (tables && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, { name: st.name, leftOut: left.length }) : null), [tables, otherWorkspace, st.reason, st.answers, st.name, left.length, app]);
+  return { st, base, left, also: out?.also ?? [], cs, otherWorkspace };
 }

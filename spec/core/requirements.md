@@ -1323,15 +1323,6 @@ The owner or an admin stops a goal with check-ins, with a required reason: it le
 - **Tests:** `evals/remove.eval.ts` (1)
 - **Journeys and checks:** U44
 
-### IMPORT-UNDO
-
-Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed.
-
-- **Rule:** [The change engine](rules/change-engine.md)
-- **Help:** “The activity log” (`activity`), screens `Activity`; “Removing, stopping and undoing” (`removing`)
-- **Tests:** `evals/remove.eval.ts` (1)
-- **Journeys and checks:** U45, U46
-
 ## Architecture
 
 ### MODULES

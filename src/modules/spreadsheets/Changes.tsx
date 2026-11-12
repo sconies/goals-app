@@ -11,6 +11,8 @@ import { LEFT, STOPPED } from '../../domain/vocabulary';
 import { ListBar, ListSearch } from '../../ui/ListBar';
 import { PlanDiff, planWeeks } from '../../ui/Preview';
 import { useImportPlan } from './importPlan';
+import { importStore } from './importStore';
+import { leftRowsOf } from './rowsFile';
 import './import.css';
 
 const PAGE = 50;
@@ -25,7 +27,7 @@ const n = (k: number, one: string, many = one + 's') => `${k.toLocaleString('en-
 export function Changes() {
   const app = useApp();
   const nav = useNavigate();
-  const { cs } = useImportPlan();
+  const { cs, base, left } = useImportPlan();
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const show = (params.get('show') ?? 'all') as Show;
@@ -45,7 +47,13 @@ export function Changes() {
   const save = async () => {
     if (!cs.commit) return;
     setBusy(true);
-    try { await app.applyChanges(cs); app.toast(`Saved: ${describe(cs).toLowerCase()}`); nav('/goals'); } catch { setBusy(false); }
+    const importId = cs.commit.changes.find((c) => c.action === 'imported')?.entityId;
+    try {
+      await app.applyChanges(cs);
+      if (importId && base) importStore.set({ done: { importId, tables: base, rows: leftRowsOf(left) } });
+      else app.toast(`Saved: ${describe(cs).toLowerCase()}`);
+      nav(importId ? `/data/import/done/${importId}` : '/goals');
+    } catch { setBusy(false); }
   };
   return (
     <div className="page narrow import-check">

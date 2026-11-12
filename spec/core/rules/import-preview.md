@@ -28,7 +28,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Not self-explanatory
 
-- **Not self-explanatory:** The counts, the order of the blocks and the words of the preview are its screen's (spec/screens): a rebuild may lay them out its own way. Imported, Undo and Past imports come with IM4; paste and a header row below row 1 with IM5; large files with IM6.
+- **Not self-explanatory:** The counts, the order of the blocks and the words of the preview are its screen's (spec/screens): a rebuild may lay them out its own way. Imported, Undo and Past imports are rule import-undo; paste and a header row below row 1 with IM5; large files with IM6.
 
 ## Where it lives
 
