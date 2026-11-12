@@ -2,6 +2,36 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Thursday 12 November, 21:40 UTC (session past half, handing over; supersedes the 20:15 entry)
+
+Session: session_012kbr92tVe7c6Re4gj42nCe. Nothing merged yet this session. Auto-merge works again (planning, 20:58): once a PR's gate passes and it is current with main, `enable_pr_auto_merge` (MERGE); if it says the PR is already clean, merge by hand.
+
+| Branch | State | PR |
+|---|---|---|
+| `gl2-gated` | F5 fixed (the Goals page's phone block in `list-board.css` now breaks at 699px, as `goals-phone.css` does). Main merged in twice (the second resolved `GoalFilterSheet.tsx`: main's State fieldset kept, Sort hidden on the Map). First `evals:changed`: every F, N and P check passed; journeys below 9 were main's. Second run was going at handover | #274 (draft; was `dirty`, so CI never ran: push the second merge) |
+| `nv2-gated` | Main merged in (QuickCheckIn import conflict). Gate fixes: F3 reads New goal's worded `.form-close`, which keeps 16px from the step bar (`.focus-top.wiz-top .form-close` in `shell-settings.css`); U70 opens a goal of the saved view, not New goal, and its step budget is 9. Pushed | #282 (draft): needs CI, then a test-merge |
+| `hm1-review-fixes` | Main merged in locally (clean), typecheck and unit tests pass; **not pushed, not evaluated**. Redo from `origin/hm1-review-fixes` if the container is gone | none |
+| `hm2-gated`, `fs1-mediums`, `rv7-gated` | Untouched since the 20:15 entry | none |
+| `ck-correct-fixes` | #225's review, built on main of 21:00 and pushed for safety; typecheck and unit tests pass (except the timing tests while evals ran); **`npm run spec` must run again** (CheckInFlow changed after the last run) **and no evals yet** (U142 has a new check; run `evals:changed`). Will conflict with `nv2-gated` in `CheckInFlow.tsx` (FormClose there) | none |
+
+**What `ck-correct-fixes` does** (the build reviewer's #225 findings; medium 1 was fixed by #247):
+- Medium 2: History's row skips a correction whose import was undone (`GoalScreen.tsx`, `importUndone`); U142 checks `.ci-corrected` goes after Undo.
+- Medium 3: the queue's Correct it links `?correct=1`.
+- Medium 4: `correctedSummary` (`changeset.ts`): "Corrected week 46: still 37 hours, with a new note" when the number stays.
+- Medium 5: the reason is kept as its own draft (`useDraft` key `…:correct:reason`); reopened at the second step without it, the form goes back to the first step.
+- Medium 6: Data's tables and MCP replacing a week's check-in are corrections (`CORRECTS_VIA`): the change's reason is required (`needsReason` on the item), kept as "Why corrected", the summary is the correction's, and the week's time and lateness are kept. Preview asks "Why are you correcting this check-in?"; MCP's refusal says so. Tests: `data.test.ts`, `postCheckIn.test.ts`.
+- The design's rule: no correction once the cycle has ended (`cycleState` ended or closed): the engine refuses it and the form says so.
+- Lows done: the form starts from what it corrects (`draftFrom`), no "No new number" while correcting, its own step key, cleared on post; "Correct a check-in" heads the form only when the week has one; "latest" when the week has two; Past imports names the goal, week and numbers; Undo says "Undid a correction"; a reason is 10 to 500 characters with letters (`correctReasonOk`, `correctReasonAsk` in `checkin.ts`, said once). Not done: `?week=`.
+- What's new `correct-means-one-thing`; guide (check-in) and the rule's words (`rules.ts`, one way to save a check-in) updated.
+
+**Next, in order:** finish the six gated merges (gate each, test-merge with main, merge); then `ck-correct-fixes`; then **#234's mediums** (planning, 20:53: a goal key search on Check-ins and Asks finds nothing because `applyTable` passes only a "Key" column; a decimal like 12.5 matches unrelated rows because words break at "." and ","; hiding a column changes what search finds and the screen never says only shown columns are searched; add an eval or journey for Data search); then the habit moment, N12's Find timing, #110's lows, HM1's lows.
+
+**The lows batch** (added by planning): #261 (a link with an unknown scope or a `#…` tail is refused where the screen falls back, `src/mcp/tools.ts` ~270; a saved view replaces the whole link, scope included, unsaid in its description; `mine: true` answers without the `why` that `scope: "mine"` gives); #234 (words after a quote, bracket, @, # or £ can't be found); #255 (two number questions build the unit by hand, "1 incidents", `checkin.ts` ~113 and ~117; a "Yes" answer in the table is lost on refresh).
+
+**The habit moment** is as the 20:15 entry reads it (below).
+
+**Habits:** the merge helpers live in the scratchpad and go with the container: `wn.cjs` rebuilds What's new as main's file with the branch's own entries on top; the merge then takes main's `api/mcp.js`, `spec/` and `llms.txt`, runs `npm run build:mcp` (check `grep -c home/user api/mcp.js` is 0) and `npm run spec`, and commits "Merge main [no news]". In a worktree test for a merge with `git rev-parse -q --verify MERGE_HEAD`, not `.git/MERGE_HEAD`. Only one eval run at a time (ports); unit tests run beside an eval run make F3 and F6 time out, so re-run those alone before reading them as failures. A PR that conflicts with main gets no CI run at all: check `mergeable_state` when CI stays quiet.
+
 ## Track 1, Thursday 12 November, 20:15 UTC (session past half, handing over; supersedes the 18:10 entry)
 
 Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: search words on Data and Feedback). #255 (CK2's review: the table keeps its answers). #261 (find_goals keeps a pasted link's tab).
