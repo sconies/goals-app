@@ -122,6 +122,16 @@ async function pickIn(scope, opener, typed, option) {
   if (typed) await panel.getByRole('combobox').fill(typed);
   await panel.getByRole('option', { name: option }).first().click();
 }
+/** The week picker (goal entry 2.13): opens the field named `label` (its words start the button's name), types `typed`
+    ("50", "14 Dec", "2027 13") into its text field and presses Enter, which chooses that week and closes it. */
+async function pickWeek(scope, label, typed) {
+  const name = label instanceof RegExp ? label : new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' ');
+  await scope.getByRole('button', { name }).first().click();
+  const panel = (typeof scope.page === 'function' ? scope.page() : scope).locator('.weekpick.open');
+  const field = panel.getByRole('textbox');
+  await field.fill(typed);
+  await field.press('Enter');
+}
 async function see(p, text, msg, timeout = 5000) {
   // p is a page, or a locator to look inside.
   const all = p.getByText(text, { exact: false });
@@ -596,8 +606,8 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.checkpoint('step 2');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'min');
-  await h.fill(p.getByLabel(/^Today \(week/), '90');
-  await h.fill(p.getByLabel(new RegExp(`Target \\(week ${WEEKS}\\)`)), '45');
+  await h.fill(p.getByLabel(/^Baseline$/), '90');
+  await h.fill(p.getByLabel(/^Target$/), '45');
   await h.click(p.getByRole('button', { name: /Back-loaded/ }));
   if (!(await p.getByLabel('Plan preview').isVisible())) fail('no plan preview');
   await h.checkpoint('step 3');
@@ -1537,13 +1547,15 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   // Mateo leads SRE, which owns north stars, so he is asked the level (OB1, rule 1).
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  // With one possible date (the year end) it is said, not offered as a one-button choice (fit and finish F3, 8).
-  const due = p.getByText(/^Year end · due week \d+/);
-  await h.inView(due, 'entry', 'when the target is due');
-  h.set('attention', await due.isVisible(), 'a new goal is not due at the year end by default');
+  // To starts as the year's end and says so under the week picker (goal entry 2.4 and 2.13; GE9).
+  const due = p.getByRole('button', { name: /^To Week \d+ · / });
+  // To is the fourth field on a phone, so it is looked for, not expected above the fold.
+  await due.scrollIntoViewIfNeeded();
+  h.set('entry', await due.isVisible(), 'To isn’t on the measure step');
+  h.set('attention', await due.isVisible() && await p.locator('.weekpick', { has: due }).locator('.weekpick-is, .weekpick-is-inline').filter({ hasText: /The end of \d{4}$/ }).filter({ visible: true }).count() > 0, 'a new goal is not due at the year end by default');
   await h.fill(p.getByLabel('Unit'), '%');
-  await h.fill(p.getByLabel(/^Today \(week/), '20');
-  await h.fill(p.getByLabel(/^Target \(week/), '90');
+  await h.fill(p.getByLabel(/^Baseline$/), '20');
+  await h.fill(p.getByLabel(/^Target$/), '90');
   // The plan is a table of numbers, with the shape's defaults, folded under the chart (OB1); type over one.
   await h.click(p.getByText('Adjust the plan week by week'));
   const row = p.getByLabel(/^Plan for week \d+/).first();
@@ -1823,8 +1835,8 @@ journey('U25', ['FIRST-CHECKIN', 'GOAL-CREATE'], 'Publish a goal, then post its 
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), '%');
-  await h.fill(p.getByLabel(/^Today \(week/), '20');
-  await h.fill(p.getByLabel(/^Target \(week/), '90');
+  await h.fill(p.getByLabel(/^Baseline$/), '20');
+  await h.fill(p.getByLabel(/^Target$/), '90');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await see(p, 'is published', 'publishing does not offer the first check-in');
@@ -1961,8 +1973,8 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), '%');
-  await h.fill(p.getByLabel(/^Today \(week/), '0');
-  await h.fill(p.getByLabel(/^Target \(week/), '150');
+  await h.fill(p.getByLabel(/^Baseline$/), '0');
+  await h.fill(p.getByLabel(/^Target$/), '150');
   h.set('logged', await p.locator('.level-check').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
   await p.context().close();
 });
@@ -4698,8 +4710,8 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel('Unit'), '%');
-  await h.fill(p.getByLabel(/^Today \(week/), '10');
-  await h.fill(p.getByLabel(/^Target \(week/), '80');
+  await h.fill(p.getByLabel(/^Baseline$/), '10');
+  await h.fill(p.getByLabel(/^Target$/), '80');
   await h.checkpoint('measure');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
@@ -4709,10 +4721,10 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
-  const kept = await p.getByLabel(/^Target \(week/).inputValue();
+  const kept = await p.getByLabel(/^Target$/).inputValue();
   await p.reload();
   await see(p, 'Picked up the goal you hadn’t published.', 'a reload does not say the draft was picked up');
-  h.set('finish', kept === '80' && (await p.getByLabel(/^Today \(week/).inputValue()) === '10' && /\/goals\/new\/measure(\?|$)/.test(p.url()), 'Back or a reload lost the step or its numbers');
+  h.set('finish', kept === '80' && (await p.getByLabel(/^Baseline$/).inputValue()) === '10' && /\/goals\/new\/measure(\?|$)/.test(p.url()), 'Back or a reload lost the step or its numbers');
   // Close and keep the draft; New goal picks it up at the same step.
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();
   await p.goto(url('/goals/new'));
@@ -4726,7 +4738,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Today empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Today and Target.” above the button, focus on Today; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4745,17 +4757,17 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   const unit = p.getByLabel(/^Unit/);
   h.set('entry', (await unit.inputValue()) === '' && /optional/.test(await p.locator('label.field', { has: unit }).innerText()), 'Unit doesn’t start empty and optional');
   // Nothing is said while typing: the target's Must fix waits for the field to be left, or for Continue.
-  await h.fill(p.getByLabel(/^Target \(week/), '30 mins');
+  await h.fill(p.getByLabel(/^Target$/), '30 mins');
   h.set('errors', !(await p.getByRole('alert').filter({ hasText: 'has words in it' }).count()), 'a Must fix shows while typing');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   const line = await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)');
-  h.set('errors', line.trim() === '2 things to fix above: Today and Target.', `the line above the button says “${line.trim()}”, not “2 things to fix above: Today and Target.”`);
+  h.set('errors', line.trim() === '2 things to fix above: Baseline and Target.', `the line above the button says “${line.trim()}”, not “2 things to fix above: Baseline and Target.”`);
   const startFix = await p.getByRole('alert').filter({ hasText: 'Enter where it starts today.' }).isVisible();
   const targetFix = await p.getByRole('alert').filter({ hasText: '“30 mins” has words in it. Type the number only, like 30; the unit goes in Unit.' }).isVisible();
   const focused = await p.evaluate(() => document.activeElement?.getAttribute('data-field'));
-  h.set('errors', startFix && targetFix && focused === 'start' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `each Must fix isn’t under its field with focus on Today (start ${startFix}, target ${targetFix}, focus ${focused})`);
+  h.set('errors', startFix && targetFix && focused === 'start' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `each Must fix isn’t under its field with focus on Baseline (start ${startFix}, target ${targetFix}, focus ${focused})`);
   await h.fill(unit, 'min');
-  await h.fill(p.getByLabel(/^Today \(week/), '42');
+  await h.fill(p.getByLabel(/^Baseline$/), '42');
   await see(p, 'Kept as whole numbers, as you typed them.', 'the decimals line doesn’t say what is kept');
   h.set('a11y', !(await p.getByLabel('Decimals', { exact: true }).count()), 'Decimals is still a field to fill in');
   await h.checkpoint('measure');
@@ -4774,8 +4786,8 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel(/^Unit/), '%');
-  await h.fill(p.getByLabel(/^Today \(week/), '50');
-  await h.fill(p.getByLabel(/^Target \(week/), '150');
+  await h.fill(p.getByLabel(/^Baseline$/), '50');
+  await h.fill(p.getByLabel(/^Target$/), '150');
   const q = p.locator('.level-check').filter({ hasText: 'The target is over 100%.' });
   await h.inView(q, 'attention', 'the over-100 question');
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -4789,7 +4801,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.click(p.locator('.focus-foot').getByRole('button', { name: 'Back', exact: true }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await see(p, 'You said 150% is right.', 'going back doesn’t say what was answered');
-  await h.fill(p.getByLabel(/^Target \(week/), '160');
+  await h.fill(p.getByLabel(/^Target$/), '160');
   h.set('attention', await p.locator('.level-check').filter({ hasText: 'Is 160% right?' }).isVisible(), 'changing 150 to 160 doesn’t ask again');
   await h.click(p.getByRole('button', { name: 'Yes, 160% is right' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -4811,10 +4823,10 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design');
-  await h.fill(p.getByLabel('Stage 1: due week'), '50');
+  await pickWeek(p, 'Stage 1: due', '50');
   await h.click(p.getByRole('button', { name: 'Add a stage' }));
   await h.fill(p.getByLabel('Stage 2', { exact: true }), 'Design');
-  await h.fill(p.getByLabel('Stage 2: due week'), '52');
+  await pickWeek(p, 'Stage 2: due', '52');
   await h.click(p.getByRole('button', { name: 'Add a stage' }));
   await h.fill(p.getByLabel('Stage 3', { exact: true }), 'Pilot');
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -4922,8 +4934,8 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
   const forTeam = await field.getByRole('group', { name: 'For' }).getByRole('button', { name: 'CI/CD' }).getAttribute('aria-pressed');
   h.set('progress', forTeam === 'true' && (await p.getByLabel('Unit', { exact: true }).count()) === 0, `For is not CI/CD (${forTeam}), or the unit field still shows beside the metric’s line`);
   await h.checkpoint('chosen');
-  await h.fill(p.getByLabel(/^Today \(week/), '9');
-  await h.fill(p.getByLabel(/^Target \(week/), '4');
+  await h.fill(p.getByLabel(/^Baseline$/), '9');
+  await h.fill(p.getByLabel(/^Target$/), '4');
   const read = await publish();
   h.set('finish', /Measured by Pipeline queue wait \(p90\), for CI\/CD\./.test(read), `Check does not say what measures it: ${read}`);
   const goalUrl = p.url();
@@ -4944,8 +4956,8 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
   await h.click(here.getByRole('button', { name: 'Add this metric' }));
   await see(p, 'Added runner wait. Say more about it on its page when you can.', 'adding a metric in place is not confirmed');
   await see(p.locator('.measured-by'), 'Its meaning hasn’t been written yet.', 'the metric added in place is not chosen');
-  await h.fill(p.getByLabel(/^Today \(week/), '8');
-  await h.fill(p.getByLabel(/^Target \(week/), '5');
+  await h.fill(p.getByLabel(/^Baseline$/), '8');
+  await h.fill(p.getByLabel(/^Target$/), '5');
   const again = await publish();
   await p.goto(url('/metrics?q=runner+wait'));
   const row = (await p.locator('.metric-row', { hasText: 'runner wait' }).first().innerText().catch(() => '')).replace(/\s+/g, ' ');
@@ -4958,6 +4970,93 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
 }, []);
 
 /* Looking after metrics (ML3, docs/design/metrics/spec.md 2.3, 2.5, 2.8, rules 3 and 4). */
+journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step, Baseline and Target each sit beside a week, From “Week 45 · 2–8 Nov 2026 · This week” and To “Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026”; opening To lists the three named weeks, then 2026 from week 46, and 2027; typing “14 Dec” chooses week 51; “The end of Q1 2027” closes as “Week 13 · 29 Mar–4 Apr 2027” and the line says it carries into 2027; the keyboard alone moves From to week 40, which asks whether it has been running since, and “No, start from this week” puts it back. Check reads “from 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)”, and so does the published goal’s About. A stage’s Due is the same picker; no number field for a week is on the step', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed build queue wait');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  // The two rows: Baseline with From, Target with To, each week said with its dates and what it is.
+  const from = p.getByRole('button', { name: /^From Week/ });
+  const to = p.getByRole('button', { name: /^To Week/ });
+  await h.inView(from, 'entry', 'From, beside Baseline');
+  // What the week is sits under the picker, or beside its label on a phone.
+  const said = async (b) => ((await b.innerText()) + ' · ' + (await p.locator('.weekpick', { has: b }).locator('.weekpick-is, .weekpick-is-inline').filter({ visible: true }).first().innerText()).replace(/^\s*·\s*/, '')).trim();
+  h.set('entry', (await said(from)) === 'Week 45 · 2–8 Nov 2026 · This week' && (await said(to)) === 'Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026', `From and To read “${await said(from)}” and “${await said(to)}”`);
+  h.set('a11y', !(await p.locator('.focus-body input[inputmode="numeric"]').count()) && !(await p.getByLabel(/week$/i).count()), 'a week is still a number field on the measure step');
+  await h.fill(p.getByLabel(/^Unit/), 'min');
+  await h.fill(p.getByLabel(/^Baseline$/), '42');
+  await h.fill(p.getByLabel(/^Target$/), '30');
+  // Opening To: three named weeks, then the years and their weeks.
+  await h.click(to);
+  const panel = p.locator('.weekpick.open');
+  const named = (await panel.locator('.weekpick-named .strong').allInnerTexts()).join(' | ');
+  const years = (await panel.getByRole('group', { name: 'Year' }).getByRole('button').allInnerTexts()).join(' ');
+  const firstRow = (await panel.getByRole('option').first().innerText()).trim();
+  h.set('attention', named === 'The end of 2026 | The end of Q1 2027 | The end of 2027' && years === '2026 2027' && /^Week 46 · 9–15 Nov/.test(firstRow), `To offers “${named}”, years “${years}”, first “${firstRow}”`);
+  await h.checkpoint('to open');
+  // What can't be read says so, and changes nothing.
+  await panel.getByRole('textbox').fill('next spring');
+  await panel.getByRole('textbox').press('Enter');
+  h.set('errors', await panel.getByRole('status').filter({ hasText: '“next spring” isn’t a week' }).isVisible() && /^Week 53 /.test(await to.innerText()), 'typing what isn’t a week isn’t explained');
+  await panel.getByRole('textbox').fill('14 Dec');
+  await panel.getByRole('textbox').press('Enter');
+  h.set('finish', /^Week 51 · 14–20 Dec 2026/.test(await to.innerText()), `“14 Dec” chose ${await to.innerText()}`);
+  await h.click(to);
+  await h.click(p.locator('.weekpick.open').getByRole('button', { name: /^The end of Q1 2027/ }));
+  h.set('finish', (await to.innerText()).trim() === 'Week 13 · 29 Mar–4 Apr 2027', `the end of Q1 2027 reads ${await to.innerText()}`);
+  await see(p, 'It runs past the end of 2026 and carries into 2027 with this plan.', 'the line under the numbers doesn’t say it carries into 2027');
+  // The keyboard alone: open From, down into the list, up five weeks, Enter.
+  await from.focus();
+  await p.keyboard.press('Enter');
+  await p.locator('.weekpick.open').getByRole('textbox').waitFor();
+  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open input'));
+  await p.keyboard.press('ArrowDown');
+  await p.waitForFunction(() => document.activeElement?.matches('.weekpick.open [role="listbox"]'));
+  for (let i = 0; i < 5; i++) await p.keyboard.press('ArrowUp');
+  await p.waitForFunction(() => document.activeElement?.getAttribute('aria-activedescendant')?.endsWith('w40'));
+  await p.keyboard.press('Enter');
+  await p.locator('.weekpick.open').waitFor({ state: 'detached' }).catch(() => {});
+  h.set('a11y', /^Week 40 · 28 Sep–4 Oct 2026/.test(await from.innerText()), `the keyboard chose ${await from.innerText()}`);
+  const q = p.locator('.level-check').filter({ hasText: 'Week 40 was 5 weeks ago. Has this been running since then?' });
+  // It sits right under From, where the week was just chosen.
+  const asked = p.getByText(/^Week 40 was 5 weeks ago\. Has this been running since then\?/);
+  await asked.first().scrollIntoViewIfNeeded().catch(() => {});
+  await h.inView(asked, 'attention', 'the question about a From in the past');
+  await h.click(q.getByRole('button', { name: 'No, start from this week' }));
+  h.set('finish', /^Week 45 · 2–8 Nov 2026/.test(await from.innerText()), '“No, start from this week” didn’t put From back');
+  await h.checkpoint('measure');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  const sentence = 'from 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)';
+  await see(p, sentence, 'Check doesn’t read the weeks back with their dates');
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/]+\?published=1/);
+  await see(p, 'From 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027', 'the goal’s About doesn’t say the same weeks');
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Signed build queue wait');
+  h.set('logged', !!made && (made.plan.fromWeek ?? 0) === NOW && made.plan.endWeek === WEEKS + 13, `saved From ${made && made.plan.fromWeek} and To ${made && made.plan.endWeek}`);
+
+  // A stage's Due is the same picker.
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Signing rolled out in stages');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
+  await pickWeek(p, 'Stage 1: due', '50');
+  h.set('finish', /Week 50 · 7–13 Dec 2026/.test(await p.getByRole('button', { name: /^Stage 1: due/ }).innerText()), 'a stage’s Due isn’t the week picker');
+  await h.checkpoint('stage');
+  await p.context().close();
+}, []);
+
 journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; Remove says which goals stop being measured, and Undo puts the metric and its links back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/metrics/new'));
@@ -5037,7 +5136,7 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
-  await h.fill(p.getByLabel('Stage 1: due week'), '1');
+  await pickWeek(p, 'Stage 1: due', '1');
   await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
   // The question is goal entry's shared Check block (GE2): Continue waits for it, and says where.
   await h.click(p.getByRole('button', { name: /Continue/ }));
@@ -5062,8 +5161,8 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.fill(p.getByLabel('Unit'), 'days');
-  await h.fill(p.getByLabel(/^Today \(week/), '5');
-  await h.fill(p.getByLabel(/^Target \(week/), '2');
+  await h.fill(p.getByLabel(/^Baseline$/), '5');
+  await h.fill(p.getByLabel(/^Target$/), '2');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);

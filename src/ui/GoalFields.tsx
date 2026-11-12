@@ -2,7 +2,8 @@
 import { useState, type ReactNode } from 'react';
 import { levelsOf } from '../domain/levels';
 import { useApp } from '../app/state';
-import type { Level } from '../domain/types';
+import type { Cycle, Level } from '../domain/types';
+import { WeekPick } from './WeekPick';
 import type { GoalAnswers, GoalCheck, MustFix } from '../domain/goalEntry';
 import { placesText } from '../domain/numbers';
 import { Icon } from './Icon';
@@ -56,44 +57,13 @@ export function LevelField({ level, onChange, labelClass }: { level: Level; onCh
   );
 }
 
-/** When the target is due. A choice only when there is one: a single option is said in words. */
-export function DueField({ label, options, choice, onChoose, dates, labelClass, after }: {
-  label: string;
-  options: [number, string][];
-  /** The week it's due. */
-  choice: number;
-  onChoose: (week: number) => void;
-  /** That week's dates: "28 Dec–3 Jan 2027". */
-  dates: string;
-  labelClass: string;
-  /** A sentence after, such as what carrying into next year means. */
-  after?: string;
-}) {
-  if (options.length < 2) {
-    const only = options.find(([w]) => w === choice) ?? options[0];
-    return (
-      <div className="field"><span className={labelClass}>{label}</span>
-        <span className="due-only">{only ? only[1] + ' · ' : ''}due week {choice}, <DateRange>{dates}</DateRange></span>
-        {after && <span className="hint">{after}</span>}
-      </div>
-    );
-  }
-  return (
-    <div className="field"><span className={labelClass} id="end-l">{label}</span>
-      <div className="seg full" role="group" aria-labelledby="end-l">
-        {options.map(([w, l]) => <button key={w} type="button" aria-pressed={choice === w} onClick={() => onChoose(w)}>{l}</button>)}
-      </div>
-      <span className="hint">Due week {choice}, <DateRange>{dates}</DateRange>.{after ? ' ' + after : ''}</span>
-    </div>
-  );
-}
-
 type Stage = { id: string; name: string; dueWeek: string; done?: '' | 'yes' | 'no' };
 /** A stage row's Must fix: the row (an index into the stages), which of its fields, and the words. */
 export interface StageError { row: number; field: 'name' | 'week' | 'row'; text: string }
 
-/** Dated stages: "Stage" and "Due week" said once above the rows; an error sits under the first row it's about. */
-export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelClass, weeks, goalName, onLeave, below }: {
+/** Dated stages: "Stage" and "Due" said once above the rows, each Due the week picker (2.13); an error sits under the
+    first row it's about. */
+export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelClass, cycle, week, goalName, onLeave, below }: {
   stages: Stage[];
   onChange: (stages: Stage[]) => void;
   onAdd: () => void;
@@ -104,8 +74,10 @@ export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelCl
   /** A field left (blur): Must fix is shown for a field once it has been changed and left. */
   onLeave?: () => void;
   labelClass: string;
-  /** The cycle's weeks: only to find which row a week error is about. */
-  weeks: number;
+  /** The cycle (its first day and length): what the picker offers, within this goal year. */
+  cycle: Pick<Cycle, 'startDate' | 'weeks'>;
+  /** This week. */
+  week: number;
   /** Where several goals' stages share a screen (setting up a workspace), the goal each field belongs to. */
   goalName?: string;
   /** What is asked under a row (goal entry rule 3's stage-past, in the shared Check block): drawn by the form. */
@@ -117,19 +89,21 @@ export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelCl
   // The error goes under the row it's about: the first unnamed stage, the first with a week out of range, or the first row.
   const badName = !!error && !/week/.test(error);
   const used = (s: Stage) => !!(s.name.trim() || s.dueWeek.trim());
-  const weekOk = (s: Stage) => { const w = Number(s.dueWeek.trim()); return s.dueWeek.trim() !== '' && Number.isInteger(w) && w >= 1 && w <= weeks; };
+  const weekOk = (s: Stage) => { const w = Number(s.dueWeek.trim()); return s.dueWeek.trim() !== '' && Number.isInteger(w) && w >= 1 && w <= cycle.weeks; };
   const bad = !error ? -1 : Math.max(0, badName ? stages.findIndex((s) => used(s) && !s.name.trim()) : stages.findIndex((s) => used(s) && !weekOk(s)));
   // Rows with their own Must fix (New goal, the edit page); else the one line under the row it's about (set-up).
   const rowsSaid: StageError[] = rowErrors ?? (bad >= 0 && error ? [{ row: bad, field: badName ? 'name' : 'week', text: error }] : []);
   const said = (i: number, f: StageError['field']) => rowsSaid.some((e) => e.row === i && e.field === f);
   return (
     <div className="stages" role="group" aria-label="Stages">
-      <div className="stage-head" aria-hidden="true"><span className={labelClass}>Stage</span><span className={labelClass}>Due week</span></div>
+      <div className="stage-head" aria-hidden="true"><span className={labelClass}>Stage</span><span className={labelClass}>Due</span></div>
       {stages.map((s, i) => (
         <div key={s.id} className="stage">
           <div className="stage-row">
             <input className="input stage-name" value={s.name} aria-label={named(`Stage ${i + 1}`)} aria-invalid={said(i, 'name')} data-field={i === 0 ? 'stages' : undefined} onBlur={onLeave} onChange={(e) => edit(s.id, { name: e.target.value })} placeholder={i === 0 ? 'e.g. Threat model' : 'Stage name'} />
-            <input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} aria-invalid={said(i, 'week')} onBlur={onLeave} value={s.dueWeek} onChange={(e) => edit(s.id, { dueWeek: e.target.value })} placeholder="Due week" />
+            <div className="stage-week" onBlur={onLeave}>
+              <WeekPick cycle={cycle} week={week} field="stage" label={named(`Stage ${i + 1}: due`)} labelClass="sr" value={weekOk(s) ? Number(s.dueWeek) : null} invalid={said(i, 'week')} onChange={(n) => edit(s.id, { dueWeek: String(n) })} />
+            </div>
             {stages.length > 1 ? <button type="button" className="iconbtn stage-remove" onClick={() => onChange(stages.filter((x) => x.id !== s.id))} aria-label={named('Remove stage ' + (i + 1))}><Icon name="close" /></button> : <span className="stage-remove" aria-hidden="true" />}
           </div>
           {below?.(i)}

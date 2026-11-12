@@ -277,6 +277,14 @@ Every way of adding a goal says what it needs before it is refused, checks it wi
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U93
 
+### GOAL-DATES
+
+A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools.
+
+- **Rule:** [Years and weeks](rules/years-and-weeks.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U109
+
 ### NEW-GOAL-TRUTH
 
 A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
