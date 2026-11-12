@@ -130,6 +130,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | empty | “Check-ins start in week 1” | `app.week < 1` |
 | empty | “That goal doesn’t exist” | `!goal` |
+| empty | “…” | always |
 | empty | “Only … checks in on this goal” | always |
 | error | “Type this week’s number.” | `step === 'measure' and !(goal.kind === 'milestone') and empty` |
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |
@@ -392,7 +393,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 
 - `/goals` (`GoalsScreen`): Goals opens on yours. Tabs choose whose goals (Mine, My team, Watching, All); Group arranges them, Needs attention narrows them, and layouts choose how they look. Help: “Goals and its layouts” (`goals`).
 
-- **Named parts:** “Not linked”
+- **Named parts:** “Goals”, “Not linked”
 - **Main action:** Find goals (search, filter, sort, lay them out) and open one.
 - **Primary buttons in its markup:** “Set up the first goal”, “Done”
 - **AI tools:** `find_goals`, `get_overview`
@@ -409,6 +410,7 @@ None: nothing to type or choose here.
 
 | State | What it says | Shown when |
 |---|---|---|
+| whole screen | “Goals” | `stateOn` |
 | empty | “No goals yet” | `!app.snapshot.goals.length` |
 
 **Buttons, and who sees them**
@@ -416,8 +418,8 @@ None: nothing to type or choose here.
 | Button | Kind | Shown when |
 |---|---|---|
 | “… · …” | button | always |
-| “Wrap up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
 | “New goal” | link | always |
+| “Wrap up” | link | `wrapUpOpenOn(app.cycle, app.today)` |
 | “… (worked out when it shows)” | button | `app.snapshot.goals.length > 0` |
 | “Set up the first goal” | primary | `!app.snapshot.goals.length` |
 | “Save this view…” | button | `canSave` |
@@ -432,7 +434,7 @@ None: nothing to type or choose here.
 - `/goals/new` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 - `/goals/new/:step` (`GoalWizard`): A new goal takes four short steps: what you want to achieve, whose it is and where it fits, how it’s measured, then a check before publishing. Help: “Setting up a goal” (`new-goal`).
 
-- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”, “After you publish”
+- **Named parts:** “What do you want to achieve?”, “Whose is it, and where does it fit?”, “Does this read right?”
 - **Main action:** Publish the goal, one question a step.
 - **Primary buttons in its markup:** none written as plain text
 - **AI tools:** `create_goal`
@@ -482,7 +484,8 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “At least” | button | `step === 2` and `d.kind === 'range'` |
 | “Change” | button | `step === 3` and `read` and `r.step != null` |
 | “Back” | button | `step > 0` |
-| “Published / Saving… / Continue / Publish goal” | primary | always |
+| “Skip: say how it’s measured later” | button | `step === 1` and `proposing` |
+| “Proposed / Published / Saving… / Continue / Propose goal / Publish goal” | primary | always |
 
 ## GoalScreen
 
@@ -1307,6 +1310,65 @@ None written in its markup beyond the screen itself: it draws what it has.
 | “Tidy up” | button | `Object.keys(moved).length > 0` |
 | “(Close)” | button | always |
 | “Open the goal” | primary | always |
+
+### Goals: proposed goals
+
+[src/screens/ProposedList.tsx](../../src/screens/ProposedList.tsx)
+
+- **Where:** /goals?state=proposed (the count line’s “· {n} proposed”, or the State filter)
+- **Help:** “Proposed goals” (`goal-proposed`): A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.
+- **Main action:** Read the proposed goals in the scope, newest first, with what each would measure, and open one.
+
+**Fields**
+
+None: nothing to type or choose here.
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Remove” | button | always |
+
+### A proposed goal’s page
+
+[src/screens/ProposedGoal.tsx](../../src/screens/ProposedGoal.tsx)
+
+- **Where:** /goals/:goalId, for a goal that is proposed, not yet active
+- **Help:** “Proposed goals” (`goal-proposed`): A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.
+- **Main action:** For its owner or an admin, Make it active (or Finish it, when something is missing); for anyone else, comment, ask or watch.
+
+**Fields**
+
+| Field | Kind | Shown when |
+|---|---|---|
+| “From” | WeekPick | `goal.kind === 'metric'` |
+| “Yes, it was … in week …” | radio | `before` |
+| “No, start from this week” | radio | `before` |
+
+**States**
+
+None written in its markup beyond the screen itself: it draws what it has.
+
+**Buttons, and who sees them**
+
+| Button | Kind | Shown when |
+|---|---|---|
+| “Finish it” | primary | `canActivate` and `missing.length` |
+| “Make it active” | primary | `canActivate` and `!missing.length` |
+| “Change it” | link | `canActivate` |
+| “Withdraw it” | button | `canActivate` |
+| “Change it” | link | `!canActivate` and `canChange` |
+| “Withdraw it” | button | `!canActivate` and `canChange` |
+| “Add a comment” | button | `!canActivate` and `!canChange` |
+| “Ask … a question” | button | `!canActivate` and `!canChange` and `goal.ownerId !== app.viewer.id` |
+| “Withdraw it” | button | `withdrawing` |
+| “Keep it” | button | `withdrawing` |
+| “Make it active” | primary | always |
+| “Cancel” | button | always |
 
 ### Goals: history
 

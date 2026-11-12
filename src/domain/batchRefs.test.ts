@@ -65,4 +65,16 @@ describe('a batch that refers to its own new goals', () => {
     const out = leaveOut(tables, [{ sheet: 'Goals', row: 2 }]);
     expect(out.also.map((x) => `${x.sheet} ${x.row}`)).toEqual(['Goals 3', 'Check-ins 2']);
   });
+
+  it('two check-ins for one new goal in one week are one goal on two rows, by Goal ref as by key (build review of #259)', () => {
+    const ci = (v: string) => ({ 'Goal ref': 'c', Week: String(week), Value: v, 'Next step': 'Start the weekly read-out' });
+    const cs = run({ goals: rows([goal('a', 'Register: top'), goal('c', 'Register: child', { 'Feeds into ref': 'a' })]), checkIns: rows([ci('12'), ci('13')]) });
+    expect(musts(cs).join(' ')).toMatch(/has the same week on rows 2 and 3/);
+    expect(cs.commit).toBeNull();
+  });
+
+  it('says which columns disagree, by the names the row used', () => {
+    expect(musts(run({ goals: rows([goal('a', 'Top'), goal('b', 'Child', { 'Feeds into ref': 'a', 'Feeds into key': 'G-14' })]) }, 'amara')))
+      .toContain('3: Feeds into ref and Feeds into key name different goals. Change just one of them.');
+  });
 });

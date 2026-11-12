@@ -16,6 +16,8 @@ import { firstReview, reviewDate, WEEKDAY } from './progress';
 import { goalsIn, treeOf } from './review';
 import { LABEL } from './vocabulary';
 import { cycleYear, weekSays } from './weeks';
+import { measureEmpty } from './proposed';
+import { MEASURE_UNSAID } from './proposedSummary';
 import type { Cycle, Goal, Level, MetricPlan, Review } from './types';
 
 /** What the read-back reads besides the draft (rule 5's ctx). Each is named; nothing is looked up. */
@@ -40,10 +42,12 @@ export interface ReadBackContext {
   reviewsOn: boolean;
   reviewsJoined: { name: string; why: string }[];
   wsName: string;
+  /** "Is it under way?" (GE10, rule 14): 'proposed' says what proposing does instead of what publishing does. */
+  state?: 'active' | 'proposed';
 }
 
 export interface ReadBackRow { id: 'what' | 'who' | 'measured' | 'usual' | 'said'; label: string; text: string; step: number | null }
-export interface ReadBack { rows: ReadBackRow[]; after: string[] }
+export interface ReadBack { rows: ReadBackRow[]; after: string[]; /** Under "After you propose it": the quieter last line. */ hint?: string }
 
 const SHAPE_WORDS = { straight: 'the same amount each week', back: 'slowly at first, faster near the end', stepped: 'in a few jumps' } as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -100,7 +104,9 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
 
   // What.
   let what: string;
-  if (d.kind === 'metric') {
+  if (c.state === 'proposed' && measureEmpty(d)) {
+    what = MEASURE_UNSAID;
+  } else if (d.kind === 'metric') {
     what = plan
       ? `A number to move: from ${num(plan.start)} in ${weekSays(cy, plan.from, 'sentence')} to ${num(plan.target)} by ${weekSays(cy, plan.to, 'sentence')}, ${handSet(d) ? 'with the weeks’ numbers set by hand' : SHAPE_WORDS[d.shape]}. ${plan.target > plan.start ? 'Higher' : 'Lower'} is better.`
       : 'A number to move.';
@@ -139,9 +145,10 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
   // You said: no Change (each question's own line on its step has one).
   if (c.answers.length) rows.push({ id: 'said', label: 'You said', text: c.answers.join(' '), step: null });
 
-  // After you publish.
+  // After you publish (or propose it).
   const after: string[] = [];
   const ownerFirst = c.owner ? first(c.owner.name) : 'Its owner';
+  if (c.state === 'proposed') return { rows, ...afterProposing(c) };
   // Stages said to be already done are saved as its first check-in (OB2's rule 3): from then it is stopped, not deleted.
   const named = d.kind === 'milestone' ? d.stages.filter((s) => s.name.trim()) : [];
   const doneNow = named.filter((s) => s.done === 'yes').length;
@@ -167,6 +174,58 @@ export function readBack(d: GoalDraft, c: ReadBackContext): ReadBack {
     ? (stopped ? `${stopped} A change to the plan needs a reason.` : 'Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason.')
     : `Only ${ownerFirst} or an admin can change it once it is published. ${stopped || 'Until its first check-in they can change anything, or delete it.'}`);
   return { rows, after };
+}
+
+/** "After you propose it" (2.15, item 2): what proposing does, and the quieter line under it. */
+export function afterProposing(c: Pick<ReadBackContext, 'owner'>): { after: string[]; hint: string } {
+  const you = !c.owner || c.owner.isViewer;
+  const owner = c.owner ? first(c.owner.name) : 'Its owner';
+  return {
+    after: [
+      'It is listed as Proposed, apart from the goals that are under way: it is in no count, no review’s agenda and nobody’s check-ins.',
+      `Its plan is kept as you typed it. When ${you ? 'you make it' : 'it is made'} active, the plan starts from that week unless ${you ? 'you' : 'they'} say otherwise.`,
+      ...(you ? [] : [`${owner} sees it on their Home as a proposal for them. Faro doesn’t send email.`]),
+    ],
+    hint: 'You can change anything without giving a reason, or withdraw it.',
+  };
+}
+
+/** "Is it under way?" (2.15, item 1): the two choices and their lines. `from` is the week a number goal's plan runs from. */
+export function underWay(c: Pick<ReadBackContext, 'owner' | 'rhythm' | 'week'> & { from?: number }): { active: { label: string; line: string }; proposed: { label: string; line: string } } {
+  const when = c.from != null && c.from > c.week ? `week ${c.from}` : 'this week';
+  const you = !c.owner || c.owner.isViewer;
+  return {
+    active: { label: 'Yes: publish it as active', line: c.rhythm === 'weekly' ? `It is judged against its plan from ${when}, and check-ins are due.` : `It is judged against its plan from ${when}.` },
+    proposed: { label: 'Not yet: propose it', line: `Everyone can see it and comment. Nothing is due and it has no status until ${you ? 'you' : first(c.owner!.name)} or an admin make${you ? '' : 's'} it active.` },
+  };
+}
+
+/**
+ * "Make it active"'s read-back (2.15): the plan as it would run from `fromWeek`, then when the first check-in is due.
+ * For a number goal: "From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not
+ * the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week."
+ */
+export function activeReadBack(goal: Goal, c: Pick<ReadBackContext, 'cycle' | 'week' | 'today' | 'rhythm'> & { fromWeek: number; proposer?: string | null; watchers?: number }): string {
+  const cy = c.cycle;
+  const parts: string[] = [];
+  let firstWeek = c.fromWeek;
+  if (goal.kind === 'metric') {
+    const to = goal.plan.endWeek ?? cy.weeks, was = to - (goal.plan.fromWeek ?? 0), n = to - c.fromWeek;
+    const num = (v: number) => fmt(v, goal);
+    parts.push(`From ${num(goal.plan.start)} in ${weekSays(cy, c.fromWeek, 'sentence')} to ${num(goal.plan.target)} by ${weekSays(cy, to, 'sentence')}: ${plural(n, 'week')}${n !== was ? `, not the ${was} you proposed` : ''}.`);
+  } else if (goal.kind === 'range') {
+    parts.push(`At or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, 'sentence')}.`);
+  } else {
+    const last = Math.max(0, ...goal.stages.map((s) => s.dueWeek));
+    parts.push(`${plural(goal.stages.length, 'stage')}, the last due ${weekSays(cy, last, 'sentence')}.`);
+    firstWeek = c.week;
+  }
+  if (c.rhythm === 'weekly') {
+    const due = Math.max(firstReview(cy, c.today).week, firstWeek);
+    parts.push(`Its first check-in is due by ${dueWords({ cycle: cy, today: c.today } as ReadBackContext, due)}, then every week.`);
+  } else parts.push('Nothing is due.');
+  if (c.proposer) parts.push(`${first(c.proposer)}${c.watchers ? ` and its ${plural(c.watchers, 'watcher')}` : ''} see that it is active.`);
+  return parts.join(' ');
 }
 
 /**

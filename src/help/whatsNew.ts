@@ -34,6 +34,27 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['welcome', 'joining'],
   },
   {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'goal-proposed',
+    date: '2026-11-12',
+    title: 'Propose a goal before it starts',
+    points: [
+      'New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.',
+      'Its owner or an admin makes it active when it is agreed.',
+      'Proposed goals are counted apart, and listed under Goals with the Proposed filter.',
+    ],
+    articles: ['goal-proposed', 'new-goal', 'goals', 'columns'],
+  },
+  {
     id: 'batch-refs',
     date: '2026-11-12',
     title: 'Build a whole tree of goals in one file',
