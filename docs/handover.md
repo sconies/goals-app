@@ -4,7 +4,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
 ## Track 1, Thursday 12 November, 20:15 UTC (session past half, handing over; supersedes the 18:10 entry)
 
-Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: search words on Data and Feedback). #255 (CK2's review: the table keeps its answers). #261 (find_goals keeps a pasted link's tab) is open, gate passed; merge it on green CI.
+Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: search words on Data and Feedback). #255 (CK2's review: the table keeps its answers). #261 (find_goals keeps a pasted link's tab).
 
 **Pushed, each built on main of 19:30 to 20:10 UTC, with typecheck and its unit tests passing; in this order:**
 
