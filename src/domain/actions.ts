@@ -2,7 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
-import { mayChangeGoal } from './goalRights';
+import { mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
@@ -574,6 +574,15 @@ export function removeTeam(x: ActionContext, id: string, moveTo?: string | null)
   };
 }
 
+/**
+ * Who may Start over (Lane, 12 Nov): in the shared example anyone may (it only resets this browser's copy); in a
+ * workspace of someone's own, Start over removes it, so only an admin.
+ */
+export function mayStartOver(actor: Pick<Person, 'admin'>, kind: 'own' | 'example'): boolean {
+  return kind === 'example' || !!actor.admin;
+}
+export const START_OVER_ADMINS = 'Only an admin can start this workspace over.';
+
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 export function canDeleteWorkspace(actor: Person, kind: 'own' | 'example', name: string, confirmName: string) {
   if (!actor.admin) no('Only admins can delete the workspace.');
@@ -585,10 +594,11 @@ export function canDeleteWorkspace(actor: Person, kind: 'own' | 'example', name:
 
 /**
  * Record the stages said to be already done when a goal was set up: one check-in, in the week of the latest of them,
- * each stage done in its own due week. The goal's owner or an admin, and only before its first check-in.
+ * each stage done in its own due week. A check-in, so the goal's owner only (R1; goalRights mayPostCheckIn, the form's
+ * door), and only before its first check-in.
  */
 export function recordStagesDone(x: ActionContext, goal: Goal, stageIds: string[]): Commit | null {
-  if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can say which stages are done.');
+  if (!mayPostCheckIn(x.actor, goal, 'form')) no(`Only ${x.snapshot.people.find((p) => p.id === goal.ownerId)?.name ?? 'its owner'} (its owner) can say which stages are done.`);
   if (checkInsFor(goal, x.snapshot.checkIns).length) no('This goal has check-ins already: say a stage is done in a check-in.');
   const c = stagesDoneAtSetUp(goal, stageIds, x.actor.id, x.now, x.newId('ci'));
   if (!c) return null;

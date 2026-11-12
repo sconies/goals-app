@@ -10,6 +10,7 @@ import { parseNumber } from '../domain/checkin';
 import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
 import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
+import { focusQuestion } from '../ui/questionInView';
 import { fmt } from '../domain/format';
 import { placesText } from '../domain/numbers';
 import { isTop, levelName } from '../domain/levels';
@@ -24,7 +25,7 @@ import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { WeekPick } from '../ui/WeekPick';
-import { datesOf, lastWeekOffered, weekSays } from '../domain/weeks';
+import { datesOf, defaultTo, weekSays } from '../domain/weeks';
 import { rangeSays, spanSays } from '../domain/weekChoices';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
@@ -89,17 +90,24 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [asking, setAsking] = useState(false);
   useMark(STEP_MARKS[step] ?? null);
   // From and To (rule 13): picked weeks, from this week to the year's end until chosen.
-  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: null });
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: null, startDate: cycle.startDate });
   const endChoice = span.to;
-  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(defaultTo(cycle, n)) } : {}) });
   const setTo = (n: number) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} });
   const top = useRef<HTMLDivElement>(null);
-  // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check.
-  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check. The
+  // choice itself lives in the draft (measureKept); the place says what it means for the draft as it is now, on the
+  // measure step and, drawing nothing, on Check. A pick said on another step or for another team (Change on Who and
+  // where), or not yet said after a reload, is never the one published (build review of #202, findings 2 and 3).
+  const [measured, setMeasured] = useState<{ pick: MeasurePick | undefined; at: string } | null>(null);
+  const measure = measured?.pick;
   // A metric chosen on a goal whose unit and decimals nobody typed fills them, and they're said in one line (metrics, rule 5).
   const [filled, setFilled] = useState(false);
   // With a module offering "Measured by", the form's own words for how it's measured wait until "No metric" is chosen (metrics spec, 2.4).
   const measurePlace = useFilled('goal.measure');
+  const measureAt = [step, d.kind, d.unit, d.decimals, d.teamId, d.measureKept ?? ''].join('|');
+  const setMeasure = (pick: MeasurePick | undefined) => setMeasured({ pick, at: measureAt });
+  const measureSaid = !measurePlace || d.kind === 'milestone' || measured?.at === measureAt;
   const [saidNone, setSaidNone] = useState(false);
 
   // A parent chosen in the draft that has gone since: said once, and "Feeds into" is empty again (2.5).
@@ -118,7 +126,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
   const live: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published, actor: app.viewer }));
   // Pressing Publish freezes the questions as they were: the save puts the new goal among the team's goals before it
   // returns, and nothing it changes may ask again (or say a question is open) while the goal's page opens.
   const frozen = useRef<GoalCheck[] | null>(null);
@@ -182,9 +190,12 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const atStep = (i: number) => `/goals/new/${NEW_GOAL_STEPS[i]!.slug}`;
   const focusField = (f: GoalField | null) => {
     if (!f) return;
-    setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`)?.focus(), 0);
+    // At once when it is drawn (this step), so focus has moved by the time the line above the button shows; else once it is.
+    const find = () => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`);
+    const now = find();
+    if (now) now.focus(); else setTimeout(() => find()?.focus(), 0);
   };
-  const focusCheck = (slot: string | null) => { if (slot) setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); };
+  const focusCheck = (slot: string | null) => focusQuestion(top.current, slot);
   // After "Change" on Check, Continue comes straight back to it: said in the history entry Change made, so it holds for
   // that entry only (the browser's Back to another step doesn't carry it).
   const fromCheck = step < 3 && !!(loc.state as { fromCheck?: boolean } | null)?.fromCheck;
@@ -211,9 +222,14 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     else nav(atStep(step - 1), { replace: true });
   };
 
+  // Publish pressed before Check's place has said what measures it (its code still loading after a reload): it saves
+  // once it has.
+  const waiting = useRef(false);
   const publish = async () => {
+    if (!measureSaid) { waiting.current = true; setSaving(true); return; }
+    waiting.current = false;
     const bad = [0, 1, 2].find((i) => stepErrors(i).length || stepOpen(i).length);
-    if (bad != null) { setTried([0, 1, 2]); nav(atStep(bad)); return; }
+    if (bad != null) { setSaving(false); setTried([0, 1, 2]); nav(atStep(bad)); return; }
     frozen.current = checks;
     setSaving(true);
     try {
@@ -234,6 +250,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       setSaving(false);
     }
   };
+
+  useEffect(() => { if (waiting.current && measureSaid) void publish(); });
 
   const preview: MetricGoal | null = (() => {
     const s = parseNumber(d.start), t = parseNumber(d.target);
@@ -464,9 +482,12 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
           <>
             <h1 className="qtitle big">Does this read right?</h1>
             <p className="small muted">Nothing is saved until you publish.</p>
-            <h2 className="h3 read-back-name">{d.title.trim() || 'Untitled goal'}</h2>
+            <h2 className="h3 goal-read-back-name">{d.title.trim() || 'Untitled goal'}</h2>
             {/* Each row wraps: a sentence is never cut to one line (build review of #129, finding 6). */}
-            <ul className="review-rows read-back" aria-label="Read back">
+            {/* What measures it, worked out from the draft for its team now; draws nothing. */}
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} quiet />}
+            {/* Its own class: .read-back is Start next year's grid of counts (build review of #202, finding 1). */}
+            <ul className="review-rows goal-read-back" aria-label="Read back">
               {read.rows.map((r) => (
                 <li key={r.id} data-row={r.id}>
                   <span className="small strong rr-label">{r.label}</span>

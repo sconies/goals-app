@@ -29,22 +29,36 @@ module.exports = {
       await c.close();
     }
 
-    // ---------- Demo review, 8 Nov, item 15: from the moment Map is chosen, it says it's drawing or shows the goals ----------
-    {
+    // ---------- Demo review, 8 Nov, item 15, and the review of 12 Nov, item 1: choosing Map shows the goals, or says it's
+    // drawing once that takes a noticeable time (300 ms); a quicker wait says nothing, so "Drawing the map…" never flashes.
+    // The map's code is held back (none, then 1.2 s) to time both. ----------
+    for (const hold of [0, 1200]) {
       const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all');
+      if (hold) await p.route(/GoalMap[^/]*\.js(\?|$)/, async (r) => { await new Promise((ok) => setTimeout(ok, hold)); await r.continue(); });
       await p.locator('.layout-menu > summary').click();
+      await p.evaluate(() => {
+        window.__mapWait = { first: null, done: null, blank: [], at: performance.now() };
+        const tick = () => {
+          const w = window.__mapWait, t = Math.round(performance.now() - w.at);
+          const wait = !!document.querySelector('.map-wait'), nodes = document.querySelectorAll('.react-flow__node').length;
+          if (wait && w.first == null) w.first = t;
+          if (!wait && !nodes) w.blank.push(t);
+          if (nodes && w.done == null) w.done = t;
+          if (!nodes && t < 8000) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
       await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: /^Map/ }).click();
-      await p.waitForURL(/view=map/, { timeout: 3000 }).catch(() => {});
-      const blank = [];
-      for (let t = 0; t < 6000; t += 100) {
-        const s = await p.evaluate(() => ({ wait: !!document.querySelector('.map-loading, .map-wait'), nodes: document.querySelectorAll('.react-flow__node').length }));
-        // Two samples in a row: the one frame before the click's change is drawn doesn't count.
-        if (!s.wait && !s.nodes) blank.push(t);
-        else if (blank.length === 1 && blank[0] === t - 100) blank.length = 0;
-        if (s.nodes && !s.wait) break;
-        await p.waitForTimeout(100);
+      await p.locator('.react-flow__node').first().waitFor({ timeout: 10000 }).catch(() => {});
+      const w = await p.evaluate(() => window.__mapWait);
+      const longestBlank = w.blank.length ? Math.max(...w.blank) : 0;
+      if (hold) {
+        fail(w.first != null && w.first >= 250, `Map, slow to load: “Drawing the map…” ${w.first == null ? 'never said' : `said at ${w.first} ms, before the wait was noticeable`}`);
+        fail(longestBlank < 450, `Map, slow to load: blank with nothing said until ${longestBlank} ms`);
+      } else {
+        // Drawn in time, it never said it was drawing; on a slow machine, not before the wait was noticeable.
+        fail(w.first == null || w.first >= 250, `Map, quick to load (drawn at ${w.done} ms): “Drawing the map…” flashed at ${w.first} ms`);
       }
-      fail(blank.length < 2, `Map: blank with nothing said while it loads, at ${blank.slice(0, 5).join(', ')} ms`);
       await c.close();
     }
 

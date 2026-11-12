@@ -6,6 +6,8 @@
      /teams            the teams, with their leads, people and goals by status; admins add a team
      /teams/<id>       a team: its purpose, goals by status and people; admins change or remove it
    Who is listed, in what order, and the lines and counts beside each come from src/domain/directory.ts. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../app/engineReady';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -13,7 +15,7 @@ import { Place } from '../core/app';
 import { DIRECTORY_PAGE, personLine, teamSummary } from '../domain/directory';
 import { useFound } from '../app/search';
 import { historyStep } from '../domain/find';
-import { initials } from '../domain/importer';
+import { initials } from '../domain/via';
 import { normalEmail, personProblems, sameNameNote } from '../domain/people';
 import { teamMembers } from '../domain/actions';
 import { LABEL, leftName } from '../domain/vocabulary';

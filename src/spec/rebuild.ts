@@ -52,8 +52,8 @@ export function moduleOrder<T extends Pick<ModuleFacts, 'id' | 'needs'>>(mods: T
 export function stages(mods: ModuleWithRebuild[]): Stage[] {
   const core: Stage[] = [
     { n: 1, file: 'stage-1-core-rules.md', title: 'The core rules', status: 'drill', builds: 'Weeks and plans, a goal’s status, the projection, what a check-in must say, flags and needs attention, and the scorecard: pure functions over the records, with no screens and no database.' },
-    { n: 2, file: 'stage-2-core-data.md', title: 'The core data and the change engine', status: 'outline', builds: 'Every core record stored, the change log with undo, and the change engine that takes many changes at once and checks them with the stage 1 rules.' },
-    { n: 3, file: 'stage-3-core-screens.md', title: 'The core screens and journeys', status: 'outline', builds: 'Each core screen with its route, named parts and one main action, so a person can do every core journey.' },
+    { n: 2, file: 'stage-2-core-data.md', title: 'The core data and the change engine', status: 'drill', builds: 'Every core record stored, the change log with undo, and the change engine that takes many changes at once and checks them with the stage 1 rules.' },
+    { n: 3, file: 'stage-3-core-screens.md', title: 'The core screens and journeys', status: 'drill', builds: 'Each core screen with its route, named parts and one main action, so a person can do every core journey.' },
   ];
   const ordered = moduleOrder(mods.filter((m) => m.rebuild));
   return [...core, ...ordered.map((m, i): Stage => ({ n: 4 + i, file: `stage-${4 + i}-module-${m.id}.md`, title: `Module: ${m.name}`, status: m.rebuild!.status, builds: m.rebuild!.builds, module: m.id }))];
@@ -64,7 +64,16 @@ const TODAY = { drill: 'drill ready: the harness scores it against the conforman
 
 /* ---------- the guide ---------- */
 
-function guide(all: Stage[], rows: Record<string, number>): string {
+/** Stage 1's scored files: rows expected and columns in order, from the conformance data (scorecard-words.csv is
+    scored only when asked, so it is not one of them). */
+export type Stage1Files = Record<'status' | 'flags' | 'projection' | 'scorecard' | 'checkin', { rows: number; header: string[] }>;
+/** A later stage's scored files (stages 2 and 3): rows expected and columns in order, by file name without `.csv`. */
+export type DrillFiles = Record<string, { rows: number; header: string[] }>;
+/** The files each stage's drill scores by default: the harness's STAGES (scripts/drill.mjs) says the same. */
+export const STAGE_FILES: Record<2 | 3, string[]> = { 2: ['changes', 'import'], 3: ['navigation', 'readback', 'find', 'home'] };
+const total = (files: Stage1Files) => Object.values(files).reduce((a, f) => a + f.rows, 0);
+
+function guide(all: Stage[], rows: Stage1Files): string {
   const drills = all.filter((s) => s.status === 'drill');
   return GENERATED + [
     '# The rebuild kit',
@@ -75,11 +84,11 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     table(['Stage', 'Builds', 'Today'], all.map((s) => [`[${s.n}. ${s.title}](${s.file})`, cell(s.builds), STATUS_WORD[s.status]])),
     '',
-    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
+    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${total(rows)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows. Stages 2 and 3 have a drill for part of what they build: stage 2’s scores the change engine (what it raises, and what each change set would save, item by item), stage 3’s the screens’ words that are rules (the menu and a page’s name, New goal’s read-back, Find, Home’s lead). The rest of each, the store, undo and the screens themselves, is still checked by hand; their pages say which.`,
     '',
     '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it. And before copying anything, read [don’t copy this](dont-copy.md): what is right for a demo and wrong for the internal app.',
     '',
-    '**What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
+    '**What is an outline:** every stage after 3. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
     '',
     '## What Faro doesn’t build',
     '',
@@ -102,7 +111,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '  llms.txt          read only',
     '  spec/             read only: the kit, unchanged',
     '  rebuild/          everything you write goes here',
-    '    drill.json      { "stage": 1, "run": "node main.mjs" }   how the harness runs your rebuild',
+    '    drill.json      { "stage": 1, "run": "node main.mjs" }   how the harness runs your rebuild (stage 1, 2 or 3)',
     '    main.mjs        (or any language: "run" is any command that works in this folder)',
     '    GAPS.md         what you had to guess, and where the kit should have said it',
     '    drill-out/      written by the harness on every run; leave it out of your code',
@@ -114,11 +123,12 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     '```',
     'node spec/rebuild/drill.mjs rebuild',
-    'node spec/rebuild/drill.mjs rebuild --files status          one file while you work (status, flags, projection, scorecard, checkin)',
+    'node spec/rebuild/drill.mjs rebuild --files status          one file while you work (stage 1: status, flags, projection, scorecard, checkin;',
+    '                                                            stage 2: changes, import; stage 3: navigation, readback, find, home)',
     'node spec/rebuild/drill.mjs rebuild --diffs 30              more of the first differences',
     '```',
     '',
-    'From Faro’s own repository the same harness is `npm run drill -- <rebuild folder>`. It runs `drill.json`’s command, scores the five files it writes, file by file and column by column, prints the first differences (with the week, the goal and the column), and exits 0 only at 100%.',
+    'From Faro’s own repository the same harness is `npm run drill -- <rebuild folder>`. It runs `drill.json`’s command, scores the files its stage writes, file by file and column by column, prints the first differences (with the week, the goal and the column), and exits 0 only at 100%.',
     '',
     '### The rules of the drill',
     '',
@@ -132,14 +142,14 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     '- These pages are made by `npm run spec` (`src/spec/rebuild.ts`); never edit them by hand.',
     '- A module’s stage comes from its `module.json` (`rebuild`: status, what it builds, entry, exit and gaps). CI fails when a module in `src/modules` has no stage here (`scripts/check-rebuild.mjs`).',
-    '- The harness is `scripts/drill.mjs`, copied here as `drill.mjs`. CI runs it on Faro’s own rules (`scripts/drill-faro`), which must score 100%.',
+    '- The harness is `scripts/drill.mjs`, copied here as `drill.mjs`. CI runs it on Faro’s own rules (`scripts/drill-faro`), which must score 100% on every stage’s files.',
     '',
   ].join('\n');
 }
 
 /* ---------- stage 1 ---------- */
 
-function stage1(rows: Record<string, number>): string {
+function stage1(rows: Stage1Files): string {
   return GENERATED + [
     '# Stage 1: the core rules',
     '',
@@ -156,7 +166,7 @@ function stage1(rows: Record<string, number>): string {
     '',
     '1. [llms.txt](../../llms.txt): what Faro is, in one page.',
     '2. [The data model](../core/data-model.md), the first part, “The records the core rules read”: Cycle, the three kinds of Goal and their plans, CheckIn, Decision, Ask.',
-    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words, except the scorecard’s `value`, `label` and `sub`.',
+    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words. The scorecard’s words (`value`, `label`, `sub`) are in a sixth file, `scorecard-words.csv`, scored only when asked.',
     `4. The rules, in this order: ${ruleLinks(RULES_STAGE1)}. And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.`,
     '5. [The conformance data](../conformance/README.md): how each week is judged (the moment, and the workspace as it stood then), what every column is, and how numbers are written.',
     '',
@@ -174,13 +184,7 @@ function stage1(rows: Record<string, number>): string {
     '- The harness runs `<command> <workspace.json> <out folder>` in `rebuild/`: the command, then two paths, each quoted. The first is a copy of `spec/conformance/workspace.json`; the second is `rebuild/drill-out/`, emptied first.',
     '- The command writes these five files into the out folder and exits 0, within 10 minutes:',
     '',
-    table(['File', 'Rows expected', 'Columns, in this order'], [
-      ['`status.csv`', String(rows.status), '`week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update`'],
-      ['`flags.csv`', String(rows.flags), '`week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group`'],
-      ['`projection.csv`', String(rows.projection), '`week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses`'],
-      ['`scorecard.csv`', String(rows.scorecard), '`week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub`'],
-      ['`checkin.csv`', String(rows.checkin), '`checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing`'],
-    ]),
+    table(['File', 'Rows expected', 'Columns, in this order'], (Object.entries(rows) as [string, { rows: number; header: string[] }][]).map(([f, x]) => [`\`${f}.csv\``, String(x.rows), x.header.map((c) => `\`${c}\``).join(', ')])),
     '',
     '- A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.',
     '- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).',
@@ -191,14 +195,14 @@ function stage1(rows: Record<string, number>): string {
     '2. The calculation and the official status: the rest of `status.csv`.',
     '3. The projection: `projection.csv`.',
     '4. Flags, the trend, asks and decisions, and needs attention: `flags.csv`.',
-    '5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell.',
+    '5. The scorecard: `scorecard.csv` (each cell’s `tone` and `likelihood`). Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell, and scored only when asked (`"also": ["scorecard-words"]` in `drill.json`, against `scorecard-words.csv`): a rebuild in other words still passes.',
     '6. What a check-in must say: `checkin.csv` (`--files checkin`).',
     '',
     'When a file is close, the first differences for one goal usually name the rule that differs. Read that goal’s records in `workspace.json` and the rule’s worked examples side by side.',
     '',
     '## Exit criteria',
     '',
-    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${Object.values(rows).reduce((a, b) => a + b, 0)} rows).`,
+    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows; \`scorecard-words.csv\`, scored when asked, is not counted).`,
     '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.',
     '3. `rebuild/GAPS.md` lists everything you had to guess.',
     '',
@@ -207,35 +211,62 @@ function stage1(rows: Record<string, number>): string {
 
 /* ---------- the outline stages ---------- */
 
-const outline = (n: number, title: string, intro: string, entry: string[], read: string[], build: string[], exit: string[], gaps: string[]) => GENERATED + [
+/** A later stage's drill: what it scores, what the files are, and what is still by hand. */
+interface PartDrill { n: 2 | 3; files: DrillFiles; scores: string; order: string[]; byHand: string }
+
+const drillSection = (d: PartDrill) => [
+  '## The drill', '',
+  d.scores, '',
+  `- \`rebuild/drill.json\` holds \`{ "stage": ${d.n}, "run": "<command>" }\`. The harness runs it as stage 1’s ([the contract](stage-1-core-rules.md#the-contract)): \`<command> <workspace.json> <out folder>\`, a copy of \`spec/conformance/workspace.json\` and \`rebuild/drill-out/\`, emptied first.`,
+  '- The command writes these files into the out folder and exits 0, within 10 minutes:', '',
+  table(['File', 'Rows expected', 'Columns, in this order'], STAGE_FILES[d.n].map((f) => [`\`${f}.csv\``, String(d.files[f]?.rows ?? 0), (d.files[f]?.header ?? []).map((c) => `\`${c}\``).join(', ')])), '',
+  '- What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.', '',
+  '### A good order', '', ...d.order.map((x, i) => `${i + 1}. ${x}`), '',
+  `**What the drill doesn’t prove:** ${d.byHand}`, '',
+];
+
+const outline = (n: number, title: string, intro: string, entry: string[], read: string[], build: string[], exit: string[], gaps: string[], drill?: PartDrill) => GENERATED + [
   `# Stage ${n}: ${title}`,
   '',
   intro,
   '',
-  `**Today:** ${TODAY.outline} A rebuild can start from it; proving it is done is by hand until it has a drill.`,
+  drill ? `**Today:** ${TODAY.drill.replace('scores it', 'scores part of it')} The rest of its exit criteria are checked by hand.` : `**Today:** ${TODAY.outline} A rebuild can start from it; proving it is done is by hand until it has a drill.`,
   '',
   '## Entry criteria', '', ...entry.map((x) => `- ${x}`), '',
   '## What to read', '', ...read.map((x) => `- ${x}`), '',
   '## What to build', '', ...build.map((x) => `- ${x}`), '',
+  ...(drill ? drillSection(drill) : []),
   '## Exit criteria', '', ...exit.map((x, i) => `${i + 1}. ${x}`), '',
   '## Gaps in the kit', '', 'Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:', '', ...gaps.map((x) => `- ${x}`), '',
 ].join('\n');
 
-const stage2 = () => outline(2, 'the core data and the change engine',
+const stage2 = (files: DrillFiles) => outline(2, 'the core data and the change engine',
   'Every core record stored and changed safely, and the one way many changes come in at once: the change engine, which checks every row with the stage 1 rules before anything is saved.',
   ['Stage 1 passes its drill.'],
   ['[The data model](../core/data-model.md): every record and field, and the database tables after them.', '[The change engine](../core/rules/change-engine.md): parse, validate, preview, apply, log.', '[The requirements](../core/requirements.md) for the change log, undo, removal and imports.'],
   ['A store for every core record in the data model, with the fields it lists. Any database, or none: the tables say what Faro keeps, not how a rebuild must keep it.', 'The core’s records and tables are closed: a feature module never adds a field or a table to them. A module brings its own records instead, declared (what one row is, its table, where a save and the workspace file it, whether it can be removed), with rows each way, what a new cycle carries, and how a removed one comes back; the store keeps, saves, scopes, removes and restores them without knowing what they are (`src/domain/records.ts`). The metric library’s stage is the worked example.', 'The change log: every change to a record with its field-by-field differences, and undo.', 'The change engine: rows in, a change set out (items, unchanged, issues, whether a reason is needed, counts, and the commit), saved all at once or not at all.'],
-  ['The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.', 'Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.', 'A change set that blocks saves nothing; one that saves is undone by one undo.', 'A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.', 'A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.'],
-  ['References across workspaces: a rebuild refuses a save to one workspace whose rows point at another’s records (an owner, team, cycle or parent goal, a check-in’s goal). Faro’s database checks only each row’s own workspace (migration 0038), so Faro can’t show it; R1’s membership is how the server knows.', 'The spreadsheet columns the engine reads are listed in `docs/export-format.md`, which is not in the kit.', 'The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so).', 'No conformance rows for change sets yet, so there is nothing for a harness to score.']);
+  ['`node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 2`: every row and column of `changes.csv` and `import.csv` match.', 'The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.', 'Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.', 'A change set that blocks saves nothing; one that saves is undone by one undo.', 'A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.', 'A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.'],
+  ['References across workspaces: a rebuild refuses a save to one workspace whose rows point at another’s records (an owner, team, cycle or parent goal, a check-in’s goal). Faro’s database checks only each row’s own workspace (migration 0038), so Faro can’t show it; R1’s membership is how the server knows.', 'The spreadsheet columns the engine reads are in [the export format](../core/export-format.md), and every kind of issue it raises, with its trigger, sentence and answers and every column’s other spellings, in [the issue kinds](../core/import-issues.md).', 'The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so); the drill’s rows show them case by case.', 'The drill scores what the engine would save, not the store: nothing scores that a save is all or nothing, that undo restores the records, or the change log’s entries.'],
+  {
+    n: 2, files,
+    scores: 'Stage 2’s drill scores the change engine: for each case (rows loaded from a sheet by a person, on the workspace as it stood at `builtFor`), the first problem or question it raises and whether it would save (`import.csv`), and what it would save, item by item, with every field before and after (`changes.csv`). No store is needed: the engine is a function from the rows, the workspace and who is loading them to a change set.',
+    order: ['Read a sheet’s rows: the columns by any of their spellings, in any case, numbered from line 2.', 'The five `saves-…` cases in `changes.csv` (`--files changes`): a check-in, a plan change with its reason, a new goal, a person, a stop. Each is one item, so its diffs show the words a field is written in.', 'The problems and questions, kind by kind, with `import.csv` (`--files import`). The kinds, levels and groups are [the import levels](../core/rules/import-levels.md); the sentences are in the rows.', 'The rest of `changes.csv`: the items a blocked case would still make, and the counts.'],
+    byHand: 'the engine’s worked examples, the store, the change log and undo (exit criteria 2 to 6). A rebuild proves them with its own tests against the criteria here.',
+  });
 
-const stage3 = () => outline(3, 'the core screens and journeys',
+const stage3 = (files: DrillFiles) => outline(3, 'the core screens and journeys',
   'The core screens, so a person can do every core journey: check in, read a goal, see what needs attention, run a review.',
   ['Stage 2 passes its exit criteria.'],
   ['[The screens](../core/screens.md): each core route, its purpose, named parts and one main action.', '[The journeys](../core/journeys.md): what people do end to end, the most steps each may take, and the ease test.', '[The requirements](../core/requirements.md): each one, with the screens and Help article that cover it.', '[The vocabulary](../core/vocabulary.md): where each word may appear. A status is always a shape and a word.'],
   ['Each core screen at its route, with its named parts and one main action at a time.', 'Every core journey, within its step budget, on a phone (390px) and a desktop (1440px).', 'A goal’s page in one order at every width: the summary and its buttons, Next steps and asks, Why, the chart, then the rest. Its main button is a rule of who is looking ([acting on a goal](../core/rules/goal-act.md)), not a layout choice; Next steps and asks is one query over the goal’s asks and next steps; someone acting for the owner (R6b) presses the owner’s buttons for them.', 'One find-and-pick control wherever a person, team or goal is chosen (requirement `FIND-AND-PICK`): the choice in words with Change, suggestions before typing ([finding things](../core/rules/finding.md), rule 6), then a search through the `Search` port, its count, at most 50 rows, arrow keys, Enter and Escape. Never a list of everyone: the server’s search plugs in behind the port.', 'Find from anywhere (requirement `FIND-ANYWHERE`): the sidebar’s Find, the phone’s Find button and Ctrl K (Cmd K) open one search across goals, people, teams and a module’s kinds, drawn in groups of three with “See all {n} {things}”, a key’s goal alone and first, and Enter opening the first row ([finding things](../core/rules/finding.md), rule 8). Each group is one call to the `Search` port, so the server’s search answers it.', 'One list bar on every list (requirement `LIST-BAR`): the search, then the count line, the filter line and what found nothing in [finding things](../core/rules/finding.md)’ words; the list’s search and filters in the address, a choice adding a history entry. The server pages the list (R4).', 'The menu, the lit item and a page’s name as three rules of the viewer and the address ([navigation](../core/rules/navigation.md)), drawn by the shell: a module adds a menu item in a group, names its pages from their thing, and fills places on a goal’s, a person’s and a team’s page.', 'Where you are (requirements `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`): the browser’s title is the page’s own name by rule 2; one back link per page by rule 4, which goes back in the tab’s history (stepping over forms) so it agrees with the browser’s Back, and up to the parent when there is no history; a form’s one closing control in words, asking first before throwing typed words away.', 'New goal and the first check-in keep day one honest ([a goal not born late](../core/rules/not-born-late.md)): a stage already past is asked about and, if done, recorded done in its own week; a first number off the plan may restart it. These are rules, with the status rules, not screen details.', 'New goal in four steps, each an address ([New goal](../core/rules/new-goal.md)): what, who and where, how it’s measured, check. Its level and the suggestions for what it feeds are rules. In the internal app New goal becomes R6c’s draft-and-propose, and owners and teams come from the directory (R2).', 'Its last step is the read-back ([the read-back](../core/rules/read-back.md)): the goal in sentences (What, Who and where, Measured by, Left as usual, You said), each with Change to its step and Continue straight back, then “After you publish”: the first check-in’s day, who sees it, the reviews it joins (`reviewsJoining`) and how long it can be taken back. A rule, so the internal app’s form and its draft-and-propose say the same.', 'One set of rules at every door ([goal entry](../core/rules/goal-entry.md)): New goal, the edit page, set-up’s goal cards, a spreadsheet’s Goals rows and the AI tools ask the same `goalMustFix`, in the same words, and the form saves through the `saveGoal` command, never by itself, so nothing the change engine would refuse is saved. Anyone may add a goal for anyone at any level; only its owner or an admin changes it. The questions (`goalChecks`, rule 3) are asked the same way: possible but unlikely values (over 100%, below zero, a hundredfold, a billion, no unit, a wide margin, a late hand-set plan, the same name in the same team, an owner in another team, a link to a lower level, a stage already past) are a Check under their field, answered once for the values they are about and kept in History as Checked; Continue and the save wait for them, and the AI tools list them and take `confirm`. Both belong with the status rules in stage 1’s conformance data; until then the change engine’s cases in `import.csv` carry them (`has-words`, `same-as-start`, `stage-twice`, a goal added for someone else, `over-100-and-hundredfold`, `margin-wide`, `feeds-lower`).', 'A goal’s weeks are picked, never typed (requirement `GOAL-DATES`; [years and weeks](../core/rules/years-and-weeks.md)): a number goal’s Baseline with its From and Target with its To, and a stage’s Due, each chosen from a short list of a goal year’s weeks with their dates, opened at the chosen week, with up to three named weeks. The data keeps weeks counted from the cycle’s start; one rule converts, and the sheet and the AI tools write `2026-W46`. A plan whose From is still to come is not due until then. The change engine’s cases in `import.csv` carry the sheet’s side (`to-before-from`, `week-unknown`, `from-pair-disagrees`, `to-next-year`).', 'Change a goal is one page (requirement `GOAL-EDIT-PAGE`): four sections an address opens at (`#definition`, `#plan`, `#owner`, then More details), its one closing control “Close and keep the draft”, Save changes held at the window’s foot, and old `?part=` links led to the matching section. A plan change after check-ins have started needs a reason; that is the plan-change rule, not the page’s.'],
-  ['Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.', 'Each core requirement in [the requirements](../core/requirements.md) holds.', 'No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).'],
-  ['The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. There is no portable journey runner yet.', 'The design rules (`docs/design-rules.md`) and the look are not in the kit; a heading or button whose words are worked out when it shows isn’t listed (the screens page says so).', 'The Help guide’s articles are summarised on the screens page, not given in full.', 'Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.']);
+  ['`node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 3`: every row and column of `navigation.csv`, `readback.csv`, `find.csv` and `home.csv` match.', 'Each core journey in [the journeys](../core/journeys.md) can be done within its budget, by hand, on both widths.', 'Each core requirement in [the requirements](../core/requirements.md) holds.', 'No screen offers a person, team or goal from a list of everything (Faro checks it with `scripts/check-pickers.mjs`; the places it still allows are listed in `scripts/pickers-left.json`).'],
+  ['The journeys are driven by Faro’s own eval scripts against Faro’s own markup (`evals/journeys.cjs`), which are not in the kit and would not run against another build. The drill scores the screens’ words that are rules, not the screens: there is no portable journey runner yet.', 'The design rules (`docs/design-rules.md`) and the look are not in the kit; a heading or button whose words are worked out when it shows isn’t listed (the screens page says so).', 'The Help guide’s articles are summarised on the screens page, not given in full.', 'Faro’s mark (the F’s stem, beam and bar, and “aro”) is drawn from paths in `src/ui/brandPaths.ts`, which are not in the kit: the home-screen icon and the launch splash (requirement `LAUNCH`) are described in words, so a rebuild draws its own mark to them.'],
+  {
+    n: 3, files,
+    scores: 'Stage 3’s drill scores the parts of the screens that are rules of the viewer, the address and the workspace, not of the markup: the menu, the lit item and a page’s name for two viewers at each address (`navigation.csv`), what New goal’s last step reads back for six drafts (`readback.csv`), what a search for a goal, a person or a team finds and in what order (`find.csv`), and Home’s lead or quiet line for four viewers over fourteen days (`home.csv`). Each is a function a screen calls, so a rebuild can pass it before drawing anything.',
+    order: ['[Navigation](../core/rules/navigation.md): `navigation.csv` (`--files navigation`).', '[Finding things](../core/rules/finding.md): `find.csv`.', '[Home](../core/rules/home.md): `home.csv`.', '[The read-back](../core/rules/read-back.md): `readback.csv`, which needs [New goal](../core/rules/new-goal.md)’s level and [goal entry](../core/rules/goal-entry.md)’s questions.'],
+    byHand: 'the screens themselves, their layout and look, and the journeys (exit criteria 2 to 4).',
+  });
 
 function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
   const r = m.rebuild!;
@@ -276,15 +307,16 @@ function moduleStage(s: Stage, m: ModuleWithRebuild, all: Stage[]): string {
 
 /** The outside parts, as src/ports/index.ts lists them: the interface, its contract, and the adapters Faro has. */
 const PARTS: [string, string, string, string][] = [
-  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/data/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['The goals store (demo scale: see [the ports at company scale](ports-at-scale.md))', '`Store` (`src/ports/store.ts`)', '`storeContract` (`src/ports/contracts/store.ts`)', 'browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`)'],
+  ['Goal lists and counts (the query port’s first cut)', '`Goals` (`src/ports/goals.ts`)', '`goalsContract` (`src/ports/contracts/goals.ts`), its cases in `spec/conformance/goals.csv`', 'over the loaded workspace (`src/adapters/localGoals.ts`)'],
   ['Markups', '`MarkupStore` (`src/markup/ops.ts`)', '`markupContract`', 'Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`)'],
   ['Feedback', '`FeedbackStore` (`src/markup/feedback.ts`)', '`feedbackContract`', 'Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`)'],
   ['Who is viewing', '`Identity` (`src/ports/index.ts`), passed to the app beside the store (`src/main.tsx`)', '`identityContract` (any identity); `pickerContract` (what the picker adds)', 'the “Who are you?” picker (`src/adapters/local.ts`); a sign-in by email (`src/adapters/signIn.ts`), the shape yours copies (R1, R2)'],
   ['The time', '`Clock`', '`clockContract`', 'the system clock, and a fixed one for the demo and the evals (`src/adapters/local.ts`)'],
   ['Files', '`Files`', '`filesContract`', 'Supabase Storage (`src/adapters/supabase/files.ts`), memory (`src/adapters/local.ts`)'],
   ['Numbers', '`NumberSource`', '`numberSourceContract`', 'the demo’s “CI analytics”, the metric library’s (`src/modules/metrics/numbers.ts`); real connectors are yours'],
-  ['Finding things: one search per kind, a page at a time', '`Search` (`src/ports/search.ts`)', '`searchContract` (`src/ports/contracts/search.ts`): [finding things](../core/rules/finding.md)’ worked examples', 'over the workspace loaded in the browser (`src/adapters/localSearch.ts`, calling `src/domain/find.ts`); your server’s search replaces it'],
-  ['Small preferences per person (opened lately, a list’s last scope)', '`Prefs` (`src/ports/prefs.ts`)', '`prefsContract`', 'this browser (`browserPrefs`, `src/adapters/local.ts`); your server keeps them'],
+  ['Finding things: one search per kind, a page at a time', '`Search` (`src/ports/search.ts`)', '`searchContract` (`src/ports/contracts/search.ts`): [finding things](../core/rules/finding.md)’ worked examples, its cases as data in [`contracts/search.json`](../conformance/contracts/search.json)', 'over the workspace loaded in the browser (`src/adapters/localSearch.ts`, calling `src/domain/find.ts`); your server’s search replaces it'],
+  ['Small preferences per person (opened lately, a list’s last scope)', '`Prefs` (`src/ports/prefs.ts`)', '`prefsContract`, its cases as data in [`contracts/prefs.json`](../conformance/contracts/prefs.json)', 'this browser (`browserPrefs`, `src/adapters/local.ts`); your server keeps them'],
   ['The AI tools’ endpoint', '`Deps` (`server/mcp.ts`)', '`depsContract` (`src/ports/contracts/deps.ts`)', 'Supabase (`src/adapters/supabase/server.ts`), plain Postgres (`src/adapters/postgres/server.ts`), any goals store (`src/adapters/storeDeps.ts`, for a demo or a test)'],
 ];
 
@@ -336,7 +368,7 @@ const adapters = (browser: Record<string, BrowserState>) => GENERATED + [
   '## Gaps in the kit',
   '',
   '- The plain-Postgres adapter covers the goals store; markups, feedback, files and telemetry still go to Supabase in Faro itself (telemetry sends to Supabase’s REST address, `src/telemetry/exporter.ts`).',
-  '- The contracts live in Faro’s code (`src/ports/contracts/`), not in this folder, so a rewrite from the spec alone can read what they check here but can’t run them.',
+  '- Search’s and Prefs’ contracts are in this folder as data ([the port contracts](../conformance/contracts/README.md)), and the drill harness runs them on any build through a shim. The others still live only in Faro’s code (`src/ports/contracts/`), so a rewrite from the spec alone can read what they check here but can’t run them; the goals and store contracts move next.',
   '',
 ].join('\n');
 
@@ -374,7 +406,7 @@ const dontCopy = () => GENERATED + [
   '| One browser bundle, its first download held to a budget by `scripts/check-bundle.mjs` (over 300 KB compressed), with screens a first visit doesn’t need loaded when opened | The demo grew one screen at a time; the budget stops it growing and each release pays for what it adds | [R4](../requirements/internal/r4-scale-and-safety.md)’s budget is 300 KB for the first screen. Split by route from the start, and load each feature module only when it is switched on and opened |',
   '| The goals store loads a whole workspace into the browser, and the rules read it (`Store.load`, `Snapshot`) | 126 goals load in a moment, and every rule stays a pure function over plain rows | Read through [the query and command ports](ports-at-scale.md): paged summary rows in, one action and its input out, the server setting the actor, time and ids |',
   '| The actions run in the browser; the database only checks each row’s workspace and the version of a goal or review (`okr_commit`) | Faro has no server of its own beyond the AI tools’ endpoint | Run `src/domain/actions` on the server ([R1](../requirements/internal/r1-sign-in-and-access.md)): the browser asks, the server decides |',
-  '| Demo plumbing beside the store port: the example workspace, resetting it and its storage key (`hasExample`, `resetExample` in `src/data/store.ts`) | The demo is the product people try first | Keep demo data out of the port: a seeding script for a test environment, never a method every adapter must carry |',
+  '| Demo plumbing beside the store port: the example workspace, resetting it and its storage key (`ExampleStore`: `hasExample`, `resetExample` in `src/data/store.ts`, the browser store’s alone since AX5; the `Store` port has neither) | The demo is the product people try first | Keep demo data out of the port: a seeding script for a test environment, never a method every adapter must carry |',
   '| Goal keys are worked out twice: in TypeScript before the save (`src/domain/goalKey.ts`) and by a database trigger at the save (migration 0021) | Two people adding goals at once must not get one key; the app shows a key before the database has given one | Give keys in one place, the server, and show “saving…” until it answers |',
   '| Sign-in by a link to one of the demo’s people, and access rules written for a demo ([access today](access-today.md)) | Anyone can try every role in a minute | Your platform’s single sign-on and roles ([R1](../requirements/internal/r1-sign-in-and-access.md)); nothing of the demo’s access survives |',
   '| The rules’ words are hand-written beside their worked examples (`src/spec/rules.ts`) | The examples run against the code, so a wrong number fails the spec | Copy the rules and their examples; treat the prose as a draft to check. The examples can’t drift; the sentences can |',
@@ -388,11 +420,11 @@ const portsAtScale = () => GENERATED + [
   '',
   'For a team that copies Faro’s code and runs it for the whole company. [Swap the outside parts](adapters.md) gets Faro running on your platform at Faro’s size. This page is about the one part whose shape has to change on the way to 15,000 people: the goals store. Read [R1, sign-in and access](../requirements/internal/r1-sign-in-and-access.md) and [R4, scale and safety](../requirements/internal/r4-scale-and-safety.md) first; this page is the route to them.',
   '',
-  '**Today:** a sketch. Faro has neither port below in its code, and neither has a contract test. What Faro does have, and what makes the move mechanical, is that every rule and every action is a pure function: given what it reads, it returns what to save.',
+  '**Today:** the query port’s first cut is in Faro’s code (`Goals`, `src/ports/goals.ts`: `goals()`, `counts()` and `goal()`), answered in the browser and run against a contract whose cases are data (below). The rest of the query port and the command port’s server side are still a sketch. What Faro does have, and what makes the move mechanical, is that every rule and every action is a pure function: given what it reads, it returns what to save.',
   '',
   '## `Store` is the demo-scale port',
   '',
-  '`Store` (`src/data/store.ts`) has two working methods:',
+  '`Store` (`src/ports/store.ts`) has two working methods:',
   '',
   '- **`load(workspaceId)`** gives a whole `Snapshot`: every person, team, goal, check-in, ask, review and the whole change log. The rules take that `Snapshot` as their input; the app loads it again when the window regains focus and every two minutes, and the AI tools’ server loads it on every request.',
   '- **`commit(workspaceId, commit)`** saves the rows and change-log entries its caller already wrote. The caller runs the action, stamps the time from its own clock, writes the change-log entry with its own idea of who acted, and makes the ids. The database checks that every row belongs to the workspace (what each row says, where a row already stored is kept, and a milestone’s stages through their goal) and that a goal’s or review’s version hasn’t moved, and nothing else. It doesn’t check what a row points at: a goal saved to one workspace may name another workspace’s person as owner, team, cycle or parent goal, and a check-in another workspace’s goal. Refusing those is the server’s, by the same membership that decides who may save (R1). People, teams, asks, decisions and views are saved last-write-wins.',
@@ -429,6 +461,7 @@ const portsAtScale = () => GENERATED + [
   '',
   '- **`GoalSummary`** is one live goal’s summary row: the goal’s own fields, and what the stage 1 rules say about it now: its status and what the numbers say, its flags, whether it needs attention and how it is being handled, the projection and the scorecard, its latest week and days without an update. The columns are those of [the conformance files](../conformance/README.md), so the conformance data proves the summaries.',
   '- **`GoalQuery`** is the Goals screen’s own filter and sort (`src/domain/query.ts`): search text, status, level, team, owner, kind, needs attention, and the rest. Today the browser applies it to the whole `Snapshot`; on the query port the server applies it to summary rows.',
+  '- **Faro’s first cut** (AX5): `Goals` in `src/ports/goals.ts` has the three goal calls without the workspace argument (an adapter is made for one workspace): `goals({ query, among, after, size })` → `{ rows, next, total, near? }`, `counts({ query, among })` → `{ total, status, attention }` and `goal(id)`. `among` narrows to a Goals scope’s goals (yours, a team’s, those you watch). A list row is `GoalSummary` without `checkIns` and `series`. Faro’s adapter (`src/adapters/localGoals.ts`) answers from the loaded workspace with the stage 1 rules; Home’s list of your goals and its counts, and Goals’ filtered list, near miss and switch count, read through it (`src/app/goals.ts`). Its contract, `goalsContract` (`src/ports/contracts/goals.ts`), runs [goals.csv](../conformance/goals.csv)’s cases and the four checks below on any adapter.',
   '- **Search** is the server search behind find-and-pick, the list bars and Find. Faro already calls it through a port of this shape: `Search` (`src/ports/search.ts`), `search(kind, { q, filters, sort, after, size })` → `{ total, rows, next, near? }`, with its contract (`searchContract`). `search()` and the list calls above (`people()`, `teams()`, and `goals()` for a picker) are that one call with a kind, and **kinds are open**: the core’s are goal, person, team and workspace, and a module registers its own (the metric library’s metric). It accepts a goal’s key (“G-48”) wherever it accepts a title; what a search matches is [finding things](../core/rules/finding.md). The near miss is optional: a server may never offer one. `byIds(kind, ids)` gives the rows for what a picker already holds, in the same words, someone marked as left included; and `suggest(kind, viewer, recents)` the six offered before typing (finding things, rule 6). A person search takes People’s filters, `team` (a team’s id, its lead counted wherever their own team is, or `-` for people in no team) and `admins` (`1`), and People, Teams and every picker list in its one order.',
   '- **New rules already take the query port’s shapes.** Since AR4 no rule added to `src/domain` takes the whole workspace (`Snapshot`): each takes the rows it reads, made by `src/app/reads.ts` from the loaded workspace today and from this port in the rebuild. The older rules that still take it are listed in `scripts/whole-workspace.json`, and the layers lint lets that list only shrink: they are the work left.',
   '- **Only `goal()` reads a goal’s check-ins.** Lists, counts, Home and the AI tools read summaries.',
@@ -482,9 +515,9 @@ const portsAtScale = () => GENERATED + [
   '',
   '## Gaps in the kit',
   '',
-  '- The query port doesn’t exist in Faro’s code, and neither port has a contract test. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.',
+  '- Of the query port, Faro has `goals()`, `counts()` and `goal()` (`src/ports/goals.ts`) with a contract; the other calls (`people()`, `teams()`, `activity()`, `asksFor()`, `review()`) are still sketches, and the command port has no contract. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.',
   '- Most rule functions take a whole `Snapshot`; which records each action and rule actually reads isn’t listed anywhere, so step 3 starts by finding out.',
-  '- The screens read the app’s loaded state directly; which query each screen needs isn’t listed.',
+  '- Home’s goal list and counts and Goals’ filtered list and counts read through the query port; the other screens, and the rest of Home and Goals (trees, groups, reviews, asks), read the app’s loaded state directly, and which query each needs isn’t listed.',
   '- Goal keys are worked out in the rules and again by a database trigger (`supabase/migrations/0021_goal_keys.sql`); at company scale the server’s is the one that counts.',
   '',
 ].join('\n');
@@ -493,13 +526,13 @@ const portsAtScale = () => GENERATED + [
 /** One file's entry in scripts/browser-storage.json: what it keeps in the browser and where the internal app keeps it. */
 export interface BrowserState { uses: number; keeps: string; server: string }
 
-export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
+export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harness: string, browser: Record<string, BrowserState> = {}, later: DrillFiles = {}): Record<string, string> {
   const all = stages(mods);
   const out: Record<string, string> = {
     'spec/rebuild/README.md': guide(all, rows),
     'spec/rebuild/stage-1-core-rules.md': stage1(rows),
-    'spec/rebuild/stage-2-core-data.md': stage2(),
-    'spec/rebuild/stage-3-core-screens.md': stage3(),
+    'spec/rebuild/stage-2-core-data.md': stage2(later),
+    'spec/rebuild/stage-3-core-screens.md': stage3(later),
     'spec/rebuild/adapters.md': adapters(browser),
     'spec/rebuild/ports-at-scale.md': portsAtScale(),
     'spec/rebuild/dont-copy.md': dontCopy(),

@@ -71,7 +71,7 @@ A level a workspace has: its id (stored on goals), its name, and the hint the go
 | `startDate` | `string` | yes | ISO date (yyyy-mm-dd) of week 0, the day the cycle starts. |
 | `weeks` | `number` | yes | Weeks in the cycle; checkpoints are weeks 0..weeks. |
 | `reviewDay` | `number` | yes | Day of the weekly review, 0 = Monday. Check-ins are due before it. |
-| `levels` | `LevelDef[] \| null` | no | The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). Set by a workspace from CF2. |
+| `levels` | `LevelDef[] \| null` | no | The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). The rules read it, but nothing stores it yet: the database has no column for it and a goal's level must be one of Faro's three (okr_goals_level_check in schema.sql), so every cycle has Faro's three today. Levels set per workspace are R6a's. |
 | `removedAt` | `string \| null` | no | Deleted (only a cycle with no check-ins): kept, hidden, restorable. |
 | `removedBy` | `Id \| null` | no |  |
 
@@ -406,7 +406,7 @@ A goal review on a cadence: which goals it walks, and who takes part. Anyone can
 | `name` | `string` | yes |  |
 | `kind` | `'example' \| 'own'` | yes |  |
 | `createdAt` | `string` | yes |  |
-| `recording` | `boolean` | no | Whether the app records how it is used here (src/telemetry): on unless an admin has turned it off. |
+| `recording` | `boolean` | no | Whether the app records how it is used here (src/telemetry). Stored only when off, so a missing value means on (the demo's example records); a workspace set up in the app starts off unless its set-up box was ticked (requirement TELEMETRY-SWITCH), and only an admin turns it on or off after. |
 | `modulesOff` | `string[]` | no | Feature modules an admin has switched off here, by id (docs/architecture.md). Everything else is on. |
 
 ### Snapshot

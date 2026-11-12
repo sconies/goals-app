@@ -4,7 +4,7 @@
 
 Every core record stored and changed safely, and the one way many changes come in at once: the change engine, which checks every row with the stage 1 rules before anything is saved.
 
-**Today:** an outline: entry and exit criteria, checked by hand, with no drill yet. A rebuild can start from it; proving it is done is by hand until it has a drill.
+**Today:** drill ready: the harness scores part of it against the conformance data. The rest of its exit criteria are checked by hand.
 
 ## Entry criteria
 
@@ -23,19 +23,43 @@ Every core record stored and changed safely, and the one way many changes come i
 - The change log: every change to a record with its field-by-field differences, and undo.
 - The change engine: rows in, a change set out (items, unchanged, issues, whether a reason is needed, counts, and the commit), saved all at once or not at all.
 
+## The drill
+
+Stage 2’s drill scores the change engine: for each case (rows loaded from a sheet by a person, on the workspace as it stood at `builtFor`), the first problem or question it raises and whether it would save (`import.csv`), and what it would save, item by item, with every field before and after (`changes.csv`). No store is needed: the engine is a function from the rows, the workspace and who is loading them to a change set.
+
+- `rebuild/drill.json` holds `{ "stage": 2, "run": "<command>" }`. The harness runs it as stage 1’s ([the contract](stage-1-core-rules.md#the-contract)): `<command> <workspace.json> <out folder>`, a copy of `spec/conformance/workspace.json` and `rebuild/drill-out/`, emptied first.
+- The command writes these files into the out folder and exits 0, within 10 minutes:
+
+| File | Rows expected | Columns, in this order |
+|---|---|---|
+| `changes.csv` | 109 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
+| `import.csv` | 58 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
+
+- What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.
+
+### A good order
+
+1. Read a sheet’s rows: the columns by any of their spellings, in any case, numbered from line 2.
+2. The five `saves-…` cases in `changes.csv` (`--files changes`): a check-in, a plan change with its reason, a new goal, a person, a stop. Each is one item, so its diffs show the words a field is written in.
+3. The problems and questions, kind by kind, with `import.csv` (`--files import`). The kinds, levels and groups are [the import levels](../core/rules/import-levels.md); the sentences are in the rows.
+4. The rest of `changes.csv`: the items a blocked case would still make, and the counts.
+
+**What the drill doesn’t prove:** the engine’s worked examples, the store, the change log and undo (exit criteria 2 to 6). A rebuild proves them with its own tests against the criteria here.
+
 ## Exit criteria
 
-1. The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.
-2. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.
-3. A change set that blocks saves nothing; one that saves is undone by one undo.
-4. A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.
-5. A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.
+1. `node spec/rebuild/drill.mjs rebuild` prints **PASS** with `"stage": 2`: every row and column of `changes.csv` and `import.csv` match.
+2. The change engine gives what each of [its worked examples](../core/rules/change-engine.md#worked-examples) says.
+3. Every record in `spec/conformance/workspace.json` loads into the store and reads back the same.
+4. A change set that blocks saves nothing; one that saves is undone by one undo.
+5. A save to one workspace never changes another’s records: one that names a record kept under another workspace is refused, or (where each workspace is kept apart) changes only its own.
+6. A module’s records ride in the same save as the core’s, and a workspace that holds rows of a module the build leaves out loads, saves and keeps them: nothing breaks and nothing is deleted.
 
 ## Gaps in the kit
 
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
 - References across workspaces: a rebuild refuses a save to one workspace whose rows point at another’s records (an owner, team, cycle or parent goal, a check-in’s goal). Faro’s database checks only each row’s own workspace (migration 0038), so Faro can’t show it; R1’s membership is how the server knows.
-- The spreadsheet columns the engine reads are listed in `docs/export-format.md`, which is not in the kit.
-- The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so).
-- No conformance rows for change sets yet, so there is nothing for a harness to score.
+- The spreadsheet columns the engine reads are in [the export format](../core/export-format.md), and every kind of issue it raises, with its trigger, sentence and answers and every column’s other spellings, in [the issue kinds](../core/import-issues.md).
+- The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so); the drill’s rows show them case by case.
+- The drill scores what the engine would save, not the store: nothing scores that a save is all or nothing, that undo restores the records, or the change log’s entries.

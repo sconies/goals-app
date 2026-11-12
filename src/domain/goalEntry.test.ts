@@ -5,7 +5,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { NotAllowed, type ActionContext } from './actions';
 import { currentCycle, scopeToCycle } from './cycle';
 import { blankGoal, decimalsFor, type GoalDraft } from './goal';
-import { checksContext, formNeed, goalChecks, goalMustFix, openLine, planGoal, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext, sameNamedIn } from './goalEntry';
+import { checksContext, formNeed, goalChecks, goalMustFix, openLine, planGoal, planSpanOf, REASON_EMPTY, stepSays, stepFields, stepState, unanswered, type ChecksContext, type GoalCheck, type MustFixContext, sameNamedIn } from './goalEntry';
 import { mayAddGoal, mayChangeGoal } from './goalRights';
 import { numberAsTyped } from './numbers';
 import { currentWeek } from './plan';
@@ -280,6 +280,14 @@ describe('a number goal’s From and To (rules 2, 3 and 13; GE9)', () => {
     expect(goalMustFix(min({ fromWeek: '46', endWeek: '40' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['to-before-from']);
     expect(goalMustFix(min({ endWeek: 'soon' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['week-unknown']);
     expect(goalMustFix(min({ endWeek: '106' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['week-beyond']);
+  });
+  it('in the year’s last week, a new goal’s untouched From and To run to the end of next year (GE9 review)', () => {
+    const at53 = { week: 53, cycleWeeks: 53, existing: null, door: 'form' as const, startDate: '2025-12-22' };
+    expect(goalMustFix(min({}), at53).map((f) => f.id)).toEqual([]);
+    expect(planSpanOf(min({}), at53)).toEqual({ from: 53, to: 105 });
+  });
+  it('gives a week that isn’t one an example from this week, not a fixed one', () => {
+    expect(goalMustFix(min({ endWeek: 'soon' }), ctx({ week: 12, startDate: '2025-12-22' }))[0]!.text).toBe('To says “soon”. Write a year and a week, like 2026-W12, or the week’s number.');
   });
   it('doesn’t ask again of a goal whose From and To didn’t change', () => {
     const existing = { ...({} as MetricGoal), id: 'g', kind: 'metric', title: 'Signed artifacts', teamId: 'cicd', ownerId: 'tunde', unit: 'min', decimals: 0, level: 'team', plan: { start: 42, target: 30, shape: 'straight', fromWeek: 40, endWeek: 66 } } as MetricGoal;

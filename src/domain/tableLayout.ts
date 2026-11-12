@@ -145,9 +145,10 @@ export function layoutProblems(l: TableLayout | null, head?: readonly string[]):
 export function shownTable(sheet: Table, l: TableLayout, extra: readonly string[] = []): Cell[][] {
   const [head0, ...body] = sheet.rows;
   const head = (head0 ?? []).map((c) => (c == null ? '' : String(c)));
-  const cols = [...visibleColumns(l.table, head, l.cols), ...extra].map((c) => head.indexOf(c));
+  const visible = visibleColumns(l.table, head, l.cols);
+  const cols = [...visible, ...extra].map((c) => head.indexOf(c));
   const rows = body.map((raw) => ({ raw, cells: raw.map((c) => (c == null ? '' : String(c))) }));
-  const shown = applyTable(rows, head, l.q, l.filters, l.sort);
+  const shown = applyTable(rows, head, l.q, l.filters, l.sort, visible);
   return [cols.map((i) => head[i]!), ...shown.map((r) => cols.map((i) => r.raw[i] ?? null))];
 }
 

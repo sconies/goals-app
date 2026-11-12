@@ -5,6 +5,8 @@
    how wide (drag a heading's edge, or use the arrow keys on it). It's remembered in this browser, can be saved as a
    named layout, and the table exports exactly as it shows (domain/tableLayout). Filters are in DataFilters; columns,
    widths and saved layouts in DataLayout. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../app/engineReady';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
@@ -155,7 +157,8 @@ export function DataTables() {
   const current: TableLayout = { table: tab, cols: lay.cols, widths: lay.widths, q, filters, sort };
 
   const [choosing, setChoosing] = useState(false);
-  const shown = applyTable(rows, head, q, filters, sort);
+  // The search reads the columns shown, as Goals' does (find spec, 2.1); a filter may name any column.
+  const shown = applyTable(rows, head, q, filters, sort, order);
   const kinds = useMemo(() => Object.fromEntries(head.map((c, i) => [c, columnKind(rows.map((r) => r.cells[i] ?? ''))])) as Record<string, ColumnKind>, [head, rows]);
   const narrowed = !!q.trim() || filters.length > 0;
 

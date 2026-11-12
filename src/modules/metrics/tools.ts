@@ -13,7 +13,8 @@ import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
 import type { Metric, MetricDirection, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
-import { VIA_MCP } from '../../domain/changeset';
+import { listed } from '../../mcp/listed';
+import { VIA_MCP } from '../../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
@@ -112,9 +113,7 @@ const tools: ToolDef[] = [
           const byStatus = L.goalsByStatus(goalIds.map(statusOf).filter((s): s is DisplayStatus => !!s));
           return { id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner, goals: goalIds.length, goalsByStatus: byStatus.map((c) => ({ status: c.status, count: c.n, label: LABEL[c.status] })), needs: M.canEditMetric(ctx.actor, m) ? needs.map((x) => ({ id: x.id, sentence: x.sentence })) : [] };
         });
-        const words = (r: (typeof rows)[number]) => `${r.id} · ${r.name} (${r.unit}, ${L.directionWords(r.direction)}) · ${r.owner ? `owner ${r.owner}` : 'no owner'} · ${r.goalsByStatus.length ? r.goalsByStatus.map((c) => `${c.count} ${c.label.toLowerCase()}`).join(', ') : 'no goals yet'}${r.needs.length ? ` · to sort out: ${r.needs.map((x) => x.sentence).join('; ')}` : ''}`;
-        const head = found.total > found.rows.length ? `${found.from} to ${found.to} of ${found.total} metrics.\n` : '';
-        return { data: { total: found.total, page: found.page, pages: found.pages, metrics: rows }, text: rows.length ? head + rows.map(words).join('\n') : M.liveMetrics(ctx.snapshot).length ? 'No metric matches.' : 'The metric library is empty. Add one with save_metric.' };
+        return listed({ total: found.total, page: found.page, pages: found.pages, metrics: rows });
       });
     },
   },
