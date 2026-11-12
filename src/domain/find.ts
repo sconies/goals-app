@@ -6,7 +6,6 @@ import { levelName } from './levels';
 import { formatKey, normalKey } from './goalKey';
 import { applyQuery, parseQuery, type QueryContext } from './query';
 import type { GoalSummary } from './summary';
-import { LABEL } from './vocabulary';
 import type { DisplayStatus, Person, Team } from './types';
 
 /* ---------- Rule 1: does text match ---------- */
@@ -23,13 +22,17 @@ export const wordsOf = (s: string) => fold(s).split(/[\s/\-,.:()]+/).filter(Bool
  * finds only that goal ("G-48" isn't G-4), while a bare number also matches as words. An empty search matches anything.
  */
 export function textMatches(words: string, q: string, key?: string | null): boolean {
+  return wordsMatch(wordsOf(words), q, key);
+}
+
+/** Rule 1 over words already split by `wordsOf` (a long list splits each row once, not on every key). */
+export function wordsMatch(have: readonly string[], q: string, key?: string | null): boolean {
   const asked = wordsOf(q);
   if (!asked.length) return true;
   const typedKey = normalKey(q.trim());
   if (typedKey) return !!key && typedKey === key;
   const bare = /^\d{1,9}$/.test(q.trim()) ? formatKey(Number(q.trim())) : null;
   if (bare && key && bare === key) return true;
-  const have = wordsOf(words);
   return asked.every((w) => have.some((h) => h.startsWith(w)));
 }
 
@@ -100,6 +103,8 @@ export interface FoundRow {
   detail: string;
   /** A goal's status, shown first as its shape and word. */
   status?: DisplayStatus;
+  /** A proposed goal (GE10): the word "Proposed" where the status would be, with no shape. */
+  state?: 'proposed';
   /** A goal's key (G-48). */
   key?: string | null;
 }
@@ -132,8 +137,8 @@ export function page(all: FoundRow[], ask: SearchAsk): Pick<SearchAnswer, 'rows'
 }
 
 /** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source, and its unit (so "See goals in min" finds them). */
-export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source, s.goal.kind !== 'milestone' ? s.goal.unit : ''].join(' ');
-export const goalRow = (s: GoalSummary): FoundRow => ({ kind: 'goal', id: s.goal.id, name: s.goal.title, detail: [s.goal.key, s.owner, s.team].filter(Boolean).join(' · '), status: s.status, key: s.goal.key ?? null });
+export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), s.statusLabel, s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source, s.goal.kind !== 'milestone' ? s.goal.unit : ''].join(' ');
+export const goalRow = (s: GoalSummary): FoundRow => ({ kind: 'goal', id: s.goal.id, name: s.goal.title, detail: [s.goal.key, s.owner, s.team].filter(Boolean).join(' · '), ...(s.state === 'proposed' ? { state: 'proposed' as const } : { status: s.status }), key: s.goal.key ?? null });
 
 /** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
 export function searchGoals(r: GoalRows, ask: SearchAsk): FoundRow[] {

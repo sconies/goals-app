@@ -78,6 +78,8 @@ export const SCREENS: Record<string, Entry> = {
   GoalMap: ['find_goals', 'get_overview'],
   GoalScreen: ['get_goal', 'add_comment', 'ask_question', 'ask_for_update', 'undo_update_ask', 'withdraw_request', 'mark_action_done', 'watch', 'unwatch', 'stop_goal', 'delete_goal', 'delete_check_in', 'edit_comment', 'delete_comment'],
   GoalWizard: ['create_goal'],
+  ProposedGoal: ['get_goal', 'make_goal_active', 'update_goal', 'delete_goal', 'add_comment', 'ask_question', 'watch'],
+  ProposedList: ['find_goals'],
   GoalEdit: ['update_goal', 'set_plan_numbers'],
   CheckInFlow: ['post_check_in', 'link_request'],
   CheckInQueue: ['get_my_work', 'post_check_in'],
@@ -111,6 +113,7 @@ export const SCREENS: Record<string, Entry> = {
   Print: ['get_goal', 'get_review'],
   Help: ['get_help', 'whats_new'],
   Onboarding: { notForAssistants: 'Setting up a new workspace happens before there is a token for it.' },
-  Start: { notForAssistants: 'The first screen, before a workspace exists.' },
+  Start: { notForAssistants: 'Saying who you are on an invitation, and the screen right after set-up: a token already acts as one person in one workspace.' },
+  Welcome: { notForAssistants: 'The front door, before anyone has chosen a workspace: a token already belongs to one.' },
   Research: { notForAssistants: 'Research sessions in the demo, for the people building the app.' },
 };

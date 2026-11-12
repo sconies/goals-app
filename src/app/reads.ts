@@ -4,6 +4,7 @@
 import type { GoalRows, PersonRows, TeamRows } from '../domain/find';
 import { creatorOf, type DayOneRows } from '../domain/dayOne';
 import { summariseAll } from '../domain/summary';
+import { proposedSummary } from '../domain/proposedSummary';
 import { scopeToCycle, wrapUpCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import type { Cycle, Person, Snapshot } from '../domain/types';
@@ -37,7 +38,9 @@ export function teamRows(s: Snapshot): TeamRows {
 /** The rows the browser's Search answers from, each made once per workspace as loaded and only when first asked. */
 export function searchRows(s: Snapshot, cycle: Cycle, today: Date, week: number, columns?: QueryContext['columns']): LocalRows {
   const once = <T,>(f: () => T) => { let v: T | undefined; return () => (v ??= f()); };
-  return { goal: once(() => goalRows(s, cycle, today, week, columns)), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
+  // Find and find-and-pick list proposed goals too, each with the word where a status would be (GE10).
+  const goals = () => { const r = goalRows(s, cycle, today, week, columns); return s.proposed?.length ? { ...r, summaries: [...r.summaries, ...s.proposed.map((g) => proposedSummary(g, s, cycle, week))] } : r; };
+  return { goal: once(goals), person: once(() => personRows(s)), team: once(() => teamRows(s)) };
 }
 
 /** What the Goals scopes read (goals spec, rule 1) for one person: the running cycle's goals (not stopped), their team

@@ -7,6 +7,7 @@ import { useMaybeApp, useSetup } from '../app/state';
 import { useDraft } from '../app/drafts';
 import { searchOver, usePrefs } from '../app/search';
 import { setupSteps, type SetupStep } from '../domain/dayOne';
+import { SETUP_STEP_NAMES } from '../domain/arrival';
 import { readChanges, templateSheets } from '../app/spreadsheet';
 import { saveAndSay } from '../app/files';
 import { buildWorkspace, parseTable, type ImportIssue } from '../domain/importer';
@@ -28,12 +29,11 @@ import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck }
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
+import { focusQuestion } from '../ui/questionInView';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Questions, StageFields } from '../ui/GoalFields';
 import { PickOne, type PickSource } from '../ui/Pick';
-import { FaroLogo } from '../ui/Brand';
-import { PROTOTYPE_LINE } from '../help/about';
 
 interface PersonRow { name: string; email: string; title: string; team: string; admin: boolean }
 interface GoalRow extends TemplateGoal { owner: string; /** How it's measured: optional, one line (setup review, 8 Nov). */ definition?: string; /** Answers to the card's questions (goal entry, rule 3), by slot. */ answers?: GoalAnswers }
@@ -60,6 +60,8 @@ interface SetupDraft {
   recording?: boolean;
   /** Keep an uploaded spreadsheet's stage weeks as typed, even those before the joining week (deep review U4). */
   keepFileWeeks?: boolean;
+  /** When it was last changed, for Welcome's "Stopped at step 3 of 7, … on 9 Nov." */
+  savedAt?: string;
 }
 
 const blankPerson = (): PersonRow => ({ name: '', email: '', title: '', team: '', admin: false });
@@ -67,7 +69,7 @@ const blankGoal = (owner = ''): GoalRow => ({ title: '', kind: 'metric', unit: '
 const YES = /^(y|yes|true|1|admin|sponsor|coach|goals coach)$/i;
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const SETUP_STEPS: SetupStep[] = ['workspace', 'you', 'team', 'start', 'outcome', 'goals', 'check'];
-const STEP_LABELS = ['Workspace', 'You', 'Your team', 'Starting point', 'Outcome', 'Goals', 'Check'];
+const STEP_LABELS = SETUP_STEPS.map((x) => SETUP_STEP_NAMES[x]);
 /** Each step, for the named flow (src/help/flows.ts). */
 const STEP_MARKS: Mark[] = ['setUp.step-1', 'setUp.step-2', 'setUp.step-3', 'setUp.step-4', 'setUp.step-5', 'setUp.step-6', 'setUp.step-7'];
 
@@ -123,33 +125,6 @@ function goalsTsv(d: SetupDraft) {
   return ['Goal\tTeam\tOwner email\tOwner\tType\tUnit\tStart\tTarget\tPlan\tLimit\tMust stay\tMargin\tStages\tFeeds into\tLevel\tEffect\tSource\tDefinition', row(d.outcome, true), ...goals.map((g) => row(g, false))].join('\n');
 }
 
-/** First run of the real app: what it does, then setting up. */
-export function Welcome() {
-  const [start, setStart] = useState(false);
-  if (start) return <Onboarding onClose={() => setStart(false)} />;
-  return (
-    <div className="welcome">
-      <div className="welcome-body">
-        <FaroLogo size={48} className="welcome-logo" />
-        {/* Written for leaders seeing Faro for the first time (Lane, 8 Nov): what it's for, not how to set it up, and no promise
-            of how long an update takes or how often (Lane, 8 Nov, line by line). */}
-        <h1 className="title-xl">Run the company on outcomes, and manage by exception</h1>
-        <ul className="welcome-points">
-          <li><strong>Each outcome broken into the goals that move it</strong>, each with an owner, a measure and a plan.</li>
-          <li><strong>Owners keep their goals current</strong> with short check-ins, on the rhythm that suits the work.</li>
-          <li><strong>What’s slipping comes to you</strong>, with why and what’s being done about it; the rest runs itself.</li>
-        </ul>
-        <div className="stack" style={{ gap: 'var(--s3)' }}>
-          <a className="btn primary big-btn" href="/demo">Try the demo</a>
-          <button className="btn" onClick={() => setStart(true)}>Set up your workspace</button>
-          <span className="hint">About 3 minutes. Start from a template and change what you need.</span>
-        </div>
-        <p className="hint welcome-foot">{PROTOTYPE_LINE}</p>
-      </div>
-    </div>
-  );
-}
-
 /** Setting up a workspace, one question per screen. */
 export function Onboarding({ onClose }: { onClose?: () => void }) {
   const setup = useSetup();
@@ -157,11 +132,13 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const nav = useNavigate();
   // Set up from inside the app, "Who are you?" starts as the person you are now (backlog WS); change anything.
   const viewer = app?.viewer;
-  const [d, set, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
+  const [d, setDraft, clear, restored] = useDraft<SetupDraft>(`setup:${setup.mode}`, () => ({
     step: 0, name: '', startDate: yearStartFor(setup.today, 0), reviewDay: 3,
     me: viewer ? { name: viewer.name, email: viewer.email ?? '', title: viewer.role ?? '', team: app.team(viewer.teamId ?? '')?.name ?? '', admin: true } : { name: '', email: '', title: '', team: '', admin: true }, people: [blankPerson(), blankPerson()], objectives: {},
     template: '', outcome: blankGoal(), goals: [],
   }));
+  // Each change says when, so Welcome can say where a set-up was left (set-up spec 2.1).
+  const set = (patch: Partial<SetupDraft>) => setDraft({ ...patch, savedAt: setup.today.toISOString() });
   // Ids are global in the database, so the suffix is long enough that two workspaces never share one.
   const [suffix] = useState(() => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join(''));
   const [tried, setTried] = useState(false);
@@ -253,7 +230,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     if (!tried) return;
     const el = form.current?.querySelector<HTMLElement>('.qsection .invalid, .qsection [aria-invalid="true"]') ?? form.current?.querySelector<HTMLElement>('.qsection [role="radio"]');
-    el?.focus();
+    // A goal card's open question, as New goal and the edit page do it (U93): focus on it, in view.
+    const slot = el ? null : form.current?.querySelector<HTMLElement>('.qsection [data-check]')?.dataset.check;
+    if (slot) focusQuestion(form.current, slot); else el?.focus();
   }, [tried, d.step]);
   const err = (show = true) => (tried && !ok[d.step] && show ? <span className="hint tone-off field-error" role="alert">{problem[d.step]}</span> : null);
   const next = () => {

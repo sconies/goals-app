@@ -104,8 +104,9 @@ module.exports = {
         if (w < 800) await p.locator('.goals-phone-switch .view-open').click();
         else await p.locator('.views-menu > summary').click();
         await p.getByRole('button', { name: 'Export these goals' }).click();
-        const sheet = p.getByRole('dialog', { name: 'Export goals' });
+        const sheet = p.getByRole('dialog', { name: 'Export', exact: true });
         await sheet.waitFor();
+        await sheet.getByRole('button', { name: 'Other formats' }).click();
         await Promise.all([p.waitForEvent('download').catch(() => null), sheet.getByRole('button', { name: 'Save .json' }).click()]);
         await p.locator('.sheet-toast').first().waitFor({ timeout: 3000 });
         await p.waitForTimeout(350); // its slide-in has finished
@@ -179,19 +180,23 @@ module.exports = {
       // Export these goals is in the Views menu (GL2), which the walkthrough points at first.
       await p.locator('.views-menu > summary').click();
       await p.getByRole('button', { name: 'Export these goals' }).click();
-      await p.getByRole('dialog', { name: 'Export goals' }).waitFor();
+      await p.getByRole('dialog', { name: 'Export', exact: true }).waitFor();
       await p.waitForTimeout(900);
       const coach = p.locator('.coach');
-      if (!/step 2 of 3/.test(await coach.innerText())) fails.push(`Brief walkthrough: after opening Export the coach shows "${(await coach.innerText()).split('\n')[0]}" (want step 2 of 3)`);
+      if (!/step 2 of 4/.test(await coach.innerText())) fails.push(`Brief walkthrough: after opening Export the coach shows "${(await coach.innerText()).split('\n')[0]}" (want step 2 of 4)`);
+      // The brief is behind Other formats (import spec 2.9): step 2 opens them.
+      await p.getByRole('button', { name: 'Other formats' }).click();
+      await p.waitForTimeout(900);
+      if (!/step 3 of 4/.test(await coach.innerText())) fails.push('Brief walkthrough: opening Other formats did not move on to step 3');
       const ring = await p.evaluate(() => {
         const r = document.querySelector('.coach-ring')?.getBoundingClientRect();
         const row = [...document.querySelectorAll('.export-list .opt')].find((e) => e.textContent.includes('Brief for an AI chat'))?.getBoundingClientRect();
         return r && row ? { ok: r.left <= row.left && r.top <= row.top && r.right >= row.right && r.bottom >= row.bottom } : { ok: false };
       });
-      if (!ring.ok) fails.push('Brief walkthrough: step 2 does not ring the Brief row');
+      if (!ring.ok) fails.push('Brief walkthrough: step 3 does not ring the Brief row');
       await Promise.all([p.waitForEvent('download').catch(() => null), p.getByRole('button', { name: 'Save .md' }).click()]);
       await p.waitForTimeout(900);
-      if (!/step 3 of 3/.test(await coach.innerText())) fails.push('Brief walkthrough: saving the brief did not move on to step 3');
+      if (!/step 4 of 4/.test(await coach.innerText())) fails.push('Brief walkthrough: saving the brief did not move on to step 4');
       await c.close();
     });
 

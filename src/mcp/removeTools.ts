@@ -6,6 +6,7 @@ import { MODULE_RECORDS, recordsOn } from '../core/records';
 import type { Commit } from '../data/store';
 import { editCall, type ActionContext } from '../domain/actions';
 import { findGoal, isKey } from '../domain/goalKey';
+import { withProposed } from '../domain/proposed';
 import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
@@ -27,7 +28,7 @@ async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResul
   return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
 }
 const goalOf = (ctx: McpContext, id: unknown) => {
-  const g = findGoal(ctx.snapshot.goals, String(id ?? ''));
+  const g = findGoal(withProposed(ctx.snapshot), String(id ?? ''));
   if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };

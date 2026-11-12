@@ -1,36 +1,118 @@
-/* The first moments in a workspace: saying who you are, and what to do once it's set up. */
+/* The first moments in a workspace: an invitation, saying who you are, and what to do once it's set up. */
 import { workspaceName } from '../domain/workspaceAttention';
-import { useState } from 'react';
-import { Link } from 'react-router';
-import { useApp } from '../app/state';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
+import { useApp, useMaybeApp, useSetup } from '../app/state';
+import { creatorOf, inviteLink } from '../domain/dayOne';
+import { arrivalIntro, arrivalLine } from '../domain/arrival';
+import { Avatar, PageWait } from '../ui/bits';
+import { FaroLogo } from '../ui/Brand';
+import { Icon } from '../ui/Icon';
 import { periodNow } from '../domain/cycle';
 import { firstReview, weekProgress, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { WEEKLY_REVIEW } from '../domain/via';
-import { PickOne } from '../ui/Pick';
-import { useSearch } from '../app/search';
 import type { NoEntry } from '../ports';
 
-/** Until sign-in comes with SSO, people say who they are once per workspace on this device. */
+/**
+ * Until sign-in comes with SSO, people say who they are once per workspace on this device: the arrival (set-up spec
+ * 2.8). Whose workspace this is and what it is for, then "Which one are you?": choosing a name is the one action. A
+ * sign-in that opens no one here (R1, rule 2) shows nothing of the workspace and says why.
+ */
 export function WhoAreYou() {
   const app = useApp();
-  // Find-and-pick (find spec, move 14): your name is found by typing, never chosen from a list of everyone. Nobody is
-  // "you" yet, so nothing is suggested before typing.
-  const search = useSearch();
-  const source = { search, viewerId: '', ws: app.ws.id, person: app.person };
-  // A sign-in that opens no one here (R1, rule 2): nothing of the workspace is shown; the page says why, when the sign-in
-  // can tell, and how to get in.
   if (!app.canChooseViewer) return <CantOpenYet />;
+  return <Arrival />;
+}
+
+function Arrival() {
+  const app = useApp();
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  const [q, setQ] = useState('');
+  const people = app.snapshot.people;
+  const creator = creatorOf(app.full.changes, people);
+  const admin = people.find((p) => p.id === creator) ?? null;
+  const owns = (id: string) => app.snapshot.goals.filter((g) => g.ownerId === id).length;
+  useEffect(() => { document.title = `Welcome to ${app.ws.name} · Faro`; }, [app.ws.name]);
+  const many = people.length > 8;
+  const shown = q.trim() ? people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : people;
+  const teams = [...new Set(shown.map((p) => p.teamId ?? ''))].map((t) => ({ id: t, name: app.team(t)?.name ?? '', people: shown.filter((p) => (p.teamId ?? '') === t) }));
+  const choose = (id: string) => {
+    app.setViewer(id, true);
+    // From an invitation's address, on to Home; anywhere else, the page asked for opens as it is.
+    if (/^\/join\//.test(pathname)) nav('/', { replace: true });
+  };
   return (
-    <div className="focus">
-      <div className="focus-body" style={{ paddingTop: 'var(--s6)' }}>
+    <div className="welcome">
+      <div className="welcome-body arrival">
+        <FaroLogo size={32} />
         <div className="stack" style={{ gap: 'var(--s2)' }}>
-          <span className="eyebrow">{app.ws.name}</span>
-          <h1 className="title-xl">Who are you?</h1>
-          <span className="hint">Type your name to find it. This device remembers it; sign-in comes later with your company login.</span>
+          <h1 className="title-xl">Welcome to {app.ws.name}</h1>
+          <p className="arrival-lead">{arrivalIntro(app.ws, admin?.name ?? null, people.length, app.snapshot.goals.length)}</p>
+          <span className="hint">Each goal has an owner who keeps it current. You’ll see yours, and what’s due, as soon as you’re in.</span>
         </div>
-        <PickOne kind="person" label="Your name" source={source} value={null} onChange={(id) => id && app.setViewer(id)} />
-        <p className="hint">Not listed? Ask whoever set up {app.ws.name} to add you.</p>
+        <section className="stack" style={{ gap: 'var(--s2)' }} aria-labelledby="arrival-which">
+          <h2 className="h3" id="arrival-which">Which one are you?</h2>
+          {many && (
+            <label className="stack" style={{ gap: 4 }}>
+              <span className="field-label">Find your name</span>
+              <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+            </label>
+          )}
+          {shown.length ? (
+            <div className="arrival-people">
+              {teams.map((t) => (
+                <div key={t.id} role="group" aria-label={t.name || 'No team'}>
+                  {t.name && <div className="field-label arrival-team" aria-hidden="true">{t.name}</div>}
+                  {t.people.map((p) => (
+                    <button key={p.id} type="button" className="arrival-person" onClick={() => choose(p.id)}>
+                      <Avatar p={p} />
+                      <span className="stack" style={{ gap: 0 }}><span className="strong">{app.personName(p.id)}</span><span className="small muted">{arrivalLine(p, creator, owns(p.id))}</span></span>
+                      <Icon name="chevron-right" size={14} />
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : <p className="hint" role="status">No one by that name.</p>}
+        </section>
+        <p className="hint">This device remembers your answer. Signing in with your company login replaces this step in the internal app.</p>
+        <p className="small">Not on the list? {admin?.email
+          ? <a href={`mailto:${admin.email}?subject=${encodeURIComponent(`Add me to ${app.ws.name} in Faro`)}`}>Ask {admin.name} to add you</a>
+          : <>Ask whoever set up {app.ws.name} to add you.</>}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * An invitation, `/join/<workspace>` (set-up spec 2.8): opens the workspace it names and nothing else. Known here, it
+ * goes to Home; not yet, the arrival; a workspace that isn't there says so. Works with nothing open as well.
+ */
+export function Join() {
+  const setup = useSetup();
+  const app = useMaybeApp();
+  const { workspaceId = '' } = useParams();
+  const there = setup.workspaces.some((w) => w.id === workspaceId);
+  const here = !!app && app.ws.id === workspaceId && !app.opening;
+  useEffect(() => { if (setup.listed && there && !here && setup.openId !== workspaceId) setup.open(workspaceId); }, [setup, there, here, workspaceId]);
+  if (!setup.listed) return null;
+  if (!there) return <NotThere />;
+  if (!here) return <PageWait />;
+  return app.viewerChosen ? <Navigate to="/" replace /> : <WhoAreYou />;
+}
+
+/** An invitation to a workspace that isn't there: said, and nothing else opened (W13). */
+function NotThere() {
+  useEffect(() => { document.title = 'Welcome · Faro'; }, []);
+  return (
+    <div className="welcome">
+      <div className="welcome-body">
+        <FaroLogo size={32} />
+        <h1 className="title-xl">This invitation doesn’t open a workspace</h1>
+        <p className="arrival-lead">The workspace may have been deleted, or the link was cut short when it was copied. Ask whoever sent it for a new one.</p>
+        <div className="row"><Link className="btn" to="/welcome">Go to Welcome</Link></div>
       </div>
     </div>
   );
@@ -86,9 +168,6 @@ function CantOpenYet() {
     </div>
   );
 }
-
-/** The address to send colleagues: the app, opened at this workspace's "Who are you?" (deep review U2). */
-export const inviteLink = (origin: string, mode: string, wsId: string) => `${origin}${mode === 'demo' ? '/demo' : '/'}?workspace=${encodeURIComponent(wsId)}`;
 
 /** Right after setting up: what's there now, and the one next thing. */
 export function Ready() {

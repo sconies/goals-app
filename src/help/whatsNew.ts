@@ -35,6 +35,112 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'welcome-page',
+    date: '2026-11-12',
+    title: 'A proper front door',
+    points: [
+      'Welcome has its own page: set up a workspace, look around the demo, or join one you were invited to.',
+      'An invitation opens the right workspace and says who set it up.',
+      'Opening Faro on a new device no longer drops you into a workspace you didn’t choose.',
+    ],
+    articles: ['welcome', 'joining'],
+  },
+  {
+    id: 'question-in-view-steadier',
+    date: '2026-11-12',
+    title: 'A question about a number stays put while you type',
+    points: [
+      'The question is brought into view once, when it first shows; typing more digits no longer moves the page up and down.',
+      'With an on-screen keyboard open, the question is brought above the keyboard.',
+      'In set-up, Continue with a goal card’s question open goes to the question, as New goal does.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'batch-refs-fixes',
+    date: '2026-11-12',
+    title: 'Refs in a file: two fixes',
+    points: [
+      'Two check-in rows for the same new goal and week, named by Goal ref, are now caught as one goal on two rows, as they are by key.',
+      'A row whose Feeds into ref and Feeds into key name different goals now says so in those words.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'goal-proposed',
+    date: '2026-11-12',
+    title: 'Propose a goal before it starts',
+    points: [
+      'New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.',
+      'Its owner or an admin makes it active when it is agreed.',
+      'Proposed goals are counted apart, and listed under Goals with the Proposed filter.',
+    ],
+    articles: ['goal-proposed', 'new-goal', 'goals', 'columns'],
+  },
+  {
+    id: 'batch-refs',
+    date: '2026-11-12',
+    title: 'Build a whole tree of goals in one file',
+    points: [
+      'A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.',
+      'A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.',
+      'Two new goals with the same name stay two goals when each row has its own Ref.',
+    ],
+    articles: ['import', 'ai-assistants'],
+  },
+  {
+    id: 'import-faster',
+    date: '2026-11-12',
+    title: 'Large files are checked much faster',
+    points: [
+      'A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.',
+      'Import still says up front how large a file can be: up to 5,000 rows is comfortable.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'assistant-goals-link-tab',
+    date: '2026-11-12',
+    title: 'A pasted Goals link keeps its tab',
+    points: [
+      'Give an AI assistant a Goals link and it finds the goals the link shows: a link to Mine finds your goals, not everyone’s.',
+      'Asking for a tab in words (“my team’s goals”) still wins over the link’s.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
+    id: 'table-check-in-answers',
+    date: '2026-11-12',
+    title: 'The table check-in keeps your answers',
+    points: [
+      'When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.',
+      'A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.',
+      'Questions about a number use the goal’s unit properly: 1 hour, not 1 hours.',
+    ],
+    articles: ['check-in-table', 'check-in'],
+  },
+  {
+    id: 'export-one-button',
+    date: '2026-11-12',
+    title: 'Export is one button',
+    points: [
+      'Excel by default; other formats one click away.',
+      'File names say what’s in them: all, the view’s name, or as-shown.',
+      'On Data, Export and Import sit side by side. Past imports and the template are on the Import page.',
+    ],
+    articles: ['export', 'data'],
+  },
+  {
+    id: 'data-feedback-search-words',
+    date: '2026-11-12',
+    title: 'Data and Feedback search the way Goals does',
+    points: [
+      'Each word you type finds the rows with a word that starts with it: “back” no longer finds “fallback”.',
+      'On Data, a key like G-48 (or g48) finds its goal, and only the columns you can see are searched.',
+    ],
+    articles: ['data', 'feedback'],
+  },
+  {
     id: 'check-ins-owners-words',
     date: '2026-11-12',
     title: 'Check-ins are the owner’s, said everywhere',
