@@ -15,7 +15,11 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 **One way to save a check-in** (`postCheckIn`): the check-in screens post through the same judgement, with the draft the form holds and a mode that says how it meets the week's own. `new` is refused when the week has a check-in ("Week 45 already has a check-in. Check in again, or correct it."); `again` adds a second beside it ("Checked in again for week 45: …"); `correct` replaces the week's newest, or adds a week that has none, and needs a reason of at least 10 characters, kept as the entry's first difference ("Why corrected") and summed up as "Corrected week 44: 60% is now 61%" or "Added week 44 later: 61%". A week that has passed takes only `correct`. A correction keeps when the record it replaces was posted, so it never turns a late week into an on-time one, nor the reverse; a correction that changes nothing is refused ("Nothing is different from what week 44 already says."). A post that isn't a correction is no import: no Via mark and no import to undo (Delete this check-in takes it back). A correction is an import of one, undone with the import.
 
+**A batch names its own rows** (backlog BT). A Goals row's **Ref** is a label of the file's own, kept nowhere: **Feeds into ref** on another Goals row, and **Goal ref** on a Check-ins row, name the goal that row adds or changes, so one file (or one `bulk_change`) builds a whole tree, with numbers, before any new goal has a key. A Ref on two rows is Must fix on both (and neither row saves); a ref that no row has, or that names a row that can't be saved, is Must fix on the row that uses it. A row with its own Ref is its own goal, even beside another new row of the same name. An empty ref says nothing: the other columns say what a goal feeds, so an export (where both are empty) loads back unchanged. Leaving a new goal out leaves out the rows that name it by Ref, as by name.
+
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
+
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (`src/domain/importSpeed.test.ts`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in `src/domain/importLimits.ts`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
@@ -26,6 +30,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Given | The rule gives |
 |---|---|
 | A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
+| Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid. | `mid feeds top, leaf feeds mid` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
 | Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence, so anyone reading week 44 later knows.` |
@@ -131,3 +136,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - removing, archiving and undoing › ends a review that was held, deletes one that never was, and edits and removes comments and notes
 - removing, archiving and undoing › undoes an import: every row back as it was, rows changed since skipped and listed
 - removing, archiving and undoing › round trip: removes and restores every kind of record, leaving nothing orphaned or lost
+
+### [src/domain/importSpeed.test.ts](../../../src/domain/importSpeed.test.ts)
+
+- rule 10: a large file is checked in about the time it takes to read › checks ${k.toLocaleString('en-GB')} new rows within ${ms / 1000} s
+- rule 10: a large file is checked in about the time it takes to read › checks an unedited workbook of nearly 30,000 rows within 20 s, and nothing would change
+- rule 10: a large file is checked in about the time it takes to read › costs about what its rows do: five times the rows, well under twenty-five times the time
+- rule 10: a large file is checked in about the time it takes to read › says fourteen rows with one typo once, as one group, among thousands

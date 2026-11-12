@@ -30,8 +30,9 @@ What it adds to the core (routes, places on core screens, AI tools, Help) is in 
 8. Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.
 9. The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.
 10. The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).
-11. Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists "import" under "also").
-12. An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.
+11. A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).
+12. Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists "import" under "also").
+13. An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.
 
 ## Gaps in the kit
 

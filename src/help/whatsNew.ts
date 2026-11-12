@@ -23,6 +23,27 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'batch-refs',
+    date: '2026-11-12',
+    title: 'Build a whole tree of goals in one file',
+    points: [
+      'A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.',
+      'A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.',
+      'Two new goals with the same name stay two goals when each row has its own Ref.',
+    ],
+    articles: ['import', 'ai-assistants'],
+  },
+  {
+    id: 'import-faster',
+    date: '2026-11-12',
+    title: 'Large files are checked much faster',
+    points: [
+      'A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.',
+      'Import still says up front how large a file can be: up to 5,000 rows is comfortable.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'assistant-goals-link-tab',
     date: '2026-11-12',
     title: 'A pasted Goals link keeps its tab',
