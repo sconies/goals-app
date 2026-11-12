@@ -4665,7 +4665,6 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.context().close();
 }, ['logged']);
 
-journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 28, async (h, device) => {
 /* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
 journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'oskar'));
