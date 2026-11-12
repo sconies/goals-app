@@ -7,7 +7,11 @@ Which week it is, and what a goal’s plan says its number should be in any week
 
 ## The rule
 
-**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC. The week on a day is `floor(days since the start / 7)`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
+**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC.
+
+**The home zone is a parameter** ([R3](../../requirements/internal/r3-time-zones.md)). Faro counts every day and week here in UTC. The internal app counts them in the workspace's home zone: read the moment on the home zone's clock, then count exactly as below (`weekIn` and `daysSinceIn` in `src/spec/zones.ts`). A week turns at midnight on Sunday there, a check-in posted at 23:30 on Sunday there counts for that Sunday's week, and a day is the home zone's date, across a clock change too. With the home zone UTC nothing changes. [zone.csv](../../conformance/zone.csv) scores it.
+
+**Counting.** The week on a day is `floor(days since the start / 7)`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
 
 **Set up part way through a week.** Nothing is late on the day it's set up. A goal's first check-in is due in the first week whose review day (the cycle's `reviewDay`, 0 = Monday) falls on or after the day the goal was created; a review's first session is the first of its sessions on or after the day it was set up (its own weekday, every `everyWeeks` weeks). So a goal or review set up on the review day or before it starts that week, and one set up after it (on the Sunday, say) starts the next week. Anything set up before the cycle starts begins in week 1. Before its first week a goal is not due, not flagged as due, and doesn't count for or against the on-time streak.
 
@@ -41,6 +45,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | Given | The rule gives |
 |---|---|
 | The 13-week cycle starts Monday 7 September 2026. What week is Sunday 13 September at 23:00 UTC, and Monday 14 September? | `0, 1` |
+| The same cycle with a home zone (R3). A check-in posted at 2026-09-14T03:30Z: its week by UTC, and with the home zone America/New_York (where it is 23:30 on Sunday). Days from it to 2026-09-28T04:30Z (00:30 on Monday there), the same two ways. | `week 1, week 0; 14 days, 15 days` |
 | A day long after the cycle ends (1 March 2027). | `13` |
 | Reviews on Thursdays. A goal set up on Monday 28 September (week 3), on Thursday 1 October (its review day) and on Sunday 4 October: the week its first check-in is due. | `3, 3, 4` |
 | A straight plan from 30 to 75 over 13 weeks: the plan in week 4. | `43.846` |

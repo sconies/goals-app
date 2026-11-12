@@ -392,14 +392,14 @@ const CORE_TOOLS: ToolDef[] = [
     name: 'make_goal_active',
     title: 'Make a proposed goal active',
     description: 'Its owner or an admin: make a proposed goal active. A number goal’s plan runs from this week, or from the week given. From then it is judged against its plan and check-ins are due. Use dry_run first to read back the dates and when the first check-in is due, and say it to the person.',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), from: str('Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week.'), dry_run: DRY } },
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), from: str('Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week.'), confirm: bool('True once the person has said the goal has been running since an earlier From (the question comes back otherwise).'), dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       let fromWeek: number | undefined;
       if (a.from != null && a.from !== '') { const r = readWeekCode(ctx.cycle, String(a.from)); if (!('n' in r)) throw new Error(r.text ?? `From says “${String(a.from)}”. Write a year and a week, like 2026-W48.`); fromWeek = r.n; }
       let out;
-      try { out = activate(ctx, { goalId: g.id, fromWeek }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
+      try { out = activate(ctx, { goalId: g.id, fromWeek, confirm: a.confirm === true }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
       const says = activeReadBack(g, { cycle: ctx.cycle, week: ctx.week, today: ctx.today, rhythm: 'weekly', fromWeek: fromWeek ?? Math.max(0, ctx.week) });
       if (a.dry_run) return { data: { saved: false, readBack: says }, text: `Checked, not saved (dry run). ${says}` };
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });

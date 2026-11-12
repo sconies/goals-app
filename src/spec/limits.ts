@@ -33,6 +33,7 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_goals_decimals_check', holds: ['decimals >= 0', 'decimals <= 3'], rule: 'goal-entry', words: 'A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.)' },
   { constraint: 'okr_goals_check', holds: ["kind <> 'metric'", 'plan_start <> plan_target'], rule: 'goal-entry', words: 'A number goal has a start, a target and a plan shape, and its start and target differ.' },
   { constraint: 'okr_goals_check1', holds: ["kind <> 'range'", 'range_margin IS NOT NULL'], rule: 'goal-entry', words: 'A range goal has a bound (at most or at least), a limit and a warning margin.' },
+  { constraint: 'okr_goals_range_lower_ok', holds: ["range_bound = 'between'", 'range_lower < range_limit', 'range_lower IS NULL'], rule: 'goal-entry', words: 'A range goal kept between two numbers has a lower number below its limit; any other range goal has no lower number.' },
   { constraint: 'okr_goals_range_margin_check', holds: ['range_margin >='], rule: 'goal-entry', words: 'A range goal’s warning margin is 0 or more.' },
   { constraint: 'okr_goals_check2', holds: ['NOT headline', 'parent_id IS NULL'], rule: 'goal-entry', words: 'A headline goal feeds nothing.' },
   { constraint: 'okr_goals_plan_from_week_check', holds: ['plan_from_week >=', '104'], rule: 'weeks-and-plans', words: 'A plan’s first week is between −104 and 104 (a plan carried from an earlier year starts before week 0).' },
@@ -69,7 +70,6 @@ export const LIMITS: Limit[] = [
 /** Check constraints that aren't a rule for the rebuild, and why. A table name stands for every constraint on it. */
 export const NOT_LIMITS: Record<string, string> = {
   okr_changes_undo_check: 'How Faro stores an undo; the change log’s shape is in the data model.',
-  okr_goals_range_lower_ok: 'Migration 0042 ships one merge ahead of two-sided ranges (AX10); that build replaces this line with a LIMITS row and its rule’s words.',
   okr_goal_metrics_check: 'How Faro stores a goal’s metric beside the goal (one row per goal); the data model has `metricId` on the goal.',
   okr_markups: 'Markups go to the builders’ inbox, which R1 replaces (MARKUP-INBOX is tagged replace).',
   okr_feedback: 'Feedback is kept per workspace by R5 (FEEDBACK-INBOX is tagged replace).',

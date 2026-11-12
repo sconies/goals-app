@@ -1017,6 +1017,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 |---|---|---|---|
 | `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
 | `from` | string | no | Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week. |
+| `confirm` | boolean | no | True once the person has said the goal has been running since an earlier From (the question comes back otherwise). |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
 
 <details><summary>The input schema, as JSON</summary>
@@ -1036,6 +1037,10 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "from": {
       "type": "string",
       "description": "Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week."
+    },
+    "confirm": {
+      "type": "boolean",
+      "description": "True once the person has said the goal has been running since an earlier From (the question comes back otherwise)."
     },
     "dry_run": {
       "type": "boolean",
