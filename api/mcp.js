@@ -17119,6 +17119,7 @@ var CORE_ARTICLES = [
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
 					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
+					"Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -17505,6 +17506,13 @@ var WHATS_NEW = [
 			"On Data, Export and Import sit side by side. Past imports and the template are on the Import page."
 		],
 		articles: ["export", "data"]
+	},
+	{
+		id: "mcp-lists-one-shape",
+		date: "2026-11-12",
+		title: "AI tools get every list in one shape",
+		points: ["Finding goals through MCP gave a table of data when you filtered by words and plain lines for the whole list. Every list now comes back the same way, filtered or not.", "The same goes for asks, reviews, people, activity, views, tokens, metrics, what you watch, what was removed and feedback."],
+		articles: ["ai-assistants"]
 	},
 	{
 		id: "quarters-before-set-up",
@@ -19470,6 +19478,11 @@ function startPageText(p) {
 		p.whyNot ?? ""
 	].filter(Boolean).join("\n");
 }
+// src/mcp/listed.ts
+var listed = (data) => ({
+	data,
+	text: JSON.stringify(data, null, 2)
+});
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
 	id: "metrics",
@@ -19912,8 +19925,6 @@ init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
 var said = (k) => withCode(STATUS[k]);
-/** An ask's state the same way, overdue included: "Open (open), Overdue (overdue)". */
-var askState = (r) => withCode(ASK_STATUS[r.status]) + (r.overdue ? `, ${withCode(ASK_STATUS.overdue)}` : "");
 var str$6 = (description, extra = {}) => ({
 	type: "string",
 	description,
@@ -20227,11 +20238,7 @@ var WORK_TOOLS = [
 				"done",
 				"withdrawn"
 			])}, or all.`);
-			const list = asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r));
-			return {
-				data: { requests: list },
-				text: lines(list.map((r) => `${r.id} · ${ASK_KIND_LABEL[r.kind]} · ${askState(r)} · ${r.ask} · asked by ${r.askedBy} of ${r.askedOf} · ${r.goals.map((g) => g.title).join(", ")}${r.answer ? ` · answer: ${r.answer}` : ""}`), "No asks match.")
-			};
+			return listed({ requests: asksOf(ctx.snapshot).filter((r) => st === "all" || r.status === st).filter((r) => !a.kind || r.kind === a.kind).filter((r) => !a.for_me || !r.recipientId || r.recipientId === ctx.actor.id).filter((r) => !a.goal_id || r.goalIds.includes(goalOf$2(ctx, a.goal_id).id)).map((r) => requestData(ctx, r)) });
 		}
 	},
 	{
@@ -20245,7 +20252,7 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = ctx.snapshot.reviews.map((r) => {
+			return listed({ reviews: ctx.snapshot.reviews.map((r) => {
 				const x = reviewSession(r, ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
 				const held = lastHeld(r, ctx.snapshot, x.week);
 				return {
@@ -20264,11 +20271,7 @@ var WORK_TOOLS = [
 					openActions: openActions(r, ctx.snapshot).length,
 					youreIn: r.people.includes(ctx.actor.id)
 				};
-			});
-			return {
-				data: { reviews: list },
-				text: lines(list.map((r) => `${r.id} · ${r.name} · every ${r.everyWeeks} wk · ${r.state} (session ${r.sessionDate}) · last held ${r.lastHeld ?? "never"} · ${r.openActions} open actions`), "No reviews yet.")
-			};
+			}) });
 		}
 	},
 	{
@@ -20339,23 +20342,18 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const watches = ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
-				id: w.id,
-				kind: w.kind,
-				ref: w.ref,
-				what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
-			}));
-			const goals = watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
-				id: g.id,
-				title: g.title
-			}));
-			return {
-				data: {
-					watches,
-					goals
-				},
-				text: watches.length ? `${watches.map((w) => `${w.id} · ${w.kind} · ${w.what}`).join("\n")}\n${goals.length} goals watched.` : "You’re not watching anything yet."
-			};
+			return listed({
+				watches: ctx.snapshot.watches.filter((w) => w.personId === ctx.actor.id).map((w) => ({
+					id: w.id,
+					kind: w.kind,
+					ref: w.ref,
+					what: w.kind === "level" ? `every ${w.ref} goal` : ctx.snapshot.goals.find((g) => g.id === w.ref)?.title ?? w.ref
+				})),
+				goals: watchedGoals(ctx.actor.id, ctx.snapshot).map((g) => ({
+					id: g.id,
+					title: g.title
+				}))
+			});
 		}
 	},
 	{
@@ -20370,31 +20368,27 @@ var WORK_TOOLS = [
 		annotations: READ$4,
 		async run(_a, ctx) {
 			const team = (id) => ctx.snapshot.teams.find((t) => t.id === id)?.name ?? null;
-			const people = ctx.snapshot.people.map((p) => ({
-				id: p.id,
-				name: p.name,
-				email: p.email ?? null,
-				jobTitle: p.role,
-				team: team(p.teamId),
-				admin: p.admin,
-				goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
-			}));
-			return {
-				data: {
-					people,
-					teams: ctx.snapshot.teams.map((t) => {
-						const m = teamMembers(ax$2(ctx), t.id);
-						return {
-							id: t.id,
-							name: t.name,
-							lead: name$1(ctx, t.leadId),
-							people: m.people.length,
-							goals: m.current.length
-						};
-					})
-				},
-				text: people.map((p) => `${p.id} · ${p.name}${p.email ? ` <${p.email}>` : ""}${p.jobTitle ? `, ${p.jobTitle}` : ""} · ${p.team ?? "no team"}${p.admin ? " · admin" : ""}`).join("\n")
-			};
+			return listed({
+				people: ctx.snapshot.people.map((p) => ({
+					id: p.id,
+					name: p.name,
+					email: p.email ?? null,
+					jobTitle: p.role,
+					team: team(p.teamId),
+					admin: p.admin,
+					goals: ctx.snapshot.goals.filter((g) => g.ownerId === p.id).length
+				})),
+				teams: ctx.snapshot.teams.map((t) => {
+					const m = teamMembers(ax$2(ctx), t.id);
+					return {
+						id: t.id,
+						name: t.name,
+						lead: name$1(ctx, t.leadId),
+						people: m.people.length,
+						goals: m.current.length
+					};
+				})
+			});
 		}
 	},
 	{
@@ -20420,7 +20414,7 @@ var WORK_TOOLS = [
 				watched: null
 			});
 			const n = Math.min(500, Math.max(1, Number(a.limit ?? 50)));
-			const list = ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
+			return listed({ changes: ctx.snapshot.changes.filter(keep).sort((x, y) => x.at < y.at ? 1 : -1).slice(0, n).map((c) => ({
 				at: c.at,
 				by: name$1(ctx, c.actorId),
 				goal: c.goalId ? ctx.snapshot.goals.find((g) => g.id === c.goalId)?.title ?? c.goalId : null,
@@ -20435,11 +20429,7 @@ var WORK_TOOLS = [
 					canUndo: canUndoImport(ctx.snapshot, c, ctx.actor),
 					undone: importUndone(ctx.snapshot, c.entityId)
 				} : {}
-			}));
-			return {
-				data: { changes: list },
-				text: lines(list.map((c) => `${c.at.slice(0, 16).replace("T", " ")} · ${c.by} · ${c.goal ? c.goal + ": " : ""}${c.summary}${"importId" in c ? ` · import ${c.importId}${c.undone ? " (undone)" : c.canUndo ? " (can be undone)" : ""}` : ""}`), "No changes match.")
-			};
+			})) });
 		}
 	},
 	{
@@ -20453,7 +20443,7 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
+			return listed({ views: (ctx.snapshot.views ?? []).filter((v) => !v.deletedAt && (v.pinned || v.personId === ctx.actor.id)).map((v) => {
 				const l = isTableView(v) ? parseLayout(v.params) : null;
 				return {
 					id: v.id,
@@ -20468,11 +20458,7 @@ var WORK_TOOLS = [
 					pinned: v.pinned,
 					owner: name$1(ctx, v.personId)
 				};
-			});
-			return {
-				data: { views: list },
-				text: lines(list.map((v) => `${v.id} · ${v.name}${v.pinned ? " (pinned)" : ""} · of ${v.of} · ${v.query}`), "No saved views.")
-			};
+			}) });
 		}
 	},
 	{
@@ -20486,17 +20472,13 @@ var WORK_TOOLS = [
 		},
 		annotations: READ$4,
 		async run(_a, ctx) {
-			const list = (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
+			return listed({ tokens: (ctx.snapshot.tokens ?? []).filter((t) => !t.revokedAt && (ctx.actor.admin || t.personId === ctx.actor.id)).map((t) => ({
 				id: t.id,
 				name: t.name,
 				person: name$1(ctx, t.personId),
 				createdAt: t.createdAt,
 				lastUsedAt: t.lastUsedAt
-			}));
-			return {
-				data: { tokens: list },
-				text: lines(list.map((t) => `${t.id} · ${t.name} · acts as ${t.person}`), "No live tokens.")
-			};
+			})) });
 		}
 	},
 	{
@@ -21811,7 +21793,7 @@ var MARKUP_TOOLS = [
 		},
 		annotations: READ$3,
 		async run(a, ctx) {
-			const rows = (await inbox(ctx).list({
+			return listed({ markups: (await inbox(ctx).list({
 				...a.workspace ? { workspaceId: String(a.workspace) } : {},
 				...a.status ? { status: a.status } : {},
 				limit: Number(a.limit ?? 50)
@@ -21826,11 +21808,7 @@ var MARKUP_TOOLS = [
 				at: m.createdAt,
 				issueUrl: m.issueUrl,
 				fixedIn: m.fixedIn
-			}));
-			return {
-				data: { markups: rows },
-				text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join("\n") : "No markups."
-			};
+			})) });
 		}
 	},
 	{
@@ -22041,8 +22019,6 @@ function triage(ctx) {
 	if (!ctx.feedback) throw new Error(NO_INBOX);
 	return ctx.feedback;
 }
-/** One line: "fb_1 · In hand · It gets in the way · “The reason box is too small” · /check-in · Mateo, Acme, 2026-11-06". */
-var line = (f) => `${f.id} · ${STATUS_WORD[f.status]} · ${MOOD_WORD[f.mood]} · “${f.text || "(no words)"}” · ${f.path || "/"} · ${f.personName || f.personId}, ${f.workspaceName || f.workspaceId}, ${f.at.slice(0, 10)}`;
 var outcome = (f) => `${STATUS_WORD[f.status]}${f.fixedIn ? `, fixed in ${f.fixedIn}` : ""}${f.wontFixReason ? `: ${f.wontFixReason}` : ""}`;
 var FEEDBACK_TOOLS = [
 	{
@@ -22063,27 +22039,21 @@ var FEEDBACK_TOOLS = [
 		},
 		annotations: READ$2,
 		async run(a, ctx) {
-			if (ctx.feedback) {
-				const list = await ctx.feedback.list(Number(a.limit ?? 50), {
-					...a.workspace ? { workspaceId: String(a.workspace) } : {},
-					...a.status ? { status: a.status } : {}
-				});
-				return {
-					data: { feedback: list.map((f) => ({
-						id: f.id,
-						status: f.status,
-						mood: f.mood,
-						text: f.text,
-						screen: f.path,
-						by: f.personName,
-						from: f.workspaceName,
-						at: f.at,
-						fixedIn: f.fixedIn,
-						wontFixReason: f.wontFixReason
-					})) },
-					text: list.length ? list.map(line).join("\n") : "No feedback."
-				};
-			}
+			if (ctx.feedback) return listed({ feedback: (await ctx.feedback.list(Number(a.limit ?? 50), {
+				...a.workspace ? { workspaceId: String(a.workspace) } : {},
+				...a.status ? { status: a.status } : {}
+			})).map((f) => ({
+				id: f.id,
+				status: f.status,
+				mood: f.mood,
+				text: f.text,
+				screen: f.path,
+				by: f.personName,
+				from: f.workspaceName,
+				at: f.at,
+				fixedIn: f.fixedIn,
+				wontFixReason: f.wontFixReason
+			})) });
 			if (a.status || a.workspace) return {
 				isError: true,
 				text: `${NO_INBOX} An admin’s token lists this workspace’s feedback, without statuses.`
@@ -22093,18 +22063,14 @@ var FEEDBACK_TOOLS = [
 				text: "Only admins can read the feedback."
 			};
 			const who = (id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
-			const list = [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).slice(0, a.limit ? Number(a.limit) : void 0).map((f) => ({
+			return listed({ feedback: [...ctx.snapshot.feedback ?? []].sort((x, y) => x.at < y.at ? 1 : -1).slice(0, a.limit ? Number(a.limit) : void 0).map((f) => ({
 				id: f.id,
 				at: f.at,
 				by: who(f.personId),
 				mood: f.mood,
 				screen: f.path,
 				text: f.text
-			}));
-			return {
-				data: { feedback: list },
-				text: list.length ? list.map((f) => `${f.at.slice(0, 10)} · ${f.by} · ${f.mood} · ${f.screen} · ${f.text}`).join("\n") : "No feedback yet."
-			};
+			})) });
 		}
 	},
 	{
@@ -22255,18 +22221,14 @@ var REMOVE_TOOLS = [
 		async run(_a, ctx) {
 			const all = recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, void 0, recordsOn(ctx.ws)).filter((r) => canRestore(ctx.actor, r));
 			const who = (id) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? "—";
-			const list = all.map((r) => ({
+			return listed({ removed: all.map((r) => ({
 				kind: r.kind,
 				label: r.label,
 				id: r.id,
 				name: r.name,
 				removedBy: who(r.by),
 				at: r.at
-			}));
-			return {
-				data: { removed: list },
-				text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join("\n") : "Nothing removed in the last 30 days."
-			};
+			})) });
 		}
 	},
 	{
@@ -22940,17 +22902,12 @@ var tools$1 = [
 						})) : []
 					};
 				});
-				const words = (r) => `${r.id} · ${r.name} (${r.unit}, ${directionWords(r.direction)}) · ${r.owner ? `owner ${r.owner}` : "no owner"} · ${r.goalsByStatus.length ? r.goalsByStatus.map((c) => `${c.count} ${c.label.toLowerCase()}`).join(", ") : "no goals yet"}${r.needs.length ? ` · to sort out: ${r.needs.map((x) => x.sentence).join("; ")}` : ""}`;
-				const head = found.total > found.rows.length ? `${found.from} to ${found.to} of ${found.total} metrics.\n` : "";
-				return {
-					data: {
-						total: found.total,
-						page: found.page,
-						pages: found.pages,
-						metrics: rows
-					},
-					text: rows.length ? head + rows.map(words).join("\n") : liveMetrics(ctx.snapshot).length ? "No metric matches." : "The metric library is empty. Add one with save_metric."
-				};
+				return listed({
+					total: found.total,
+					page: found.page,
+					pages: found.pages,
+					metrics: rows
+				});
 			});
 		}
 	},
@@ -23645,25 +23602,20 @@ var CORE_TOOLS = [
 				owner: owners ? owners.length ? owners : ["nobody"] : [],
 				attention: query.attention || !!a.needs_attention
 			};
-			if (status && !asked.status.length || a.level && !asked.level.length) return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: []
-				},
-				text: "No goals match."
-			};
+			if (status && !asked.status.length || a.level && !asked.level.length) return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: []
+			});
 			const scope = a.scope ? String(a.scope) : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: []
-				},
-				text: scope === "team" ? "No goals match: you’re in no team and lead none." : "No goals match: you own no goals this year."
-			};
+			if (scope && scope !== "all" && !scoped) return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: [],
+				why: scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."
+			});
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -23710,14 +23662,11 @@ var CORE_TOOLS = [
 				feedsInto: s.feedsInto,
 				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
 			}));
-			return {
-				data: {
-					week: ctx.week,
-					weeks: ctx.cycle.weeks,
-					goals: data
-				},
-				text: data.length ? data.map((g) => `${g.key ? g.key + " · " : ""}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ""} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(", ")}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ""}`).join("\n") : "No goals match."
-			};
+			return listed({
+				week: ctx.week,
+				weeks: ctx.cycle.weeks,
+				goals: data
+			});
 		}
 	},
 	{
