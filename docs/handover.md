@@ -76,6 +76,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
   - `startLevel` counts removed and stopped goals;
   - the feeds-lower rule lives only in the form;
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
+- **Bundle budgets (Lane, 12 Nov):** each is the size on the day it was set plus a 3 KB margin (`MARGIN_KB` in `scripts/check-bundle.mjs`): 295 and 353 KB. Main had sat 20 bytes under 350, which failed every visible change. Lowering a budget keeps the margin.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
 ## Track 4, Thursday 12 November, 00:20 UTC (session past half full, handing over)
