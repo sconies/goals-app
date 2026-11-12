@@ -1653,7 +1653,7 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
   await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
   await h.click(p.getByRole('button', { name: /Save/ }));
-  await p.waitForURL(/\/retro/);
+  await p.waitForURL(/\/retro\/?(\?.*)?$/); // the list, not the wrap-up page (its address matches /retro too)
   const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
   const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
   h.set('finish', wrapRows > 0 && saved && cyclesAfter > 0, `with 2027 current on 11 Jan, 2026’s wrap-up showed ${wrapRows} goals, saving said “Wrapped up” ${saved}, and Cycles offered 2026’s wrap-up ${cyclesAfter} time(s)`);
@@ -3358,8 +3358,10 @@ journey('U65', ['FIND-ANYWHERE'], 'Find from anywhere: Ctrl K (or the phone’s 
   await h.fill(box, 'rhea');
   await see(find, 'People · 1', 'Rhea is not found under People');
   const groups = await find.getByRole('group').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
-  h.set('attention', JSON.stringify(groups) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
-  h.set('parity', !groups.some((g) => /^Metrics/.test(g)), 'a Metrics group shows without a module that finds metrics');
+  // The core's three kinds, then whatever a module adds: Metrics' own group (ML2, 12 Nov) comes after, and finds metrics only.
+  const core = groups.filter((g) => !/^Metrics · /.test(g));
+  h.set('attention', JSON.stringify(core) === JSON.stringify(['Goals · 8', 'People · 1', 'Teams · 1']), `Find's groups are ${groups.join(', ')}`);
+  h.set('parity', !groups.some((g) => /^Metrics · /.test(g)) || (await find.getByRole('group', { name: /^Metrics · / }).getByRole('option').evaluateAll((os) => os.every((o) => /\/metrics[/?]/.test(o.getAttribute('href') || '')))), 'a Metrics group shows rows that are not metrics');
   const people = await find.getByRole('group', { name: 'People · 1' }).getByRole('option').allInnerTexts();
   h.set('finish', /Rhea Kapoor/.test(people[0] || ''), `People shows ${people.join(' / ')}`);
   const goals = find.getByRole('group', { name: 'Goals · 8' }).getByRole('option');
@@ -3601,7 +3603,7 @@ journey('U59', ['WORKSPACE-ABOUT', 'WORKSPACE-SECTIONS'], 'Workspace opens on Ab
   if (phone) { await h.click(p.locator('.tabbar').getByRole('button', { name: 'More' })); await h.click(p.getByRole('dialog').getByRole('link', { name: 'Workspace', exact: true })); }
   else await h.click(p.locator('.side').getByRole('link', { name: 'Workspace', exact: true }));
   await p.locator('.ws-facts').waitFor();
-  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  await h.inView(p.locator('.ws-facts dt').first(), 'entry', 'the first fact'); // the block grew with "What it is" (12 Nov), so the whole of it no longer fits a phone
   const line = await p.locator('.ws-role-line').innerText();
   const head = await p.locator('.page-head').first().innerText();
   h.set('progress', line === 'Platform Engineering · you’re an admin here' && !/permissions|stays in this browser/i.test(head), `the header says “${head.replace(/\s+/g, ' ')}”`);
@@ -3647,14 +3649,14 @@ journey('U61', ['WORKSPACE-ABOUT', 'ONBOARDING'], 'Day one tells the truth: a tw
     const reviews = full.reviews.slice(0, 1).map((r) => ({ ...r, people: ['rosa', 'omar'], createdBy: 'rosa', scope: { goals: goals.map((g) => g.id), trees: [], levels: [] } }));
     const ws = { id: 'ws_field', name: 'Field Operations', kind: 'own', createdAt: '2026-11-09T00:00:00Z' };
     localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([ws]));
-    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
+    localStorage.setItem('goals-app-v2:ws_field', JSON.stringify({ ...full, people, teams: [{ id: 'field', name: 'Field', leadId: '', objective: '' }], modules: {}, goals, checkIns: [], decisions: [], requests: [], reviews, retros: [], changes: [], watches: [], views: [] }));
     localStorage.setItem('goals-app-workspace', 'ws_field');
     localStorage.setItem('goals-app-viewer:ws_field', 'rosa');
   }, n);
   await seed(2);
   await p.goto(url('/workspace'));
   await p.locator('.ws-facts').waitFor();
-  await h.inView(p.locator('.ws-facts'), 'entry', 'the facts');
+  await h.inView(p.locator('.ws-facts dt').first(), 'entry', 'the first fact');
   const quiet = await p.getByRole('heading', { name: /To sort out/ }).count() === 0;
   await h.checkpoint('about');
   await p.goto(url('/teams'));

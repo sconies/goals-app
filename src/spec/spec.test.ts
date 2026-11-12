@@ -10,6 +10,7 @@ import { screenFacts } from './screenFacts';
 import { ARTICLES } from '../help/guide';
 import { checks, coreRoutes, requirements } from './sources';
 import { HEADERS } from './conformance';
+import { thresholdClashes } from './thresholds';
 
 const root = path.resolve(__dirname, '../..');
 
@@ -78,6 +79,19 @@ describe('the spec', () => {
     const r = { root };
     let spec: Record<string, string>;
     beforeAll(async () => { spec = await buildSpec(root); }, 60_000);
+
+    it('gives one number for each named threshold, the code’s, on every page', () => {
+      const pages = Object.fromEntries(Object.entries(spec).filter(([p]) => /\.(md|txt)$/.test(p)));
+      expect(thresholdClashes(pages)).toEqual([]);
+      expect(thresholdClashes({ 'x.md': 'On track at 90%; no recent update after 21 days; no check-in for 2 weeks or more.' })).toEqual([
+        'x.md: “On track at 90%” gives 90 for on track (RULES.onTrack), the code says 95',
+        'x.md: “no recent update after 21 days” gives 21 for no recent update (RULES.staleDays), the code says 14',
+      ]);
+    });
+
+    it('says what each rule decides in llms.txt in the rule page’s own words', () => {
+      expect(RULE_PAGES.filter(([id, , what]) => RULE_LIST.find((r) => r.id === id)?.summary !== what).map(([id]) => id)).toEqual([]);
+    });
 
     it('writes every check’s title as words, never as the code that makes it', () => {
       expect(checks(r).filter((c) => !c.title || /\$\{|\(\[\^|`/.test(c.title)).map((c) => `${c.id}: ${c.title}`)).toEqual([]);
