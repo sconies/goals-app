@@ -18,6 +18,7 @@ import { attentionGroup, needsAttention } from '../domain/attention';
 import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, LABEL, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
+import { listed } from './listed';
 import { MARKUP_TOOLS } from './markupTools';
 import type { MarkupOps } from '../markup/ops';
 import { FEEDBACK_TOOLS } from './feedbackTools';
@@ -261,12 +262,12 @@ const CORE_TOOLS: ToolDef[] = [
         attention: query.attention || !!a.needs_attention,
       };
       // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
-      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: 'No goals match.' };
+      if ((status && !asked.status.length) || (a.level && !asked.level.length)) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [] });
       // Whose goals (goals spec, rule 1): the scope's goals, from the same rule as the Goals screen's tabs.
       const scope = a.scope ? String(a.scope) as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-      if (scope && scope !== 'all' && !scoped) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: scope === 'team' ? 'No goals match: you’re in no team and lead none.' : 'No goals match: you own no goals this year.' };
+      if (scope && scope !== 'all' && !scoped) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [], why: scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.' });
       const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -278,7 +279,8 @@ const CORE_TOOLS: ToolDef[] = [
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
-      return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: data }, text: data.length ? data.map((g) => `${g.key ? g.key + ' · ' : ''}${g.id} · ${g.title} · ${g.owner} · ${statusWords(g.status)} · now ${g.now}${g.planThisWeek ? `, plan ${g.planThisWeek}` : ''} · ${g.gap}${g.needsAttention ? ` · ${ATTENTION.needs.label.toLowerCase()}: ${g.because.join(', ')}` : g.beingHandled ? ` · ${ATTENTION.handled.label.toLowerCase()}: ${g.beingHandled}` : ''}`).join('\n') : 'No goals match.' };
+      // The same shape every time, filtered or not (MCP load, 12 Nov): the list as JSON, as structured content and as text.
+      return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: data });
     },
   },
   {

@@ -16,6 +16,7 @@ Faro has no AI built in. It has an MCP server at `/api/mcp` (it introduces itsel
 - **Parity is checked.** `src/mcp/parity.ts` maps every action in the app, and every screen, to its tools. A test fails if a new action or screen has no tools, or no reason why an assistant doesn't need any.
 - **Not for assistants.** A token belongs to one workspace, so an assistant can't create, switch or reset a workspace, or choose who it is. Those stay in the app.
 - **Logged.** Each change is logged as that person, marked "via MCP" (`VIA_MCP` in `src/domain/changeset.ts`). Changes made before 9 Nov say "AI assistant (MCP)" and still count as made through MCP.
+- **One shape for lists.** `find_goals`, every `list_` tool and `get_activity` answer the same way every time, filtered or not: their data as structured content, and the same data as JSON for the text (`listed` in `src/mcp/listed.ts`). A test holds every `list_` tool to it.
 - **Tokens.** A token is shown once. Only its SHA-256 hash is stored, and it can be revoked at any time.
 
 ## Connecting

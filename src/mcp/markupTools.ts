@@ -8,6 +8,7 @@ import type { InboxFeedback } from '../markup/feedback';
 import { MarkupError, MOOD_WORD, STATUS_WORD, STATUSES, groupMarkups, namedParts, partText, placeOf, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from '../markup/model';
 import { PICTURES_UNREADABLE, type MarkupOps, type MarkupPicture } from '../markup/ops';
 import type { McpContext, ToolDef, ToolImage, ToolResult } from './tools';
+import { listed } from './listed';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
@@ -49,7 +50,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
     async run(a, ctx): Promise<ToolResult> {
       const list = await inbox(ctx).list({ ...(a.workspace ? { workspaceId: String(a.workspace) } : {}), ...(a.status ? { status: a.status as MarkupStatus } : {}), limit: Number(a.limit ?? 50) });
       const rows = list.map((m) => ({ id: m.id, status: m.status, line: m.line, place: placeOf(m), route: m.route, from: sentFrom(m), by: m.personName, at: m.createdAt, issueUrl: m.issueUrl, fixedIn: m.fixedIn }));
-      return { data: { markups: rows }, text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join('\n') : 'No markups.' };
+      return listed({ markups: rows });
     },
   },
   {
