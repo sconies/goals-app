@@ -1,12 +1,14 @@
 /* The change engine (src/domain/changeset.ts) stays out of the first download: the dispatcher loads it when an action
    needs it (src/app/actions.ts loadEngine). Twice a small constant imported from it pulled the whole engine back in
    (the Via labels, in activity.ts and removal.ts), so only the files listed here may import it at run time: the
-   engine's own callers in the rules, the AI tools, the spec, and screens that load when opened. Anything else that
+   engine's own callers in the rules, the AI tools, the spec, src/app/engineReady.ts (which screens that preview
+   changes import) and screens that load when opened. Anything else that
    needs a Via label or another small name imports it from src/domain/via.ts. */
 import fs from 'node:fs';
 import path from 'node:path';
 
 const ALLOWED = new Set([
+  'src/app/engineReady.ts',
   'src/domain/importer.ts',
   'src/mcp/tools.ts',
   'src/spec/conformance.ts',

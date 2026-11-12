@@ -10,11 +10,16 @@ import type { Answers, PostMode, Via } from '../domain/changeset';
 /*
  * The change engine (domain/changeset: check-ins, plan and goal edits, bulk edits, spreadsheets) is a large module a
  * first visit doesn't need, so it loads on its own: on the first action that uses it (the dispatcher awaits `ready`),
- * or earlier, when the browser is idle after the first screen (`loadEngine`). The actions stay synchronous rules.
+ * or earlier, when the browser is idle after the first screen (`loadEngine`). A screen that previews changes while it
+ * renders (Quick check-in, Data, bulk edit, People, Import) imports src/app/engineReady.ts, which sets it as the screen
+ * loads. The actions stay synchronous rules.
  */
 type Engine = typeof import('../domain/changeset');
 let engine: Engine | null = null;
 export async function loadEngine(): Promise<Engine> { return (engine ??= await import('../domain/changeset')); }
+/** Sets the engine from a screen that imports it statically (src/app/engineReady.ts), so the screen's previews can run
+    during its first render. */
+export function setEngine(e: Engine) { engine ??= e; }
 /** The actions that need the change engine. */
 const NEEDS_ENGINE = new Set(['planChanges', 'postCheckIn']);
 /** Loads what an action needs before it runs: the dispatcher calls it first. */

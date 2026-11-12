@@ -5,6 +5,8 @@
    how wide (drag a heading's edge, or use the arrow keys on it). It's remembered in this browser, can be saved as a
    named layout, and the table exports exactly as it shows (domain/tableLayout). Filters are in DataFilters; columns,
    widths and saved layouts in DataLayout. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../app/engineReady';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';

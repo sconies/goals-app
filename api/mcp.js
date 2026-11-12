@@ -7799,6 +7799,21 @@ var init_goalEntry = __esmMin((() => {
 		"far-from-plan"
 	];
 	capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+})), VIA_LABEL, VIA_MCP;
+var init_via = __esmMin((() => {
+	VIA_LABEL = {
+		spreadsheet: "Spreadsheet",
+		bulk: "Bulk edit",
+		mcp: "MCP",
+		table: "Data tables",
+		setup: "Set-up",
+		form: "Check-in"
+	};
+	VIA_MCP = {
+		field: "Via",
+		from: "—",
+		to: VIA_LABEL.mcp
+	};
 }));
 // src/domain/removal.ts
 /**
@@ -8850,7 +8865,7 @@ var init_removal = __esmMin((() => {
 	init_asks();
 	init_status();
 	init_tableLayout();
-	init_changeset();
+	init_via();
 	init_vocabulary();
 	init_records();
 	no$1 = (msg) => {
@@ -9320,21 +9335,6 @@ var init_problemLevels = __esmMin((() => {
 		must: 0,
 		check: 1,
 		note: 2
-	};
-})), VIA_LABEL, VIA_MCP;
-var init_via = __esmMin((() => {
-	VIA_LABEL = {
-		spreadsheet: "Spreadsheet",
-		bulk: "Bulk edit",
-		mcp: "MCP",
-		table: "Data tables",
-		setup: "Set-up",
-		form: "Check-in"
-	};
-	VIA_MCP = {
-		field: "Via",
-		from: "—",
-		to: VIA_LABEL.mcp
 	};
 }));
 // src/domain/changeset.ts
@@ -12612,6 +12612,7 @@ function localSearch(rows, finders = {}) {
 	};
 }
 // src/domain/export.ts
+init_changeset();
 init_goal();
 init_asks();
 init_levels();
@@ -22515,7 +22516,6 @@ var tools_default = [{
 init_levels();
 init_actions();
 init_query();
-init_changeset();
 init_columns();
 init_status();
 init_attention();
