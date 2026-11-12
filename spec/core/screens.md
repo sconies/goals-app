@@ -72,7 +72,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 |---|---|---|
 | “Why? optional” | textarea | always |
 | “This week’s value” | text | `step === 'measure'` and `!(goal.kind === 'milestone')` |
-| “Why are you changing it? Say why, in a sentence, so anyone reading week … later knows.” | textarea | `step === 'measure'` and `correcting` |
+| “Why are you changing it? …” | textarea | `step === 'measure'` and `correcting` |
 | “Keep this request open on their Home” | checkbox | `step === 'carry'` and `previous` and `priorAsk` |
 | “What happened” | textarea | `step === 'account'` and `needsWhy` |
 | “Who can decide or help?” | PickOne | `step === 'account'` and `needsWay` and `draft.ptgState === 'help'` |
@@ -88,6 +88,7 @@ None written in its markup beyond the screen itself: it draws what it has.
 | empty | “Check-ins start in week 1” | `app.week < 1` |
 | empty | “That goal doesn’t exist” | `!goal` |
 | empty | “…” | always |
+| empty | “… has ended” | `correcting && ['ended', 'closed'].includes(cycleState(app.cycle, app.today))` |
 | empty | “Only … checks in on this goal” | always |
 | error | “Type this week’s number.” | `step === 'measure' and !(goal.kind === 'milestone') and empty` |
 | error | “Choose one: start the plan from this number, or keep it and say why.” | `step === 'measure' and !(goal.kind === 'milestone') and offer and goal.kind === 'metric' and tried` |

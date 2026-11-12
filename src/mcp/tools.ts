@@ -9,7 +9,7 @@ import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
-import { describe, examplesLine, GOAL_QUESTION, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
+import { describe, examplesLine, GOAL_QUESTION, MIN_CORRECT_REASON, planChanges, VIA_MCP, type Answers, type ChangeSet, type Rec, type Tables } from '../domain/changeset';
 import { aiBrief, toJson } from '../domain/export';
 import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
@@ -159,7 +159,11 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const createdLine = () => (data.created.length ? `\nNew ${data.created.length === 1 ? 'goal' : 'goals'}: ${data.created.map((x) => `${x.key ?? '—'} · ${x.id} · ${x.title}`).join('; ')}.` : '');
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
   if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
-  if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
+  if (cs.needsReason) {
+    // A plan change once check-ins have started, or a week's check-in replaced (a correction, as on screen): each says why.
+    const why = [cs.items.some((x) => x.needsReason && x.kind !== 'replaces check-in') && 'check-ins have started, so a plan change needs a reason', cs.items.some((x) => x.needsReason && x.kind === 'replaces check-in') && `changing a week’s check-in corrects it, which needs a reason of at least ${MIN_CORRECT_REASON} characters`].filter(Boolean).join('; and ');
+    return { isError: true, data, text: `Not saved: ${why}. Ask the person why, then call again with "reason".` };
+  }
   // Questions the person must answer: goal entry's, then any of the import's, each with how to answer it.
   const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say yes to each, call again with "confirm": true.` : '';
   if (asked && !checks.length) return { isError: true, data, text: asked };

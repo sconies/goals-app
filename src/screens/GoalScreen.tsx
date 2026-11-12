@@ -53,7 +53,7 @@ import { ArchivedGoalScope } from '../app/state';
 import { isProposed } from '../domain/proposed';
 
 const ProposedGoal = lazy(() => import('./ProposedGoal').then((m) => ({ default: m.ProposedGoal })));
-import { canDeleteCheckIn } from '../domain/removal';
+import { canDeleteCheckIn, importUndone } from '../domain/removal';
 import { DeleteCheckIn, StoppedNote } from '../ui/RemoveControls';
 import { goalRemoveLabel, RemoveGoalSheet } from '../ui/RemoveSheets';
 import { LifeMark } from '../ui/LifeMark';
@@ -984,7 +984,8 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
   const [isOpen, setOpen] = useState(false);
   const app = useApp();
   // A corrected check-in says so on its row (check-in spec 2.7): the engine's own summary and the reason given.
-  const fix = [...app.snapshot.changes].reverse().find((x) => x.entity === 'check-in' && x.entityId === c.id && x.diffs.some((d) => d.field === 'Why corrected'));
+  // A correction that was undone no longer says so: the week reads as it was (review of #225, medium 2).
+  const fix = [...app.snapshot.changes].reverse().find((x) => x.entity === 'check-in' && x.entityId === c.id && x.diffs.some((d) => d.field === 'Why corrected') && !(x.importId && importUndone(app.snapshot, x.importId)));
   const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
   return (
     <li className={isOpen ? 'is-open' : undefined}>

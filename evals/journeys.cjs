@@ -1516,7 +1516,9 @@ journey('U142', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this che
   await see(p, 'Undone');
   const s3 = await h.snapshot();
   const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
-  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
+  // Undone, the week's row no longer says it was corrected (review of #225, medium 2): it reads as first posted.
+  const stale = await hist.locator('.ci-corrected').first().waitFor({ state: 'detached', timeout: 5000 }).then(() => false, () => true);
+  h.set('logged', back.length === 1 && back[0].value === right && !stale, stale ? 'after Undo, History still says the week was corrected' : `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
 });
 
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
