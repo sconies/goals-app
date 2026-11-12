@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'smaller-first-download',
+    date: '2026-11-12',
+    title: 'Faro opens faster',
+    points: [
+      'The first visit downloads about a quarter less: each page other than Home loads when you first open it.',
+      'On a slow connection, a page you open for the first time may take a moment longer.',
+    ],
+    articles: ['any-device'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',
