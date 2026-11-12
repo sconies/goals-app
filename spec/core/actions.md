@@ -60,6 +60,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | [startNextCycle](#startnextcycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`start_next_cycle`](tools.md#start_next_cycle) |
 | [deleteCycle](#deletecycle) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`delete_cycle`](tools.md#delete_cycle) |
 | [undoStart](#undostart) | Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`undo_start_cycle`](tools.md#undo_start_cycle) |
+| [arrive](#arrive) | Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once | Anyone, as themselves (in the internal app the first sign-in records it: SR3) | — |
 | [renameWorkspace](#renameworkspace) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`rename_workspace`](tools.md#rename_workspace) |
 | [setRecording](#setrecording) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_recording`](tools.md#set_recording) |
 | [setModule](#setmodule) | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`set_feature`](tools.md#set_feature) |
@@ -1268,6 +1269,24 @@ Nothing.
 - “… can’t be undone now: ….”
 
 **AI tools that do the same:** [`undo_start_cycle`](tools.md#undo_start_cycle)
+
+## arrive
+
+**Does:** Arrive: the first time you choose your name in a workspace (its arrival screen), the log says so, once.
+
+**Input** (`Record`):
+
+Nothing.
+
+**Result:** `Commit \| null`
+
+**Who may:** Anyone, as themselves (in the internal app the first sign-in records it: SR3).
+
+**The rule:** `arrive`, in `src/domain/actions.ts`.
+
+**Refuses with:** nothing of its own beyond who may and the shared refusals above.
+
+**AI tools that do the same:** none
 
 ## renameWorkspace
 

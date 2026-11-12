@@ -1,11 +1,10 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router';
-import { AppProvider, useApp } from './app/state';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { AppProvider, useApp, useSetup } from './app/state';
 import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
 import { Home } from './screens/Home';
 import { movedTo } from './domain/directory';
-import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { MotionLayer } from './ui/Count';
 import { PageWait } from './ui/bits';
@@ -35,7 +34,11 @@ const QuickCheckIn = lazy(() => import('./screens/QuickCheckIn').then((m) => ({ 
 const Research = lazy(() => import('./screens/Research').then((m) => ({ default: m.Research })));
 // Set-up (a new workspace, and the welcome of an empty one) is opened once, not on a usual first visit.
 const Onboarding = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })));
-const Welcome = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Welcome })));
+// Welcome, an invitation and saying who you are (set-up spec ST1): once per person, never on an everyday visit.
+const Welcome = lazy(() => import('./screens/Welcome').then((m) => ({ default: m.Welcome })));
+const Join = lazy(() => import('./screens/Start').then((m) => ({ default: m.Join })));
+const WhoAreYou = lazy(() => import('./screens/Start').then((m) => ({ default: m.WhoAreYou })));
+const Ready = lazy(() => import('./screens/Start').then((m) => ({ default: m.Ready })));
 const Settings = lazy(() => import('./screens/Settings').then((m) => ({ default: m.Settings })));
 const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.MotionLab })));
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
@@ -59,7 +62,10 @@ export function Routed() {
   const { pathname } = useLocation();
   // The feature modules that are on here add their routes, and lead their old addresses on (src/core/app.tsx).
   const modules = useModules();
-  if (!app.viewerChosen) return <WhoAreYou />;
+  // Welcome and an invitation stand on their own, outside the shell, whoever is (or isn't) chosen here yet.
+  if (pathname === '/welcome') return <Suspense fallback={null}><Welcome /></Suspense>;
+  if (pathname.startsWith('/join/')) return <Suspense fallback={null}><Routes><Route path="/join/:workspaceId" element={<Join />} /></Routes></Suspense>;
+  if (!app.viewerChosen) return <Suspense fallback={null}><WhoAreYou /></Suspense>;
   return (
     <Shell>
       <MotionLayer />
@@ -134,12 +140,62 @@ export function Routed() {
 export function App({ store, identity, mode = 'demo', clock, today }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date }) {
   return (
     <BrowserRouter basename={mode === 'demo' ? '/demo' : undefined}>
-      <AppProvider store={store} identity={identity} mode={mode} clock={clock} today={today} empty={() => <Suspense fallback={null}><Welcome /></Suspense>}>
+      <OldInvitation />
+      <AppProvider store={store} identity={identity} mode={mode} clock={clock} today={today} empty={() => <Outside />}>
         <TelemetryRoutes />
         <Routed />
       </AppProvider>
     </BrowserRouter>
   );
+}
+
+/**
+ * With no workspace open (none yet, none chosen on this device, or an invitation to one that isn't there): Welcome, an
+ * invitation, and set-up work at their own addresses; anything else leads to Welcome (set-up spec, section 1).
+ */
+function Outside() {
+  return (
+    <Suspense fallback={null}>
+      <Routes>
+        <Route path="/welcome" element={<Welcome />} />
+        <Route path="/join/:workspaceId" element={<Join />} />
+        <Route path="/workspace/new" element={<SetUp />} />
+        {/* Just made: the workspace is opening, and /ready draws once it has. */}
+        <Route path="/ready" element={<ToWelcome after={1500} />} />
+        <Route path="*" element={<ToWelcome />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
+/** Set-up with nothing open: closing it goes back to Welcome. */
+function SetUp() {
+  const nav = useNavigate();
+  return <Onboarding onClose={() => nav('/welcome')} />;
+}
+
+/** On to Welcome, keeping the demo's date and the store (`today=`, `store=`); `after` waits first, for a workspace opening. */
+function ToWelcome({ after = 0 }: { after?: number }) {
+  const { search } = useLocation();
+  const nav = useNavigate();
+  const setup = useSetup();
+  useEffect(() => {
+    if (!setup.listed) return;
+    const t = setTimeout(() => nav('/welcome' + search, { replace: true }), after);
+    return () => clearTimeout(t);
+  }, [setup.listed, after, nav, search]);
+  return null;
+}
+
+/** The link /ready copied before (`/?workspace=<id>`) leads to the invitation's own address, keeping the rest. */
+function OldInvitation() {
+  const { pathname, search } = useLocation();
+  const q = new URLSearchParams(search);
+  const id = pathname === '/' ? q.get('workspace') : null;
+  if (!id) return null;
+  q.delete('workspace');
+  const rest = q.toString();
+  return <Navigate to={`/join/${encodeURIComponent(id)}${rest ? '?' + rest : ''}`} replace />;
 }
 
 /** An address that moved (domain/directory movedTo): on to where it leads now, with no history entry. */
