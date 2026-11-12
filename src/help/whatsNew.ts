@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'assistant-goals-link-tab',
-    date: '2026-11-11',
+    date: '2026-11-12',
     title: 'A pasted Goals link keeps its tab',
     points: [
       'Give an AI assistant a Goals link and it finds the goals the link shows: a link to Mine finds your goals, not everyone’s.',
