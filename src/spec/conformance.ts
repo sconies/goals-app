@@ -300,7 +300,14 @@ export function homeRowsOf(w: ConformanceWorkspace): string[][] {
  * workspace.json have no email, so rows name people by name or ID. Cells that depend on the workspace (a target turned
  * round, check-ins someone else posted) are worked out from it here and written into the file, so the file says it all.
  */
-export interface ImportCase { case: string; actor: string; sheet: 'goals' | 'plan' | 'checkIns' | 'people'; rows: Record<string, string>[]; answers?: Record<string, string> }
+type CaseSheet = 'goals' | 'plan' | 'checkIns' | 'people';
+/**
+ * What a case starts from beyond the workspace at `builtFor`: set-up from nothing (`mode: "create"`, every row new), goals
+ * stopped before it (`stopped`, by key: in the archive, as a whole-cycle export carries them), and the rows of other
+ * sheets loaded in the same file (`sheets`).
+ */
+export interface CaseGiven { mode?: 'create'; stopped?: string[]; sheets?: Partial<Record<CaseSheet, Record<string, string>[]>> }
+export interface ImportCase { case: string; actor: string; sheet: CaseSheet; rows: Record<string, string>[]; answers?: Record<string, string>; given?: CaseGiven }
 export function importCases(w: ConformanceWorkspace): ImportCase[] {
   const s = asOf(w, new Date(w.builtFor));
   const week = currentWeek(w.cycle, new Date(w.builtFor));
@@ -368,20 +375,28 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     // A batch names its own rows (backlog BT): a Ref on two rows, and a Feeds into ref that names no row.
     { case: 'ref-twice', actor: 'amara', sheet: 'goals', rows: [fresh({ Ref: 'top', Goal: 'Register top' }), fresh({ Ref: 'top', Goal: 'Register part' })] },
     { case: 'ref-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ Ref: 'part', 'Feeds into ref': 'top' })] },
+    // Every kind the engine raises has a case (src/domain/issueKinds.ts; KT gap 2).
+    { case: 'ambiguous-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Goal: 'Shared name', Team: 'CI/CD' }), fresh({ Goal: 'Shared name', Team: 'Observability' }), fresh({ Goal: 'Feeds the shared name', 'Feeds into': 'Shared name' })] },
+    { case: 'near-header', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'A new goal', Owner: 'Rhea Kapoor', Unit: '%', Start: '10', Targett: '50' }] },
+    { case: 'two-columns', actor: 'amara', sheet: 'goals', rows: [fresh({ 'Goal name': 'Another name' })] },
+    { case: 'date-as-week', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: '2026-11-04', Value: '6' }] },
+    { case: 'left-alone', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Target: '1' }], given: { stopped: ['G-14'] } },
+    { case: 'as-recorded', actor: 'amara', sheet: 'checkIns', rows: [{ Goal: 'Cache hit rate', Week: '20', Value: '12', Call: 'On track' }], given: { mode: 'create', sheets: { goals: [{ Goal: 'Cache hit rate', 'Owner email': 'ines@example.com', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', 'Plan from week': '1', 'Due week': '40' }], people: [{ Name: 'Ines Novak', Email: 'ines@example.com', Team: 'CI/CD' }] } } },
   ];
 }
-export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'kind', 'level', 'group', 'message', 'must', 'questions', 'saves'];
+export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'given', 'kind', 'level', 'group', 'message', 'must', 'questions', 'saves', 'kinds'];
 
 /**
  * What the change engine says for each case: the first problem or question (its kind, level, group id and sentence; a
- * note isn't one), how many Must-fix groups and Check groups there are, and whether it would save.
+ * note isn't one), how many Must-fix groups and Check groups there are, whether it would save, and every kind it raised
+ * (notes too), each once, in the order first raised.
  */
 export function importRowsOf(w: ConformanceWorkspace): string[][] {
   return importCases(w).map((c) => {
     const cs = runCase(w, c);
     const first = cs.issues.find((i) => i.level !== 'note');
-    return [c.case, c.actor, c.sheet, JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', first?.kind ?? '', first?.level ?? '', first?.group ?? '', first?.message ?? '',
-      String(cs.groups.filter((x) => x.level === 'must').length), String(cs.groups.filter((x) => x.level === 'check').length), yes(!!cs.commit)];
+    return [c.case, c.actor, c.sheet, JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', c.given ? JSON.stringify(c.given) : '', first?.kind ?? '', first?.level ?? '', first?.group ?? '', first?.message ?? '',
+      String(cs.groups.filter((x) => x.level === 'must').length), String(cs.groups.filter((x) => x.level === 'check').length), yes(!!cs.commit), [...new Set(cs.issues.map((i) => i.kind))].join(' ')];
   });
 }
 
@@ -392,11 +407,15 @@ export function importRowsOf(w: ConformanceWorkspace): string[][] {
 export function runCase(w: ConformanceWorkspace, c: ImportCase): ChangeSet {
   const at = new Date(w.builtFor);
   const base = asOf(w, at);
-  const snapshot: Snapshot = { ...base, people: base.people.map((p) => ({ ...p, email: p.email ?? '' })) };
+  const stopped = new Set(c.given?.stopped ?? []);
+  const gone = base.goals.filter((g) => g.key != null && stopped.has(g.key)).map((g) => ({ ...g, stoppedAt: w.builtFor }));
+  const people = base.people.map((p) => ({ ...p, email: p.email ?? '' }));
+  const snapshot: Snapshot = { ...base, people, ...(gone.length ? { goals: base.goals.filter((g) => !gone.some((x) => x.id === g.id)), archive: { goals: gone, checkIns: [], decisions: [], people: [], reviews: [] } } : {}) };
   const week = currentWeek(w.cycle, at);
   let k = 0;
-  const tables = { [c.sheet]: c.rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) })) };
-  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: snapshot.people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+  const sheet = (rows: Record<string, string>[]) => rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) }));
+  const tables = { ...Object.fromEntries(Object.entries(c.given?.sheets ?? {}).map(([name, rows]) => [name, sheet(rows ?? [])])), [c.sheet]: sheet(c.rows) };
+  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', ...(c.given?.mode ? { mode: c.given.mode } : {}), answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
 }
 
 /* ---------- what a change set saves (stage 2; KT gap 1) ---------- */
@@ -424,7 +443,7 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
     ] },
   ];
 }
-export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves'];
+export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'given', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves'];
 
 /**
  * What the change engine would save for each case. Row 0 is the case: its input, the counts (`key=n`, space-separated,
@@ -438,8 +457,8 @@ export function changeRowsOf(w: ConformanceWorkspace): string[][] {
   for (const c of changeCases(w)) {
     const cs = runCase(w, c);
     const counts = Object.entries(cs.counts).filter(([, n]) => n).map(([key, n]) => `${key}=${n}`).join(' ');
-    rows.push([c.case, '0', c.actor, c.sheet, '', JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', '', '', '', '', counts, String(cs.unchanged), yes(cs.needsReason), yes(!!cs.commit)]);
-    cs.items.forEach((it, i) => rows.push([c.case, String(i + 1), '', it.sheet, String(it.row), '', '', it.goalId, it.goal, it.kind, it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '), '', '', yes(!!it.needsReason), '']));
+    rows.push([c.case, '0', c.actor, c.sheet, '', JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', c.given ? JSON.stringify(c.given) : '', '', '', '', '', counts, String(cs.unchanged), yes(cs.needsReason), yes(!!cs.commit)]);
+    cs.items.forEach((it, i) => rows.push([c.case, String(i + 1), '', it.sheet, String(it.row), '', '', '', it.goalId, it.goal, it.kind, it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '), '', '', yes(!!it.needsReason), '']));
   }
   return rows;
 }
