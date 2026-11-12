@@ -70,6 +70,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #185 ML2: measured by; Goals filtered by a metric | 3 | 0 | 4 | 6 |
 | #188 ML3: looking after metrics | 3 | 0 | 3 | 2 |
 | #191 IM3: the import's preview | 3 | 0 | 4 | 3 |
+| #194 GE9: dates picked | 2 | 0 | 5 | 7 |
 
 **High findings, and where each stands**
 
@@ -753,3 +754,28 @@ Read first by a separate reviewing session, as Grace at 1440 and 390 and with th
 **#145's findings at this merge.** Fixed: an unlikely-number answer no longer covers other numbers or the next file; the answers and their Change buttons stay after the last one; the first screen says "Answer 1 question to save"; undoing an import removes a team it added. Mediums 3 and 4 (near-miss names and the duplicate-row rule; two rows answered "the same") were not re-checked.
 
 **Checked and fine.** Preview equals saved, on the summary and the changes list. Leaving rows out takes their dependants, names them, and nothing left out is saved by another path. Must fix blocks saving. A double Save logs one import. Empty and unknown files stay on Import with the reason. No stripes, pills or emoji; a level is the warning mark plus its word; one primary action per screen.
+
+### #194 GE9: dates picked (track 2, merged 13:06 UTC, 12 Nov)
+
+Read first by a separate reviewing session, on screen at 1440 and 390 in three time zones and with throwaway tests; nothing here was re-run by this reviewer. No high finding. The date arithmetic is sound for a goal year: 700 consecutive weeks match the ISO week date, and results are the same under UTC, Los Angeles and Auckland.
+
+**1. Medium. A new goal row with To filled in and Due week left blank is refused, in any file that has both columns, as every export does.** `pair` (`src/domain/changeset.ts:757-772`) reads a blank Due week as the cycle's last week, so the two columns disagree: "To says 2027-W13 and Due week says . Change just one of them." The same message hides a To that is before From. Fix: a blank Due week says nothing when To has a value.
+
+**2. Medium. A file whose heading "From" meant the starting number now has that number read as a week.** `src/domain/columns.ts:499` drops "from" from Start's other names and `:501` makes it the week column. With the export's Start heading renamed "From", the preview offered "Plan from week → Week 52" for a goal that starts at 52 hours, and the same for about 15 others, as ordinary changes. Fix: a bare number under From in a file with no Start column is a Must fix asking which is meant.
+
+**3. Medium. With the pointer resting over the list, the keyboard chooses the wrong week.** `src/ui/WeekPick.tsx:128` moves the highlight on `mouseenter`, and the scroll at `:45` slides rows under a still pointer. Enter, ArrowDown, Enter with the mouse parked: To became week 47 where week 53 was highlighted without it. Fix: move the highlight on `mousemove`.
+
+**4. Medium. In the last week of the year, New goal's untouched defaults are a Must fix.** From defaults to this week and To to the cycle's end (`src/domain/goalEntry.ts:124-125`), so at week 53 "To isn't after From". Run at the rule; the demo cannot reach it. Fix: default To to the end of next year then, as choosing From by hand already does.
+
+**5. Medium, if a cycle shorter than a year can still exist. Its weeks get the wrong year and number** (`src/domain/weeks.ts:27-40`): for a 13-week cycle from 30 March, week 14 reads "2027-W01 · Week 1 · 6–12 Jul 2026". Set-up only makes goal years; older data was not checked.
+
+**Lows.**
+- Escape does not close the picker from its Year buttons or Close, and Tab leaves it open behind the focus (`WeekPick.tsx:101`, `:119-121`).
+- On a phone the Year buttons are 36px high and Close is 41 by 22.
+- Enter on the empty text field says "“” isn't a week or a date" (`WeekPick.tsx:81-84`).
+- The same text means different things at different doors: "23 Mar" and "3/4" are read by the picker but not by a file's From and To; an ISO date is read by Due week only; "week 12" by none.
+- A plan's weeks are still bare cycle numbers in the change preview and status sentences ("Target due → Week 66" beside "week 13 of 2027"; `src/domain/changes.ts:41-42`, `story.ts:143-146`).
+- At Data, From and To sit under "Details", not "Plan", in the column chooser (`src/screens/DataLayout.tsx:28`).
+- Small slips: ArrowUp on a year's first week does not cross to the year before; "53" with 2027 shown says "isn't a week" where "2027 has 52 weeks" would help; `goalEntry.ts:183` hard-codes "like 2026-W46".
+
+**Checked and fine.** Week 0, 1, 53, 54 and 105 of the demo year; the inverse both ways; leap years and 53-week years. The export loads back with no change, and a file without From and To loads as before. Existing goals read and save the same weeks. Typed dates are day then month, and two-digit years are refused, not guessed. The arithmetic is in `src/domain` only. The picker works by keyboard, names itself, and returns focus to the field. No stripes, pills or emoji.
