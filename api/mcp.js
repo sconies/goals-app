@@ -2181,6 +2181,135 @@ var init_numbers = __esmMin((() => {
 	fixed = (v, decimals) => groupDigits(v.toFixed(decimals));
 	usuallyPositive = (unit) => unit.trim() === "%" || /day|hour|min|week|usd|gbp|eur|\$|£|€/i.test(unit);
 }));
+// src/domain/format.ts
+/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
+function unitFor(n, unit) {
+	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
+}
+function fmt(v, g) {
+	const n = fixed(v, g.decimals);
+	if (!g.unit) return n;
+	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
+}
+/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
+function nowText(g, a) {
+	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
+}
+/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
+function fmtDiff(v, g) {
+	const n = fixed(Math.abs(v), g.decimals);
+	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
+	return g.unit ? n + " " + unitFor(n, g.unit) : n;
+}
+/**
+* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
+* 0–100% (`share`); the range never says less than nothing or more than everything.
+*/
+function rangeText(p, g, share = false) {
+	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
+	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
+	if (lo === hi) return lo;
+	const bare = (v) => fixed(clamp(v), g.decimals);
+	return `${bare(p.low)}–${hi}`;
+}
+function kindLabel(g) {
+	if (g.kind === "milestone") return "Hit dated stages";
+	if (g.kind === "range") return "Keep a number in range";
+	return "Move a number";
+}
+function targetText(g) {
+	if (g.kind === "metric") return fmt(g.plan.target, g);
+	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
+	const last = g.stages[g.stages.length - 1];
+	return last ? "All by week " + last.dueWeek : "No stages";
+}
+/** Short words for the gap against plan, and its tone for colour. */
+function gapText(g, a) {
+	if (a.calc === "planned") return {
+		short: LABEL.planned,
+		long: "It starts this week",
+		tone: "stale"
+	};
+	if (a.calc === "none") return {
+		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
+		long: LABEL.none,
+		tone: "stale"
+	};
+	if (a.kind === "metric" && g.kind === "metric") {
+		const actual = a.actual;
+		if (a.ratio == null) return {
+			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
+			long: "No change planned yet",
+			tone: a.behind ? "risk" : "on"
+		};
+		const pct = Math.round(a.ratio * 100);
+		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
+		return {
+			short: gapPhrase(better, fmtDiff(better, g)),
+			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
+			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
+		};
+	}
+	if (a.kind === "range") {
+		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
+		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
+		if (a.calc === "off") return {
+			short: `${side} the ${lim} limit, 2 weeks running`,
+			long: "The guardrail has been breached two weeks running",
+			tone: "off"
+		};
+		if (a.out) return {
+			short: `${side} the ${lim} limit`,
+			long: "The guardrail was breached this week; two weeks running makes it off track",
+			tone: "risk"
+		};
+		if (a.previousOut) return {
+			short: `Back inside the ${lim} limit`,
+			long: "Over the limit last week, back inside this week",
+			tone: "risk"
+		};
+		if (a.near) return {
+			short: `Near the ${lim} limit`,
+			long: "Inside the warning margin, not yet breached",
+			tone: "risk"
+		};
+		return {
+			short: `Inside the ${lim} limit`,
+			long: "Inside the limit",
+			tone: "on"
+		};
+	}
+	if (a.kind === "milestone") {
+		if (a.calc === "done") return {
+			short: GAP.reached.label,
+			long: "Every stage is done",
+			tone: "on"
+		};
+		const first = a.late[0];
+		if (first) return {
+			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
+			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
+			tone: a.calc === "off" ? "off" : "risk"
+		};
+		return {
+			short: STAGE.planned.label,
+			long: "Every stage " + STAGE.planned.label.toLowerCase(),
+			tone: "on"
+		};
+	}
+	return {
+		short: "",
+		long: "",
+		tone: "stale"
+	};
+}
+var NO_VALUE$1, weekLabel;
+var init_format = __esmMin((() => {
+	init_numbers();
+	init_vocabulary();
+	NO_VALUE$1 = "No value yet";
+	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
+}));
 // src/domain/checkin.ts
 /** The parts of a carried account that are still word for word the same and still asked for: the reason, the path. */
 function unchangedStory(draft, reason, path) {
@@ -2347,7 +2476,7 @@ function checkInLevels(goal, week, draft, own) {
 	const last = previousFor(own, week).number;
 	const p = valueProblem(draft.value, last?.value ?? null, goal.unit, goal);
 	const n = parseNumber(draft.value);
-	const u = (v) => fixed(v, goal.decimals) + (goal.unit === "%" ? "%" : goal.unit ? " " + goal.unit : "");
+	const u = (v) => fmt(v, goal);
 	if (p?.block) mustFix.push({
 		field: "This week’s number",
 		says: p.text
@@ -2379,6 +2508,7 @@ var CAUSES_BEHIND, CAUSES_AHEAD, causeLabel, decimalsOf, MISSING_TEXT, VALUE_COD
 var init_checkin = __esmMin((() => {
 	init_status();
 	init_plan();
+	init_format();
 	init_numbers();
 	CAUSES_BEHIND = [
 		["aggressive", "Plan too aggressive"],
@@ -2423,135 +2553,6 @@ var init_checkin = __esmMin((() => {
 		from: c.question,
 		to: said(c)
 	}));
-}));
-// src/domain/format.ts
-/** A plural word unit reads singular after exactly "1": "1 template", "1 hour"; "1.0 hours" and "k$" are left alone. */
-function unitFor(n, unit) {
-	return n === "1" && /^[a-z][a-z-]+[^s]s$/.test(unit) ? unit.slice(0, -1) : unit;
-}
-function fmt(v, g) {
-	const n = fixed(v, g.decimals);
-	if (!g.unit) return n;
-	return g.unit === "%" ? n + "%" : n + " " + unitFor(n, g.unit);
-}
-/** A goal's number as it's shown: its latest value, how many stages are done, or "No value yet". */
-function nowText(g, a) {
-	return a.kind === "milestone" ? `${a.doneCount} of ${a.stages.length} stages` : a.actual == null || g.kind === "milestone" ? NO_VALUE$1 : fmt(a.actual, g);
-}
-/** A difference: "4 pts" for percentages, "1.2 days" otherwise. */
-function fmtDiff(v, g) {
-	const n = fixed(Math.abs(v), g.decimals);
-	if (g.unit === "%") return n + (Number(n) === 1 ? " pt" : " pts");
-	return g.unit ? n + " " + unitFor(n, g.unit) : n;
-}
-/**
-* A projection's range in the goal's units: "81–85%", or one number when both ends round to it. A share keeps to
-* 0–100% (`share`); the range never says less than nothing or more than everything.
-*/
-function rangeText(p, g, share = false) {
-	const clamp = (v) => share ? Math.min(100, Math.max(0, v)) : v;
-	const lo = fmt(clamp(p.low), g), hi = fmt(clamp(p.high), g);
-	if (lo === hi) return lo;
-	const bare = (v) => fixed(clamp(v), g.decimals);
-	return `${bare(p.low)}–${hi}`;
-}
-function kindLabel(g) {
-	if (g.kind === "milestone") return "Hit dated stages";
-	if (g.kind === "range") return "Keep a number in range";
-	return "Move a number";
-}
-function targetText(g) {
-	if (g.kind === "metric") return fmt(g.plan.target, g);
-	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
-	const last = g.stages[g.stages.length - 1];
-	return last ? "All by week " + last.dueWeek : "No stages";
-}
-/** Short words for the gap against plan, and its tone for colour. */
-function gapText(g, a) {
-	if (a.calc === "planned") return {
-		short: LABEL.planned,
-		long: "It starts this week",
-		tone: "stale"
-	};
-	if (a.calc === "none") return {
-		short: g.kind === "milestone" ? LABEL.none : NO_VALUE$1,
-		long: LABEL.none,
-		tone: "stale"
-	};
-	if (a.kind === "metric" && g.kind === "metric") {
-		const actual = a.actual;
-		if (a.ratio == null) return {
-			short: a.behind ? "Going backwards" : GAP["on-plan"].label,
-			long: "No change planned yet",
-			tone: a.behind ? "risk" : "on"
-		};
-		const pct = Math.round(a.ratio * 100);
-		const better = Number(((actual - a.plan) * (Math.sign(g.plan.target - g.plan.start) || 1)).toFixed(g.decimals));
-		return {
-			short: gapPhrase(better, fmtDiff(better, g)),
-			long: `${pct}% of the planned improvement so far (plan for week ${a.week}: ${fmt(a.plan, g)})`,
-			tone: a.ahead ? "ahead" : a.calc === "risk" || a.calc === "off" ? a.calc : "on"
-		};
-	}
-	if (a.kind === "range") {
-		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
-		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
-		if (a.calc === "off") return {
-			short: `${side} the ${lim} limit, 2 weeks running`,
-			long: "The guardrail has been breached two weeks running",
-			tone: "off"
-		};
-		if (a.out) return {
-			short: `${side} the ${lim} limit`,
-			long: "The guardrail was breached this week; two weeks running makes it off track",
-			tone: "risk"
-		};
-		if (a.previousOut) return {
-			short: `Back inside the ${lim} limit`,
-			long: "Over the limit last week, back inside this week",
-			tone: "risk"
-		};
-		if (a.near) return {
-			short: `Near the ${lim} limit`,
-			long: "Inside the warning margin, not yet breached",
-			tone: "risk"
-		};
-		return {
-			short: `Inside the ${lim} limit`,
-			long: "Inside the limit",
-			tone: "on"
-		};
-	}
-	if (a.kind === "milestone") {
-		if (a.calc === "done") return {
-			short: GAP.reached.label,
-			long: "Every stage is done",
-			tone: "on"
-		};
-		const first = a.late[0];
-		if (first) return {
-			short: a.calc === "off" ? STAGE.off.label : STAGE.risk.label,
-			long: first.name + ": expected week " + first.expectedWeek + ", " + first.weeksLate + (first.weeksLate === 1 ? " week" : " weeks") + " late",
-			tone: a.calc === "off" ? "off" : "risk"
-		};
-		return {
-			short: STAGE.planned.label,
-			long: "Every stage " + STAGE.planned.label.toLowerCase(),
-			tone: "on"
-		};
-	}
-	return {
-		short: "",
-		long: "",
-		tone: "stale"
-	};
-}
-var NO_VALUE$1, weekLabel;
-var init_format = __esmMin((() => {
-	init_numbers();
-	init_vocabulary();
-	NO_VALUE$1 = "No value yet";
-	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
 }));
 // src/domain/trend.ts
 /**
@@ -4857,6 +4858,7 @@ var init_columns = __esmMin((() => {
 				means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`,
 				write: blank
 			},
+			e("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
 			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
 			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
 			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
@@ -4895,6 +4897,7 @@ var init_columns = __esmMin((() => {
 			e("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$1(stagesSpec(r.g))),
 			e("Feeds into", "The goal this one feeds, by name.", (r) => or$1(parentOf(r)?.title)),
 			e("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$1(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
+			e("Feeds into ref", "The goal this one feeds, by the Ref of its row in this file: a goal the same file adds. Empty in an export.", blank, "Changes what it feeds, like Feeds into key"),
 			e("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$1(r.g.whyHelps)),
 			e("Effect", "The effect expected on the goal it feeds, in that goal’s unit.", (r) => r.g.effect),
 			e("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
@@ -4952,6 +4955,7 @@ var init_columns = __esmMin((() => {
 			m$1("Goal key", "The goal’s key.", (r) => or$1(r.g.key), "Matches the goal first"),
 			m$1("Goal ID", "The goal’s ID in this cycle.", (r) => r.g.id, "Matches the goal when there’s no Goal key"),
 			m$1("Goal", "The goal’s name.", (r) => r.g.title, "Matches the goal by name, only when there’s no Goal key or Goal ID"),
+			m$1("Goal ref", "The goal, by the Ref of its row on Goals in this file: a goal the same file adds. Empty in an export.", blank, "Matches the goal the Goals row with that Ref adds or changes, first"),
 			m$1("Week", "The week it reports on, counted from the cycle’s start (week 1 onwards).", (r) => r.ci.week, "Matches the week; a check-in’s week never changes"),
 			w("Week starting", "The date that week starts.", (r) => weekDate(r.c.x.cycle, r.ci.week)),
 			e("Value", "Number and range goals: the number that week.", (r) => r.ci.value),
@@ -5133,6 +5137,12 @@ var init_columns = __esmMin((() => {
 				example: "goal_hzde4g",
 				empty: "Faro gives a new goal its own"
 			},
+			Ref: {
+				required: { optional: "none" },
+				format: "Text, each row its own",
+				example: "top",
+				empty: "Other rows name it by Goal or Key instead"
+			},
 			Goal: {
 				required: "required",
 				format: "Text, 3 characters or more",
@@ -5287,6 +5297,12 @@ var init_columns = __esmMin((() => {
 				empty: "It feeds nothing",
 				clears: true
 			},
+			"Feeds into ref": {
+				required: { optional: "nothing" },
+				format: "The Ref of another row in this file",
+				example: "top",
+				empty: "Feeds into or Feeds into key says what it feeds"
+			},
 			"Why it helps": {
 				required: { optional: "empty" },
 				format: "Text",
@@ -5390,6 +5406,12 @@ var init_columns = __esmMin((() => {
 				format: "The goal’s exact name, when only one goal has it",
 				example: "Pipeline queue wait (p90)",
 				empty: "Goal key or Goal ID says which goal"
+			},
+			"Goal ref": {
+				required: { optional: "none" },
+				format: "The Ref of a row on Goals in this file",
+				example: "top",
+				empty: "Goal key, Goal ID or Goal says which goal"
 			},
 			Week: {
 				required: "required",
@@ -9288,7 +9310,11 @@ function groupTitle(kind, sheet, count, first) {
 */
 function groupIssues(issues) {
 	const by = /* @__PURE__ */ new Map();
-	for (const i of issues) by.set(i.group, [...by.get(i.group) ?? [], i]);
+	for (const i of issues) {
+		const l = by.get(i.group);
+		if (l) l.push(i);
+		else by.set(i.group, [i]);
+	}
 	return [...by.entries()].map(([id, list]) => {
 		const first = list[0];
 		const rows = [...new Set(list.map((x) => x.row))].sort((a, b) => a - b);
@@ -9710,18 +9736,29 @@ function planChanges(input) {
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
 	/** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
 	const held = /* @__PURE__ */ new Set();
+	/** Every issue by its sheet and row (rule 10: a row's questions are found without reading every issue). */
+	const issuesAt = /* @__PURE__ */ new Map();
 	const raise = (kind, sheet, row, name, message, x = {}) => {
 		if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === "must") return;
-		issues.push(issueOf(kind, sheet, row, name, message, x));
+		const i = issueOf(kind, sheet, row, name, message, x);
+		issues.push(i);
+		const at = `${sheet}|${row}`;
+		const list = issuesAt.get(at);
+		if (list) list.push(i);
+		else issuesAt.set(at, [i]);
 	};
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
 	/** The answer given to a group, if any (rule 7). */
 	const answerOf = (kind, sheet, column, found) => answers[groupId(kind, sheet, column, found)];
+	const leftSet = /* @__PURE__ */ new Set();
 	const leave = (sheet, row) => {
-		if (!leftOut.some((x) => x.sheet === sheet && x.row === row)) leftOut.push({
-			sheet,
-			row
-		});
+		if (!leftSet.has(`${sheet}|${row}`)) {
+			leftSet.add(`${sheet}|${row}`);
+			leftOut.push({
+				sheet,
+				row
+			});
+		}
 	};
 	input = {
 		...input,
@@ -9775,6 +9812,11 @@ function planChanges(input) {
 		raise(kind, sheet, row, name, message, x);
 		return null;
 	};
+	/** The workspace as saved, by id (rule 10). */
+	const savedGoal = new Map(s.goals.map((g) => [g.id, g]));
+	const savedPerson = new Map(s.people.map((p) => [p.id, p]));
+	const savedTeam = new Map(s.teams.map((t) => [t.id, t]));
+	const savedCheckIn = new Map(s.checkIns.map((c) => [c.id, c]));
 	const people = new Map(s.people.map((p) => [p.id, p]));
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
 	const teamNamed = (name) => [...teams.values()].find((t) => fold$1(t.name) === fold$1(name));
@@ -10207,9 +10249,9 @@ function planChanges(input) {
 		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
-	const work = new Map(s.goals.map((g) => [g.id, g]));
+	const work = new GoalSet(s.goals);
 	const fileIds = /* @__PURE__ */ new Map();
-	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? findGoal([...work.values()], r) : void 0;
+	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : void 0;
 	/** The goal a row says: its key first (a goal carried into this cycle keeps its key, not its ID), then its ID. */
 	const goalOf = (keyRef, id) => goalOfRow(keyRef, id).g;
 	/** The same, with a problem when the key and the ID name different goals (an ID from another cycle is just passed over). */
@@ -10220,7 +10262,7 @@ function planChanges(input) {
 		return { g: byKey ?? byId };
 	};
 	/** The goals with a name (folded), but one. */
-	const titled = (t, but = "") => [...work.values()].filter((g) => g.id !== but && fold$1(g.title) === fold$1(t));
+	const titled = (t, but = "") => work.titled(t, but);
 	/**
 	* The goal a name names (Feeds into, a check-in's Goal): the one goal with that name; one one letter out is asked
 	* about; several with it, or none, is Must fix. Undefined with the problem raised.
@@ -10243,9 +10285,7 @@ function planChanges(input) {
 			});
 			return;
 		}
-		const all = [...work.values()].filter((g) => g.id !== but);
-		const m = near(v, all.map((g) => g.title));
-		const hit = "near" in m ? all.find((g) => g.title === m.near) : void 0;
+		const hit = work.nearTitle(v, but);
 		const a = answerOf(hit ? "near-ref" : "unknown-ref", sheet, column, v);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
@@ -10315,7 +10355,8 @@ function planChanges(input) {
 	const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, "key"))).filter((k) => !!k) : [];
 	let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ""))), 0);
 	const touched = /* @__PURE__ */ new Map();
-	const started = (id) => s.checkIns.some((c) => c.goalId === id);
+	const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
+	const started = (id) => withCheckIns.has(id);
 	const canChange = (g) => mayChangeGoal({
 		id: actor.id,
 		admin: admin()
@@ -10358,6 +10399,27 @@ function planChanges(input) {
 		i
 	})).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) !== "example");
 	examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "example").length;
+	const refRows = /* @__PURE__ */ new Map();
+	for (const { r, row } of goalRows) {
+		const x = fold$1(val(r, "ref"));
+		if (x) refRows.set(x, [...refRows.get(x) ?? [], row]);
+	}
+	const refGoal = /* @__PURE__ */ new Map();
+	for (const { r, row } of goalRows) {
+		const x = fold$1(val(r, "ref")), at = refRows.get(x);
+		if (at && at.length > 1) raise("duplicate", "Goals", row, val(r, "goal") || val(r, "ref"), `Ref “${val(r, "ref")}” is on rows ${at.join(" and ")}. Give each row its own Ref.`, {
+			column: "Ref",
+			found: val(r, "ref")
+		});
+	}
+	/** The goal a Ref names, or why it names none: a ref no row has, or a row that isn't saved. */
+	const goalOfRef = (v) => {
+		const x = fold$1(v), at = refRows.get(x);
+		if (!at) return { problem: `No row on Goals has the Ref “${v}”.` };
+		if (at.length > 1) return { problem: `Ref “${v}” is on more than one row on Goals.` };
+		const g = refGoal.has(x) ? work.get(refGoal.get(x)) : void 0;
+		return g ? { g } : { problem: `Ref “${v}” names Goals row ${at[0]}, which isn’t saved: fix that row first.` };
+	};
 	examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, "action")) === "example").length;
 	const skipGoals = twice("Goals", goalRows.map(({ r, row }) => {
 		const keyRef = val(r, "key"), id = val(r, "id");
@@ -10366,7 +10428,7 @@ function planChanges(input) {
 		return {
 			row,
 			name: val(r, "goal") || keyRef || id,
-			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
+			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : refRows.get(fold$1(val(r, "ref")))?.length === 1 ? "r:" + fold$1(val(r, "ref")) : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
 		};
 	}), (x) => /^G-/i.test(x.name) ? `Key ${x.name} is on rows ${x.list}. Give each goal one row.` : `“${x.name}” is on rows ${x.list}. Give each goal one row.`, "Key");
 	const removalRows = [...goalRows.filter(({ r }) => ["stop", "delete"].includes(codeOf(GOAL_ACTION_WORDS, val(r, "action")) ?? "")).map(({ row }) => ({
@@ -10378,6 +10440,7 @@ function planChanges(input) {
 	}))];
 	goalRows.forEach(({ r, row, i }) => {
 		if (skipGoals.has(row)) return;
+		if ((refRows.get(fold$1(val(r, "ref"))) ?? []).length > 1) return;
 		const id = val(r, "id");
 		let keyRef = val(r, "key");
 		const title = val(r, "goal");
@@ -10674,10 +10737,11 @@ function planChanges(input) {
 		if (has(r, "definition")) d.definition = val(r, "definition");
 		const ownerNow = people.get(d.ownerId);
 		const feedsCols = [
+			"feeds into ref",
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(r, c));
+		].filter((c) => has(r, c) && (c !== "feeds into ref" || !!ref(r, c)));
 		const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
 		const fix = goalMustFix({
 			...d,
@@ -10724,6 +10788,7 @@ function planChanges(input) {
 		}
 		const gid = existing?.id ?? newId("goal", d.title);
 		if (create && id) fileIds.set(id, gid);
+		if (val(r, "ref")) refGoal.set(fold$1(val(r, "ref")), gid);
 		const key = existing ? existing.key : create && normalKey(keyRef) || formatKey(++lastKeyGiven);
 		parentLinks.push({
 			id: gid,
@@ -10800,11 +10865,12 @@ function planChanges(input) {
 		const before = touched.get(l.id)?.before ?? null;
 		const current = before?.parentId ? work.get(before.parentId) ?? null : null;
 		const cols = [
+			"feeds into ref",
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(l.r, c));
-		const says = (c, v) => !current ? v === "" : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
+		].filter((c) => has(l.r, c) && (c !== "feeds into ref" || !!ref(l.r, c)));
+		const says = (c, v) => !current ? v === "" : c === "feeds into ref" ? refGoal.get(fold$1(v)) === current.id : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
 		const changed = cols.map((c) => [c, ref(l.r, c)]).filter(([c, v]) => !(before && says(c, v)) && (before || v));
 		if (!changed.length) continue;
 		let missing = false;
@@ -10813,6 +10879,20 @@ function planChanges(input) {
 				c,
 				p: null
 			};
+			if (c === "feeds into ref") {
+				const x = goalOfRef(v);
+				if (!x.g) {
+					missing = true;
+					raise("bad-key", "Goals", l.row, g.title, `Feeds into ref: ${x.problem}`, {
+						column: "Feeds into ref",
+						found: v
+					});
+				}
+				return {
+					c,
+					p: x.g ?? null
+				};
+			}
 			if (c === "feeds into") {
 				const p = goalNamed("Goals", l.row, g.title, "Feeds into", v, l.id, `“${g.title}” feeds into “${v}”, which isn’t a goal in ${cycle.name}.`, `Several goals are called “${v}”. Use Feeds into key to say which.`);
 				if (!p) missing = true;
@@ -10835,7 +10915,7 @@ function planChanges(input) {
 			};
 		});
 		if (missing) {
-			if (leftOut.some((x) => x.sheet === "Goals" && x.row === l.row)) touched.delete(l.id);
+			if (leftSet.has(`Goals|${l.row}`)) touched.delete(l.id);
 			continue;
 		}
 		const ids = new Set(found.map((x) => x.p?.id ?? ""));
@@ -10911,7 +10991,7 @@ function planChanges(input) {
 		}
 		const id = g.id;
 		if (g.kind !== "metric") return raise("cant-change", "Plan", row, g.title, "Only number goals have plan numbers.", { column: "Key" });
-		const orig = touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? g;
+		const orig = touched.get(id)?.before ?? savedGoal.get(id) ?? g;
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const numberAt = (head, raw) => {
 			if (isFormula(raw)) {
@@ -10970,7 +11050,7 @@ function planChanges(input) {
 			target,
 			...points.length ? { points } : {}
 		};
-		const before = touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? null;
+		const before = touched.get(id)?.before ?? savedGoal.get(id) ?? null;
 		const next = {
 			...g,
 			plan,
@@ -10996,8 +11076,11 @@ function planChanges(input) {
 	};
 	const goalFor = (r) => val(r, "goal key") || val(r, "goal id") ? goalOf(val(r, "goal key"), val(r, "goal id")) : byTitle(val(r, "goal"));
 	const precise = /* @__PURE__ */ new Map();
-	for (const { r } of ciRows) {
+	/** The first check-in row naming each goal. */
+	const firstRow = /* @__PURE__ */ new Map();
+	for (const { r, row } of ciRows) {
 		const g = goalFor(r);
+		if (g && !firstRow.has(g.id)) firstRow.set(g.id, row);
 		const raw = val(r, "value");
 		if (!g || g.kind === "milestone" || !raw) continue;
 		const n = parseNumber(raw);
@@ -11010,9 +11093,9 @@ function planChanges(input) {
 			...g,
 			decimals: places
 		});
-		const row = ciRows.find(({ r }) => goalFor(r)?.id === gid).row;
+		const row = firstRow.get(gid);
 		if (!touched.has(gid)) touched.set(gid, {
-			before: s.goals.find((x) => x.id === gid) ?? null,
+			before: savedGoal.get(gid) ?? null,
 			row,
 			sheet: "Check-ins",
 			reason: "",
@@ -11060,7 +11143,7 @@ function planChanges(input) {
 		}
 		goalOut.set(id, after);
 		changes.push(ch);
-		const asked = issues.filter((x) => x.sheet === t.sheet && x.row === t.row && x.level === "check" && GOAL_QUESTION.includes(x.kind)).map((x) => ({
+		const asked = (issuesAt.get(`${t.sheet}|${t.row}`) ?? []).filter((x) => x.level === "check" && GOAL_QUESTION.includes(x.kind)).map((x) => ({
 			id: x.kind === "plan-question" ? x.found === "direction" ? "direction" : "far-from-plan" : x.kind === "no-unit" || !x.found || x.kind === "feeds-lower" ? x.kind : x.found,
 			field: x.column ?? "Goal",
 			text: x.message
@@ -11113,11 +11196,7 @@ function planChanges(input) {
 		const v = val(r, "goal");
 		if (!v || val(r, "goal key") || val(r, "goal id")) return void 0;
 		const a = answerOf("near-ref", "Check-ins", "Goal", v) ?? answerOf("unknown-ref", "Check-ins", "Goal", v);
-		if (a?.choice === "use") {
-			const all = [...work.values()];
-			const m = near(v, all.map((g) => g.title));
-			return "near" in m ? all.find((g) => g.title === m.near) : void 0;
-		}
+		if (a?.choice === "use") return work.nearTitle(v);
 		if (a?.choice === "choose" && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
 	};
 	const skipCheckIns = twice("Check-ins", ciRows.map(({ r, row }) => {
@@ -11265,8 +11344,23 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, val(r, "goal") || refText, clash.replace(/^Key/, "Goal key"), { column: "Goal key" });
 			continue;
 		}
-		const name = val(r, "goal") || refText;
+		const name = val(r, "goal") || refText || val(r, "goal ref");
 		let g = goalFor(r);
+		if (val(r, "goal ref")) {
+			const x = goalOfRef(val(r, "goal ref"));
+			if (!x.g) {
+				raise("bad-key", "Check-ins", row, name, `Goal ref: ${x.problem}`, {
+					column: "Goal ref",
+					found: val(r, "goal ref")
+				});
+				continue;
+			}
+			if (g && g.id !== x.g.id) {
+				raise("conflicting-refs", "Check-ins", row, name, "Goal ref and the other goal columns name different goals. Change just one of them.", { column: "Goal ref" });
+				continue;
+			}
+			g = x.g;
+		}
 		const stopped = !g ? stoppedByRef(val(r, "goal key")) ?? stoppedByRef(val(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold$1(x.title) === fold$1(val(r, "goal"))) : void 0;
 		if (stopped) {
 			leftAlone("Check-ins", row, stopped);
@@ -11303,7 +11397,7 @@ function planChanges(input) {
 			continue;
 		}
 		const cid = create ? "" : val(r, "id");
-		const byId = cid ? s.checkIns.find((c) => c.id === cid) : void 0;
+		const byId = cid ? savedCheckIn.get(cid) : void 0;
 		if (cid && (!byId || byId.goalId !== g.id)) {
 			raise("bad-key", "Check-ins", row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`, {
 				column: "ID",
@@ -11419,7 +11513,7 @@ function planChanges(input) {
 	}
 	for (const [i, p] of (input.posts ?? []).entries()) {
 		const row = i + 1;
-		const g = work.get(p.goalId) ?? s.goals.find((x) => x.id === p.goalId);
+		const g = work.get(p.goalId) ?? savedGoal.get(p.goalId);
 		if (!g) {
 			raise("bad-key", "Check-ins", row, p.goalId, "That goal no longer exists. Reload to see the latest.");
 			continue;
@@ -11474,8 +11568,10 @@ function planChanges(input) {
 	}
 	const reqOut = /* @__PURE__ */ new Map();
 	const requestsNow = () => [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()];
+	const lastWeek = /* @__PURE__ */ new Map();
+	for (const x of [...s.checkIns, ...ciOut]) lastWeek.set(x.goalId, Math.max(lastWeek.get(x.goalId) ?? -Infinity, x.week));
 	for (const c of ciOut) {
-		const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
+		const later = (lastWeek.get(c.goalId) ?? -Infinity) > c.week;
 		const g = work.get(c.goalId);
 		if (later || !g) continue;
 		const r = requestsAfterCheckIn(g, c, {
@@ -11544,13 +11640,14 @@ function planChanges(input) {
 	const reviewsOut = /* @__PURE__ */ new Map();
 	const reviewsBefore = /* @__PURE__ */ new Map();
 	if (removals.length || leaving.length) {
+		const written = new Set(ciOut.map((o) => o.id));
 		const xOf = () => ({
 			snapshot: {
 				...s,
 				people: [...people.values()],
 				teams: [...teams.values()],
 				goals: [...work.values()],
-				checkIns: [...s.checkIns.filter((c) => !ciOut.some((o) => o.id === c.id)), ...ciOut],
+				checkIns: [...s.checkIns.filter((c) => !written.has(c.id)), ...ciOut],
 				requests: requestsNow(),
 				reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v)
 			},
@@ -11567,7 +11664,7 @@ function planChanges(input) {
 		const merge = (c) => {
 			for (const g of c.goals ?? []) {
 				if (!touched.has(g.id)) touched.set(g.id, {
-					before: s.goals.find((x) => x.id === g.id) ?? null,
+					before: savedGoal.get(g.id) ?? null,
 					row: 0,
 					sheet: "Goals",
 					reason: "",
@@ -11579,7 +11676,7 @@ function planChanges(input) {
 			for (const r of c.requests ?? []) reqOut.set(r.id, r);
 			for (const p of c.people ?? []) {
 				if (!peopleTouched.has(p.id)) peopleTouched.set(p.id, {
-					before: s.people.find((x) => x.id === p.id) ?? null,
+					before: savedPerson.get(p.id) ?? null,
 					row: 0
 				});
 				people.set(p.id, p);
@@ -11591,7 +11688,7 @@ function planChanges(input) {
 			}
 			for (const t of c.teams ?? []) {
 				if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, {
-					before: s.teams.find((x) => x.id === t.id) ?? null,
+					before: savedTeam.get(t.id) ?? null,
 					row: 0
 				});
 				teams.set(t.id, t);
@@ -11679,9 +11776,12 @@ function planChanges(input) {
 	};
 	const ordered = [];
 	const pending = [...goalOut.values()];
+	const waiting = new Set(pending.map((g) => g.id));
 	while (pending.length) {
-		const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
-		ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
+		const i = pending.findIndex((g) => !g.parentId || !waiting.has(g.parentId));
+		const [g] = pending.splice(i < 0 ? 0 : i, 1);
+		waiting.delete(g.id);
+		ordered.push(g);
 	}
 	if (create) {
 		result.created = {
@@ -11731,7 +11831,7 @@ function planChanges(input) {
 				})),
 				people: [...peopleOut.values()].map((p) => ({
 					id: p.id,
-					before: s.people.find((x) => x.id === p.id) ?? null
+					before: savedPerson.get(p.id) ?? null
 				})),
 				requests: [...reqOut.values()].map((r) => ({
 					id: r.id,
@@ -11743,7 +11843,7 @@ function planChanges(input) {
 				})) } : {},
 				...teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({
 					id,
-					before: s.teams.find((x) => x.id === id) ?? null
+					before: savedTeam.get(id) ?? null
 				})) } : {}
 			}
 		};
@@ -11817,7 +11917,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11951,6 +12051,72 @@ var init_changeset = __esmMin((() => {
 	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
+	GoalSet = class extends Map {
+		byKey = /* @__PURE__ */ new Map();
+		titles = /* @__PURE__ */ new Map();
+		folded = /* @__PURE__ */ new Map();
+		order = /* @__PURE__ */ new Map();
+		nearMemo = /* @__PURE__ */ new Map();
+		constructor(goals) {
+			super();
+			for (const g of goals) this.set(g.id, g);
+		}
+		set(id, g) {
+			const old = super.get(id);
+			if (old) this.unindex(id, old);
+			if (!this.order.has(id)) this.order.set(id, this.order.size);
+			super.set(id, g);
+			if (g.key && !this.byKey.has(g.key)) this.byKey.set(g.key, id);
+			const f = fold$1(g.title);
+			this.folded.set(id, f);
+			const list = this.titles.get(f);
+			if (list) list.add(id);
+			else this.titles.set(f, /* @__PURE__ */ new Set([id]));
+			this.nearMemo.clear();
+			return this;
+		}
+		delete(id) {
+			const old = super.get(id);
+			if (old) {
+				this.unindex(id, old);
+				this.nearMemo.clear();
+			}
+			return super.delete(id);
+		}
+		unindex(id, g) {
+			if (g.key && this.byKey.get(g.key) === id) {
+				this.byKey.delete(g.key);
+				for (const [other, x] of this) if (other !== id && x.key === g.key) {
+					this.byKey.set(g.key, other);
+					break;
+				}
+			}
+			this.titles.get(this.folded.get(id) ?? "")?.delete(id);
+		}
+		/** A goal by its id, else its key (findGoal over the set). */
+		byRef(ref) {
+			if (!ref) return void 0;
+			const hit = super.get(ref);
+			if (hit) return hit;
+			const k = normalKey(ref);
+			const id = k ? this.byKey.get(k) : void 0;
+			return id ? super.get(id) : void 0;
+		}
+		/** The goals with a name (folded), but one, in the order they were first set. */
+		titled(t, but = "") {
+			return [...this.titles.get(fold$1(t)) ?? []].filter((id) => id !== but).sort((a, b) => this.order.get(a) - this.order.get(b)).map((id) => super.get(id));
+		}
+		/** The one goal whose name is one letter out from `v` (rule 4), but one; undefined when none or several are. */
+		nearTitle(v, but = "") {
+			const memo = `${but}\u0000${v}`;
+			if (this.nearMemo.has(memo)) return this.nearMemo.get(memo);
+			const all = [...this.values()].filter((g) => g.id !== but);
+			const m = near(v, all.map((g) => g.title));
+			const hit = "near" in m ? all.find((g) => g.title === m.near) : void 0;
+			this.nearMemo.set(memo, hit);
+			return hit;
+		}
+	};
 }));
 // src/modules/metrics/rules.ts
 /** A live metric by id, or by name (any case). */
@@ -14730,13 +14896,14 @@ var help$2 = [
 			{
 				heading: "How to use it",
 				list: [
-					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
-					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
+					"On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.",
+					"Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
 					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
+					"To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
 					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
@@ -14839,7 +15006,7 @@ var help$2 = [
 			{
 				heading: "The list",
 				list: [
-					"On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
+					"On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.",
 					"Find one by its file, by who made it or by what it changed. Open one to see what it saved.",
 					"In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own."
 				]
@@ -14878,21 +15045,23 @@ var help$2 = [
 	{
 		id: "export",
 		title: "Exporting",
-		summary: "Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.",
+		summary: "One button: Export .xlsx. Zipped CSVs, one sheet as CSV, JSON and a brief for an AI chat are under Other formats.",
 		group: "data",
 		after: "import",
 		sections: [{
 			heading: "How to use it",
 			list: [
-				"On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).",
-				"On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.",
+				"On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.",
+				"Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.",
+				"On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.",
 				"Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.",
-				"The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.",
-				"CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.",
+				"Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.",
+				"The template is on the Import page and in Every column, and what it needs: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported. It is saved as faro-template.xlsx.",
 				"One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.",
 				"JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.",
 				"Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.",
-				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx."
+				"Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.",
+				"Exports hold names and the owners’ reasons. Share them as you would the app."
 			]
 		}],
 		routes: [],
@@ -15420,6 +15589,7 @@ var CORE_ARTICLES = [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
 					"Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.",
+					"A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.",
 					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
 					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
 					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
@@ -16440,7 +16610,7 @@ var CORE_ARTICLES = [
 					"Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.",
 					"Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.",
 					"Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.",
-					"Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
+					"Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.",
 					"IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email."
 				]
 			},
@@ -17010,7 +17180,7 @@ var CORE_ARTICLES = [
 					"Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.",
 					"Nothing a feature saved is deleted. Switch it back on and everything is as it was.",
 					"Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.",
-					"Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
+					"Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says."
 				]
 			},
 			{
@@ -17127,10 +17297,12 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
+					"In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.",
 					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
 					"Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
-					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
+					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.",
+					"Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included."
 				]
 			},
 			{
@@ -17516,6 +17688,53 @@ var WHATS_NEW = [
 			"Goals takes its phone layout on any screen under 700 pixels wide, not only under 600."
 		],
 		articles: ["goal-map", "goals"]
+	},
+	{
+		id: "batch-refs",
+		date: "2026-11-12",
+		title: "Build a whole tree of goals in one file",
+		points: [
+			"A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.",
+			"A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.",
+			"Two new goals with the same name stay two goals when each row has its own Ref."
+		],
+		articles: ["import", "ai-assistants"]
+	},
+	{
+		id: "import-faster",
+		date: "2026-11-12",
+		title: "Large files are checked much faster",
+		points: ["A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.", "Import still says up front how large a file can be: up to 5,000 rows is comfortable."],
+		articles: ["import"]
+	},
+	{
+		id: "assistant-goals-link-tab",
+		date: "2026-11-12",
+		title: "A pasted Goals link keeps its tab",
+		points: ["Give an AI assistant a Goals link and it finds the goals the link shows: a link to Mine finds your goals, not everyone’s.", "Asking for a tab in words (“my team’s goals”) still wins over the link’s."],
+		articles: ["ai-assistants"]
+	},
+	{
+		id: "table-check-in-answers",
+		date: "2026-11-12",
+		title: "The table check-in keeps your answers",
+		points: [
+			"When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.",
+			"A number that can’t be posted says “Must fix” under its row, as on the form, and says the number once.",
+			"Questions about a number use the goal’s unit properly: 1 hour, not 1 hours."
+		],
+		articles: ["check-in-table", "check-in"]
+	},
+	{
+		id: "export-one-button",
+		date: "2026-11-12",
+		title: "Export is one button",
+		points: [
+			"Excel by default; other formats one click away.",
+			"File names say what’s in them: all, the view’s name, or as-shown.",
+			"On Data, Export and Import sit side by side. Past imports and the template are on the Import page."
+		],
+		articles: ["export", "data"]
 	},
 	{
 		id: "data-feedback-search-words",
@@ -19702,9 +19921,10 @@ var _virtual_faro_modules_default = [{
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
+			"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
 			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
 			"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
 			"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
@@ -19712,6 +19932,7 @@ var _virtual_faro_modules_default = [{
 			"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
 			"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
 			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
+			"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
 			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
@@ -19909,7 +20130,9 @@ function systemOverview() {
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
 		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
-		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
+		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action, and its fields, states and buttons (with who sees each); the views and overlays with no route of their own",
+		"- [The design rules](spec/core/design-rules.md): the look, what is banned and what we do instead",
+		"- [The Help guide](spec/core/help-guide.md): every Help article in full",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
 		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
@@ -23615,7 +23838,7 @@ var CORE_TOOLS = [
 				level: str("Only goals at this level.", { enum: LEVELS }),
 				mine: bool("Only goals you own (the same as scope \"mine\")."),
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
-				query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
 			}
 		},
@@ -23624,11 +23847,14 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ""))) : EMPTY_QUERY;
+			const link = a.query ? new URLSearchParams(String(a.query).replace(/^.*\?/, "")) : null;
+			let query = link ? parseQuery(link) : EMPTY_QUERY;
+			let linkScope = link?.get("scope") ?? null;
 			if (a.view) {
 				const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
 				if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
 				query = parseQuery(new URLSearchParams(v.params));
+				linkScope = new URLSearchParams(v.params).get("scope");
 			}
 			const status = a.status ? statusIn(a.status) : null;
 			const named = a.owner ? ctx.snapshot.people.filter((p) => p.name.toLowerCase().includes(String(a.owner).toLowerCase())).map((p) => p.id) : null;
@@ -23650,7 +23876,7 @@ var CORE_TOOLS = [
 				weeks: ctx.cycle.weeks,
 				goals: []
 			});
-			const scope = a.scope ? String(a.scope) : null;
+			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
 			if (scope && scope !== "all" && !scoped) return listed({
@@ -24003,7 +24229,7 @@ var CORE_TOOLS = [
 	{
 		name: "bulk_change",
 		title: "Change many goals at once",
-		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
