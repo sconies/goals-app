@@ -16,7 +16,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -349,7 +349,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     '## The input: workspace.json',
     '',
-    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks and reviews${w.modules ? `, and, under \`modules\`, the records of the modules that add rows here (${Object.keys(w.modules).join(', ')})` : ''}. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
+    `The demo workspace (Platform Engineering, ${w.goals.length} goals, ${w.checkIns.length} check-ins, a ${w.cycle.weeks}-week goal year starting ${w.cycle.startDate}), built for ${CHECK_IN_MOMENT} (week 45), trimmed to the records the core rules read: the cycle, people, teams, goals, check-ins, decisions (what was said in reviews), asks, reviews and watches${w.modules ? `, and, under \`modules\`, the records of the modules that add rows here (${Object.keys(w.modules).join(', ')})` : ''}. Their fields are in [the data model](../core/data-model.md). It is one JSON object; each array holds one record per line. Asks are under \`requests\` (the stored table’s name).`,
     '',
     '## How each week is judged',
     '',
@@ -385,6 +385,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[import.csv](import.csv) (not stage 1)', String(rows('import.csv')), 'case of the change engine', IMPORT_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[readback.csv](readback.csv) (not stage 1)', String(rows('readback.csv')), 'draft New goal reads back', READBACK_HEADER.map((x) => `\`${x}\``).join(', ')],
       ...MODULE_FILES.map((f) => [`[${f.file}.csv](${f.file}.csv) (the ${f.module} module, not stage 1)`, String(rows(`${f.file}.csv`)), 'rule and what it is asked', f.header.map((x) => `\`${x}\``).join(', ')]),
+      ['[home.csv](home.csv) (not stage 1)', String(rows('home.csv')), 'viewer and day', HOME_HEADER.map((x) => `\`${x}\``).join(', ')],
     ]),
     '',
     'What each column is, and the rule that gives it:',
@@ -407,6 +408,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '- **readback.csv** ([the read-back](../core/rules/read-back.md)): not part of stage 1, scored like find.csv when asked (`"also": ["readback"]`; it is stage 3’s). One row per case: a draft goal (`draft`, the fields set over a blank goal, as JSON) on New goal’s last step, seen by `viewer`, on the workspace as it stood at `builtFor` (Thursday 5 Nov 2026, week 45, the review day), with the weekly rhythm and Reviews on, each question it raises taken as answered, the level as New goal starts it when the draft doesn’t say (rule 1 of [New goal](../core/rules/new-goal.md)), no metric, and the workspace called “Platform Engineering”. The reviews a goal joins read each review’s `scope` in workspace.json. `rows` is each row as `label: sentence`, separated by ` | `; `after` the “After you publish” lines, separated by ` | `.',
     '',
     ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
+    '- **home.csv** ([Home](../core/rules/home.md)): not part of stage 1, scored like find.csv when asked (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead. No check-in draft is kept. Watches carry no date, so they are taken as they are now.',
+    '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
     '## How a rebuild proves itself',

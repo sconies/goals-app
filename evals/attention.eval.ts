@@ -100,7 +100,7 @@ describe('one counting rule for attention (re-review, 8 Nov, backlog T)', () => 
 });
 
 describe('Home at a glance', () => {
-  it(R('HOME-DASHBOARD', 'a session past its date and not held shows before the next review, with how long past (re-review, 8 Nov, backlog T)'), () => {
+  it(R('HOME-OWNER', 'a session past its date and not held shows before the next review, with how long past (re-review, 8 Nov, backlog T)'), () => {
     const sunday = new Date('2026-11-08T18:20:00Z');
     const s = seed(sunday);
     const d = dashboard('amara', s, cycle, currentWeek(cycle, sunday), sunday);
@@ -108,7 +108,7 @@ describe('Home at a glance', () => {
     // On its own day it isn't missed yet.
     expect(missedReviews('amara', s, cycle, currentWeek(cycle, today), today).map((m) => m.id)).not.toContain('weekly');
   });
-  it(R('HOME-DASHBOARD', 'an owner sees their goals by status, their on-time streak, what they watch and their next review'), () => {
+  it(R('HOME-OWNER', 'an owner sees their goals by status, their on-time streak, what they watch and their next review'), () => {
     const d = dashboard('pavel', s0, cycle, week, today);
     expect(d.scope).toBe('mine');
     expect(d.counts).toEqual([{ status: 'off', n: 1 }, { status: 'on', n: 3 }]); // Pavel owns four goals
@@ -118,7 +118,7 @@ describe('Home at a glance', () => {
     expect(d.watching!.needs.map((a) => a.goal.id)).toEqual(expect.arrayContaining(['cfr-contract', 'cfr-halt']));
     expect(d.next).toMatchObject({ id: 'devprod', weekday: 'Tuesday', week: week + 1, days: 5 });
   });
-  it(R('HOME-DASHBOARD', 'a leader with no goals of their own sees every goal by status and no streak; someone watching nothing has no watch summary'), () => {
+  it(R('HOME-OWNER', 'a leader with no goals of their own sees every goal by status and no streak; someone watching nothing has no watch summary'), () => {
     const d = dashboard('amara', s0, cycle, week, today);
     expect(d.scope).toBe('all');
     expect(d.counts.reduce((n, c) => n + c.n, 0)).toBe(s0.goals.length);
@@ -126,7 +126,7 @@ describe('Home at a glance', () => {
     expect(d.streak).toBeNull();
     expect(dashboard('hannah', s0, cycle, week, today).watching).toBeNull();
   });
-  it(R('HOME-DASHBOARD', 'the next review is today on its day, and none when you are in no review'), () => {
+  it(R('HOME-OWNER', 'the next review is today on its day, and none when you are in no review'), () => {
     expect(nextReview('daniel', s0, cycle, week, new Date('2026-11-05T08:00:00Z'))).toMatchObject({ id: 'weekly', days: 0 });
     expect(nextReview('oskar', s0, cycle, week, today)).toBeNull();
   });
@@ -174,7 +174,7 @@ describe('the AI assistant sees the same split', () => {
     expect(brief.slice(brief.indexOf('## Off track'), brief.indexOf('## At risk'))).toContain('### Merge queue live for every monorepo');
     expect(brief.slice(brief.indexOf('## Being handled'), brief.indexOf('## No recent update'))).not.toContain('Merge queue live');
   });
-  it(R('HOME-DASHBOARD', 'get_my_work starts with the week at a glance'), async () => {
+  it(R('HOME-OWNER', 'get_my_work starts with the week at a glance'), async () => {
     const w = await (await as('diego'))('get_my_work');
     expect(w.data!.atAGlance).toMatchObject({ goals: { whose: 'mine', total: 2 }, watching: null, nextReview: { name: 'Developer Productivity fortnightly', day: 'Tuesday' } });
     expect(w.data!.atAGlance.onTimeStreakWeeks).toEqual(expect.any(Number));
