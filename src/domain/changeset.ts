@@ -1378,15 +1378,9 @@ function unrelated(a: string, b: string): boolean {
  * Post one check-in from a screen (check-in spec, rule 13): through the same engine as the table, the import and the AI
  * tools, so a check-in is judged and written one way. Refuses, in the engine's words, what the engine refuses.
  */
-<<<<<<< HEAD
-export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week' | 'actor' | 'now' | 'newId' | 'full' | 'records'>, post: CheckInPost): { commit: Commit; checkIn: CheckIn } {
-  const set = planChanges({ tables: {}, posts: [post], snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: 'form', ...(x.full ? { full: x.full } : {}), ...(x.records ? { records: x.records } : {}) });
-  const problem = set.issues.find((i) => i.level === 'must' || i.level === 'check');
-=======
 export function postCheckIn(x: Pick<ActionContext, 'snapshot' | 'cycle' | 'week' | 'actor' | 'now' | 'newId' | 'full'>, post: CheckInPost): { commit: Commit; checkIn: CheckIn } {
   const set = planChanges({ tables: {}, posts: [post], snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: 'form', ...(x.full ? { full: x.full } : {}) });
-  const problem = set.issues.find((i) => i.severity === 'error');
->>>>>>> 12d0bbda (Carried copies stay true after every save (build review of #152))
+  const problem = set.issues.find((i) => i.level === 'must' || i.level === 'check');
   if (problem || !set.commit) throw new NotAllowed(problem?.message ?? 'That check-in can’t be saved yet.');
   return { commit: set.commit, checkIn: set.commit.checkIns!.find((c) => c.goalId === post.goalId)! };
 }
