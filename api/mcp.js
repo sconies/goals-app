@@ -16436,7 +16436,7 @@ var CORE_ARTICLES = [
 				"Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.",
 				"Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.",
 				"On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.",
-				"A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.",
+				"A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met. A quarter with nothing due says None due. The key has both, and the goal’s page and its printed page use the same words.",
 				"A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan."
 			]
 		}],
@@ -17837,7 +17837,8 @@ var CORE_ARTICLES = [
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
 					"In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.",
-					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
+					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first. The key is the one the goal holds once saved, even when someone else adds a goal at the same moment. A dry run says the keys the goals would get, and no IDs yet.",
+					"Finding goals, it gets 50 at a time, with how many match in all and how to ask for the next page.",
 					"Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.",
@@ -18227,6 +18228,18 @@ var WHATS_NEW = [
 			"Page not found has a Find field, so you can look for what you meant."
 		],
 		articles: ["getting-around", "check-in"]
+	},
+	{
+		id: "mcp-keys-pages",
+		date: "2026-11-12",
+		title: "AI assistants get the right key and a page of goals at a time",
+		points: [
+			"When an AI assistant adds goals, the key it is told is the one the goal holds once saved, even when someone else adds a goal at the same moment.",
+			"A dry run says the key each new goal would get and no ID yet; a change that isn’t saved lists no new goals.",
+			"Finding goals answers 50 at a time, with how many match in all and how to ask for the next page.",
+			"History’s key now has None due and Not applicable, and a goal’s printed page says Not applicable for a quarter that ended before it was set up, as its page does."
+		],
+		articles: ["ai-assistants", "history"]
 	},
 	{
 		id: "proposed-fixes",
@@ -20203,24 +20216,6 @@ var WHATS_NEW = [
 ];
 /** Entries on or after a date (yyyy-mm-dd), newest first. */
 var newsSince = (date) => date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW;
-/** "5 Nov 2026", the way the app writes a date. */
-function newsDate(date) {
-	const [y, m, d] = date.split("-").map(Number);
-	return `${d} ${[
-		"Jan",
-		"Feb",
-		"Mar",
-		"Apr",
-		"May",
-		"Jun",
-		"Jul",
-		"Aug",
-		"Sep",
-		"Oct",
-		"Nov",
-		"Dec"
-	][m - 1]} ${y}`;
-}
 // src/domain/startYear.ts
 init_carry();
 init_cycle();
@@ -20359,7 +20354,7 @@ function startPageText(p) {
 // src/mcp/listed.ts
 var listed = (data) => ({
 	data,
-	text: JSON.stringify(data, null, 2)
+	text: JSON.stringify(data)
 });
 // \0virtual:faro-modules
 var _virtual_faro_modules_default = [{
@@ -21477,10 +21472,10 @@ var WORK_TOOLS = [
 				};
 			}
 			const list = a.search ? searchGuide(String(a.search)) : ARTICLES;
-			return {
-				data: { articles: list.map(brief) },
-				text: lines(list.map((x) => `${x.id} · ${x.title}: ${x.summary}`), `No help article matches “${String(a.search)}”.`)
-			};
+			return listed({
+				articles: list.map(brief),
+				why: list.length ? null : `No help article matches “${String(a.search)}”. Try fewer or plainer words.`
+			});
 		}
 	},
 	{
@@ -21537,10 +21532,10 @@ var WORK_TOOLS = [
 				points: e.points,
 				articles: e.articles
 			}));
-			return {
-				data: { entries: list },
-				text: lines(list.map((e) => `${newsDate(e.date)}: ${e.title}\n${e.points.map((p) => `- ${p}`).join("\n")}`), since ? `Nothing new since ${since}.` : "Nothing yet.")
-			};
+			return listed({
+				entries: list,
+				why: list.length ? null : since ? `Nothing new since ${since}.` : "Nothing yet."
+			});
 		}
 	},
 	{
@@ -24652,6 +24647,9 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	choice: String(v.choice ?? ""),
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
+/** find_goals' page: how many goals it lists unless asked, and the most it lists at once. */
+var FIND_PAGE = 50;
+var FIND_MAX = 200;
 async function change(ctx, tables, opts) {
 	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
@@ -24729,14 +24727,16 @@ async function change(ctx, tables, opts) {
 			question: q.text
 		}))),
 		needsConfirm: cs.needsConfirm,
-		/** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
-		created: cs.items.filter((x) => x.kind === "new goal").map((x) => ({
-			id: x.goalId,
-			key: keyOf(x.goalId),
-			title: x.goal
-		}))
+		/** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key).
+		Saved: as stored. A dry run: the key each would be given and no ID yet (the save makes the IDs). Refused: none. */
+		created: []
 	};
-	const createdLine = () => data.created.length ? `\nNew ${data.created.length === 1 ? "goal" : "goals"}: ${data.created.map((x) => `${x.key ?? "—"} · ${x.id} · ${x.title}`).join("; ")}.` : "";
+	const added = cs.items.filter((x) => x.kind === "new goal");
+	const createdLine = () => data.created.length ? `\nNew ${data.created.length === 1 ? "goal" : "goals"}: ${data.created.map((x) => [
+		x.key ?? "—",
+		x.id,
+		x.title
+	].filter(Boolean).join(" · ")).join("; ")}.${data.saved ? "" : " Each gets its ID when it is saved; a key is kept unless another goal takes it first."}` : "";
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
 	if (errors.length) return {
 		isError: true,
@@ -24774,24 +24774,34 @@ async function change(ctx, tables, opts) {
 		goal: x.name,
 		message: x.message
 	})))}` : ""}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ""}${examples ? `\n${examples.trim()}` : ""}`;
-	if (opts.dry || !cs.commit) return {
-		data,
-		text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
-	};
+	if (opts.dry || !cs.commit) {
+		data.created = added.map((x) => ({
+			id: null,
+			key: keyOf(x.goalId),
+			title: x.goal
+		}));
+		data.changes = data.changes.map((x) => added.some((a) => a.goalId === x.goalId) ? {
+			...x,
+			goalId: null
+		} : x);
+		return {
+			data,
+			text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
+		};
+	}
 	await ctx.save(cs.commit);
-	data.created = data.created.map((x) => ({
-		...x,
-		key: keyOf(x.id)
+	data.saved = true;
+	data.created = added.map((x) => ({
+		id: x.goalId,
+		key: keyOf(x.goalId),
+		title: x.goal
 	}));
 	data.changes = data.changes.map((x) => x.goalId ? {
 		...x,
 		key: keyOf(x.goalId)
 	} : x);
 	return {
-		data: {
-			...data,
-			saved: true
-		},
+		data,
 		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
 	};
 }
@@ -24902,7 +24912,7 @@ var CORE_TOOLS = [
 	{
 		name: "find_goals",
 		title: "Find goals",
-		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+		description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords("off")}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, "").toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal. Answers as JSON, the same keys every time: week, weeks, total (how many match), offset, goals (at most limit of them, 50 unless asked), more (how to ask for the next page, or null) and why (why nothing matches, or null).`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -24916,7 +24926,18 @@ var CORE_TOOLS = [
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
 				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
-				state: str("active (the default) or proposed: proposed goals have no status and are listed only when asked for.", { enum: ["active", "proposed"] })
+				state: str("active (the default) or proposed: proposed goals have no status and are listed only when asked for.", { enum: ["active", "proposed"] }),
+				limit: {
+					type: "integer",
+					minimum: 1,
+					maximum: FIND_MAX,
+					description: `How many goals to list, from offset: ${FIND_PAGE} unless asked, at most ${FIND_MAX}.`
+				},
+				offset: {
+					type: "integer",
+					minimum: 0,
+					description: "How many matching goals to skip, for the next page (as “more” says)."
+				}
 			}
 		},
 		annotations: {
@@ -24924,6 +24945,23 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
+			/** One page of what matched, in the one shape find_goals always answers in (#249's review: 126 goals were 81k
+			characters, with no paging). */
+			const goalPage = (all, args, none) => {
+				const limit = Math.min(FIND_MAX, Math.max(1, Math.floor(Number(args.limit) || FIND_PAGE)));
+				const offset = Math.max(0, Math.floor(Number(args.offset) || 0));
+				const goals = all.slice(offset, offset + limit);
+				const next = offset + goals.length;
+				return {
+					week: ctx.week,
+					weeks: ctx.cycle.weeks,
+					total: all.length,
+					offset,
+					goals,
+					more: next < all.length ? `${all.length - next} more: call again with offset ${next}${args.limit ? ` and limit ${limit}` : ""}.` : null,
+					why: all.length ? null : none
+				};
+			};
 			const link = a.query ? new URLSearchParams(String(a.query).replace(/^.*\?/, "")) : null;
 			let query = link ? parseQuery(link) : EMPTY_QUERY;
 			let linkScope = link?.get("scope") ?? null;
@@ -24948,20 +24986,11 @@ var CORE_TOOLS = [
 				owner: owners ? owners.length ? owners : ["nobody"] : [],
 				attention: query.attention || !!a.needs_attention
 			};
-			if (status && !asked.status.length || a.level && !asked.level.length) return listed({
-				week: ctx.week,
-				weeks: ctx.cycle.weeks,
-				goals: []
-			});
+			if (status && !asked.status.length || a.level && !asked.level.length) return listed(goalPage([], a, "No goal can match both the filters asked for and the link’s."));
 			const scope = a.scope ? String(a.scope) : linkScope ? linkScope : null;
 			if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
 			const scoped = scope && scope !== "all" ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
-			if (scope && scope !== "all" && !scoped) return listed({
-				week: ctx.week,
-				weeks: ctx.cycle.weeks,
-				goals: [],
-				why: scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."
-			});
+			if (scope && scope !== "all" && !scoped) return listed(goalPage([], a, scope === "team" ? "You’re in no team and lead none." : "You own no goals this year."));
 			const inScope = scoped ? new Set(scoped.ids) : null;
 			const words = [String(a.text ?? ""), query.q].filter((x) => x.trim()).join(" ");
 			const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
@@ -24986,7 +25015,7 @@ var CORE_TOOLS = [
 			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
 			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
-			const data = list.map((s) => ({
+			return listed(goalPage(list.map((s) => ({
 				key: s.goal.key ?? null,
 				id: s.goal.id,
 				title: s.goal.title,
@@ -25011,12 +25040,7 @@ var CORE_TOOLS = [
 				lastCheckInWeek: s.lastWeek,
 				feedsInto: s.feedsInto,
 				youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id
-			}));
-			return listed({
-				week: ctx.week,
-				weeks: ctx.cycle.weeks,
-				goals: data
-			});
+			})), a, "No goal matches. Try fewer or plainer words, or another scope or status."));
 		}
 	},
 	{
@@ -25971,6 +25995,21 @@ async function serve(req, deps) {
 		"db.operation": op
 	}, run);
 	let ctx = null;
+	/** A commit with each new goal's key as the database stored it, so the context, and every answer read from it, holds
+	the stored key, not the one the request asked for. */
+	const settledKeys = async (c, before) => {
+		const known = new Set(before.goals.map((g) => g.id));
+		const added = (c.goals ?? []).filter((g) => !known.has(g.id)).map((g) => g.id);
+		if (!added.length || !deps.goalKeys) return c;
+		const keys = await db("select", () => deps.goalKeys(found.workspaceId, added));
+		return {
+			...c,
+			goals: c.goals.map((g) => keys[g.id] && keys[g.id] !== g.key ? {
+				...g,
+				key: keys[g.id]
+			} : g)
+		};
+	};
 	const context = async () => {
 		if (ctx) return ctx;
 		const [loaded, name, recording, modulesOff] = await Promise.all([
@@ -26009,7 +26048,7 @@ async function serve(req, deps) {
 					records: MODULE_RECORDS
 				});
 				await db("okr_commit", () => deps.commit(found.workspaceId, withExpectations(c, all)));
-				all = applyCommit(all, c);
+				all = applyCommit(all, await settledKeys(c, all));
 				ctx.snapshot = scopeToCycle(all, cycle, MODULE_RECORDS);
 				ctx.allGoals = all.goals;
 				ctx.full = all;
@@ -48560,6 +48599,11 @@ function supabaseDeps(origin, env = process.env, client) {
 		},
 		load: (ws) => store.load(ws),
 		commit: (ws, c) => store.commit(ws, c),
+		async goalKeys(ws, ids) {
+			const { data, error } = await db.from("okr_goals").select("id, key").eq("workspace_id", ws).in("id", ids);
+			if (error) throw error;
+			return Object.fromEntries((data ?? []).filter((r) => r.key).map((r) => [r.id, r.key]));
+		},
 		async touch(id) {
 			const hash = seen.get(id);
 			if (hash) await db.rpc("okr_token_touch", { hash });

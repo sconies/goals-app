@@ -7,7 +7,7 @@ import { fmt, fmtDiff } from './format';
 import { goalAsOf } from './goal';
 import { currentWeek, planAt, planEnd } from './plan';
 import { checkInsFor, doneCheckIn } from './status';
-import { shortWord } from './vocabulary';
+import { QUARTER, QUARTER_NOT_JUDGED, shortWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal } from './types';
 
 export const isYear = (c: Cycle) => c.weeks >= 48;
@@ -68,6 +68,13 @@ export interface QuarterResult {
   /** A quarter that ended before the goal was set up: not applicable, never judged. */
   before?: true;
 }
+
+/** A quarter's result in a word, as every screen says it: Met, Not met, In progress (the running quarter), To come, Not
+    applicable (before the goal was set up) or None due. */
+export const quarterLabel = (r: Pick<QuarterResult, 'kind' | 'before' | 'quarter'>, nowQuarter: number): string =>
+  r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label
+    : r.kind === 'open' ? (r.quarter.n === nowQuarter ? QUARTER.open.label : QUARTER_NOT_JUDGED.later.label)
+      : r.before ? QUARTER_NOT_JUDGED.before.label : QUARTER_NOT_JUDGED.none.label;
 
 /** The week of the cycle a goal was set up in: 0 for one set up before the cycle began (or carried into it). */
 export const bornWeek = (g: Pick<Goal, 'createdAt'>, c: Cycle) => (g.createdAt ? currentWeek(c, new Date(g.createdAt)) : 0);
