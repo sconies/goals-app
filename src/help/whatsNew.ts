@@ -23,6 +23,29 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'weeks-picked-steadier',
+    date: '2026-11-12',
+    title: 'Weeks in files and the week list: fewer surprises',
+    points: [
+      'A file with To filled in and Due week left empty now loads; a To before From says so in its own words.',
+      'In a file with no Start column, a bare number under From is asked about: it may be where the goal starts, not a week.',
+      'In the year’s last week, a new goal runs to the end of next year unless you choose otherwise.',
+      'In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list.',
+    ],
+    articles: ['import', 'new-goal'],
+  },
+  {
+    id: 'correct-check-in',
+    date: '2026-11-12',
+    title: 'Correct this check-in corrects it',
+    points: [
+      'The link under a posted check-in now replaces it, instead of adding a second check-in for the week.',
+      'It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.',
+      'Undo on the message after saving puts the first check-in back.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'check-ins-owner-only',
     date: '2026-11-12',
     title: 'Check-ins are the owner’s',

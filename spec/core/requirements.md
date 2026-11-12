@@ -104,7 +104,7 @@ Anyone can comment on a goal; comments show in the goal’s activity and are log
 Every save (goal, plan, check-in, comment, decision, workspace) is logged with who, when and each field's before and after. Drafts are not logged. Activity filters by who, a goal or its whole tree, team, level, kind of change, dates and words; every setting is in the link, and the filtered log saves as a CSV. Runs of routine review entries fold into one line.
 
 - **Help:** “The activity log” (`activity`), screens `Activity`
-- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60
+- **Journeys and checks:** U1, U3, U4, U5, U6, U7, U10, U11, U13, U14, U35, U37, U60, U142
 
 ## Status rules
 
@@ -227,7 +227,7 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
-- **Journeys and checks:** U1, U111
+- **Journeys and checks:** U1, U111, U142
 
 ### UPDATE-ANYTIME
 
