@@ -35,6 +35,37 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import', 'columns'],
   },
   {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
+    id: 'carry-right',
+    date: '2026-11-11',
+    title: 'Goals carry on with their history',
+    points: [
+      'A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.',
+      'Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.',
+      'A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
     id: 'levels-one-style',
     date: '2026-11-11',
     title: 'Levels look the same',

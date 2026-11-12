@@ -1310,6 +1310,12 @@ journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 th
   s = await h.snapshot('ws_turn');
   h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
   h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
+  // What came with the goals (CY4): watches, metric links and open asks follow; no stage is due after week 52; no number plan starts late.
+  const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
+  const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
+  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id))) && (s.metricLinks || []).some((l) => !l.removedAt && ids27.has(l.goalId));
+  const planned = s.goals.filter((g) => ids27.has(g.id)).every((g) => g.kind === 'milestone' ? g.stages.every((x) => x.dueWeek <= 52) : g.kind !== 'metric' || (g.plan.fromWeek || 0) <= 0);
+  h.set('attention', came && planned, `carried goals came without their watches, asks or metric links, or with a plan past week 52 (${came}, ${planned})`);
   // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
   await p.evaluate((snap) => {
     const c = snap.cycles[0];
@@ -1361,7 +1367,7 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await h.checkpoint('posted');
 });
 
-journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
+journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
   const p = h.use(await newPage(device, 'rhea'));
@@ -1410,6 +1416,20 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await see(p, 'The wrap-up closed on Sun 31 Jan 2027');
   const fromRetro = await p.getByRole('link', { name: 'Start 2027' }).count();
   h.set('finish', late > 0 && fromRetro > 0, `after the wrap-up closed, Start 2027 was on Cycles ${late} time(s) and on the wrap-up ${fromRetro}`);
+  // Started on 11 Jan 2027, 2027 is current at once and 2026's wrap-up stays open until 31 Jan (rule 3; build review of #133, high).
+  await p.goto(on('2027-01-11', '/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await p.getByRole('list', { name: 'Cycles' }).waitFor();
+  await p.goto(on('2027-01-11', '/retro'));
+  await see(p, '2026 ended on Sun 3 Jan 2027');
+  const wrapRows = await p.locator('.retro-row').count();
+  await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
+  await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
+  await h.click(p.getByRole('button', { name: /Save/ }));
+  await p.waitForURL(/\/retro/);
+  const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
+  const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
+  h.set('finish', wrapRows > 0 && saved && cyclesAfter > 0, `with 2027 current on 11 Jan, 2026’s wrap-up showed ${wrapRows} goals, saving said “Wrapped up” ${saved}, and Cycles offered 2026’s wrap-up ${cyclesAfter} time(s)`);
   h.set('logged', true);
   await p.context().close();
 }, ['budget']);

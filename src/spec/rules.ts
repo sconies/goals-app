@@ -6,7 +6,7 @@
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
-import { carryKind } from '../domain/carry';
+import { carryCopy, carryKind } from '../domain/carry';
 import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, levelRank, levelsOf } from '../domain/levels';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
@@ -835,6 +835,32 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'One level, Team.', then: 'no levels to tell apart; nothing tagged; no top', run: () => { const c = { levels: [{ id: 'team', name: 'Team', hint: '' }] }; return `${hasLevels(c) ? 'levels' : 'no levels to tell apart'}; ${isEveryday(c, 'team') ? 'nothing tagged' : 'tagged'}; ${isTop(c, 'team') ? 'top' : 'no top'}`; } },
     ],
     unclear: ['Setting a workspace’s own levels (names, number, order) is CF2; until then every cycle has the three.'],
+  },
+
+  /* ---------- the carry rule (round 3, cycle end CY4) ---------- */
+  {
+    id: 'carry',
+    title: 'The carry rule, and what comes with a goal',
+    summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
+    code: [
+      { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/actions.ts', names: ['saveRetro', 'mergeCommits'] },
+    ],
+    tests: ['src/domain/startYear.test.ts'],
+    reqs: ['CARRY-GOALS'],
+    body: `
+**The copy** (\`carryCopy\`) has a new id, the new cycle, today's date, its key and everything else as it was. A number goal that **carries** starts from its **final number** (its last value at or before the year's last week; its starting number when it has none) in **week 1** (\`fromWeek\` 0), with the same target and shape, **due at the end of the new year**: no end week, no hand-set numbers, no earlier plans. So no carried plan turns round, starts late or is already met. One that **keeps** its plan keeps its dates, counted from the new year's start (week 45 of a 53-week year is week −8). The stages not done are spread evenly over the new year: stage *i* of *n* is due in week \`round((i + 1) × weeks / n)\`, never after its last week. A limit is unchanged. A goal whose parent carries feeds the parent's copy; otherwise it has no "Feeds into" (and no effect).
+
+**What comes with it** (\`carryExtras\`): its metric link (same metric and team, linked by the same person); each watch of it or of its tree (same person); each open ask or next step on it, with the copy added, so it shows in both years; and each review that names it or its tree, with the copy added. The start keeps all of it, so Undo removes the watches and links it added and takes the copies back out of the asks and reviews.
+
+**Keeping a copy true** (\`recarry\`): a check-in or a wrap-up on a goal of a year that has a later cycle works its kind out again and, only while its copy is untouched (no check-in in it, no change to it by a person), replaces the copy's plan or stages, removes the copy and what came with it, or adds one. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead."`,
+    examples: [
+      { given: 'A 2026 goal from 0.42 to 0.30 USD planned from week 45, with a number set by hand, whose final number is 0.37: its plan in 2027.', then: 'start 0.37, target 0.3, from week 0, no end week, no hand-set numbers', run: () => { const g = metric(0.42, 0.3, 'straight', { id: 'u', plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } }); const c = carryCopy(g, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [checkIn('u', 53, 0.37)], id: 'u2', parentId: null, now: '2026-12-21T10:00:00Z' }) as MetricGoal; return `start ${c.plan.start}, target ${c.plan.target}, from week ${c.plan.fromWeek}, ${c.plan.endWeek == null ? 'no end week' : 'end week ' + c.plan.endWeek}, ${c.plan.points ? 'hand-set numbers' : 'no hand-set numbers'}`; } },
+      { given: 'A goal with stages due in weeks 3 and 7, neither done, into a 52-week year; and with the first done.', then: 'due weeks 26, 52; due weeks 52', run: () => { const due = (cis: ReturnType<typeof checkIn>[]) => `due weeks ${(carryCopy(MILESTONE, { old: { weeks: 13 }, next: { id: 'n', weeks: 52 }, checkIns: cis, id: 's2', parentId: null, now: '' }) as typeof MILESTONE).stages.map((x) => x.dueWeek).join(', ')}`; return `${due([])}; ${due([checkIn(MILESTONE.id, 4, null, { stages: [{ stageId: 'a', doneWeek: 3 }] as never })])}`; } },
+      { given: 'A goal planned from week 45 to week 66 of a 53-week year.', then: 'from week -8 to week 13', run: () => { const c = carryCopy(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'k2', parentId: null, now: '' }) as MetricGoal; return `from week ${c.plan.fromWeek} to week ${c.plan.endWeek}`; } },
+    ],
+    unclear: ['Recarry runs on every check-in that goes through the change engine (the check-in screens, the data tables and a spreadsheet) and on a wrap-up; the AI tools’ bulk changes after the start don’t move the copy yet, and undoing an import leaves a copy it moved where it is.'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */

@@ -72,6 +72,8 @@ export interface DayOneRows {
   checkedIn: ReadonlySet<string>;
   /** The people watching a goal (a watch not removed). */
   watchers: ReadonlySet<string>;
+  /** The cycle's last day is past (cycle-end rule 2): nothing is due, so no first check-in is asked for. */
+  ended?: boolean;
 }
 
 /**
@@ -87,7 +89,7 @@ export function gettingStarted(viewerId: string, s: DayOneRows, ws: { name: stri
   if (t - Date.parse(ws.createdAt) > NEW_WORKSPACE_DAYS * DAY && !joinedLate) return [];
   const creator = s.creatorId;
   const mine = s.goals.filter((g) => g.ownerId === viewerId && !g.removedAt && !g.stoppedAt);
-  const noCheckIn = mine.filter((g) => !s.checkedIn.has(g.id));
+  const noCheckIn = s.ended ? [] : mine.filter((g) => !s.checkedIn.has(g.id));
   const rows: DayOneRow[] = [];
   const firstCheckIn = (): DayOneRow => ({ id: 'first-check-in', says: noCheckIn.length === 1 ? `Post your first check-in. It’s due by ${due}.` : `Post your first check-ins. They’re due by ${due}.`, action: 'Start check-in', to: '/check-in' });
   if (viewerId === creator) {
