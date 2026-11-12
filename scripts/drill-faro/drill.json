@@ -1,1 +1,1 @@
-{ "stage": 1, "run": "node main.mjs", "also": ["scorecard-words", "find", "navigation", "import", "metrics"] }
+{ "stage": 1, "run": "node main.mjs", "also": ["scorecard-words", "find", "navigation", "import", "metrics", "readback"] }

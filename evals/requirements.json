@@ -119,7 +119,7 @@
     {
       "id": "NEW-GOAL-STEPS",
       "area": "Goals",
-      "text": "New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything."
+      "text": "New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything."
     },
     {
       "id": "GOAL-ENTRY-REQUIRED",

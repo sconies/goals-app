@@ -614,7 +614,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'Does this read right?');
   await see(p, 'Mean time to restore service', 'the summary says what it feeds');
-  await see(p, 'SVP level', 'the summary says its level');
+  await see(p, 'It’s an SVP goal', 'the read-back says its level');
   await h.checkpoint('step 4');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
@@ -4734,7 +4734,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
-  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /from 10% in week \d+ .*to 80% by week/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -4987,6 +4987,77 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
 }, []);
 
 /* Looking after metrics (ML3, docs/design/metrics/spec.md 2.3, 2.5, 2.8, rules 3 and 4). */
+journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it’s saved: as Tunde on Wednesday 11 Nov, a goal in CI/CD feeding G-41, 40% to 90%; the Check step says What, Who and where, Measured by, Left as usual and You said as sentences, each whole on a phone; “After you publish” names Thursday 12 Nov and “the plan says 47% for week 47”, and the reviews it joins; “Change” on Left as usual goes to the measure step and “Continue” returns; “Change” on What and another type, then Continue, opens the step that now needs something, and Continue from there comes back; publishing lands on the goal with ?published=1 and History keeps the answer as Checked. (With the rhythm off, “Nothing is due.”, and with Reviews off no review line: when FT builds the switches.)', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  // Wednesday 11 Nov 2026: week 46, the day before Thursday's review (the spec's worked example).
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await pickIn(p, /^Feeds into\b/, 'G-41', /Mean time to restore service/);
+  await pickIn(p, /^Team\b/, 'CI/CD', /CI\/CD/);
+  // Tunde is in Build & Release: asked, and the answer is read back under You said.
+  await h.click(p.getByRole('button', { name: 'Keep it in CI/CD' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '40');
+  await h.fill(p.getByLabel(/^Target$/), '90');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(p, 'Nothing is saved until you publish.', 'Check doesn’t say nothing is saved yet');
+  const rows = p.locator('.read-back');
+  const rowText = async (id) => ((await rows.locator(`li[data-row="${id}"] .rr-value`).innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const want = {
+    what: 'A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better.',
+    who: 'Tunde Bakare owns it, in CI/CD. It’s an SVP goal and feeds “Mean time to restore service (P1 and P2)” (G-41).',
+    usual: 'Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal.',
+    said: 'Tunde is in Build & Release; the goal stays in CI/CD.',
+  };
+  for (const [id, text] of Object.entries(want)) { const got = await rowText(id); h.set('finish', got === text, `the read-back’s ${id} row reads “${got}”, not “${text}”`); }
+  h.set('finish', /^No metric/.test(await rowText('measured')), 'the read-back has no Measured by row');
+  const after = (await p.locator('.after-publish').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('attention', after.includes('Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47.'), `“After you publish” reads “${after}”`);
+  h.set('attention', after.includes('It joins Platform leadership weekly and Reliability weekly.') && after.includes('Everyone in Example: Platform Engineering can see it.') && after.includes('Until its first check-in you can change anything, or delete it.'), `“After you publish” doesn’t say who sees it, the reviews it joins or how long it can be taken back: “${after}”`);
+  // Each sentence is whole: wrapped, never cut to one line with an ellipsis (build review of #129, finding 6).
+  const cut = await rows.locator('.rr-value').evaluateAll((es) => es.filter((e) => e.scrollWidth > e.clientWidth + 1 || getComputedStyle(e).textOverflow === 'ellipsis' || getComputedStyle(e).whiteSpace === 'nowrap').length);
+  const whoBox = await rows.locator('li[data-row="who"] .rr-value').boundingBox();
+  h.set('a11y', !cut && (device !== 'phone' || (!!whoBox && whoBox.height > 30)), `the read-back cuts ${cut} sentence(s) short (Who and where is ${whoBox ? Math.round(whoBox.height) : '?'}px tall)`);
+  await h.checkpoint('check');
+  // Change on Left as usual goes to the measure step; Continue comes straight back.
+  await h.click(rows.getByRole('button', { name: 'Change left as usual' }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
+  h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()), `Continue after Change on Left as usual went to ${p.url()}, not back to Check`);
+  // Change on What and another type: Continue opens the step that now needs something (it went dead: build review of
+  // #129, finding 1), says what, and Continue from there comes back to Check.
+  await h.click(rows.getByRole('button', { name: 'Change what' }));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 3000 }).catch(() => {});
+  const opened = /\/goals\/new\/measure(\?|$)/.test(p.url());
+  h.set('errors', opened && await p.getByText('Add at least one stage.').first().isVisible().catch(() => false), `Continue after another type stayed on ${p.url()} and didn’t open the stages`);
+  if (opened) {
+    await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
+    await pickWeek(p, 'Stage 1: due', '50');
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
+    h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()) && (await rowText('what')) === 'Dated stages: 1 stage, the last due week 50 (7–13 Dec 2026).', `after the stages, Continue went to ${p.url()} and What reads “${await rowText('what')}”`);
+  }
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Signed artifacts in staging');
+  const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
+  h.set('logged', !!checked && /Which team is this goal for\?/.test(checked.from) && checked.to === 'Keep it in CI/CD', 'History doesn’t keep the answer as Checked');
+  await p.context().close();
+}, []);
+
 journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step, Baseline and Target each sit beside a week, From “Week 45 · 2–8 Nov 2026 · This week” and To “Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026”; opening To lists the three named weeks, then 2026 from week 46, and 2027; typing “14 Dec” chooses week 51; “The end of Q1 2027” closes as “Week 13 · 29 Mar–4 Apr 2027” and the line says it carries into 2027; the keyboard alone moves From to week 40, which asks whether it has been running since, and “No, start from this week” puts it back. Check reads “from 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)”, and so does the published goal’s About. A stage’s Due is the same picker; no number field for a week is on the step', 30, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));

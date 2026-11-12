@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-read-back',
+    date: '2026-11-12',
+    title: 'Read your goal back before it’s published',
+    points: [
+      'The last step says, in sentences, what you typed and what was left as usual.',
+      'It says when the first check-in is due and how long you can still delete it.',
+      'It names the reviews that will walk the goal, and who sees it if it’s someone else’s.',
+      'After Change, Continue brings you back; a change that leaves another step needing something opens it, instead of doing nothing.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'goal-entry-review-fixes',
     date: '2026-11-12',
     title: 'Goal forms that show you what’s left',

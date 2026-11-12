@@ -36,7 +36,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Requirements
 
-- `NEW-GOAL-STEPS`: New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything.
+- `NEW-GOAL-STEPS`: New goal asks what, who and where, how it's measured, then reads it back in sentences, with what was left as usual and what happens after it is published; each step has an address and nothing is chosen from a list of everything.
 
 ## Tests that check it
 
