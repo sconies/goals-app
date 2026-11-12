@@ -38,7 +38,7 @@ const RULES = [
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
-  [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'F2', 'F9', 'N8']],
+  [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'U142', 'F2', 'F9', 'N8']],
   [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/ui\/GoalFields\.tsx|^src\/styles\/finish\/wizard\.css|^src\/domain\/(templates|newGoal|goalEntry|goalRights|readBack)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'U93', 'U137', 'U109', 'U136', 'U31', 'U24', 'U91', 'F3', 'F9', 'F16']],
   // Years and weeks (goal entry, rule 13; GE9): the week picker and the rule it shows.
   [/^src\/ui\/WeekPick\.tsx|^src\/domain\/week(s|Choices)\.ts/, ['U109', 'U93', 'U137', 'U18', 'U85', 'U136', 'U5', 'F3', 'F16']],

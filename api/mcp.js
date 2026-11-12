@@ -15161,7 +15161,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -17330,6 +17330,17 @@ var WHATS_NEW = [
 			"In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list."
 		],
 		articles: ["import", "new-goal"]
+	},
+	{
+		id: "correct-check-in",
+		date: "2026-11-12",
+		title: "Correct this check-in corrects it",
+		points: [
+			"The link under a posted check-in now replaces it, instead of adding a second check-in for the week.",
+			"It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.",
+			"Undo on the message after saving puts the first check-in back."
+		],
+		articles: ["check-in"]
 	},
 	{
 		id: "check-ins-owner-only",
