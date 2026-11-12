@@ -186,7 +186,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     </span>
   ) : null;
   // Decimals are worked out from what is typed and said in one line, with Change (2.4, item 4); shown once a number is valid.
-  const anyNumber = (d.kind === 'metric' ? [d.start, d.target] : [d.limit]).some((v) => parseNumber(v) != null);
+  const anyNumber = (d.kind === 'metric' ? [d.start, d.target] : [d.limit, ...(d.bound === 'between' ? [d.lower] : [])]).some((v) => parseNumber(v) != null);
   const decimalsLine = anyNumber || d.decimals.trim() ? <>{<DecimalsLine places={places} chosen={d.decimals} onChoose={(v) => set({ decimals: v })} />}{showErr('decimals')}</> : null;
   // A number with more places than the goal keeps offers to keep them (section 4, too-precise).
   const keepOffer = (f: GoalField) => { const e = errorOf(f); return e?.id === 'too-precise' && e.keep != null ? <button type="button" className="linkish keep-places" onClick={() => set({ decimals: String(e.keep) })}>Keep {placesText(e.keep)}</button> : null; };
@@ -457,19 +457,21 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
               </>
             )}
             {d.kind === 'range' && (
-              <div className="limits">
+              <div className={'limits' + (d.bound === 'between' ? ' between' : '')}>
                 <div className="field limits-bound"><span className="small strong" id="bound">Must stay</span>
                   <div className="seg full" role="group" aria-labelledby="bound">
                     <button type="button" aria-pressed={d.bound === 'atMost'} onClick={() => set({ bound: 'atMost' })}>At most</button>
                     <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
+                    <button type="button" aria-pressed={d.bound === 'between'} onClick={() => set({ bound: 'between' })}>Between</button>
                   </div>
                 </div>
-                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} onBlur={leave('limit')} aria-invalid={invalid('limit')} />{showErr('limit')}{keepOffer('limit')}</label>
+                {d.bound === 'between' && <label className="field"><span className="small strong">Lower limit</span><input className="input" inputMode="decimal" data-field="lower" value={d.lower} onChange={(e) => set({ lower: e.target.value })} onBlur={leave('lower')} aria-invalid={invalid('lower')} />{showErr('lower')}{keepOffer('lower')}</label>}
+                <label className="field"><span className="small strong">{d.bound === 'between' ? 'Upper limit' : 'Limit'}</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} onBlur={leave('limit')} aria-invalid={invalid('limit')} />{showErr('limit')}{keepOffer('limit')}</label>
                 <label className="field"><span className="small strong">Warn this close{optional('margin')}</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} onBlur={leave('margin')} aria-invalid={invalid('margin')} />{showErr('margin')}{keepOffer('margin')}
                   {!errorOf('margin') && <span className="hint">How near the limit counts as at risk{d.unit.trim() ? `, in ${d.unit.trim()}` : ''}. Left empty, it warns only once the limit is crossed.</span>}</label>
               </div>
             )}
-            {d.kind === 'range' && <>{questions('limit')}{questions('margin')}</>}
+            {d.kind === 'range' && <>{questions('lower')}{questions('limit')}{questions('margin')}</>}
             {d.kind === 'range' && decimalsLine}
             {d.kind === 'range' && <p className="small muted">{rangeSays(cycle, week)}</p>}
             {d.kind === 'milestone' && <p className="small muted">At least one stage, each with a name and the week it’s due. This is {weekSays(cycle, Math.max(0, week), 'short')}, {datesOf(cycle, Math.max(0, week))}.</p>}

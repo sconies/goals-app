@@ -37,13 +37,13 @@ import type { CheckIn, Goal, GoalKind, Level, MetricGoal, Person, Team } from '.
 /* ---------- rule 1: what a field needs ---------- */
 
 /** The goal's fields as the form names them (GoalDraft's keys), in the form's order: the order Must fix is listed in. */
-export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
+export const GOAL_FIELDS = ['title', 'kind', 'ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail', 'unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'lower', 'limit', 'margin', 'stages', 'definition', 'source'] as const;
 export type GoalField = (typeof GOAL_FIELDS)[number];
 
 /** Each form field's column in the field table (FIELDS.goals): what its need is read from. */
 const COLUMN: Partial<Record<GoalField, string>> = {
   title: 'Goal', kind: 'Type', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'Effect', unit: 'Unit', decimals: 'Decimals',
-  start: 'Start', fromWeek: 'Plan from week', target: 'Target', endWeek: 'Due week', points: 'Plan', bound: 'Must stay', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
+  start: 'Start', fromWeek: 'Plan from week', target: 'Target', endWeek: 'Due week', points: 'Plan', bound: 'Must stay', lower: 'Limit', limit: 'Limit', margin: 'Margin', stages: 'Stages', definition: 'Definition', source: 'Source',
 };
 /** Fields the form always shows holding a value (a default the person can see), so they are required there, whatever
     an empty cell gives in a file: the type, the owner's team, the level, which side a range keeps to, and a plan's From
@@ -62,11 +62,13 @@ export function fieldNeed(required: Required, kind: GoalKind): Need {
 }
 
 /** The fields only some types of goal have: a unit and decimals for a number, the plan for a number to move, and so on. */
-const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], fromWeek: ['metric'], target: ['metric'], endWeek: ['metric'], points: ['metric'], bound: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
+const KIND_ONLY: Partial<Record<GoalField, GoalKind[]>> = { unit: ['metric', 'range'], decimals: ['metric', 'range'], start: ['metric'], fromWeek: ['metric'], target: ['metric'], endWeek: ['metric'], points: ['metric'], bound: ['range'], lower: ['range'], limit: ['range'], margin: ['range'], stages: ['milestone'] };
 
 /** Rule 1, for a field of the form: "· optional" is said after the label of each field whose need is optional. */
 export function formNeed(field: GoalField, kind: GoalKind): Need {
   if (KIND_ONLY[field] && !KIND_ONLY[field]!.includes(kind)) return 'not-asked';
+  // A range between two numbers asks for both, as it asks for the limit.
+  if (field === 'lower') return formNeed('limit', kind);
   if (ALWAYS_SET.includes(field)) return 'required';
   if (field === 'decimals') return 'worked';
   if (field === 'alsoHelps' || field === 'guardrail') return 'optional';
@@ -84,7 +86,7 @@ export const STEP_SAYS = 'Everything here is needed unless it says optional.';
 /* ---------- rule 2: what can't be saved ---------- */
 
 export type MustFixId =
-  | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty'
+  | 'name-empty' | 'name-short' | 'owner-empty' | 'team-empty' | 'level-empty' | 'feeds-loop' | 'start-empty' | 'target-empty' | 'limit-empty' | 'lower-empty' | 'lower-not-below'
   | 'not-number' | 'has-words' | 'too-precise' | 'decimals-range' | 'same-as-start' | 'plan-point' | 'margin-negative'
   | 'stage-none' | 'stage-name' | 'stage-week' | 'stage-twice' | 'stage-done-removed' | 'decimals-lose'
   | 'to-before-from' | 'week-unknown' | 'week-beyond';
@@ -192,7 +194,11 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       }
     }
     if (d.kind === 'range') {
-      number('limit', d.limit, ['limit-empty', 'Enter the limit.']);
+      // Between two numbers: both, the lower one below the upper one (the limit).
+      const between = d.bound === 'between';
+      const lo = between ? number('lower', d.lower, ['lower-empty', 'Enter the lower number.']) : null;
+      const hi = number('limit', d.limit, ['limit-empty', between ? 'Enter the upper number.' : 'Enter the limit.']);
+      if (lo != null && hi != null && lo >= hi) add('lower', 'lower-not-below', `The lower number (${withUnit(groupDigits(String(lo)), d.unit)}) must be below the upper one (${withUnit(groupDigits(String(hi)), d.unit)}).`);
       const m = number('margin', d.margin, null);
       if (m != null && m < 0) add('margin', 'margin-negative', 'Enter a warning margin of zero or more, or leave it empty.');
     }
@@ -339,7 +345,7 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     if (!unit && (!ctx.existing || ctx.existing.kind === 'milestone' || ctx.existing.unit.trim())) {
       ask({ id: 'no-unit', field: 'unit', key: '', question: 'This number has no unit. Is it a plain count?', yes: 'Yes, a plain count', no: 'No, I’ll add one', readBack: 'You said it is a plain count, with no unit.' });
     }
-    const fields: [GoalField, string, number | null][] = d.kind === 'metric' ? [['start', 'number today', read(d.start)], ['target', 'target', read(d.target)]] : [['limit', 'limit', read(d.limit)]];
+    const fields: [GoalField, string, number | null][] = d.kind === 'metric' ? [['start', 'number today', read(d.start)], ['target', 'target', read(d.target)]] : [...(d.bound === 'between' ? [['lower', 'lower limit', read(d.lower)] as [GoalField, string, number | null]] : []), ['limit', 'limit', read(d.limit)]];
     const given = fields.filter((f): f is [GoalField, string, number] => f[2] != null);
     const key = given.map((f) => f[2]).join('|');
     const neg = given.find(([, , n]) => n < 0);
@@ -376,8 +382,9 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
     ask({ id: 'feeds-lower', field: 'parentId', key: `${d.level}|${d.parentId}`, question: `${capital(aLevel(ctx.levels, d.level, top))} usually feeds ${feeds}, and “${ctx.parent.title}” is ${aLevel(ctx.levels, ctx.parent.level, false)}. Is this link right?`, yes: 'Yes, it feeds that goal', no: 'No, it feeds nothing', noDoes: { parentId: '', effect: '', whyHelps: '' }, readBack: `You said it feeds “${ctx.parent.title}”, ${aLevel(ctx.levels, ctx.parent.level, false)}.` });
   }
   if (d.kind === 'range') {
-    const limit = read(d.limit), margin = read(d.margin);
-    if (limit != null && margin != null && margin > 0 && margin >= Math.abs(limit)) ask({ id: 'margin-wide', field: 'margin', key: `${limit}|${margin}`, question: `With a limit of ${said(limit)} and a warning ${said(margin)} away, it would almost always read at risk. Is ${groupDigits(String(margin))} right?`, yes: `Yes, warn within ${said(margin)}`, no: 'No, I’ll change it', readBack: `You said to warn within ${said(margin)}.` });
+    const limit = read(d.limit), margin = read(d.margin), lower = d.bound === 'between' ? read(d.lower) : null;
+    // Between two numbers: warning margins that meet in the middle would always read at risk.
+    if (limit != null && margin != null && margin > 0 && (lower != null ? lower < limit && 2 * margin >= limit - lower : margin >= Math.abs(limit))) ask({ id: 'margin-wide', field: 'margin', key: `${limit}|${margin}`, question: `With a limit of ${said(limit)} and a warning ${said(margin)} away, it would almost always read at risk. Is ${groupDigits(String(margin))} right?`, yes: `Yes, warn within ${said(margin)}`, no: 'No, I’ll change it', readBack: `You said to warn within ${said(margin)}.` });
   }
   if (d.kind === 'metric') {
     const s = read(d.start), t = read(d.target);
@@ -487,7 +494,7 @@ export const checkedDiffs = (d: GoalDraft, checks: readonly GoalCheck[], answers
 export const STEP_FIELDS: GoalField[][] = [
   ['title', 'kind'],
   ['ownerId', 'teamId', 'level', 'parentId', 'effect', 'alsoHelps', 'guardrail'],
-  ['unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'limit', 'margin', 'stages', 'definition', 'source'],
+  ['unit', 'decimals', 'start', 'fromWeek', 'target', 'endWeek', 'points', 'bound', 'lower', 'limit', 'margin', 'stages', 'definition', 'source'],
   [],
 ];
 /** The fields the step of a goal of `kind` shows: the number fields only for a number, the stages only for stages. */
@@ -498,7 +505,7 @@ export function stepFields(step: number, kind: GoalKind): GoalField[] {
 /** A field's label in the line above the button. */
 export const FIELD_LABEL: Partial<Record<GoalField, string>> = {
   title: 'Name', ownerId: 'Owner', teamId: 'Team', level: 'Level', parentId: 'Feeds into', effect: 'How much it moves', unit: 'Unit', decimals: 'Decimals',
-  start: 'Baseline', fromWeek: 'From', target: 'Target', endWeek: 'To', points: 'The plan', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
+  start: 'Baseline', fromWeek: 'From', target: 'Target', endWeek: 'To', points: 'The plan', lower: 'Lower limit', limit: 'Limit', margin: 'Warn this close', stages: 'Stages',
 };
 
 /**
@@ -623,7 +630,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
 /* ---------- rule 14: a proposed goal (GE10; domain/proposed) ---------- */
 
 /** The Must fix that only say a type's required field is empty: optional while a goal is proposed. */
-const MEASURE_REQUIRED = new Set<MustFix['id']>(['start-empty', 'target-empty', 'limit-empty', 'stage-none']);
+const MEASURE_REQUIRED = new Set<MustFix['id']>(['start-empty', 'target-empty', 'limit-empty', 'lower-empty', 'stage-none']);
 
 /**
  * Rule 2 for a proposed goal: the type's own required fields are optional, all together. A draft that says nothing of

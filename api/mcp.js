@@ -198,7 +198,7 @@ function planValues(goal) {
 		goal.plan.target,
 		...(goal.plan.points ?? []).map((p) => p.value)
 	];
-	if (goal.kind === "range") return [goal.range.limit];
+	if (goal.kind === "range") return goal.range.bound === "between" ? [goal.range.lower, goal.range.limit] : [goal.range.limit];
 	return [];
 }
 /**
@@ -296,6 +296,19 @@ var init_thresholds = __esmMin((() => {
 		"four",
 		"five"
 	];
+}));
+// src/domain/range.ts
+var rangeSide, rangeOut, rangeNear;
+var init_range = __esmMin((() => {
+	rangeSide = (r, v) => r.bound !== "between" ? r : v != null && v < (r.lower + r.limit) / 2 ? {
+		bound: "atLeast",
+		limit: r.lower
+	} : {
+		bound: "atMost",
+		limit: r.limit
+	};
+	rangeOut = ({ bound, limit, lower }, v) => bound !== "atLeast" && v > limit || bound !== "atMost" && v < (bound === "between" ? lower : limit);
+	rangeNear = ({ bound, limit, lower, margin }, v) => bound !== "atLeast" && v > limit - margin || bound !== "atMost" && v < (bound === "between" ? lower : limit) + margin;
 }));
 // src/domain/vocabulary.ts
 /** Stages behind their dates, each in its word: "2 stages late", "1 stage slipping", "1 stage late, 1 slipping". */
@@ -1037,9 +1050,8 @@ function onTrackTypeable(start, planned, decimals, ratioOf) {
 	return false;
 }
 function assessRange(goal, week, actual, previous) {
-	const { bound, limit, margin } = goal.range;
-	const isOut = (v) => v != null && (bound === "atMost" ? v > limit : v < limit);
-	const isNear = (v) => v != null && (bound === "atMost" ? v > limit - margin : v < limit + margin);
+	const isOut = (v) => v != null && rangeOut(goal.range, v);
+	const isNear = (v) => v != null && rangeNear(goal.range, v);
 	const out = isOut(actual), previousOut = isOut(previous), near = isNear(actual);
 	let calc;
 	if (week === 0) calc = "planned";
@@ -1195,6 +1207,7 @@ var RANK, byGoalCache, projects;
 var init_status = __esmMin((() => {
 	init_plan();
 	init_thresholds();
+	init_range();
 	init_vocabulary();
 	RANK = {
 		done: 0,
@@ -1967,7 +1980,7 @@ var init_goalRights = __esmMin((() => {
 /** Whether a draft says nothing yet about how it is measured: none of its type's own required fields is filled in. */
 function measureEmpty(d) {
 	if (d.kind === "metric") return !d.start.trim() && !d.target.trim();
-	if (d.kind === "range") return !d.limit.trim();
+	if (d.kind === "range") return !d.limit.trim() && !d.lower?.trim();
 	return !d.stages.some((s) => s.name.trim() || s.dueWeek.trim());
 }
 var PROPOSED, isProposed, judged, withProposed, withdrawnSummary;
@@ -2244,9 +2257,14 @@ function kindLabel(g) {
 	if (g.kind === "range") return "Keep a number in range";
 	return "Move a number";
 }
+/** What a range must stay, in words: "at most 2%", "at least 99%", "between 99.5% and 99.95%". */
+function staysText(g) {
+	const { bound, limit, lower } = g.range;
+	return bound === "between" ? `between ${fmt(lower, g)} and ${fmt(limit, g)}` : `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, g)}`;
+}
 function targetText(g) {
 	if (g.kind === "metric") return fmt(g.plan.target, g);
-	if (g.kind === "range") return (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
+	if (g.kind === "range") return g.range.bound === "between" ? `${fmt(g.range.lower, g)}–${fmt(g.range.limit, g)}` : (g.range.bound === "atMost" ? "≤ " : "≥ ") + fmt(g.range.limit, g);
 	const last = g.stages[g.stages.length - 1];
 	return last ? "All by week " + last.dueWeek : "No stages";
 }
@@ -2278,8 +2296,10 @@ function gapText(g, a) {
 		};
 	}
 	if (a.kind === "range") {
-		const lim = g.kind === "range" ? fmt(g.range.limit, g) : "";
-		const side = g.kind === "range" && g.range.bound === "atLeast" ? "Under" : "Over";
+		const r = g.kind === "range" ? g.range : null, at = r && rangeSide(r, a.actual);
+		const lim = at ? fmt(at.limit, g) : "";
+		const side = at?.bound === "atLeast" ? "Under" : "Over";
+		const within = r?.bound === "between" ? staysText(g) : `inside the ${lim} limit`;
 		if (a.calc === "off") return {
 			short: `${side} the ${lim} limit, 2 weeks running`,
 			long: "The guardrail has been breached two weeks running",
@@ -2291,7 +2311,7 @@ function gapText(g, a) {
 			tone: "risk"
 		};
 		if (a.previousOut) return {
-			short: `Back inside the ${lim} limit`,
+			short: `Back ${within}`,
 			long: "Over the limit last week, back inside this week",
 			tone: "risk"
 		};
@@ -2301,7 +2321,7 @@ function gapText(g, a) {
 			tone: "risk"
 		};
 		return {
-			short: `Inside the ${lim} limit`,
+			short: within[0].toUpperCase() + within.slice(1),
 			long: "Inside the limit",
 			tone: "on"
 		};
@@ -2333,6 +2353,7 @@ function gapText(g, a) {
 var NO_VALUE$1, weekLabel;
 var init_format = __esmMin((() => {
 	init_numbers();
+	init_range();
 	init_vocabulary();
 	NO_VALUE$1 = "No value yet";
 	weekLabel = (w, weeks) => w >= weeks ? weeks >= 48 ? "year end" : "cycle end" : "week " + w;
@@ -2684,15 +2705,16 @@ function goalTrend(goal, cycle, checkIns) {
 	}
 	if (goal.kind === "range") {
 		const v = own.filter((c) => c.value != null).map((c) => c.value).slice(-3);
-		const safe = goal.range.bound === "atMost" ? -1 : 1;
-		const word = gapTrend(v.map((x) => (x - goal.range.limit) * safe));
+		const { bound, limit } = rangeSide(goal.range, v[v.length - 1]);
+		const safe = bound === "atMost" ? -1 : 1;
+		const word = gapTrend(v.map((x) => (x - limit) * safe));
 		if (word !== "worse") return {
 			word,
 			detail: null
 		};
 		return {
 			word,
-			detail: `${assessRange(goal, 1, v[v.length - 1], null).out ? "Further past" : "Closer to"} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(goal.range.limit, goal)}).`
+			detail: `${assessRange(goal, 1, v[v.length - 1], null).out ? "Further past" : "Closer to"} the limit at each of the last two check-ins: ${v.map((x) => fmt(x, goal)).join(" → ")} (limit ${fmt(limit, goal)}).`
 		};
 	}
 	const t = stagesTrend(goal, own);
@@ -2708,6 +2730,7 @@ var init_trend = __esmMin((() => {
 	init_plan();
 	init_status();
 	init_thresholds();
+	init_range();
 	init_vocabulary();
 }));
 // src/domain/attention.ts
@@ -3285,6 +3308,7 @@ function blankGoal(teamId, ownerId, parentId) {
 		shape: "straight",
 		bound: "atMost",
 		limit: "",
+		lower: "",
 		margin: "",
 		stages: [{
 			id: "s1",
@@ -3321,6 +3345,7 @@ function draftOf(g) {
 		decimals: String(g.decimals),
 		bound: g.range.bound,
 		limit: String(g.range.limit),
+		lower: g.range.lower != null ? String(g.range.lower) : "",
 		margin: String(g.range.margin)
 	});
 	if (g.kind === "milestone") d.stages = g.stages.map((s) => ({
@@ -3347,7 +3372,7 @@ function decimalsFor(d) {
 		const n = parseNumber(d.decimals);
 		return n != null && Number.isInteger(n) && n >= 0 && n <= 3 ? n : null;
 	}
-	const typed = d.kind === "metric" ? [d.start, d.target] : d.kind === "range" ? [d.limit] : [];
+	const typed = d.kind === "metric" ? [d.start, d.target] : d.kind === "range" ? d.bound === "between" ? [d.limit, d.lower ?? ""] : [d.limit] : [];
 	return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 function planQuestion(before, after) {
@@ -3381,7 +3406,7 @@ function planQuestion(before, after) {
 function planChanged(a, b) {
 	if (a.kind !== b.kind) return true;
 	if (a.kind === "metric" && b.kind === "metric") return a.plan.start !== b.plan.start || a.plan.target !== b.plan.target || a.plan.shape !== b.plan.shape || (a.plan.fromWeek ?? 0) !== (b.plan.fromWeek ?? 0) || (a.plan.endWeek ?? 0) !== (b.plan.endWeek ?? 0) || JSON.stringify(a.plan.points ?? []) !== JSON.stringify(b.plan.points ?? []);
-	if (a.kind === "range" && b.kind === "range") return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.margin !== b.range.margin;
+	if (a.kind === "range" && b.kind === "range") return a.range.bound !== b.range.bound || a.range.limit !== b.range.limit || a.range.lower !== b.range.lower || a.range.margin !== b.range.margin;
 	if (a.kind === "milestone" && b.kind === "milestone") return JSON.stringify(a.stages.map((s) => [s.name, s.dueWeek])) !== JSON.stringify(b.stages.map((s) => [s.name, s.dueWeek]));
 	return false;
 }
@@ -3440,6 +3465,7 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 		range: {
 			bound: d.bound,
 			limit: num(d.limit),
+			...d.bound === "between" ? { lower: num(d.lower) } : {},
 			margin: parseNumber(d.margin) ?? 0
 		}
 	};
@@ -3635,11 +3661,11 @@ function quarterResult(g, c, checkIns, q, week) {
 		const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
 		return r(done.length === due.length ? "met" : "missed", `${done.length} of ${due.length} ${due.length === 1 ? "stage" : "stages"} due ${done.length === 1 ? "was" : "were"} done`);
 	}
-	if (!ended) return r("open", `must stay ${g.range.bound === "atMost" ? "at most" : "at least"} ${fmt(g.range.limit, g)}`);
+	if (!ended) return r("open", `must stay ${staysText(g)}`);
 	const v = last?.value;
 	if (v == null) return r("missed", "no number reported");
-	const out = g.range.bound === "atMost" ? v > g.range.limit : v < g.range.limit;
-	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(g.range.limit, g)} limit`);
+	const out = rangeOut(g.range, v);
+	return r(out ? "missed" : "met", `${fmt(v, g)} at the end, ${out ? "outside" : "inside"} the ${fmt(rangeSide(g.range, v).limit, g)} limit`);
 }
 function quarterResults(g, c, checkIns, week) {
 	if (!isYear(c)) return [];
@@ -3666,6 +3692,7 @@ function yearWeeks(startDate) {
 var isYear, DAY$2, MONTHS$2, bornWeek;
 var init_year = __esmMin((() => {
 	init_format();
+	init_range();
 	init_goal();
 	init_plan();
 	init_status();
@@ -3820,7 +3847,7 @@ function goalResult(g, cycle, checkIns, week) {
 		else {
 			const end = own.filter((c) => c.week >= due && c.value != null).pop();
 			if (!end) return week > due ? make("missed", null) : null;
-			return (g.range.bound === "atMost" ? end.value > g.range.limit : end.value < g.range.limit) ? make("missed", end.week) : make("completed", end.week);
+			return rangeOut(g.range, end.value) ? make("missed", end.week) : make("completed", end.week);
 		}
 	}
 	if (hit != null) return make(hit <= due ? "completed" : "late", hit);
@@ -3860,7 +3887,7 @@ function storyOf(g, s, cycle, week, today) {
 			if (status === "stale") where += ` The plan for this week is ${fmt(planAt(g.plan, week, cycle.weeks), g)}.`;
 		}
 	} else if (g.kind === "range" && a.kind === "range") {
-		const lim = (g.range.bound === "atMost" ? "at most " : "at least ") + fmt(g.range.limit, g);
+		const lim = staysText(g);
 		where = a.actual == null ? `${NO_VALUE$1}. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ", and it isn’t" : a.near ? ", and it’s close" : ""}.`;
 	} else if (g.kind === "milestone" && a.kind === "milestone") {
 		const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);
@@ -3934,6 +3961,7 @@ var STORY_FLAGS, BEHIND;
 var init_story = __esmMin((() => {
 	init_checkin();
 	init_format();
+	init_range();
 	init_levels();
 	init_plan();
 	init_status();
@@ -4509,7 +4537,8 @@ function goalFields(g, l) {
 		f["Plan numbers"] = g.plan.points?.length ? g.plan.points.map((p) => `wk ${p.week}: ${fmt(p.value, g)}`).join(", ") : "—";
 	}
 	if (g.kind === "range") {
-		f.Limit = (g.range.bound === "atMost" ? "At most " : "At least ") + fmt(g.range.limit, g);
+		const says = staysText(g);
+		f.Limit = says[0].toUpperCase() + says.slice(1);
 		f["Warning margin"] = fmt(g.range.margin, g);
 	}
 	if (g.kind === "milestone") f.Stages = [...g.stages].sort((a, b) => a.dueWeek - b.dueWeek).map((s) => `${s.name} (wk ${s.dueWeek})`).join(", ") || "—";
@@ -4734,7 +4763,8 @@ var init_columns = __esmMin((() => {
 		what: "Must stay",
 		word: {
 			atMost: "at most",
-			atLeast: "at least"
+			atLeast: "at least",
+			between: "between"
 		},
 		also: {
 			atMost: [
@@ -4928,7 +4958,10 @@ var init_columns = __esmMin((() => {
 				const g = metricOf$1(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e("Limit", "Range goals: the number it must stay within.", (r) => rangeOf(r.g)?.range.limit ?? null),
+			e("Limit", "Range goals: the number it must stay within, or both of two (99.5–99.95).", (r) => {
+				const g = rangeOf(r.g)?.range;
+				return g ? g.lower != null ? `${g.lower}–${g.limit}` : g.limit : null;
+			}),
 			e("Must stay", `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => {
 				const g = rangeOf(r.g);
 				return g ? BOUND_WORDS.word[g.range.bound] : null;
@@ -5307,7 +5340,7 @@ var init_columns = __esmMin((() => {
 			},
 			Limit: {
 				required: { for: ["range"] },
-				format: "A number",
+				format: "A number, or two (99.5–99.95, 99.5 to 99.95)",
 				example: "5",
 				empty: "Must fix for a range goal"
 			},
@@ -7566,7 +7599,10 @@ function goalMustFix(d, ctx) {
 			}
 		}
 		if (d.kind === "range") {
-			number("limit", d.limit, ["limit-empty", "Enter the limit."]);
+			const between = d.bound === "between";
+			const lo = between ? number("lower", d.lower, ["lower-empty", "Enter the lower number."]) : null;
+			const hi = number("limit", d.limit, ["limit-empty", between ? "Enter the upper number." : "Enter the limit."]);
+			if (lo != null && hi != null && lo >= hi) add("lower", "lower-not-below", `The lower number (${withUnit(groupDigits(String(lo)), d.unit)}) must be below the upper one (${withUnit(groupDigits(String(hi)), d.unit)}).`);
 			const m = number("margin", d.margin, null);
 			if (m != null && m < 0) add("margin", "margin-negative", "Enter a warning margin of zero or more, or leave it empty.");
 		}
@@ -7678,7 +7714,11 @@ function checksOf(d, ctx) {
 			"target",
 			"target",
 			read(d.target)
-		]] : [[
+		]] : [...d.bound === "between" ? [[
+			"lower",
+			"lower limit",
+			read(d.lower)
+		]] : [], [
 			"limit",
 			"limit",
 			read(d.limit)
@@ -7784,8 +7824,8 @@ function checksOf(d, ctx) {
 		});
 	}
 	if (d.kind === "range") {
-		const limit = read(d.limit), margin = read(d.margin);
-		if (limit != null && margin != null && margin > 0 && margin >= Math.abs(limit)) ask({
+		const limit = read(d.limit), margin = read(d.margin), lower = d.bound === "between" ? read(d.lower) : null;
+		if (limit != null && margin != null && margin > 0 && (lower != null ? lower < limit && 2 * margin >= limit - lower : margin >= Math.abs(limit))) ask({
 			id: "margin-wide",
 			field: "margin",
 			key: `${limit}|${margin}`,
@@ -7945,6 +7985,7 @@ var init_goalEntry = __esmMin((() => {
 		"endWeek",
 		"points",
 		"bound",
+		"lower",
 		"limit",
 		"margin",
 		"stages",
@@ -7976,6 +8017,7 @@ var init_goalEntry = __esmMin((() => {
 		"start-empty",
 		"target-empty",
 		"limit-empty",
+		"lower-empty",
 		"stage-none"
 	]);
 	unsaidDraft = (d) => ({
@@ -9839,6 +9881,17 @@ function describe(cs) {
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
 }
+/** A Limit cell holding two numbers, a range between them: "99.5–99.95", "99.5 - 99.95", "99.5 to 99.95" (each may
+carry the goal's unit). The lower and upper as typed, or null for anything else. Here, not in columns.ts, so it loads
+with the import (the first download is at its budget). */
+function twoNumbers(raw) {
+	const m = /^\s*(-?[^\s–—-][^–—]*?)\s*(?:–|—|-|\bto\b)\s*(-?[^\s–—-].*?)\s*$/i.exec(String(raw));
+	if (!m || !/\d/.test(m[1]) || !/\d/.test(m[2])) return null;
+	return {
+		lower: m[1],
+		upper: m[2]
+	};
+}
 /** The import summary's File and Rows diffs (rule 9): "654 changed, 397 unchanged, 5 left out". */
 function fileDiffs(file, changed, unchanged, left) {
 	if (!file?.name) return [];
@@ -10901,10 +10954,16 @@ function* planChangesInChunks(input) {
 				answers: ANSWERS.pastPlan
 			}) === "leave") return;
 		}
-		if (val(r, "limit")) d.limit = val(r, "limit");
+		const two = twoNumbers(val(r, "limit"));
+		if (two) Object.assign(d, {
+			lower: two.lower,
+			limit: two.upper
+		});
+		else if (val(r, "limit")) d.limit = val(r, "limit");
 		const bound = readWord(BOUND_WORDS, val(r, "must stay"), "Goals", row, d.title);
 		if (bound === void 0) return;
-		if (bound) d.bound = bound;
+		if (two) d.bound = "between";
+		else if (bound) d.bound = bound;
 		if (val(r, "margin")) d.margin = val(r, "margin");
 		else if (!existing && d.kind === "range") d.margin = "0";
 		if (val(r, "stages")) {
@@ -12257,6 +12316,7 @@ var init_changeset = __esmMin((() => {
 		parentId: "Feeds into",
 		start: "Start",
 		target: "Target",
+		lower: "Limit",
 		limit: "Limit",
 		margin: "Margin",
 		decimals: "Decimals",
@@ -12276,6 +12336,7 @@ var init_changeset = __esmMin((() => {
 		"start-empty": "required-empty",
 		"target-empty": "required-empty",
 		"limit-empty": "required-empty",
+		"lower-empty": "required-empty",
 		"stage-none": "required-empty",
 		"feeds-loop": "loop",
 		"not-number": "not-a-number",
@@ -12286,6 +12347,7 @@ var init_changeset = __esmMin((() => {
 		"decimals-range": "unknown-word",
 		"same-as-start": "impossible-number",
 		"margin-negative": "impossible-number",
+		"lower-not-below": "impossible-number",
 		"stage-name": "stage-format",
 		"stage-week": "stage-format",
 		"stage-twice": "stage-format",
@@ -12428,13 +12490,18 @@ function goalsMeasuredBy(s, goals, metricId) {
 	const ids = new Set(linksOf(s).filter((l) => l.metricId === metricId && !l.removedAt).map((l) => l.goalId));
 	return goals.filter((g) => ids.has(g.id));
 }
-/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit. Milestones have none. */
+/** A goal's target in its metric: a metric goal's plan target, or a range goal's limit (between two numbers: the upper,
+with the lower beside it). Milestones have none. */
 function goalTarget(g) {
 	if (g.kind === "metric") return {
 		value: g.plan.target,
 		kind: "target"
 	};
-	if (g.kind === "range") return {
+	if (g.kind === "range") return g.range.bound === "between" ? {
+		value: g.range.limit,
+		kind: "between",
+		lower: g.range.lower
+	} : {
 		value: g.range.limit,
 		kind: g.range.bound === "atMost" ? "at most" : "at least"
 	};
@@ -12445,7 +12512,7 @@ function measureOf(s, goal) {
 	if (!link) return null;
 	const metric = liveMetrics(s).find((m) => m.id === link.metricId);
 	const target = goalTarget(goal);
-	const targetText = target && goal.kind !== "milestone" ? `${target.kind === "target" ? "Target" : target.kind === "at most" ? "At most" : "At least"} ${fmt(target.value, goal)}` : null;
+	const targetText = target && goal.kind !== "milestone" ? `${target.kind === "target" ? "Target" : target.kind === "at most" ? "At most" : target.kind === "at least" ? "At least" : `Between ${fmt(target.lower, goal)} and`} ${fmt(target.value, goal)}` : null;
 	return {
 		link,
 		metric,
@@ -12632,7 +12699,7 @@ function linkProblems(goal, m) {
 	else {
 		if (goal.unit.trim().toLowerCase() !== m.unit.trim().toLowerCase()) errors.push(`The goal is in ${goal.unit || "no unit"} and the metric is in ${m.unit}. Use the same unit for both.`);
 		const up = goal.kind === "metric" ? goal.plan.target > goal.plan.start : goal.range.bound === "atLeast";
-		const flat = goal.kind === "metric" && goal.plan.target === goal.plan.start;
+		const flat = goal.kind === "metric" ? goal.plan.target === goal.plan.start : goal.range.bound === "between";
 		if (goal.decimals > m.decimals) warnings.push(`The goal keeps ${placesText(goal.decimals)} and ${m.name} ${placesText(m.decimals)}. Check which is meant.`);
 		if (!flat && (up ? "higher" : "lower") !== m.direction) warnings.push(`The goal aims ${up ? "up" : "down"}, but for ${m.name} ${DIRECTION_LABEL[m.direction].toLowerCase()}. Check it’s meant.`);
 	}
@@ -13924,7 +13991,8 @@ function toJson$1(x) {
 					unit: g.unit,
 					decimals: g.decimals,
 					range: {
-						mustStay: g.range.bound === "atMost" ? "atMost" : "atLeast",
+						mustStay: g.range.bound,
+						...g.range.bound === "between" ? { lower: g.range.lower } : {},
 						limit: g.range.limit,
 						margin: g.range.margin
 					}
@@ -14238,6 +14306,7 @@ function aiBrief(x) {
 init_numbers();
 init_checkin();
 init_format();
+init_range();
 init_plan();
 init_status();
 init_thresholds();
@@ -14409,12 +14478,12 @@ function sinceFact(goal, own, better) {
 	};
 }
 function rangeFacts(goal, cycle, own, stale) {
-	const { bound, limit } = goal.range;
-	const safe = bound === "atMost" ? -1 : 1;
 	const valued = own.filter((c) => c.value != null);
 	const last = valued[valued.length - 1];
+	const { bound, limit } = rangeSide(goal.range, last?.value);
+	const safe = bound === "atMost" ? -1 : 1;
 	const out = [];
-	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	const lim = staysText(goal);
 	if (!last) out.push({
 		key: "plan",
 		label: "Against the limit",
@@ -14473,12 +14542,13 @@ function rangeFacts(goal, cycle, own, stale) {
 		tone: "flat"
 	});
 	else {
-		const outside = bound === "atMost" ? pr.value > limit : pr.value < limit;
+		const outside = rangeOut(goal.range, pr.value);
+		const near = fmt(rangeSide(goal.range, pr.value).limit, goal);
 		out.push({
 			key: "projection",
 			label: "Projection",
 			value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
-			detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
+			detail: `${outside ? "Outside" : "Inside"} the ${near} limit. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
 			tone: outside ? "bad" : "good",
 			projection: pr
 		});
@@ -14578,6 +14648,7 @@ function milestoneFacts(goal, own, week, stale) {
 // src/domain/scorecard.ts
 init_numbers();
 init_format();
+init_range();
 init_plan();
 init_status();
 init_vocabulary();
@@ -14777,9 +14848,10 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 		gap: null,
 		marks: null
 	};
-	const { bound, limit, margin } = goal.range;
+	const { margin } = goal.range;
+	const { bound, limit } = rangeSide(goal.range, a.actual);
 	const better = bound === "atLeast" ? 1 : -1;
-	const lim = `${bound === "atMost" ? "at most" : "at least"} ${fmt(limit, goal)}`;
+	const lim = staysText(goal);
 	const cells = [];
 	let gap = null;
 	if (a.actual == null) {
@@ -15714,7 +15786,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Whose call it is",
-				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call ${lower(FLAG.greener)} needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A stage up to ${RULES.lateWeeksOff} weeks late is ${lower(STATUS.risk)}; later than that is ${lower(STATUS.off)}.`]
+				text: [`The status is the owner’s call each week. The app works out what the numbers say and shows it beside the call. A call ${lower(FLAG.greener)} needs a reason, and is flagged.`, `A number goal is judged against the plan for that week, whether higher or lower is better. When the plan has moved less than the goal’s decimals can show (a new goal’s first week, say), the plan as written to those decimals counts as on plan. A range goal is at risk inside its warning margin or after one breach, and off track after two weeks out of range. A range between two numbers is out above its upper limit or below its lower one, and at risk within the margin of either. A stage up to ${RULES.lateWeeksOff} weeks late is ${lower(STATUS.risk)}; later than that is ${lower(STATUS.off)}.`]
 			},
 			{
 				heading: "Where to see it",
@@ -16779,6 +16851,7 @@ var CORE_ARTICLES = [
 				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
 				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
+				"A range keeps a number at most a limit, at least it, or between two numbers: Must stay has At most, At least and Between. Between asks for a lower and an upper limit (“between 99.5% and 99.95%”); the lower must be below the upper. The number is out of range above the upper or below the lower, and at risk within the warning margin of either; the chart shows both limits.",
 				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
 				"A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.",
@@ -16900,6 +16973,7 @@ var CORE_ARTICLES = [
 					"A question asked while you type is brought into view, and the cursor stays in the field. Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.",
 					"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 					"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
+					"A range can change between At most, At least and Between under Plan and target, as its limit can; Between asks for the lower limit too.",
 					"A goal’s type can’t change once check-ins have started."
 				]
 			},
@@ -18217,6 +18291,17 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "range-between",
+		date: "2026-11-12",
+		title: "Keep a number between two others",
+		points: [
+			"A range can now keep a number between two others: “keep it between 99.5% and 99.95%”. Must stay has Between beside At most and At least, in New goal and Change this goal.",
+			"It is out of range above the upper limit or below the lower one, and at risk within the warning margin of either. The chart draws both limits.",
+			"In a spreadsheet, write both numbers in Limit (99.5–99.95, or 99.5 to 99.95); an export writes them the same way."
+		],
+		articles: ["new-goal", "edit-goal"]
+	},
 	{
 		id: "mcp-keys-pages",
 		date: "2026-11-12",
@@ -24523,7 +24608,7 @@ function activeReadBack(goal, c) {
 		const to = goal.plan.endWeek ?? cy.weeks, was = to - (goal.plan.fromWeek ?? 0), n = to - c.fromWeek;
 		const num = (v) => fmt(v, goal);
 		parts.push(`From ${num(goal.plan.start)} in ${weekSays(cy, c.fromWeek, "sentence")} to ${num(goal.plan.target)} by ${weekSays(cy, to, "sentence")}: ${plural(n, "week")}${n !== was ? `, not the ${was} you proposed` : ""}.`);
-	} else if (goal.kind === "range") parts.push(`At or ${goal.range.bound === "atMost" ? "under" : "over"} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, "sentence")}.`);
+	} else if (goal.kind === "range") parts.push(`${goal.range.bound === "between" ? `Between ${fmt(goal.range.lower, goal)} and` : `At or ${goal.range.bound === "atMost" ? "under" : "over"}`} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, "sentence")}.`);
 	else {
 		const last = Math.max(0, ...goal.stages.map((s) => s.dueWeek));
 		parts.push(`${plural(goal.stages.length, "stage")}, the last due ${weekSays(cy, last, "sentence")}.`);
@@ -24606,6 +24691,18 @@ function row(args, map) {
 	return r;
 }
 /** Rows given as objects with column names, any case, spaces or underscores. */
+/** A range between two numbers as the Goals sheet says it: both in Limit (99.5–99.95), the same rule as an import. A
+lower bound given alone keeps the goal's own upper one. */
+function withLower(a, was) {
+	if (a.lower == null) return a;
+	const upper = a.limit ?? (was?.kind === "range" ? was.range.limit : void 0);
+	if (upper == null) throw new Error("A range between two numbers needs limit, the upper number, as well as lower.");
+	return {
+		...a,
+		limit: `${a.lower}–${upper}`,
+		must_stay: "between"
+	};
+}
 function rows$1(list, sheet) {
 	if (list == null) return [];
 	if (!Array.isArray(list)) throw new Error(`${sheet} should be a list of rows.`);
@@ -24833,8 +24930,13 @@ var GOAL_FIELDS = {
 	from: str("Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. \"2026-W46\". Left out: this week for a new goal."),
 	to: str("Move-a-number goals: the week the target is due, as a year and a week, e.g. \"2027-W13\": up to the last week of next year. Left out: the end of this goal year."),
 	due_week: int("Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year)."),
-	limit: num$1("Keep-in-range goals: the limit."),
-	must_stay: str("Keep-in-range goals: which side of the limit is good.", { enum: ["at most", "at least"] }),
+	limit: num$1("Keep-in-range goals: the limit; for a range between two numbers, the upper one."),
+	lower: num$1("Keep-in-range goals between two numbers (\"keep it between 99.5 and 99.95\"): the lower one, below limit. Giving it makes must_stay \"between\"."),
+	must_stay: str("Keep-in-range goals: which side of the limit is good, or between lower and limit.", { enum: [
+		"at most",
+		"at least",
+		"between"
+	] }),
 	margin: num$1("Keep-in-range goals: how close to the limit counts as at risk."),
 	stages: {
 		type: "array",
@@ -25195,10 +25297,10 @@ var CORE_TOOLS = [
 		},
 		async run(a, ctx) {
 			const g = goalRef(ctx, a.goal_id);
-			return change(ctx, { goals: [row({
+			return change(ctx, { goals: [row(withLower({
 				...a,
 				goal_id: g.id
-			}, {
+			}, g), {
 				goal_id: "id",
 				...GOAL_COLS
 			})] }, {
@@ -25309,10 +25411,10 @@ var CORE_TOOLS = [
 			openWorldHint: false
 		},
 		async run(a, ctx) {
-			return change(ctx, { goals: [row({
+			return change(ctx, { goals: [row(withLower({
 				owner: ctx.actor.name,
 				...a
-			}, {
+			}), {
 				type: "type",
 				...GOAL_COLS
 			})] }, {
@@ -47777,6 +47879,7 @@ function goalToRows(ws, g) {
 			range_bound: g.kind === "range" ? g.range.bound : null,
 			range_limit: g.kind === "range" ? g.range.limit : null,
 			range_margin: g.kind === "range" ? g.range.margin : null,
+			...g.kind === "range" ? { range_lower: g.range.bound === "between" ? g.range.lower ?? null : null } : {},
 			created_at: g.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
 			pending: g.pending ?? null,
 			also_helps: g.alsoHelps?.length ? g.alsoHelps : null,
@@ -47864,17 +47967,22 @@ function goalFromRows(r, stageRows) {
 			})) } : {}
 		};
 	}
-	if (r.kind === "range") return {
-		...common,
-		kind: "range",
-		unit: r.unit ?? "",
-		decimals: Number(r.decimals ?? 0),
-		range: {
-			bound: r.range_bound ?? "atMost",
-			limit: num(r.range_limit),
-			margin: num(r.range_margin)
-		}
-	};
+	if (r.kind === "range") {
+		const lower = num(r.range_lower);
+		const bound = r.range_bound === "between" && lower == null ? "atMost" : r.range_bound ?? "atMost";
+		return {
+			...common,
+			kind: "range",
+			unit: r.unit ?? "",
+			decimals: Number(r.decimals ?? 0),
+			range: {
+				bound,
+				limit: num(r.range_limit),
+				...bound === "between" ? { lower } : {},
+				margin: num(r.range_margin)
+			}
+		};
+	}
 	const stages = stageRows.filter((s) => s.goal_id === r.id).map((s) => ({
 		id: s.id,
 		name: s.name,

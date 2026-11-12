@@ -78,8 +78,11 @@ export interface MetricPlan {
 }
 
 export interface RangePlan {
-  bound: 'atMost' | 'atLeast';
+  /** Which side the number must stay: at most the limit, at least it, or between `lower` and the limit (the upper bound). */
+  bound: 'atMost' | 'atLeast' | 'between';
   limit: number;
+  /** A range between two numbers: the lower bound, below the limit. Absent for a one-sided range. */
+  lower?: number;
   /** Values this close to the limit count as at risk. */
   margin: number;
 }

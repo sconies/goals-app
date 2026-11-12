@@ -10,7 +10,7 @@ import { StatusShape } from './bits';
 import { lower, STAGE } from '../domain/vocabulary';
 
 /** Measures its own width so charts draw at real size: text stays 12px at any width. Grows to fit a key under the plot. */
-function Sized({ height, children }: { height: number; children: (w: number) => ReactNode }) {
+export function Sized({ height, children }: { height: number; children: (w: number) => ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useLayoutEffect(() => {
@@ -25,7 +25,7 @@ function Sized({ height, children }: { height: number; children: (w: number) => 
   return <div ref={ref} className="chart-box" style={{ minHeight: height, width: '100%' }}>{w > 0 && children(w)}</div>;
 }
 
-interface Frame { W: number; H: number; padL: number; padR: number; padT: number; padB: number }
+export interface Frame { W: number; H: number; padL: number; padR: number; padT: number; padB: number }
 
 /** Round ticks, 1, 2 or 5 × 10ⁿ apart, covering lo..hi in at most `steps` steps. */
 export function niceTicks(lo: number, hi: number, steps: number): number[] {
@@ -45,14 +45,14 @@ function scales(f: Frame, weeks: number, lo: number, hi: number) {
   return { X, Y };
 }
 /** The plain scale the sparklines and the range chart use: a little room above and below the values, no axis. */
-function looseScales(f: Frame, weeks: number, values: number[]) {
+export function looseScales(f: Frame, weeks: number, values: number[]) {
   let lo = Math.min(...values), hi = Math.max(...values);
   const pad = (hi - lo || Math.abs(hi) || 1) * 0.1;
   lo -= pad; hi += pad;
   return scales(f, weeks, lo, hi);
 }
 
-const line = (pts: [number, number][]) => pts.map(([x, y]) => x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
+export const line = (pts: [number, number][]) => pts.map(([x, y]) => x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
 /** Week ticks: in a goal year, the start of each quarter and now (Q1, Q3 and now on a phone); otherwise thirds and now. */
 const ticksFor = (weeks: number, today: number, wide: boolean) => {
   const year = weeks >= 48;
@@ -73,7 +73,7 @@ const textW = (t: string) => t.length * 6.8;
 
 /** The week labels under the plot: the first starts at the axis, the last ends at the plot's edge, and any that would
  *  come within 12px (16px on a phone) of another are left out, Now first. */
-function WeekLabels({ f, weeks, week, X, wide }: { f: Frame; weeks: number; week: number; X: (w: number) => number; wide: boolean }) {
+export function WeekLabels({ f, weeks, week, X, wide }: { f: Frame; weeks: number; week: number; X: (w: number) => number; wide: boolean }) {
   const gap = wide ? 12 : 16;
   const all = ticksFor(weeks, week, wide).map((w) => {
     const text = tickLabel(w, week, weeks), x = X(w), tw = textW(text);
@@ -92,7 +92,7 @@ function WeekLabels({ f, weeks, week, X, wide }: { f: Frame; weeks: number; week
  * The target (or limit): a label 4px clear above its line, with a halo so lines don't cross it. It sits at the right end of
  * the plot, unless the plan comes down onto the target there: then the left end, which the lines are far from.
  */
-const TargetLabel = ({ f, y, left, children }: { f: Frame; y: number; left?: boolean; children: ReactNode }) => (
+export const TargetLabel = ({ f, y, left, children }: { f: Frame; y: number; left?: boolean; children: ReactNode }) => (
   <text className="c-target-t" x={left ? f.padL + 4 : f.W - f.padR} y={targetLabelY(y)} textAnchor={left ? 'start' : 'end'}>{children}</text>
 );
 const targetLabelY = (y: number) => Math.max(12, y - 6);
@@ -102,7 +102,7 @@ const targetLabelY = (y: number) => Math.max(12, y - 6);
  * and the words, so nobody has to work out from the target whether a falling line is good news.
  */
 export const betterUp = (goal: MetricGoal | RangeGoal) => (goal.kind === 'metric' ? goal.plan.target >= goal.plan.start : goal.range.bound === 'atLeast');
-const Better = ({ up, x }: { up: boolean; x: number }) => (
+export const Better = ({ up, x }: { up: boolean; x: number }) => (
   <g className="c-better" data-better={up ? 'up' : 'down'}>
     <path className="c-better-arrow" d={up ? `M${x + 4} 15V4M${x} 8l4-4 4 4` : `M${x + 4} 4v11M${x} 11l4 4 4-4`} aria-hidden="true" />
     <text className="c-better-t" x={x + 13} y={13}>{up ? 'Higher is better' : 'Lower is better'}</text>
@@ -117,7 +117,7 @@ interface KeyItem { k: 'plan' | 'act' | 'fc' | 'orig' | 'ptg'; label: string }
  */
 export interface Scrub { read: (week: number) => string | null; hint?: string }
 
-function useScrub(weeks: number, x0: number, toWeek: (x: number) => number, scrub: Scrub | undefined, now: number) {
+export function useScrub(weeks: number, x0: number, toWeek: (x: number) => number, scrub: Scrub | undefined, now: number) {
   const [at, setAt] = useState<number | null>(null);
   const down = useRef(false);
   const pick = (e: PointerEvent<SVGSVGElement>) => {
@@ -370,55 +370,17 @@ function Marks({ marks, f, X, Y, clampV, target }: { marks: ChartMarks; f: Frame
   return <g className="c-marks">{out}</g>;
 }
 
-interface RangeProps { goal: RangeGoal; weeks: number; week: number; series: Point[]; height?: number; scrub?: Scrub; draw?: boolean; landed?: boolean }
-
-export function RangeChart(p: RangeProps) {
-  return <Sized height={p.height ?? 200}>{(w) => <RangeSvg {...p} W={w} H={p.height ?? 200} />}</Sized>;
-}
-
-function RangeSvg({ goal, weeks, week, series, scrub, draw, landed, W, H }: RangeProps & { W: number; H: number }) {
-  const compact = W < 420;
-  const f: Frame = { W, H, padL: compact ? 34 : 44, padR: 12, padT: 24, padB: 20 };
-  const { bound, limit, margin } = goal.range;
-  const inner = bound === 'atMost' ? limit - margin : limit + margin;
-  const m = Math.max(margin, 1);
-  const { X, Y } = looseScales(f, weeks, [...series.map((p) => p.value), limit + (bound === 'atMost' ? 1.5 : -1.5) * m, limit - (bound === 'atMost' ? 3 : -3) * m]);
-  const out = (v: number) => (bound === 'atMost' ? v > limit : v < limit);
-  const last = series[series.length - 1];
-  const sc = useScrub(weeks, 0, (px) => (px - f.padL) * weeks / (W - f.padL - f.padR), scrub, week);
-  const atPoint = sc.at != null ? series.find((p) => p.week === sc.at) : undefined;
-  const svg = (
-    <svg className={'chart' + (draw ? ' draw' : '') + (scrub ? ' scrubbable' : '')} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${goal.title}: ${last ? fmt(last.value, goal) + ' in week ' + last.week : 'no values yet'}, limit ${fmt(limit, goal)}, ${bound === 'atMost' ? 'lower' : 'higher'} is better`} {...sc.svg}>
-      <rect className="c-area" x={f.padL} y={Math.min(Y(limit), Y(inner))} width={W - f.padL - f.padR} height={Math.abs(Y(inner) - Y(limit))} />
-      <line className="c-target" x1={f.padL} x2={W - f.padR} y1={Y(limit)} y2={Y(limit)} />
-      <WeekLabels f={f} weeks={weeks} week={week} X={X} wide={!compact} />
-      {series.length > 0 && <polyline className="c-act" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
-      {series.map((p) => <circle key={p.week} cx={X(p.week)} cy={Y(p.value)} r={out(p.value) ? 5 : 3} className={(out(p.value) ? 'c-breach' : 'c-dot') + (p === last ? ' c-last' : '') + (landed && p === last ? ' landed' : '')} />)}
-      {draw && last && <circle className="c-dot-ring" cx={X(last.week)} cy={Y(last.value)} r={4} aria-hidden="true" />}
-      <TargetLabel f={f} y={Y(limit)}>Limit {fmt(limit, goal)}{compact ? '' : ' · shaded: warning margin'}</TargetLabel>
-      <Better up={bound === 'atLeast'} x={f.padL} />
-      {sc.at != null && (
-        <g className="c-scrub" aria-hidden="true">
-          <line x1={X(sc.at)} x2={X(sc.at)} y1={f.padT - 6} y2={H - f.padB} />
-          {atPoint && <circle className="c-scrub-dot" cx={X(atPoint.week)} cy={Y(atPoint.value)} r={5} />}
-        </g>
-      )}
-    </svg>
-  );
-  return scrub ? <><div className="chart-scrub" {...sc.wrap}>{svg}</div>{sc.readout}</> : svg;
-}
-
 /** A tiny trend line for lists: actuals against plan, no axes. */
 export function Spark({ goal, weeks, series }: { goal: MetricGoal | RangeGoal; weeks: number; series: Point[] }) {
   const W = 96, H = 32;
   const f: Frame = { W, H, padL: 2, padR: 2, padT: 4, padB: 4 };
-  const ref = goal.kind === 'metric' ? [goal.plan.start, goal.plan.target] : [goal.range.limit];
+  const ref = goal.kind === 'metric' ? [goal.plan.start, goal.plan.target] : [goal.range.limit, ...(goal.range.bound === 'between' ? [goal.range.lower!] : [])];
   const { X, Y } = looseScales(f, weeks, [...ref, ...series.map((p) => p.value)]);
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="spark">
       {goal.kind === 'metric'
         ? <polyline className="c-plan-faint" points={line(Array.from({ length: weeks + 1 }, (_, w) => [X(w), Y(planAt(goal.plan, w, weeks))]))} />
-        : <line className="c-target" x1={2} x2={W - 2} y1={Y(goal.range.limit)} y2={Y(goal.range.limit)} />}
+        : ref.map((v) => <line key={v} className="c-target" x1={2} x2={W - 2} y1={Y(v)} y2={Y(v)} />)}
       {series.length > 1 && <polyline className="c-act thin" points={line(series.map((p) => [X(p.week), Y(p.value)]))} />}
       {series.length > 0 && <circle className="c-dot" cx={X(series[series.length - 1]!.week)} cy={Y(series[series.length - 1]!.value)} r={2.5} />}
     </svg>
