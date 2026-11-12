@@ -10,7 +10,7 @@ Every problem the change engine finds is data: a kind, and a level its kind fixe
 Every problem `planChanges` finds is an **issue** with a **kind**, and the kind fixes its **level**:
 
 - **Must fix** (`must`): Faro can't record it truthfully. Nothing is saved while one is left, unless its rows are left out by an answer. Kinds: `required-empty`, `not-a-number`, `formula`, `precision`, `impossible-number`, `unknown-word`, `unknown-ref`, `ambiguous-ref`, `conflicting-refs`, `bad-key`, `duplicate`, `type-unclear`, `plan-order`, `stage-format`, `week-wrong`, `checkin-incomplete`, `cant-change`, `not-allowed`, `removal-refused`, `loop`.
-- **Check** (`check`): possible but unlikely. It is a question; the change saves once it is answered. Kinds: `near-ref`, `near-word`, `near-header`, `new-team`, `same-person`, `same-goal`, `other-goal`, `other-workspace`, `past-stage`, `past-plan`, `odd-number`, `plan-question`, `no-unit`, `decimal-comma`, `replaces-others`, `many-admins`, `totals-row`, `big-removal`, `feeds-lower`.
+- **Check** (`check`): possible but unlikely. It is a question; the change saves once it is answered. Kinds: `near-ref`, `near-word`, `near-header`, `two-columns`, `new-team`, `same-person`, `same-goal`, `other-goal`, `other-workspace`, `past-stage`, `past-plan`, `odd-number`, `plan-question`, `no-unit`, `decimal-comma`, `replaces-others`, `many-admins`, `totals-row`, `big-removal`, `feeds-lower`.
 - **Said** (`note`): how a row was read (an owner matched by name, a type read from the columns, a date read as a week). Never blocks.
 
 An issue carries its sheet and row, the record's name, its column in the sheet's own words, what the cell said (`found`), the near match offered (`suggest`), the sentence for that one row (`message`: what is wrong, what was read, what would be right), the answers its group takes, and its group's id. Issues are listed in the file's order: sheet (Goals, Plan, Check-ins, People), then row.
@@ -45,7 +45,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Not self-explanatory
 
 - **Not self-explanatory:** A group’s id is its kind, sheet, column and folded value found, written with hyphens for spaces and colons between (`near-ref:goals:team:ci-dc`): a rebuild may make ids its own way, as long as the same problem gives the same id. The titles of groups are Faro’s wording; the conformance rows (spec/conformance/import.csv) score the kind, level, group and the one row’s sentence.
-- **Not self-explanatory:** IM3 rewrote the import’s preview around these groups (Data’s tables and set-up keep the older list until IM8). near-header (reading the file’s headers) comes with IM5; new-team’s set-up case with ST4. other-workspace is asked by the preview from the file’s Start here sheet (rule: what was read), before the engine runs.
+- **Not self-explanatory:** IM3 rewrote the import’s preview around these groups (Data’s tables and set-up keep the older list until IM8). near-header and two-columns (reading the file’s headers) come with IM5; new-team’s set-up case with ST4. other-workspace is asked by the preview from the file’s Start here sheet (rule: what was read), before the engine runs.
 
 ## Where it lives
 

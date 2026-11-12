@@ -2,6 +2,42 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Planning state, Thursday 12 November, 18:30 UTC (planning session handing over)
+
+- **How we work now:** no freeze. Lane (11 Nov): "Do all the recommended work." Each track merges its own green PRs after the gate and reports to the planning session **once, when done or blocked**, never with progress updates. A new planning session tells every track its new session ID.
+- **Open build tracks (Opus):**
+  - **Track 1:** Home, reviews and check-in, at session_012kbr8xQDAVs6poTHiGk7z9. Doing, in order: merge HM1 (#169) and #171; wire "Correct this check-in" to the engine's `correct` mode; gate the pushed branches (gl2-map-fixes, nv2-fixes, find-goals-scope, ck2-fixes, fs2-fixes) and FS1's mediums; RV7; HM2; the habit moment (Lane: build after HM2, measured as "% checked in before the review, unnudged"); N12's Find timing.
+  - **Track 2:** goal entry and set-up, at session_012kbr8zF82vbVLvoqfYaQad. Doing: #220 (GE9 mediums plus the U4 fix) and #228 (GE3 mediums), then U93's phone fold, GE10 code (its migration merged as #221), ST1, then two-sided range goals (Lane: build now).
+  - **Track 3:** import, at session_012kbr921FQTvNkQhGBnLtxb. Doing: the IM4 and IM5 review mediums, then IM7, IM6, IM8.
+  - **Track 4:** architecture, at session_012kbr8xdoEbLiMQaBAxLeuJ. Doing: #193's review mediums first (a failed engine-chunk load makes Post check-in fail silently; Home isn't sorted worst first as What's new says), then AX5 part 2, FT2, FT1, SW1, SW2, AX2, AX6.
+  - **Track 5 (polish):** handed over; no session is running. The handover is in PR "Handover: track 5" (branch track5-handover). Start "track 5b" with the prompt in it: the HIGH (a set-up check-in for someone else's stages bypasses owner-only), then #227's mediums 2 and 5, `update_markup`'s half-save, the small lows, and medium 3 or the backlog.
+  - **Track 6:** the handoff kit (KT), at session_012kbr8yJLEadWBYmVvsaUEK. Doing: gap 1(a), then the rest in the review's order (`docs/reviews/2026-11-12-handoff-kit-review.md`). R5 is spec only (Lane).
+  - **Track 7:** at session_012kbr91SYQ4Rmp7onTQagpq. Doing: three bugs from Lane's register load (earlier quarters judged "Not met" for goals created in week 46; MCP create doesn't return the key; goal search returns JSON or text inconsistently), then backlog rows GD, BL, MS, BT, MI, GR, MT, TG, MC, WM after SM.
+  - **Reviewer:** Fable 5.2 at session_012kbr8y4Bh3MudNC1bdo3RN reviews every merge from #121 onwards (log on branch build-reviews, #134) and sends high findings to the owning track.
+- **Decided on 12 Nov:**
+  - Feedback stays one inbox; only admins triage (#222).
+  - Start over: admins only in their own workspaces (#222).
+  - The workspace boundary release (#222).
+  - Check-ins are owner only (#227); the two admin exceptions, import and Data's tables, are kept and labelled (#232).
+  - R5 is spec only.
+  - The habit moment is built.
+  - Two-sided ranges are built.
+  - Backlog items NR (readings fill in the check-in) and SM (small workspaces).
+  - The kit's ten gaps (KT) are built.
+  - Muse's chart and "Needs attention" findings are by design.
+- **Waiting for Lane:**
+  1. Turn on "Allow auto-merge" (GitHub → Settings → General → Pull Requests). Six tracks race to merge, and every PR conflicts in whatsNew.ts and api/mcp.js.
+  2. Confirm or drop the 3 KB `MARGIN_KB` on the bundle budgets that #192 brought in, citing "Lane, 12 Nov". It's unconfirmed. Budgets are 265 and 324 KB against 263 and 321 KB, under R4's 300.
+  3. NR's four questions: pre-fill or post; readings per team slice; how old a reading may be; what an override does.
+  4. Which of track 7's new backlog rows to build, and in what order.
+  5. Whether the metrics register Lane loaded into "Candy shop" is real company data (CLAUDE.md: Faro never holds real data).
+  6. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+- **Habits learned:**
+  - Rebuild api/mcp.js after every merge of main, from a real node_modules (`cp -al`, never `ln -s`).
+  - Run only one eval run per machine; U20, U58 and P9 time out under load.
+  - Never raise the bundle budgets.
+  - Outside AI reviews are claims to reproduce, not orders.
+
 ## Where things are
 
 | What | Where |

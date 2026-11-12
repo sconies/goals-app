@@ -20,6 +20,11 @@ describe('rule 3: the header row', () => {
     expect(readHeader([['Name', 'Department', 'Salary band']]).kind).toBeNull();
     expect(readHeader([['Name', 'Email']]).kind).toBe('people');
   });
+  it('judges a People sheet with each kind’s own names: Title and Objective don’t make it Goals (#199 review)', () => {
+    expect(readHeader([['Name', 'Email', 'Title']]).kind).toBe('people');
+    expect(readHeader([['Name', 'Email', 'Team', 'Objective']]).kind).toBe('people');
+    expect(readHeader([['Title', 'Owner', 'Target']]).kind).toBe('goals');
+  });
   it('a header one letter out is near', () => {
     expect(readHeader([['Key', 'Goal', 'Targett']]).columns[2]).toMatchObject({ header: 'Targett', as: 'Target', how: 'near' });
   });
@@ -45,6 +50,26 @@ describe('rule 3 in the engine (every door)', () => {
     const answered = run({ goals: [row] }, { [g.id]: { choice: 'use' } });
     expect(answered.groups.filter((x) => x.level === 'must' || x.level === 'check').map((x) => x.kind)).toEqual([]);
     expect(answered.commit!.goals![0]).toMatchObject({ title: 'Pipeline cache hit rate', ownerId: 'rhea', unit: '%', plan: { target: 90 } });
+  });
+  it('a near header’s Must fix waits for its question (#199 review)', () => {
+    const cs = run({ goals: [row] });
+    expect(cs.groups.map((x) => x.kind)).toContain('near-header');
+    expect(cs.issues.filter((x) => x.level === 'must' && x.column === 'Target')).toEqual([]);
+    const id = cs.groups.find((x) => x.kind === 'near-header')!.id;
+    const no = run({ goals: [row] }, { [id]: { choice: 'ignore' } });
+    expect(no.issues.some((x) => x.level === 'must' && x.column === 'Target')).toBe(true);
+  });
+  it('two columns read as one are asked about, and the one chosen is read (#199 review)', () => {
+    const two = { __row: '2', goal: 'Pipeline cache hit rate', 'goal name': 'Cache hits', owner: 'Rhea Kapoor', team: 'CI/CD', unit: '%', start: '20', target: '90' };
+    const cs = run({ goals: [two] });
+    const g = cs.groups.find((x) => x.kind === 'two-columns')!;
+    expect(g.title).toBe('Two columns on Goals are read as Goal: “goal” and “goal name”. Which should be read?');
+    expect(g.answers.map((a) => a.label)).toEqual(['Read “goal”', 'Read “goal name”']);
+    expect(cs.issues.filter((x) => x.level === 'must' && x.column === 'Goal')).toEqual([]);
+    expect(cs.commit).toBeNull();
+    const picked = run({ goals: [two] }, { [g.id]: { choice: 'use:goal name' } });
+    expect(picked.commit!.goals![0]!.title).toBe('Cache hits');
+    expect(run({ goals: [two] }, { [g.id]: { choice: 'use:goal' } }).commit!.goals![0]!.title).toBe('Pipeline cache hit rate');
   });
   it('reads a header that differs only by punctuation, an accent or spacing as its column (#199 review)', () => {
     const lead = s.goals.find((g) => g.id === 'ns-lead')!;
