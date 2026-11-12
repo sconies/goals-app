@@ -76,6 +76,8 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
   const { col } = useGoalColumns();
+  // The sheet's code arrives a moment after Goals opens, not in the first download, so Filters opens at once.
+  useEffect(() => { const t = window.setTimeout(() => { void loadSheet(); }, 1200); return () => window.clearTimeout(t); }, []);
   const names = {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
@@ -90,7 +92,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
         <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} find={find} />
         {lead}
         {/* On a phone Sort is in the same sheet as the filters, so the button says both (goals spec, 2.4). */}
-        <button type="button" className="btn filters-open" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
+        <button type="button" className="btn filters-open" aria-haspopup="dialog" onPointerEnter={() => void loadSheet()} onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
         <label className="filter-sort inline-sort" title={sortOff}><span className="sr">Sort</span>
           <select className="input" disabled={!!sortOff} aria-description={sortOff} value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
@@ -263,4 +265,5 @@ function SaveViewSheet({ params, view, onClose }: { params: string; view?: Saved
 }
 
 // The sheet with every filter loads when first opened.
-const FilterSheet = lazy(() => import('./GoalFilterSheet').then((m) => ({ default: m.FilterSheet })));
+const loadSheet = () => import('./GoalFilterSheet');
+const FilterSheet = lazy(() => loadSheet().then((m) => ({ default: m.FilterSheet })));
