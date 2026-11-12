@@ -12,8 +12,10 @@ export interface WeekProgress {
   upcoming: Goal[];
 }
 
-/** The first week a goal's check-in is due: the week it was set up in, or the next one when it was set up after that week's review day. */
-export const firstDueWeek = (g: Pick<Goal, 'createdAt'>, cycle: Cycle) => firstWeekFrom(cycle, g.createdAt, cycle.reviewDay);
+/** The first week a goal's check-in is due: the week it was set up in, or the next one when it was set up after that week's review day; never before its plan's From. */
+export const firstDueWeek = (g: Pick<Goal, 'createdAt'> & Partial<Pick<Goal, 'kind'>> & { plan?: { fromWeek?: number } }, cycle: Cycle) =>
+  // A plan whose From is still to come is first due in that week (goal entry, rule 13: notStarted).
+  Math.max(firstWeekFrom(cycle, g.createdAt, cycle.reviewDay), g.kind === 'metric' ? g.plan?.fromWeek ?? 0 : 0);
 
 /** The person's goals this week: which are checked in and which are still due. */
 export function weekProgress(personId: string, s: Snapshot, cycle: Cycle, week: number, today: Date): WeekProgress {

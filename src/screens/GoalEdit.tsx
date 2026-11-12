@@ -2,19 +2,20 @@ import { sameTitleNote } from '../domain/people';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
-import { buildGoal, draftOf, planChanged, type GoalDraft } from '../domain/goal';
-import { checksContext, goalChecks, goalMustFix, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
+import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
+import { checksContext, goalChecks, goalMustFix, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
-import { DueField, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
-import { weekDates, yearEndWeek } from '../domain/plan';
+import { FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
+import { WeekPick } from '../ui/WeekPick';
+import { lastWeekOffered } from '../domain/weeks';
+import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
@@ -49,7 +50,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
-  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
+  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const loc = useLocation();
@@ -72,7 +73,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   // What can't be saved (goal entry, rule 2): the same rule and words as New goal, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
   const parentG = app.goal(d.parentId);
-  const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
+  const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing: goal, checkIns: app.checkInsOf(goal), door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parentG ? { title: parentG.title } : null, loops: !!parentG && makesLoop(goal.id, parentG.id, app.snapshot.goals) });
   const errors: Partial<Record<GoalField, string>> = {};
   for (const f of fix) errors[f.field] ??= f.text;
   const err = (k: GoalField) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
@@ -86,7 +87,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const answers: GoalAnswers = d.answers ?? {};
   const checks = goalChecks(d, checksContext(d, { person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals) },
-    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, mustFix: fix, metric: goal.kind === 'metric' ? measure?.metric ?? null : null }));
+    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: goal.kind === 'metric' ? measure?.metric ?? null : null }));
   const open = unanswered(checks, answers);
   const confirmed = open.length === 0;
   const onNo = (c: GoalCheck) => { if (c.opens) nav('/goals/' + c.opens); else if (c.noDoes) set(c.noDoes); };
@@ -94,12 +95,12 @@ function EditSheet({ goal }: { goal: Goal }) {
     <Questions checks={checks.filter((c) => c.field === f)} answers={answers} onAnswer={(c) => set({ answers: { ...answers, [c.slot]: c.key } })} onNo={onNo}
       onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest }); }} alertSlot={tried ? open[0]?.slot ?? null : null} />
   );
-  // When the target is due, and the plan from the shape (before any numbers typed by hand), for the plan table.
-  const yearEnd = yearEndWeek(cycle);
-  const endOptions = dueOptions(cycle, week, yearEnd);
-  const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
+  // From and To (rule 13), picked; and the plan from the shape (before any numbers typed by hand), for the plan table.
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal });
+  const endChoice = span.to;
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
   const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
-    ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(goal.plan.fromWeek ? { fromWeek: goal.plan.fromWeek } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
+    ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(span.from ? { fromWeek: span.from } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
     : null;
   const reasonOk = d.reason.trim().length >= MIN_REASON;
   const below = new Set<string>();
@@ -168,20 +169,25 @@ function EditSheet({ goal }: { goal: Goal }) {
           </div>
           {goal.kind === 'metric' && (
             <>
-              <div className="pair">
-                <label className="field"><span className="field-label">Start{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
+              {/* Baseline with From, then Target with To: each a number and a week, picked (2.6, item 2; 2.13). */}
+              <div className="week-rows">
+                <label className="field"><span className="field-label">Baseline{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
+                <div><WeekPick cycle={cycle} week={week} field="from" label="From" value={span.from} onChange={setFrom} invalid={tried && !!errors.fromWeek} dataField="fromWeek" />{err('fromWeek')}</div>
                 <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
+                <div><WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" value={endChoice} onChange={(n) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} })} invalid={tried && !!errors.endWeek} dataField="endWeek" />{err('endWeek')}</div>
               </div>
+              <p className="hint span-says">{spanSays(cycle, span.from, endChoice, week)}</p>
               {questions('unit')}
               {questions('start')}
+              {questions('fromWeek')}
               {questions('target')}
+              {questions('endWeek')}
               {reasonField}
               <div className="field"><span className="field-label" id="shape-l">How progress comes</span>
                 <div className="seg full" role="group" aria-labelledby="shape-l">
                   {SHAPES.map(([k, l]) => <button key={k} type="button" aria-pressed={d.shape === k} onClick={() => set({ shape: k })}>{l}</button>)}
                 </div>
               </div>
-              <DueField label="When it’s due" labelClass="field-label" options={endOptions} choice={endChoice} onChoose={(w) => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })} dates={weekDates(cycle, endChoice)} />
               {/* The week-by-week numbers are for the few who set them by hand; a rename or a new owner shouldn't wade through them. */}
               {shapedPlan && (
                 <details className="disclose" open={Object.values(d.points ?? {}).some((v) => String(v).trim() !== '')}>
@@ -207,7 +213,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           )}
           {goal.kind === 'range' && <>{questions('unit')}{questions('limit')}{questions('margin')}</>}
           {goal.kind === 'milestone' && (
-            <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
+            <StageFields stages={d.stages} cycle={cycle} week={week} labelClass="field-label" error={null} rowErrors={tried ? stageErrors(fix) : []}
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
           {goal.kind !== 'metric' && reasonField}

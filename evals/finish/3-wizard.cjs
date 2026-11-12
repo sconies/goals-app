@@ -12,8 +12,8 @@ const cont = async (p) => { await p.getByRole('button', { name: /Continue/ }).cl
 const toNumbers = async (p, table = true) => {
   await name(p); await cont(p); await team(p); await cont(p);
   await p.getByLabel('Unit').fill('%');
-  await p.getByLabel(/^Today \(week/).fill('20');
-  await p.getByLabel(/^Target \(week/).fill('90');
+  await p.getByLabel(/^Baseline$/).fill('20');
+  await p.getByLabel(/^Target$/).fill('90');
   await p.waitForTimeout(250);
   if (table) { await p.getByText('Adjust the plan week by week').click(); await p.waitForTimeout(100); }
 };
@@ -49,13 +49,12 @@ module.exports = {
       if (segs[0][1] !== segs[1][1]) f('(9) done and current steps are different colours');
       if (segs[3][1] !== 'rgb(210, 206, 196)') f(`(9) steps to come are ${segs[3][1]}`);
       // (22) the unit lines up with today (decimals are worked out and said in a line: goal entry 2.4)
-      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Today \(week/))];
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Baseline$/))];
       if (!near(u.x, t.x)) f(`(22) Unit (${u.x}) doesn't line up with Today (${t.x})`);
       if (await p.getByLabel('Decimals', { exact: true }).count()) f('(22) Decimals is still a field to fill in');
-      // (8) a single due date is words
-      if (await p.getByRole('button', { name: 'Year end' }).count()) f('(8) a single due date is still a one-button choice');
-      const due = p.locator('.due-only');
-      if (!/^Year end · due week \d+/.test((await due.textContent()) || '') || (await css(due, 'fontSize')) !== '15px') f('(8) the due date is not said plainly at 15px');
+      // (8) the due week is a picked week said in words, with what it is (GE9's week picker)
+      const due = p.getByRole('button', { name: /^To Week \d+ · / });
+      if (!(await due.count()) || !/^The end of \d{4}$/.test(((await p.locator('.weekpick', { has: due }).locator('.weekpick-is').textContent()) || '').trim())) f('(8) To does not start as the year’s end, said in words');
       // (5) segments 36px in a 44px track
       const seg = await box(p.locator('.seg').first()); const sb = await box(p.locator('.seg button').first());
       if (!near(seg.h, 44, 0.5) || !near(sb.h, 36, 0.5)) f(`(5) segmented track ${seg.h}px, segment ${sb.h}px`);
@@ -95,9 +94,9 @@ module.exports = {
       if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53' || xt.length < 4) f(`(2) at ${w} the x-axis is ${xt.map((t) => t[1]).join(', ')}`);
       const gaps = xt.slice(1).map((t, i) => t[0] - xt[i][0]);
       if (Math.min(...gaps) < 36) f(`(2) at ${w} week labels are ${Math.min(...gaps).toFixed(0)}px apart`);
-      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Today \(week/))];
-      const g = await box(p.getByLabel(/^Target \(week/));
-      if (!near(u.x, t.x) || !near(t.y, g.y)) f(`(22) at ${w} Unit and Today/Target aren't one grid`);
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Baseline$/))];
+      const g = await box(p.getByLabel(/^Target$/));
+      if (!near(u.x, t.x) || !near(t.x, g.x)) f(`(22) at ${w} Unit, Baseline and Target aren't one column`);
       // Each date on one line: its text has one line box.
       const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
         const r = document.createRange(); r.selectNodeContents(e);
@@ -135,8 +134,8 @@ module.exports = {
       const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       if (rr.length !== 5 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
-      const date = await box(p.locator('.summary-card .nobreak'));
-      if (date.h > 24) f('(23) the due date breaks inside itself');
+      // (23) the plan is read back with its weeks' dates (GE9): "from 20% in week 45 (2–8 Nov 2026) to 90% by week 53 (…)".
+      if (!/by week \d+ \(\d/.test((await p.locator('.summary-card').textContent()) || '')) f('(23) Check doesn’t say the due week with its dates');
       await c.close();
     }
 
@@ -170,7 +169,7 @@ module.exports = {
       }
       await p.getByLabel('Stage 1', { exact: true }).fill('Threat model');
       await p.getByRole('button', { name: 'Add a stage' }).click();
-      if ((await p.locator('.stage-head').count()) !== 1) f('(12) the Stage / Due week labels repeat');
+      if ((await p.locator('.stage-head').count()) !== 1) f('(12) the Stage / Due labels repeat');
       const rows = await p.locator('.stage').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.top, r.bottom]; }));
       if (w > 600 && !near(rows[1][0] - rows[0][1], 12, 1)) f(`(12) stage rows are ${rows[1][0] - rows[0][1]}px apart`);
       const [rm, inp] = [await box(p.getByRole('button', { name: 'Remove stage 1' })), await box(p.getByLabel('Stage 1', { exact: true }))];
@@ -200,7 +199,8 @@ module.exports = {
       const lv = p.locator('.seg[aria-labelledby="level-l"] button[aria-pressed]');
       if ((await lv.count()) !== 3 || (await p.locator('.optlist').count())) f('(17) Level is not the wizard\'s segmented control');
       await p.getByLabel(/^Target/).fill('85'); await p.waitForTimeout(150);
-      const [pair, reason] = [await box(p.locator('.pair').first()), await box(p.locator('.reason-field'))];
+      // The numbers end with the line saying their weeks (GE9); the reason comes straight after.
+      const [pair, reason] = [await box(p.locator('.goal-edit .span-says').first()), await box(p.locator('.reason-field'))];
       if (!near(reason.y - pair.b, 16, 1)) f(`(19) "Why change it?" is ${reason.y - pair.b}px under the numbers`);
       const help = p.locator('.reason-field > .hint'); const ta = await box(p.getByLabel('Why change it?'));
       if (!near((await box(help)).y - ta.b, 4, 1)) f('(19) the reason helper is not 4px under the box');
@@ -297,7 +297,7 @@ module.exports = {
       if (!(await p.getByText('Choose a level.').isVisible().catch(() => false))) f('new goal: Rhea is not asked the level');
       await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
       await cont(p);
-      await p.getByLabel('Unit').fill('%'); await p.getByLabel(/^Today \(week/).fill('20'); await p.getByLabel(/^Target \(week/).fill('90');
+      await p.getByLabel('Unit').fill('%'); await p.getByLabel(/^Baseline$/).fill('20'); await p.getByLabel(/^Target$/).fill('90');
       await cont(p);
       const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
       if (!/Team level, top of its own tree\./.test(fits)) f(`new goal: Where it fits reads “${fits}”`);

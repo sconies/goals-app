@@ -188,7 +188,9 @@ const GOAL_FIELDS = {
   start: num('Move-a-number goals: where it starts.'),
   target: num('Move-a-number goals: the target.'),
   plan_shape: str('Move-a-number goals: how the plan moves from start to target.', { enum: ['straight', 'back-loaded', 'stepped'] }),
-  due_week: int('Move-a-number goals: the week the target is due, from the cycle start (weeks beyond the cycle run into the next one, up to 104).'),
+  from: str('Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal.'),
+  to: str('Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year.'),
+  due_week: int('Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year).'),
   limit: num('Keep-in-range goals: the limit.'),
   must_stay: str('Keep-in-range goals: which side of the limit is good.', { enum: ['at most', 'at least'] }),
   margin: num('Keep-in-range goals: how close to the limit counts as at risk.'),
@@ -198,7 +200,7 @@ const GOAL_FIELDS = {
   source: str('Where the number comes from.'),
   definition: str('Exactly what is counted.'),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
 
 
 const CORE_TOOLS: ToolDef[] = [
