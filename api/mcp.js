@@ -15167,8 +15167,8 @@ function groupWatched(all) {
 		fine: all.filter((a) => !needsAttention(a) && !a.handled)
 	};
 }
-/** The next session of a review the person takes part in, today's included. */
-function nextReview(personId, s, cycle, week, today) {
+/** The next session of every review the person takes part in, soonest first: two on one day are both here (HM1 review). */
+function nextReviews(personId, s, cycle, week, today) {
 	return s.reviews.filter((r) => r.people.includes(personId)).map((r) => {
 		const w = upcomingSessionWeek(r, cycle, week, today);
 		const date = sessionDate(r, cycle, w);
@@ -15180,7 +15180,7 @@ function nextReview(personId, s, cycle, week, today) {
 			weekday: WEEKDAY[r.weekday] ?? "",
 			days: 0 - daysSince(date, today) + 0
 		};
-	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))[0] ?? null;
+	}).filter((x) => x.week <= cycle.weeks).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
 }
 /** This week's sessions the person is in that are past their date and not held, longest past first. */
 function missedReviews(personId, s, cycle, week, today) {
@@ -15205,7 +15205,13 @@ function dashboard(personId, s, cycle, week, today) {
 		total: goals.length,
 		streak: mine.length ? onTimeStreak(personId, s, cycle, week) : null,
 		watching: s.watches.some((w) => w.personId === personId) ? groupWatched(watched.map((g) => attentionFor(g, s, cycle, today))) : null,
-		next: nextReview(personId, s, cycle, week, today),
+		...(() => {
+			const upcoming = nextReviews(personId, s, cycle, week, today);
+			return {
+				next: upcoming[0] ?? null,
+				upcoming
+			};
+		})(),
 		missed: missedReviews(personId, s, cycle, week, today)
 	};
 }
@@ -15690,7 +15696,8 @@ var CORE_ARTICLES = [
 				list: [
 					"The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.",
 					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
-					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.",
+					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review; with two reviews on one day, the lead takes one and the cell the other. Once the year has ended, no review is said to be not held.",
+					"While someone waits for your response, Home doesn’t say nothing is asked of you: it says how many asks wait. If you’re an admin, a note says when the year is ending or has ended, with Start for the next one.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
 					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
@@ -18291,6 +18298,18 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "home-after-review",
+		date: "2026-11-12",
+		title: "Home says what waits, and keeps every review",
+		points: [
+			"While an ask waits for your response, Home no longer says nothing is asked of you.",
+			"On a phone, the lead’s line and the quiet line wrap instead of being cut short.",
+			"Two reviews on one day both show on Home, and once the year has ended no review is said to be not held.",
+			"Admins see again when the year is ending, with Start for the next one."
+		],
+		articles: ["home"]
+	},
 	{
 		id: "forms-close-in-words",
 		date: "2026-11-12",
