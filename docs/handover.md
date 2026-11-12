@@ -56,7 +56,6 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
-<<<<<<< HEAD
 ## Track 1, Thursday 12 November, 18:10 UTC (session full, handing over; supersedes the evening entry below)
 
 - **Merged today:** HM1 (#169), the correction (#225: Correct this check-in posts mode `correct`, with a reason, History's line and Undo; journey U142), #171 (U9, U111, U23).
@@ -72,7 +71,7 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 
   Lows: your goals with nothing flagged come in stored order (ask with `sort: 'worst'` in `useMineAsk`); unused `useGoalCounts` calls; sessionToDo, the on-time test and day names restated; the check-in lead and the cell both say the review is today; no `homeFacts` test at the year's end or with two sessions; "Example: Platform Engineering" under the greeting.
 - **Next, in the brief's order:** the four branches above; FS1's mediums; RV7 and HM2 (`rv7-who-may-speak`, `hm2-asks-wait` are stale: re-apply only their intended files, as the evening entry says); the habit moment; N12's Find timing and #110's lows.
-=======
+
 ## Track 5 (polish), Thursday 12 November, 18:15 UTC (session past half full, handing over)
 
 Brief: the planning session's polish track (Muse's review of 12 Nov, items 1 to 6), then Lane's decisions of the same day. **Merged:** #207 (no "Check in for" in an admin's goal menu; backlog SM), #209 (the map's wait said only after 300 ms; F6), #213 (FLIP keyed by row kind, so a layout switch draws in place; `evals/layoutSwitch.eval.ts`, F5), #222 (the workspace boundary: admins-only triage `mayTriage`, `mayStartOver`, `/inbox`, the switcher says Switch, the can't-open page lists other workspaces, `landingLine`, `WORKSPACE_MEANS`), #227 (owner-only check-ins: `mayPostCheckIn` in `goalRights.ts`, asked by `judge` in `planChanges`), #232 (R1 names the two admin exceptions, `ADMIN_CHECK_IN_DOORS`, and a test that each records who). Not reproduced or by design, reported: Map Delete (off since 9 Nov), the status mark (not clickable-looking), Needs attention 2 vs 0 (the count follows the tab and leaves out what is being handled), the missing spaces (the reviewer's tool).
@@ -94,7 +93,6 @@ Brief: the planning session's polish track (Muse's review of 12 Nov, items 1 to 
 - Merging main: take main's What's new and put the branch's entry back on top (an entry needs its closing `},` before main's next one).
 - U4 (8.9, "publishing is not confirmed") fails on main: not this track's, reported for track 2. U78 and P9 time out under four-shard load and pass alone (`ONLY=U78,PLATFORM CHECKS=P9`).
 - Journey ids: U141 is this track's; other tracks took U137 and U142.
->>>>>>> origin/main
 
 ## Track 1 (Home, reviews, the check-in), Thursday 12 November, evening (session past half, handing over)
 
