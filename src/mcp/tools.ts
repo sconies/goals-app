@@ -111,7 +111,10 @@ function rows(list: unknown, sheet: string): Rec[] {
 }
 
 /** Yes to a plan question (a target that flips which way is better, a number far outside the old plan). */
-const CONFIRM = bool('True once the person has said a plan change that was questioned (it flips which way is better, or a number is far outside the old plan) is right.');
+const CONFIRM = bool('True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan).');
+
+/** The engine's kinds that are goal entry's questions (rule 3): answered yes, all of them, by "confirm". */
+const GOAL_QUESTIONS: string[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
 
 /** Answers to the questions a change asked, by group id: "use", or { "choice": "choose", "value": "Platform" }. */
 const ANSWERS_ARG = { type: 'object', additionalProperties: { anyOf: [{ type: 'string' }, { type: 'object', properties: { choice: { type: 'string' }, value: { type: 'string' } }, required: ['choice'] }] }, description: 'Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them.' };
@@ -122,7 +125,9 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
   const cs: ChangeSet = planChanges({ tables, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, via: 'mcp', reason: opts.reason, confirm: opts.confirm, answers: answersOf(opts.answers) });
   // Every problem has a kind and a level (domain/problemLevels): Must fix, Check (a question), or how a row was read.
   const errors = cs.issues.filter((x) => x.level === 'must');
-  const checks = cs.groups.filter((g) => g.level === 'check' && g.kind !== 'plan-question');
+  // Goal entry's questions (rule 3) are listed goal by goal and answered by "confirm"; the import's other questions by
+  // "answers", one per group.
+  const checks = cs.groups.filter((g) => g.level === 'check' && !(GOAL_QUESTIONS.includes(g.kind) && g.sheet !== 'Check-ins'));
   const notes = cs.issues.filter((x) => x.level === 'note');
   const group = (g: ChangeSet['groups'][number]) => ({ id: g.id, kind: g.kind, sheet: g.sheet, column: g.column ?? null, found: g.found ?? null, rows: g.count, firstRows: g.rows.slice(0, 20), sentence: g.title, example: g.example, answers: g.answers.map((a) => ({ choice: a.choice, label: a.label, ...(a.needsValue ? { needsValue: true } : {}), ...(a.options ? { options: a.options } : {}) })) });
   const data = {
@@ -137,14 +142,16 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     notes: notes.map((x) => ({ goal: x.name, message: x.message })),
     leftOut: cs.leftOut,
     needsReason: cs.needsReason,
-    questions: cs.items.filter((x) => x.question).map((x) => ({ goalId: x.goalId, goal: x.goal, question: x.question!.text })),
+    questions: cs.items.flatMap((x) => (x.questions ?? []).map((q) => ({ goalId: x.goalId, goal: x.goal, id: q.id, field: q.field, question: q.text }))),
     needsConfirm: cs.needsConfirm,
   };
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
-  if (errors.length) return { isError: true, data, text: `Not saved. Fix these and try again:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
+  if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
-  if (cs.needsConfirm) return { isError: true, data, text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say it's right, call again with "confirm": true.` };
-  if (checks.length) return { isError: true, data, text: `Not saved: answer ${checks.length === 1 ? 'this question' : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? ' with a value' : ''} = ${a.label}`).join('; ')}`).join('\n')}` };
+  // Questions the person must answer: goal entry's, then any of the import's, each with how to answer it.
+  const asked = data.questions.length ? `Not saved. Check with the person first:\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say yes to each, call again with "confirm": true.` : '';
+  if (asked && !checks.length) return { isError: true, data, text: asked };
+  if (checks.length) return { isError: true, data, text: `${asked ? asked + '\n' : ''}Not saved: answer ${checks.length === 1 ? 'this question' : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? ' with a value' : ''} = ${a.label}`).join('; ')}`).join('\n')}` };
   // Example rows (Action says Example) are said wherever a file comes in, not only on Import (review of #130).
   const examples = cs.examples ? ` ${examplesLine(cs.examples)}` : '';
   if (!cs.items.length) return { data, text: `Nothing to change: it already says that.${examples}` };
@@ -321,11 +328,11 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'create_goal',
     title: 'Add a goal',
-    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. You can add goals you own; admins can add goals for anyone. Give a unit for a number (none is asked about, as is a name another goal in its team has).',
-    inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, answers: ANSWERS_ARG, dry_run: DRY } },
+    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, confirm: CONFIRM, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {
-      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, answers: a.answers });
+      return change(ctx, { goals: [row({ owner: ctx.actor.name, ...a }, { type: 'type', ...GOAL_COLS })] }, { dry: !!a.dry_run, confirm: a.confirm === true, answers: a.answers });
     },
   },
   {

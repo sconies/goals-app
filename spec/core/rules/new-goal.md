@@ -9,7 +9,7 @@ New goal asks what, then who and where, then how it’s measured, then reads it 
 
 **The steps.** Four, each with its own address under `/goals/new`: *what* (the name and the kind), *who and where* (owner, team, level, what it feeds, what else it helps, guardrail), *how it's measured* (what measures it, the numbers or stages, how it's measured in words and where the number comes from), and *check* (the goal read back, each row with Change). Each Continue is one history entry, so the browser's Back steps back; a later step opened with an earlier one unfilled goes to the first unfilled one. A draft is kept on every change and picked up at the step it stopped at. People, teams and goals are found by typing (the [finding](finding.md) rules), never chosen from a list of everything. The owner starts as the person adding it, and the team follows the owner until it is chosen by hand.
 
-**The level it starts at (rule 1).** With a goal it feeds: one level below that goal's. Without: Team, unless the owner leads a team that already owns a north-star or SVP goal; then none, and the person is asked ("Choose a level."). A goal can only feed one at a higher level: one at the same or a lower level is listed but can't be chosen, saying so ("A Team goal can’t feed a Team goal.").
+**The level it starts at (rule 1).** With a goal it feeds: one level below that goal's. Without: Team, unless the owner leads a team that already owns a north-star or SVP goal; then none, and the person is asked ("Choose a level."). Any goal can be chosen to feed (anyone may set any level; Lane, 11 Nov): one at a lower level is asked about where it is chosen ([goal entry](goal-entry.md), rule 3's `feeds-lower`), never refused.
 
 **Suggestions for "Feeds into" (rule 2).** Before anything is typed, at most 6: the goals one level up in the goal's team, worst first; then goals one level up that the person's own goals already feed; then goals opened lately that are above the level. A north star has none: it is the top of its tree.
 
@@ -24,7 +24,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | The demo: Rhea (her team, CI/CD, owns SVP goals) and Tunde, each with nothing to feed; then anyone, under the north star “Lead time for changes”. | `none: asked; team; svp` |
 | Rhea’s new SVP goal in CI/CD: the first suggestion for “Feeds into”. | `Lead time for changes` |
 | A north star’s suggestions. | `0` |
-| An SVP goal choosing to feed the SVP goal “Flaky test rate in the main pipelines”. | `An SVP goal can’t feed an SVP goal.` |
 | The plan’s note in week 10 of 2026. | `Each week’s number is checked in during that week, so the one that closes Q1 is week 13, checked in 23–29 Mar.` |
 
 ## Not self-explanatory
@@ -33,7 +32,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/newGoal.ts](../../../src/domain/newGoal.ts): `NEW_GOAL_STEPS`, `stepIndex`, `startLevel`, `canFeed`, `feedRefusal`, `parentSuggestions`, `PARENT_SUGGESTIONS`, `planNote`
+- [src/domain/newGoal.ts](../../../src/domain/newGoal.ts): `NEW_GOAL_STEPS`, `stepIndex`, `startLevel`, `parentSuggestions`, `PARENT_SUGGESTIONS`, `planNote`
 
 ## Requirements
 
@@ -52,6 +51,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 2: suggestions for “Feeds into” › Rhea, an SVP goal in CI/CD: the north stars, CI/CD’s own first
 - rule 2: suggestions for “Feeds into” › a team with no goals a level up: goals opened lately above the level, else none
 - rule 2: suggestions for “Feeds into” › a north star: none
-- rule 2: suggestions for “Feeds into” › a goal at the same or a lower level is said, not offered
 - rule 5: the plan table’s explanation › week 46 of 2026: Q4 closes in week 53
 - rule 5: the plan table’s explanation › week 10: Q1 closes in week 13

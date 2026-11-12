@@ -15,13 +15,13 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
 
 **Thousands grouped.** Every number shown is written at its places with its thousands grouped by commas (`groupDigits`, `fixed`): 1,250,000; −12,000; 1,250.5. Files and the AI tools' data carry the plain number.
 
-**Questioned, never refused.** In a check-in, see [the check-in](check-in.md). Setting up (`setupProblem`, `planHint`): over 100% (asked as before); below zero for a percentage, time or money; a target 100 times the start or more, or a 100th of it or less (both non-zero, the same sign); a billion or more. The import notes it on the row; a goal already set up that way isn't asked again.
+**Questioned, never refused.** In a check-in, see [the check-in](check-in.md). Setting a goal up, the questions are [goal entry](goal-entry.md)'s rule 3 (`goalChecks`), the same at every door: below zero for a percentage, time or money; over 100%; a target 100 times the start or more, or a 100th of it or less (both non-zero, the same sign); a billion or more; each that applies, not only the first. A goal already set up that way isn't asked again.
 
 **Plan changes confirmed, never silent** (`planQuestion`). The same check as a check-in's, applied when an existing number goal's plan changes, in the app's goal edit, the spreadsheet import, the data tables and the AI tools (one rule, in the change engine and the edit form). Two things are asked, in this order, and the change saves only once someone says yes:
 - **Which way is better flips:** the new target is on the other side of the start (a 14 → 3 min goal given a target of 999). It says so: “This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better.” The yes is “Yes, make higher better”.
 - **Far outside the old plan:** a new start, target or hand-set week's number more than 2 times the old plan's width beyond either end (`farOutside`): “The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it.”
 
-The app asks beside the target, with a tick box carrying the yes; Import and Data list the questions above What will change with one yes button; the AI tools refuse with the question until called again with `confirm: true`. A plan already stored isn't asked about again, and a new goal is asked about its numbers by `planHint` instead.
+The app asks under the target, in the Check block, as goal entry's rule 3 (`direction`, `far-from-plan`); Import and Data list the questions above What will change with one yes button; the AI tools refuse with the question until called again with `confirm: true`. A plan already stored isn't asked about again.
 
 **Names.** A workspace's, a goal's or an outcome's name has at least 3 characters (`nameProblem`). Two goals may have the same title (compared without case or outer spaces): making one warns (`sameTitleNote`), and wherever both could be on screen each shows its key, or else its team, beside the title (`duplicateTitles`, `goalTell`). An import row with no key whose title another goal has is that goal again unless it names another team; then it's a new goal, noted. Two people may have the same name: the email is who someone is. Adding or renaming one says so (`sameNameNote`); beside the name goes their team, else their job title, else their email, whichever tells them apart (`personTell`). Each avatar's colour comes from the person's ID, and people with the same initials each get a colour none of the others has while there are colours to go round (`avatarHues`, 6 colours).
 
@@ -35,7 +35,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | 12.5 in a goal of whole numbers. | `12.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13. Type 13, or set the goal’s Decimals to 1.` |
 | The places a check-in offers to keep for 5.5, 5.25 and 1.23456 on a whole-number goal, and for 5. | `1, 2, 3, none` |
 | 1250000, -12000 and 1250.5 shown. | `1,250,000, -12,000, 1,250.5` |
-| A start of 10 signups and a target of 5,000. | `The target is over 100 times the start (10 to 5,000). Is that right?` |
+| A start of 10 signups and a target of 5,000. | `The target (5,000 signups) is over 100 times where it starts (10 signups). Is that right?` |
 | 400 typed for the 30→75 goal, then 110. | `questioned; fine` |
 | A queue wait goal, 14 → 3 min (lower is better), given a target of 999. | `direction: This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better. [Yes, make higher better]` |
 | The 30→75 goal given a target of 400, then of 90. | `far: The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it. / fine` |
@@ -43,8 +43,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `placesToKeep`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
-- [src/domain/goal.ts](../../../src/domain/goal.ts): `validateGoal`, `planHint`, `planQuestion`
+- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `placesToKeep`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `usuallyPositive`, `FAR_RATIO`
+- [src/domain/goal.ts](../../../src/domain/goal.ts): `planQuestion`
 - [src/domain/people.ts](../../../src/domain/people.ts): `sameNameNote`, `personTell`, `nameWithTell`, `avatarHues`, `duplicateTitles`, `goalTell`, `sameTitleNote`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `MIN_NAME`, `nameProblem`
 

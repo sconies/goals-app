@@ -1,7 +1,7 @@
 /* N16: one set of numbers in the metric library (ML1, docs/design/metrics/spec.md section 6). run({ open }) returns a
    list of failures. For every metric in the demo's library, as an admin on a computer: its row's goals by status are its
    page's table's rows, status by status; "No goals yet" on the row is "No goal uses this metric yet." on the page; and
-   with one goal, "See its goal" opens that goal. (Goals filtered to a metric, for "See its {n} goals", comes with ML2.) */
+   "See its goal" / "See its {n} goals" opens Goals filtered to the metric (ML2), which counts the same goals. */
 module.exports = {
   id: 'N16',
   area: 'metrics',
@@ -31,10 +31,14 @@ module.exports = {
       if (r.none !== !statuses.length) fails.push(`${r.name}: its row says ${r.none ? 'No goals yet' : 'it has goals'}, its page lists ${statuses.length}`);
       const heading = await p.locator('#metric-goals').innerText();
       if (!heading.endsWith(`· ${statuses.length}`)) fails.push(`${r.name}: its page’s heading says “${heading}” for ${statuses.length} rows`);
-      if (statuses.length === 1) {
-        const goal = await p.locator('.metric-goals tbody tr .mg-goal a').first().getAttribute('href');
-        const see = await p.getByRole('link', { name: 'See its goal' }).getAttribute('href').catch(() => null);
-        if (!see || see.split('?')[0] !== goal.split('?')[0]) fails.push(`${r.name}: “See its goal” leads to ${see}, its one goal is ${goal}`);
+      if (statuses.length) {
+        const see = await p.getByRole('link', { name: statuses.length === 1 ? 'See its goal' : `See its ${statuses.length} goals` }).getAttribute('href').catch(() => null);
+        if (!see || !/[?&]metric=/.test(see)) { fails.push(`${r.name}: “See its goals” leads to ${see}, not Goals filtered to it`); continue; }
+        const back = p.url();
+        await p.goto(back.replace(/\/demo\/[^?]*\??[^#]*/, see.replace(/^.*\/demo/, '/demo') + (back.includes('today=') ? `&${back.split('?')[1]}` : '')));
+        const line = await p.locator('main').getByText(/^\d+ goals? match/).first().innerText().catch(() => '');
+        const shown = Number((line.match(/^(\d+)/) ?? [])[1] ?? -1);
+        if (shown !== statuses.length) fails.push(`${r.name}: Goals filtered to it says “${line}”, its page lists ${statuses.length}`);
       }
     }
     await c.close();

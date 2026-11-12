@@ -2,7 +2,7 @@
 import { assessMetric, assessMilestone, assessRange, checkInsFor, RANK, type Assessment } from './status';
 import type { Cause, CheckIn, Cycle, Goal, StageUpdate, Status, RecoveryState } from './types';
 import { isCount, isShare } from './plan';
-import { farOutside, fixed, notNumberText, precisionProblem, usuallyPositive } from './numbers';
+import { farOutside, fixed, notNumberText, parseNumber, precisionProblem, usuallyPositive } from './numbers';
 
 export const CAUSES_BEHIND: [Cause, string][] = [
   ['aggressive', 'Plan too aggressive'], ['slower', 'Delivery slower'], ['blocked', 'Blocked by a dependency'], ['external', 'External factor'], ['data', 'Data problem'], ['other', 'Something else'],
@@ -79,19 +79,8 @@ export function draftFrom(c: CheckIn): Draft {
   };
 }
 
-/**
- * A number as people type it: "29.4", "29,4" (a decimal comma), "1,250" (thousands), "62%", "29.4 days".
- * Anything else (hex, exponents, words) is not a number.
- */
-export function parseNumber(s: string): number | null {
-  let t = s.trim().replace(/\s*(%|[a-z]+(\s[a-z]+)*)$/i, '').replace(/\s/g, '');
-  if (!t) return null;
-  if (/^[-+]?\d+,\d{1,2}$/.test(t)) t = t.replace(',', '.');
-  else if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '');
-  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
-  const n = Number(t);
-  return Number.isFinite(n) && Math.abs(n) < 1e12 ? n : null;
-}
+/** A number as people type it (domain/numbers, where it lives with the rest of how numbers are read). */
+export { parseNumber } from './numbers';
 
 // What values a goal's number can take (a share, a count) is plan.ts's, where projections are held to them.
 export { isCount, isShare } from './plan';
@@ -326,8 +315,12 @@ export function checkInLevels(goal: Goal, week: number, draft: Draft, own: Check
 /** Whether a number goal has reached its target with this number (the same number then is expected). */
 const reached = (goal: Goal, n: number) => goal.kind === 'metric' && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
 
-/** The Checks not yet answered for the value they are about. */
-export const unanswered = (checks: Check[], answers: Answers | undefined): Check[] => checks.filter((c) => answers?.[c.id] !== c.key);
+/**
+ * The Checks not yet answered for the values they are about: a check is answered when `answers[slot]` (its `slot`, or
+ * its id) holds its key, so a changed value asks again. Shared by the check-in and goal entry (rule 3).
+ */
+export const unanswered = <C extends { id: string; key: string; slot?: string }>(checks: readonly C[], answers: Readonly<Record<string, string | undefined>> | undefined): C[] =>
+  checks.filter((c) => answers?.[c.slot ?? c.id] !== c.key);
 
 /** Rule 3. Whether the step's button acts, and if not, the line under it. */
 export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; says: string } {
@@ -340,6 +333,7 @@ export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; say
   return { go: true, says: '' };
 }
 
-/** The answers given, as History keeps them: one `Asked` difference per question answered yes. */
-export const answeredDiffs = (checks: Check[], answers: Answers | undefined) =>
-  checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({ field: 'Asked', from: c.question, to: c.yes }));
+/** The answers given, as History keeps them: one difference per question answered (`Asked` for a check-in; goal entry's
+    are `Checked`), from the question to the answer given (its yes, unless `said` says otherwise). */
+export const answeredDiffs = <C extends { id: string; key: string; slot?: string; question: string; yes: string }>(checks: readonly C[], answers: Readonly<Record<string, string | undefined>> | undefined, field = 'Asked', said: (c: C) => string = (c) => c.yes) =>
+  checks.filter((c) => answers?.[c.slot ?? c.id] === c.key).map((c) => ({ field, from: c.question, to: said(c) }));

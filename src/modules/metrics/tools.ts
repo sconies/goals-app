@@ -174,7 +174,7 @@ const tools: ToolDef[] = [
   {
     name: 'remove_metric',
     title: 'Remove a metric',
-    description: 'Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), without its old links.',
+    description: 'Remove a metric from the library: its owner or an admin. Every goal it measures is unlinked by the same save; the goals themselves don’t change. It can be restored for 30 days with restore_removed (kind metric), with the links it had.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: { metric: str('The metric’s ID or name.') } },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {

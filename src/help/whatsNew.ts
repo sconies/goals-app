@@ -23,6 +23,74 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'smaller-first-download',
+    date: '2026-11-12',
+    title: 'Faro opens faster',
+    points: [
+      'The first visit downloads about a quarter less: each page other than Home loads when you first open it.',
+      'On a slow connection, a page you open for the first time may take a moment longer.',
+    ],
+    articles: ['any-device'],
+  },
+  {
+    id: 'goal-questions',
+    date: '2026-11-12',
+    title: 'Unlikely values are asked about, once',
+    points: [
+      'Over 100%, below zero, no unit, an owner in another team, a link to a lower level: New goal asks under the field, and remembers your answer.',
+      'Change the number and it asks again. Your answers are kept in the goal’s History.',
+      'A stage already past is asked about in the same way, and so are the numbers on set-up’s goal cards and the edit page.',
+      'Spreadsheets and assistants are asked the same questions.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
+    id: 'metrics-sort-out',
+    date: '2026-11-12',
+    title: 'Metrics say what they’re missing',
+    points: [
+      'A metric’s owner sees what it still needs: a meaning, a source, an owner, a goal.',
+      'Adding one with a name close to another asks first; removing one says which goals it leaves.',
+      'Put it back brings a removed metric back with the goals it measured.',
+    ],
+    articles: ['metric-add', 'metrics'],
+  },
+  {
+    id: 'measured-by-find',
+    date: '2026-11-12',
+    title: 'Find a goal’s metric by typing',
+    points: [
+      'In New goal, “Measured by” comes first: type to find a metric, or add one there.',
+      'Choosing one fills in its unit and which way is better.',
+      'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
+    ],
+    articles: ['metric-measured-by', 'new-goal', 'metrics'],
+  },
+  {
+    id: 'goal-needs-said',
+    date: '2026-11-12',
+    title: 'New goal says what it needs',
+    points: [
+      'Each step says what is needed and marks what is optional.',
+      'A problem shows under its field as you leave it, and is counted by the button.',
+      'The unit is yours to give: it no longer starts as %. Decimals follow what you type, and you can change them.',
+      'Anyone can add a goal for anyone, at any level, from New goal, a spreadsheet or an AI assistant. Choosing someone else as owner says who can change it afterwards: them, or an admin.',
+      'A spreadsheet, set-up and the AI assistant say a goal’s problems in the same words as New goal.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
+    id: 'offline-page-needs-connection',
+    date: '2026-11-12',
+    title: 'Offline, a page that hasn’t loaded says so',
+    points: [
+      'Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.',
+      'It says the page needs a connection, with Try again and Go back.',
+      'On a slow connection, such a page says “Opening…” while it loads.',
+    ],
+    articles: ['any-device'],
+  },
+  {
     id: 'setup-near-miss-stops',
     date: '2026-11-12',
     title: 'Set-up says when a row is one letter out',
@@ -31,6 +99,18 @@ export const WHATS_NEW: NewsEntry[] = [
       'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
     ],
     articles: ['set-up', 'check-in-table'],
+  },
+  {
+    id: 'goal-edit-one-page',
+    date: '2026-11-12',
+    title: 'Changing a goal is one page',
+    points: [
+      'Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.',
+      'Save changes stays at the foot of the window and never covers what you’re typing.',
+      'One way out: Close and keep the draft. What you typed is there when you come back.',
+      'Describe it on a goal with no definition opens the page at What it is.',
+    ],
+    articles: ['edit-goal'],
   },
   {
     id: 'new-goal-order',

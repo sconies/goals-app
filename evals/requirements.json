@@ -122,6 +122,11 @@
       "text": "New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything."
     },
     {
+      "id": "GOAL-ENTRY-REQUIRED",
+      "area": "Goals",
+      "text": "Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
@@ -467,6 +472,11 @@
       "text": "A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to."
     },
     {
+      "id": "GOAL-EDIT-PAGE",
+      "area": "Goals",
+      "text": "Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section."
+    },
+    {
       "id": "GOAL-SAYS",
       "area": "Goals",
       "text": "Watching and commenting say who will see what before you do them."
@@ -612,6 +622,16 @@
       "text": "Anyone can find a metric, read what it means, and see every goal measured by it side by side (ML1). Metrics (/metrics, in the menu after People; on a phone under More) lists every metric in use A to Z ignoring case and accents, 50 a page; a search matches the name, unit, \"lower is better\" or \"higher is better\", the owner and the meaning; filters for the unit, the team or the whole company a goal measures it for, the owner, which way is better, no goals, and something to sort out; sorts A to Z, most goals first and changed lately; everything in the address. A row links to the metric, says its unit, direction and owner, and its goals by status as shape and word, worst first. A metric's page says what it means and how it's calculated, then its goals as a table (status, goal, for, now, target with its week, against plan, owner), worst first, with the lowest and highest now when two or more have a number, then its source, the source's owner, refresh, caveats and who added and last changed it. Its owner and admins see what it still needs and can change or remove it; everyone else sees who can. A goal's summary says what measures it; a person's page lists the metrics they own and a team's the metrics its goals use. Old addresses under /data/metrics lead to the library, a metric or the form."
     },
     {
+      "id": "METRICS-MEASURED-BY",
+      "area": "Metrics",
+      "text": "A goal's metric is chosen by typing to find it where the goal is made or changed, or added there, and fills in what the metric already says (ML2). In New goal, \"Measured by\" is the first field on the measure step (under the name when changing a goal), never for a goal with dated stages or for someone who may not link the goal: find-and-pick with \"No metric\" first, metrics in the goal's unit offered first, and \"Add “…” as a new metric\" last. Choosing one shows its meaning, the goal's team or the whole company under \"For\", and, on a new goal whose unit and decimals nobody typed, sets them from the metric and says so in one line with \"Use different ones\". A unit that differs stops the save with the reason. Added in place, a metric needs a name, a unit and which way is better, is owned by whoever adds it, and is chosen. Check says \"Measured by {metric}, for {team}\". Goals filters by the metric (?metric=, \"Measured by\" in the filter line), and a metric's page opens Goals filtered to it."
+    },
+    {
+      "id": "METRICS-CARE",
+      "area": "Metrics",
+      "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" with Use that one, as a status that never stops the save. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them."
+    },
+    {
       "id": "OLD-ADDRESSES",
       "area": "Platform",
       "text": "Every address that worked before still lands on the right page, without a history entry and keeping its query: /workspace/people goes to /people, /workspace/people?team=<id> to that team's page, /workspace/teams to /teams, and /workspace#people and #teams to People and Teams (domain/directory movedTo)."
@@ -669,7 +689,7 @@
     {
       "id": "STALE-RELOAD",
       "area": "Observability",
-      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop."
+      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back."
     },
     {
       "id": "TELEMETRY-PRIVACY",

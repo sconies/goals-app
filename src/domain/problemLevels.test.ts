@@ -146,7 +146,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
   const others = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
   const cases: [kind: string, actor: string, tables: ChangeInput['tables'], sentence: RegExp, extra?: Partial<ChangeInput>][] = [
     ['required-empty', 'amara', { goals: [rec({ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' })] }, /A new goal needs an owner: Owner email, or Owner\./],
-    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /Start is empty\. A number goal needs where it starts\./],
+    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /^Enter where it starts today\.$/],
     ['not-a-number', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: 'six' })] }, /“six” isn’t a number/],
     ['formula', 'amara', { goals: [newGoal({ Target: '=20+2' })] }, /Target holds a formula \(“=20\+2”\), not a number\. In Excel, copy the column and paste it as values\./],
     ['precision', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: '6.25' })] }, /has 2 decimal places, but this goal keeps whole numbers/],
@@ -162,7 +162,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['type-unclear', 'amara', { goals: [rec({ Goal: 'Nothing to measure', Owner: 'Rhea Kapoor' })] }, /Type is empty and the row has no Start and Target, Limit or Stages\./],
     ['plan-order', 'amara', { goals: [newGoal({ 'Due week': '10' })] }, /Due week \(10\) has to come after the plan starts \(week 46\)\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' })] }, /“Design” has no week\. Write it as Name@week, like Pilot@52\./],
-    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /Two stages are called “pilot”/],
+    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /^Two stages are called “Pilot”\. Give each its own name, such as “pilot review”\.$/],
     ['week-wrong', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: '50', Value: '6' })] }, /Week 50 hasn’t happened yet; it’s week 46\./],
     ['checkin-incomplete', 'amara', { checkIns: [rec({ 'Goal key': 'G-126', Week: String(week), Value: '4.1' })] }, /needs a Cause and a Why of 10 characters or more/],
     ['cant-change', 'amara', { goals: [rec({ Key: 'G-1', Type: 'milestone' })] }, /A goal’s type can’t change\. Add a new goal instead\./],
@@ -177,7 +177,8 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['other-goal', 'amara', { goals: [rec({ Key: 'G-1', Goal: 'Net revenue retention', Target: '110' })] }, /G-1 is “Lead time for changes” here, owned by Rhea Kapoor\. Row 2 calls it “Net revenue retention”\. Is it the same goal\?/],
     ['past-stage', 'amara', { goals: [rec({ Goal: 'P1', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@2; Pilot@6; All services@10' })] }, /3 stages of “P1” are due before this week \(week 46\)/],
     ['past-plan', 'amara', { goals: [newGoal({ 'Plan from week': '1', 'Due week': '10' })] }, /has a plan that ended in week 10; it’s week 46\./],
-    ['odd-number', 'amara', { goals: [newGoal({ Unit: 'ms', Start: '3', Target: '3000' })] }, /The target is over 100 times the start \(3 to 3,000\)\. Is that right\?/],
+    ['odd-number', 'amara', { goals: [newGoal({ Unit: 'ms', Start: '3', Target: '3000' })] }, /^The target \(3,000 ms\) is over 100 times where it starts \(3 ms\)\. Is that right\?$/],
+    ['feeds-lower', 'amara', { goals: [newGoal({ Level: 'north star', 'Feeds into key': 'G-14' })] }, /^A north star usually feeds nothing, and “Pipeline queue wait \(p90\)” is an? (SVP|Team) goal\. Is this link right\?$/],
     ['plan-question', 'amara', { goals: [rec({ Key: 'G-1', Target: String(2 * g1.plan.start - g1.plan.target) })] }, /This makes (higher|lower) better/, { reason: 'Measured the other way round' }],
     ['no-unit', 'amara', { goals: [newGoal({ Unit: '' })] }, /This number has no unit\. Is it a plain count\?/],
     ['decimal-comma', 'amara', { goals: [newGoal({ Start: '1,5' })] }, /“1,5” was read as 1\.5/],
@@ -209,7 +210,7 @@ describe('the design’s samples (docs/design/import/samples) as fixtures', () =
     expect(asked(cs)).toEqual([]);
     expect(cs.commit!.goals!.map((g) => g.kind)).toEqual(['metric', 'milestone']);
   });
-  it('04: numbers', () => expect(kinds('04-numbers.csv')).toEqual(['must not-a-number 1', 'must impossible-number 1', 'must required-empty 1', 'check decimal-comma 2', 'check odd-number 2', 'check odd-number 1', 'check odd-number 1', 'check no-unit 1']));
+  it('04: numbers', () => expect(kinds('04-numbers.csv')).toEqual(['must not-a-number 1', 'must impossible-number 1', 'must required-empty 1', 'check decimal-comma 2', 'check odd-number 2', 'check odd-number 1', 'check odd-number 1', 'check no-unit 1', 'check odd-number 1']));
   it('05: typos are asked, a word too short to be near is Must fix', () => expect(kinds('05-typos.csv')).toEqual(['must unknown-word 1', 'must unknown-ref 1', 'check near-ref 1', 'check near-ref 1', 'check near-word 1', 'check near-ref 1']));
   it('[IMPORT-LEVELS] 05b: fourteen rows with one typo are one question', () => expect(kinds('05b-same-team-typo-14.csv')).toEqual(['check near-ref 14']));
   it('06: duplicates and keys', () => expect(kinds('06-duplicates.csv')).toEqual(['must duplicate 4', 'must bad-key 1', 'must bad-key 1', 'check same-goal 1']));

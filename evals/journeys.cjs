@@ -779,7 +779,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'What outcome are you after?');
   await p.getByRole('button', { name: 'Next' }).click();
   const outcomeSays = (await p.getByRole('alert').allInnerTexts()).join(' | ');
-  if (!/Give the outcome a name/.test(outcomeSays) || !/Add today’s number/.test(outcomeSays) || !/Add the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
+  if (!/Give the outcome a name/.test(outcomeSays) || !/Enter where it starts today/.test(outcomeSays) || !/Enter the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
   await h.fill(p.getByLabel('Outcome', { exact: true }), 'Weekly active users');
   await p.getByLabel('Outcome: today').fill('1200');
   await p.getByLabel('Outcome: target').fill('2000');
@@ -1960,7 +1960,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '0');
   await h.fill(p.getByLabel(/^Target \(week/), '150');
-  h.set('logged', await p.getByRole('status').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
+  h.set('logged', await p.locator('.level-check').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
   await p.context().close();
 });
 
@@ -4620,6 +4620,47 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
+journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // An old link to one part of the form lands on that section of the one page, and the address says so.
+  await p.goto(url('/goals/ns-lead/edit?part=plan'));
+  await p.waitForURL(/\/goals\/ns-lead\/edit\?today=[^#]*#plan$/, { timeout: 5000 }).catch(() => fail(`?part=plan did not become #plan (${p.url()})`));
+  await see(p, 'Change Lead time for changes');
+  await p.waitForTimeout(500);
+  await h.inView(p.getByRole('heading', { name: 'Plan and target' }), 'entry', 'Plan and target, opened from ?part=plan');
+  const heads = await p.locator('.goal-edit .edit-part').evaluateAll((es) => es.map((e) => `${e.id}:${(e.querySelector('h2, summary')?.textContent || '').trim()}`));
+  const want = ['definition:What it is', 'plan:Plan and target', 'owner:Who and where', 'more:More details'];
+  if (heads.join('|') !== want.join('|')) fail(`the sections read ${heads.join(', ')}`);
+  // One way out, in words; no second exit.
+  const exits = await p.locator('.focus-top').getByRole('button').count() + await p.locator('.focus-top a').count();
+  h.set('attention', exits === 1 && await p.getByRole('button', { name: 'Close and keep the draft' }).isVisible() && !(await p.getByRole('link', { name: /^Back to/ }).count()), `the edit page has ${exits} ways out`);
+  await see(p, 'Check-ins have started, so a change here needs a reason. Watchers see it flagged.');
+  // A new target asks why; Save changes is in view at the foot and the reason box, focused, is not under it.
+  await h.fill(p.getByLabel(/^Target/), '20');
+  const reason = p.getByLabel('Why change it?');
+  await reason.focus();
+  await p.waitForTimeout(250);
+  const [rb, fb] = [await reason.boundingBox(), await p.locator('.focus-foot').boundingBox()];
+  const vh = p.viewportSize().height;
+  h.set('progress', !!rb && !!fb && rb.y + rb.height <= fb.y && fb.y + fb.height <= vh + 1, `the reason box (${rb && Math.round(rb.y + rb.height)}) is under Save changes (${fb && Math.round(fb.y)}), or the bar is off the screen`);
+  await h.inView(p.getByRole('button', { name: 'Save changes' }), 'progress', 'Save changes, held at the foot');
+  await h.checkpoint('plan');
+  // Closing keeps the draft: back on the goal, nothing saved; opened again, the new target is there.
+  await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
+  const s = await h.snapshot();
+  h.set('logged', s.goals.find((g) => g.id === 'ns-lead').plan.target !== 20, 'closing saved the change');
+  await p.goto(url('/goals/ns-lead/edit') + '#owner');
+  await see(p, 'Restored your unsaved edits', 'closing did not keep the draft');
+  h.set('finish', (await p.getByLabel(/^Target/).inputValue()) === '20', 'the kept draft lost the new target');
+  await p.waitForTimeout(500);
+  // #owner opens at Who and where; its owner is a find-and-pick, not a list.
+  await h.inView(p.getByRole('heading', { name: 'Who and where' }), 'entry', 'Who and where, opened from #owner');
+  h.set('errors', await p.getByRole('button', { name: /^Owner: Rhea Kapoor\. Change$/ }).isVisible() && await p.getByRole('button', { name: /^Feeds into\b/ }).first().isVisible(), 'the owner or Feeds into is not a find-and-pick');
+  await h.checkpoint('owner');
+  await p.context().close();
+}, []);
+
 journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order people think: what, then who and where (Tunde as owner, his team, Team level, his team’s SVP goals suggested for “Feeds into”, one chosen by typing, “Also helps” set), then how it’s measured, then Check reads it all back; each step is an address, the browser’s Back steps back with the numbers kept, a reload stays put and says the draft was picked up, and no select lists people, teams or goals', 16, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
@@ -4676,6 +4717,108 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.context().close();
 }, ['logged']);
 
+/* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
+   is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
+   the same words. */
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Today empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Today and Target.” above the button, focus on Today; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await see(p, 'What do you want to achieve?');
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Review wait for Amara’s teams');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  // Anyone may choose anyone as owner (Lane, 11 Nov): said, so nobody is surprised who can change it afterwards.
+  await pickIn(p, /^Owner · checks in weekly/, 'amara', /Amara/);
+  h.set('attention', await p.getByRole('status').filter({ hasText: 'Amara will own it. After it is published, only Amara or an admin can change it.' }).isVisible(), 'choosing Amara as owner doesn’t say who can change it after');
+  await h.checkpoint('who');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await see(p, 'Everything here is needed unless it says optional.', 'the measure step doesn’t say what is needed');
+  const unit = p.getByLabel(/^Unit/);
+  h.set('entry', (await unit.inputValue()) === '' && /optional/.test(await p.locator('label.field', { has: unit }).innerText()), 'Unit doesn’t start empty and optional');
+  // Nothing is said while typing: the target's Must fix waits for the field to be left, or for Continue.
+  await h.fill(p.getByLabel(/^Target \(week/), '30 mins');
+  h.set('errors', !(await p.getByRole('alert').filter({ hasText: 'has words in it' }).count()), 'a Must fix shows while typing');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  const line = await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)');
+  h.set('errors', line.trim() === '2 things to fix above: Today and Target.', `the line above the button says “${line.trim()}”, not “2 things to fix above: Today and Target.”`);
+  const startFix = await p.getByRole('alert').filter({ hasText: 'Enter where it starts today.' }).isVisible();
+  const targetFix = await p.getByRole('alert').filter({ hasText: '“30 mins” has words in it. Type the number only, like 30; the unit goes in Unit.' }).isVisible();
+  const focused = await p.evaluate(() => document.activeElement?.getAttribute('data-field'));
+  h.set('errors', startFix && targetFix && focused === 'start' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `each Must fix isn’t under its field with focus on Today (start ${startFix}, target ${targetFix}, focus ${focused})`);
+  await h.fill(unit, 'min');
+  await h.fill(p.getByLabel(/^Today \(week/), '42');
+  await see(p, 'Kept as whole numbers, as you typed them.', 'the decimals line doesn’t say what is kept');
+  h.set('a11y', !(await p.getByLabel('Decimals', { exact: true }).count()), 'Decimals is still a field to fill in');
+  await h.checkpoint('measure');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/]+\?published=1/);
+  h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
+
+  // The Check half (GE2): 50 → 150% is asked about under Target; Continue waits; the answer holds until the number changes.
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Runbook coverage this year');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '50');
+  await h.fill(p.getByLabel(/^Target \(week/), '150');
+  const q = p.locator('.level-check').filter({ hasText: 'The target is over 100%.' });
+  await h.inView(q, 'attention', 'the over-100 question');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  const waits = (await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)')).trim();
+  const onQ = await p.evaluate(() => document.activeElement?.getAttribute('data-check'));
+  h.set('errors', waits === 'Answer the question above, under Target.' && onQ === 'over-100' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `Continue with the question open says “${waits}” with focus on ${onQ}`);
+  await h.checkpoint('asked');
+  await h.click(q.getByRole('button', { name: 'Yes, 150% is right' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.locator('.focus-foot').getByRole('button', { name: 'Back', exact: true }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await see(p, 'You said 150% is right.', 'going back doesn’t say what was answered');
+  await h.fill(p.getByLabel(/^Target \(week/), '160');
+  h.set('attention', await p.locator('.level-check').filter({ hasText: 'Is 160% right?' }).isVisible(), 'changing 150 to 160 doesn’t ask again');
+  await h.click(p.getByRole('button', { name: 'Yes, 160% is right' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/]+\?published=1/);
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Runbook coverage this year');
+  const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
+  h.set('logged', !!checked && /Is 160% right\?/.test(checked.from) && checked.to === 'Yes, 160% is right', 'History doesn’t keep the answer as Checked');
+
+  // Dated stages: each row's own fault under it.
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed builds in three stages');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design');
+  await h.fill(p.getByLabel('Stage 1: due week'), '50');
+  await h.click(p.getByRole('button', { name: 'Add a stage' }));
+  await h.fill(p.getByLabel('Stage 2', { exact: true }), 'Design');
+  await h.fill(p.getByLabel('Stage 2: due week'), '52');
+  await h.click(p.getByRole('button', { name: 'Add a stage' }));
+  await h.fill(p.getByLabel('Stage 3', { exact: true }), 'Pilot');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  const twice = await p.locator('.stage').nth(1).getByRole('alert').filter({ hasText: 'Two stages are called “Design”.' }).isVisible();
+  const noWeek = await p.locator('.stage').nth(2).getByRole('alert').filter({ hasText: 'Choose the week “Pilot” is due.' }).isVisible();
+  h.set('errors', twice && noWeek, `the stage rows don’t each say their own fault (twice ${twice}, no week ${noWeek})`);
+  await p.getByRole('button', { name: 'Close and keep the draft' }).click();
+  await p.context().close();
+}, ['logged']);
+
 /* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
 journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
   const p = h.use(await newPage(device, 'oskar'));
@@ -4706,10 +4849,16 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   const seeIt = p.getByRole('link', { name: 'See its goal' });
   await h.inView(seeIt, 'entry', 'See its goal');
   await h.click(seeIt);
-  await p.waitForURL(/\/demo\/goals\/lead-ci-time/);
+  // Goals, filtered to the metric (ML2): the filter line says so, and its one goal opens.
+  await p.waitForURL(/\/demo\/goals\?.*metric=/);
+  await see(p, 'Measured by Pipeline queue wait (p90)', 'Goals filtered to the metric does not say so in its filter line');
+  await h.click(p.locator('main a', { hasText: 'Pipeline queue wait (p90)' }).first());
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)/);
   await p.locator('.goal-bar').waitFor();
   // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
   await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
+  // Back twice: to Goals filtered to it, then to the metric.
+  await p.goBack();
   await p.goBack();
   await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
   await p.goto(url('/metrics/lead-time'));
@@ -4729,6 +4878,147 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   await p.context().close();
 }, []);
 
+/* "Measured by", found by typing (ML2, docs/design/metrics/spec.md 2.4): a goal's metric chosen where the goal is made. */
+journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where it is made: as Rhea in New goal, “Measured by” comes first on the measure step; typing “queue” finds Pipeline queue wait (p90); choosing it shows its meaning, “min, whole numbers, lower is better: from the metric.” and For: CI/CD; Check has its row; after publishing, the goal says Measured by and the metric’s page lists it for CI/CD. Again with “Add “runner wait” as a new metric”: the small form, the goal carries on, and the library has it with “No meaning yet” for Rhea. A dated-stages goal has no “Measured by”', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  const start = async (title, kind) => {
+    await p.goto(url('/goals/new'));
+    await see(p, 'What do you want to achieve?');
+    await h.fill(p.getByLabel(/Name it the way/), title);
+    if (kind) await h.click(p.getByRole('button', { name: kind }));
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    // Rhea leads a team with SVP goals, so she is asked the level (OB1, rule 1).
+    await h.click(p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }));
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  };
+  const publish = async () => {
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+    const read = (await p.locator('.review-rows').innerText()).replace(/\s+/g, ' ');
+    await h.click(p.getByRole('button', { name: 'Publish goal' }));
+    await p.waitForURL(/\/demo\/goals\/[^/?]+\?.*published=1/);
+    return read;
+  };
+  await start('Shorter runner queues');
+  // "Measured by" comes first on the step: before the unit and the numbers.
+  const field = p.locator('.measured-by');
+  await field.waitFor();
+  const first = await p.evaluate(() => { const m = document.querySelector('.measured-by'); const n = document.querySelector('.focus-body input.big-input'); return !!m && !!n && !!(m.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING); });
+  h.set('entry', first, '“Measured by” is not the first field on the measure step');
+  await see(field, 'A metric says exactly what the number means.', 'the field does not say what a metric is for');
+  await h.click(field.getByRole('button', { name: /^Measured by/ }));
+  const panel = p.locator('.pick.open');
+  await h.fill(panel.getByRole('combobox'), 'queue');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
+  await see(field, '90th percentile of minutes a pipeline job waits', 'choosing a metric does not show its meaning');
+  await see(field, 'min, whole numbers, lower is better: from the metric.', 'choosing a metric does not say what it fills in');
+  const forTeam = await field.getByRole('group', { name: 'For' }).getByRole('button', { name: 'CI/CD' }).getAttribute('aria-pressed');
+  h.set('progress', forTeam === 'true' && (await p.getByLabel('Unit', { exact: true }).count()) === 0, `For is not CI/CD (${forTeam}), or the unit field still shows beside the metric’s line`);
+  await h.checkpoint('chosen');
+  await h.fill(p.getByLabel(/^Today \(week/), '9');
+  await h.fill(p.getByLabel(/^Target \(week/), '4');
+  const read = await publish();
+  h.set('finish', /Measured by Pipeline queue wait \(p90\), for CI\/CD\./.test(read), `Check does not say what measures it: ${read}`);
+  const goalUrl = p.url();
+  await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the new goal does not say what measures it');
+  await p.goto(url('/metrics/queue-wait'));
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  const listed = await p.locator('.metric-goals tr, .metric-goals li', { hasText: 'Shorter runner queues' }).innerText().catch(() => '');
+  h.set('logged', /CI\/CD/.test(listed), `the metric’s page does not list the new goal for CI/CD: “${listed.replace(/\s+/g, ' ')}” (${goalUrl})`);
+  // Added in place: the small form, then the goal carries on.
+  await start('Runner wait under five minutes');
+  await h.click(p.locator('.measured-by').getByRole('button', { name: /^Measured by/ }));
+  await h.fill(p.locator('.pick.open').getByRole('combobox'), 'runner wait');
+  await h.click(p.getByRole('button', { name: 'Add “runner wait” as a new metric' }));
+  const here = p.getByRole('group', { name: 'A new metric' });
+  await here.waitFor();
+  await h.fill(here.getByLabel('Unit'), 'min');
+  await h.click(here.getByRole('button', { name: 'Lower is better' }));
+  await h.click(here.getByRole('button', { name: 'Add this metric' }));
+  await see(p, 'Added runner wait. Say more about it on its page when you can.', 'adding a metric in place is not confirmed');
+  await see(p.locator('.measured-by'), 'Its meaning hasn’t been written yet.', 'the metric added in place is not chosen');
+  await h.fill(p.getByLabel(/^Today \(week/), '8');
+  await h.fill(p.getByLabel(/^Target \(week/), '5');
+  const again = await publish();
+  await p.goto(url('/metrics?q=runner+wait'));
+  const row = (await p.locator('.metric-row', { hasText: 'runner wait' }).first().innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('attention', /Measured by runner wait/.test(again) && /No meaning yet/.test(row), `the library row for the new metric says “${row}”; Check said “${again}”`);
+  // A goal with dated stages has no number, so nothing measures it.
+  await start('Runner fleet migrated', /Hit dated stages/);
+  await see(p, 'What are the stages, and when is each due?');
+  h.set('errors', (await p.locator('.measured-by').count()) === 0, 'a dated-stages goal offers “Measured by”');
+  await p.context().close();
+}, []);
+
+/* Looking after metrics (ML3, docs/design/metrics/spec.md 2.3, 2.5, 2.8, rules 3 and 4). */
+journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; Remove says which goals stop being measured, and Undo puts the metric and its links back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left', 20, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/metrics/new'));
+  await h.fill(p.getByLabel('Name', { exact: true }), 'CI cost per pipeline run');
+  const asked = p.locator('.metric-close');
+  await see(asked, 'This looks like “CI compute cost per pipeline run”', 'a close name is not asked about');
+  h.set('entry', (await asked.getAttribute('role')) === 'status', 'the close-name question is not a status');
+  await h.fill(p.getByLabel('Unit', { exact: true }), 'USD');
+  await h.click(p.getByRole('button', { name: 'Lower is better' }));
+  await h.click(p.getByRole('button', { name: 'Add the metric' }));
+  await p.getByRole('heading', { level: 1, name: 'CI cost per pipeline run' }).waitFor();
+  // What it still needs, each with the button that opens the form at that field.
+  const sort = p.locator('.metric-need-list');
+  const needs = (await sort.innerText()).replace(/\s+/g, ' ');
+  h.set('progress', /No meaning yet/.test(needs) && /No source named/.test(needs), `To sort out says “${needs}”`);
+  await h.click(sort.getByRole('link', { name: 'Say what it means' }));
+  await p.waitForURL(/\/edit\?field=meaning/);
+  await p.waitForTimeout(300);
+  h.set('attention', await p.evaluate(() => !!document.activeElement?.closest('#metric-meaning')), 'Say what it means does not open the form at the meaning');
+  await h.checkpoint('to sort out');
+  // Changing the unit of a metric goals use is asked first; keeping it changes nothing.
+  await p.goto(url('/metrics/queue-wait/edit'));
+  await h.fill(p.getByLabel('Unit', { exact: true }), 's');
+  await h.click(p.getByRole('button', { name: 'Save changes' }));
+  const confirm = p.getByRole('alertdialog');
+  await see(confirm, /1 goal is measured by this metric\. Changing its unit doesn’t change their numbers or plans; 1 of them will show a warning that they differ\. Change it\?/, 'changing a unit goals use is not asked first');
+  await h.click(confirm.getByRole('button', { name: 'Keep it as it was' }));
+  h.set('finish', (await p.getByLabel('Unit', { exact: true }).inputValue()) === 'min', 'Keep it as it was did not put the unit back');
+  // Remove says which goals stop being measured by it; Undo brings the metric and its link back.
+  await p.goto(url('/metrics/queue-wait'));
+  await h.click(p.getByRole('button', { name: 'Remove this metric…' }));
+  const sheet = p.getByRole('dialog', { name: /Remove “Pipeline queue wait \(p90\)”\?/ });
+  await see(sheet, '1 goal stops being measured by it: Pipeline queue wait (p90). They keep their numbers and plans.', 'Remove does not say which goals stop being measured');
+  await h.click(sheet.getByRole('button', { name: 'Remove the metric' }));
+  await h.click(p.locator('.toast-action').filter({ hasText: 'Undo' }));
+  await p.waitForTimeout(400);
+  const s1 = await h.snapshot();
+  const link = (s1.modules?.metrics?.metricLinks ?? []).find((l) => l.goalId === 'lead-ci-time');
+  const met = (s1.modules?.metrics?.metrics ?? []).find((m) => m.id === 'metric_queue-wait');
+  h.set('logged', !!met && !met.removedAt && !!link && !link.removedAt, 'Undo did not put the metric and its link back');
+  await p.context().close();
+  // Someone else: none of these, and who can change it.
+  const t = h.use(await newPage(device, 'tunde'));
+  await t.goto(url('/metrics/queue-wait'));
+  await t.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  const offered = (await t.locator('.metric-need-list').count()) + (await t.getByRole('button', { name: /^Remove this metric/ }).count()) + (await t.getByRole('link', { name: 'Change this metric' }).count());
+  await see(t, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
+  h.set('errors', offered === 0, `Tunde was offered ${offered} ways to change a metric he doesn’t own`);
+  await t.context().close();
+  // An admin: About says a metric has no owner once its owner has left.
+  const a = h.use(await newPage(device, 'amara'));
+  await a.goto(url('/people'));
+  await h.fill(a.getByPlaceholder('Find by name, job title or team'), 'Mateo');
+  await h.click(a.getByRole('link', { name: /Mateo Fernández/ }).first());
+  await h.click(a.getByRole('button', { name: 'Mark as left…' }));
+  const dlg = a.getByRole('dialog', { name: 'Mark Mateo Fernández as left' });
+  await pickIn(dlg, /^Who takes over Mateo’s \d+ goals?/, 'marisol', /Marisol Duarte/);
+  await h.click(dlg.getByRole('button', { name: 'Mark as left' }));
+  await see(a, 'Mateo Fernández is marked as left');
+  await a.goto(url('/workspace'));
+  const row = a.getByRole('list', { name: 'To sort out' });
+  await see(row, '1 metric has no owner', 'About does not say a metric has no owner');
+  await h.click(row.getByRole('link', { name: 'See them' }));
+  await a.waitForURL(/\/metrics\?sortout=1/);
+  await a.context().close();
+}, []);
+
 journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.
@@ -4743,8 +5033,9 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
   await h.fill(p.getByLabel('Stage 1: due week'), '1');
   await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
+  // The question is goal entry's shared Check block (GE2): Continue waits for it, and says where.
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Say whether this stage is done.' }).isVisible(), 'an unanswered past stage is not explained');
+  h.set('errors', (await p.locator('.fix-line').innerText().catch(() => '')).trim() === 'Answer the question above, under Stages.', 'an unanswered past stage is not explained');
   await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
   await see(p, 'Done in week 1.');
   await h.checkpoint('stages');
@@ -4834,7 +5125,7 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
 const settled = (r) => r.waitForFunction(() => {
   if (document.querySelector('.preboot, .boot')) return false;
   const main = document.querySelector('main');
-  return !main || [...main.children].some((e) => !e.matches('.page-help'));
+  return !main || [...main.children].some((e) => !e.matches('.page-help, [data-page-wait]'));
 }, null, { timeout: 15000 }).catch(() => {});
 /** A page whose goto and reload wait until it has settled, for the checks that go from page to page and then measure. */
 function steady(r) {
@@ -5034,6 +5325,8 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Every page but Home loads when it is opened: wait for it, not a fixed time.
+      await settled(r);
       await r.waitForTimeout(400);
       // The map draws its 126 goals after the page is up.
       if (kind === 'map') await r.locator('.react-flow__node').first().waitFor().then(() => r.waitForTimeout(600)).catch(() => {});

@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../../app/state';
+import { useDraft } from '../../app/drafts';
 import { canRestore } from '../../domain/removal';
 import type { FilterPart } from '../../domain/find';
 import type { DisplayStatus } from '../../domain/types';
@@ -22,8 +23,8 @@ import { CountLine, FilterLine, ListBar, ListSearch, NoneFound, SortMenu } from 
 import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
-import { canEditMetric, DIRECTION_LABEL, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
-import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
+import { canEditMetric, DIRECTION_LABEL, linkProblems, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
+import { closeNames, closeNameWords, decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { goalsOfMetric, libraryReads } from './reads';
 import './metrics.css';
 
@@ -121,7 +122,8 @@ export function MetricsLibrary() {
       <div className="page-head metrics-head">
         <div className="row between metrics-title">
           <h1 className="title-xl">Metrics</h1>
-          <Link className="btn primary" to="/metrics/new">Add a metric</Link>
+          {/* The empty library has its own Add a metric: one primary action a screen. */}
+          {metricsOf(app.snapshot).some((x) => !x.removedAt) && <Link className="btn primary" to="/metrics/new">Add a metric</Link>}
         </div>
         <span className="hint">Each number goals are measured by, defined once, so two teams’ “build time” mean the same thing.</span>
       </div>
@@ -225,8 +227,8 @@ export function MetricPage() {
           <h1 className="title-xl">{m.name}</h1>
           <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'}</span>
         </div>
-        {/* With one goal, it opens; Goals filtered to a metric comes with "Measured by" found by typing (ML2). */}
-        {one && <Link className="btn primary" to={`/goals/${encodeURIComponent(one.goal.id)}`}>See its goal</Link>}
+        {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
+        {rows.length > 0 && <Link className="btn primary" to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
       </div>
       <section className="stack metric-meaning" style={{ gap: 4 }} aria-labelledby="metric-meaning">
         <h2 className="label" id="metric-meaning">What it means and how it’s calculated</h2>
@@ -314,9 +316,11 @@ function RemovedMetric({ metric: m }: { metric: Metric }) {
 }
 
 /** Removing a metric: which goals stop being measured by it, then the save (with Undo, from the action). */
-function RemoveMetricSheet({ metric: m, rows, onClose, onRemoved }: { metric: Metric; rows: MetricGoalRow[]; onClose: () => void; onRemoved: () => void }) {
+function RemoveMetricSheet({ metric: m, onClose, onRemoved }: { metric: Metric; rows: MetricGoalRow[]; onClose: () => void; onRemoved: () => void }) {
   const app = useApp();
   const [busy, setBusy] = useState(false);
+  // Every goal removing it unlinks (removeMetric): a stopped goal's link too, not only the goals its page lists.
+  const rows = linksOf(app.snapshot).filter((l) => l.metricId === m.id && !l.removedAt).map((l) => app.goal(l.goalId)).filter((g): g is NonNullable<typeof g> => !!g).map((goal) => ({ goal }));
   const titles = rows.slice(0, 3).map((r) => r.goal.title);
   const rest = rows.length - titles.length;
   const go = async () => {
@@ -338,6 +342,10 @@ function RemoveMetricSheet({ metric: m, rows, onClose, onRemoved }: { metric: Me
 
 /** The rule's messages shown under their own field; the rest go above the button. */
 const FIELD_PROBLEM = /metric a name|already a metric|keep the name|unit|which way|owner isn’t/i;
+/** The fields the rule can find wrong, in the form's order, each with the words its problems use. */
+const FIELD_ORDER: [string, RegExp][] = [['name', /metric a name|already a metric|keep the name/i], ['unit', /unit/i], ['direction', /which way/i], ['owner', /owner isn’t/i]];
+/** Where a metric's form keeps its draft: one for a new metric, one for each metric being changed. */
+const metricDraftKey = (ws: string, id: string | null) => `${ws}:metric:${id ?? 'new'}`;
 
 type Draft = { name: string; meaning: string; unit: string; decimals: number; direction: MetricDirection | ''; source: string; sourceOwner: string; refresh: MetricRefresh | ''; ownerId: string; caveats: string };
 
@@ -348,19 +356,31 @@ export function MetricForm() {
   const [params] = useSearchParams();
   const before = metricId ? metricAt(metricsOf(app.snapshot), metricId) ?? null : null;
   const live = before && !before.removedAt ? before : null;
-  const [d, setD] = useState<Draft>(() => live
+  // Kept as other drafts are (src/app/drafts.ts): Close, Back or a reload never loses what was typed.
+  const [d, set, clearDraft, restored] = useDraft<Draft>(metricDraftKey(app.ws.id, live?.id ?? null), () => live
     ? { name: live.name, meaning: live.meaning, unit: live.unit, decimals: live.decimals, direction: live.direction, source: live.source, sourceOwner: live.sourceOwner, refresh: live.refresh ?? '', ownerId: live.ownerId, caveats: live.caveats }
     : { name: (params.get('name') ?? '').slice(0, METRIC_LIMITS.name), meaning: '', unit: '', decimals: 0, direction: '', source: '', sourceOwner: '', refresh: '', ownerId: app.viewer.id, caveats: '' });
   const [tried, setTried] = useState(false);
+  // Fields left once: their errors show from then on, not while the first thing is being typed.
+  const [left, setLeft] = useState<Set<string>>(() => new Set());
+  const leave = (k: string) => () => setLeft((x) => (x.has(k) ? x : new Set(x).add(k)));
   const [busy, setBusy] = useState(false);
+  // Changing the unit or direction goals use is asked first (spec 2.3).
+  const [asking, setAsking] = useState(false);
   const field = params.get('field');
   const top = useRef<HTMLDivElement>(null);
   // Opened at a field ("Say what it means", "Choose an owner"): that field is in view and focused.
   useEffect(() => {
     if (!field) return;
-    const el = document.getElementById(`metric-${field}`);
-    el?.scrollIntoView({ block: 'center' });
-    (el?.querySelector('input, textarea, select, button') as HTMLElement | null ?? el as HTMLElement | null)?.focus?.();
+    const focus = () => {
+      const el = document.getElementById(`metric-${field}`);
+      el?.scrollIntoView({ block: 'center' });
+      (el?.querySelector('input, textarea, select, button') as HTMLElement | null ?? el as HTMLElement | null)?.focus?.();
+    };
+    focus();
+    // The owner's picker draws its choice a moment later (it asks the Search port), replacing the button focused first.
+    const later = window.setTimeout(focus, 200);
+    return () => window.clearTimeout(later);
   }, [field]);
   if (metricId && !live) return <Navigate to={metricId ? `/metrics/${encodeURIComponent(metricId)}` : '/metrics'} replace />;
   if (live && !canEditMetric(app.viewer, live)) {
@@ -371,18 +391,32 @@ export function MetricForm() {
       </div>
     );
   }
-  const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
   const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats };
   const problems = metricProblems(metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId }), app.snapshot);
-  const about = (re: RegExp) => (tried ? problems.filter((p) => re.test(p)) : []);
-  const err = (re: RegExp) => about(re).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>);
+  const about = (re: RegExp, k?: string) => (tried || (k && left.has(k)) ? problems.filter((p) => re.test(p)) : []);
+  const err = (re: RegExp, k?: string) => about(re, k).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>);
+  // Rule 4: while adding, a name of 4 characters or more that is close to a metric in use is asked about, never refused.
+  const close = !live && d.name.trim().length >= 4 ? closeNames(d.name, metricsOf(app.snapshot)) : [];
+  // The goals the metric measures now, and how many of them a new unit or direction would set apart (linkProblems).
+  const linked = live ? linksOf(app.snapshot).filter((l) => l.metricId === live.id && !l.removedAt).map((l) => app.goal(l.goalId)).filter((g): g is NonNullable<typeof g> => !!g && !g.removedAt && !g.stoppedAt) : [];
+  const changing = live && linked.length ? [...(d.unit.trim().toLowerCase() !== live.unit.trim().toLowerCase() ? ['unit'] : []), ...(d.direction && d.direction !== live.direction ? ['direction'] : [])] : [];
+  const apart = changing.length ? linked.filter((g) => { const p = linkProblems(g, metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId })); return p.errors.length + p.warnings.length > 0; }).length : 0;
   const back = () => void nav(live ? metricPath(live) : '/metrics');
-  const save = async () => {
+  const save = async (confirmed = false) => {
     setTried(true);
-    if (problems.length || busy) { top.current?.scrollIntoView({ block: 'start' }); return; }
+    if (problems.length || busy) {
+      // The first field in error takes the focus; anything else shows above the button.
+      const first = FIELD_ORDER.find(([, re]) => problems.some((p) => re.test(p)));
+      const el = first && document.getElementById(`metric-${first[0]}`);
+      if (el) { el.scrollIntoView({ block: 'center' }); el.querySelector<HTMLElement>('input, textarea, select, button')?.focus(); } else top.current?.scrollIntoView({ block: 'start' });
+      return;
+    }
+    if (changing.length && !confirmed) { setAsking(true); return; }
+    setAsking(false);
     setBusy(true);
     try {
       const out = await app.run('saveMetric', live ? { ...input, id: live.id } : input) as { metric: Metric };
+      clearDraft();
       app.toast(live ? `Saved ${out.metric.name}` : `Added ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }
@@ -390,10 +424,15 @@ export function MetricForm() {
   const text = (k: 'name' | 'unit' | 'source' | 'sourceOwner', label: ReactNode, max: number, hint?: string, re?: RegExp) => (
     <div className="field" id={`metric-${k}`}>
       <label className="field"><span className="field-label">{label}</span>
-        <input className={'input' + (re && about(re).length ? ' invalid' : '')} aria-invalid={re && about(re).length ? true : undefined} maxLength={max} value={d[k]} onChange={(e) => set({ [k]: e.target.value })} autoFocus={k === 'name' && !field} />
+        <input className={'input' + (re && about(re, k).length ? ' invalid' : '')} aria-invalid={re && about(re, k).length ? true : undefined} maxLength={max} value={d[k]} onChange={(e) => set({ [k]: e.target.value })} onBlur={leave(k)} autoFocus={k === 'name' && !field} />
       </label>
       {hint && <span className="hint">{hint}</span>}
-      {re && err(re)}
+      {re && err(re, k)}
+      {k === 'name' && close.length > 0 && (
+        <p className="hint metric-close" role="status">
+          This looks like {close.map((m, i) => <span key={m.id}>{i ? ' or ' : ''}<Link to={metricPath(m)}>{closeNameWords(m, app.snapshot.people)}</Link></span>)}. {close.length === 1 ? <Link to={metricPath(close[0]!)}>Use that one</Link> : 'Use one of those'}, or carry on if yours is different.
+        </p>
+      )}
     </div>
   );
   return (
@@ -401,10 +440,11 @@ export function MetricForm() {
       <div className="focus-top">
         <BackLink to={live ? metricPath(live) : '/metrics'} label={live ? live.name : 'Metrics'} />
         <span />
-        <button className="iconbtn" type="button" onClick={back} aria-label="Close"><Icon name="close" /></button>
+        <button className="iconbtn" type="button" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       <form className="focus-body stack" style={{ gap: 'var(--s4)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
+        {restored && <div className="restored small" role="status">Picked up what you hadn’t saved. <button type="button" className="linkish" onClick={() => { clearDraft(); window.location.reload(); }}>Start again</button></div>}
         {text('name', 'Name', METRIC_LIMITS.name, undefined, /metric a name|already a metric|keep the name/i)}
         <div className="field" id="metric-meaning">
           <label className="field"><span className="field-label">What it means and how it’s calculated <span className="hint">optional</span></span>
@@ -422,7 +462,7 @@ export function MetricForm() {
           <div className={'seg' + (about(/which way/i).length ? ' invalid' : '')} role="group" aria-labelledby="metric-direction-l">
             {(['lower', 'higher'] as const).map((k) => <button key={k} type="button" aria-pressed={d.direction === k} onClick={() => set({ direction: k })}>{DIRECTION_LABEL[k]}</button>)}
           </div>
-          {err(/which way/i)}
+          {err(/which way/i, 'direction')}
         </div>
         {text('source', <>Where the number comes from <span className="hint">optional</span></>, METRIC_LIMITS.text, 'A dashboard, a query, a report')}
         {text('sourceOwner', <>Who owns that source <span className="hint">optional</span></>, METRIC_LIMITS.text)}
@@ -443,6 +483,12 @@ export function MetricForm() {
         </div>
         {/* Anything else the rule says (a length, decimals), together above the button. */}
         {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>)}</div>}
+        {asking && (
+          <div className="restored small stack" role="alertdialog" aria-labelledby="metric-confirm" style={{ gap: 'var(--s2)' }}>
+            <span id="metric-confirm">{plural(linked.length, 'goal is', 'goals are')} measured by this metric. Changing its {changing.join(' and ')} doesn’t change their numbers or plans; {apart} of them will show a warning that they differ. Change it?</span>
+            <span className="row"><button type="button" className="btn sm" onClick={() => void save(true)}>Change it</button><button type="button" className="btn ghost sm" onClick={() => { setAsking(false); set({ unit: live!.unit, direction: live!.direction }); }}>Keep it as it was</button></span>
+          </div>
+        )}
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={back}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
       </form>
     </div>

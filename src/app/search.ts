@@ -10,15 +10,20 @@ import type { Search, SearchAnswer, SearchAsk, SearchKind } from '../ports/searc
 import { personRows, searchRows, teamRows } from './reads';
 import type { Snapshot } from '../domain/types';
 import { useApp } from './state';
-import { useModules } from '../core/app';
+import { useGoalColumns, useModules } from '../core/app';
 
 const prefs = browserPrefs('faro-prefs:');
 
 export function useSearch(): Search {
   const app = useApp();
   // A module's kinds (its finders) answer through the same port; with the module off, the kind is gone.
+  // A module's filters (Measured by) narrow Goals' links through the same port.
   const { screens } = useModules();
-  return useMemo(() => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week), Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f.search]))), [app.snapshot, app.cycle, app.today, app.week, screens]);
+  const { columns } = useGoalColumns();
+  return useMemo(
+    () => localSearch(searchRows(app.snapshot, app.cycle, app.today, app.week, columns), Object.fromEntries(screens.flatMap((m) => m.finders ?? []).map((f) => [f.kind, f.search(app.snapshot, app.viewer, app.today)]))),
+    [app.snapshot, app.cycle, app.today, app.week, app.viewer, screens, columns],
+  );
 }
 
 export function usePrefs(): Prefs { return prefs; }

@@ -22,7 +22,7 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
-import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, setupProblem, typedDecimals } from '../domain/numbers';
+import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
 import { emptyText, fieldTable, FILL_SHEETS, LEVEL_WORDS, requiredLine, requiredText, requiredWord, specOf, TYPE_WORDS, wordsAndAlso } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
@@ -32,8 +32,11 @@ import { ATTENTION, ATTENTION_FLAGS, DECIDED, FLAG, HANDLED_LINE, LABEL, shortWo
 import type { Ask, DisplayStatus, Goal, MetricGoal, Snapshot } from '../domain/types';
 import { criticalPath, findOnMap, rollup, rollupText, shownOnMap, troubled } from '../domain/map';
 import { rebase, REBASE_WEEKS, rebaseOffer } from '../domain/checkin';
-import { feedRefusal, parentSuggestions, PARENT_SUGGESTIONS, planNote, startLevel } from '../domain/newGoal';
-import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
+import { parentSuggestions, PARENT_SUGGESTIONS, planNote, startLevel } from '../domain/newGoal';
+import { blankGoal, pastStage, stagesDoneAtSetUp, type GoalDraft } from '../domain/goal';
+import { CHECK_IDS, fieldNeed, formNeed, goalChecks, goalMustFix, planGoal, stepSays, stepState as goalStepState, stepFields, unanswered as goalUnanswered } from '../domain/goalEntry';
+import { numberAsTyped } from '../domain/numbers';
+import { fieldNeedOf } from '../domain/columns';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
@@ -407,8 +410,8 @@ It can be posted when nothing is missing.
     title: 'Numbers and names',
     summary: 'How a typed number is kept and shown, which numbers are questioned, and how two goals or two people with the same name are told apart.',
     code: [
-      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'placesToKeep', 'exampleNumber', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'setupProblem'] },
-      { file: 'src/domain/goal.ts', names: ['validateGoal', 'planHint', 'planQuestion'] },
+      { file: 'src/domain/numbers.ts', names: ['typedDecimals', 'precisionProblem', 'placesToKeep', 'exampleNumber', 'notNumberText', 'groupDigits', 'fixed', 'farOutside', 'usuallyPositive', 'FAR_RATIO'] },
+      { file: 'src/domain/goal.ts', names: ['planQuestion'] },
       { file: 'src/domain/people.ts', names: ['sameNameNote', 'personTell', 'nameWithTell', 'avatarHues', 'duplicateTitles', 'goalTell', 'sameTitleNote'] },
       { file: 'src/domain/thresholds.ts', names: ['MIN_NAME', 'nameProblem'] },
     ],
@@ -423,13 +426,13 @@ One rule for every way in: the check-in, New goal, goal edit, the workspace set-
 
 **Thousands grouped.** Every number shown is written at its places with its thousands grouped by commas (\`groupDigits\`, \`fixed\`): 1,250,000; −12,000; 1,250.5. Files and the AI tools' data carry the plain number.
 
-**Questioned, never refused.** In a check-in, see [the check-in](check-in.md). Setting up (\`setupProblem\`, \`planHint\`): over 100% (asked as before); below zero for a percentage, time or money; a target ${FAR_RATIO} times the start or more, or a ${FAR_RATIO}th of it or less (both non-zero, the same sign); a billion or more. The import notes it on the row; a goal already set up that way isn't asked again.
+**Questioned, never refused.** In a check-in, see [the check-in](check-in.md). Setting a goal up, the questions are [goal entry](goal-entry.md)'s rule 3 (\`goalChecks\`), the same at every door: below zero for a percentage, time or money; over 100%; a target ${FAR_RATIO} times the start or more, or a ${FAR_RATIO}th of it or less (both non-zero, the same sign); a billion or more; each that applies, not only the first. A goal already set up that way isn't asked again.
 
 **Plan changes confirmed, never silent** (\`planQuestion\`). The same check as a check-in's, applied when an existing number goal's plan changes, in the app's goal edit, the spreadsheet import, the data tables and the AI tools (one rule, in the change engine and the edit form). Two things are asked, in this order, and the change saves only once someone says yes:
 - **Which way is better flips:** the new target is on the other side of the start (a 14 → 3 min goal given a target of 999). It says so: “This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better.” The yes is “Yes, make higher better”.
 - **Far outside the old plan:** a new start, target or hand-set week's number more than ${FAR_OUTSIDE} times the old plan's width beyond either end (\`farOutside\`): “The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it.”
 
-The app asks beside the target, with a tick box carrying the yes; Import and Data list the questions above What will change with one yes button; the AI tools refuse with the question until called again with \`confirm: true\`. A plan already stored isn't asked about again, and a new goal is asked about its numbers by \`planHint\` instead.
+The app asks under the target, in the Check block, as goal entry's rule 3 (\`direction\`, \`far-from-plan\`); Import and Data list the questions above What will change with one yes button; the AI tools refuse with the question until called again with \`confirm: true\`. A plan already stored isn't asked about again.
 
 **Names.** A workspace's, a goal's or an outcome's name has at least ${MIN_NAME} characters (\`nameProblem\`). Two goals may have the same title (compared without case or outer spaces): making one warns (\`sameTitleNote\`), and wherever both could be on screen each shows its key, or else its team, beside the title (\`duplicateTitles\`, \`goalTell\`). An import row with no key whose title another goal has is that goal again unless it names another team; then it's a new goal, noted. Two people may have the same name: the email is who someone is. Adding or renaming one says so (\`sameNameNote\`); beside the name goes their team, else their job title, else their email, whichever tells them apart (\`personTell\`). Each avatar's colour comes from the person's ID, and people with the same initials each get a colour none of the others has while there are colours to go round (\`avatarHues\`, ${AVATAR_HUES} colours).`,
     examples: [
@@ -437,7 +440,7 @@ The app asks beside the target, with a tick box carrying the yes; Import and Dat
       { given: '12.5 in a goal of whole numbers.', then: '12.5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 13. Type 13, or set the goal’s Decimals to 1.', run: () => precisionProblem('12.5', 12.5, 0) ?? 'fine' },
       { given: 'The places a check-in offers to keep for 5.5, 5.25 and 1.23456 on a whole-number goal, and for 5.', then: '1, 2, 3, none', run: () => ['5.5', '5.25', '1.23456', '5'].map((x) => String(placesToKeep(x, Number(x), 0) ?? 'none')).join(', ') },
       { given: '1250000, -12000 and 1250.5 shown.', then: '1,250,000, -12,000, 1,250.5', run: () => ['1250000', '-12000', '1250.5'].map(groupDigits).join(', ') },
-      { given: 'A start of 10 signups and a target of 5,000.', then: 'The target is over 100 times the start (10 to 5,000). Is that right?', run: () => setupProblem('signups', 10, 5000) ?? 'fine' },
+      { given: 'A start of 10 signups and a target of 5,000.', then: 'The target (5,000 signups) is over 100 times where it starts (10 signups). Is that right?', run: () => goalChecks({ ...blankGoal('cicd', 'tunde', ''), title: 'Signups', unit: 'signups', start: '10', target: '5000' }, { week: 45, cycleWeeks: 53, existing: null, door: 'form' })[0]?.question ?? 'fine' },
       { given: '400 typed for the 30→75 goal, then 110.', then: 'questioned; fine', run: () => [farOutside(400, 30, 75), farOutside(110, 30, 75)].map((x) => (x ? 'questioned' : 'fine')).join('; ') },
       { given: 'A queue wait goal, 14 → 3 min (lower is better), given a target of 999.', then: 'direction: This makes higher better: the target (999 min) is now above the start (14 min). It was 14 min to 3 min, lower is better. [Yes, make higher better]', run: () => { const was = metric(14, 3, 'straight', { unit: 'min' }); const q = planQuestion(was, { ...was, plan: { ...was.plan, target: 999 } }); return q ? `${q.code}: ${q.text} [${q.confirm}]` : 'fine'; } },
       { given: 'The 30→75 goal given a target of 400, then of 90.', then: 'far: The target of 400% is far outside the plan it replaces (30% to 75%). Status, progress and the forecast will all be judged against it. / fine', run: () => [400, 90].map((t) => { const q = planQuestion(g3075, { ...g3075, plan: { ...g3075.plan, target: t } }); return q ? `${q.code}: ${q.text}` : 'fine'; }).join(' / ') },
@@ -1109,18 +1112,101 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     })(),
   },
 
+  /* ---------- Goal entry: one set of rules at every door (goal entry spec, rules 1, 2, 4, 7 and 12; GE1) ---------- */
+  {
+    id: 'goal-entry',
+    title: 'Goal entry',
+    summary: 'What a goal needs, what can’t be saved and who may save it: one rule for New goal, the edit page, set-up’s cards, a spreadsheet’s Goals rows and the AI tools, in the same words.',
+    code: [
+      { file: 'src/domain/goalEntry.ts', names: ['fieldNeed', 'formNeed', 'stepSays', 'goalMustFix', 'decimalsFor', 'goalChecks', 'CHECK_IDS', 'checksContext', 'sameNamedIn', 'checkedDiffs', 'stepState', 'planGoal', 'REASON_EMPTY'] },
+      { file: 'src/domain/checkin.ts', names: ['unanswered', 'answeredDiffs'] },
+      { file: 'src/domain/plan.ts', names: ['lateShare'] },
+      { file: 'src/domain/goalRights.ts', names: ['mayAddGoal', 'mayChangeGoal'] },
+      { file: 'src/domain/numbers.ts', names: ['numberAsTyped', 'parseNumber'] },
+      { file: 'src/domain/goal.ts', names: ['decimalsFor', 'draftFor'] },
+    ],
+    tests: ['src/domain/goalEntry.test.ts', 'evals/goalEntry.eval.ts'],
+    reqs: ['GOAL-ENTRY-REQUIRED'],
+    body: `
+Every way a goal comes in asks the same rule, in the same words: New goal, the edit page, set-up's goal cards, a Goals row of a spreadsheet, Data or a bulk edit (the change engine, \`planChanges\`), and the AI tools (which use the change engine). The form saves through \`planGoal\`, run by the \`saveGoal\` action, so it can't save what the engine would refuse.
+
+**Who may (rule 7).** Anyone may add a goal for anyone, at any level, at every door (Lane, 11 Nov: \`mayAddGoal\` is always yes, and is the one place that is said). Changing a goal stays with its owner and admins (\`mayChangeGoal\`), whoever made it; New goal says so as soon as someone else is chosen as owner: “Amara will own it. After it is published, only Amara or an admin can change it.”
+
+**What a field needs (rule 1).** Read from the spreadsheet's field table (\`fieldNeed\`): required, optional, worked out, or not asked for this type. In the form, a field that always shows a value (the type, the team, the level, which side a range keeps to) is required. Optional fields say “· optional” after their label; a step with two or more required fields and at least one optional says “${'Everything here is needed unless it says optional.'}” under its heading. The unit is optional and starts empty: a number has no unit by default, never “%”.
+
+**What can't be saved (rule 2, \`goalMustFix\`).** Each problem is under its own field, in the form's order. The name (at least three characters), an owner, a team (“{Owner} isn’t in a team. Choose the team this goal is for.” when the owner has none), a level, a link that would make a loop; for a number to move, where it starts (“Enter where it starts today.”; on the edit page “Enter where it starts.”) and a target that differs from it (“The target is the same as today (40%). To hold a number where it is, make this a number to keep in range.”, offering to); for a range, the limit, and a warning margin of zero or more (empty is none); for stages, at least one, each with a name, a name no other stage has (compared without case or accents), and a due week in the year. A stage done in a check-in can't be removed, and fewer decimal places than check-ins already have is refused.
+
+**A number as typed (rule 12, \`numberAsTyped\`).** Digits as people type them (a decimal comma, thousands, a sign); words after it only when they are the goal's unit (“12 days” in a days goal, with min and mins, day and days, hr and hours the same; “12%” in a % goal). Anything else after the digits is “has words”: “12 days” has words in it. Type the number only, like 12; this goal counts %. Letters in place of digits are “not a number”, with an example at the goal's decimal places.
+
+**Decimals, worked out (\`decimalsFor\`).** The places chosen; or, when none were, the most typed in Today, Target or Limit, at most 3, said in one line (“Kept to 1 decimal place, as you typed them.”) with Change. A number with more places than chosen is refused, offering to keep them.
+
+**What is asked (rule 3, \`goalChecks\`).** What is possible but unlikely is a question, never a refusal: a Check, in the same block as the check-in's, under the field it is about, with two answers, the first keeping what was typed. In this order, each that applies, and only once the fields it is about have no Must fix: a stage already past (“Week 43 was 2 weeks ago. Is this stage already done?”, either answer an answer); no unit (“This number has no unit. Is it a plain count?”, asked once); a number below zero for a percentage, time or money; over 100% (“The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right?”); a target ${FAR_RATIO} times its start or more, or a ${FAR_RATIO}th; a billion or more; a target on the worse side of the start for the metric chosen to measure it (““Pipeline queue wait” is better lower, but the target (9 min) is above today (7 min). Is that the plan?”, from the goal.measure place); the same name in the same team; an owner in another team (“Amara is in Office of the VP, not Build & Release. Which team is this goal for?”, whose second answer moves it); a link to a goal at a lower level (whose second answer removes the link); a warning margin as wide as the limit; weeks set by hand that leave more than 60% of the change to the last quarter of the plan's weeks (\`lateShare\`); and, for a goal being changed, a target that flips which way is better or a number far outside the old plan (\`planQuestion\`). An answer is kept in the draft as the values it was about (\`answers[slot] = key\`), so changing them asks again (\`unanswered\`, shared with the check-in); answered, the block collapses to “You said 150% is right.” with Change. A goal already saved isn't asked again about what it already says. The import asks the same questions in the same words (an unlikely number, a link to a lower level), keeping its own forms of no unit, the same name and stages already past; a file's Team column says the team in so many words, so an owner in another team is asked only in the form. The AI tools list every question goal by goal (“Not saved. Check with the person first: …”) and take \`confirm: true\` as yes to each. The question about a metric's latest number (\`far-from-metric\`) waits for the metrics module to keep one for a slice, and those about dates for GE9; a file is asked \`wrong-side\` once the import reads Measured by.
+
+**Whether a step goes on (rule 4, \`stepState\`).** The button is never disabled. Pressed with a Must fix on its step, every field of the step shows its own, focus goes to the first, and one line above the button counts them: “2 things to fix above: Unit and Target.” (more than three: the first two “and {k} more”), the same line the check-in uses. A Must fix shows under a field once it has been changed and left, never while typing. With none, an unanswered question holds the step: focus goes to it and the line reads “Answer the question above, under Target.” (several: “Answer the 2 questions above.”).
+
+**Saving (rule 7, \`planGoal\`).** Refused, in these words, unless the actor may, nothing must be fixed, every question is answered (“Not saved. Check with the person first: …”, with the questions' words), and a plan change after check-ins have started has a reason (“${'Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.'}”). Then one commit: the goal (a new one with the workspace's next key), its History entry with Why and each answer as *Checked* (the question, then the answer given), and a new goal's stages already done.`,
+    examples: (() => {
+      const blank = (o: Partial<GoalDraft>): GoalDraft => ({ ...blankGoal('cicd', 'tunde', ''), title: 'Signed artifacts', ...o });
+      const fixes = (d: GoalDraft, extra: Partial<Parameters<typeof goalMustFix>[1]> = {}) => goalMustFix(d, { cycleWeeks: 53, week: 45, existing: null, door: 'form', ...extra }).map((f) => `${f.id}: ${f.text}`).join(' / ') || 'nothing';
+      const asTyped = (raw: string, unit: string) => { const r = numberAsTyped(raw, unit); return 'n' in r && !('problem' in r) ? String(r.n) : (r as { problem: string }).problem; };
+      return [
+        { given: 'Unit and Start for a number to move; Unit for dated stages; Margin for a range (the field table’s needs).', then: 'required as start, optional as unit; not-asked; optional', run: () => `${fieldNeed(fieldNeedOf('goals', 'Start'), 'metric')} as start, ${formNeed('unit', 'metric')} as unit; ${formNeed('unit', 'milestone')}; ${formNeed('margin', 'range')}` },
+        { given: 'Whether step 3 of a number goal with no metric, and step 1, say “Everything here is needed unless it says optional.”', then: 'yes; no', run: () => [stepSays(stepFields(2, 'metric'), 'metric'), stepSays(stepFields(0, 'metric'), 'metric')].map((x) => (x ? 'yes' : 'no')).join('; ') },
+        { given: '“12”, “1,250.5”, “29,4”, “12%” in a % goal; “12 days” in a days goal, “12 mins” in a min goal; “12 days” in a % goal and with no unit; “12%” in a days goal; “abc”, “1.2.3”, “12-”.', then: '12, 1250.5, 29.4, 12; 12, 12; has-words, has-words; has-words; not-number, not-number, not-number', run: () => [[['12', '%'], ['1,250.5', '%'], ['29,4', '%'], ['12%', '%']], [['12 days', 'days'], ['12 mins', 'min']], [['12 days', '%'], ['12 days', '']], [['12%', 'days']], [['abc', ''], ['1.2.3', ''], ['12-', '']]].map((g) => g.map(([r, u]) => asTyped(r!, u!)).join(', ')).join('; ') },
+        { given: 'A name of “ab”.', then: 'name-short: Give the goal a name of at least three characters.', run: () => fixes(blank({ title: 'ab', start: '1', target: '2' })) },
+        { given: 'A number goal, unit %, today “12 days”, target 30.', then: 'has-words: “12 days” has words in it. Type the number only, like 12; this goal counts %.', run: () => fixes(blank({ unit: '%', start: '12 days', target: '30' })) },
+        { given: 'Unit “days”, today “12 days”, target 5.', then: 'nothing', run: () => fixes(blank({ unit: 'days', start: '12 days', target: '5' })) },
+        { given: 'Unit %, today “1,5”, target 3, decimals not chosen; then decimals chosen as whole numbers.', then: 'nothing / too-precise: 1,5 has 1 decimal place, but this goal keeps whole numbers, so it would show as 2. Type 2, or keep 1 decimal place for this goal.', run: () => [fixes(blank({ unit: '%', start: '1,5', target: '3' })), fixes(blank({ unit: '%', start: '1,5', target: '3', decimals: '0' }))].join(' / ') },
+        { given: 'Today “abc”, target 30, whole numbers.', then: 'not-number: “abc” isn’t a number. Type digits only, like 29.', run: () => fixes(blank({ start: 'abc', target: '30', decimals: '0' })) },
+        { given: 'Today 40, target 40, unit %.', then: 'same-as-start: The target is the same as today (40%). To hold a number where it is, make this a number to keep in range.', run: () => fixes(blank({ unit: '%', start: '40', target: '40' })) },
+        { given: 'Stages “Design” in week 48 and “design ” in week 50; then “Design” with no week.', then: 'stage-twice: Two stages are called “Design”. Give each its own name, such as “design review”. / stage-week: Choose the week “Design” is due.', run: () => [fixes(blank({ kind: 'milestone', stages: [{ id: 'a', name: 'Design', dueWeek: '48' }, { id: 'b', name: 'design ', dueWeek: '50' }] })), fixes(blank({ kind: 'milestone', stages: [{ id: 'a', name: 'Design', dueWeek: '' }] }))].join(' / ') },
+        { given: 'A file’s stage “Design” due in week 60 of a 53-week year.', then: 'stage-week: “Design” needs a due week between 1 and 53: it says “60”.', run: () => fixes(blank({ kind: 'milestone', stages: [{ id: 'a', name: 'Design', dueWeek: '60' }] }), { door: 'table' }) },
+        { given: 'An owner in no team, the team empty.', then: 'team-empty: Amara Nwosu isn’t in a team. Choose the team this goal is for.', run: () => fixes(blank({ teamId: '', ownerId: 'amara', start: '1', target: '2' }), { owner: { name: 'Amara Nwosu', teamId: null } }) },
+        { given: 'A range with a warning margin of −1.', then: 'margin-negative: Enter a warning margin of zero or more, or leave it empty.', run: () => fixes(blank({ kind: 'range', limit: '12', margin: '-1' })) },
+        { given: 'Step 3 with Unit empty but no Today, and Target “30 mins” in a % goal; four Must fix on one step.', then: '2 things to fix above: Today and Target. / 4 things to fix above: Today, Target and 2 more.', run: () => [goalStepState(2, goalMustFix(blank({ unit: '%', target: '30 mins' }), { cycleWeeks: 53, week: 45, existing: null, door: 'form' })).says, goalStepState(2, [{ field: 'start', id: 'start-empty', text: '' }, { field: 'target', id: 'target-empty', text: '' }, { field: 'limit', id: 'limit-empty', text: '' }, { field: 'margin', id: 'margin-negative', text: '' }]).says].join(' / ') },
+        { given: 'The questions, in order: −5 → 5%; 10 → 1,500%; 5 → 2 days; no unit, 1 → 5.', then: 'below-zero; over-100, hundredfold; nothing; no-unit', run: () => [{ start: '-5', target: '5' }, { start: '10', target: '1500' }, { unit: 'days', start: '5', target: '2' }, { unit: '', start: '1', target: '5' }].map((o) => goalChecks(blank({ unit: '%', ...o }), { week: 45, cycleWeeks: 53, existing: null, door: 'form' }).map((c) => c.id).join(', ') || 'nothing').join('; ') },
+        { given: '50 → 150%, answered yes; then the target changed to 160.', then: 'The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right? / answered / asked again', run: () => {
+          const at = (t: string) => goalChecks(blank({ unit: '%', start: '50', target: t }), { week: 45, cycleWeeks: 53, existing: null, door: 'form' });
+          const answers = { 'over-100': at('150')[0]!.key };
+          return [at('150')[0]!.question, goalUnanswered(at('150'), answers).length ? 'open' : 'answered', goalUnanswered(at('160'), answers).length ? 'asked again' : 'answered'].join(' / ');
+        } },
+        { given: 'A range at most 12% warning within 20; then within 1.', then: 'With a limit of 12% and a warning 20% away, it would almost always read at risk. Is 20 right? / nothing', run: () => ['20', '1'].map((m) => goalChecks(blank({ kind: 'range', unit: '%', limit: '12', margin: m }), { week: 45, cycleWeeks: 53, existing: null, door: 'form' })[0]?.question ?? 'nothing').join(' / ') },
+        { given: 'A north star feeding a Team goal; an SVP goal feeding an SVP goal; Amara (Office of the VP) as owner in Build & Release.', then: 'A north star usually feeds nothing, and “Flaky test rate” is a Team goal. Is this link right? / nothing / Amara is in Office of the VP, not Build & Release. Which team is this goal for?', run: () => {
+          const q = (d: Partial<GoalDraft>, o: object) => goalChecks(blank({ unit: '%', ...d }), { week: 45, cycleWeeks: 53, existing: null, door: 'form', ...o })[0]?.question ?? 'nothing';
+          return [q({ level: 'north-star', parentId: 'p' }, { parent: { id: 'p', title: 'Flaky test rate', level: 'team' } }), q({ level: 'svp', parentId: 'p' }, { parent: { id: 'p', title: 'Flaky test rate', level: 'svp' } }), q({ ownerId: 'amara' }, { owner: { name: 'Amara Nwosu', teamId: 'vp', teamName: 'Office of the VP' }, team: { id: 'cicd', name: 'Build & Release' } })].join(' / ');
+        } },
+        { given: 'Weeks set by hand from 10 to 5 over 7 weeks: 10, 10, 10, 10, 9, 8; then a back-loaded shape with none set by hand.', then: 'This plan leaves 80% of the change to the last 2 of 7 weeks. Is that the plan? / nothing', run: () => {
+          const points = Object.fromEntries([10, 10, 10, 10, 9, 8].map((v, i) => [String(i + 1), String(v)]));
+          return [blank({ unit: 'days', start: '10', target: '5', endWeek: '7', fromWeek: '0', points }), blank({ unit: 'days', start: '10', target: '5', endWeek: '7', fromWeek: '0', shape: 'back' })].map((d) => goalChecks(d, { week: 45, cycleWeeks: 53, existing: null, door: 'form' })[0]?.question ?? 'nothing').join(' / ');
+        } },
+        { given: 'Step 3 with 50 → 150% unanswered; then with −5 → 5% too.', then: 'Answer the question above, under Target. / Answer the 2 questions above.', run: () => {
+          const c = (d: Partial<GoalDraft>) => goalChecks(blank({ unit: '%', ...d }), { week: 45, cycleWeeks: 53, existing: null, door: 'form' });
+          return [goalStepState(2, [], c({ start: '50', target: '150' })).says, goalStepState(2, [], [...c({ start: '50', target: '150' }), ...c({ start: '-5', target: '5' })]).says].join(' / ');
+        } },
+        { given: 'The questions goal entry asks, in their order.', then: CHECK_IDS.join(', '), run: () => CHECK_IDS.join(', ') },
+        { given: 'Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same; then Tunde changes a goal Amara owns.', then: 'saved, G-127 owned by amara / no problems / refused: Only Rhea Kapoor (its owner) or an admin can change', run: () => {
+          const tables = { goals: [rec({ Goal: 'A north star for Amara', Owner: 'Amara Nwosu', Level: 'North star', Unit: '%', Start: '10', Target: '20' })] };
+          const made = asPerson('tunde', (x) => { const o = planGoal(x, { draft: { ...blankGoal('cicd', 'amara', ''), title: 'A north star for Amara', level: 'north', unit: '%', start: '10', target: '20' }, confirm: true }); return `saved, ${o.goal.key} owned by ${o.goal.ownerId}`; });
+          const theirs = demo!.goals.find((g) => g.ownerId !== 'tunde')!;
+          const refused = asPerson('tunde', (x) => planGoal(x, { draft: { ...blankGoal(theirs.teamId, 'amara', ''), title: 'Renamed' }, goalId: theirs.id }));
+          return [made, issues(change('tunde', tables)), String(refused).replace(/ “.*$/, '')].join(' / ');
+        } },
+      ];
+    })(),
+  },
+
   /* ---------- New goal's order (onboarding spec, rules 1, 2 and 5; OB1) ---------- */
   {
     id: 'new-goal',
     title: 'New goal',
     summary: 'New goal asks what, then who and where, then how it’s measured, then reads it back; its level starts from the goal it feeds, and “Feeds into” suggests the goals one level up.',
-    code: [{ file: 'src/domain/newGoal.ts', names: ['NEW_GOAL_STEPS', 'stepIndex', 'startLevel', 'canFeed', 'feedRefusal', 'parentSuggestions', 'PARENT_SUGGESTIONS', 'planNote'] }],
+    code: [{ file: 'src/domain/newGoal.ts', names: ['NEW_GOAL_STEPS', 'stepIndex', 'startLevel', 'parentSuggestions', 'PARENT_SUGGESTIONS', 'planNote'] }],
     tests: ['src/domain/newGoal.test.ts'],
     reqs: ['NEW-GOAL-STEPS'],
     body: `
 **The steps.** Four, each with its own address under \`/goals/new\`: *what* (the name and the kind), *who and where* (owner, team, level, what it feeds, what else it helps, guardrail), *how it's measured* (what measures it, the numbers or stages, how it's measured in words and where the number comes from), and *check* (the goal read back, each row with Change). Each Continue is one history entry, so the browser's Back steps back; a later step opened with an earlier one unfilled goes to the first unfilled one. A draft is kept on every change and picked up at the step it stopped at. People, teams and goals are found by typing (the [finding](finding.md) rules), never chosen from a list of everything. The owner starts as the person adding it, and the team follows the owner until it is chosen by hand.
 
-**The level it starts at (rule 1).** With a goal it feeds: one level below that goal's. Without: Team, unless the owner leads a team that already owns a north-star or SVP goal; then none, and the person is asked ("Choose a level."). A goal can only feed one at a higher level: one at the same or a lower level is listed but can't be chosen, saying so ("A Team goal can’t feed a Team goal.").
+**The level it starts at (rule 1).** With a goal it feeds: one level below that goal's. Without: Team, unless the owner leads a team that already owns a north-star or SVP goal; then none, and the person is asked ("Choose a level."). Any goal can be chosen to feed (anyone may set any level; Lane, 11 Nov): one at a lower level is asked about where it is chosen ([goal entry](goal-entry.md), rule 3's \`feeds-lower\`), never refused.
 
 **Suggestions for "Feeds into" (rule 2).** Before anything is typed, at most ${PARENT_SUGGESTIONS}: the goals one level up in the goal's team, worst first; then goals one level up that the person's own goals already feed; then goals opened lately that are above the level. A north star has none: it is the top of its tree.
 
@@ -1134,7 +1220,6 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: 'The demo: Rhea (her team, CI/CD, owns SVP goals) and Tunde, each with nothing to feed; then anyone, under the north star “Lead time for changes”.', then: 'none: asked; team; svp', run: () => [startLevel(org.cycles[0], 'rhea', org.teams, org.goals, null), startLevel(org.cycles[0], 'tunde', org.teams, org.goals, null), startLevel(org.cycles[0], 'tunde', org.teams, org.goals, g('ns-lead'))].map(lvl).join('; ') },
         { given: 'Rhea’s new SVP goal in CI/CD: the first suggestion for “Feeds into”.', then: 'Lead time for changes', run: () => parentSuggestions(org.cycles[0], 'svp', 'cicd', 'rhea', org.goals, byTitle)[0]?.title ?? 'none' },
         { given: 'A north star’s suggestions.', then: '0', run: () => String(parentSuggestions(org.cycles[0], 'north-star', 'cicd', 'rhea', org.goals, byTitle).length) },
-        { given: 'An SVP goal choosing to feed the SVP goal “Flaky test rate in the main pipelines”.', then: 'An SVP goal can’t feed an SVP goal.', run: () => feedRefusal(org.cycles[0], 'svp', g('lead-flaky')) ?? 'allowed' },
         { given: 'The plan’s note in week 10 of 2026.', then: 'Each week’s number is checked in during that week, so the one that closes Q1 is week 13, checked in 23–29 Mar.', run: () => planNote(org.cycles[0]!, 10) ?? '' },
       ];
     })(),
@@ -1146,7 +1231,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     id: 'not-born-late',
     title: 'A goal not born late',
     summary: 'A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan.',
-    code: [{ file: 'src/domain/goal.ts', names: ['pastStage', 'stagesDoneAtSetUp', 'validateGoal'] }, { file: 'src/domain/checkin.ts', names: ['rebaseOffer', 'rebase', 'REBASE_WEEKS'] }, { file: 'src/domain/actions.ts', names: ['recordStagesDone'] }],
+    code: [{ file: 'src/domain/goal.ts', names: ['pastStage', 'stagesDoneAtSetUp'] }, { file: 'src/domain/goalEntry.ts', names: ['goalMustFix'] }, { file: 'src/domain/checkin.ts', names: ['rebaseOffer', 'rebase', 'REBASE_WEEKS'] }, { file: 'src/domain/actions.ts', names: ['recordStagesDone'] }],
     tests: ['src/domain/notBornLate.test.ts', 'evals/onboarding.eval.ts'],
     reqs: ['NEW-GOAL-TRUTH'],
     body: `

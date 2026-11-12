@@ -71,6 +71,7 @@ export const MUST_KINDS = [
 export const CHECK_KINDS = [
   'near-ref', 'near-word', 'near-header', 'new-team', 'same-person', 'same-goal', 'other-goal', 'other-workspace', 'past-stage',
   'past-plan', 'odd-number', 'plan-question', 'no-unit', 'decimal-comma', 'replaces-others', 'many-admins', 'totals-row', 'big-removal',
+  'feeds-lower',
 ] as const;
 /** How a row was read: fine, and said on the change. */
 export const NOTE_KINDS = ['by-name', 'default', 'date-as-week', 'folded', 'same-name', 'left-alone', 'replaces', 'as-recorded', 'example'] as const;
@@ -168,6 +169,7 @@ export const ANSWERS = {
   planQuestion: (yes: string): Choice[] => [{ choice: 'yes', label: yes }, LEAVE],
   sure: [{ choice: 'right', label: 'That’s right' }, LEAVE] as Choice[],
   odd: [RIGHT, LEAVE] as Choice[],
+  feedsLower: [{ choice: 'right', label: 'Yes, it feeds that goal' }, LEAVE] as Choice[],
   leaveOnly: [LEAVE] as Choice[],
 };
 
@@ -251,6 +253,7 @@ export function groupTitle(kind: IssueKind, sheet: Sheet, count: number, first: 
     case 'many-admins': return `${n(count, 'person', 'people')} would become admins`;
     case 'totals-row': return first.message;
     case 'big-removal': return first.message;
+    case 'feeds-lower': return count === 1 ? first.message : `${n(count, 'goal')} feed${count === 1 ? 's' : ''} a goal at a lower level. Is that right?`;
     default: return first.message;
   }
 }

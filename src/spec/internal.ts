@@ -54,11 +54,11 @@ export interface Access {
   code: string[];
 }
 
-const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', MX = 'src/modules/metrics/rules.ts#';
+const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', G = 'src/domain/goalEntry.ts#planGoal', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
-  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn'] },
-  { area: 'Goals, plans and check-ins', what: 'Add a goal', who: 'Anyone, for a goal they own; an admin, for anyone', code: [C] },
+  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn', G, 'src/domain/goalRights.ts#mayChangeGoal'] },
+  { area: 'Goals, plans and check-ins', what: 'Add a goal, at any level, owned by anyone', who: 'Anyone, for anyone (Lane, 11 Nov)', code: [C, G, 'src/domain/goalRights.ts#mayAddGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'Whoever posted it, or an admin', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
   { area: 'Goals, plans and check-ins', what: 'Wrap up a goal at the end of the cycle', who: 'The goal’s owner, or an admin', code: [`${A}saveRetro`] },
@@ -312,7 +312,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 370 KB compressed; 369 KB today, over R4’s 300, so it only goes down; the guide and What’s new load when Help is opened, and the first download carries only their index of titles, routes and release ids), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 430 KB (428 today), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 292 KB compressed; 288 KB today, under R4’s 300: every page but Home loads when it is opened, as do the guide, What’s new and the spreadsheet tools, and the first download carries only Help’s index of titles, routes and release ids. AX4 first measured the entry alone, 241 KB; the check now counts every file the page preloads with it, which is what a first visit really waits for), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 350 KB (346 today), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {

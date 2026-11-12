@@ -94,3 +94,17 @@ describe('queryParts (find rule 3, on Goals)', () => {
     expect(queryParts(q, names).map(filterText)).toEqual(['Needs attention because date slipped']);
   });
 });
+
+describe('a module’s filter, declared as a column (architecture 4.2)', () => {
+  it('reads its parameter once added, compares the column, words it and removes it', async () => {
+    const q = await import('./query');
+    q.addColumnParams(['measuredby']);
+    const parsed = q.parseQuery(new URLSearchParams('measuredby=m1&status=off'));
+    expect(parsed.cols).toEqual({ measuredby: 'm1' });
+    expect(q.queryEntries(parsed)).toContainEqual(['measuredby', 'm1']);
+    expect(q.filters(parsed)).toBe(true);
+    const names = { team: () => '', person: () => '', goal: () => '', col: (k: string, v: string) => (k === 'measuredby' ? { label: 'Measured by', value: v.toUpperCase() } : null) };
+    expect(q.queryParts({ ...q.EMPTY_QUERY, cols: { measuredby: 'm1' } }, names)).toEqual([{ key: 'measuredby', label: 'Measured by', values: ['M1'] }]);
+    expect(q.without(parsed, 'measuredby').cols).toEqual({});
+  });
+});
