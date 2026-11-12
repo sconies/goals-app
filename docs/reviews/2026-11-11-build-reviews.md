@@ -114,6 +114,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #255 CK2: the table check-in | 1 | 0 | 0 | 2 |
 | #248 IM7: Export is one button | 3 | 0 | 2 | 5 |
 | #257 IM6 part 1: large files | 3 | 0 | 2 | 3 |
+| #271 Batch refs: the two review findings | MCP load | 0 | 0 | 0 |
+| #268, #275 KT5b and KT6: the kit | 6 | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1191,3 +1193,11 @@ Read first by the same reviewing session, on screen at 1440 and 390. No high fin
 **2. Medium (ran). "Everything in 2026" understates the file once a goal is stopped.** The count line reads the live goals only; the workbook adds the archive (`src/domain/export.ts:44`). With G-2 stopped the sheet says 125 goals and 5,302 check-ins, and the file holds 126 and 5,347. The file is right; the new count line is not.
 
 **Lows.** Focus goes to `body` when the sheet closes from Data's Export. An empty view exports an empty workbook, preselected. Import's "Download the workbook" still uses the old name and toast (`Import.tsx:53,109`). The footnote "{n} goals, as of week {w}" is gone, zipped CSVs are three clicks away where What's new says one, and no journey opens Data's "Everything…" or exports a filtered All tab. The file name no longer carries the year (read).
+
+### #271 Batch refs: the two findings from #259 (MCP load, merged 20:55 UTC, 12 Nov)
+
+Fixes both. The duplicate-row pass on Check-ins now resolves Goal ref first, so two rows for one new goal and week are refused ("has the same week on rows 2 and 3") and nothing is saved; and the refusal names the columns the row used ("Feeds into ref and Feeds into key name different goals"). Read, and its two new tests run on main at `113be18f`. No finding.
+
+### #268 and #275 KT5b and KT6: the kit; #262, #272 and #276 handovers
+
+Screenshots of each screen for the spec, and the MCP tools' calls as data (`src/spec/calls.ts`), with two lines in `src/mcp/tools.ts`. They change the spec's generator, not the app's behaviour. Skimmed, not reviewed in depth. The rest are documents. No finding.
