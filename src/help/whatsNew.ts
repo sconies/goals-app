@@ -23,6 +23,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-fixes',
+    date: '2026-11-12',
+    title: 'Metrics: a few things put right',
+    points: [
+      'New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.',
+      'A goal you make for someone else can be measured by a metric straight away.',
+      'A goal whose metric changed unit or direction since now says so on its page.',
+      'Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.',
+      'See goals in a unit finds the goals in that unit.',
+    ],
+    articles: ['metrics'],
+  },
+  {
     id: 'import-preview',
     date: '2026-11-12',
     title: 'A clearer check before an import is saved',

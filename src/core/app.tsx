@@ -42,6 +42,10 @@ export interface PlaceProps {
     fill?: (f: { unit: string; decimals: string; hidden: boolean }) => void;
     /** Whether the person chose "No metric": the form then asks how it's measured in its own words. */
     onNone?: (none: boolean) => void;
+    /** What the place chose, kept in the form's draft as the module wrote it, so Back, a reload and "Close and keep the
+        draft" find it again. Undefined: nothing kept yet (the goal's own link, if any, stands). */
+    kept?: string;
+    onKeep?: (kept: string) => void;
   };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };

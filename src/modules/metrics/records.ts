@@ -15,6 +15,7 @@ import type { Commit } from '../../domain/commit';
 import type { DbRow, ModuleRecords, RecordDef } from '../../domain/records';
 import { LINKS_KEY, linksOf, metricRows, metricsOf, METRICS_KEY } from './rules';
 import { METRICS_SHEET } from './sheet';
+import { measuredByFilter } from './finder';
 import type { Metric, MetricLink } from './types';
 
 /* ---------- rows each way (the Supabase and Postgres adapters write and read these) ---------- */
@@ -60,7 +61,8 @@ const metric: RecordDef<Metric> = {
     restore(x: ActionContext, m: Metric): Commit {
       const same = metricsOf(x.full ?? x.snapshot).find((v) => v.id !== m.id && !v.removedAt && v.name.trim().toLowerCase() === m.name.trim().toLowerCase());
       if (same) throw new NotAllowed(`There’s a metric called ${same.name} again. Rename it first.`);
-      const goals = new Set(x.snapshot.goals.filter((g) => !g.removedAt).map((g) => g.id));
+      // Any goal of the workspace still there, a stopped one or one in another cycle included, as removeMetric unlinked them all.
+      const goals = new Set((x.full ?? x.snapshot).goals.filter((g) => !g.removedAt).map((g) => g.id));
       const back = m.removedAt ? linksOf(x.full ?? x.snapshot).filter((l) => l.metricId === m.id && l.removedAt === m.removedAt && goals.has(l.goalId)) : [];
       return {
         ...metricRows({ metrics: [{ ...m, removedAt: null, removedBy: null, updatedAt: x.now }], ...(back.length ? { metricLinks: back.map((l) => ({ ...l, removedAt: null, removedBy: null })) } : {}) }),
@@ -91,5 +93,7 @@ const goalMetric: RecordDef<MetricLink> = {
 const records: Omit<ModuleRecords, 'module'> = {
   records: [metric, goalMetric],
   sheets: [METRICS_SHEET],
+  // Goals' "Measured by" (?metric=): the same column the app's filter fills (finder.ts), for find_goals.
+  goalColumns: [{ param: measuredByFilter.param, fill: measuredByFilter.fill }],
 };
 export default records;

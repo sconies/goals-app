@@ -25,6 +25,7 @@ import type { FeedbackOps } from '../markup/feedback';
 import { REMOVE_TOOLS } from './removeTools';
 import MODULE_TOOLS from 'virtual:faro-modules/tools';
 import { isModuleOn, moduleById } from '../core/registry';
+import { MODULE_GOAL_COLUMNS } from '../core/records';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
 import { isTableView } from '../domain/tableLayout';
@@ -261,7 +262,9 @@ const CORE_TOOLS: ToolDef[] = [
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
-      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
+      // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns).
+      const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
+      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));

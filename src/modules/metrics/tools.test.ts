@@ -116,4 +116,13 @@ describe('metric library tools', () => {
     const r = await call('list_metrics');
     expect(r.isError).toBe(true);
   });
+  it('find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)', async () => {
+    const { call } = await setup('rhea');
+    const found = await call('find_goals', { query: 'metric=metric_lead-time' });
+    expect((found.structuredContent!.goals as { id: string }[]).map((g) => g.id)).toEqual(['ns-lead']);
+    const asked = await call('save_metric', { id: 'metric_lead-time', unit: 'days' });
+    expect(asked.isError).toBe(true);
+    expect(asked.content[0]!.text).toMatch(/1 goal is measured by this metric. .* save it again with confirm/);
+    expect((await call('save_metric', { id: 'metric_lead-time', unit: 'days', confirm: true })).isError).toBe(false);
+  });
 });
