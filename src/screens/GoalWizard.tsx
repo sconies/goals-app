@@ -24,7 +24,7 @@ import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
 import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { WeekPick } from '../ui/WeekPick';
-import { datesOf, lastWeekOffered, weekSays } from '../domain/weeks';
+import { datesOf, defaultTo, weekSays } from '../domain/weeks';
 import { rangeSays, spanSays } from '../domain/weekChoices';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
@@ -89,9 +89,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [asking, setAsking] = useState(false);
   useMark(STEP_MARKS[step] ?? null);
   // From and To (rule 13): picked weeks, from this week to the year's end until chosen.
-  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: null });
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: null, startDate: cycle.startDate });
   const endChoice = span.to;
-  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(defaultTo(cycle, n)) } : {}) });
   const setTo = (n: number) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} });
   const top = useRef<HTMLDivElement>(null);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check. The

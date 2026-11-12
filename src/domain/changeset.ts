@@ -17,20 +17,20 @@ import type { Commit } from './commit';
 import type { ActionContext } from './actions';
 import { NotAllowed } from './actions';
 import { goalChange, checkInChange, type Lookup } from './changes';
-import { answeredDiffs, checkInLevels, evaluate, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
+import { answeredDiffs, checkInLevels, evaluate, MIN_CORRECT_REASON, MIN_REASON, MISSING_TEXT, parseNumber, toCheckIn, unanswered, VALUE_CODES, valueProblem, type Draft, type Missing } from './checkin';
 import {
   BOUND_WORDS, CALL_WORDS, CAUSE_WORDS, codeOf, GOAL_ACTION_WORDS, LEVEL_WORDS, oneOf, PERSON_ACTION_WORDS, RECOVERY_WORDS, SHAPE_WORDS, TYPE_WORDS, unknownWord, wordsAndAlso, YES_WORDS,
   type Words,
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal } from './goalRights';
+import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
-import { readWeekCode, weekUnknownText } from './weeks';
+import { readWeekCode, weekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
@@ -55,7 +55,7 @@ export type PostMode = 'new' | 'again' | 'correct';
 /** One check-in as a screen posts it: the draft the form holds, not a spreadsheet row. */
 export interface CheckInPost { goalId: string; week: number; draft: Draft; mode: PostMode; reason?: string }
 /** Why a check-in is corrected or added later, in a sentence (rule 13). */
-export const MIN_CORRECT_REASON = 10;
+export { MIN_CORRECT_REASON };
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
 /** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,
@@ -652,6 +652,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     }
     return skip;
   }
+  // From with no Start column beside it, in a file (not a tool, whose From is always a week): a bare number is asked about.
+  const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
   examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'example').length;
@@ -801,13 +803,16 @@ export function planChanges(input: ChangeInput): ChangeSet {
         const said: [string, string, number][] = [];
         for (const [c, h] of [[col, head], [old, oldHead]] as const) {
           const raw = has(r, c) ? val(r, c) : '';
-          // An empty Due week is the cycle's end (it clears); any other empty cell says nothing.
-          if (!raw && !(c === 'due week' && has(r, c))) continue;
+          // An empty Due week is the cycle's end (it clears), unless To says the week; any other empty cell says nothing.
+          if (!raw && !(c === 'due week' && has(r, c) && !val(r, 'to'))) continue;
+          // A bare number under From, in a file with no Start column, may be where the goal starts (the export's Start
+          // renamed From): asked which, never read as a week (GE9 review).
+          if (c === 'from' && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) { raise('week-wrong', 'Goals', row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head }); return false; }
           let n: number | null, msg: string | undefined;
           if (c === col) { const x = readWeekCode(cycle, raw); n = 'n' in x ? x.n : null; msg = 'text' in x ? x.text : undefined; }
           else if (c === 'due week' && raw) { const x = weekCell(raw, 'Goals', row, d.title); n = x.n; msg = x.problem; }
           else n = raw ? parseNumber(raw) : cycle.weeks;
-          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h }); return false; }
+          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw, week), { column: h }); return false; }
           if (n !== cur) said.push([h, raw, n]);
         }
         if (said.length === 2 && said[0]![2] !== said[1]![2]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${said[0]![1]} and ${oldHead} says ${said[1]![1]}. Change just one of them.`, { column: head }); return false; }
@@ -1158,9 +1163,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
-    if (!create && !canChange(g)) {
+    // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.

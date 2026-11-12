@@ -3,6 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { homeFor, type HomeFacts } from '../domain/home';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
 import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
@@ -283,10 +284,11 @@ The calculation gives one of \`on\`, \`risk\`, \`off\`, \`done\`, \`planned\` (w
 1. *week* = the cycle's week that day. *latest* = the goal's check-in posted most recently (by when it was posted, whatever week it was for).
 2. If *latest*'s call is \`done\`: **Done**.
 3. Else if *week* is 0: **Not started**.
-4. Else if the days without an update are under ${RULES.staleDays}: *latest*'s call (the owner's), or **No check-in yet** if there is none.
-5. Else: **No recent update** (\`stale\`).
+4. Else if the cycle's last day is past ([a year's end](year-end.md)): *latest*'s call, or **No check-in yet** if there is none. After the last day no goal becomes No recent update for want of a check-in.
+5. Else if the days without an update are under ${RULES.staleDays}: *latest*'s call (the owner's), or **No check-in yet** if there is none.
+6. Else: **No recent update** (\`stale\`).
 
-*Days without an update* are the days since *latest* was posted; with no check-in, since the goal began (the cycle's start, or the day it was added if later).
+*Days without an update* are the days since *latest* was posted; with no check-in, since the goal began: the latest of the cycle's start, the day it was added, and, for a number goal whose plan starts later (\`fromWeek\` > 0), that week's day (the cycle's start + 7 × \`fromWeek\` days; [years and weeks](years-and-weeks.md): a plan not yet started is not due).
 
 The owner's call is official, even where the numbers disagree. A call is *greener* when it ranks better than what the rules calculated when it was posted: the check-in's stored \`calculated\`, never a recalculation (the two can differ, for example when a stage becomes late after posting). Ranks: ${Object.entries(RANK).map(([k, v]) => `\`${k}\` ${v}`).join(', ')}; lower is better.
 
@@ -295,6 +297,7 @@ The owner's call is official, even where the numbers disagree. A call is *greene
       { given: 'A straight plan from 30 to 75 over 13 weeks (plan 43.846 in week 4). Week 4 numbers at 95%, 94%, 80% and 79% of the planned change.', then: 'on, risk, risk, off', run: () => [0.95, 0.94, 0.8, 0.79].map((r) => assessMetric(g3075, 13, 4, 30 + (planAt(g3075.plan, 4, 13) - 30) * r, []).calc).join(', ') },
       { given: 'The same goal: 58 in week 4 (ratio 2.0) and 40 (ratio 0.72).', then: '58: on, well ahead; 40: off, behind', run: () => { const a = assessMetric(g3075, 13, 4, 58, []), b = assessMetric(g3075, 13, 4, 40, []); return `58: ${a.calc}${a.ahead ? ', well ahead' : ''}; 40: ${b.calc}${b.behind ? ', behind' : ''}`; } },
       { given: 'Lower is better: back-loaded from 34 to 18 over 13 weeks; 29.4 and 35 in week 6.', then: '29.4: risk; 35: off', run: () => { const g = metric(34, 18, 'back'); return `29.4: ${assessMetric(g, 13, 6, 29.4, []).calc}; 35: ${assessMetric(g, 13, 6, 35, []).calc}`; } },
+      { given: 'The 30→75 goal, its last check-in in week 11 (Monday 23 November 2026), in the 13-week cycle whose last day is Sunday 13 December: seen on the last day (20 days without an update), then the day after (21 days, boundary).', then: 'stale, on', run: () => ['2026-12-13T12:00:00Z', '2026-12-14T12:00:00Z'].map((d) => goalStatus(g3075, CYCLE, [ci('m', 11, 60)], new Date(d)).status).join(', ') },
       { given: 'Week 0 with 30, and week 3 with no number.', then: 'planned, none', run: () => `${assessMetric(g3075, 13, 0, 30, []).calc}, ${assessMetric(g3075, 13, 3, null, []).calc}` },
       { given: 'A stepped plan from 10 to 40 in week 2 (before its first step): 10, then 8.', then: 'on, risk', run: () => { const g = metric(10, 40, 'stepped'); return `${assessMetric(g, 13, 2, 10, []).calc}, ${assessMetric(g, 13, 2, 8, []).calc}`; } },
       { given: 'A cost in USD with 2 decimals, 0.42 down to 0.30 over 13 weeks (week 1 plan 0.4108): 0.41, 0.42 and 0.40 in week 1.', then: '0.41: on; 0.42: off, behind; 0.40: on, well ahead', run: () => { const g = { ...metric(0.42, 0.3), unit: 'USD', decimals: 2 }; return [0.41, 0.42, 0.4].map((v) => { const a = assessMetric(g, 13, 1, v, []); return `${v.toFixed(2)}: ${a.calc}${a.behind ? ', behind' : ''}${a.ahead ? ', well ahead' : ''}`; }).join('; '); } },
@@ -542,7 +545,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 **Where the numbers come from.** A number to move and a range are judged by \`assessPosted\` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from \`assessPosted\`, with the plan as of the latest check-in's week); for a range, +1 for \`atLeast\`, −1 for \`atMost\`.
 
-**Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\`. \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`, within the margin (room ≤ margin) \`flat\`, else \`good\`. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. A margin of 0 counts as none for the likelihood floor. \`likelihood\` is set only on a \`hit\` cell that says a likelihood. Every cell that says "No value yet" is \`flat\`.
+**Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\`. \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`; near as [the status](status.md) says it (strictly within the margin), or at the limit, \`flat\`; else \`good\`. So \`limit\` and \`room\` always agree: a number exactly the margin inside its limit is not near, and both cells say so. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. A margin of 0 counts as none for the likelihood floor. \`likelihood\` is set only on a \`hit\` cell that says a likelihood. Every cell that says "No value yet" is \`flat\`.
 
 A stopped goal has no \`hit\` cell. (The conformance data never shows one: a goal stopped by a week's moment isn't in that week.) Nor has a done goal (\`doneCheckIn\`: of its check-ins with \`week\` ≤ *w*, the one posted most recently, by \`postedAt\`, is called \`done\`): for a number to move or keep in range, a \`result\` cell takes its place, at the end of the row (see the words below); dated stages get no \`result\` cell, only lose \`hit\` (they have none). Neither projects anywhere (\`projects\`): no likely end on the chart, no forecast in a list or an export. A quarter of a done goal that starts after the week it was done has nothing due ("done in week 37"); the quarter it was done in is judged then, on its final number.
 
@@ -585,7 +588,7 @@ The likelihood floor for a range is max(2% of |*margin*| (or of |10% of the limi
 
 The other cells stay as they are, judged as usual; \`likelihood\` is empty on \`result\`.
 
-**Since** (\`since\`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the last one ahead of it in that order with a number (another check-in in the same week counts).
+**Since** (\`since\`, both kinds). The goal's check-ins up to week *w*, by week then posting; *latest* the last; *before* the newest number among the weeks before *latest*'s week (\`previousFor\`, [what a check-in must say](check-in.md)): another check-in in the same week never counts, so a second check-in in week 46 is compared with week 45, not with the first one.
 
 | When | Value | Sub | Tone |
 |---|---|---|---|
@@ -621,6 +624,8 @@ For a range, better means further from the limit on its safe side.
       { given: 'The 30→75 goal: 36 in week 1, then week 2 with no number, seen in week 3 (the plan is week 2’s: the latest check-in’s week, though it has no number). Then 36 and 36 in weeks 1 and 2.', then: 'plan: No value yet (plan 37%); since: No number this time (no number to compare); then since: No change (was 36% in week 1), plan: 1 pt behind plan (plan 37% in week 2)', run: () => { const a = goalScorecard(g3075, CYCLE, [ci('m', 1, 36), ci('m', 2, null)], 3, false).cells, b = goalScorecard(g3075, CYCLE, [ci('m', 1, 36), ci('m', 2, 36)], 3, false).cells; const c = (x: typeof a, k: string) => x.find((y) => y.key === k)!; return `plan: ${c(a, 'plan').value} (${c(a, 'plan').sub}); since: ${c(a, 'since').value} (${c(a, 'since').sub}); then since: ${c(b, 'since').value} (${c(b, 'since').sub}), plan: ${c(b, 'plan').value} (${c(b, 'plan').sub})`; } },
       { given: 'A range, at most 12.0% with a 1-point margin, seen in week 4: 10.5, 11.0, 12.6 in weeks 1–3, then 12.4 in week 4.', then: 'limit: Outside it [bad] (must stay at most 12.0%); since: 0.2 pts better [good] (was 12.6% in week 3); room: 0.4 pts over [bad] (warning within 1.0 pt); hit: Back within by the end? Very unlikely [bad] (likely 18.6% by cycle end)', run: () => goalScorecard(RANGE, CYCLE, [10.5, 11, 12.6, 12.4].map((v, i) => ci('r', i + 1, v)), 4, false).cells.map((c) => `${c.key}: ${c.key === 'hit' ? c.label + ' ' : ''}${c.value} [${c.tone}] (${c.sub})`).join('; ') },
       { given: 'The same range: 11.6 in week 1 (near), then 12.0 (at the limit), each seen in its week.', then: 'Inside, near it, 0.4 pts of room [flat]; Inside, near it, None: at the limit [flat]', run: () => [[11.6], [11.6, 12]].map((vs) => { const cs = goalScorecard(RANGE, CYCLE, vs.map((v, i) => ci('r', i + 1, v)), vs.length, false).cells; const r = cs.find((c) => c.key === 'room')!; return `${cs[0]!.value}, ${r.value} [${r.tone}]`; }).join('; ') },
+      { given: 'The same range: 11.0 in week 1, exactly the margin inside its limit (boundary: not near).', then: 'Inside it [good], 1.0 pt of room [good]', run: () => { const cs = goalScorecard(RANGE, CYCLE, [ci('r', 1, 11)], 1, false).cells; const r = cs.find((c) => c.key === 'room')!; return `${cs[0]!.value} [${cs[0]!.tone}], ${r.value} [${r.tone}]`; } },
+      { given: 'The 30→75 goal: 36 in week 1, then 39 and 41 both in week 2, seen in week 2 (a second check-in in a week, boundary).', then: 'since: 5 pts better (was 36% in week 1)', run: () => { const c = goalScorecard(g3075, CYCLE, [ci('m', 1, 36), ci('m', 2, 39), ci('m', 2, 41, { id: 'm2b', postedAt: '2026-09-21T15:00:00.000Z' })], 2, false).cells.find((x) => x.key === 'since')!; return `since: ${c.value} (${c.sub})`; } },
       { given: 'Stages A (due week 3) and B (due week 7), seen in week 6: no check-in; then A done in week 4, B expected week 9; then both done (week 4 and week 8), seen in week 9.', then: 'done: 0 of 2 (1 due by week 6); late: 1 (late, up to 3 weeks); next: Week 6 (A, due week 3) | done: 1 of 2 (1 due by week 6); late: 1 (slipping, up to 2 weeks); next: Week 9 (B, due week 7) | done: 2 of 2 (2 due by week 9); late: None (on schedule); next: All done (last done in week 8)', run: () => { const show = (cs: ReturnType<typeof goalScorecard>['cells']) => cs.map((c) => `${c.key}: ${c.value} (${c.sub})`).join('; '); return [show(goalScorecard(MILESTONE, CYCLE, [], 6, false).cells), show(goalScorecard(MILESTONE, CYCLE, [ci('ms', 6, null, { stages: [{ stageId: 'a', doneWeek: 4, forecastWeek: null }, { stageId: 'b', doneWeek: null, forecastWeek: 9 }] })], 6, false).cells), show(goalScorecard(MILESTONE, CYCLE, [ci('ms', 9, null, { stages: [{ stageId: 'a', doneWeek: 4, forecastWeek: null }, { stageId: 'b', doneWeek: 8, forecastWeek: null }] })], 9, false).cells)].join(' | '); } },
       { given: 'The 30→75 goal with 36, 39, 42, 45 in weeks 1–4 and 76 in week 5, called done; seen in week 7, and its forecast.', then: 'result: Done [good] (76% in week 5); no forecast', run: () => { const cis = [...[36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), ci('m', 5, 76, { status: 'done' })]; const c = goalScorecard(g3075, CYCLE, cis, 7, false).cells.find((x) => x.key === 'result' || x.key === 'hit')!; return `${c.key}: ${c.value} [${c.tone}] (${c.sub}); ${projects(g3075, goalStatus(g3075, CYCLE, cis, at('2026-10-30T10:00:00Z')).status) ? 'forecast' : 'no forecast'}`; } },
       { given: 'The same, but stale.', then: 'hit: Can’t say', run: () => { const c = goalScorecard(g3075, CYCLE, [36, 39, 42, 45].map((v, i) => ci('m', i + 1, v)), 4, true).cells.find((x) => x.key === 'hit')!; return `hit: ${c.value}`; } },
@@ -1310,7 +1315,7 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     title: 'Years and weeks',
     summary: 'A goal’s weeks are counted from its cycle’s start and shown as a goal year’s week with its dates and their year; one rule converts each way, for the picker, the sheet and the AI tools.',
     code: [
-      { file: 'src/domain/weeks.ts', names: ['yearWeek', 'cycleWeek', 'weekCode', 'readWeekCode', 'weekSays', 'weeksProblem', 'lastWeekOffered', 'firstWeekOffered', 'startsSays'] },
+      { file: 'src/domain/weeks.ts', names: ['yearWeek', 'cycleWeek', 'weekCode', 'readWeekCode', 'weekSays', 'weeksProblem', 'lastWeekOffered', 'firstWeekOffered', 'defaultTo', 'startsSays'] },
       { file: 'src/domain/weekChoices.ts', names: ['planSays', 'readWeek', 'weekIs', 'weekChoices', 'spanSays', 'rangeSays'] },
       { file: 'src/domain/plan.ts', names: ['notStarted'] },
       { file: 'src/domain/progress.ts', names: ['firstDueWeek'] },
@@ -1322,13 +1327,13 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     body: `
 **What is kept.** Nothing in the data changes: a plan's From (\`fromWeek\`), its To (\`endWeek\`) and a stage's due week stay whole numbers counted from the cycle's start, week 0 being the week before week 1. People never see those numbers bare: they see a goal year and its week, always with the dates and the year.
 
-**A goal year** runs from its week 1 (the week holding the first Thursday of the month the year starts in) to the week before the next one's week 1: 52 or 53 weeks. In a year that starts in January its year and week are the ISO week date. The cycle's own goal year holds weeks 1 to its last; a later cycle week is in the next goal year (in the demo's 2026, week 54 is week 1 of 2027) and week 0 and below in the previous one (week 0 is week 52 of 2025).
+**A goal year** runs from its week 1 (the week holding the first Thursday of the month the year starts in) to the week before the next one's week 1: 52 or 53 weeks. In a year that starts in January its year and week are the ISO week date. The cycle's own goal year holds weeks 1 to its last; a later cycle week is in the next goal year (in the demo's 2026, week 54 is week 1 of 2027) and week 0 and below in the previous one (week 0 is week 52 of 2025). A cycle shorter than a goal year (under 48 weeks) names every week by its dates alone, the ISO week date: 13 weeks from 30 March 2026 hold 2026 weeks 15 to 27, and its week 14 is 2026 week 28.
 
 **Said.** In a field “Week 46 · 9–15 Nov 2026”; in a list under its year “Week 46 · 9–15 Nov”; in a sentence “week 46 (9–15 Nov 2026)”, or “week 13 of 2027 (29 Mar–4 Apr 2027)” in another goal year; in a file \`2026-W46\`. Under a picked week, what it is: “This week”, “Next week”, “The end of 2026”, “The end of Q1 2027”, “6 weeks ago”.
 
-**Picked, never typed** (the week picker). From offers the first week of last year to the last of next year; To the week after From to the same end; a stage's Due this goal year only; each with up to three named weeks (for To: the end of this quarter, the end of the year, the end of Q1 next year). Typing in the picker reads a week of the year shown (“50”), a day (“14 Dec”, the next such day) or a year and a week (“2027 5”). A file or a tool gives \`2026-W46\`, or the cycle's week number as before.
+**Picked, never typed** (the week picker). From offers the first week of last year to the last of next year; To the week after From to the same end; a stage's Due this goal year only; each with up to three named weeks (for To: the end of this quarter, the end of the year, the end of Q1 next year). Typing in the picker reads a week of the year shown (“50”), a day (“14 Dec”, the next such day) or a year and a week (“2027 5”). A file or a tool gives \`2026-W46\`, or the cycle's week number as before. To left unsaid is the cycle's last week, or, for a From at or past it (a new goal in the year's last week), the end of next year (\`defaultTo\`).
 
-**The sheet.** From and To beside Plan from week and Due week, which still load; where both of a pair are given, the one that differs from the goal counts, and two that differ and disagree are a Must fix (“From says 2026-W46 and Plan from week says 40. Change just one of them.”). A week a year doesn't have: “2027 has 52 weeks. Use 2027-W52, or 2028-W01.”
+**The sheet.** From and To beside Plan from week and Due week, which still load; where both of a pair are given, the one that differs from the goal counts, and two that differ and disagree are a Must fix (“From says 2026-W46 and Plan from week says 40. Change just one of them.”). An empty Due week beside a To says nothing. In a file with no Start column, a bare number under From may be the starting number (the export's Start renamed): it is a Must fix asking which (“From says “52”: a starting number, or a week? …”), never read as a week. A week a year doesn't have: “2027 has 52 weeks. Use 2027-W52, or 2028-W01.”
 
 **A plan that hasn't started.** A number goal whose From is still to come (\`notStarted\`) is not due for a check-in and not late until that week; it reads “No check-in yet · starts week 50”. No new status.
 
@@ -1567,6 +1572,48 @@ RULE_LIST.push({
 
 /** The feature modules' rules: each module's spec.ts (through the registry), written in its module's section of the spec. */
 for (const m of MODULE_SPEC) RULE_LIST.push(...m.part.map((r) => ({ ...r, module: m.id })));
+
+/** Home's facts for the examples: weekly, due Thursday 12 Nov 2026, week 46 of 53. */
+const HOME_F = (p: Partial<HomeFacts> & { today: string }, c: Partial<HomeFacts['checkIns']> = {}): HomeFacts => ({
+  week: 46, lastWeek: 53, cycleName: '2026', workspace: 'Platform Engineering', starts: null, ended: false, rhythm: { dueDate: '2026-11-12', nextDueDate: '2026-11-19' },
+  wrap: null, sessions: [], owns: 2, watches: 1, asks: 0, ...p, checkIns: { total: 2, done: 0, due: [], draft: false, allInOnTimeToday: false, streak: 0, ...c },
+});
+const HOME_DUE = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i + 1}`, title: `Goal ${i + 1}`, number: true }));
+const HOME_REVIEW = { id: 'dp', name: 'Developer Productivity fortnightly', date: '2026-11-10', held: false, discuss: 14, healthy: 21, done: 0, total: 35, started: false, nextGoal: null, nextDate: '2026-11-24' };
+const homeSays = (f: HomeFacts) => { const p = homeFor(f); return p.lead ? `${p.lead.kind}: ${p.lead.eyebrow} · ${p.lead.title} · ${p.lead.action.label}` : `${p.quiet!.sentence}${p.quiet!.line ? ` ${p.quiet!.line}` : ''}${p.quiet!.buttons.length ? ` [${p.quiet!.buttons.map((b) => b.label).join('] [')}]` : ''}`; };
+
+RULE_LIST.push({
+  id: 'home',
+  title: 'Home: what is asked of you today',
+  summary: 'Whether Home leads with one thing asked of the viewer today, and its one primary action, or says in one quiet line that nothing is.',
+  code: [{ file: 'src/domain/home.ts', names: ['homeFor', 'homeLead', 'quietLine', 'LEAD_DAYS', 'longDay'] }],
+  tests: ['src/domain/home.test.ts'],
+  reqs: ['HOME-OWNER'],
+  body: `
+**The lead** is the first of these that holds, and Home's one primary action; with none, Home has no primary button at all:
+
+1. *Late check-ins*: a rhythm is set, a check-in is still to do this week, and its due date has passed. "Check-ins were due on {Thursday 12 Nov}" · "{n} check-ins still to do" · "{titles}. They count for week {w} until Sunday." · **Start check-in**.
+2. *Check-ins*: a rhythm is set, a check-in is still to do, and it is due within \`LEAD_DAYS\` (1) day, or a draft is kept (**Pick up where you left off**), or a review the viewer is in is today and isn't held ("{Review} is today" · "{n} check-ins to do before it").
+3. *The wrap-up*: open (the cycle's last two weeks, or after its end), the viewer owns goals not yet wrapped up, and no check-in is still to do this week. **Start the wrap-up** opens the first.
+4. *A review*: one the viewer is in, this week's, on or past its day, not held, with goals not yet marked reviewed; the earliest, then by name. Past its day it says "Not held yet" with the warning mark. **Open the review**, or **Continue: {goal}** once begun.
+
+With two or more number goals to check in on, the check-in leads add the quiet link "Or type all your numbers in one table". A ring counts what the lead counts (check-ins, reviewed, wrapped).
+
+**The quiet line** (no lead), the first that holds: before the cycle starts, "Nothing is asked of you today." and when it starts; after it ends, "{cycle} has ended."; check-ins to do but not yet asked, "Check-ins for week {w} are due by {date}. You have {n} to do." with a plain **Check in early**; all of the viewer's check-ins in, "{Both check-ins are | All {n} check-ins are} in for week {w}." and when the next are due, with "That is {k} weeks in a row on time." first only on the day the last went in on time and from a streak of 2; someone who owns, watches and is asked nothing, "You don’t own or watch a goal in {workspace} yet." with **See the goals** and **Set up a goal**; otherwise just "Nothing is asked of you today."
+
+Never said: "You’re all set", a deadline that has passed for someone who met it, "0 weeks". Your goals are counted once, in "Your goals", and each count opens exactly those goals (\`/goals?scope=mine&status=…\`); no link on Home is a bare \`/goals\`.`,
+  examples: [
+    { given: 'Tunde, Monday 9 Nov, 2 check-ins to do.', then: 'Nothing is asked of you today. Check-ins for week 46 are due by Thursday 12 Nov. You have 2 to do. [Check in early]', run: () => homeSays(HOME_F({ today: '2026-11-09' }, { due: HOME_DUE(2) })) },
+    { given: 'Tunde, Wednesday 11 Nov, 1 to do.', then: 'check-in: Check-ins are due by Thursday 12 Nov, tomorrow · 1 check-in to do · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-11' }, { done: 1, due: HOME_DUE(1) })) },
+    { given: 'Tunde, Thursday 12 Nov, posts his last one today, 5 weeks in a row on time.', then: 'Both check-ins are in for week 46. That is 5 weeks in a row on time. The next are due by Thursday 19 Nov.', run: () => homeSays(HOME_F({ today: '2026-11-12' }, { done: 2, allInOnTimeToday: true, streak: 5 })) },
+    { given: 'Tunde, Friday 13 Nov, 1 not posted.', then: 'check-in-late: Check-ins were due on Thursday 12 Nov · 1 check-in still to do · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-13' }, { done: 1, due: HOME_DUE(1) })) },
+    { given: 'Rhea, Tuesday 10 Nov, 6 to do, her Developer Productivity fortnightly today.', then: 'check-in: Developer Productivity fortnightly is today · 6 check-ins to do before it · Start check-in', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 1, due: HOME_DUE(6) })) },
+    { given: 'Rhea, Tuesday 10 Nov, all 7 in.', then: 'review: Developer Productivity fortnightly is today · your 7 check-ins are in · 14 goals to discuss · Open the review', run: () => homeSays(HOME_F({ today: '2026-11-10', sessions: [HOME_REVIEW] }, { total: 7, done: 7 })) },
+    { given: 'Someone who owns, watches and is asked nothing.', then: 'Nothing is asked of you today. You don’t own or watch a goal in Platform Engineering yet. [See the goals] [Set up a goal]', run: () => homeSays(HOME_F({ today: '2026-11-11', owns: 0, watches: 0 }, { total: 0 })) },
+    { given: 'Tunde, Wednesday 23 Dec (week 52), both in, the wrap-up open.', then: 'wrap-up: 2026 ends on Sunday 3 Jan · Wrap up your 2 goals · Start the wrap-up', run: () => homeSays(HOME_F({ today: '2026-12-23', week: 52, rhythm: { dueDate: '2026-12-24', nextDueDate: '2026-12-31' }, wrap: { ends: '2027-01-03', ended: false, left: [{ id: 'g1', title: 'Goal 1' }, { id: 'g2', title: 'Goal 2' }], total: 2 } }, { done: 2 })) },
+  ],
+  unclear: ['The ring and its words are drawn by the screen from the lead’s counts; the conformance rows (home.csv) give the lead’s kind and the quiet sentence for each demo person on each day of two weeks.'],
+});
 
 /** Runs every example: the ones that don't give what they say. */
 export async function wrongExamples(): Promise<string[]> {

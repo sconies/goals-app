@@ -4,6 +4,7 @@ import { farOutside, fixed, typedDecimals } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { CheckIn, Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, Status } from './types';
 import { assessMilestone } from './status';
+import { defaultTo } from './weeks';
 
 export interface GoalDraft {
   kind: GoalKind;
@@ -141,12 +142,13 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
   };
   const num = (s: string) => parseNumber(s) as number;
   if (d.kind === 'metric') {
-    const end = parseNumber(d.endWeek);
+    const from: Pick<MetricPlan, 'fromWeek'> = d.fromWeek != null && d.fromWeek.trim() !== '' ? (num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {})
+      : existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {};
+    // No To: the cycle's end, or the end of next year for a From at or past it (weeks.defaultTo).
+    const end = parseNumber(d.endWeek) ?? defaultTo(cycle, from.fromWeek ?? 0);
     const shaped: MetricPlan = {
-      start: num(d.start), target: num(d.target), shape: d.shape,
-      ...(d.fromWeek != null && d.fromWeek.trim() !== '' ? (num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {})
-        : existing?.kind === 'metric' ? (existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {}) : week > 0 ? { fromWeek: week } : {}),
-      ...(end != null && end !== cycle.weeks ? { endWeek: end } : {}),
+      start: num(d.start), target: num(d.target), shape: d.shape, ...from,
+      ...(end !== cycle.weeks ? { endWeek: end } : {}),
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);
     const history = existing?.kind === 'metric' ? replanned(existing, plan, checkInsStarted, week) : { originalPlan: null, rebaselinedWeek: null };

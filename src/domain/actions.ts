@@ -574,6 +574,15 @@ export function removeTeam(x: ActionContext, id: string, moveTo?: string | null)
   };
 }
 
+/**
+ * Who may Start over (Lane, 12 Nov): in the shared example anyone may (it only resets this browser's copy); in a
+ * workspace of someone's own, Start over removes it, so only an admin.
+ */
+export function mayStartOver(actor: Pick<Person, 'admin'>, kind: 'own' | 'example'): boolean {
+  return kind === 'example' || !!actor.admin;
+}
+export const START_OVER_ADMINS = 'Only an admin can start this workspace over.';
+
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 export function canDeleteWorkspace(actor: Person, kind: 'own' | 'example', name: string, confirmName: string) {
   if (!actor.admin) no('Only admins can delete the workspace.');

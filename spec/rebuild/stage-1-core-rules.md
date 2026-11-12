@@ -15,7 +15,7 @@ The rules that decide where every goal stands: which week it is and what the pla
 
 1. [llms.txt](../../llms.txt): what Faro is, in one page.
 2. [The data model](../core/data-model.md), the first part, “The records the core rules read”: Cycle, the three kinds of Goal and their plans, CheckIn, Decision, Ask.
-3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words, except the scorecard’s `value`, `label` and `sub`.
+3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words. The scorecard’s words (`value`, `label`, `sub`) are in a sixth file, `scorecard-words.csv`, scored only when asked.
 4. The rules, in this order: [Weeks and plans](../core/rules/weeks-and-plans.md), [A year’s end](../core/rules/year-end.md), [A goal’s status](../core/rules/status.md), [The projection](../core/rules/projection.md), [What a check-in must say](../core/rules/check-in.md), [Numbers and names](../core/rules/numbers-and-names.md), [Levels](../core/rules/levels.md), [Flags, the trend and needs attention](../core/rules/flags.md), [The scorecard](../core/rules/scorecard.md). And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.
 5. [The conformance data](../conformance/README.md): how each week is judged (the moment, and the workspace as it stood then), what every column is, and how numbers are written.
 
@@ -38,7 +38,7 @@ One program that reads `workspace.json` and, for every week from 0 to the week i
 | `status.csv` | 5696 | `week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update` |
 | `flags.csv` | 5696 | `week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group` |
 | `projection.csv` | 4822 | `week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses` |
-| `scorecard.csv` | 21910 | `week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub` |
+| `scorecard.csv` | 21910 | `week`, `goal`, `cell`, `tone`, `likelihood` |
 | `checkin.csv` | 5249 | `checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing` |
 
 - A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.
@@ -50,13 +50,13 @@ One program that reads `workspace.json` and, for every week from 0 to the week i
 2. The calculation and the official status: the rest of `status.csv`.
 3. The projection: `projection.csv`.
 4. Flags, the trend, asks and decisions, and needs attention: `flags.csv`.
-5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell.
+5. The scorecard: `scorecard.csv` (each cell’s `tone` and `likelihood`). Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell, and scored only when asked (`"also": ["scorecard-words"]` in `drill.json`, against `scorecard-words.csv`): a rebuild in other words still passes.
 6. What a check-in must say: `checkin.csv` (`--files checkin`).
 
 When a file is close, the first differences for one goal usually name the rule that differs. Read that goal’s records in `workspace.json` and the rule’s worked examples side by side.
 
 ## Exit criteria
 
-1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all five files match (65283 rows).
+1. `node spec/rebuild/drill.mjs rebuild` prints **PASS**: every row and every column of all five files match (43373 rows; `scorecard-words.csv`, scored when asked, is not counted).
 2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.
 3. `rebuild/GAPS.md` lists everything you had to guess.

@@ -275,11 +275,16 @@ export const markupFromRow = (r: MarkupRow): Markup => ({
 
 /* ---------- triage ---------- */
 
-/** A change of status, as someone in the inbox (or an assistant) asks for it. */
-export interface StatusChange { status: MarkupStatus; fixedIn?: string | null; reason?: string | null; by: string }
+/** A change of status, as someone in the inbox (or an assistant) asks for it: who, and whether they are an admin. */
+export interface StatusChange { status: MarkupStatus; fixedIn?: string | null; reason?: string | null; by: string; admin: boolean }
+
+/** Who may change an item's status in the inbox (Lane, 12 Nov): admins. Everyone may send feedback and read the inbox. */
+export const mayTriage = (who: { admin?: boolean }) => !!who.admin;
+export const ADMINS_TRIAGE = 'Only an admin can change the status of feedback. You can still read it and send your own.';
 
 /** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
 export function statusPatch(c: StatusChange, now: string, entries: string[]): Pick<Markup, 'status' | 'fixedIn' | 'wontFixReason' | 'statusBy' | 'statusAt'> {
+  if (!mayTriage(c)) throw new MarkupError(ADMINS_TRIAGE);
   if (!STATUSES.includes(c.status)) throw new MarkupError('A status is new, in-hand, fixed or wont-fix.');
   const fixedIn = c.status === 'fixed' ? (c.fixedIn ?? '').trim() : '';
   if (c.status === 'fixed' && !fixedIn) throw new MarkupError('Say which What’s new entry has the fix.');
@@ -291,8 +296,8 @@ export function statusPatch(c: StatusChange, now: string, entries: string[]): Pi
 
 /** Undoing a status change: the change that puts back the status it replaced (with its What's new entry or reason),
     through the same rule, recorded as whoever undoes it. */
-export function undoChange(before: Pick<Markup, 'status' | 'fixedIn' | 'wontFixReason'>, by: string): StatusChange {
-  return { status: before.status, fixedIn: before.fixedIn, reason: before.wontFixReason, by };
+export function undoChange(before: Pick<Markup, 'status' | 'fixedIn' | 'wontFixReason'>, by: string, admin: boolean): StatusChange {
+  return { status: before.status, fixedIn: before.fixedIn, reason: before.wontFixReason, by, admin };
 }
 
 export const ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+$/;

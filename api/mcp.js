@@ -1939,7 +1939,24 @@ function mayAddGoal(_actor, _ownerId) {
 function mayChangeGoal(actor, goal) {
 	return !!actor.admin || goal.ownerId === actor.id;
 }
-var init_goalRights = __esmMin((() => {}));
+/**
+* Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+* at the check-in screens, the one-table check-in and through the AI tools. Two admin doors stay open, for Lane to
+* decide, since closing them removes a feature: loading a workbook (a spreadsheet import, or setting up from an export)
+* brings in everyone's history, and Data's tables let an admin correct a past check-in.
+*/
+function mayPostCheckIn(actor, goal, via) {
+	if (goal.ownerId === actor.id) return true;
+	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+var ADMIN_CHECK_IN_DOORS;
+var init_goalRights = __esmMin((() => {
+	ADMIN_CHECK_IN_DOORS = [
+		"spreadsheet",
+		"setup",
+		"table"
+	];
+}));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
@@ -3048,6 +3065,171 @@ var init_decide = __esmMin((() => {
 	ACCEPT = `${DECIDED["accept-risk"].label}: `;
 	acceptNote = (reason) => ACCEPT + reason.trim();
 }));
+// src/domain/weeks.ts
+/** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
+function spanOf(c, n) {
+	if (c.weeks < 48) {
+		const year = new Date(mondayOf(c, n) + 3 * DAY$3).getUTCFullYear(), gy = goalYear(year, 0);
+		return {
+			year,
+			weeks: gy.weeks,
+			first: Math.round((Date.parse(gy.startDate + "T00:00:00Z") - mondayOf(c, 0)) / (7 * DAY$3)) + 1
+		};
+	}
+	let s = {
+		year: cycleYear(c),
+		weeks: c.weeks,
+		first: 1
+	};
+	while (n >= s.first + s.weeks) {
+		const start = new Date(mondayOf(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
+		s = {
+			year: s.year + 1,
+			weeks: yearWeeks(start),
+			first: s.first + s.weeks
+		};
+	}
+	while (n < s.first) {
+		const p = goalYear(s.year - 1, startMonth(c)).weeks;
+		s = {
+			year: s.year - 1,
+			weeks: p,
+			first: s.first - p
+		};
+	}
+	return s;
+}
+/** Rule 13. A cycle week as a goal year and its week: 46 is 2026 week 46; 54 is 2027 week 1; 0 is 2025 week 52. */
+function yearWeek(c, n) {
+	const s = spanOf(c, n);
+	return {
+		year: s.year,
+		week: n - s.first + 1,
+		monday: new Date(mondayOf(c, n)).toISOString().slice(0, 10)
+	};
+}
+/** A goal year seen from this cycle: its length and the cycle week its week 1 is. */
+function spanOfYear(c, year) {
+	let s = spanOf(c, 1);
+	while (s.year < year) s = spanOf(c, s.first + s.weeks);
+	while (s.year > year) s = spanOf(c, s.first - 1);
+	return s;
+}
+/** Rule 13. The inverse of `yearWeek`: the cycle week of a goal year's week, or null when that year has no such week. */
+function cycleWeek(c, at) {
+	if (!Number.isInteger(at.year) || at.year < 1900 || at.year > 2200) return null;
+	const s = spanOfYear(c, at.year);
+	if (!Number.isInteger(at.week) || at.week < 1 || at.week > s.weeks) return null;
+	return s.first + at.week - 1;
+}
+/** Rule 13. A week as a file writes it: "2026-W46". */
+function weekCode(c, n) {
+	const y = yearWeek(c, n);
+	return `${y.year}-W${String(y.week).padStart(2, "0")}`;
+}
+/**
+* Rule 13. A week as a file or a tool may give it: "2026-W46", "2026W46", "2026-46" (a goal year and its week), or "W46"
+* and "46" (the cycle's week, as today's numbers are). A week a year doesn't have is `week-unknown` with its own words.
+*/
+function readWeekCode(c, raw) {
+	const v = raw.trim();
+	const coded = /^(\d{4})\s*-?\s*W?\s*(\d{1,2})$/i.exec(v);
+	if (coded) {
+		const year = Number(coded[1]);
+		const n = cycleWeek(c, {
+			year,
+			week: Number(coded[2])
+		});
+		return n == null ? {
+			problem: "week-unknown",
+			text: noSuchWeek(year, spanOfYear(c, year).weeks)
+		} : { n };
+	}
+	const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
+	if (plain) return { n: Number(plain[1]) };
+	return { problem: "week-unknown" };
+}
+/** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
+function datesOf(c, n, withYear = true) {
+	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$3);
+	const dm = (x) => `${x.getUTCDate()} ${MONTHS$2[x.getUTCMonth()]}`;
+	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
+	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
+	return (a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`) + " " + b.getUTCFullYear();
+}
+/**
+* Rule 13. A week in words, never without its dates and their year:
+* - `field` "Week 46 · 9–15 Nov 2026" (another goal year's: "Week 13 · 29 Mar–4 Apr 2027");
+* - `row` "Week 46 · 9–15 Nov" (in a list under its year);
+* - `sentence` "week 46 (9–15 Nov 2026)" in the cycle's own goal year, "week 13 of 2027 (29 Mar–4 Apr 2027)" in another;
+* - `short` "week 46", "week 13 of 2027".
+*/
+function weekSays(c, n, form) {
+	const y = yearWeek(c, n);
+	const of = y.year === cycleYear(c) ? "" : ` of ${y.year}`;
+	if (form === "field") return `Week ${y.week} · ${datesOf(c, n)}`;
+	if (form === "row") return `Week ${y.week} · ${datesOf(c, n, false)}`;
+	if (form === "short") return `week ${y.week}${of}`;
+	return `week ${y.week}${of} (${datesOf(c, n)})`;
+}
+/**
+* Must fix for a plan's two weeks, as cycle weeks (section 4): `to-before-from` and `week-beyond`. Null when both are
+* fine. The picker can't make either; a file or a tool can.
+*/
+function weeksProblem(c, from, to) {
+	const end = lastWeekOffered(c), first = firstWeekOffered(c);
+	const own = cycleYear(c);
+	if (to > end) return {
+		id: "week-beyond",
+		field: "to",
+		text: `To can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
+	};
+	if (from > end) return {
+		id: "week-beyond",
+		field: "from",
+		text: `From can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
+	};
+	if (from < first) return {
+		id: "week-beyond",
+		field: "from",
+		text: `From can be as early as week 1 of ${own - 1}.`
+	};
+	if (to <= from) return {
+		id: "to-before-from",
+		field: "to",
+		text: `To (${weekSays(c, to, "short")}, ${datesOf(c, to)}) isn’t after From (${weekSays(c, from, "short")}, ${datesOf(c, from)}). The plan has to run forwards.`
+	};
+	return null;
+}
+var DAY$3, MONTHS$2, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
+var init_weeks = __esmMin((() => {
+	init_year();
+	DAY$3 = 864e5;
+	MONTHS$2 = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
+	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$3;
+	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCFullYear();
+	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
+	weekUnknownText = (c, field, raw, now = 46) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, Math.max(now, 1))}, or the week’s number.`;
+	lastWeekOffered = (c) => {
+		const own = spanOf(c, 1), next = spanOf(c, own.first + own.weeks);
+		return next.first + next.weeks - 1;
+	};
+	firstWeekOffered = (c) => spanOf(c, spanOf(c, 1).first - 1).first;
+	defaultTo = (c, from) => from < c.weeks ? c.weeks : lastWeekOffered(c);
+}));
 // src/domain/goal.ts
 function blankGoal(teamId, ownerId, parentId) {
 	return {
@@ -3191,13 +3373,14 @@ function buildGoal(d, cycle, base, existing, checkInsStarted, week) {
 	};
 	const num = (s) => parseNumber(s);
 	if (d.kind === "metric") {
-		const end = parseNumber(d.endWeek);
+		const from = d.fromWeek != null && d.fromWeek.trim() !== "" ? num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {} : existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {};
+		const end = parseNumber(d.endWeek) ?? defaultTo(cycle, from.fromWeek ?? 0);
 		const plan = withPoints({
 			start: num(d.start),
 			target: num(d.target),
 			shape: d.shape,
-			...d.fromWeek != null && d.fromWeek.trim() !== "" ? num(d.fromWeek) ? { fromWeek: num(d.fromWeek) } : {} : existing?.kind === "metric" ? existing.plan.fromWeek ? { fromWeek: existing.plan.fromWeek } : {} : week > 0 ? { fromWeek: week } : {},
-			...end != null && end !== cycle.weeks ? { endWeek: end } : {}
+			...from,
+			...end !== cycle.weeks ? { endWeek: end } : {}
 		}, d.points, cycle.weeks);
 		const history = existing?.kind === "metric" ? replanned(existing, plan, checkInsStarted, week) : {
 			originalPlan: null,
@@ -3323,13 +3506,14 @@ var init_goal = __esmMin((() => {
 	init_numbers();
 	init_plan();
 	init_status();
+	init_weeks();
 	pastStage = (dueWeek, week) => dueWeek < week;
 	DONE_AT_SET_UP = "Recorded as already done when the goal was set up";
 }));
 // src/domain/year.ts
 /** The month the year starts in: the month of week 1's Thursday. */
 function startMonth(c) {
-	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$3).getUTCMonth();
+	return new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$2).getUTCMonth();
 }
 function quarters(c) {
 	if (!isYear(c)) return [{
@@ -3348,7 +3532,7 @@ function quarters(c) {
 	].map((n) => ({
 		n,
 		label: `Q${n}`,
-		months: `${MONTHS$2[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$2[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		months: `${MONTHS$1[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$1[(m0 + 3 * (n - 1) + 2) % 12]}`,
 		from: (n - 1) * 13 + 1,
 		to: n === 4 ? c.weeks : n * 13
 	}));
@@ -3418,22 +3602,22 @@ function quarterResults(g, c, checkIns, week) {
 /** The Monday of week 1 of a goal year starting in a month (0 = January): the week with that month's first Thursday. */
 function weekOneOf(year, month) {
 	const first = Date.UTC(year, month, 1);
-	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$3 - 3 * DAY$3;
+	return first + (10 - (new Date(first).getUTCDay() + 6) % 7) % 7 * DAY$2 - 3 * DAY$2;
 }
 /** A goal year: week 0 is the week before week 1, and it runs until the next year's week 1. */
 function goalYear(year, month) {
 	const a = weekOneOf(year, month), b = weekOneOf(year + 1, month);
 	return {
-		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$3)).toISOString().slice(0, 10),
-		weeks: Math.round((b - a) / (7 * DAY$3))
+		startDate: (/* @__PURE__ */ new Date(a - 7 * DAY$2)).toISOString().slice(0, 10),
+		weeks: Math.round((b - a) / (7 * DAY$2))
 	};
 }
 /** How many weeks the goal year starting on this date has: 52, or 53 in a long calendar year. */
 function yearWeeks(startDate) {
-	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$3);
+	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$3, MONTHS$2;
+var isYear, DAY$2, MONTHS$1;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3441,8 +3625,8 @@ var init_year = __esmMin((() => {
 	init_status();
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
-	DAY$3 = 864e5;
-	MONTHS$2 = [
+	DAY$2 = 864e5;
+	MONTHS$1 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -4045,12 +4229,12 @@ function cycleState(c, today) {
 /** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
 function dayWithYear(iso) {
 	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
-	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS$1[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
 	const a = /* @__PURE__ */ new Date(startDate + "T00:00:00Z");
-	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$2);
+	const b = new Date(Date.parse(startDate + "T00:00:00Z") + (weeks * 7 - 1) * DAY$1);
 	const m = (d) => d.toLocaleDateString("en-GB", {
 		month: "short",
 		timeZone: "UTC"
@@ -4099,7 +4283,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY$2, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS$1, RESULT_LABEL;
+var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4110,8 +4294,8 @@ var init_cycle = __esmMin((() => {
 	init_yearName();
 	init_status();
 	init_records();
-	DAY$2 = 864e5;
-	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$2).toISOString().slice(0, 10);
+	DAY$1 = 864e5;
+	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 	isoDay = (d) => d.toISOString().slice(0, 10);
 	wrapUpOpenOn = (c, today) => ["ending", "ended"].includes(cycleState(c, today));
@@ -4125,7 +4309,7 @@ var init_cycle = __esmMin((() => {
 		"Fri",
 		"Sat"
 	];
-	MONTHS$1 = [
+	MONTHS = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -4353,159 +4537,6 @@ var init_changes = __esmMin((() => {
 		const names = d.map((x) => x.field.toLowerCase());
 		return names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + ` and ${names.length - 2} more`;
 	};
-}));
-// src/domain/weeks.ts
-/** The goal year a cycle week is in: its year, its length and the cycle week its week 1 is. */
-function spanOf(c, n) {
-	let s = {
-		year: cycleYear(c),
-		weeks: c.weeks,
-		first: 1
-	};
-	while (n >= s.first + s.weeks) {
-		const start = new Date(mondayOf(c, s.first + s.weeks - 1)).toISOString().slice(0, 10);
-		s = {
-			year: s.year + 1,
-			weeks: yearWeeks(start),
-			first: s.first + s.weeks
-		};
-	}
-	while (n < s.first) {
-		const p = goalYear(s.year - 1, startMonth(c)).weeks;
-		s = {
-			year: s.year - 1,
-			weeks: p,
-			first: s.first - p
-		};
-	}
-	return s;
-}
-/** Rule 13. A cycle week as a goal year and its week: 46 is 2026 week 46; 54 is 2027 week 1; 0 is 2025 week 52. */
-function yearWeek(c, n) {
-	const s = spanOf(c, n);
-	return {
-		year: s.year,
-		week: n - s.first + 1,
-		monday: new Date(mondayOf(c, n)).toISOString().slice(0, 10)
-	};
-}
-/** A goal year seen from this cycle: its length and the cycle week its week 1 is. */
-function spanOfYear(c, year) {
-	let s = spanOf(c, 1);
-	while (s.year < year) s = spanOf(c, s.first + s.weeks);
-	while (s.year > year) s = spanOf(c, s.first - 1);
-	return s;
-}
-/** Rule 13. The inverse of `yearWeek`: the cycle week of a goal year's week, or null when that year has no such week. */
-function cycleWeek(c, at) {
-	if (!Number.isInteger(at.year) || at.year < 1900 || at.year > 2200) return null;
-	const s = spanOfYear(c, at.year);
-	if (!Number.isInteger(at.week) || at.week < 1 || at.week > s.weeks) return null;
-	return s.first + at.week - 1;
-}
-/** Rule 13. A week as a file writes it: "2026-W46". */
-function weekCode(c, n) {
-	const y = yearWeek(c, n);
-	return `${y.year}-W${String(y.week).padStart(2, "0")}`;
-}
-/**
-* Rule 13. A week as a file or a tool may give it: "2026-W46", "2026W46", "2026-46" (a goal year and its week), or "W46"
-* and "46" (the cycle's week, as today's numbers are). A week a year doesn't have is `week-unknown` with its own words.
-*/
-function readWeekCode(c, raw) {
-	const v = raw.trim();
-	const coded = /^(\d{4})\s*-?\s*W?\s*(\d{1,2})$/i.exec(v);
-	if (coded) {
-		const year = Number(coded[1]);
-		const n = cycleWeek(c, {
-			year,
-			week: Number(coded[2])
-		});
-		return n == null ? {
-			problem: "week-unknown",
-			text: noSuchWeek(year, spanOfYear(c, year).weeks)
-		} : { n };
-	}
-	const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
-	if (plain) return { n: Number(plain[1]) };
-	return { problem: "week-unknown" };
-}
-/** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
-function datesOf(c, n, withYear = true) {
-	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$1);
-	const dm = (x) => `${x.getUTCDate()} ${MONTHS[x.getUTCMonth()]}`;
-	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
-	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
-	return (a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`) + " " + b.getUTCFullYear();
-}
-/**
-* Rule 13. A week in words, never without its dates and their year:
-* - `field` "Week 46 · 9–15 Nov 2026" (another goal year's: "Week 13 · 29 Mar–4 Apr 2027");
-* - `row` "Week 46 · 9–15 Nov" (in a list under its year);
-* - `sentence` "week 46 (9–15 Nov 2026)" in the cycle's own goal year, "week 13 of 2027 (29 Mar–4 Apr 2027)" in another;
-* - `short` "week 46", "week 13 of 2027".
-*/
-function weekSays(c, n, form) {
-	const y = yearWeek(c, n);
-	const of = y.year === cycleYear(c) ? "" : ` of ${y.year}`;
-	if (form === "field") return `Week ${y.week} · ${datesOf(c, n)}`;
-	if (form === "row") return `Week ${y.week} · ${datesOf(c, n, false)}`;
-	if (form === "short") return `week ${y.week}${of}`;
-	return `week ${y.week}${of} (${datesOf(c, n)})`;
-}
-/**
-* Must fix for a plan's two weeks, as cycle weeks (section 4): `to-before-from` and `week-beyond`. Null when both are
-* fine. The picker can't make either; a file or a tool can.
-*/
-function weeksProblem(c, from, to) {
-	const end = lastWeekOffered(c), first = firstWeekOffered(c);
-	const own = cycleYear(c);
-	if (to > end) return {
-		id: "week-beyond",
-		field: "to",
-		text: `To can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
-	};
-	if (from > end) return {
-		id: "week-beyond",
-		field: "from",
-		text: `From can be as late as ${weekSays(c, end, "short")} (${datesOf(c, end)}), the end of next year.`
-	};
-	if (from < first) return {
-		id: "week-beyond",
-		field: "from",
-		text: `From can be as early as week 1 of ${own - 1}.`
-	};
-	if (to <= from) return {
-		id: "to-before-from",
-		field: "to",
-		text: `To (${weekSays(c, to, "short")}, ${datesOf(c, to)}) isn’t after From (${weekSays(c, from, "short")}, ${datesOf(c, from)}). The plan has to run forwards.`
-	};
-	return null;
-}
-var DAY$1, MONTHS, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered;
-var init_weeks = __esmMin((() => {
-	init_year();
-	DAY$1 = 864e5;
-	MONTHS = [
-		"Jan",
-		"Feb",
-		"Mar",
-		"Apr",
-		"May",
-		"Jun",
-		"Jul",
-		"Aug",
-		"Sep",
-		"Oct",
-		"Nov",
-		"Dec"
-	];
-	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$1;
-	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$1).getUTCFullYear();
-	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
-	weekUnknownText = (c, field, raw) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, 46)}, or the week’s number.`;
-	lastWeekOffered = (c) => c.weeks + spanOf(c, c.weeks + 1).weeks;
-	firstWeekOffered = (c) => spanOf(c, 0).first;
 }));
 // src/domain/columns.ts
 /** A word's code; null for an empty cell; undefined for a word it doesn't know. */
@@ -7348,10 +7379,14 @@ function planSpanOf(d, ctx) {
 	};
 	const fromSet = d.fromWeek != null && d.fromWeek.trim() !== "", toSet = d.endWeek.trim() !== "";
 	const from = fromSet ? whole(d.fromWeek) : was ? was.fromWeek ?? 0 : Math.max(0, ctx.week);
-	const to = toSet ? whole(d.endWeek) : ctx.cycleWeeks;
+	const end = ctx.startDate && from != null ? defaultTo({
+		startDate: ctx.startDate,
+		weeks: ctx.cycleWeeks
+	}, from) : ctx.cycleWeeks;
+	const to = toSet ? whole(d.endWeek) : end;
 	return {
 		from: from ?? 0,
-		to: to ?? ctx.cycleWeeks,
+		to: to ?? end,
 		...from == null ? { bad: "fromWeek" } : to == null ? { bad: "endWeek" } : {}
 	};
 }
@@ -7428,7 +7463,10 @@ function goalMustFix(d, ctx) {
 				}
 			}
 			const span = planSpanOf(d, ctx);
-			if (span.bad) add(span.bad, "week-unknown", `${span.bad === "fromWeek" ? "From" : "To"} says “${(span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? ""}”. Write a year and a week, like 2026-W46, or the week’s number.`);
+			if (span.bad) add(span.bad, "week-unknown", ctx.startDate ? weekUnknownText({
+				startDate: ctx.startDate,
+				weeks: ctx.cycleWeeks
+			}, span.bad === "fromWeek" ? "From" : "To", (span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? "", ctx.week) : `${span.bad === "fromWeek" ? "From" : "To"} says “${((span.bad === "fromWeek" ? d.fromWeek : d.endWeek) ?? "").trim()}”. Write a year and a week, or the week’s number.`);
 			else if (ctx.startDate) {
 				const p = weeksProblem({
 					startDate: ctx.startDate,
@@ -10139,6 +10177,7 @@ function planChanges(input) {
 		}
 		return skip;
 	}
+	const fromInDoubt = via !== "mcp" && !(input.tables.goals ?? []).some((r) => has(r, "start"));
 	const goalRows = (input.tables.goals ?? []).map((r, i) => ({
 		r,
 		row: rowOf(r, i),
@@ -10351,7 +10390,11 @@ function planChanges(input) {
 				const said = [];
 				for (const [c, h] of [[col, head], [old, oldHead]]) {
 					const raw = has(r, c) ? val(r, c) : "";
-					if (!raw && !(c === "due week" && has(r, c))) continue;
+					if (!raw && !(c === "due week" && has(r, c) && !val(r, "to"))) continue;
+					if (c === "from" && fromInDoubt && /^-?\d+(?:[.,]\d+)?$/.test(raw)) {
+						raise("week-wrong", "Goals", row, d.title, `From says “${raw}”: a starting number, or a week? Put a starting number under Start, or write the week as a year and a week, like ${weekCode(cycle, Math.max(week, 1))}.`, { column: head });
+						return false;
+					}
 					let n, msg;
 					if (c === col) {
 						const x = readWeekCode(cycle, raw);
@@ -10363,7 +10406,7 @@ function planChanges(input) {
 						msg = x.problem;
 					} else n = raw ? parseNumber(raw) : cycle.weeks;
 					if (n == null || !Number.isInteger(n)) {
-						raise("week-wrong", "Goals", row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h });
+						raise("week-wrong", "Goals", row, d.title, msg ?? weekUnknownText(cycle, h, raw, week), { column: h });
 						return false;
 					}
 					if (n !== cur) said.push([
@@ -10923,12 +10966,15 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
-		if (!create && !canChange(g)) {
+		if (!create && !mayPostCheckIn({
+			id: actor.id,
+			admin: admin()
+		}, g, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -12668,6 +12714,8 @@ function summariseAll(goals, s, cycle, today, week) {
 init_cycle();
 init_plan();
 init_review();
+init_progress();
+init_asks();
 var live = (xs) => xs.filter((x) => !x.removedAt);
 /** Every goal's summary row, with what the Goals filters need beyond it. */
 function goalRows(s, cycle, today, week, columns) {
@@ -14031,7 +14079,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			label: "Room to the limit",
 			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
 			sub: `warning within ${amount(margin, goal)}`,
-			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+			tone: room < 0 ? "bad" : a.near || a.out ? "flat" : "good"
 		});
 		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
 	}
@@ -14513,7 +14561,7 @@ var help$2 = [
 					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
 					"A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.",
 					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
-					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
+					"A number goal’s weeks are From and To, written as a year and a week (2026-W46, 2027-W13). Plan from week and Due week, counted from the cycle’s start, are still written and still load: where a row has both, the one you changed counts, and two that disagree are Must fix; a Due week left empty beside a To says nothing. In a file with no Start column, a bare number under From (“52”) is Must fix: it may be the starting number, so put that under Start, or write the week as 2026-W46. A week a year doesn’t have says so (“2027 has 52 weeks. Use 2027-W52, or 2028-W01.”). A stage may be written Design@48 or Design@2026-W48.",
 					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
 					"Saving ends on Imported: how many changes were saved from which file, what they were, and the rows left out to download. See the goals, or Undo this import.",
 					"Loaded the wrong file? Undo this import, on Imported, on Data under Past imports, or on its entry in Activity, puts every row back as it was, stopped goals and people who left included. It says first which rows have changed since and will stay."
@@ -14794,19 +14842,28 @@ var CORE_ARTICLES = [
 		sections: [
 			{
 				heading: "What it’s for",
-				text: ["Home is where you start each week. It leads with the one thing most worth doing now, so you don’t have to hunt for it."]
+				text: ["Home is where you start each day. It answers one question first: what is asked of you today. If something is, it is the one big button on the page; if nothing is, Home says so in one line and has no big button at all."]
 			},
 			{
 				heading: "How to use it",
 				list: [
-					"The strip at the top is your week at a glance: your goals by status, your on-time streak, the goals you watch that need attention, and your next review. A review session that has passed its date without being held shows there instead, saying how many days past, so it isn’t hidden by the next one. Each part opens the page behind it, and each count of your goals opens just those goals (“11 off track” lists the 11). The streak counts weeks with every check-in in by the day they’re due; it reads 0 until your first such week, and says why. On a phone it stays slim: someone who owns no goals sees every goal by status beside the next review, two counts to a line.",
-					"Below it is the week’s main action. It is your check-ins when they are due, then the wrap-up at the end of the year, then the review you’re in. It says when check-ins are due (“Check-ins are due by Thursday”), the workspace’s deadline; a review is named only when it’s one you’re in, and a question raised in a review is due before that review’s next session. Its ring says what it counts inside it: check-ins, or reviewed.",
+					"The lead, under the greeting, is the first of these that is true: your check-ins once their deadline has passed; your check-ins the day before they are due, or on the day of a review you’re in that reads them, or when you left one half done (Pick up where you left off); the wrap-up at the end of the year, once your check-ins are in; and a review you’re in, on its day or after it while it isn’t held (then it says Not held yet). Its ring says what it counts: check-ins, reviewed or wrapped.",
+					"With two or more number goals to check in on, a quiet link under the button opens the table, to type all your numbers at once.",
+					"This week, above the lead, shows a review you’re in, or one that has passed its day without being held, as one cell. It is left out when the lead is that review.",
 					"Needs your response lists every ask waiting on you, grouped by kind: decisions or help, questions, updates asked for, and actions (overdue ones first). Each stays until you answer it, mark it done, or it’s withdrawn, and each has one button. Comments ask nothing, so they aren’t here. On a phone each is one short row with its button beside it, and what was asked wraps to a second line rather than being cut off.",
-					"Your goals come next, worst first, with what needs attention first and what is being handled folded away. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Goals you watch follow.",
-					"While a goal you own or watch has never been checked in on, a note after your own goals says how many goals have had one and who hasn’t reported yet, since until then “nothing needs attention” may only mean nobody has. When every goal you own and watch has reported, Home leaves the note to Goals, so someone who owns none sees the goals they watch on the first screen.",
+					"Your goals come next, counted once: how many there are by status, each count opening exactly those goals in Goals (“1 at risk” lists the one). Then the ones that need attention, worst first, each with Check in when that is what it needs; what is being handled, folded away; and the rest, five at a time. Each that needs attention leads with its status, as a shape and its word; anything else that flags it, such as getting worse, a decision waiting or a call greener than calculated, follows in its own words beside the warning mark. Each row opens its goal. Goals you watch follow.",
 					"On a phone, the reason a goal needs attention is kept to two lines, so you see more of the list. The whole reason is on the goal’s page, a tap away.",
-					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it for good; it also goes by itself after two weeks, or once everything is done. The example in the demo never shows it.",
-					"After a release you haven’t seen, a quiet line says what’s new: under the greeting, or on a phone just after your goals that need attention. Open it, or dismiss it with the cross."
+					"Getting started, at the top, for your first two weeks in a new workspace: what is true and what to do first, each with one button. Whoever set the workspace up sees their first check-ins, “Give 2 goals an owner” for the goals they left without one, and the link to send their team (or, alone, Add people). Someone added by someone else is told who set it up and what is theirs, then their first check-in, or, owning none, the goals to see and watch and a goal of their own. Hide this removes it.",
+					"After a release you haven’t seen, a quiet line at the foot of Home says what’s new in Faro. Open it, or dismiss it with the cross."
+				]
+			},
+			{
+				heading: "When Home has no button",
+				list: [
+					"Before the day your check-ins are due, Home says “Nothing is asked of you today.” and when they are due, with Check in early if you want to get ahead.",
+					"Once all yours are in, it says so in one sentence, with when the next are due. On the day you put the last one in on time it adds how many weeks in a row you have been on time, from two weeks.",
+					"If you own and watch nothing, it says so, with a way to see the goals and to set one up.",
+					"It never tells you about a deadline you met."
 				]
 			},
 			{
@@ -14817,7 +14874,7 @@ var CORE_ARTICLES = [
 		routes: ["/"],
 		screens: ["Home"],
 		reqs: [
-			"HOME-DASHBOARD",
+			"HOME-OWNER",
 			"PROFILES",
 			"SHAPE-MATCHES-WORD",
 			"DAY-ONE"
@@ -15032,7 +15089,7 @@ var CORE_ARTICLES = [
 				"Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.",
 				"Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.",
 				"Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.",
-				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.",
+				"In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example. Only an admin of that workspace sees it; in the example anyone may start over.",
 				"Research opens a hub for people and AI agents testing the app: tasks, a protocol and a report. Feedback sent from the demo reaches the people building the app.",
 				"Your changes are kept in this browser, on top of the example as it was built. If the browser won’t keep them (it’s full, or a private window blocks storage), a note at the top of the page says so: they last until you reload."
 			]
@@ -15104,7 +15161,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.",
 					"Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.",
-					"Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.",
+					"Got something wrong? The receipt after posting has Correct this check-in. It asks why you are changing it (a sentence, at least 10 characters), replaces the check-in rather than adding a second, and opens the goal, whose History says “Corrected week 45: 60% is now 61%” with your reason. Undo on the message that follows puts the first one back. An admin can also correct a past check-in in Data.",
 					"Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.",
 					"Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.",
 					"The first check-in sets where a goal stands today. If the goal was set up in the last four weeks and the number isn’t where its plan starts, you’re asked: start the plan from this number (same target, due week and shape; no reason needed, with Undo), or keep the plan and say why."
@@ -15112,7 +15169,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -15336,7 +15393,7 @@ var CORE_ARTICLES = [
 					"Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.",
 					"One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.",
 					"By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.",
-					"Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link.",
+					"Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link. A new layout is drawn in place; rows slide only when the order changes within one, after a sort or a filter.",
 					"Views, at the right of the tabs, holds your saved views (pinned ones first, the open one marked Current), then Save this view…, Copy link and Export these goals; with a saved view open, also Rename…, Pin for everyone (admins) and Delete this view…. It means the same on every screen.",
 					"The title, the tabs and the bar stay exactly where they are whichever layout you choose; only the goals under the count line widen for Table, Board, History and the Map. On the Map, Group and Sort can’t be changed: the Map is always the trees.",
 					"On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole.",
@@ -15866,13 +15923,13 @@ var CORE_ARTICLES = [
 				"Choose New goal. Step 1, what: name it the way your team would say it, and pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.",
 				"Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).",
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
-				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year; the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
+				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year (in the year’s last week, the end of next year); the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
 				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Not a guardrail.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first. The metric you chose stays chosen through a reload or a kept draft, and it is for the goal’s team as it is now: choose another team and Check says the new one.",
 				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.",
 				"On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.",
 				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.",
 				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.",
-				"Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses, Escape closes.",
+				"Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses (with nothing typed, the week highlighted), Escape or Tab away closes.",
 				"To can run into next year: the line under the numbers says “It runs past the end of 2026 and carries into 2027 with this plan.” A From still to come is fine too: until that week nothing is due, and the goal reads “No check-in yet · starts week 50”. A From in the past is asked about (“Week 40 was 6 weeks ago. Has this been running since then?”); “No, start from this week” puts it back. A To already past, and a plan longer than a year, are asked about too. A stage is due within this goal year; a range applies from the week it is published to the end of the year.",
 				"An unfinished goal is kept as a draft.",
 				"Decimals follow what you type: 12.5 is kept to 1 decimal place, and the line under the numbers says so, with Change to choose whole numbers or 1, 2 or 3 places. Once chosen, a start, target, limit or plan number typed with more is refused, not rounded (with “Keep 1 decimal place” to keep them), so what you see is what was saved.",
@@ -16377,7 +16434,9 @@ var CORE_ARTICLES = [
 			{
 				heading: "Switching, and setting one up",
 				list: [
-					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace.",
+					"The workspace’s name at the top of the sidebar (on a phone, the line under the page’s name at the top) is the workspace switcher. It lists every workspace you can open with what kind it is; the open one says Open now and your role. Under the list: About, which opens Workspace, and Set up a new workspace. It says Switch beside its arrow.",
+					"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.” A workspace you can’t open yet still lists the others, to open one of them.",
+					"A workspace is one organisation’s goals and the people who share them: its own people and teams, its own goal year and check-in day, and its own admins. About says so, under its name.",
 					"Switching is a page move: Back takes you to the workspace you came from. You land on the same page in the other workspace when it has one (Home, Goals, Reviews, People, a Workspace section), otherwise on Home; from a person’s or a team’s page, on People or Teams. While it opens, the page says so.",
 					"Part-way through a check-in, a new goal or a review, switching asks first: what you’ve typed stays as a draft in its own workspace, in this browser, for when you switch back.",
 					"Switch person (your name at the foot of the sidebar) is only about people. Where you’re an admin, it says Admin."
@@ -16991,7 +17050,7 @@ var CORE_ARTICLES = [
 				heading: "Who can read it",
 				list: [
 					"The inbox is its own page, Feedback, beside Help in the sidebar (in More on a phone), in the app and the demo. It was a section of Workspace; it moved because it belongs to no one workspace. Old links to Workspace’s inbox open it.",
-					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and change a status, on any device, and every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
+					"It holds what’s sent from every workspace and the demo, and says where each came from. There’s no sign-in: anyone can read it and send feedback, on any device. Only an admin changes a status (In hand, Fixed, Won’t fix, New again); everyone else sees a line saying so, and no buttons. Every change says who made it and can be undone. Faro holds no real data, so there is nothing to keep back. The company’s own app keeps its inbox to the people who look after the app.",
 					"It names people, never their email. The New tab says how many are new; The New tab counts them across every workspace.",
 					"Send feedback, at the top, opens the feedback sheet; it says which page you came from, and Mark up the last screen goes back to it."
 				]
@@ -17036,7 +17095,11 @@ var CORE_ARTICLES = [
 				text: ["When Faro runs with no database (on a laptop, say), markups stay in that browser, and the inbox shows them, and this workspace’s feedback. Statuses you give feedback there stay in that browser."]
 			}
 		],
-		routes: ["/feedback", "/workspace/inbox"],
+		routes: [
+			"/feedback",
+			"/workspace/inbox",
+			"/inbox"
+		],
 		screens: ["Feedback"],
 		reqs: [
 			"MARKUP-INBOX",
@@ -17266,6 +17329,79 @@ var WHATS_NEW = [
 			"Check reads as one row under another at every width, and says truly when a goal with stages already done can only be stopped, not deleted."
 		],
 		articles: ["new-goal"]
+	},
+	{
+		id: "weeks-picked-steadier",
+		date: "2026-11-12",
+		title: "Weeks in files and the week list: fewer surprises",
+		points: [
+			"A file with To filled in and Due week left empty now loads; a To before From says so in its own words.",
+			"In a file with no Start column, a bare number under From is asked about: it may be where the goal starts, not a week.",
+			"In the year’s last week, a new goal runs to the end of next year unless you choose otherwise.",
+			"In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list."
+		],
+		articles: ["import", "new-goal"]
+	},
+	{
+		id: "correct-check-in",
+		date: "2026-11-12",
+		title: "Correct this check-in corrects it",
+		points: [
+			"The link under a posted check-in now replaces it, instead of adding a second check-in for the week.",
+			"It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.",
+			"Undo on the message after saving puts the first check-in back."
+		],
+		articles: ["check-in"]
+	},
+	{
+		id: "check-ins-owner-only",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s",
+		points: ["Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.", "An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet."],
+		articles: ["check-in"]
+	},
+	{
+		id: "room-agrees-with-limit",
+		date: "2026-11-12",
+		title: "A number kept in range: two cells that agree",
+		points: ["On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.", "A number exactly the warning margin inside its limit is not near: both cells now say so."],
+		articles: ["goal-page"]
+	},
+	{
+		id: "home-asks-first",
+		date: "2026-11-12",
+		title: "Home starts with what is asked of you today, and is quiet when nothing is",
+		points: [
+			"Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.",
+			"When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.",
+			"Your goals are counted once, in Your goals, and each count opens exactly those goals.",
+			"What’s new in Faro is now a line at the foot of Home."
+		],
+		articles: ["home"]
+	},
+	{
+		id: "admins-triage-and-start-over",
+		date: "2026-11-12",
+		title: "Where one workspace ends, and who you are there",
+		points: [
+			"The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.",
+			"Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”",
+			"About says what a workspace is, in one sentence, under its name.",
+			"Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.",
+			"In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may."
+		],
+		articles: [
+			"inbox",
+			"demo",
+			"workspace"
+		]
+	},
+	{
+		id: "polish-layout-switch",
+		date: "2026-11-12",
+		title: "Board and Table line up straight away",
+		points: ["Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.", "Rows still slide when a sort or a filter changes their order within a layout."],
+		articles: ["goals"]
 	},
 	{
 		id: "polish-map-wait",
@@ -19389,6 +19525,34 @@ var RULE_PAGES = [
 		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
 	]
 ];
+/** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
+(src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
+var MORE_RULE_PAGES = [
+	["field-table", "The field table"],
+	["import-levels", "Kinds, levels and near misses"],
+	["import-preview", "What an import read, and leaving rows out"],
+	["import-header", "The header row, and headers that are nearly right"],
+	["import-undo", "Undoing an import, and past imports"],
+	["review-decide", "Deciding in a review"],
+	["start-next-year", "Starting the next year"],
+	["carry", "The carry rule, and what comes with a goal"],
+	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
+	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
+	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["map", "The goal map"],
+	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
+	["goal-history", "A goal’s history"],
+	["comment-reach", "Who a comment reaches"],
+	["goal-entry", "Goal entry"],
+	["years-and-weeks", "Years and weeks"],
+	["new-goal", "New goal"],
+	["read-back", "The read-back"],
+	["not-born-late", "A goal not born late"],
+	["finding", "Finding things"],
+	["navigation", "Navigation: the menu, the lit item and a page’s name"],
+	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"],
+	["home", "Home: what is asked of you today"]
+];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
 var INTERNAL_PAGES = [
@@ -19446,7 +19610,7 @@ function systemOverview() {
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
 		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
 		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
-		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.",
+		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
 		"## The spec",
@@ -19455,6 +19619,7 @@ function systemOverview() {
 		"- [The data model](spec/core/data-model.md): every record and field, and the database tables",
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
@@ -21122,8 +21287,12 @@ var markupFromRow = (r) => ({
 	statusAt: r.status_at,
 	createdAt: new Date(r.created_at).toISOString()
 });
+/** Who may change an item's status in the inbox (Lane, 12 Nov): admins. Everyone may send feedback and read the inbox. */
+var mayTriage = (who) => !!who.admin;
+var ADMINS_TRIAGE = "Only an admin can change the status of feedback. You can still read it and send your own.";
 /** Checks a status change and gives the fields it sets. Fixed names the What's new entry; Won't fix needs a reason. */
 function statusPatch(c, now, entries) {
+	if (!mayTriage(c)) throw new MarkupError(ADMINS_TRIAGE);
 	if (!STATUSES$1.includes(c.status)) throw new MarkupError("A status is new, in-hand, fixed or wont-fix.");
 	const fixedIn = c.status === "fixed" ? (c.fixedIn ?? "").trim() : "";
 	if (c.status === "fixed" && !fixedIn) throw new MarkupError("Say which What’s new entry has the fix.");
@@ -21571,7 +21740,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "update_markup",
 		title: "Change a markup",
-		description: "Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		description: "Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21602,7 +21771,8 @@ var MARKUP_TOOLS = [
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
 			});
 			return {
 				data: { markup: m },
@@ -21721,7 +21891,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "update_feedback",
 		title: "Change a piece of feedback",
-		description: "Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		description: "Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21746,7 +21916,8 @@ var FEEDBACK_TOOLS = [
 				status: a.status,
 				fixedIn: a.fixed_in,
 				reason: a.reason,
-				by: `${ctx.actor.name} via MCP`
+				by: `${ctx.actor.name} via MCP`,
+				admin: !!ctx.actor.admin
 			});
 			return {
 				data: { feedback: {

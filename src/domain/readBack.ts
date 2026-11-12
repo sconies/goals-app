@@ -56,7 +56,7 @@ const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? o
 function draftPlan(d: GoalDraft, c: ReadBackContext): (MetricPlan & { from: number; to: number }) | null {
   const s = parseNumber(d.start), t = parseNumber(d.target);
   if (d.kind !== 'metric' || s == null || t == null) return null;
-  const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null });
+  const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null, startDate: c.cycle.startDate });
   const plan = withPoints({ start: s, target: t, shape: d.shape, fromWeek: span.from, endWeek: span.to }, d.points, c.cycle.weeks);
   return { ...plan, from: span.from, to: span.to };
 }
@@ -69,7 +69,7 @@ export function leftAsUsual(d: GoalDraft, c: Pick<ReadBackContext, 'cycle' | 'we
   const out: { text: string; step: number }[] = [];
   if (d.kind !== 'milestone' && (decimalsFor(d) ?? 0) === 0) out.push({ text: 'Whole numbers.', step: 2 });
   if (d.kind === 'metric') {
-    const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null });
+    const span = planSpanOf(d, { week: c.week, cycleWeeks: c.cycle.weeks, existing: null, startDate: c.cycle.startDate });
     const fromNow = span.from === c.week, toEnd = span.to === c.cycle.weeks, year = cycleYear(c.cycle);
     if (fromNow && toEnd) out.push({ text: `From this week to the end of ${year}.`, step: 2 });
     else if (fromNow) out.push({ text: 'From this week.', step: 2 });

@@ -48,7 +48,7 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 4](../../rebuild/stage-4-module-metrics.md) (an outline, with no drill yet).
-Its rules: [The metric library](rules.md), [The library as a place](rules.md), [“Measured by”, found by typing](rules.md), [Looking after metrics](rules.md), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
+Its rules: [The metric library](rules.md#the-metric-library), [The library as a place](rules.md#the-library-as-a-place), [“Measured by”, found by typing](rules.md#measured-by-found-by-typing), [Looking after metrics](rules.md#looking-after-metrics), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
 
 Its own records, every field: [its records](records.md).
 

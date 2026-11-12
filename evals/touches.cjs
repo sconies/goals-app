@@ -31,13 +31,14 @@ const RULES = [
   // The Search and Prefs ports and the find rules (AR1): read by the AI tools until the pickers and list bars use them.
   [/^src\/(ports\/|adapters\/(local|localSearch)\.ts|app\/reads\.ts|domain\/find\.ts)/, ['U22']],
   [/^src\/domain\/dayOne\.ts/, ['U86', 'U5', 'U49']],
-  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'F1', 'N3', 'N6', 'N10', 'P6']],
+  [/^src\/screens\/Home\.tsx|^src\/domain\/(home|attention)\.ts/, ['U86', 'U2', 'U16', 'U33', 'U122', 'F1', 'N3', 'N6', 'N10', 'N26', 'P6']],
+  [/^evals\/notes\/12-home\.cjs$/, ['N26']],
   // Held at company size (N12, FS4): its fixture and check, and the search, the pickers and the list bars it times.
   [/^evals\/(fixtures\/company|finish\/11-company-size)\.cjs$|^src\/(ports\/search|adapters\/localSearch|domain\/find|app\/search|app\/reads)\.ts|^src\/ui\/(Pick|ListBar)\.tsx/, ['N12']],
   // The talk-path polish (N10): its own check, and the screens it looks at.
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
-  [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'F2', 'F9', 'N8']],
+  [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'U142', 'F2', 'F9', 'N8']],
   [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/ui\/GoalFields\.tsx|^src\/styles\/finish\/wizard\.css|^src\/domain\/(templates|newGoal|goalEntry|goalRights|readBack)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'U93', 'U137', 'U145', 'U109', 'U136', 'U31', 'U24', 'U91', 'F3', 'F9', 'F16']],
   // Years and weeks (goal entry, rule 13; GE9): the week picker and the rule it shows.
   [/^src\/ui\/WeekPick\.tsx|^src\/domain\/week(s|Choices)\.ts/, ['U109', 'U93', 'U137', 'U18', 'U85', 'U136', 'U5', 'F3', 'F16']],

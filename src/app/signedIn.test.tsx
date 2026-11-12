@@ -65,6 +65,21 @@ describe('the sign-in seam', () => {
     }
   });
 
+  it('a workspace you can’t open yet still lists the others, and opens one from there (outside review, 12 Nov)', async () => {
+    const store = new BrowserStore(() => new Date('2026-01-14T12:00:00Z'), { storage: memory(), example: false, key: 'others' });
+    await store.createWorkspace({ id: 'ws_shut', name: 'Shut', kind: 'own', createdAt: '2026-01-14T12:00:00.000Z' }, contractWorkspace('shut'));
+    await store.createWorkspace({ id: 'ws_open', name: 'Elsewhere', kind: 'own', createdAt: '2026-01-14T12:00:01.000Z' }, contractWorkspace('open'));
+    let app: AppState | null = null;
+    const Peek = () => { app = useApp(); return null; };
+    const view = render(<AppProvider store={store} identity={{ current: async () => null }} mode="live"><Peek /><WhoAreYou /></AppProvider>);
+    await waitFor(() => expect(view.getByRole('heading', { name: /^You can’t open .+ yet$/ })).toBeTruthy());
+    const here = app!.ws.id, other = here === 'ws_shut' ? 'Elsewhere' : 'Shut';
+    const pick = view.getByRole('button', { name: other });
+    await act(async () => { pick.click(); });
+    await waitFor(() => expect(app!.ws.id).not.toBe(here));
+    view.unmount();
+  });
+
   it('a sign-in that can’t be chosen: the app acts as the person signed in, and only them', async () => {
     let me: string | null = null;
     const { store, data, app } = await open({ current: async () => me });
