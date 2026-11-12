@@ -5125,7 +5125,7 @@ journey('U87', ['FIELD-TABLE', 'SPREADSHEETS-ON-DATA'], 'What a file needs, befo
 const settled = (r) => r.waitForFunction(() => {
   if (document.querySelector('.preboot, .boot')) return false;
   const main = document.querySelector('main');
-  return !main || [...main.children].some((e) => !e.matches('.page-help'));
+  return !main || [...main.children].some((e) => !e.matches('.page-help, [data-page-wait]'));
 }, null, { timeout: 15000 }).catch(() => {});
 /** A page whose goto and reload wait until it has settled, for the checks that go from page to page and then measure. */
 function steady(r) {
@@ -5325,6 +5325,8 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Every page but Home loads when it is opened: wait for it, not a fixed time.
+      await settled(r);
       await r.waitForTimeout(400);
       // The map draws its 126 goals after the page is up.
       if (kind === 'map') await r.locator('.react-flow__node').first().waitFor().then(() => r.waitForTimeout(600)).catch(() => {});

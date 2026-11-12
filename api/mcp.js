@@ -13909,7 +13909,11 @@ var help$2 = [
 			]
 		}],
 		routes: [],
-		screens: ["Export", "DataMenu"],
+		screens: [
+			"Export",
+			"ExportButton",
+			"DataMenu"
+		],
 		reqs: [
 			"EXPORT",
 			"SHARED-DOWNLOADS",
@@ -16477,6 +16481,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "smaller-first-download",
+		date: "2026-11-12",
+		title: "Faro opens faster",
+		points: ["The first visit downloads about a quarter less: each page other than Home loads when you first open it.", "On a slow connection, a page you open for the first time may take a moment longer."],
+		articles: ["any-device"]
+	},
 	{
 		id: "goal-questions",
 		date: "2026-11-12",
