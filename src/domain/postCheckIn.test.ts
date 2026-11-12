@@ -78,16 +78,34 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(postCheckIn(x(fresh, 'mateo'), post()).checkIn.authorId).toBe('mateo');
   });
 
-  it('closes every door to posting for someone else but the admin’s workbook and Data tables, which stay for Lane to decide', () => {
+  it('closes every door to posting for someone else but the two exceptions Lane kept: an admin’s workbook and an admin’s correction in Data', () => {
     const row = { __row: '2', 'goal id': goal.id, week: String(week), value: post().draft.value };
     const as = (who: string, via: Via) => planChanges({ tables: { checkIns: [row] }, snapshot: fresh, cycle, week, actor: person(who), now: today.toISOString(), newId: (p) => `${p}_d${++n}`, via });
     const refused = (cs: ReturnType<typeof as>) => cs.issues.some((i) => i.kind === 'not-allowed' && /can check in on/.test(i.message));
     // The one-table check-in and the AI tools: the owner only, an admin included.
     for (const via of ['bulk', 'mcp', 'form'] as const) expect(refused(as('amara', via)), via).toBe(true);
     expect(refused(as('rhea', 'table')), 'a member in Data').toBe(true);
-    // Left open on purpose, and named in mayPostCheckIn: an admin's import and setting up, and an admin's correction in Data.
+    // The two exceptions (Lane, 12 Nov), named in mayPostCheckIn: an admin's import and setting up, and an admin's correction in Data.
     for (const via of ADMIN_CHECK_IN_DOORS) expect(refused(as('amara', via)), via).toBe(false);
     expect(refused(as('mateo', 'mcp')), 'the owner').toBe(false);
+  });
+
+  it('records who made the change through each exception: the admin as author and actor, with the door as its Via, and says whose it replaced', () => {
+    const last = s.checkIns.filter((c) => c.goalId === goal.id).at(-1)!;
+    const label = { spreadsheet: 'Spreadsheet', setup: 'Set-up', table: 'Data tables' } as const;
+    for (const via of ADMIN_CHECK_IN_DOORS) {
+      const row = { __row: '2', id: last.id, 'goal id': goal.id, week: String(last.week), value: String((last.value ?? 0) + 1), why: 'Corrected from the source data' };
+      const cs = planChanges({ tables: { checkIns: [row] }, snapshot: s, cycle, week, actor: person('amara'), now: today.toISOString(), newId: (p) => `${p}_w${++n}`, via, reason: 'Corrected' });
+      expect(cs.commit!.checkIns!.map((c) => c.authorId), via).toEqual(['amara']);
+      const changes = cs.commit!.changes!;
+      expect(changes.length, via).toBeGreaterThan(0);
+      for (const c of changes) {
+        expect(c.actorId, via).toBe('amara');
+        expect(c.diffs.find((d) => d.field === 'Via')?.to, via).toBe(label[via as keyof typeof label]);
+      }
+      // Replacing someone else's check-in is said before saving (C18).
+      expect(cs.issues.some((i) => i.kind === 'replaces'), via).toBe(true);
+    }
   });
 });
 
