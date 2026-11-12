@@ -42,6 +42,10 @@ export function CheckInFlow() {
 /** Where the week's queue is kept for this tab, so a reload keeps "2 of 2" (deep review U8). */
 const queueKey = (ws: string, viewer: string, week: number) => `goals-app-checkin-queue:${ws}:${viewer}:${week}`;
 
+/** The week's walk, kept for this tab (the queue and the goals posted in it). */
+const readWalk = (key: string): unknown => { try { return JSON.parse(sessionStorage.getItem(key) ?? 'null'); } catch { return null; } };
+const writeWalk = (key: string, walk: KeptWalk) => { try { sessionStorage.setItem(key, JSON.stringify(walk)); } catch { /* storage blocked */ } };
+
 /** What the one-table check-in hands over when it lands here: the goals it posted, and how many rows it kept back. */
 export interface FromTable { posted: string[]; kept: number }
 
@@ -59,17 +63,17 @@ function Flow({ goalId }: { goalId?: string }) {
     if (goalId) return { queue: [goalId], start: 0 };
     const due = weekProgress(app.viewer.id, app.snapshot, app.cycle, app.week, app.today).due.map((g) => g.id);
     let kept: unknown = null;
-    try { kept = JSON.parse(sessionStorage.getItem(walkKey) ?? 'null'); } catch { /* storage blocked */ }
+    kept = readWalk(walkKey);
     const { walk, start: at } = resumeWalk(due, kept);
-    try { if (due.length) sessionStorage.setItem(walkKey, JSON.stringify(walk)); } catch { /* storage blocked */ }
+    if (due.length) writeWalk(walkKey, walk);
     return { queue: walk.queue, start: at };
   });
   // A goal posted in this walk stays in it, so a reload still says "2 of 2".
   const walked = (id: string) => {
     if (goalId) return;
     try {
-      const k = JSON.parse(sessionStorage.getItem(walkKey) ?? 'null') as KeptWalk | null;
-      if (k && Array.isArray(k.walked) && !k.walked.includes(id)) sessionStorage.setItem(walkKey, JSON.stringify({ ...k, walked: [...k.walked, id] }));
+      const k = readWalk(walkKey) as KeptWalk | null;
+      if (k && Array.isArray(k.walked) && !k.walked.includes(id)) writeWalk(walkKey, { ...k, walked: [...k.walked, id] });
     } catch { /* storage blocked */ }
   };
   const [index, setIndex] = useState(start);

@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'forms-close-in-words',
-    date: '2026-11-11',
+    date: '2026-11-12',
     title: 'Every form closes in words, and Back finds your list',
     points: [
       'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
