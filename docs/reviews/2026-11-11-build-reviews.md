@@ -117,6 +117,8 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #270 GE10: proposed goals | 2 | 0 | 4 | 8 |
 | #271 Batch refs: the two review findings | MCP load | 0 | 0 | 0 |
 | #268, #275 KT5b and KT6: the kit | 6 | 0 | 0 | 0 |
+| #287 U93: the two review findings | 2 | 0 | 0 | 0 |
+| #283, #284 KT7 and KT8: the kit; #279 journeys | 6, evals | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1226,3 +1228,11 @@ Read first by a reviewing session with domain probes, the MCP tools and the demo
 - On a phone the proposed row sits flush against the card's edge, and with the State filter on Goals has no tabs or search.
 
 **Unconfirmed.** A proposer's stale edit landing after the owner activates; `startNextCycle`'s count with proposed goals carried; the rebuild stage and drill.
+
+### #287 U93: the two findings from #241 (track 2, merged 21:40 UTC, 12 Nov)
+
+Fixes both mediums and the lows. A question is brought into view once, when it first shows, not on every digit (`src/ui/GoalFields.tsx`, the effect keyed by slot alone), and the field is kept at least the page's own `scroll-padding-top` from the top, so the helper and the browser no longer pull against each other (`src/ui/questionInView.ts`, `topRoom`). The fold is the visible viewport where the browser gives one, so an on-screen keyboard counts. Set-up's Continue uses the same helper. Read, and its tests run (two new) on main at `66152b78`; not re-run on a short screen. No finding.
+
+### #283 and #284 KT7 and KT8: the kit; #279 three journeys' checks; #286 handover
+
+The platform requirements and the thresholds as data for the spec; they change the generator, not the app. #279 narrows U-journey checks that newer features had outgrown (the wrap-up list's address, Find's Metrics group, the facts block on a phone); none is skipped or disabled. Skimmed, not reviewed in depth. No finding.
