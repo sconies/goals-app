@@ -295,7 +295,7 @@ export function GoalsScreen() {
       {alt && shown.length > 0 && layout === 'table' && <GoalTable groups={groups} />}
       {alt && shown.length > 0 && layout === 'board' && <GoalBoard groups={groups} />}
       {alt && shown.length > 0 && layout === 'history' && <HistoryGrid groups={groups} />}
-      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<div className="map-wait" role="status">Drawing the map…</div>}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} goTo={goTo} /></Suspense>}
+      {alt && shown.length > 0 && layout === 'map' && <Suspense fallback={<MapWait />}><GoalMap goals={mapGoals} matches={narrowed ? new Set(shown.map((g) => g.id)) : undefined} goTo={goTo} /></Suspense>}
 
       {/* Filtered or sorted, the list is each group's matching goals, in order. */}
       {!alt && refined && !watchingList && groups.map((g) => (
@@ -436,4 +436,17 @@ function ViewSheet({ layout, onLayout, group, groupOff, onGroup, items, canSave,
 function teamsWorstFirst(app: ReturnType<typeof useApp>) {
   const teams = app.snapshot.teams.map((team) => ({ team, goals: app.snapshot.goals.filter((g) => g.teamId === team.id).sort(worstFirst(app)) })).filter((t) => t.goals.length);
   return worstGroupsFirst(teams, (t) => t.goals.map((g) => app.statusOf(g).status), (t) => t.team.name);
+}
+
+/** How long the map may take before it says it is drawing: a wait shorter than this is not worth a message. */
+const MAP_WAIT_MS = 300;
+
+/**
+ * While the map's code loads: an empty space the map's size, and "Drawing the map…" only once it has taken a noticeable
+ * time (review of 12 Nov: the line flashed for a moment on every switch to Map).
+ */
+function MapWait() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setSlow(true), MAP_WAIT_MS); return () => clearTimeout(t); }, []);
+  return slow ? <div className="map-wait" role="status">Drawing the map…</div> : <div style={{ minHeight: '50vh' }} aria-hidden="true" />;
 }
