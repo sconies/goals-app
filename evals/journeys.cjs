@@ -435,6 +435,31 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.context().close();
 });
 
+journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is then refused: as Hamid, an admin, the “…” menu on Rhea’s goal has Change this goal but no Check in for Rhea, since only the owner checks in; Rhea checks in from the bar', 4, async (h, device) => {
+  // Polish track, item 4 (review of 12 Nov): the menu offered Check in for Rhea, and the check-in then refused it.
+  let p = h.use(await newPage(device, 'hamid'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').waitFor();
+  await h.checkpoint('goal');
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  const menu = p.getByRole('group', { name: 'More about this goal' });
+  await h.inView(menu.getByRole('link', { name: 'Change this goal' }), 'entry', 'Change this goal');
+  if (await menu.getByRole('link', { name: /^Check in for/ }).count()) fail('an admin is offered a check-in that only the owner may post');
+  h.set('errors', true);
+  await p.context().close();
+  // The owner's own way in is on the bar, and it opens her check-in.
+  p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').waitFor();
+  const own = p.locator('.goal-bar .bar-actions').getByRole('link', { name: /^Check in/ }).first();
+  h.set('one-action', await own.isVisible(), 'the owner has no check-in on the bar');
+  await h.click(own);
+  await see(p, 'This week’s value');
+  if (await p.getByText(/checks in on this goal/).isVisible().catch(() => false)) fail('the owner’s check-in is refused');
+  h.set('finish', true);
+  await p.context().close();
+});
+
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
