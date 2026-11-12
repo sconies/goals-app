@@ -17,7 +17,7 @@ import './metrics.css';
 /** A metric being added in place, from what was typed in the picker. */
 interface Adding { name: string; unit: string; direction: MetricDirection | ''; meaning: string }
 
-export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill }: PlaceProps['goal.measure']) {
+export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill, onNone }: PlaceProps['goal.measure']) {
   const app = useApp();
   const link = goal ? linkOf(app.snapshot, goal.id) : undefined;
   const [metricId, setMetricId] = useState<string | null>(link?.metricId ?? null);
@@ -55,6 +55,7 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   const choose = (id: string | null) => pickMetric(metricsOf(app.snapshot).find((x) => x.id === id));
   const pickMetric = (m: Metric | undefined) => {
     setMetricId(m?.id ?? null);
+    onNone?.(!m);
     if (!fill) return;
     if (m) {
       // A new goal's own unit and decimals (or ones a metric filled and nobody changed since) take the new metric's.

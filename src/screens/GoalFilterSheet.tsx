@@ -52,6 +52,12 @@ export function FilterSheet({ onClose }: { onClose: () => void }) {
           <input className="input" type="search" placeholder="Find an owner" value={owner} onChange={(e) => setOwner(e.target.value)} aria-label="Find an owner" />
           {match.length > 0 && <span className="filter-options">{match.map((p) => <button key={p.id} type="button" className="btn sm" onClick={() => { setQ((cur) => ({ ...cur, owner: [...cur.owner, p.id] })); setOwner(''); }}>{p.name}</button>)}</span>}
         </fieldset>
+      </div>
+      {/* Used less often: folded, and open when one of them is set. */}
+      <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps || Object.keys(q.cols).length)}>
+        <summary>More filters: type{modFilters.map((f) => `, ${f.label.toLowerCase()}`).join('')}, due date, no update for, last quarter, result, links</summary>
+      <div className="filter-sheet">
+        {checks('Type', KIND_OPTIONS, 'kind')}
         {/* A module's filters (Measured by): each chosen by find-and-pick, as the module's kind is found anywhere. */}
         {modFilters.map((f) => (
           <fieldset key={f.id} className="filter-group"><legend className="sr">{f.label}</legend>
@@ -59,12 +65,6 @@ export function FilterSheet({ onClose }: { onClose: () => void }) {
               onChange={(id) => setQ((cur) => { const { [f.param]: _, ...cols } = cur.cols; return { ...cur, cols: id ? { ...cols, [f.param]: id } : cols }; })} />
           </fieldset>
         ))}
-      </div>
-      {/* Used less often: folded, and open when one of them is set. */}
-      <details className="disclose filter-more" open={!!(q.kind.length || q.due != null || q.quiet != null || q.quarter || q.result.length || q.feeds || q.helps)}>
-        <summary>More filters: type, due date, no update for, last quarter, result, links</summary>
-      <div className="filter-sheet">
-        {checks('Type', KIND_OPTIONS, 'kind')}
         <fieldset className="filter-group"><legend className="field-label">Due</legend>
           <select className="input" aria-label="Due" value={q.due == null ? '' : String(q.due)} onChange={(e) => setQ((cur) => ({ ...cur, due: e.target.value === '' ? null : e.target.value === 'quarter' ? 'quarter' : Number(e.target.value) }))}>
             <option value="">Any time</option>

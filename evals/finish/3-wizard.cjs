@@ -222,7 +222,13 @@ module.exports = {
     {
       const [c, p] = await open(390, 700, 'mateo', '/goals/new');
       await toNumbers(p);
-      // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T).
+      // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T); with the
+      // metric library on, once “No metric” is chosen under “Measured by” (metrics spec 2.4, ML2).
+      const measured = p.locator('.measured-by');
+      if (await measured.count()) {
+        await measured.getByRole('button', { name: /^Measured by/ }).click();
+        await p.locator('.pick.open').getByRole('option', { name: 'No metric' }).click();
+      }
       if (!(await p.getByRole('textbox', { name: /^How it’s measured/ }).isVisible())) f('(T7) New goal: “How it’s measured” is not shown on the numbers step');
       for (const lab of ['Where the number comes from']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)

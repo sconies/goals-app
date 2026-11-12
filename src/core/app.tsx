@@ -40,6 +40,8 @@ export interface PlaceProps {
     onChange: (pick: MeasurePick | undefined) => void;
     /** Sets the form's unit and decimals from what's chosen, and whether their fields show (hidden: said in one line instead). */
     fill?: (f: { unit: string; decimals: string; hidden: boolean }) => void;
+    /** Whether the person chose "No metric": the form then asks how it's measured in its own words. */
+    onNone?: (none: boolean) => void;
   };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };

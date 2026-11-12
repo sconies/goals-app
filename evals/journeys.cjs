@@ -4698,8 +4698,8 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   // Goals, filtered to the metric (ML2): the filter line says so, and its one goal opens.
   await p.waitForURL(/\/demo\/goals\?.*metric=/);
   await see(p, 'Measured by Pipeline queue wait (p90)', 'Goals filtered to the metric does not say so in its filter line');
-  await h.click(p.locator('main a[href*="/goals/lead-ci-time"]').first());
-  await p.waitForURL(/\/demo\/goals\/lead-ci-time/);
+  await h.click(p.locator('main').getByRole('link', { name: 'Pipeline queue wait (p90)', exact: true }).first());
+  await p.waitForURL(/\/demo\/goals\/(lead-ci-time|G-\d+)/);
   await p.locator('.goal-bar').waitFor();
   // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
   await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
@@ -4754,8 +4754,7 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
   await h.click(field.getByRole('button', { name: /^Measured by/ }));
   const panel = p.locator('.pick.open');
   await h.fill(panel.getByRole('combobox'), 'queue');
-  await panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }).waitFor();
-  await p.keyboard.press('Enter');
+  await h.click(panel.getByRole('option', { name: /Pipeline queue wait \(p90\)/ }));
   await see(field, '90th percentile of minutes a pipeline job waits', 'choosing a metric does not show its meaning');
   await see(field, 'min, whole numbers, lower is better: from the metric.', 'choosing a metric does not say what it fills in');
   const forTeam = await field.getByRole('group', { name: 'For' }).getByRole('button', { name: 'CI/CD' }).getAttribute('aria-pressed');

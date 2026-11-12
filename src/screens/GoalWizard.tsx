@@ -24,7 +24,7 @@ import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
-import { Place, type MeasurePick } from '../core/app';
+import { Place, useFilled, type MeasurePick } from '../core/app';
 import { Pick, PickOne } from '../ui/Pick';
 import { recentsOf, usePrefs } from '../app/search';
 
@@ -89,6 +89,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   // A metric chosen on a goal whose unit and decimals nobody typed fills them, and they're said in one line (metrics, rule 5).
   const [filled, setFilled] = useState(false);
+  // With a module offering "Measured by", the form's own words for how it's measured wait until "No metric" is chosen (metrics spec, 2.4).
+  const measurePlace = useFilled('goal.measure');
+  const [saidNone, setSaidNone] = useState(false);
 
   // A parent chosen in the draft that has gone since: said once, and "Feeds into" is empty again (2.5).
   const [gone] = useState(() => (d.parentId && !app.goal(d.parentId) ? d.parentId : ''));
@@ -284,7 +287,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
             {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
-              untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} />}
+              untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} onNone={setSaidNone} />}
             {number && !filled && (
               <div className="num-pair">
                 <label className="field"><span className="small strong">Unit</span><input className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="%, days, ms" /></label>
@@ -339,7 +342,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
             {/* With no metric chosen: said in words, so the goal's page doesn't open on "not described yet". */}
-            {(noMetric || d.kind === 'milestone') && (
+            {((noMetric && (!measurePlace || saidNone || !!d.definition.trim() || !!d.source.trim())) || d.kind === 'milestone') && (
               <>
                 <label className="field"><span className="small strong">How it’s measured <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
                   <textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="Exactly what is counted, so everyone reads it the same way, e.g. Median hours to the first reply, from the help desk" />
