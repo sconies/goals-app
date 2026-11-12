@@ -9469,10 +9469,11 @@ function namedHeaders(t, nearOk) {
 		const rename = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
-			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
+			if (k === to) continue;
 			if (keys.includes(to)) continue;
-			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			if (m.how !== "near" || nearOk(sheet, k, m.as)) rename.set(k, to);
 		}
 		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
