@@ -117,6 +117,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #270 GE10: proposed goals | 2 | 0 | 4 | 8 |
 | #271 Batch refs: the two review findings | MCP load | 0 | 0 | 0 |
 | #268, #275 KT5b and KT6: the kit | 6 | 0 | 0 | 0 |
+| #285 ST1: welcome and join | 2 | 0 | 3 | 7 |
 | #287 U93: the two review findings | 2 | 0 | 0 | 0 |
 | #283, #284 KT7 and KT8: the kit; #279 journeys | 6, evals | 0 | 0 | 0 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
@@ -1236,3 +1237,22 @@ Fixes both mediums and the lows. A question is brought into view once, when it f
 ### #283 and #284 KT7 and KT8: the kit; #279 three journeys' checks; #286 handover
 
 The platform requirements and the thresholds as data for the spec; they change the generator, not the app. #279 narrows U-journey checks that newer features had outgrown (the wrap-up list's address, Find's Metrics group, the facts block on a phone); none is skipped or disabled. Skimmed, not reviewed in depth. No finding.
+
+### #285 ST1: welcome and join (track 2, merged 21:49 UTC, 12 Nov)
+
+Read first by a reviewing session on the browser store at 1440 and 390; I re-read the code behind mediums 1 and 3 on main at `66152b78`. No high finding. Joining writes only the arrival, as the person, through `app.run`, and changes no record or admin flag; an invitation opens only the workspace it names. Anyone with the link may choose any name, the admin's included, which the spec states (SR2, SR3).
+
+**1. Medium (ran). Opening an invitation without choosing a name traps the device at that workspace's arrival.** The workspace is remembered as soon as the link opens (`src/app/state.tsx`), and every route but `/welcome` and `/join/…` draws the arrival until a name is chosen (`src/App.tsx:68`), with no link out (`src/screens/Start.tsx`). After opening `/join/<Alpha>` and going to Welcome, "Set up a workspace" shows `/workspace/new` with the heading "Welcome to Alpha" and no set-up fields; `/` does the same, and so does Back for someone signed in elsewhere. Fix: draw `/workspace/new` outside the viewer check, and give the arrival a "Not you? Go to Welcome" link.
+
+**2. Medium (ran, dev server only). An old link to a workspace that is not there (`/?workspace=<gone>`) shows Welcome,** not "This invitation doesn't open a workspace" (spec section 1). `/join/<gone>` opened directly is right. The cause is read, not proven: the redirect to Welcome fires before the old link's own redirect is drawn (`src/App.tsx:165`, `:178-191`).
+
+**3. Medium (ran). "Who set it up" is never read from the log.** `creatorOf` looks for a workspace change with action `created` (`src/domain/dayOne.ts:61`); set-up writes `imported` (`src/app/state.tsx:445`), so it is always the first admin in the list. The unit tests and the spec's example use `created`, which the app never writes. The mismatch is older (OB3), but ST1 hangs four things on it: the arrival's opening line, "Set this up · admin", the "Ask … to add you" address, and whether an arrival is logged. With a second admin listed first, all four named the wrong person. Fix: match the entry `createWorkspace` writes, and test with a workspace it made.
+
+**Lows.**
+- Two tabs on the arrival log it twice (rule S4 says once).
+- Activity reads "Ben Carter ben Carter opened Alpha for the first time" (`dayOne.ts:129`).
+- Someone marked as left who returns still sees "You're Ben Carter here" on Welcome back, with no explanation.
+- `/join/<id>/anything` with a workspace open is a blank page.
+- "Ask … to add you" is 17 px high on touch.
+- The draft row says "Stopped at step 2" with no "of N" before a starting point is chosen; dates are UTC days (read); `?workspace=` on any other address still switches workspace.
+- P6 does not visit `/welcome`, `/join` or the arrival, though the spec says it does (read).
