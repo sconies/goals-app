@@ -105,6 +105,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #252 Check-ins are the owner's, said everywhere | polish | 0 | 0 | 0 |
 | #245, #253, #263 KT3 to KT5: contracts, import issue kinds and screens in the kit | track 6 | 0 | 0 | 0 |
 | #251, #258 Two journeys' checks | evals | 0 | 0 | 0 |
+| #259 BT: a batch names its own rows with Ref | import | 0 | 1 | 1 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1105,3 +1106,17 @@ The search and preferences contracts as data, run by the drill through a shim; w
 ### #251 and #258 Two journeys' checks; #244, #246, #254 and #260 Backlog and handovers
 
 U4 now confirms publishing by the page's lasting line, not the toast, and U141 sets the three marks it never set. Evals only. The rest are documents. Not reviewed.
+
+### #259 BT: a batch names its own rows with Ref (import, merged 20:26 UTC, 12 Nov)
+
+A Goals row's Ref lets Feeds into ref and a check-in's Goal ref name a goal the same file adds. Read, then probed in the engine with a throwaway test on main at `a7144ae5`. No high finding.
+
+**1. Medium (ran). Two Check-ins rows that name a new goal by Goal ref, for the same week, are both saved.** The duplicate-row pass keys rows by `goalFor(r)`, which does not read Goal ref; the ref is resolved later in the Check-ins loop (`src/domain/changeset.ts`, the `goal ref` block). A workbook with one new goal and two rows `Goal ref: c, Week 46` (values 12 and 13) gave no problem and a commit with two check-ins for that goal and week. The same two rows by Goal key are refused as a duplicate. This is the gap #145's medium 3 found for near-miss names, by a new door. Fix: resolve Goal ref before the duplicate pass, or run the pass on the resolved goal and week.
+
+**2. Low (ran). The wrong column is named when Feeds into ref disagrees with another column.** A row with Feeds into ref `a` and Feeds into key `G-14` is refused with "Feeds into and Feeds into key name different goals", though the row has no Feeds into column.
+
+**Checked and fine (ran).** A ref to a later row; a loop by refs ("That link would make a loop") and a goal that feeds itself; a Ref on an existing goal's row used by a new row's Feeds into ref; a member checking in on someone else's goal through a Ref on its row is refused exactly as by key ("Only Rhea Kapoor (its owner) can check in"). The PR's own six tests pass. Refs are folded, kept nowhere, and `leaveOut` follows them (read).
+
+### #266 and #267
+
+#266 is the planning handover (documents; not reviewed). #267 regenerates `spec/core/help-guide.md`, the stale page that turned main red when #257 met #263; the spec test passes on main again.
