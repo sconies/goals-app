@@ -60,6 +60,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #135 History: an ask counts under Reviews by its own reviewId | 1 | 0 | 0 | 0 |
 | #180 A parent and its child moving in one save are written once (review of #179) | 5 | 0 | 0 | 0 |
 | #181 Set-up never leaves a row out quietly; the grid takes a decimal comma (review of #145) | 3 | 0 | 0 | 0 |
+| #129 OB1: New goal asks in a better order, each step an address | 2 | 0 | 6 | 6 |
 
 **High findings, and where each stands**
 
@@ -631,3 +632,29 @@ Fixes #179's high and medium. `withRecarry` folds the save and each goal's resul
 ### #181 Set-up never leaves a row out quietly; the grid takes a decimal comma (track 3, merged 04:33 UTC, 12 Nov)
 
 Fixes #145's high and its medium 2. In set-up a Check that stopped its row from being built now blocks, with its question as the message (`src/domain/importer.ts:107-115`); the decimal-comma question is no longer asked of numbers typed on screen (`src/domain/changeset.ts:62-64`, `:1047`). Re-run: the goals template with "Ben Ortz", and with Type "metrc", each now returns one blocking issue for that row. A journey covers the grid. No finding. #145's mediums 3 to 7 stay open with track 3.
+
+### #129 OB1: New goal asks in a better order, each step an address (track 2, merged 03:26 UTC, 12 Nov)
+
+Read first by a separate reviewing session, on screen at 1440 and 390 and with throwaway tests, at this merge; finding 2 was read again by this reviewer on main as it stood at 06:51 UTC, and #186 has since changed the form, so the rest is as of this merge. No high finding.
+
+**1. Medium (first reader, on screen; a regression). After "Change" on Check, Continue goes dead if the change makes a later step invalid.** `go()` (`src/screens/GoalWizard.tsx:110` at this merge) marks the failing step tried and returns; the old form went to the failing step. Valid number goal on Check, Change on What, choose "Hit dated stages", Continue three times: still on What, no message. Fix: navigate to the first failing step.
+
+**2. Medium (re-read; a regression). New goal is no longer in focus mode, so on a phone the tab bar covers Back and Continue.** The focus pattern at `src/ui/Shell.tsx:225` matches `/goals/new` but not `/goals/new/<step>`, and `/goals/new` now always redirects to a step. At 390 the foot buttons sit under the fixed tab bar on What, Who and Measure until the page is scrolled to its end; at 1440 the full sidebar shows. Fix: match `^\/goals\/new(\/[^/]+)?$`.
+
+**3. Medium (first reader). F16 passes while the button it guards is hidden.** `evals/finish/11-new-goal-phone.cjs:36-37` checks the button's box is inside the viewport, not that it can be hit; no check covers finding 1 either.
+
+**4. Medium (first reader, on screen; carried over). A stage answered "Yes, done" and then moved to a future week is published as done in that week.** `src/ui/GoalFields.tsx:96` keeps `done` when the due week changes, and the publish sends it (`GoalWizard.tsx:129`). Result: a check-in dated week 50 in week 46, and the goal reads "Done". Fix: clear `done` when the week changes, and filter by past weeks at publish.
+
+**5. Medium (first reader, on screen; older, and OB1 was to close it). A member can publish a goal owned by anyone.** The Owner picker has no refusal (`GoalWizard.tsx:242`) and `saveGoal` saves directly, though the shared engine refuses the same thing (`src/domain/changeset.ts:656`). As oskar, a goal owned by Rhea Kapoor was saved.
+
+**6. Medium (first reader, on screen). Check cuts off what it reads back.** `.rr-value` is one line with an ellipsis: at 390 "Where it fits" shows "SVP level, feeds “Le…", and the also-helps goal and "a guardrail" are never visible. Fix: let the value wrap.
+
+**Lows (first reader).**
+- Focus is lost on step 2 (the picker replaces the focused button) and not placed on Check (`GoalWizard.tsx:106`).
+- A non-number left in "How much will it move…" blocks step 2 invisibly once the parent is removed (`:258`).
+- In "Feeds into", Enter does nothing when the first match is a refused row (`src/ui/Pick.tsx:137`).
+- Flow gaps: `fromCheck` survives the browser's Back, so a later Continue skips Measure; `?parent=` is ignored while a draft waits; the discard dialog takes no focus; `startLevel` counts removed and stopped goals.
+- The "only feeds a level above" rule lives in the form alone (`src/domain/newGoal.ts:39-48`); Change a goal and the engine have no such check (read).
+- Not built from the spec: the "cycle has ended" state, "Add one" for admins with no teams, the gone-parent line; step fields and two errors are assembled in the screen (read).
+
+**Checked and fine.** The draft survives Continue, Back, the browser's Back and Forward and a reload; a later step's address opens the first step that needs something. What is saved equals what Check shows for a number goal. A double-click publishes once. No stripes, emoji or sideways scroll; one primary button per step; each step's title names it.
