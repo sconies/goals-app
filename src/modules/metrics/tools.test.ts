@@ -38,11 +38,29 @@ describe('metric library tools', () => {
     const list = await call('list_metrics');
     expect(list.isError).toBe(false);
     expect((list.structuredContent!.metrics as unknown[]).length).toBe(13);
-    expect(list.content[0]!.text).toMatch(/metric_flaky-rate · Flaky test rate \(%, lower is better\) · owner Rhea Kapoor · measures 1 goal/);
+    expect(list.content[0]!.text).toMatch(/metric_flaky-rate · Flaky test rate \(%, lower is better\) · owner Rhea Kapoor · 1 at risk/);
     expect(((await call('list_metrics', { search: 'dora' })).structuredContent!.metrics as unknown[]).length).toBe(3);
     const one = await call('get_metric', { metric: 'lead time for changes' });
     expect(one.structuredContent).toMatchObject({ id: 'metric_lead-time', unit: 'hours', direction: 'lower', youCanChange: false, measures: [{ goalId: 'ns-lead', slice: 'The whole company', target: { value: 24, kind: 'target' } }] });
+    // Rule 2's row, as its page's table shows it; what it needs only for its owner and admins.
+    expect(one.structuredContent).toMatchObject({ goals: [{ key: 'G-1', status: 'off', slice: 'The whole company', now: '37 hours', target: '24 hours by year end', vsPlan: expect.stringMatching(/^\d+ hours behind plan$/), owner: 'Rhea Kapoor' }], summary: null, needs: [] });
     expect((await call('get_metric', { metric: 'nope' })).isError).toBe(true);
+  });
+
+  it('narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)', async () => {
+    const { call } = await setup('ethan');
+    const names = async (a: Record<string, unknown>) => ((await call('list_metrics', a)).structuredContent!.metrics as { name: string }[]).map((m) => m.name);
+    expect(await names({ search: 'min lower' })).toEqual(['CI pipeline time on main (p90)', 'Mean time to detect', 'Mean time to restore (P1 and P2)', 'Pipeline queue wait (p90)']);
+    expect(await names({ owner: 'Rhea Kapoor' })).toHaveLength(4);
+    expect(await names({ unit: '%' })).toEqual(['Change failure rate', 'Flaky test rate', 'Remote build cache hit rate']);
+    expect(await names({ team: 'CI/CD' })).toEqual(['Flaky test rate', 'Pipeline queue wait (p90)', 'Remote build cache hit rate']);
+    expect(await names({ team: 'company' })).toHaveLength(7);
+    expect(await names({ unused: true })).toEqual(['CI compute cost per pipeline run']);
+    expect((await names({ sort: 'goals' })).at(-1)).toBe('CI compute cost per pipeline run');
+    const mine = (await call('list_metrics', { sort_out: true })).structuredContent!.metrics as { name: string; needs: { id: string }[] }[];
+    expect(mine).toMatchObject([{ name: 'CI compute cost per pipeline run', needs: [{ id: 'unused' }] }]);
+    expect((await call('get_metric', { metric: 'metric_ci-cost' })).structuredContent).toMatchObject({ goals: [], needs: [{ id: 'unused', sentence: 'No goal uses it' }] });
+    expect((await call('list_metrics', { team: 'Nowhere' })).isError).toBe(true);
   });
 
   it('adds a metric as the person, via the assistant; a second with the same name is refused', async () => {
