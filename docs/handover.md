@@ -137,6 +137,10 @@ Session: session_012kbr8xdoEbLiMQaBAxLeuJ.
   - Three new contract cases: a windowed load drops the right rows and keeps the anchors; `history` pages with no skips or repeats and narrows by goal; a load with no window is whole.
   - Implement it in the browser, Supabase and Postgres stores, plus `server/mcp.ts`. Supabase probably needs an index on `(workspace_id, at)`: a migration, shipped one merge ahead of the code (AX10).
   - Size: M to L. Consider splitting: (a) the window and `history` in the port, the contract and the stores; (b) Activity, History and `get_activity` paging.
+- **Before AX5 part 2, two shared-shell faults from planning (22:05; one PR is fine):**
+  1. **U12, desktop only.** At 1440×900 the sidebar's Demo box (`.demo-entry`) ends at y=913, 13 px past the fold: the sidebar has grown (`src/styles.css` `.side`, `src/ui/Demo.tsx`).
+  2. **P9 EVERY-WIDTH, in the full suite.** It fails with "1280px rhea /: no navigation" (Home has no navigation at 1280). Track 1 owns Home: tell it if the cause is Home's.
+- **Merging:** auto-merge can't be turned on, because main has no branch protection rules. `enable_pr_auto_merge` says "Protected branch rules not configured". Merge by hand on green CI. Main moves every few minutes, so merge main in, push, and merge as soon as CI (about 5 minutes) is green.
 - **Then, in order:**
   1. FT2, FT1, SW1, SW2.
   2. AX2.
