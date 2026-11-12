@@ -64,6 +64,11 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #183 Offline, a page that loads when opened says it needs a connection (review of #167) | 4 | 0 | 0 | 0 |
 | #187 AS part 3, the rest: migration 0040, records tests | 3 | 0 | 0 | 0 |
 | #190 The first download: 369 KB to 282 KB | planning | 0 | 0 | 0 |
+| #184 GT3: Change a goal is one page with one way out | 2 | 0 | 0 | 2 |
+| #186 GE1: the form and the engine run one set of rules | 2 | 0 | 1 | 0 |
+| #189 GE2: questions in place | 2 | 0 | 2 (+1 older) | 5 (+1 older) |
+| #185 ML2: measured by; Goals filtered by a metric | 3 | 0 | 4 | 6 |
+| #188 ML3: looking after metrics | 3 | 0 | 3 | 2 |
 
 **High findings, and where each stands**
 
@@ -673,3 +678,56 @@ Takes #164's lows. Migration `0040_module_rows_strict.sql` replaces `okr_same_wo
 ### #190 The first download: 369 KB to 282 KB (merged 11:55 UTC, 12 Nov)
 
 Every page but Home now loads when opened, as do the spreadsheets module's Import, Data menu and export sheet. This is the change that turned main's full evals red when #128 made a few pages lazy; here the journeys' "page has arrived" tests were changed with it (`evals/journeys.cjs`, `evals/notes/6-print-motion.cjs`), and CI on main, full evals included, passed at this commit. The waiting page holds a screen's height so nothing jumps. Read. No finding.
+
+### #184 GT3, #186 GE1 and #189 GE2: goal entry (track 2, merged 05:34, 05:54 and 11:44 UTC, 12 Nov)
+
+Read first by a separate reviewing session at #189's merge, on screen at 1440 and 390 and with throwaway tests; nothing here was re-run by this reviewer. No high finding.
+
+**#184, low. Close and Save add a history entry, so the browser's Back returns to the form** (`src/screens/GoalEdit.tsx:109`, no `replace`).
+
+**#184, low. A stage goal's "How it's measured" can no longer be changed on the page**: `GoalEdit.tsx:158` shows it for number goals only, and the field left More details.
+
+**#186, medium. A file or MCP row for a new goal with an Effect that isn't a number saves and drops it; the form refuses the same input.** `src/domain/changeset.ts:799` runs `goalMustFix` before the row's parent is read (`:868-900`), and `src/domain/goalEntry.ts:137` checks Effect only when a parent is set. Row with Effect "lots" under `ns-lead`: no issue from the engine, "isn't a number" from the form.
+
+**#189, medium. On Change a goal, Save with an unanswered question does nothing visible when the question is off screen.** `GoalEdit.tsx:113` returns; the only sign is the block's outline. Target 52 to 900 at 1440: the page stays, the question sits above the window, focus stays on Save. Fix: the form's line above Save, and focus the first open question.
+
+**#189, medium. The wrong-side question is asked only by the screens, and its answer is not kept in History.** `goalEntry.ts:317-320` needs the goal's metric; only `GoalWizard.tsx:111` and `GoalEdit.tsx:89` pass it, so the saving rule, a file and MCP never ask. A new goal measured by a lower-is-better metric, 10 to 20: asked, answered yes, published, and the "Created" entry has no "Checked". No journey covers it.
+
+**#189, lows.**
+- `confirm: true` writes "Checked … Yes" into History for questions nobody was shown (`goalEntry.ts:493`, `:509`; the check-in's re-base uses it).
+- "No, I'll change it" does nothing on Change a goal or on set-up's cards (`GoalEdit.tsx:92`, `Onboarding.tsx:582`).
+- Clearing an existing goal's unit is asked by the form's rule but not by the engine (`changeset.ts:191-193`).
+- The saving rule records a stage as done in a future week if the draft says so (`goalEntry.ts:511-512`); the screen can no longer send that.
+- MCP restates the engine's list of question kinds (`src/mcp/tools.ts:116`, `changeset.ts:195`).
+
+**Older than these three.**
+- Medium: a kept or stale edit draft reverts what someone else changed meanwhile, and logs it as the saver's change. The draft holds every field and the save rebuilds the whole goal (`GoalEdit.tsx:52`, `goalEntry.ts:498`). A rename saved after the target moved 24 to 30 records "Target 30 → 24". GE4's patch is the planned fix.
+- Low: a stopped goal's edit page opens from its address and refuses only at Save (read).
+
+**#129's findings at this merge.** Still there: 1 (Continue goes dead after "Change" on Check), 2 (New goal's steps are not in focus mode; on a phone the tab bar covers Back and Continue) and 6 (Check cuts its values to one line). Fixed: 4 (a stage moved to a future week no longer stays done). Not a fault: 5, a member publishing a goal for someone else, is Lane's decision of 11 Nov (`src/domain/goalRights.ts:12`); the #129 entry above predates this reviewer seeing that.
+
+**Checked and fine.** All 126 demo goals, unchanged, raise nothing at either door. Nine edge inputs get the same answer from the form and the engine. Rights hold in the same words at both. Answers are kept in the draft and asked again when the number changes. A double press saves once. `goalEntry.ts` is pure, and both forms save through the shared action.
+
+### #185 ML2 and #188 ML3: the metric library (track 3, merged 06:21 and 06:51 UTC, 12 Nov)
+
+Read first by a separate reviewing session at #188's merge, on screen, through the MCP server and with throwaway tests; finding 1 was read again by this reviewer. No high finding: the first reader rated 1 high, and it is logged as medium because Check says "No metric" before anything is published.
+
+**#185, 1. Medium (re-read). New goal forgets the chosen metric on Back or a reload.** `src/modules/metrics/MeasuredBy.tsx:23` holds the choice in component state, the place is drawn only on the Measure step, and on its return its effect reports nothing chosen (`:40-52`). The form's own copy is state too (`src/screens/GoalWizard.tsx:89`), not the draft. After Back from Check the picker shows "No metric" and the unit field stays hidden. Change a goal's "Close and keep the draft" loses it the same way. Fix: keep the metric and its slice in the goal draft.
+
+**#185, 2. Medium. A goal made for someone else cannot be published once a metric is chosen.** `src/modules/metrics/rules.ts:251` tests the actor against the new goal's owner. As Rhea with owner Aiko: Publish stays on Check with "Only the goal's owner or an admin can choose what measures it."
+
+**#185, 3. Medium. The AI's `find_goals` ignores the metric filter and returns every goal.** Module filters are added in `src/core/app.tsx`; `src/mcp/tools.ts:225-253` parses without them. `find_goals {query: "metric=metric_lead-time"}` returned all 126.
+
+**#185, lows.** A metric's slug in the address names the filter but matches nothing, and an unknown value empties the list with no filter shown (`finder.ts:35-45`). The form does not warn about a goal aiming the wrong way where the tool does (`rulesMeasure.ts:38-44`). Unlinking from Change a goal offers no Undo. A stopped goal can be re-linked by the tool. "Use different ones" is 20px tall on a phone. The combined goal-and-link save goes round `run` (`src/app/state.tsx:689-706`, read).
+
+**#188, 1. Medium. Remove says "No goal uses it" while unlinking a stopped goal, and "Put it back" does not relink it.** The sheet counts the cycle's links (`Metrics.tsx:323`), the removal the whole workspace's (`rules.ts:215`), the restore only goals in the snapshot (`records.ts:63-64`). This is #144's low, still there.
+
+**#188, 2. Medium. The change confirm and Help promise a warning that is shown nowhere.** After Flaky test rate is changed to ppm, the goal page reads "Measured by Flaky test rate · ppm" beside "1.8%" with no warning (`Metrics.tsx:488`, `MetricPlaces.tsx:17-45`).
+
+**#188, 3. Medium. The confirm exists only on screen.** `save_metric {unit: "ppm"}` through MCP changes a unit goals use with no question; the logic is in `Metrics.tsx:401-414`, not in a rule.
+
+**#188, lows.** The close-name question is skipped when a metric is added from the goal form (`MeasuredBy.tsx:83-94`). Cancel on the metric form keeps the draft, as Close does (read).
+
+**#144's findings at this merge.** Fixed: the dead "Choose one" link, the unit change on screen, "Put it back" for live goals, the form's draft, and `/metrics/100%25`. Still there: "See goals in {unit}" lands on an empty list, the unit change through `save_metric`, and the stopped-goal case above.
+
+**Checked and fine.** A goal and its link are one save, new or changed. A unit mismatch is refused at every door. The Goals filter round-trips with a full id and is generic (`ModuleFilter`); nothing in the core imports the module. Design rules hold at both sizes.
