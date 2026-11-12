@@ -23,7 +23,7 @@ import { CountLine, FilterLine, ListBar, ListSearch, NoneFound, SortMenu } from 
 import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
-import { canEditMetric, DIRECTION_LABEL, linkProblems, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
+import { canEditMetric, DIRECTION_LABEL, metricChangeQuestion, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
 import { closeNames, closeNameWords, decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
 import { goalsOfMetric, libraryReads } from './reads';
 import './metrics.css';
@@ -320,7 +320,8 @@ function RemoveMetricSheet({ metric: m, onClose, onRemoved }: { metric: Metric; 
   const app = useApp();
   const [busy, setBusy] = useState(false);
   // Every goal removing it unlinks (removeMetric): a stopped goal's link too, not only the goals its page lists.
-  const rows = linksOf(app.snapshot).filter((l) => l.metricId === m.id && !l.removedAt).map((l) => app.goal(l.goalId)).filter((g): g is NonNullable<typeof g> => !!g).map((goal) => ({ goal }));
+  // The whole workspace's, as removeMetric reads them: a stopped goal, or one in another cycle, is unlinked too.
+  const rows = linksOf(app.full).filter((l) => l.metricId === m.id && !l.removedAt).map((l) => app.full.goals.find((g) => g.id === l.goalId)).filter((g): g is NonNullable<typeof g> => !!g && !g.removedAt).map((goal) => ({ goal }));
   const titles = rows.slice(0, 3).map((r) => r.goal.title);
   const rest = rows.length - titles.length;
   const go = async () => {
@@ -398,9 +399,7 @@ export function MetricForm() {
   // Rule 4: while adding, a name of 4 characters or more that is close to a metric in use is asked about, never refused.
   const close = !live && d.name.trim().length >= 4 ? closeNames(d.name, metricsOf(app.snapshot)) : [];
   // The goals the metric measures now, and how many of them a new unit or direction would set apart (linkProblems).
-  const linked = live ? linksOf(app.snapshot).filter((l) => l.metricId === live.id && !l.removedAt).map((l) => app.goal(l.goalId)).filter((g): g is NonNullable<typeof g> => !!g && !g.removedAt && !g.stoppedAt) : [];
-  const changing = live && linked.length ? [...(d.unit.trim().toLowerCase() !== live.unit.trim().toLowerCase() ? ['unit'] : []), ...(d.direction && d.direction !== live.direction ? ['direction'] : [])] : [];
-  const apart = changing.length ? linked.filter((g) => { const p = linkProblems(g, metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId })); return p.errors.length + p.warnings.length > 0; }).length : 0;
+  const question = live ? metricChangeQuestion(live, metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId }), app.snapshot.goals, linksOf(app.snapshot)) : null;
   const back = () => void nav(live ? metricPath(live) : '/metrics');
   const save = async (confirmed = false) => {
     setTried(true);
@@ -411,11 +410,11 @@ export function MetricForm() {
       if (el) { el.scrollIntoView({ block: 'center' }); el.querySelector<HTMLElement>('input, textarea, select, button')?.focus(); } else top.current?.scrollIntoView({ block: 'start' });
       return;
     }
-    if (changing.length && !confirmed) { setAsking(true); return; }
+    if (question && !confirmed) { setAsking(true); return; }
     setAsking(false);
     setBusy(true);
     try {
-      const out = await app.run('saveMetric', live ? { ...input, id: live.id } : input) as { metric: Metric };
+      const out = await app.run('saveMetric', live ? { ...input, id: live.id, ...(confirmed ? { confirm: true } : {}) } : input) as { metric: Metric };
       clearDraft();
       app.toast(live ? `Saved ${out.metric.name}` : `Added ${out.metric.name}`);
       void nav(metricPath(out.metric), { replace: true });
@@ -483,9 +482,9 @@ export function MetricForm() {
         </div>
         {/* Anything else the rule says (a length, decimals), together above the button. */}
         {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>)}</div>}
-        {asking && (
+        {asking && question && (
           <div className="restored small stack" role="alertdialog" aria-labelledby="metric-confirm" style={{ gap: 'var(--s2)' }}>
-            <span id="metric-confirm">{plural(linked.length, 'goal is', 'goals are')} measured by this metric. Changing its {changing.join(' and ')} doesn’t change their numbers or plans; {apart} of them will show a warning that they differ. Change it?</span>
+            <span id="metric-confirm">{question.text}</span>
             <span className="row"><button type="button" className="btn sm" onClick={() => void save(true)}>Change it</button><button type="button" className="btn ghost sm" onClick={() => { setAsking(false); set({ unit: live!.unit, direction: live!.direction }); }}>Keep it as it was</button></span>
           </div>
         )}
