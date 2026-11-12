@@ -14026,7 +14026,7 @@ function rangeCard(goal, cycle, checkIns, week, stale) {
 			label: "Room to the limit",
 			value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? "None: at the limit" : `${amount(room, goal)} ${over}`,
 			sub: `warning within ${amount(margin, goal)}`,
-			tone: room < 0 ? "bad" : room <= margin ? "flat" : "good"
+			tone: room < 0 ? "bad" : a.near || a.out ? "flat" : "good"
 		});
 		gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
 	}
@@ -17251,6 +17251,13 @@ function articleText(a) {
 // src/help/whatsNew.ts
 var WHATS_NEW = [
 	{
+		id: "room-agrees-with-limit",
+		date: "2026-11-12",
+		title: "A number kept in range: two cells that agree",
+		points: ["On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.", "A number exactly the warning margin inside its limit is not near: both cells now say so."],
+		articles: ["goal-page"]
+	},
+	{
 		id: "import-preview-steadier",
 		date: "2026-11-12",
 		title: "Checking an import: quicker and steadier",
@@ -19350,6 +19357,33 @@ var RULE_PAGES = [
 		"spreadsheets, bulk edits and changes through MCP, checked by the same rules"
 	]
 ];
+/** Every other core rule page, after the ten above: [file, title]. With RULE_PAGES, every page under spec/core/rules/
+(src/spec/spec.test.ts checks the two lists against src/spec/rules.ts, titles included). */
+var MORE_RULE_PAGES = [
+	["field-table", "The field table"],
+	["import-levels", "Kinds, levels and near misses"],
+	["import-preview", "What an import read, and leaving rows out"],
+	["import-header", "The header row, and headers that are nearly right"],
+	["import-undo", "Undoing an import, and past imports"],
+	["review-decide", "Deciding in a review"],
+	["start-next-year", "Starting the next year"],
+	["carry", "The carry rule, and what comes with a goal"],
+	["workspace", "The workspace: cycles, teams, names, leaving and what needs attention"],
+	["directory", "The directory: who People lists, what a search finds, and where old addresses lead"],
+	["day-one", "Day one: set-up’s steps and “Getting started”"],
+	["map", "The goal map"],
+	["goal-act", "Acting on a goal: its buttons, and next steps and asks"],
+	["goal-history", "A goal’s history"],
+	["comment-reach", "Who a comment reaches"],
+	["goal-entry", "Goal entry"],
+	["years-and-weeks", "Years and weeks"],
+	["new-goal", "New goal"],
+	["read-back", "The read-back"],
+	["not-born-late", "A goal not born late"],
+	["finding", "Finding things"],
+	["navigation", "Navigation: the menu, the lit item and a page’s name"],
+	["goals-page", "The Goals page: whose goals, how they are grouped, and the switch"]
+];
 /** The requirements under spec/requirements/internal/ (backlog 8r): what the internal rebuild must do that Faro doesn't
 build, because the company's platform provides the machinery. [file, title, what it says]. */
 var INTERNAL_PAGES = [
@@ -19407,7 +19441,7 @@ function systemOverview() {
 		"- Each week the owner checks in: the number (or each stage), their call on the status, and the words the numbers ask for (why it is behind or ahead, and a path back to green when behind).",
 		`- The status is the owner’s call, beside what the numbers say. A number goal is on track at ${pct(RULES.onTrack)} of the planned progress or more, at risk from ${pct(RULES.atRisk)}, off track below; a range goal is at risk near or once over its limit and off track after two weeks over; a stage up to ${RULES.lateWeeksOff} weeks late is at risk, later is off track. With no check-in for ${RULES.staleDays} days a goal has no recent update.`,
 		`- Statuses, worst first: ${STATUS_ORDER.map((k) => LABEL[k]).join(", ")}. Always shown as a shape and a word.`,
-		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). A goal someone has looked at since its latest check-in is being handled until something new happens.",
+		"- Flags say why a goal needs attention (off track, a missed recovery date, no recent update, a decision waiting, no path to green, at risk, getting worse, a call greener than calculated). An off-track or at-risk goal is being handled, and leaves the list that needs attention, when since its latest check-in an action with an owner and a due week was agreed (or, at risk only, its request was answered), until something new happens. Someone marking it reviewed or noting it is not enough: that is a quiet line only.",
 		"- One change engine takes many changes at once (spreadsheets, bulk edits, MCP) and checks every row with the same rules as the app’s forms.",
 		"",
 		"## The spec",
@@ -19416,6 +19450,7 @@ function systemOverview() {
 		"- [The data model](spec/core/data-model.md): every record and field, and the database tables",
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
+		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",

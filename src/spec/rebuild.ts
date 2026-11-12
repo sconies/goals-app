@@ -64,7 +64,12 @@ const TODAY = { drill: 'drill ready: the harness scores it against the conforman
 
 /* ---------- the guide ---------- */
 
-function guide(all: Stage[], rows: Record<string, number>): string {
+/** Stage 1's scored files: rows expected and columns in order, from the conformance data (scorecard-words.csv is
+    scored only when asked, so it is not one of them). */
+export type Stage1Files = Record<'status' | 'flags' | 'projection' | 'scorecard' | 'checkin', { rows: number; header: string[] }>;
+const total = (files: Stage1Files) => Object.values(files).reduce((a, f) => a + f.rows, 0);
+
+function guide(all: Stage[], rows: Stage1Files): string {
   const drills = all.filter((s) => s.status === 'drill');
   return GENERATED + [
     '# The rebuild kit',
@@ -75,7 +80,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     table(['Stage', 'Builds', 'Today'], all.map((s) => [`[${s.n}. ${s.title}](${s.file})`, cell(s.builds), STATUS_WORD[s.status]])),
     '',
-    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
+    `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${total(rows)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
     '',
     '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it. And before copying anything, read [don’t copy this](dont-copy.md): what is right for a demo and wrong for the internal app.',
     '',
@@ -139,7 +144,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
 
 /* ---------- stage 1 ---------- */
 
-function stage1(rows: Record<string, number>): string {
+function stage1(rows: Stage1Files): string {
   return GENERATED + [
     '# Stage 1: the core rules',
     '',
@@ -156,7 +161,7 @@ function stage1(rows: Record<string, number>): string {
     '',
     '1. [llms.txt](../../llms.txt): what Faro is, in one page.',
     '2. [The data model](../core/data-model.md), the first part, “The records the core rules read”: Cycle, the three kinds of Goal and their plans, CheckIn, Decision, Ask.',
-    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words, except the scorecard’s `value`, `label` and `sub`.',
+    '3. [The vocabulary](../core/vocabulary.md): the codes the rules return. The CSV files use the codes, never the words. The scorecard’s words (`value`, `label`, `sub`) are in a sixth file, `scorecard-words.csv`, scored only when asked.',
     `4. The rules, in this order: ${ruleLinks(RULES_STAGE1)}. And [the numbers the rules turn on](../core/rules/README.md#the-numbers-the-rules-turn-on). Each page has worked examples: use them as your first tests.`,
     '5. [The conformance data](../conformance/README.md): how each week is judged (the moment, and the workspace as it stood then), what every column is, and how numbers are written.',
     '',
@@ -174,13 +179,7 @@ function stage1(rows: Record<string, number>): string {
     '- The harness runs `<command> <workspace.json> <out folder>` in `rebuild/`: the command, then two paths, each quoted. The first is a copy of `spec/conformance/workspace.json`; the second is `rebuild/drill-out/`, emptied first.',
     '- The command writes these five files into the out folder and exits 0, within 10 minutes:',
     '',
-    table(['File', 'Rows expected', 'Columns, in this order'], [
-      ['`status.csv`', String(rows.status), '`week`, `goal`, `kind`, `status`, `calculated`, `greener`, `latest_week`, `days_without_update`'],
-      ['`flags.csv`', String(rows.flags), '`week`, `goal`, `flags`, `handled`, `needs_attention`, `attention_group`'],
-      ['`projection.csv`', String(rows.projection), '`week`, `goal`, `kind`, `to_week`, `value`, `low`, `high`, `slope`, `first_week`, `last_week`, `forecast_misses`'],
-      ['`scorecard.csv`', String(rows.scorecard), '`week`, `goal`, `cell`, `value`, `tone`, `likelihood`, `label`, `sub`'],
-      ['`checkin.csv`', String(rows.checkin), '`checkin`, `week`, `goal`, `calculated`, `reason`, `asks_target`, `needs_path`, `missing`, `call`, `greener`, `call_missing`'],
-    ]),
+    table(['File', 'Rows expected', 'Columns, in this order'], (Object.entries(rows) as [string, { rows: number; header: string[] }][]).map(([f, x]) => [`\`${f}.csv\``, String(x.rows), x.header.map((c) => `\`${c}\``).join(', ')])),
     '',
     '- A header row first, then one row per goal and week (per cell, goal and week for the scorecard), as [the conformance data](../conformance/README.md#the-files) says. `goal` is the goal’s key (G-1). CSV as usual: a field with a comma, a quote or a new line is quoted, quotes doubled. UTF-8.',
     '- How the harness matches: rows by their key columns (`week` and `goal`; and `cell` for the scorecard; `checkin` alone for check-ins), so row order doesn’t matter; columns by name. Text must match exactly. Numbers match when they differ by no more than 0.0000015 (rounding in the sixth decimal place).',
@@ -191,14 +190,14 @@ function stage1(rows: Record<string, number>): string {
     '2. The calculation and the official status: the rest of `status.csv`.',
     '3. The projection: `projection.csv`.',
     '4. Flags, the trend, asks and decisions, and needs attention: `flags.csv`.',
-    '5. The scorecard, rule then words: `scorecard.csv`. Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell.',
+    '5. The scorecard: `scorecard.csv` (each cell’s `tone` and `likelihood`). Its words (`value`, `label`, `sub`) are in [the scorecard](../core/rules/scorecard.md#the-words), cell by cell, and scored only when asked (`"also": ["scorecard-words"]` in `drill.json`, against `scorecard-words.csv`): a rebuild in other words still passes.',
     '6. What a check-in must say: `checkin.csv` (`--files checkin`).',
     '',
     'When a file is close, the first differences for one goal usually name the rule that differs. Read that goal’s records in `workspace.json` and the rule’s worked examples side by side.',
     '',
     '## Exit criteria',
     '',
-    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${Object.values(rows).reduce((a, b) => a + b, 0)} rows).`,
+    `1. \`node spec/rebuild/drill.mjs rebuild\` prints **PASS**: every row and every column of all five files match (${total(rows)} rows; \`scorecard-words.csv\`, scored when asked, is not counted).`,
     '2. What a check-in must say, and Numbers and names, give what each of their worked examples ([check-in](../core/rules/check-in.md#worked-examples), [numbers and names](../core/rules/numbers-and-names.md#worked-examples)) says: the harness scores the check-in rule through `checkin.csv`, but how a typed number is read and questioned (and Numbers and names) has no conformance rows, so show it with your own tests of those examples.',
     '3. `rebuild/GAPS.md` lists everything you had to guess.',
     '',
@@ -493,7 +492,7 @@ const portsAtScale = () => GENERATED + [
 /** One file's entry in scripts/browser-storage.json: what it keeps in the browser and where the internal app keeps it. */
 export interface BrowserState { uses: number; keeps: string; server: string }
 
-export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, number>, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
+export function rebuildFiles(mods: ModuleWithRebuild[], rows: Stage1Files, harness: string, browser: Record<string, BrowserState> = {}): Record<string, string> {
   const all = stages(mods);
   const out: Record<string, string> = {
     'spec/rebuild/README.md': guide(all, rows),

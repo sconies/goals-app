@@ -3,10 +3,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildSpec } from './build';
-import { systemOverview } from './overview';
-import { wrongExamples } from './rules';
+import { MORE_RULE_PAGES, RULE_PAGES, systemOverview } from './overview';
+import { RULE_LIST, wrongExamples } from './rules';
 import { MAIN_ACTION } from './screens';
-import { coreRoutes } from './sources';
+import { checks, coreRoutes, requirements } from './sources';
+import { HEADERS } from './conformance';
 
 const root = path.resolve(__dirname, '../..');
 
@@ -31,5 +32,51 @@ describe('the spec', () => {
   it('names a main action for every core screen, and none for a screen that has gone', () => {
     const screens = [...new Set(coreRoutes({ root }).map((r) => r.file.split('/').pop()!.replace('.tsx', '')))].sort();
     expect(Object.keys(MAIN_ACTION).sort()).toEqual(screens);
+  });
+
+  /* The kit's small errors (kit review, 12 Nov, gap 10): each once tripped a reader in the first hour. */
+  describe('has none of the errors a reader trips on first', () => {
+    const r = { root };
+    let spec: Record<string, string>;
+    beforeAll(async () => { spec = await buildSpec(root); }, 60_000);
+
+    it('writes every check’s title as words, never as the code that makes it', () => {
+      expect(checks(r).filter((c) => !c.title || /\$\{|\(\[\^|`/.test(c.title)).map((c) => `${c.id}: ${c.title}`)).toEqual([]);
+    });
+
+    it('lists every check a requirement or a check cites, such as “(P3, P4, P6)”', () => {
+      const listed = new Set(checks(r).map((c) => c.id));
+      const texts = [...requirements(r).requirements.map((q) => q.text), ...checks(r).map((c) => c.title)];
+      const cited = texts.flatMap((t) => [...t.matchAll(/\(((?:[PFN]\d+, )+[PFN]\d+)\)/g)].flatMap((m) => m[1]!.split(', ')));
+      expect([...new Set(cited)].filter((id) => !listed.has(id))).toEqual([]);
+    });
+
+    it('gives a module’s rules page every one of its rules, not only the last', () => {
+      for (const id of new Set(RULE_LIST.filter((x) => x.module).map((x) => x.module!))) {
+        const page = spec[`spec/modules/${id}/rules.md`]!;
+        for (const rule of RULE_LIST.filter((x) => x.module === id)) expect(page).toContain(`## ${rule.title}\n`);
+      }
+    });
+
+    it('names stage 1’s files with the columns the conformance data has, and counts only the five it scores', () => {
+      const stage1 = spec['spec/rebuild/stage-1-core-rules.md']!;
+      const count = (f: string) => spec[`spec/conformance/${f}.csv`]!.trimEnd().split('\n').length - 1;
+      const five = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
+      for (const f of five) expect(stage1).toContain(`| \`${f}.csv\` | ${count(f)} | ${HEADERS[f].map((c) => `\`${c}\``).join(', ')} |`);
+      const total = five.reduce((a, f) => a + count(f), 0);
+      expect(stage1).toContain(`all five files match (${total} rows`);
+      expect(spec['spec/rebuild/README.md']).toContain(`(${total} rows in five files`);
+    });
+
+    it('indexes every core rule page in llms.txt, by its own title', () => {
+      const core = RULE_LIST.filter((x) => !x.module).map((x) => [x.id, x.title]);
+      expect([...RULE_PAGES.map(([id, title]) => [id, title]), ...MORE_RULE_PAGES].sort()).toEqual(core.sort());
+      for (const [id] of core) expect(spec['llms.txt']).toContain(`(spec/core/rules/${id}.md)`);
+    });
+
+    it('says in llms.txt what the flags page says about a goal only looked at: it still needs attention', () => {
+      expect(spec['llms.txt']).not.toMatch(/looked at since its latest check-in is being handled/);
+      expect(spec['llms.txt']).toMatch(/marking it reviewed or noting it is not enough/);
+    });
   });
 });
