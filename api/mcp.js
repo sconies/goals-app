@@ -4897,6 +4897,7 @@ var init_columns = __esmMin((() => {
 				means: `Empty to add or change the goal. ${GOAL_ACTION_WORDS.word.stop} stops a goal with check-ins (say why in Reason); ${GOAL_ACTION_WORDS.word.delete} deletes one with none, set up by mistake.`,
 				write: blank
 			},
+			e("Ref", "A label of your own for this row, so other rows in the same file can name the goal it adds before it has a key (Feeds into ref, Goal ref). Only for this file: never kept. Empty in an export.", blank, "Names the row’s goal for Feeds into ref and Goal ref in the same file"),
 			e("Level", `${oneOf(Object.values(LEVEL_WORDS.word))}: how important it is, for reporting.`, (r) => LEVEL_WORDS.word[r.g.level] ?? r.g.level),
 			e("Team", "The team it belongs to, by name.", (r) => or$1(r.c.team(r.g.teamId))),
 			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
@@ -4936,6 +4937,7 @@ var init_columns = __esmMin((() => {
 			e("Stages", "Milestone goals: each stage as Name@week, separated by semicolons.", (r) => or$1(stagesSpec(r.g))),
 			e("Feeds into", "The goal this one feeds, by name.", (r) => or$1(parentOf(r)?.title)),
 			e("Feeds into key", "The goal this one feeds, by key. Exact where names repeat.", (r) => or$1(parentOf(r)?.key), "Changes what it feeds; when Feeds into and Feeds into key disagree, the one you changed counts"),
+			e("Feeds into ref", "The goal this one feeds, by the Ref of its row in this file: a goal the same file adds. Empty in an export.", blank, "Changes what it feeds, like Feeds into key"),
 			e("Why it helps", "Why this goal should move the one it feeds: a hypothesis, not a proven cause.", (r) => or$1(r.g.whyHelps)),
 			e("Effect", "The effect expected on the goal it feeds, in that goal’s unit.", (r) => r.g.effect),
 			e("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
@@ -4993,6 +4995,7 @@ var init_columns = __esmMin((() => {
 			m$1("Goal key", "The goal’s key.", (r) => or$1(r.g.key), "Matches the goal first"),
 			m$1("Goal ID", "The goal’s ID in this cycle.", (r) => r.g.id, "Matches the goal when there’s no Goal key"),
 			m$1("Goal", "The goal’s name.", (r) => r.g.title, "Matches the goal by name, only when there’s no Goal key or Goal ID"),
+			m$1("Goal ref", "The goal, by the Ref of its row on Goals in this file: a goal the same file adds. Empty in an export.", blank, "Matches the goal the Goals row with that Ref adds or changes, first"),
 			m$1("Week", "The week it reports on, counted from the cycle’s start (week 1 onwards).", (r) => r.ci.week, "Matches the week; a check-in’s week never changes"),
 			w("Week starting", "The date that week starts.", (r) => weekDate(r.c.x.cycle, r.ci.week)),
 			e("Value", "Number and range goals: the number that week.", (r) => r.ci.value),
@@ -5174,6 +5177,12 @@ var init_columns = __esmMin((() => {
 				example: "goal_hzde4g",
 				empty: "Faro gives a new goal its own"
 			},
+			Ref: {
+				required: { optional: "none" },
+				format: "Text, each row its own",
+				example: "top",
+				empty: "Other rows name it by Goal or Key instead"
+			},
 			Goal: {
 				required: "required",
 				format: "Text, 3 characters or more",
@@ -5334,6 +5343,12 @@ var init_columns = __esmMin((() => {
 				empty: "It feeds nothing",
 				clears: true
 			},
+			"Feeds into ref": {
+				required: { optional: "nothing" },
+				format: "The Ref of another row in this file",
+				example: "top",
+				empty: "Feeds into or Feeds into key says what it feeds"
+			},
 			"Why it helps": {
 				required: { optional: "empty" },
 				format: "Text",
@@ -5437,6 +5452,12 @@ var init_columns = __esmMin((() => {
 				format: "The goal’s exact name, when only one goal has it",
 				example: "Pipeline queue wait (p90)",
 				empty: "Goal key or Goal ID says which goal"
+			},
+			"Goal ref": {
+				required: { optional: "none" },
+				format: "The Ref of a row on Goals in this file",
+				example: "top",
+				empty: "Goal key, Goal ID or Goal says which goal"
 			},
 			Week: {
 				required: "required",
@@ -10535,6 +10556,27 @@ function planChanges(input) {
 		i
 	})).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) !== "example");
 	examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "example").length;
+	const refRows = /* @__PURE__ */ new Map();
+	for (const { r, row } of goalRows) {
+		const x = fold$1(val(r, "ref"));
+		if (x) refRows.set(x, [...refRows.get(x) ?? [], row]);
+	}
+	const refGoal = /* @__PURE__ */ new Map();
+	for (const { r, row } of goalRows) {
+		const x = fold$1(val(r, "ref")), at = refRows.get(x);
+		if (at && at.length > 1) raise("duplicate", "Goals", row, val(r, "goal") || val(r, "ref"), `Ref “${val(r, "ref")}” is on rows ${at.join(" and ")}. Give each row its own Ref.`, {
+			column: "Ref",
+			found: val(r, "ref")
+		});
+	}
+	/** The goal a Ref names, or why it names none: a ref no row has, or a row that isn't saved. */
+	const goalOfRef = (v) => {
+		const x = fold$1(v), at = refRows.get(x);
+		if (!at) return { problem: `No row on Goals has the Ref “${v}”.` };
+		if (at.length > 1) return { problem: `Ref “${v}” is on more than one row on Goals.` };
+		const g = refGoal.has(x) ? work.get(refGoal.get(x)) : void 0;
+		return g ? { g } : { problem: `Ref “${v}” names Goals row ${at[0]}, which isn’t saved: fix that row first.` };
+	};
 	examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, "action")) === "example").length;
 	const skipGoals = twice("Goals", goalRows.map(({ r, row }) => {
 		const keyRef = val(r, "key"), id = val(r, "id");
@@ -10543,7 +10585,7 @@ function planChanges(input) {
 		return {
 			row,
 			name: val(r, "goal") || keyRef || id,
-			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
+			id: g ? "g:" + g.id : k ? "k:" + k : id ? "i:" + id : refRows.get(fold$1(val(r, "ref")))?.length === 1 ? "r:" + fold$1(val(r, "ref")) : val(r, "goal") ? `n:${fold$1(val(r, "goal"))}|${fold$1(ref(r, "team"))}` : ""
 		};
 	}), (x) => /^G-/i.test(x.name) ? `Key ${x.name} is on rows ${x.list}. Give each goal one row.` : `“${x.name}” is on rows ${x.list}. Give each goal one row.`, "Key");
 	const removalRows = [...goalRows.filter(({ r }) => ["stop", "delete"].includes(codeOf(GOAL_ACTION_WORDS, val(r, "action")) ?? "")).map(({ row }) => ({
@@ -10555,6 +10597,7 @@ function planChanges(input) {
 	}))];
 	goalRows.forEach(({ r, row, i }) => {
 		if (skipGoals.has(row)) return;
+		if ((refRows.get(fold$1(val(r, "ref"))) ?? []).length > 1) return;
 		const id = val(r, "id");
 		let keyRef = val(r, "key");
 		const title = val(r, "goal");
@@ -10878,10 +10921,11 @@ function planChanges(input) {
 		});
 		const ownerNow = people.get(d.ownerId);
 		const feedsCols = [
+			"feeds into ref",
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(r, c));
+		].filter((c) => has(r, c) && (c !== "feeds into ref" || !!ref(r, c)));
 		const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
 		const fix = (proposing ? proposedMustFix : goalMustFix)({
 			...d,
@@ -10929,6 +10973,7 @@ function planChanges(input) {
 		}
 		const gid = existing?.id ?? newId("goal", d.title);
 		if (create && id) fileIds.set(id, gid);
+		if (val(r, "ref")) refGoal.set(fold$1(val(r, "ref")), gid);
 		const key = existing ? existing.key : create && normalKey(keyRef) || formatKey(++lastKeyGiven);
 		parentLinks.push({
 			id: gid,
@@ -11015,11 +11060,12 @@ function planChanges(input) {
 		const before = touched.get(l.id)?.before ?? null;
 		const current = before?.parentId ? work.get(before.parentId) ?? null : null;
 		const cols = [
+			"feeds into ref",
 			"feeds into key",
 			"feeds into id",
 			"feeds into"
-		].filter((c) => has(l.r, c));
-		const says = (c, v) => !current ? v === "" : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
+		].filter((c) => has(l.r, c) && (c !== "feeds into ref" || !!ref(l.r, c)));
+		const says = (c, v) => !current ? v === "" : c === "feeds into ref" ? refGoal.get(fold$1(v)) === current.id : c === "feeds into key" ? normalKey(v) === current.key : c === "feeds into id" ? v === current.id || fileIds.get(v) === current.id : fold$1(v) === fold$1(current.title);
 		const changed = cols.map((c) => [c, ref(l.r, c)]).filter(([c, v]) => !(before && says(c, v)) && (before || v));
 		if (!changed.length) continue;
 		let missing = false;
@@ -11028,6 +11074,20 @@ function planChanges(input) {
 				c,
 				p: null
 			};
+			if (c === "feeds into ref") {
+				const x = goalOfRef(v);
+				if (!x.g) {
+					missing = true;
+					raise("bad-key", "Goals", l.row, g.title, `Feeds into ref: ${x.problem}`, {
+						column: "Feeds into ref",
+						found: v
+					});
+				}
+				return {
+					c,
+					p: x.g ?? null
+				};
+			}
 			if (c === "feeds into") {
 				const p = goalNamed("Goals", l.row, g.title, "Feeds into", v, l.id, `“${g.title}” feeds into “${v}”, which isn’t a goal in ${cycle.name}.`, `Several goals are called “${v}”. Use Feeds into key to say which.`);
 				if (!p) missing = true;
@@ -11479,8 +11539,23 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, val(r, "goal") || refText, clash.replace(/^Key/, "Goal key"), { column: "Goal key" });
 			continue;
 		}
-		const name = val(r, "goal") || refText;
+		const name = val(r, "goal") || refText || val(r, "goal ref");
 		let g = goalFor(r);
+		if (val(r, "goal ref")) {
+			const x = goalOfRef(val(r, "goal ref"));
+			if (!x.g) {
+				raise("bad-key", "Check-ins", row, name, `Goal ref: ${x.problem}`, {
+					column: "Goal ref",
+					found: val(r, "goal ref")
+				});
+				continue;
+			}
+			if (g && g.id !== x.g.id) {
+				raise("conflicting-refs", "Check-ins", row, name, "Goal ref and the other goal columns name different goals. Change just one of them.", { column: "Goal ref" });
+				continue;
+			}
+			g = x.g;
+		}
 		const stopped = !g ? stoppedByRef(val(r, "goal key")) ?? stoppedByRef(val(r, "goal id")) ?? (s.archive?.goals ?? []).find((x) => fold$1(x.title) === fold$1(val(r, "goal"))) : void 0;
 		if (stopped) {
 			leftAlone("Check-ins", row, stopped);
@@ -15125,6 +15200,7 @@ var help$2 = [
 					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
+					"To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
 					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
@@ -17569,6 +17645,7 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
+					"In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.",
 					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
 					"Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
@@ -17963,6 +18040,17 @@ var WHATS_NEW = [
 			"goals",
 			"columns"
 		]
+	},
+	{
+		id: "batch-refs",
+		date: "2026-11-12",
+		title: "Build a whole tree of goals in one file",
+		points: [
+			"A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.",
+			"A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.",
+			"Two new goals with the same name stay two goals when each row has its own Ref."
+		],
+		articles: ["import", "ai-assistants"]
 	},
 	{
 		id: "import-faster",
@@ -24653,7 +24741,7 @@ var CORE_TOOLS = [
 	{
 		name: "bulk_change",
 		title: "Change many goals at once",
-		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
+		description: `Add or change many people, goals, plan numbers and check-ins in one go, using the same columns as the spreadsheet export and export_table (e.g. goals: [{"Key": "G-12", "Target": 90}], check_ins: [{"Goal key": "G-12", "Week": 3, "Value": 41}], plan: [{"Key": "G-12", "Week 5": 45}], people: [{"Email": "ana@example.com", "Job title": "Staff engineer"}]). A goal is found by its Key, then its ID (a key works wherever an ID does: Goal key, Feeds into key, Feeds into ID); a goal this same call adds, by its row's Ref: give each new goal a "Ref" of your own and name it in "Feeds into ref" or a check-in's "Goal ref", so one dry run builds a whole tree with its first numbers (goals: [{"Ref": "top", "Goal": "…"}, {"Ref": "a", "Goal": "…", "Feeds into ref": "top"}], check_ins: [{"Goal ref": "a", "Week": 46, "Value": 12}]); a person by Email, then a name only one person has (Owner email is exact). Columns a row leaves out stay as they are; worked-out columns (Status, Calculated…) are ignored. An Action column does what the app does: ${GOAL_ACTION_WORDS.word.stop} (with a Reason) or ${GOAL_ACTION_WORDS.word.delete} on a goal, ${PERSON_ACTION_WORDS.word.left} (with Takes over, by email) on a person. Checks every row and returns what would change, and every problem by kind: must_fix (fix the rows) and check (questions: ask the person, then call again with "answers" by group id; one answer covers every row in its group); nothing is saved unless "apply" is true and every row is valid, and it can be undone (undo_import).`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

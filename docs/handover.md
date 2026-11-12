@@ -2,6 +2,44 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Thursday 12 November, 20:15 UTC (session past half, handing over; supersedes the 18:10 entry)
+
+Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: search words on Data and Feedback). #255 (CK2's review: the table keeps its answers). #261 (find_goals keeps a pasted link's tab).
+
+**Pushed, each built on main of 19:30 to 20:10 UTC, with typecheck and its unit tests passing; in this order:**
+
+| Branch | What | Local evals | PR |
+|---|---|---|---|
+| `gl2-gated` | GL2's map fixes (the Map fresh on return, no sort offered there, phone layout under 700px) | full suite 176/177: **F5 fails on GL2's own new check**: at 650 px Goals shows neither a computer's menus nor the phone's View button ("under 700px is the phone's bar" isn't fully built; the scores below 9 are main's) | none yet |
+| `nv2-gated` | NV2: forms close in words, Back finds your list | not run | none yet |
+| `hm1-review-fixes` | the build reviewer's HM1 mediums (below) | not run | none yet |
+| `hm2-gated` | HM2, stacked on `hm1-review-fixes` | not run | none yet |
+| `fs1-mediums` | FS1's mediums 1, 2 and 4 (below) | not run | none yet |
+| `rv7-gated` | RV7 (below) | not run | none yet |
+
+For each in turn: merge `origin/main` (script below), `npm run evals:changed` if not yet run, a draft PR, green CI, merge. Then the next.
+
+**Stacked:** `hm2-gated` is built on `hm1-review-fixes` (both change `home.ts`, `reads.ts`, `Home.tsx`); merge hm1's first, then merge main into hm2.
+
+**What the new branches do:**
+- `hm1-review-fixes` (the build reviewer's five HM1 mediums): the quiet line says "N asks wait for your response." while asks wait (`quietLine`); the lead's line and quiet line wrap on a phone (the old one-line rule in `home-watching.css` removed); no session after the year ends (`homeFacts`: `ended ? []`); `Dashboard.upcoming` (`nextReviews`) so two reviews on one day both reach Home (the cell takes the one the lead doesn't, "· 2 reviews" when two are left); the admin's year-end card (`AdminCard`) is back in Home's side column until HM7. Tests: src/app/reads.test.ts, `home.test.ts`. HM1's lows are not done (worst-first in `useMineAsk`, unused `useGoalCounts`, restated rules, "Example: Platform Engineering").
+- `hm2-gated`: HM2's intended files from `hm2-asks-wait` (`waiting`, `waitingOrder`, `askLead` at rank 60, `homeAsks` in `reads.ts`, `HomeFacts.asks` now `Waiting[]`), merged with the HM1 fixes and `AdminCard`.
+- `fs1-mediums`: the open picker on a computer is `position: fixed` where `Pick.tsx` measures its field (`.pick-panel.placed`, flips above when there's no room; phones keep the full screen); `personRows` adds the cycle archive's people, so Find finds "(left)" again (src/app/searchLeft.test.ts); set-up keeps the picked owner's email (`GoalRow.ownerEmail`), so of two people of one name the one picked gets the goal. U91 now checks Data's picker option is reachable where it's drawn. FS1 medium 3 (`suggest` takes no context for "Feeds into") and medium 5 (tests for `searchOver`, `searchNames`, Data's "No team") are not done.
+- `rv7-gated`: RV7's intended files from `rv7-who-may-speak`; requirement `REVIEW-SPEAK` (added to the reviews guide article's `reqs`), check N25 (evals/notes/13-review-speak.cjs).
+
+**Next, after those:** the habit moment, then N12's Find timing and #110's lows (build review log, docs/reviews/2026-11-11-build-reviews.md on `build-reviews`, "#110": findings 2 to 5; finding 1, the status shape in a picker row, is fixed on main).
+
+**The habit moment, as read so far** (evaluation `docs/reviews/2026-11-12-muse-product-evaluation.md` item 12 and decision 4; backlog L (1) and (3); `docs/design/workspace-settings/spec.md` 2.5 for CF4):
+- A restrained moment when a goal reaches its target or comes back on track, on the check-in's receipt and in History, with the existing share image; no confetti, no emoji, status as shape plus word.
+- CF4's forgiven week in `onTimeStreak` (`progress.ts`): a late week is forgiven when the four weeks before it with something due were on time. `cycle.streak` ('on' | 'grace' | 'off') comes with CF2's migration; if that isn't on main, build the rule with grace as the behaviour and say so in the PR.
+- The measure Lane chose: % of goals checked in before the review **without a nudge** (not after an ask for an update, Faro's only nudge). Put it in the spec (a rule with worked examples) and where a leader reads it (the review page or HM7's cell).
+
+**Habits:**
+- `/tmp/.../mm.sh` merged main into a branch: on conflicts it took main's `api/mcp.js` and generated `spec/`, rebuilt What's new as main's file with the branch's own entries (ids not on main) on top, then `npm run build:mcp`, `npm run spec`, commit. It is gone with this container; the steps are as listed.
+- Main moves every few minutes. Before merging, test the merge locally (`git merge origin/main` on the PR head, `npm run build:mcp`, `git diff --stat api/mcp.js`): if there's no conflict and no diff, merging is safe without another CI run.
+- Auto-merge is still off for the repository (`enable_pr_auto_merge` says so): merge by hand on green.
+- Seven journeys score below 9 on main when run alone (U12 8.8, U59 8.9, U61 7.8, U65 8.9, U117 8.9, U141 7, U31 9): a full local run reports them; they aren't any branch's.
+- vitest's fence and scale tests fail while an eval run is going; they pass alone.
 ## Track 3 (import), 12 Nov, 19:40 UTC: handover after IM7 and IM6 part 1
 
 The track 3 build session that took over from #236's handover is past half its context. A fresh track 3 session picks up here.
