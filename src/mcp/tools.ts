@@ -236,16 +236,20 @@ const CORE_TOOLS: ToolDef[] = [
       level: str('Only goals at this level.', { enum: LEVELS }),
       mine: bool('Only goals you own (the same as scope "mine").'),
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
-      query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
+      query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
-      let query = a.query ? parseQuery(new URLSearchParams(String(a.query).replace(/^.*\?/, ''))) : EMPTY_QUERY;
+      const link = a.query ? new URLSearchParams(String(a.query).replace(/^.*\?/, '')) : null;
+      let query = link ? parseQuery(link) : EMPTY_QUERY;
+      // A Goals link (or a saved view) says whose goals with scope=, as the screen's address does (build review of #116).
+      let linkScope = link?.get('scope') ?? null;
       if (a.view) {
         const v = (ctx.snapshot.views ?? []).find((x) => !x.deletedAt && !isTableView(x) && (x.pinned || x.personId === ctx.actor.id) && x.name.toLowerCase() === String(a.view).toLowerCase());
         if (!v) throw new Error(`There’s no saved view called “${String(a.view)}” that you can see.`);
         query = parseQuery(new URLSearchParams(v.params));
+        linkScope = new URLSearchParams(v.params).get('scope');
       }
       // Every argument becomes the Goals link it means, and the goals are found through the Search port, as the
       // screens find them (docs/design/architecture.md, 1.1): one search, one set of filters.
@@ -264,7 +268,8 @@ const CORE_TOOLS: ToolDef[] = [
       // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
       if ((status && !asked.status.length) || (a.level && !asked.level.length)) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [] });
       // Whose goals (goals spec, rule 1): the scope's goals, from the same rule as the Goals screen's tabs.
-      const scope = a.scope ? String(a.scope) as Scope : null;
+      // The scope argument wins over the link's.
+      const scope = a.scope ? String(a.scope) as Scope : linkScope ? linkScope as Scope : null;
       if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
       const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
       if (scope && scope !== 'all' && !scoped) return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: [], why: scope === 'team' ? 'You’re in no team and lead none.' : 'You own no goals this year.' });

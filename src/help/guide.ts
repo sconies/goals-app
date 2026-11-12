@@ -1088,6 +1088,7 @@ const CORE_ARTICLES: Article[] = [
         'Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
         'Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.',
+        'Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.',
       ] },
       { heading: 'How to connect', list: [
         'An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',
