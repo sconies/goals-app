@@ -69,6 +69,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #189 GE2: questions in place | 2 | 0 | 2 (+1 older) | 5 (+1 older) |
 | #185 ML2: measured by; Goals filtered by a metric | 3 | 0 | 4 | 6 |
 | #188 ML3: looking after metrics | 3 | 0 | 3 | 2 |
+| #191 IM3: the import's preview | 3 | 0 | 4 | 3 |
 
 **High findings, and where each stands**
 
@@ -731,3 +732,24 @@ Read first by a separate reviewing session at #188's merge, on screen, through t
 **#144's findings at this merge.** Fixed: the dead "Choose one" link, the unit change on screen, "Put it back" for live goals, the form's draft, and `/metrics/100%25`. Still there: "See goals in {unit}" lands on an empty list, the unit change through `save_metric`, and the stopped-goal case above.
 
 **Checked and fine.** A goal and its link are one save, new or changed. A unit mismatch is refused at every door. The Goals filter round-trips with a full id and is generic (`ModuleFilter`); nothing in the core imports the module. Design rules hold at both sizes.
+
+### #191 IM3: the import's preview (track 3, merged 12:22 UTC, 12 Nov)
+
+Read first by a separate reviewing session, as Grace at 1440 and 390 and with throwaway tests; nothing here was re-run by this reviewer. No high finding: in every run, what the preview said would be saved is what was saved.
+
+**1. Medium. Every keystroke in "Why are these plans changing?" re-runs the whole change engine, so large files freeze.** The change set is memoised on the reason (`src/modules/spreadsheets/importPlan.ts:48`), which `Check.tsx:169` writes on each change; `Changes.tsx` works it out again. With 1,500 new goals and one target change, typing "Agreed." took 14.3 s; with 3,000 rows, one answer took 7.3 s. Fix: keep the reason out of the engine's inputs and hold the worked-out change set in the import's store.
+
+**2. Medium. The "Choose a goal / person / team" picker draws as an empty box 128 px wide and 200 px tall.** `import.css:22` gives `.import-value .input` a 200 px flex basis, which becomes the picker button's height inside its column. Picking still works.
+
+**3. Medium. Focus falls to the page body after every answer and after "Leave them out"** (`Check.tsx:273`, `:177`): a keyboard or screen-reader user starts again from "Skip to content" each time.
+
+**4. Medium. "Leave these rows out and save the rest" has no on-screen eval.** U94 covers only the radio answer; the dependants rule has unit tests alone. Run by hand, it works.
+
+**Lows.**
+- The counts by sheet can add up to more than the rows read, and a row that must be fixed is also counted as added; a team being added reads "changed" (`Check.tsx:190-195`). Nothing wrong is saved.
+- Rules restated in the screen: the Added/Changed/Stopped grouping twice (`Check.tsx:190-192`, `Changes.tsx:18`), `isNewIn` beside `leaveOut.ts:18`, the per-sheet counts in a component (read).
+- Small slips: "Leave these 1 row out"; "All 0 rows say what Faro already says" for a header-only file; "3000" beside "3,000"; "Show the N changes" is 22 px high on a phone; the changes page swallows a failed save (`Changes.tsx:48`, read); after saving, the browser's Back returns to a preview still headed "Nothing has been saved."
+
+**#145's findings at this merge.** Fixed: an unlikely-number answer no longer covers other numbers or the next file; the answers and their Change buttons stay after the last one; the first screen says "Answer 1 question to save"; undoing an import removes a team it added. Mediums 3 and 4 (near-miss names and the duplicate-row rule; two rows answered "the same") were not re-checked.
+
+**Checked and fine.** Preview equals saved, on the summary and the changes list. Leaving rows out takes their dependants, names them, and nothing left out is saved by another path. Must fix blocks saving. A double Save logs one import. Empty and unknown files stay on Import with the reason. No stripes, pills or emoji; a level is the warning mark plus its word; one primary action per screen.
