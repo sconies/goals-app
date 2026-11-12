@@ -45,6 +45,12 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
     },
     load: (ws) => store.load(ws),
     commit: (ws, c) => store.commit(ws, c),
+    // The keys the database settled for goals a save just added (migration 0021's okr_goal_key).
+    async goalKeys(ws, ids) {
+      const { data, error } = await db.from('okr_goals').select('id, key').eq('workspace_id', ws).in('id', ids);
+      if (error) throw error;
+      return Object.fromEntries(((data ?? []) as { id: string; key: string | null }[]).filter((r) => r.key).map((r) => [r.id, r.key!]));
+    },
     // Through okr_token_touch (migration 0024), which stamps the time itself. A failure here never stops the answer.
     async touch(id) { const hash = seen.get(id); if (hash) await db.rpc('okr_token_touch', { hash }); },
     issueToken: (ws, c) => store.issueToken(ws, c),

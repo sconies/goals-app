@@ -34,6 +34,30 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'edit-goal'],
   },
   {
+    id: 'mcp-keys-pages',
+    date: '2026-11-12',
+    title: 'AI assistants get the right key and a page of goals at a time',
+    points: [
+      'When an AI assistant adds goals, the key it is told is the one the goal holds once saved, even when someone else adds a goal at the same moment.',
+      'A dry run says the key each new goal would get and no ID yet; a change that isn’t saved lists no new goals.',
+      'Finding goals answers 50 at a time, with how many match in all and how to ask for the next page.',
+      'History’s key now has None due and Not applicable, and a goal’s printed page says Not applicable for a quarter that ended before it was set up, as its page does.',
+    ],
+    articles: ['ai-assistants', 'history'],
+  },
+  {
+    id: 'proposed-fixes',
+    date: '2026-11-12',
+    title: 'Proposed goals, four fixes',
+    points: [
+      'Proposing a goal with stages no longer asks whether a past stage is done: it has no check-ins until it is made active.',
+      'When someone is marked as left, the goals proposed for them are handed over with the rest.',
+      'Making a goal active from an earlier week asks whether it has been running since then, for the AI assistant too.',
+      'The last step of a proposal no longer promises a Home row that isn’t there yet.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
     id: 'map-comes-back-fresh',
     date: '2026-11-12',
     title: 'The Map behaves when you come back to it',

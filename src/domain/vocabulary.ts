@@ -253,6 +253,14 @@ export const QUARTER: Record<QuarterKind, Term<QuarterKind>> = {
   }),
 };
 
+/** A quarter that is neither met, not met nor running: the words one place, for the goal page, History (and its key) and
+    Print (#239's review: Print said "None due" where the others said "Not applicable", and History "Nothing due"). */
+export const QUARTER_NOT_JUDGED = {
+  before: { label: 'Not applicable', meaning: 'The quarter ended before the goal was set up, so it is never judged.' },
+  none: { label: 'None due', meaning: 'Nothing was due that quarter, so there is nothing to judge.' },
+  later: { label: 'To come', meaning: 'The quarter hasn’t started yet.' },
+} as const;
+
 /** What the owner says at the wrap-up: their own words, always labelled as their view, never as the result. */
 export type OwnerViewKind = 'hit' | 'partly' | 'missed';
 export const OWNER_VIEW_LABEL = 'Owner’s view';

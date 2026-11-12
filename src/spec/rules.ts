@@ -1501,6 +1501,8 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Making it active** (\`activate\`): refused unless \`mayActivate\` and \`readyToActivate\` (rule 2's full list, empty). A number goal's From becomes the week chosen, this week unless said, and hand-set weeks before it are dropped. History: "Made it active, from week {n}". The read-back (\`activeReadBack\`) says the plan from then with its dates, "{n} weeks, not the {m} you proposed" when the span changed, and when the first check-in is due.
 
+A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes \`confirm\` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (\`leaving\`).
+
 **Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (\`state-has-check-ins\` in a file).
 
 **Withdrawing** is deleting (domain/removal): Recently removed for 30 days, with Undo; History says "Withdrew the proposal “{goal}”".

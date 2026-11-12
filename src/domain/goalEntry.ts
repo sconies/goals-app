@@ -293,6 +293,8 @@ export interface ChecksContext {
   /** The owner's name when the person entering the goal may not record its set-up check-in (goalRights
       mayPostCheckIn): a stage already past is still asked, and the question says the owner marks it. */
   marksStages?: string;
+  /** The goal is being proposed (rule 14): it has no check-ins, so a stage already past is asked when it is made active. */
+  proposing?: boolean;
 }
 
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
@@ -326,7 +328,7 @@ function checksOf(d: GoalDraft, ctx: ChecksContext): GoalCheck[] {
   const read = (v: string) => { if (!v.trim()) return null; const r = numberAsTyped(v, d.unit); return 'problem' in r ? null : r.n; };
 
   // A stage already past at set-up (OB2's rule 3): done in its own week, or overdue. Either answer is an answer.
-  if (d.kind === 'milestone' && !ctx.existing && ctx.door !== 'table') {
+  if (d.kind === 'milestone' && !ctx.existing && !ctx.proposing && ctx.door !== 'table') {
     d.stages.forEach((st, i) => {
       const w = parseNumber(st.dueWeek);
       if (!st.name.trim() || w == null || !Number.isInteger(w) || w < 1 || w > ctx.cycleWeeks || !pastStage(w, ctx.week)) return;
@@ -460,7 +462,7 @@ export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: s
 
 /** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named.
     `savedAs`: the id a new goal's draft has been saved under, once it has (it is then not asked about itself). */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'> & { savedAs?: string | null; actor?: Pick<Person, 'id' | 'admin'> }): ChecksContext {
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate' | 'proposing'> & { savedAs?: string | null; actor?: Pick<Person, 'id' | 'admin'> }): ChecksContext {
   const { savedAs, actor, ...rest } = base;
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   // Someone creating a goal for someone else can't record its set-up check-in (R1): the question says who will.
@@ -595,7 +597,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   const draft = proposing && measureEmpty(i.draft) ? unsaidDraft(i.draft) : i.draft;
   const checks = goalChecks(draft, checksContext(draft, {
     person: ownerOf, team: (id) => s.teams.find((t) => t.id === id), goal: (id) => findGoal(goals, id), sameNamed: sameNamedIn(goals),
-  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', actor: x.actor, levels: x.cycle, startDate: x.cycle.startDate, metric: i.draft.kind !== 'metric' ? null : i.metric !== undefined ? i.metric : existing ? goalMeasureOf(x.records, s, existing.id) : null }));
+  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', proposing, actor: x.actor, levels: x.cycle, startDate: x.cycle.startDate, metric: i.draft.kind !== 'metric' ? null : i.metric !== undefined ? i.metric : existing ? goalMeasureOf(x.records, s, existing.id) : null }));
   const answers: GoalAnswers = i.confirm ? Object.fromEntries(checks.map((c) => [c.slot, c.key])) : i.answers ?? {};
   const open = unanswered(checks, answers);
   if (open.length) throw new NotAllowed(`Not saved. Check with the person first: ${open.map((c) => c.question).join(' ')}`);
@@ -619,7 +621,8 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // Only a stage already past can be done at set-up: one due later would be a check-in dated ahead of this week.
   const doneIds = goal.kind === 'milestone' ? said.filter((id) => goal.stages.some((st) => st.id === id && pastStage(st.dueWeek, x.week))) : [];
   // It is a check-in, so the owner's (R1): someone creating the goal for someone else publishes it without one.
-  const done = !existing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
+  // A proposal has no check-ins (rule 14): its stages already done are asked about when it is made active.
+  const done = !existing && !proposing && doneIds.length && mayPostCheckIn(x.actor, goal, 'form') ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
   return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : [])], ...(done ? { checkIns: [done] } : {}) }, goal };
 }

@@ -159,7 +159,7 @@ function MakeActive({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const go = async () => {
     if (before && past !== 'yes') return;
     setBusy(true);
-    try { await app.run('activate', { goalId: goal.id, ...(goal.kind === 'metric' ? { fromWeek: from } : {}) }); onClose(); } catch { setBusy(false); }
+    try { await app.run('activate', { goalId: goal.id, ...(goal.kind === 'metric' ? { fromWeek: from, confirm: past === 'yes' } : {}) }); onClose(); } catch { setBusy(false); }
   };
   const body = (
     <div className="stack make-active" data-part="Make it active">
