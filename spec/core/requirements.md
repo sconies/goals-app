@@ -1012,7 +1012,7 @@ Goals is one section of the navigation with Mine, Watching and All, and your sav
 The app moves with purpose: numbers and status change visibly when a check-in posts, rings fill, rows move into their new place when sorted or filtered, charts draw in once and pages and sheets transition; every page is readable from its first frame (nothing fades it in), interface motion is under 250ms, charts show their final state at once or draw within that, the goal page's story (its chart and headline number) runs only when switched on in the Motion lab, up to 4 seconds at the default pace so it can be seen, and all of it is off when the person asks for reduced motion.
 
 - **Help:** “Settings” (`settings`), screens `Settings`
-- **Tests:** `evals/printMotion.eval.ts` (3)
+- **Tests:** `evals/layoutSwitch.eval.ts` (2), `evals/printMotion.eval.ts` (3)
 - **Journeys and checks:** N6
 
 ## Workspace
