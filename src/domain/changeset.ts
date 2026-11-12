@@ -24,7 +24,7 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
+import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
@@ -893,9 +893,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!existing && !create && d.kind === 'milestone') {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?`, { column: 'Stages', answers: ANSWERS.pastStage });
+        // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
+        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
         if (a === 'leave') return;
-        if (a?.choice === 'done') doneIds = past.map((st) => st.id);
+        if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {
           const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join('; '), week, cycle.weeks).split(';').map((x) => x.trim());
           d.stages = d.stages.map((st, k) => ({ ...st, dueWeek: /@\s*(\d+)$/.exec(moved[k] ?? '')?.[1] ?? st.dueWeek }));
@@ -1149,7 +1151,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // Stages a new goal's row said were done (C4): one check-in in the week of the latest, as set-up records them.
   for (const x of doneAtSetUp) {
     const g = goalOut.get(x.goalId);
-    if (!g) continue;
+    if (!g || !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) continue;
     const c = stagesDoneAtSetUp(g, x.stageIds, actor.id, now, newId('ci'));
     if (!c) continue;
     const ch = checkInChange(null, c, g, actor.id, newId('chg'));
