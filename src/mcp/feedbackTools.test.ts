@@ -52,7 +52,7 @@ describe('the MCP server’s feedback tools', () => {
     const listed = await b.call('list_feedback');
     expect(listed.isError).toBe(false);
     expect(listed.structuredContent!.feedback.map((f: { id: string; status: string }) => [f.id, f.status])).toEqual([['fb_b', 'in-hand'], ['fb_a', 'new']]);
-    expect(listed.content[0]!.text).toContain('fb_b · In hand · It helps · “Calm”');
+    expect(JSON.parse(listed.content[0]!.text)).toEqual(listed.structuredContent);
     expect(b.askedFor()).toBe(b.hash);
     expect((await b.call('list_feedback', { status: 'new' })).structuredContent!.feedback.map((f: { id: string }) => f.id)).toEqual(['fb_a']);
     expect((await b.call('list_feedback', { workspace: 'acme' })).structuredContent!.feedback.map((f: { id: string }) => f.id)).toEqual(['fb_b']);
