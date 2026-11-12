@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'table-check-in-answers',
-    date: '2026-11-11',
+    date: '2026-11-12',
     title: 'The table check-in keeps your answers',
     points: [
       'When the table asks whether a number is right, your answer is now kept in the goal’s History, as it is on the one-by-one check-in.',
