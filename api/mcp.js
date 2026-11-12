@@ -9469,10 +9469,11 @@ function namedHeaders(t, nearOk) {
 		const rename = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
-			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
+			if (k === to) continue;
 			if (keys.includes(to)) continue;
-			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			if (m.how !== "near" || nearOk(sheet, k, m.as)) rename.set(k, to);
 		}
 		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
@@ -15861,7 +15862,7 @@ var CORE_ARTICLES = [
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
 				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year; the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
 				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Feeds nothing.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first.",
-				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in). Publish it; the owner is then offered the first check-in.",
+				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in). Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.",
 				"On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.",
 				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.",
 				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.",
@@ -17255,6 +17256,24 @@ var WHATS_NEW = [
 		title: "Board and Table line up straight away",
 		points: ["Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.", "Rows still slide when a sort or a filter changes their order within a layout."],
 		articles: ["goals"]
+	},
+	{
+		id: "import-preview-steadier",
+		date: "2026-11-12",
+		title: "Checking an import: quicker and steadier",
+		points: [
+			"Typing why plans are changing no longer re-checks the whole file on every key.",
+			"Choosing a team, person or goal in an answer shows the search box as it should.",
+			"After an answer, the next question has the focus, so the keyboard carries on where you are."
+		],
+		articles: ["import"]
+	},
+	{
+		id: "publish-one-outcome",
+		date: "2026-11-12",
+		title: "Publishing a goal says one thing",
+		points: ["Pressing Publish goal no longer shows a question still to answer, a stuck “Saving…” and “Published” all at once.", "Once it is published, the goal’s page opens with the “Published” note, and it opens sooner."],
+		articles: ["new-goal"]
 	},
 	{
 		id: "goal-read-back",
@@ -19217,6 +19236,7 @@ var _virtual_faro_modules_default = [{
 		"U94",
 		"U90",
 		"U95",
+		"U96",
 		"F7",
 		"F8",
 		"F17",
