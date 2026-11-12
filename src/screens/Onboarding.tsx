@@ -29,6 +29,7 @@ import { goalChecks, goalMustFix, unanswered, type GoalAnswers, type GoalCheck }
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
+import { focusQuestion } from '../ui/questionInView';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Questions, StageFields } from '../ui/GoalFields';
@@ -229,7 +230,9 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     if (!tried) return;
     const el = form.current?.querySelector<HTMLElement>('.qsection .invalid, .qsection [aria-invalid="true"]') ?? form.current?.querySelector<HTMLElement>('.qsection [role="radio"]');
-    el?.focus();
+    // A goal card's open question, as New goal and the edit page do it (U93): focus on it, in view.
+    const slot = el ? null : form.current?.querySelector<HTMLElement>('.qsection [data-check]')?.dataset.check;
+    if (slot) focusQuestion(form.current, slot); else el?.focus();
   }, [tried, d.step]);
   const err = (show = true) => (tried && !ok[d.step] && show ? <span className="hint tone-off field-error" role="alert">{problem[d.step]}</span> : null);
   const next = () => {
