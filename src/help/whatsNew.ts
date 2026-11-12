@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal', 'edit-goal', 'import'],
   },
   {
+    id: 'smaller-first-download',
+    date: '2026-11-12',
+    title: 'Faro opens faster',
+    points: [
+      'The first visit downloads about a quarter less: each page other than Home loads when you first open it.',
+      'On a slow connection, a page you open for the first time may take a moment longer.',
+    ],
+    articles: ['any-device'],
+  },
+  {
     id: 'goal-questions',
     date: '2026-11-12',
     title: 'Unlikely values are asked about, once',
