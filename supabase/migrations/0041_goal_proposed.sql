@@ -3,13 +3,17 @@
 -- Ships one merge ahead of the code that writes them (AX10): until then nothing sets them, and the app's saves pass
 -- through okr_upsert, which takes its columns from the rows it is given (0011), so the commit function needs no change.
 -- Runs as faro_owner with search_path faro (supabase/README.md): nothing outside faro.
--- Grants: none is new. The columns sit on a table whose grants (to anon) and row rules already cover every column;
--- no table, function, view or policy is created. No redirect in public: 0035's views are fixed select * views and
+-- Grants: the table's own grants and row rules already cover every column; the two column grants below say so
+-- explicitly, for the app's public key (anon) only, and widen nothing beyond these two columns. No table, function,
+-- view or policy is created. No redirect in public: 0035's views are fixed select * views and
 -- won't show these columns, so the code that reads them ships only where the app reads through faro.
 -- Safe to run twice: `if not exists`, and the constraint is dropped and added again.
 
 alter table faro.okr_goals add column if not exists proposed_at timestamptz;
 alter table faro.okr_goals add column if not exists proposed_by text;
+
+grant select (proposed_at, proposed_by), insert (proposed_at, proposed_by), update (proposed_at, proposed_by)
+  on faro.okr_goals to anon;
 
 comment on column faro.okr_goals.proposed_at is 'GE10: when the goal was proposed; null means active. Never set with stopped_at.';
 comment on column faro.okr_goals.proposed_by is 'GE10: the person (okr_people.id) who proposed it; set only with proposed_at.';

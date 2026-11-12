@@ -1576,6 +1576,9 @@ grant select, insert, update on okr_views to anon;
 grant select, insert, update, delete on okr_watches to anon;
 grant select, insert, update, delete on okr_workspaces to anon;
 grant insert (id, workspace_id, person_id, path, mood, text, at) on okr_feedback to anon;
+grant insert (proposed_at, proposed_by) on okr_goals to anon;
+grant select (proposed_at, proposed_by) on okr_goals to anon;
+grant update (proposed_at, proposed_by) on okr_goals to anon;
 grant update (status, issue_url, fixed_in, wont_fix_reason, status_by, status_at) on okr_markups to anon;
 grant update (status, issue_url, fixed_in, wont_fix_reason, status_by, status_at) on okr_markups to authenticated;
 
