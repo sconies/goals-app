@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-large',
+    date: '2026-11-12',
+    title: 'Large files show progress',
+    points: [
+      'Faro checks a big file without freezing and shows how far it has got, with Stop. Changes are shown 50 at a time.',
+      'It says up front how much it can save at once: a file that would change more than 5,000 rows is checked, then offered in parts to import one after the other.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'import-faster',
     date: '2026-11-12',
     title: 'Large files are checked much faster',

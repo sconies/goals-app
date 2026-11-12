@@ -92,6 +92,7 @@ export const SCREENS: Record<string, Entry> = {
   DataLayout: ['list_views', 'save_table_view', 'delete_view', 'pin_view'],
   Import: ['bulk_change'],
   Check: ['bulk_change'],
+  Large: ['bulk_change'],
   Changes: ['bulk_change'],
   Imported: ['get_activity', 'undo_import'],
   PastImports: ['get_activity', 'undo_import'],

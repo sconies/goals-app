@@ -53,6 +53,7 @@ The core in a few lines:
 - [R2. Company single sign-on](spec/requirements/internal/r2-single-sign-on.md): signing in through the company’s identity provider, and leavers losing access the day they leave
 - [R3. Time zones](spec/requirements/internal/r3-time-zones.md): real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone
 - [R4. Scale and safety](spec/requirements/internal/r4-scale-and-safety.md): 15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key
+- [R5. Large imports, a server-side job](spec/requirements/internal/r5-large-imports.md): an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)
 - [R6a. The organisation](spec/requirements/internal/r6a-organisation.md): teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company
 - [R6b. Delegates](spec/requirements/internal/r6b-delegates.md): someone named to check in and answer asks for an owner while they are away, recorded as acting for them
 - [R6c. The planning round](spec/requirements/internal/r6c-planning-round.md): next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then

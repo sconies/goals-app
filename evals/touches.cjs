@@ -49,9 +49,11 @@ const RULES = [
   [/^src\/screens\/(Review|Retro)\.tsx|^src\/domain\/review\.ts/, ['U3', 'U10', 'U13', 'U36', 'F6', 'N1']],
   [/^src\/screens\/(DataTables|DataLayout|DataFilters|BulkEdit)\.tsx|^src\/domain\/(changeset|importer|export|sheets|format|formatDoc)\.ts|^src\/app\/(spreadsheet|files|zip)\.ts/, ['U19', 'U20', 'U21', 'U35', 'U45', 'U46', 'F7', 'F8', 'N5']],
   // The import's preview (IM3): its rules and its two checks.
-  [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'F17', 'P19']],
+  [/^src\/domain\/(changeset|sheets|leaveOut|workedOut|problemLevels)\.ts/, ['U87', 'U88', 'U89', 'U94', 'U97', 'F17', 'N18', 'P19']],
   [/^evals\/finish\/(17-import|18-import-design)\.cjs$/, ['F17', 'P19']],
   [/^src\/modules\/spreadsheets\//, ['P19']],
+  // Large files (IM6): the worker, progress, Stop and the split.
+  [/^src\/modules\/spreadsheets\/(checkRun|worker|workerInput|Large|importPlan|importStore)\.tsx?$|^src\/domain\/(splitFile|importLimits)\.ts$|^evals\/finish\/19-import-large\.cjs$/, ['U97', 'N18']],
   [/^src\/screens\/(Workspace|Settings|Onboarding|Start|Feedback)\.tsx|^src\/app\/appearance\.ts|^src\/domain\/workspaceAttention\.ts/, ['U5', 'U54', 'U11', 'U49', 'U14', 'U17', 'U22', 'U43', 'U51', 'U52', 'U53', 'U59', 'U60', 'U61', 'U62', 'U86', 'F7', 'F10', 'N4', 'N9', 'N10']],
   [/^src\/screens\/Activity\.tsx|^src\/domain\/activity\.ts/, ['U6', 'U35']],
   // People and Teams (app redesign WR1).

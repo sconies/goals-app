@@ -57,6 +57,7 @@ export const INTERNAL_PAGES: [string, string, string][] = [
   ['r2-single-sign-on', 'R2. Company single sign-on', 'signing in through the company’s identity provider, and leavers losing access the day they leave'],
   ['r3-time-zones', 'R3. Time zones', 'real moments stored, shown in the viewer’s zone, a home zone per workspace, reviews with a time and zone'],
   ['r4-scale-and-safety', 'R4. Scale and safety', '15,000 people: summary rows on the server, paging, page-load budgets, backups and restore, rehearsed migrations, the master key'],
+  ['r5-large-imports', 'R5. Large imports, a server-side job', 'an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)'],
   ['r6a-organisation', 'R6a. The organisation', 'teams in a tree, people with managers, levels set per workspace, and every list and count scoped to a part of the company'],
   ['r6b-delegates', 'R6b. Delegates', 'someone named to check in and answer asks for an owner while they are away, recorded as acting for them'],
   ['r6c-planning-round', 'R6c. The planning round', 'next cycle’s goals drafted, proposed and agreed before they go live, and counted nowhere until then'],

@@ -38,6 +38,7 @@ import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
 import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
+import { CHUNK } from './importLimits';
 import { ANSWERS, fold, groupId, groupIssues, issueOf, levelOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
@@ -247,7 +248,23 @@ function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: stri
   return out;
 }
 
+/** How far a check has got (rule 10): rows read of the file's rows, and what it has found so far. */
+export interface PlanProgress { done: number; total: number; added: number; changed: number; mustFix: number }
+
+/** What a row's change counts as on the Reading panel ("So far: {a} would be added, {c} changed"). */
+const ADDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['new goal', 'new person', 'check-in']);
+
+/** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 export function planChanges(input: ChangeInput): ChangeSet {
+  const run = planChangesInChunks(input);
+  for (;;) { const step = run.next(); if (step.done) return step.value; }
+}
+
+/**
+ * The engine, a chunk at a time (rule 10): it yields its progress every `CHUNK` rows, so a worker can report it and stop
+ * between chunks, and returns the change set. `planChanges` is this run to the end.
+ */
+export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress, ChangeSet, void> {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
   const answers: Answers = input.answers ?? {};
@@ -277,6 +294,19 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
+  // Progress (rule 10): rows read so far, of every row in the file, and what the rows read so far found, counted as they come.
+  const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
+  let done = 0, seenItems = 0, seenIssues = 0;
+  const so = { added: 0, changed: 0, mustFix: 0 };
+  const tick = () => ++done % CHUNK === 0;
+  /** Goals read but not yet made into changes (they are, once every row is read): added, and changed. */
+  let goalsSoFar = (): [number, number] => [0, 0];
+  const progress = (): PlanProgress => {
+    for (; seenItems < items.length; seenItems++) if (ADDS.has(items[seenItems]!.kind)) so.added++; else so.changed++;
+    for (; seenIssues < issues.length; seenIssues++) if (issues[seenIssues]!.level === 'must') so.mustFix++;
+    const [a, c] = goalsSoFar();
+    return { done, total, added: so.added + a, changed: so.changed + c, mustFix: so.mustFix };
+  };
   const leftSet = new Set<string>();
   const leave = (sheet: Sheet, row: number) => { if (!leftSet.has(`${sheet}|${row}`)) { leftSet.add(`${sheet}|${row}`); leftOut.push({ sheet, row }); } };
   // Rule 3, at every door (a file, a paste, MCP): a column under another name the field table gives it ("Goal name") is
@@ -468,7 +498,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const adminsAnswer = newAdminRows.length >= 3 ? answerOf('many-admins', 'People', 'Admin') : undefined;
 
   const leaving: { person: Person; row: number; to: Person }[] = [];
-  personRows.forEach(({ r, row }) => {
+  const personRow = ({ r, row }: (typeof personRows)[number]) => {
     if (skipPeople.has(row)) return;
     const name = val(r, 'name');
     const email = normalEmail(val(r, 'email'));
@@ -568,7 +598,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!admin()) { if (answerOf('not-allowed', 'People')?.choice === 'leave') return leave('People', row); return raise('not-allowed', 'People', row, before.name, 'Only an admin can change people.', { answers: ANSWERS.leaveOnly }); }
     people.set(before.id, after);
     peopleTouched.set(before.id, { before, row });
-  });
+  };
+  for (const x of personRows) { personRow(x); if (tick()) yield progress(); }
   /** A Team objective cell: the team's objective, said on its lead's row (where empty clears it); any other row may set it. */
   function objective(r: Rec, row: number, p: Person) {
     if (!has(r, 'team objective') || !p.teamId) return;
@@ -661,6 +692,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, 'key'))).filter((k): k is string => !!k) : [];
   let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ''))), 0);
   const touched = new Map<string, { before: Goal | null; row: number; sheet: Sheet; reason: string; plan: boolean }>();
+  goalsSoFar = () => { let a = 0, c = 0; for (const t of touched.values()) if (t.before) c++; else a++; return [a, c]; };
   const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
   const started = (id: string) => withCheckIns.has(id);
   // R1's row, stated once (domain/goalRights): its owner, or an admin (anyone, while a new workspace is set up).
@@ -709,7 +741,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     ...personRows.filter(({ r }) => codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'left').map(({ row }) => ({ sheet: 'People' as Sheet, row })),
   ];
 
-  goalRows.forEach(({ r, row, i }) => {
+  const goalRow = ({ r, row, i }: (typeof goalRows)[number]) => {
     if (skipGoals.has(row)) return;
     const id = val(r, 'id');
     let keyRef = val(r, 'key');
@@ -972,7 +1004,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (doneIds.length) doneAtSetUp.push({ goalId: gid, stageIds: doneIds, row });
     work.set(gid, built);
     touched.set(gid, { before: existing, row, sheet: 'Goals', reason: val(r, 'reason') || val(r, 'reason for change'), plan: !!existing && planChanged(existing, built) });
-  });
+  };
+  for (const x of goalRows) { goalRow(x); if (tick()) yield progress(); }
   function lookupNow(): Lookup {
     return { person: (pid) => people.get(pid), goal: (gid) => work.get(gid), teamName: (tid) => teams.get(tid)?.name ?? tid };
   }
@@ -1030,7 +1063,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   }
 
   /* ---------- plan numbers ---------- */
-  (input.tables.plan ?? []).forEach((r, i) => {
+  const planRow = (r: Rec, i: number) => {
     const row = rowOf(r, i);
     if (blankRow(r)) return;
     const keyRef = val(r, 'key'), idRef = val(r, 'id');
@@ -1095,7 +1128,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     work.set(id, next);
     const t = touched.get(id);
     touched.set(id, { before, row: t?.row ?? row, sheet: t?.sheet ?? 'Plan', reason: t?.reason || val(r, 'reason'), plan: !!before });
-  });
+  };
+  const planList = input.tables.plan ?? [];
+  for (let i = 0; i < planList.length; i++) { planRow(planList[i]!, i); if (tick()) yield progress(); }
 
   /* ---------- check-ins: which goal each row is, and more decimal places when the answer says to keep them ---------- */
   const ciRows = (input.tables.checkIns ?? []).map((r, i) => ({ r, row: rowOf(r, i) })).filter(({ r }) => !blankRow(r));
@@ -1130,6 +1165,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const lookup = lookupNow();
   const goalOut = new Map<string, Goal>();
   let needsReason = false;
+  goalsSoFar = () => [0, 0];
   for (const [id, t] of touched) {
     const after = work.get(id)!;
     const ch = goalChange(t.before, after, lookup, actor.id, now, newId('chg'));
@@ -1285,6 +1321,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     items.push({ sheet: 'Check-ins', row, goalId: g.id, goal: g.title, kind: existing ? 'replaces check-in' : 'check-in', summary: ch.summary, diffs: ch.diffs, backfilled });
   };
   for (const { r, row } of rows) {
+    if (tick()) yield progress();
     if (skipCheckIns.has(row)) continue;
     const refText = val(r, 'goal key') || val(r, 'goal id');
     const clash = refText ? goalOfRow(val(r, 'goal key'), val(r, 'goal id')).problem : undefined;

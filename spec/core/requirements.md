@@ -742,6 +742,12 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Tests:** `evals/format.eval.ts` (5)
 - **Journeys and checks:** U46, U89
 
+### IMPORT-LARGE
+
+The import states its size limits before a file is chosen, checks a large file without freezing the page and shows progress, never draws more than a page of rows, and refuses to save more than it can save safely, with a way through. Saving tens of thousands of rows is a server-side job (R-L1 to R-L6).
+
+- **Journeys and checks:** N18, U97
+
 ## Demo
 
 ### DEMO-MODE
