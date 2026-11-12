@@ -146,12 +146,12 @@ const tools: ToolDef[] = [
   {
     name: 'save_metric',
     title: 'Add or change a metric',
-    description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS } },
+    description: 'Add a metric to the library (anyone; you own it unless you name an owner), or change one by giving its id (its owner or an admin). A new metric needs a name, a unit and a direction; everything else is optional. Fields left out keep their value. Saving it unchanged saves nothing. Changing the unit or direction of a metric goals use is refused with a question: ask the person, then call again with confirm: true.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: { id: str('The metric to change, by ID or name. Leave out to add one.'), ...FIELDS, confirm: { type: 'boolean', description: 'Yes to changing the unit or direction of a metric goals use, once the person has said so.' } } },
     annotations: WRITE,
     async run(a, ctx) {
       return ruled(async () => {
-        const input: M.MetricInput & { id?: string } = {
+        const input: M.MetricInput & { id?: string; confirm?: boolean } = {
           ...(a.id != null && a.id !== '' ? { id: metricOf(ctx, a.id).id } : {}),
           ...(a.name !== undefined ? { name: String(a.name) } : {}),
           ...(a.meaning !== undefined ? { meaning: String(a.meaning) } : {}),
@@ -163,6 +163,7 @@ const tools: ToolDef[] = [
           ...(a.refresh !== undefined ? { refresh: a.refresh ? (String(a.refresh).toLowerCase() as MetricRefresh) : null } : {}),
           ...(a.owner !== undefined ? { ownerId: personOf(ctx, a.owner) } : {}),
           ...(a.caveats !== undefined ? { caveats: String(a.caveats) } : {}),
+          ...(a.confirm === true ? { confirm: true } : {}),
         };
         const { commit, metric } = M.saveMetric(ax(ctx), input);
         if (!commit) return { data: { saved: false, id: metric.id }, text: `Nothing changed: ${metric.name} already says that.` };

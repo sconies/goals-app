@@ -47,7 +47,7 @@ const help: Article[] = [
         'Opened from a metric’s To sort out, the form opens at the field that needs filling.',
         'While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.',
         'What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.',
-        'Changing the unit or which way is better of a metric goals use asks first: their numbers and plans don’t change, and the goals that now differ show a warning.',
+        'Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.',
         'Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.',
         'On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.',
       ] },
