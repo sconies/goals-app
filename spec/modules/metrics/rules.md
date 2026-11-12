@@ -2,7 +2,7 @@
 
 # Metric library: its rules
 
-The module’s 4 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
+The module’s 5 rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.
 
 | Rule | What it decides |
 |---|---|
@@ -10,6 +10,7 @@ The module’s 4 rules, in order. Each is a section of its own below, with its w
 | [The library as a place](#the-library-as-a-place) | Which metrics the library lists for a search and its filters, in what order (rule 1); a metric’s goals side by side (rule 2); and what a metric still needs (rule 3). |
 | [“Measured by”, found by typing](#measured-by-found-by-typing) | What choosing a metric in a goal form fills in (rule 5), what stops the goal being saved with it, and the words the metric finder gives each metric. |
 | [Looking after metrics](#looking-after-metrics) | A name close to one already in the library (rule 4), and what an admin is told on Workspace → About. |
+| [Defining a metric well](#defining-a-metric-well) | What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what. |
 
 ## The metric library
 
@@ -295,7 +296,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ### Requirements
 
-- `METRICS-CARE`: A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks "This looks like …" with Use that one, as a status that never stops the save. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.
+- `METRICS-CARE`: A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks "This looks like …" as a Check (METRIC-DEFINED), with Use that one or Mine is different: keep it. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.
 
 ### Tests that check it
 
@@ -305,3 +306,100 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 4: a close name › names two at most, closest first, never the same name or one removed
 - rule 4: a close name › in the demo, “CI cost per pipeline run” asks about CI compute cost per pipeline run, in words
 - 2.8: metrics with no owner › none in the demo; one when its owner is marked as left
+
+## Defining a metric well
+
+What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what.
+
+### The rule
+
+A metric is **usable** with three things: a name, a unit and which way is better. The rest can be said later, and what is still missing is said in words.
+
+**Rule 6. What a metric still needs** (`stillToSay`). In this order: “what it means” (no meaning), “where the number comes from” (no source), “who owns that source” (not said) and “how often it refreshes” (not said). The line is “Fully defined” when nothing is missing and its owner is someone here who hasn't left; “Its owner has left.” alone when only that; otherwise “Still to say: {what is missing, with commas}.”, followed by “ Its owner has left.” when so. It is words, never a number, a percentage or a bar, and nothing sorts by it. It shows under a metric's title (for its owner and admins each item opens the form at its field), at the foot of the form, in `get_metric` (`stillToSay`) and after `save_metric` saves.
+
+**The questions (Checks).** A Check is a question answered once, never a refusal: the metric can be saved once it is answered. Adding a metric asks all three; changing one asks only about a field that changed.
+- **A close name** (`nameChecks`), up to two, closest first. *Former*: the name is one a metric in use used to have (a rename in the change log): ““{typed}” is now called “{other}”.”, answered “Use {other}” or “Add “{typed}” as a new metric”. *Letters*: lower case, without accents and punctuation, the names differ by one edit when the longer is up to 12 characters and two when longer, and aren't equal; names of 4 characters or fewer never are (“MTTR” and “MTTD”): “This is one letter from “{other}” ({unit}, {direction}, owned by {owner}, {n} goals).” *Words*: the library's rule 4: “This looks like “{other}” (…).” Both answered “Use that one” (which opens it; the draft is kept) or “Mine is different: keep it”. The same name in any case is a Must fix, not this.
+- **A unit spelt another way** (`unitChecks`): lower case and without a trailing “s” or “.”, it equals a unit in use, or it is a known spelling of one in use (percent, pct, per cent → %; mins, minutes, minute → min; hrs, hr, hour → hours; secs, seconds, sec → s; dollars, $ → USD), and isn't already identical: “Other metrics here use “{u}”. Use “{u}”, or keep “{typed}”?”
+- **A share that doesn't say out of what** (`meaningChecks`): the unit is %, or the name has “rate”, “share” or “ratio” and the unit is neither a time nor a count per time; the meaning is said; and it has none of “out of”, “share of”, “of all”, “of every”, “divided by”, “per ”, “÷”, “/”, “percentage of”, “proportion of”, “fraction of”. Answered “It’s right as written”. An empty meaning is never this: it is still to say.
+
+**On the form** a Must fix shows under its field, outlined on every side and washed, with the warning mark and “Must fix”; a Check under its field, in a quiet outlined block with the warning mark, “Check” and its answers as plain buttons. Neither uses a status shape. Both show once the field is left, or on the first try to save. The foot says “{a} to fix, {b} to check.” (`countLine`; a part at zero is left out) and the completeness line. Saving is refused while a Must fix stands; with a Check unanswered, the first try scrolls to it and says “Answer the question above first.” under the button. An answered Check closes to one line with Change (“You said: mine is different.”); changing the field asks again.
+
+**Through the AI tools**, `save_metric` returns `checks` (each with its question and answers) and saves nothing while one is unanswered; it takes `answers`: `name` “keep” or “use:<id>” (nothing is saved; the result names the metric to use), `unit` “keep” or “use”, `meaning` “as-written”.
+
+### Worked examples
+
+Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
+
+| Given | The rule gives |
+|---|---|
+| Lead time for changes: everything said, Rhea is here. | `Fully defined` |
+| A metric added in a goal form: a name, a unit and a direction only. | `Still to say: what it means, where the number comes from, who owns that source, how often it refreshes.` |
+| Its meaning and source said; who owns the source and its refresh not. | `Still to say: who owns that source, how often it refreshes.` |
+| Lead time for changes when Rhea, its owner, is marked as left. | `Its owner has left.` |
+| CI compute cost per pipeline run: complete, measuring no goal. | `Fully defined` |
+| Adding “Flaky tests rate” to the demo library. | `letters: Flaky test rate` |
+| Adding “Remote build cache hit rates” to the demo library. | `letters: Remote build cache hit rate` |
+| Adding “CI cost per pipeline run” to the demo library. | `words: CI compute cost per pipeline run` |
+| Adding “MTTR” to the demo library. | `nothing` |
+| Adding “Change failure rate” to the demo library. | `nothing (the same name is a Must fix)` |
+| “Deploy frequency” typed, when Production deploys per day was once called that. | `former: Production deploys per day` |
+| A unit typed as “mins”, with the demo’s units in use (hours, min, %, deploys, USD, pts). | `Use “min”` |
+| A unit typed as “percent”, with the demo’s units in use (hours, min, %, deploys, USD, pts). | `Use “%”` |
+| A unit typed as “min”, with the demo’s units in use (hours, min, %, deploys, USD, pts). | `nothing` |
+| A unit typed as “deploys”, with the demo’s units in use (hours, min, %, deploys, USD, pts). | `nothing` |
+| A unit typed as “ms”, with the demo’s units in use (hours, min, %, deploys, USD, pts). | `nothing` |
+| Change failure rate, in %: “Share of production deploys that led to an incident…”. | `nothing` |
+| “Deploy success rate”, in %: “Deploys that worked.” | `out-of-what` |
+| Any metric in % with no meaning. | `nothing` |
+| Rhea adds “Flaky tests rate”, %, no direction, meaning “Flakes seen.”: the foot of the form. | `1 to fix, 2 to check.` |
+
+### Not self-explanatory
+
+- **Not self-explanatory:** Two close names are both found, but the form and save_metric ask about the closest one only.
+- **Not self-explanatory:** The weekly rhythm is assumed for the form’s refresh hint until a workspace can choose its rhythm (FT1).
+
+### Where it lives
+
+- [src/modules/metrics/rulesDefine.ts](../../../src/modules/metrics/rulesDefine.ts): `stillToSay`, `nameChecks`, `editsBetween`, `formerNames`, `unitChecks`, `meaningChecks`, `metricChecks`, `unansweredChecks`, `countLine`
+- [src/modules/metrics/reads.ts](../../../src/modules/metrics/reads.ts): `checkReads`, `lineOf`
+
+### Requirements
+
+- `METRIC-DEFINED`: A metric can be used with a name, a unit and a direction; what it still lacks is said in words, never scored; and a likely mistake in its name, unit or meaning is questioned before it is saved (MT1). Add a metric asks for Name, Unit (with Decimal places, optional, 0 if left) and Which way is better, then what it means, then, under "Where the number comes from · can be said later", its source, who owns that source and how often it refreshes, then its owner and caveats. A Must fix shows under its field outlined and washed with the warning mark and "Must fix"; a Check under its field with the warning mark, "Check" and its answers as plain buttons; neither uses a status shape. The foot says "{a} to fix, {b} to check." and the completeness line. The Checks: a name one letter (two for names over 12 characters; never for 4 or fewer) or a word from another metric's, or one a metric used to have; a unit spelt differently from one in use; a percentage or rate whose meaning doesn't say out of what. Saving is refused while a Must fix stands, and with a Check unanswered it scrolls to it and says "Answer the question above first."; an answered Check closes to one line with Change. A metric's page says "Fully defined" or "Still to say: …" (and "Its owner has left.") under its title, for everyone, with each item a link to the form's field for its owner and admins. get_metric returns the line; save_metric returns unanswered checks without saving and takes answers.
+
+### Tests that check it
+
+#### [src/modules/metrics/rulesDefine.test.ts](../../../src/modules/metrics/rulesDefine.test.ts)
+
+- stillToSay (rule 1) › says “Fully defined” when everything is said and the owner is here
+- stillToSay (rule 1) › lists everything missing, in order, for a metric added in a goal form
+- stillToSay (rule 1) › lists only what is missing
+- stillToSay (rule 1) › says only that its owner has left when nothing else is missing
+- stillToSay (rule 1) › adds the owner after what is missing
+- stillToSay (rule 1) › never returns a number to sort by
+- nameChecks (rule 1) › “%s” → %s
+- nameChecks (rule 1) › never calls 4 characters or fewer a letter apart
+- nameChecks (rule 1) › knows a former name
+- nameChecks (rule 1) › finds nothing for a different name
+- nameChecks (rule 1) › leaves an exact match to the Must fix
+- nameChecks (rule 1) › counts edits, stopping past the most
+- nameChecks (rule 1) › reads former names from the change log’s renames
+- unitChecks (rule 1) › “%s” with %j in use → %s
+- meaningChecks (rule 1) › %s (%s): %s → %s
+- metricChecks › asks about the name and the meaning, in the spec’s words
+- metricChecks › asks about a unit spelt another way, and says no owner who has left
+- metricChecks › asks only about what changed
+- metricChecks › an answer covers its check only when it is one of its choices
+- metricChecks › says the count line
+
+#### [src/modules/metrics/tools.test.ts](../../../src/modules/metrics/tools.test.ts)
+
+- metric library tools › lists the library and reads one metric in full, with the goals it measures
+- metric library tools › narrows the library as its page does (rule 1), and says what a metric needs to its owner (rule 3)
+- metric library tools › adds a metric as the person, via the assistant; a second with the same name is refused
+- metric library tools › changes a metric only for its owner or an admin
+- metric library tools › links a goal for a team’s slice, warns on a direction mismatch, and unlinks it
+- metric library tools › removes a metric, unlinking its goals, and restore_removed brings it back
+- metric library tools › asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)
+- metric library tools › says the library is off where an admin has switched it off
+- metric library tools › find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)

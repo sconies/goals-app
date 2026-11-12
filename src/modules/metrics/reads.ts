@@ -3,8 +3,9 @@
    the rules read the same rows wherever they run. */
 import { summariseAll } from '../../domain/summary';
 import type { Cycle, Snapshot } from '../../domain/types';
-import { linksOf, metricsOf } from './rules';
-import { metricGoals, type LibraryReads, type MetricGoalRow } from './rulesLibrary';
+import { linksOf, metricsOf, ownerName, type Metric } from './rules';
+import { formerNames, stillToSay, type CheckReads } from './rulesDefine';
+import { liveLinks, metricGoals, type LibraryReads, type MetricGoalRow } from './rulesLibrary';
 
 /** The running cycle's live goals: not removed, not stopped. */
 const liveGoals = (s: Pick<Snapshot, 'goals'>) => s.goals.filter((g) => !g.removedAt && !g.stoppedAt);
@@ -21,3 +22,14 @@ export function goalsOfMetric(s: Snapshot, cycle: Cycle, today: Date, week: numb
   const goals = liveGoals(s).filter((g) => ids.has(g.id));
   return metricGoals(metricId, links, summariseAll(goals, s, cycle, today, week), s.teams, cycle);
 }
+
+/** What rule 1's questions read (rulesDefine.ts `metricChecks`): metrics in use, the people, each metric's goals in force,
+    and the names metrics used to have (the change log's renames). */
+export function checkReads(s: Snapshot): CheckReads {
+  const r = libraryReads(s, '');
+  const metrics = r.metrics.filter((m) => !m.removedAt);
+  return { metrics, people: s.people, goalsOf: (id) => liveLinks(r, id).length, former: formerNames(s.changes, metrics) };
+}
+
+/** Rule 1's line for a metric, its owner being someone here who hasn't left. */
+export const lineOf = (s: Pick<Snapshot, 'people'>, m: Metric) => stillToSay(m, !!ownerName(s.people, m));
