@@ -57,7 +57,8 @@ export interface Access {
 const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', G = 'src/domain/goalEntry.ts#planGoal', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
-  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn', G, 'src/domain/goalRights.ts#mayChangeGoal'] },
+  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI)', who: 'The goal’s owner only (Lane, 12 Nov). An admin may bring someone’s check-ins in from a workbook (an import, or setting up from an export) and correct one in Data’s tables: two doors left open for Lane to decide', code: ['src/domain/changeset.ts#postCheckIn', 'src/domain/goalRights.ts#mayPostCheckIn'] },
+  { area: 'Goals, plans and check-ins', what: 'Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, G, 'src/domain/goalRights.ts#mayChangeGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Add a goal, at any level, owned by anyone', who: 'Anyone, for anyone (Lane, 11 Nov)', code: [C, G, 'src/domain/goalRights.ts#mayAddGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'Whoever posted it, or an admin', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
@@ -164,7 +165,7 @@ export const INTERNAL: InternalRequirement[] = [
       'For every line of the access table, someone outside its “who” is refused by the server, called directly with their own sign-in (not through the app), with the words the app shows. Someone inside it is allowed.',
       'Every table refuses a write made with the public key, and every read of a workspace by someone who isn’t a member returns nothing.',
       'Opening the app without signing in shows the sign-in, never a workspace or a list of workspaces.',
-      'A person marked as left can’t open the workspace, and a request with their token is refused within a minute of their leaving.',
+      'A person an admin marks as left in the app can’t open the workspace, and a request with their token is refused within a minute of being marked. (Leaving the company through the directory is R2’s, check 4: within the company’s policy, an hour at most.)',
       'A token’s secret appears once, in the answer that made it, and nowhere stored: the database holds its SHA-256 hash.',
       'Every change in the change log names the signed-in person (or the token’s person, marked via MCP); no change names someone else.',
       'In the internal app: a builder token reads the builder inbox; an ordinary token, an admin’s included, is told it isn’t a builder token. Removing a builder from the builders stops their token reaching the inbox at once. (Faro’s open inbox fails this check on purpose.)',
@@ -188,7 +189,7 @@ export const INTERNAL: InternalRequirement[] = [
     rule: [
       '1. **Sign-in is the company’s identity provider** (Entra ID, Okta or Google Workspace, over OpenID Connect or SAML), with its own multi-factor rules. The internal app has no passwords and no email links of its own.',
       '2. **Matching a person.** The first sign-in matches the provider’s verified email, in lower case, to `Person.email` ([R1](r1-sign-in-and-access.md), rule 2), and keeps the provider’s stable subject id on the person. Later sign-ins match the subject id first, so a changed email or name doesn’t make a new person; the email is updated from the provider.',
-      '3. **Leaving the company.** When the directory removes someone (deprovisioned, or disabled), they can’t sign in from that moment, their sessions end and their AI and builder tokens stop working. Their person record stays, with their goals and asks, until an admin marks them as left and hands their goals and asks over (Faro’s own rule: `markPersonLeft` needs someone to take each over). Until then Workspace lists them under “Left the company, still owns goals”.',
+      '3. **Leaving the company.** When the directory removes someone (deprovisioned, or disabled), they can’t sign in from that moment, and their sessions end and their AI and builder tokens stop working within the time the company’s policy sets, an hour at most (check 4). Their person record stays, with their goals and asks, until an admin marks them as left and hands their goals and asks over (Faro’s own rule: `markPersonLeft` needs someone to take each over). Until then Workspace lists them under “Left the company, still owns goals”.',
       '4. **Joining.** Being in the directory doesn’t make someone a member: an admin adds them, or a workspace may let anyone in a named directory group join as an ordinary member on first sign-in. Admin rights stay Faro’s own `admin` field, changed by admins, never taken from the directory.',
       '5. **Builders** ([R1](r1-sign-in-and-access.md), rule 6) are a directory group; leaving the group ends builder access at once.',
       '6. **Sessions** last as long as the company’s policy says, and end when the provider says so. The app never asks who someone is.',
@@ -381,8 +382,7 @@ export const INTERNAL: InternalRequirement[] = [
       '7. **The server enforces it**, as one more line of [R1’s access table](r1-sign-in-and-access.md#who-may-change-what).',
     ].join('\n'),
     today: [
-      'Only a goal’s owner or an admin may post or correct a check-in, or change the goal (the change engine, `planChanges` in `src/domain/changeset.ts`; R1’s access table). There is no delegate and no co-owner.',
-      'An admin who checks in for someone is logged as the admin, with nothing saying for whom.',
+      'Only a goal’s owner posts or corrects its check-ins (`mayPostCheckIn` in `src/domain/goalRights.ts`, asked by the change engine; R1’s access table). An admin may still bring someone’s check-ins in from a workbook and correct one in Data’s tables, logged as the admin with nothing saying for whom. The goal itself is changed by its owner or an admin. There is no delegate and no co-owner.',
       'A goal whose owner is away shows No recent update after 14 days; an ask for an update waits for the owner.',
       'Goals change hands only for good: when someone leaves, an admin hands each goal over (`markPersonLeft` in `src/domain/removal.ts`).',
     ],

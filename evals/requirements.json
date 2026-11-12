@@ -94,12 +94,12 @@
     {
       "id": "UPDATE-ANYTIME",
       "area": "Check-in",
-      "text": "The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after."
+      "text": "The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after."
     },
     {
       "id": "OWNER-ONLY",
       "area": "Check-in",
-      "text": "Only the goal's owner can post its check-in."
+      "text": "Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal)."
     },
     {
       "id": "STALE",
