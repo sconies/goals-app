@@ -77,7 +77,7 @@ export function FilterBar({ lead, trail, after, find, sortOff }: {
   const [open, setOpen] = useState(false);
   const { col } = useGoalColumns();
   // The sheet's code arrives a moment after Goals opens, not in the first download, so Filters opens at once.
-  useEffect(() => { const t = window.setTimeout(() => { void loadSheet(); }, 1200); return () => window.clearTimeout(t); }, []);
+  useEffect(() => { const t = window.setTimeout(() => { void loadSheet(); }, 0); return () => window.clearTimeout(t); }, []);
   const names = {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
