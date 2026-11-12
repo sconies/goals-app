@@ -231,14 +231,14 @@ Owners can check in as often as they like (ad hoc). Every check-in is kept with 
 
 ### UPDATE-ANYTIME
 
-The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after.
+The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after.
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U1
 
 ### OWNER-ONLY
 
-Only the goal's owner can post its check-in.
+Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal).
 
 - **Help:** “Checking in on a goal” (`check-in`), screens `CheckInFlow`, `CheckInQueue`
 - **Journeys and checks:** U9, U141
@@ -479,13 +479,14 @@ Changes are saved and survive a reload; demo data can be reset.
 Every screen works at phone width (390px) with no horizontal scrolling.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** P8
+- **Journeys and checks:** P3, P8
 
 ### A11Y
 
 No serious or critical accessibility violations (axe-core); status is shape plus word, never colour alone.
 
 - **Help:** “What the statuses mean” (`status`); “On a phone, a tablet or a big screen” (`any-device`)
+- **Journeys and checks:** P3, P4
 
 ### NO-ERRORS
 
@@ -941,7 +942,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6, P19
+- **Journeys and checks:** F11, P6, P17, P19
 
 ### SHAPE-MATCHES-WORD
 
@@ -949,7 +950,7 @@ A status shape always agrees with the word beside it, everywhere: the shape come
 
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/shapes.eval.ts` (2)
-- **Journeys and checks:** P6
+- **Journeys and checks:** P3, P4, P6
 
 ## Trust
 
@@ -982,13 +983,14 @@ A leader's attention goes to the exceptions. A weekly review walks the goals tha
 
 ## Home
 
-### HOME-DASHBOARD
+### HOME-OWNER
 
-Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals ("11 off track" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word.
+Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date.
 
+- **Rule:** [Home: what is asked of you today](rules/home.md)
 - **Help:** “Home and your week at a glance” (`home`), screens `Home`
 - **Tests:** `evals/attention.eval.ts` (5)
-- **Journeys and checks:** N3, N10
+- **Journeys and checks:** N3, N10, N26, U122
 
 ## Interface
 
@@ -1019,10 +1021,10 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 
 ### WORKSPACE-ADMIN
 
-Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it.
+Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
-- **Tests:** `evals/workspace-admin.eval.ts` (6)
+- **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS
@@ -1115,7 +1117,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U82, U84, U91, U136
+- **Journeys and checks:** F11, N12, P17, U63, U82, U84, U91, U136
 
 ### FIND-ANYWHERE
 
@@ -1272,10 +1274,10 @@ Feedback sent with a mood and a few words joins the inbox (migration 0026): it i
 
 ### INBOX-TRIAGE
 
-The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
+The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox.
 
 - **Help:** “The inbox” (`inbox`), screens `Feedback`
-- **Journeys and checks:** U52
+- **Journeys and checks:** U42, U52
 
 ### MCP-FEEDBACK
 

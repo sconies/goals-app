@@ -1,7 +1,7 @@
 /* What the spec generator reads from the repository, besides the rules themselves: the tests and their titles, the eval
    journeys and checks, the requirements, the routes and screens, and each module's module.json. Node only (it reads
    files): scripts/spec.mjs and the spec's own tests run it, never the app. Everything is read with nothing run, so the
-   spec says what the code says. */
+   spec says what the code says (an eval file's values by a small evaluator over its syntax: evalFile). */
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
@@ -118,6 +118,54 @@ const strings = (list: string) => [...list.matchAll(/'([^']+)'/g)].map((m) => m[
 /** A quoted string at the start of `s`, in any of the three quotes. */
 const quoted = (s: string) => /^\s*(['`"])((?:\\.|(?!\1).)*)\1/.exec(s)?.[2]?.replace(/\\(.)/g, '$1') ?? '';
 
+/* An eval file's values, read without running it: a small evaluator over its syntax for literals, top-level consts, a
+   value required from another eval file, property reads, template text and a number's toLocaleString. Anything else
+   throws, so a title the spec can't read is fixed at its source rather than written into the spec as code (N7, N12 and
+   F8 once were: kit review, gap 10). */
+type Env = Record<string, unknown>;
+function evalFile(r: Repo, rel: string): { sf: ts.SourceFile; value: (n: ts.Expression, env?: Env) => unknown; exports: () => Record<string, ts.Expression> } {
+  const sf = ts.createSourceFile(rel, read(r, rel), ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const consts = new Map<string, ts.Expression>();
+  const required = new Map<string, [string, string]>();
+  let exported: ts.ObjectLiteralExpression | undefined;
+  for (const st of sf.statements) {
+    if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) {
+      if (ts.isIdentifier(d.name) && d.initializer) consts.set(d.name.text, d.initializer);
+      else if (ts.isObjectBindingPattern(d.name) && d.initializer && ts.isCallExpression(d.initializer) && ts.isIdentifier(d.initializer.expression) && d.initializer.expression.text === 'require' && ts.isStringLiteral(d.initializer.arguments[0]!)) {
+        const from = path.posix.normalize(path.posix.join(path.posix.dirname(rel), d.initializer.arguments[0].text));
+        for (const e of d.name.elements) if (ts.isIdentifier(e.name)) required.set(e.name.text, [from, (e.propertyName as ts.Identifier | undefined)?.text ?? e.name.text]);
+      }
+    }
+    if (ts.isExpressionStatement(st) && ts.isBinaryExpression(st.expression) && st.expression.left.getText(sf) === 'module.exports' && ts.isObjectLiteralExpression(st.expression.right)) exported = st.expression.right;
+  }
+  const props = (o: ts.ObjectLiteralExpression) => Object.fromEntries(o.properties.filter(ts.isPropertyAssignment).map((p) => [p.name.getText(sf), p.initializer]));
+  const fail = (n: ts.Node): never => { throw new Error(`${rel}: can't read \`${n.getText(sf).slice(0, 80)}\` without running it`); };
+  const value = (n: ts.Expression, env: Env = {}): unknown => {
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) return n.text;
+    if (ts.isNumericLiteral(n)) return Number(n.text.replace(/_/g, ''));
+    if (ts.isParenthesizedExpression(n)) return value(n.expression, env);
+    if (ts.isArrayLiteralExpression(n)) return n.elements.map((e) => value(e, env));
+    if (ts.isObjectLiteralExpression(n)) return Object.fromEntries(Object.entries(props(n)).map(([k, v]) => [k, value(v, env)]));
+    if (ts.isTemplateExpression(n)) return n.head.text + n.templateSpans.map((x) => String(value(x.expression, env)) + x.literal.text).join('');
+    if (ts.isIdentifier(n)) {
+      if (n.text in env) return env[n.text];
+      if (consts.has(n.text)) return value(consts.get(n.text)!, env);
+      const req = required.get(n.text);
+      if (req) { const other = evalFile(r, req[0]); const e = other.exports()[req[1]]; return e ? other.value(e) : fail(n); }
+      return fail(n);
+    }
+    if (ts.isPropertyAccessExpression(n)) { const o = value(n.expression, env) as Record<string, unknown> | undefined; return o && n.name.text in o ? o[n.name.text] : fail(n); }
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken) return value(n.left, env) === value(n.right, env);
+    if (ts.isConditionalExpression(n)) return value(n.condition, env) ? value(n.whenTrue, env) : value(n.whenFalse, env);
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'toLocaleString') {
+      const x = value(n.expression.expression, env);
+      return typeof x === 'number' ? x.toLocaleString(n.arguments[0] ? String(value(n.arguments[0], env)) : 'en-GB') : fail(n);
+    }
+    return fail(n);
+  };
+  return { sf, value, exports: () => (exported ? props(exported) : {}) };
+}
+
 export function checks(r: Repo): Check[] {
   const out: Check[] = [];
   const j = 'evals/journeys.cjs';
@@ -128,21 +176,42 @@ export function checks(r: Repo): Check[] {
     const budget = Number(/^\s*(['`"])(?:\\.|(?!\1).)*\1,\s*(\d+)/.exec(rest)?.[2] ?? NaN);
     out.push({ id: m[1]!, kind: 'journey', title, reqs: strings(m[2]!), file: j, budget: Number.isFinite(budget) ? budget : undefined });
   }
+  // Platform checks: each add('P…', reqs, title, …) call, the first of each id. One written for each device in a loop
+  // (add(device === 'phone' ? 'P3' : 'P4', …)) is read once per device, from the file's DEVICES.
   const seen = new Set<string>();
-  for (const m of text.matchAll(/add\('(P\d+)', \[([^\]]*)\], /g)) {
-    if (seen.has(m[1]!)) continue;
-    seen.add(m[1]!);
-    out.push({ id: m[1]!, kind: 'platform', title: quoted(text.slice(m.index! + m[0].length)), reqs: strings(m[2]!), file: j });
-  }
+  const jf = evalFile(r, j);
+  const devices = Object.keys((() => { try { return jf.value(ts.factory.createIdentifier('DEVICES')) as object; } catch { return {}; } })());
+  const visit = (n: ts.Node) => {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'add' && n.arguments.length >= 3) {
+      const [idArg, reqArg, titleArg] = n.arguments as unknown as ts.Expression[];
+      const envs: Env[] = ts.isStringLiteral(idArg!) ? [{}] : devices.map((device) => ({ device }));
+      for (const env of envs) {
+        let id: unknown;
+        try { id = jf.value(idArg!, env); } catch { continue; }
+        if (typeof id !== 'string' || !/^P\d+$/.test(id) || seen.has(id)) continue;
+        seen.add(id);
+        out.push({ id, kind: 'platform', title: String(jf.value(titleArg!, env)), reqs: (jf.value(reqArg!, env) as string[]), file: j });
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(jf.sf);
   for (const dir of ['finish', 'notes'] as const) {
     for (const file of files(r, `evals/${dir}`, (f) => f.endsWith('.cjs')).map((f) => f.replace(/^\//, ''))) {
-      const t = read(r, file);
-      const id = /\bid: '([A-Z]\d+)'/.exec(t)?.[1];
-      if (!id) continue;
-      const reqs = /\breqs: \[([^\]]*)\]/.exec(t);
-      const title = /\btitle: (['`"])((?:\\.|(?!\1).)*)\1/.exec(t)?.[2] ?? `Fit and finish, ${/\barea: '([^']+)'/.exec(t)?.[1] ?? id}`;
-      out.push({ id, kind: dir === 'finish' ? 'finish' : 'note', title, reqs: reqs ? strings(reqs[1]!) : ['FIT-AND-FINISH-AREAS'], file });
+      const f = evalFile(r, file);
+      const ex = f.exports();
+      if (!ex.id) continue;
+      const id = String(f.value(ex.id));
+      const area = ex.area ? String(f.value(ex.area)) : id;
+      out.push({ id, kind: dir === 'finish' ? 'finish' : 'note', title: ex.title ? String(f.value(ex.title)) : `Fit and finish, ${area}`, reqs: ex.reqs ? (f.value(ex.reqs) as string[]) : ['FIT-AND-FINISH-AREAS'], file });
     }
+  }
+  // A check made inside another (its title says “(F11, P17)”) is listed under its own id too, so every id cited is found.
+  const ids = new Set(out.map((c) => c.id));
+  for (const c of [...out]) for (const m of c.title.matchAll(/\(([A-Z]\d+(?:, [A-Z]\d+)+)\)/g)) for (const id of m[1]!.split(', ')) {
+    if (ids.has(id)) continue;
+    ids.add(id);
+    out.push({ id, kind: id.startsWith('P') ? 'platform' : id.startsWith('N') ? 'note' : 'finish', title: `Checked within ${c.id}: ${c.title}`, reqs: c.reqs, file: c.file });
   }
   return out.sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
 }

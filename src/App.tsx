@@ -105,6 +105,8 @@ export function Routed() {
         <Route path="/teams/:teamId" element={<TeamPage />} />
         {/* The inbox moved out of Workspace to Feedback (backlog WS): its old address, with the markup it named, leads there. */}
         <Route path="/workspace/inbox" element={<Moved to="/feedback" />} />
+        {/* An inbox link someone guessed or kept (/demo/inbox gave Page not found, 12 Nov): the same place. */}
+        <Route path="/inbox" element={<Moved to="/feedback" />} />
         <Route path="/feedback" element={<Feedback onSend={() => window.dispatchEvent(new Event('faro:send-feedback'))} />} />
         <Route path="/workspace/cycles/next" element={<StartNext />} />
         <Route path="/workspace/cycles" element={<WorkspaceHome section="cycles" />} />

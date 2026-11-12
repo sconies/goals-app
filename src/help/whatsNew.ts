@@ -35,6 +35,41 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import', 'new-goal'],
   },
   {
+    id: 'room-agrees-with-limit',
+    date: '2026-11-12',
+    title: 'A number kept in range: two cells that agree',
+    points: [
+      'On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.',
+      'A number exactly the warning margin inside its limit is not near: both cells now say so.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
+    id: 'home-asks-first',
+    date: '2026-11-12',
+    title: 'Home starts with what is asked of you today, and is quiet when nothing is',
+    points: [
+      'Home leads with one thing: your check-ins the day before they are due or once late, the wrap-up, or a review you’re in on its day. It is the page’s one big button.',
+      'When nothing is asked of you, Home says so in one line, with when your next check-ins are due, and has no big button.',
+      'Your goals are counted once, in Your goals, and each count opens exactly those goals.',
+      'What’s new in Faro is now a line at the foot of Home.',
+    ],
+    articles: ['home'],
+  },
+  {
+    id: 'admins-triage-and-start-over',
+    date: '2026-11-12',
+    title: 'Where one workspace ends, and who you are there',
+    points: [
+      'The switcher at the top of the sidebar says Switch. A workspace you can’t open yet lists the others.',
+      'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”',
+      'About says what a workspace is, in one sentence, under its name.',
+      'Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.',
+      'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
+    ],
+    articles: ['inbox', 'demo', 'workspace'],
+  },
+  {
     id: 'polish-layout-switch',
     date: '2026-11-12',
     title: 'Board and Table line up straight away',
