@@ -116,7 +116,7 @@ export const andList = (list: string[]) => (list.length < 2 ? list.join('') : `$
 
 export const TYPE_WORDS: Words<Goal['kind']> = { what: 'Type', word: { metric: 'metric', range: 'range', milestone: 'milestone' }, also: { metric: ['move a number', 'number'], range: ['keep a number in range', 'keep in range'], milestone: ['hit dated stages', 'stages'] }, prefix: { metric: ['metric', 'move'], range: ['range', 'keep'], milestone: ['mile', 'hit'] } };
 export const SHAPE_WORDS: Words<PlanShape> = { what: 'Plan', word: { straight: 'straight', back: 'back-loaded', stepped: 'stepped' }, also: { straight: ['linear', 'straight line'], back: ['back', 'backloaded', 'back loaded'], stepped: ['steps', 'step'] } };
-export const BOUND_WORDS: Words<'atMost' | 'atLeast'> = { what: 'Must stay', word: { atMost: 'at most', atLeast: 'at least' }, also: { atMost: ['atmost', 'max', 'maximum', '<=', '≤', 'below'], atLeast: ['atleast', 'min', 'minimum', '>=', '≥', 'above'] } };
+export const BOUND_WORDS: Words<'atMost' | 'atLeast' | 'between'> = { what: 'Must stay', word: { atMost: 'at most', atLeast: 'at least', between: 'between' }, also: { atMost: ['atmost', 'max', 'maximum', '<=', '≤', 'below'], atLeast: ['atleast', 'min', 'minimum', '>=', '≥', 'above'] } };
 export const YES_WORDS: Words<'yes' | 'no'> = { what: 'Admin', word: { yes: 'yes', no: 'no' }, also: { yes: ['y', 'true', '1', 'x', 'admin'], no: ['n', 'false', '0'] } };
 export const CALL_WORDS: Words<Status> = {
   what: 'Call',
@@ -212,7 +212,7 @@ export const GOALS: SheetSpec<GoalRow> = {
     e('Plan from week', 'Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).', (r) => { const g = metricOf(r.g); return g ? g.plan.fromWeek ?? 0 : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('To', 'Number goals: the week the target is due (2027-W13).', (r) => { const g = metricOf(r.g); return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
     e('Due week', 'Number goals: the week the target is due, counted from the cycle’s start.', (r) => { const g = metricOf(r.g); return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null; }, 'Changes the plan; needs a reason once check-ins have started'),
-    e('Limit', 'Range goals: the number it must stay within.', (r) => rangeOf(r.g)?.range.limit ?? null),
+    e('Limit', 'Range goals: the number it must stay within, or both of two (99.5–99.95).', (r) => { const g = rangeOf(r.g)?.range; return g ? (g.lower != null ? `${g.lower}–${g.limit}` : g.limit) : null; }),
     e('Must stay', `Range goals: ${oneOf(Object.values(BOUND_WORDS.word))} the limit.`, (r) => { const g = rangeOf(r.g); return g ? BOUND_WORDS.word[g.range.bound] : null; }),
     e('Margin', 'Range goals: how close to the limit counts as at risk.', (r) => rangeOf(r.g)?.range.margin ?? null),
     e('Stages', 'Milestone goals: each stage as Name@week, separated by semicolons.', (r) => or(stagesSpec(r.g))),
@@ -510,7 +510,7 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
     'Plan from week': { required: { optional: 'this week' }, format: 'A whole number of weeks from the cycle’s start', example: '46', empty: 'This week (0 when setting up a workspace)' },
     To: { required: { optional: 'the cycle’s last week' }, format: 'A year and a week, after From', example: '2026-W53', empty: 'The cycle’s last week', also: ['to week'] },
     'Due week': { required: { optional: 'the cycle’s last week' }, format: 'A whole number, after Plan from week; a date in the cycle is read as its week', example: '53', empty: 'The cycle’s last week', clears: true, also: ['due', 'deadline week'] },
-    Limit: { required: { for: ['range'] }, format: 'A number', example: '5', empty: 'Must fix for a range goal' },
+    Limit: { required: { for: ['range'] }, format: 'A number, or two (99.5–99.95, 99.5 to 99.95)', example: '5', empty: 'Must fix for a range goal' },
     'Must stay': { required: { optional: BOUND_WORDS.word.atMost }, format: wordList(BOUND_WORDS), example: BOUND_WORDS.word.atMost, empty: BOUND_WORDS.word.atMost },
     Margin: { required: { optional: 'none' }, format: 'A number, zero or more', example: '0.5', empty: 'No warning margin (0)' },
     Stages: { required: { for: ['milestone'] }, format: 'Name@week; Name@week (weeks from the cycle’s start; a date in the cycle is read as its week; each stage its own name)', example: 'Design@48; Pilot@52', empty: 'Must fix for a stages goal' },

@@ -11,13 +11,14 @@ import { placesText, placesToKeep } from '../domain/numbers';
 import { answeredSince, askText, openFor } from '../domain/asks';
 import { forecastText } from '../domain/tree';
 import { currentWeek, weekDates } from '../domain/plan';
-import { fmt, gapText, targetText, weekLabel } from '../domain/format';
+import { fmt, gapText, staysText, targetText, weekLabel } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
 import { daysToReview, onTimeStreak, weekCompletion, weekDoneText, weekProgress } from '../domain/progress';
 import type { CheckIn, Goal, Ask, MilestoneGoal, Status, RecoveryState } from '../domain/types';
 import { Chip, Empty, ProgressRing, Sheet } from '../ui/bits';
 import { PickOne } from '../ui/Pick';
-import { MetricChart, RangeChart } from '../ui/charts';
+import { MetricChart } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import { CheckBlock, MustFixBlock, MustFixLine } from '../ui/Levels';
@@ -464,7 +465,7 @@ function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting,
         <section className="qsection" aria-label="This week">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
             <h2 className="qtitle">{goal.kind === 'milestone' ? 'Where does each stage stand?' : 'What’s the number this week?'}</h2>
-            {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : 'stay at or above the limit'})` : ''}</span>}
+            {goal.kind !== 'milestone' && goal.definition && <span className="small">{goal.definition}{goal.unit ? ` (${goal.unit}, ${goal.kind === 'metric' ? (goal.plan.target < goal.plan.start ? 'lower is better' : 'higher is better') : goal.range.bound === 'atMost' ? 'stay at or under the limit' : goal.range.bound === 'atLeast' ? 'stay at or above the limit' : `stay ${staysText(goal)}`})` : ''}</span>}
             {goal.source && <span className="hint">Where to get it: {goal.source}. Typed in by hand.</span>}
           </div>
           {goal.kind === 'milestone' ? <StageEditor goal={goal} draft={draft} set={set} /> : (() => {

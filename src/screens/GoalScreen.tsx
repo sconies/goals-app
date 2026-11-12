@@ -34,7 +34,8 @@ import {
 } from '../domain/goalPage';
 import type { CheckIn, DisplayStatus, Goal, MetricGoal } from '../domain/types';
 import { Avatar, Chip, Empty, LevelTag, Sheet, StatusShape, timeAgo, WarnMark } from '../ui/bits';
-import { MetricChart, QuarterMark, quarterWords, RangeChart, StageList, type Scrub } from '../ui/charts';
+import { MetricChart, QuarterMark, quarterWords, StageList, type Scrub } from '../ui/charts';
+import { RangeChart } from '../ui/rangeChart';
 import { PlanTable } from '../ui/PlanTable';
 import { ReviewBar, ReviewCallBar, useReview } from './Inspect';
 import { GoalRow, WatchButton } from '../ui/goalRows';

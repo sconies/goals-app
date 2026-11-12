@@ -32,7 +32,7 @@ Faro’s database holds these as well as the rule; a rebuild holds them wherever
 - A goal’s title has at least 3 characters (spaces at either end not counted). (`okr_goals_title_check`; the code holds it too, in `src/domain/thresholds.ts`)
 - A goal keeps 0 to 3 decimal places. (A metric may keep 4: a goal measured by it keeps fewer, and is warned.) (`okr_goals_decimals_check`)
 - A number goal has a start, a target and a plan shape, and its start and target differ. (`okr_goals_check`)
-- A range goal has a bound (at most or at least), a limit and a warning margin. (`okr_goals_check1`)
+- A range goal has a bound (at most, at least or between), a limit and a warning margin. (`okr_goals_check1`)
 - A range goal kept between two numbers has a lower number below its limit; any other range goal has no lower number. (`okr_goals_range_lower_ok`)
 - A range goal’s warning margin is 0 or more. (`okr_goals_range_margin_check`)
 - A headline goal feeds nothing. (`okr_goals_check2`)

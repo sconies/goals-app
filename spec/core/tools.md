@@ -385,9 +385,10 @@ No arguments.
         unit?: string | undefined;
         decimals?: number | undefined;
         range?: {
-            mustStay: string;
             limit: number;
             margin: number;
+            lower?: number | undefined;
+            mustStay: 'atMost' | 'atLeast' | 'between';
         } | undefined;
         plan?: {
             start: number;
@@ -551,9 +552,10 @@ No arguments.
         unit?: string | undefined;
         decimals?: number | undefined;
         range?: {
-            mustStay: string;
             limit: number;
             margin: number;
+            lower?: number | undefined;
+            mustStay: 'atMost' | 'atLeast' | 'between';
         } | undefined;
         plan?: {
             start: number;
@@ -808,8 +810,9 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
 | `to` | string | no | Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year. |
 | `due_week` | integer | no | Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year). |
-| `limit` | number | no | Keep-in-range goals: the limit. |
-| `must_stay` | one of `at most`, `at least` | no | Keep-in-range goals: which side of the limit is good. |
+| `limit` | number | no | Keep-in-range goals: the limit; for a range between two numbers, the upper one. |
+| `lower` | number | no | Keep-in-range goals between two numbers ("keep it between 99.5 and 99.95"): the lower one, below limit. Giving it makes must_stay "between". |
+| `must_stay` | one of `at most`, `at least`, `between` | no | Keep-in-range goals: which side of the limit is good, or between lower and limit. |
 | `margin` | number | no | Keep-in-range goals: how close to the limit counts as at risk. |
 | `stages` | list of string | no | Milestone goals: each stage as "Name@week", e.g. "Pilot@6". |
 | `feeds_into_id` | string | no | The ID or key (G-12) of the goal this one feeds. Empty string to unlink. |
@@ -900,14 +903,19 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     },
     "limit": {
       "type": "number",
-      "description": "Keep-in-range goals: the limit."
+      "description": "Keep-in-range goals: the limit; for a range between two numbers, the upper one."
+    },
+    "lower": {
+      "type": "number",
+      "description": "Keep-in-range goals between two numbers (\"keep it between 99.5 and 99.95\"): the lower one, below limit. Giving it makes must_stay \"between\"."
     },
     "must_stay": {
       "type": "string",
-      "description": "Keep-in-range goals: which side of the limit is good.",
+      "description": "Keep-in-range goals: which side of the limit is good, or between lower and limit.",
       "enum": [
         "at most",
-        "at least"
+        "at least",
+        "between"
       ]
     },
     "margin": {
@@ -1002,6 +1010,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -1091,8 +1100,9 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `from` | string | no | Move-a-number goals: the week the baseline (start) was true and the plan starts, as a year and a week, e.g. "2026-W46". Left out: this week for a new goal. |
 | `to` | string | no | Move-a-number goals: the week the target is due, as a year and a week, e.g. "2027-W13": up to the last week of next year. Left out: the end of this goal year. |
 | `due_week` | integer | no | Move-a-number goals: the week the target is due, counted from the cycle start (the older form of to; weeks beyond the cycle run into the next goal year). |
-| `limit` | number | no | Keep-in-range goals: the limit. |
-| `must_stay` | one of `at most`, `at least` | no | Keep-in-range goals: which side of the limit is good. |
+| `limit` | number | no | Keep-in-range goals: the limit; for a range between two numbers, the upper one. |
+| `lower` | number | no | Keep-in-range goals between two numbers ("keep it between 99.5 and 99.95"): the lower one, below limit. Giving it makes must_stay "between". |
+| `must_stay` | one of `at most`, `at least`, `between` | no | Keep-in-range goals: which side of the limit is good, or between lower and limit. |
 | `margin` | number | no | Keep-in-range goals: how close to the limit counts as at risk. |
 | `stages` | list of string | no | Milestone goals: each stage as "Name@week", e.g. "Pilot@6". |
 | `feeds_into_id` | string | no | The ID or key (G-12) of the goal this one feeds. Empty string to unlink. |
@@ -1188,14 +1198,19 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     },
     "limit": {
       "type": "number",
-      "description": "Keep-in-range goals: the limit."
+      "description": "Keep-in-range goals: the limit; for a range between two numbers, the upper one."
+    },
+    "lower": {
+      "type": "number",
+      "description": "Keep-in-range goals between two numbers (\"keep it between 99.5 and 99.95\"): the lower one, below limit. Giving it makes must_stay \"between\"."
     },
     "must_stay": {
       "type": "string",
-      "description": "Keep-in-range goals: which side of the limit is good.",
+      "description": "Keep-in-range goals: which side of the limit is good, or between lower and limit.",
       "enum": [
         "at most",
-        "at least"
+        "at least",
+        "between"
       ]
     },
     "margin": {
@@ -1285,6 +1300,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 - “Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".”
 - “…Not saved: answer … with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.
 …”
+- “A range between two numbers needs limit, the upper number, as well as lower.”
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
@@ -5574,9 +5590,10 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
         unit?: string | undefined;
         decimals?: number | undefined;
         range?: {
-            mustStay: string;
             limit: number;
             margin: number;
+            lower?: number | undefined;
+            mustStay: 'atMost' | 'atLeast' | 'between';
         } | undefined;
         plan?: {
             start: number;
