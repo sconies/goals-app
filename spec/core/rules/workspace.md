@@ -92,3 +92,6 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - set-up that tells the truth › offers the decimal places a refused number needs, and nothing for a number that fits (U3)
 - set-up that tells the truth › counts every goal set up today among the first check-ins, as Ready counts them (U6)
 - set-up that tells the truth › names no team lead at set-up, which never asks who leads a team (U7)
+- set-up that tells the truth › stops set-up on a goal whose owner is one letter out, and says why
+- set-up that tells the truth › stops set-up on a goal whose type is one letter out, and says why
+- set-up that tells the truth › still builds a row it reads on past a question, and says the question beside it

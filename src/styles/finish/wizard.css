@@ -137,3 +137,9 @@
   .plantable .input.plan-input { min-height: 44px; height: 44px; }
   .plantable td { height: 52px; }
 }
+
+/* Change a goal (goal spec 2.7): four sections, each a heading and its fields, 16px apart inside; a section opened from
+   the address (#plan) lands under the top bar, not behind it. The foot's Save changes is sticky and in the flow, so
+   the page ends with its height and the last field is never under it. */
+.goal-edit .edit-part { gap: var(--s4); scroll-margin-top: 72px; }
+.goal-edit details.edit-part > .stack { gap: var(--s4); padding-top: var(--s2); }

@@ -23,6 +23,39 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-edit-one-page',
+    date: '2026-11-12',
+    title: 'Changing a goal is one page',
+    points: [
+      'Change this goal opens one page in four sections: What it is, Plan and target, Who and where, and More details.',
+      'Save changes stays at the foot of the window and never covers what you’re typing.',
+      'One way out: Close and keep the draft. What you typed is there when you come back.',
+      'Describe it on a goal with no definition opens the page at What it is.',
+    ],
+    articles: ['edit-goal'],
+  },
+  {
+    id: 'offline-page-needs-connection',
+    date: '2026-11-12',
+    title: 'Offline, a page that hasn’t loaded says so',
+    points: [
+      'Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.',
+      'It says the page needs a connection, with Try again and Go back.',
+      'On a slow connection, such a page says “Opening…” while it loads.',
+    ],
+    articles: ['any-device'],
+  },
+  {
+    id: 'setup-near-miss-stops',
+    date: '2026-11-12',
+    title: 'Set-up says when a row is one letter out',
+    points: [
+      'Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.',
+      'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
+    ],
+    articles: ['set-up', 'check-in-table'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',

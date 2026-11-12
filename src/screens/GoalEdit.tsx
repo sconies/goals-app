@@ -1,6 +1,6 @@
 import { sameTitleNote } from '../domain/people';
-import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { dueOptions } from '../domain/year';
 import { goalDraftKey, useDraft } from '../app/drafts';
@@ -13,18 +13,21 @@ import { PlanTable } from '../ui/PlanTable';
 import { DueField, FieldError, LevelField, StageFields } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { parseNumber } from '../domain/checkin';
-import { Icon } from '../ui/Icon';
-import { goalChange } from '../domain/changes';
-import { BackLink } from '../ui/BackLink';
+import { FormClose } from '../ui/FormClose';
 import { Place, type MeasurePick } from '../core/app';
 import { Pick, PickOne } from '../ui/Pick';
+
+/** The page's sections that an address can open at. */
+const SECTIONS = ['definition', 'plan', 'owner', 'more'];
 
 const SHAPES: [PlanShape, string][] = [['straight', 'Steady'], ['back', 'Back-loaded'], ['stepped', 'In steps']];
 
 /**
- * Editing an existing goal: one short screen, for its owner or an admin. Once check-ins have started, a plan change needs
- * a reason and is flagged. The goal page's "Change this goal" opens one part of it (`?part=definition`, `plan` or
- * `owner`), and a change made there always asks why: the reason goes in the goal's activity for everyone watching.
+ * Change a goal (goal spec 2.7): one page in focus mode, for its owner or an admin, in four sections with anchors:
+ * "What it is" (`#definition`), "Plan and target" (`#plan`), "Who and where" (`#owner`) and "More details". One way out,
+ * "Close and keep the draft" (navigation spec 2.5), and "Save changes" held at the foot of the window. Once check-ins
+ * have started, a plan change needs a reason and is flagged. An old `?part=definition|plan|owner` link lands on the
+ * matching section.
  */
 export function GoalEdit() {
   const app = useApp();
@@ -46,19 +49,28 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftOf(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [params] = useSearchParams();
-  const partParam = params.get('part');
-  const part = partParam === 'definition' || partParam === 'plan' || partParam === 'owner' ? partParam : null;
-  const show = (p: 'definition' | 'plan' | 'owner') => !part || part === p;
+  const loc = useLocation();
+  // Old links opened one part of the form (`?part=plan`): they land on that section of the whole page (goal spec 1).
+  const oldPart = new URLSearchParams(loc.search).get('part');
+  useEffect(() => {
+    if (!oldPart) return;
+    const rest = new URLSearchParams(loc.search); rest.delete('part');
+    const q = rest.toString();
+    nav({ pathname: loc.pathname, search: q ? '?' + q : '', hash: SECTIONS.includes(oldPart) ? '#' + oldPart : '' }, { replace: true });
+  }, [oldPart, loc.pathname, loc.search, nav]);
+  // Opened at a section (`#plan`): scrolled there once it's drawn, and again after the shell has put the page at its top.
+  useEffect(() => {
+    const id = loc.hash.slice(1);
+    if (!SECTIONS.includes(id)) return;
+    const go = () => document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    const t = [60, 400].map((ms) => setTimeout(go, ms));
+    return () => t.forEach(clearTimeout);
+  }, [loc.hash]);
   const errors = validateGoal(d, cycle, goal);
   const err = (k: keyof GoalErrors) => tried && errors[k] ? <FieldError>{errors[k]}</FieldError> : null;
   const valid = Object.keys(errors).length === 0;
   const built = valid ? buildGoal(d, cycle, { id: goal.id, createdAt: goal.createdAt }, goal, started, week) : null;
   const replanning = !!built && started && planChanged(goal, built);
-  // Something people would see changed: what the change log would record (changes.ts), not every field the form rebuilds.
-  const edited = !!built && goalChange(goal, built, app.lookup, app.viewer.id, '', '') != null;
-  // A change made from one part of "Change this goal" says why, whatever it changes.
-  const needReason = replanning || (!!part && edited);
   // A target that flips which way is better, or a number far outside the plan, is confirmed before it's saved (domain/goal
   // planQuestion). The yes answers that question only: change the numbers again and it's asked again.
   const question = built ? planQuestion(goal, built) : null;
@@ -82,14 +94,14 @@ function EditSheet({ goal }: { goal: Goal }) {
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
   const save = async () => {
     setTried(true);
-    if (!built || saving || (needReason && !reasonOk) || !confirmed) return;
+    if (!built || saving || (replanning && !reasonOk) || !confirmed) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
-      if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
+      if (changed) await app.saveGoal(after, goal, replanning ? d.reason.trim() : undefined);
       if (measure) await app.run(measure.action, measure.input(after));
-      app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
+      app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
       back();
     } catch {
@@ -99,44 +111,40 @@ function EditSheet({ goal }: { goal: Goal }) {
 
   const label = saving ? 'Saving…' : !valid && tried ? 'Fix the highlighted fields' : 'Save changes';
   // Asked right under what changed (the numbers), not at the bottom of the section.
-  const reasonField = needReason && (
+  const reasonField = replanning && (
     <label className="field reason-field">
       <span className="field-label">Why change it?</span>
       <textarea className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={d.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="e.g. The vendor contract moved the start to week 6" aria-label="Why change it?" />
-      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">{replanning ? 'The original plan stays on the chart, dotted.' : 'It goes in the goal’s activity for everyone watching.'}</span>}
+      {tried && !reasonOk ? <FieldError>Say why, in a sentence. People watching this goal will see it.</FieldError> : <span className="hint">The original plan stays on the chart, dotted.</span>}
     </label>
   );
 
   return (
     <div className="focus goal-form goal-edit">
       <div className="focus-top">
-        <BackLink to={'/goals/' + goal.id} label={goal.title} />
-        <span />
-        <button className="iconbtn" onClick={back} aria-label="Close and keep the draft"><Icon name="close" /></button>
+        <FormClose keeps onClose={back} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
-        <h1 className="qtitle big">{part === 'definition' ? `Improve the definition: ${goal.title}` : part === 'plan' ? `Change the ${goal.kind === 'metric' ? 'plan or target' : goal.kind === 'range' ? 'limit' : 'stages'}: ${goal.title}` : part === 'owner' ? `Change the owner or level: ${goal.title}` : `Edit ${goal.title}`}</h1>
+        <h1 className="qtitle big">Change {goal.title}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
-        {show('definition') && (
-        <label className="field">
-          <span className="field-label">Name</span>
-          <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
-          {err('title')}
-          {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
-        </label>
-        )}
-        {show('definition') && <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
-        {part === 'definition' && (
-          <>
-            <label className="field"><span className="field-label">How it’s measured</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
-            <label className="field"><span className="field-label">Where the number comes from</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
-            {reasonField}
-          </>
-        )}
 
-        {show('plan') && <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="plan-h">
+        <section className="stack edit-part" id="definition" aria-labelledby="definition-h">
+          <h2 className="block-title" id="definition-h">What it is</h2>
+          <label className="field">
+            <span className="field-label">Name</span>
+            <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
+            {err('title')}
+            {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
+          </label>
+          {goal.kind !== 'milestone' && (
+            <label className="field"><span className="field-label">What it measures</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
+          )}
+          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />
+        </section>
+
+        <section className="stack edit-part" id="plan" aria-labelledby="plan-h">
           <div className="stack" style={{ gap: 'var(--s1)' }}>
-            <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan' : goal.kind === 'range' ? 'Limit' : 'Stages'}</h2>
+            <h2 className="block-title" id="plan-h">{goal.kind === 'metric' ? 'Plan and target' : goal.kind === 'range' ? 'The limit' : 'Stages'}</h2>
             {started && <span className="hint">Check-ins have started, so a change here needs a reason. Watchers see it flagged.</span>}
           </div>
           {goal.kind === 'metric' && (
@@ -186,11 +194,10 @@ function EditSheet({ goal }: { goal: Goal }) {
               onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
           )}
           {goal.kind !== 'metric' && reasonField}
-          {part === 'plan' && goal.kind === 'metric' && !replanning && reasonField}
-        </section>}
+        </section>
 
-        {show('owner') && <section className="stack" style={{ gap: 'var(--s4)' }} aria-labelledby="fit-h">
-          <h2 className="block-title" id="fit-h">Owner and links</h2>
+        <section className="stack edit-part" id="owner" aria-labelledby="owner-h">
+          <h2 className="block-title" id="owner-h">Who and where</h2>
           <div className="pair">
             <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => id && set({ ownerId: id })} />
             <PickOne kind="team" label="Team" value={d.teamId || null} onChange={(id) => id && set({ teamId: id })} />
@@ -205,21 +212,23 @@ function EditSheet({ goal }: { goal: Goal }) {
               <textarea className="input" rows={2} value={d.whyHelps} onChange={(e) => set({ whyHelps: e.target.value })} placeholder="What should change in the goal it feeds, and why" />
             </label>
           )}
-          {part === 'owner' && reasonField}
-          {!part && <details className="disclose"><summary>More details</summary>
+        </section>
+
+        <details className="disclose edit-part" id="more" open={loc.hash === '#more' || (tried && !!errors.effect) || undefined}>
+          <summary>More details</summary>
+          <div className="stack">
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="field-label">How much it moves “{parent?.title}”</span>
                 <input className="input" inputMode="decimal" value={d.effect} onChange={(e) => set({ effect: e.target.value })} />{err('effect')}
               </label>
             )}
             <label className="check"><input type="checkbox" checked={d.guardrail} onChange={(e) => set({ guardrail: e.target.checked })} /><span>It’s a guardrail</span></label>
-            <label className="field"><span className="field-label">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} /></label>
-            <label className="field"><span className="field-label">Definition</span><textarea className="input" rows={2} value={d.definition} onChange={(e) => set({ definition: e.target.value })} /></label>
-          </details>}
-        </section>}
+            <label className="field"><span className="field-label">Data source</span><input className="input" value={d.source} onChange={(e) => set({ source: e.target.value })} placeholder="Where the number comes from" /></label>
+          </div>
+        </details>
 
         <div className="focus-foot">
-          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (needReason && !reasonOk) || !confirmed))}>{label}</button>
+          <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk) || !confirmed))}>{label}</button>
         </div>
       </form>
     </div>

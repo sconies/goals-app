@@ -41,7 +41,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** F9, U7
+- **Journeys and checks:** F9, U7, U136
 
 ### CHART-READ
 
@@ -370,6 +370,13 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 - **Rule:** [A goal’s history](rules/goal-history.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
+
+### GOAL-EDIT-PAGE
+
+Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section.
+
+- **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U136
 
 ### GOAL-SAYS
 
@@ -1076,7 +1083,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Help:** “Getting around” (`getting-around`)
-- **Journeys and checks:** U72
+- **Journeys and checks:** U72, U136
 
 ## Finding
 
@@ -1092,7 +1099,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U84, U91
+- **Journeys and checks:** F11, N12, U63, U84, U91, U136
 
 ### FIND-ANYWHERE
 
@@ -1149,7 +1156,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8

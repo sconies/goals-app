@@ -11,7 +11,9 @@
    (the browser's own "Failed to load resource" network line is not the app's) and sends at most a request or two.
    [STALE-RELOAD] (review F16) when a part of the build has gone since the tab loaded (the Map's file answers 404, as
    after a deploy), the page reloads itself once at the same address and the Map draws; when it is still gone after
-   that reload, the page shows "Something went wrong" instead of reloading again. */
+   that reload, the page shows "Something went wrong" instead of reloading again. Offline (#167's review), opening Help,
+   a part that loads when opened, reloads nothing: the page says it needs a connection, and Try again opens Help once
+   the connection is back. */
 const SIZES = [[390, 844, true], [1280, 800, false]];
 const SECRET = 'Quokka-marmalade-5521';
 const TODAY = '2026-11-05';
@@ -191,6 +193,34 @@ module.exports = {
           fail(loads === 2, `[STALE-RELOAD] the Map's file still gone: expected one reload then the error page, saw ${loads} page loads`);
         }
       } catch (e) { fail(false, `[STALE-RELOAD] gone ${gone === 1 ? 'once' : 'for good'}: ${String(e.message || e).split('\n')[0]} (${loads} loads, ${refused} refused)`); }
+      await c.close();
+    }
+
+    // ---------- Offline (#167's review): a part that loads when opened says it needs a connection; no reload ----------
+    {
+      const c = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+      const p = await c.newPage();
+      p.setDefaultTimeout(8000);
+      let loads = 0;
+      p.on('load', () => { loads++; });
+      try {
+        await p.goto(url('/'));
+        await p.locator('main').first().waitFor();
+        await c.setOffline(true);
+        // In the app, not a new page load: as a click on "Help with this page" does.
+        await p.evaluate(() => { history.pushState({}, '', '/demo/help'); dispatchEvent(new PopStateEvent('popstate')); });
+        await p.getByText('This page needs a connection').waitFor({ timeout: 10000 });
+        await p.waitForTimeout(1000);
+        fail(loads === 1, `[STALE-RELOAD] offline: expected no reload, saw ${loads} page loads`);
+        await p.getByRole('button', { name: 'Try again' }).click();
+        await p.getByText('Still offline').waitFor();
+        fail(loads === 1, `[STALE-RELOAD] offline: Try again reloaded while still offline (${loads} page loads)`);
+        await c.setOffline(false);
+        await p.getByRole('button', { name: 'Try again' }).click();
+        await p.waitForURL(/\/demo\/help/);
+        await p.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 10000 });
+        fail(!(await p.getByText('This page needs a connection').count()), '[STALE-RELOAD] back online, Try again still shows the offline page');
+      } catch (e) { fail(false, `[STALE-RELOAD] offline: ${String(e.message || e).split('\n')[0]} (${loads} loads)`); }
       await c.close();
     }
     return fails;

@@ -191,11 +191,11 @@ module.exports = {
       await c.close();
     }
 
-    // Edit goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
+    // Change a goal at 1280: heading (18), level (17), reason under the numbers (19), focus never under the footer (1).
     {
       const [c, p] = await open(1280, 900, 'tariq', '/goals/ns-ai/edit');
       const h1 = p.locator('h1');
-      if (((await h1.textContent()) || '') !== 'Edit Pull requests with AI-assisted review' || (await css(h1, 'fontSize')) !== '22px') f('(18) Edit goal has no 22px h1 with the goal name');
+      if (((await h1.textContent()) || '') !== 'Change Pull requests with AI-assisted review' || (await css(h1, 'fontSize')) !== '22px') f('(18) Change a goal has no 22px h1 with the goal name');
       const lv = p.locator('.seg[aria-labelledby="level-l"] button[aria-pressed]');
       if ((await lv.count()) !== 3 || (await p.locator('.optlist').count())) f('(17) Level is not the wizard\'s segmented control');
       await p.getByLabel(/^Target/).fill('85'); await p.waitForTimeout(150);
@@ -207,7 +207,7 @@ module.exports = {
       const vals = await p.getByLabel(/^Plan for week \d+/).evaluateAll((es) => es.map((e) => e.value));
       if (!vals.length || vals.some((v) => !/^\d+$/.test(v))) f(`(15) Edit plan numbers are not to the goal's decimals (${vals.slice(0, 3).join(', ')})`);
       await p.locator('summary', { hasText: 'More details' }).click();
-      for (const lab of ['Data source', 'Definition']) {
+      for (const lab of ['Data source', 'What it measures']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
         const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));

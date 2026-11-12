@@ -1694,6 +1694,17 @@ journey('U21', ['BULK-EDIT'], 'Type the week’s numbers in one table, and chang
   h.set('attention', true);
   h.set('logged', s.changes.filter((c) => c.diffs.some((d) => d.field === 'Via' && d.to === 'Bulk edit')).length >= 4, 'bulk changes were not logged on each goal');
   await p.context().close();
+  // A number typed with a decimal comma, as someone's own locale writes it, posts as a decimal (IM2 review): the grid is
+  // a screen, not a file, so it asks nothing about it.
+  const j = h.use(await newPage(device, 'julia'));
+  await j.goto(url('/quick-check-in'));
+  const onboard = g21('devsat-onboard'), typed = valueAt(onboard, NOW).replace('.', ',');
+  await h.fill(j.getByLabel(/Days for a new engineer to merge a first change: this week’s number/), typed);
+  await h.click(j.getByRole('button', { name: 'Post 1 check-in' }));
+  await see(j, 'Posted from the table');
+  const sj = await h.snapshot();
+  h.set('finish', typed.includes(',') && sj.checkIns.some((c) => c.goalId === 'devsat-onboard' && c.week === NOW && c.value === Number(typed.replace(',', '.'))), `“${typed}” typed in the grid was not posted as a decimal`);
+  await j.context().close();
 });
 
 journey('U22', ['MCP-TOKENS'], 'MCP access: an admin gives a teammate an MCP token, then revokes it; a builder token made before is labelled apart', 10, async (h, device) => {
@@ -4606,6 +4617,47 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.locator('.goal-bar').waitFor();
   h.set('progress', !(await bar.getByRole('button', { name: /^Watch/ }).count()), 'the owner is offered Watch');
   await see(p.locator('.about'), 'Owners don’t need to watch their own goals.', 'About does not say why an owner has no Watch');
+  await p.context().close();
+}, []);
+
+journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
+  const p = h.use(await newPage(device, 'rhea'));
+  // An old link to one part of the form lands on that section of the one page, and the address says so.
+  await p.goto(url('/goals/ns-lead/edit?part=plan'));
+  await p.waitForURL(/\/goals\/ns-lead\/edit\?today=[^#]*#plan$/, { timeout: 5000 }).catch(() => fail(`?part=plan did not become #plan (${p.url()})`));
+  await see(p, 'Change Lead time for changes');
+  await p.waitForTimeout(500);
+  await h.inView(p.getByRole('heading', { name: 'Plan and target' }), 'entry', 'Plan and target, opened from ?part=plan');
+  const heads = await p.locator('.goal-edit .edit-part').evaluateAll((es) => es.map((e) => `${e.id}:${(e.querySelector('h2, summary')?.textContent || '').trim()}`));
+  const want = ['definition:What it is', 'plan:Plan and target', 'owner:Who and where', 'more:More details'];
+  if (heads.join('|') !== want.join('|')) fail(`the sections read ${heads.join(', ')}`);
+  // One way out, in words; no second exit.
+  const exits = await p.locator('.focus-top').getByRole('button').count() + await p.locator('.focus-top a').count();
+  h.set('attention', exits === 1 && await p.getByRole('button', { name: 'Close and keep the draft' }).isVisible() && !(await p.getByRole('link', { name: /^Back to/ }).count()), `the edit page has ${exits} ways out`);
+  await see(p, 'Check-ins have started, so a change here needs a reason. Watchers see it flagged.');
+  // A new target asks why; Save changes is in view at the foot and the reason box, focused, is not under it.
+  await h.fill(p.getByLabel(/^Target/), '20');
+  const reason = p.getByLabel('Why change it?');
+  await reason.focus();
+  await p.waitForTimeout(250);
+  const [rb, fb] = [await reason.boundingBox(), await p.locator('.focus-foot').boundingBox()];
+  const vh = p.viewportSize().height;
+  h.set('progress', !!rb && !!fb && rb.y + rb.height <= fb.y && fb.y + fb.height <= vh + 1, `the reason box (${rb && Math.round(rb.y + rb.height)}) is under Save changes (${fb && Math.round(fb.y)}), or the bar is off the screen`);
+  await h.inView(p.getByRole('button', { name: 'Save changes' }), 'progress', 'Save changes, held at the foot');
+  await h.checkpoint('plan');
+  // Closing keeps the draft: back on the goal, nothing saved; opened again, the new target is there.
+  await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
+  await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
+  const s = await h.snapshot();
+  h.set('logged', s.goals.find((g) => g.id === 'ns-lead').plan.target !== 20, 'closing saved the change');
+  await p.goto(url('/goals/ns-lead/edit') + '#owner');
+  await see(p, 'Restored your unsaved edits', 'closing did not keep the draft');
+  h.set('finish', (await p.getByLabel(/^Target/).inputValue()) === '20', 'the kept draft lost the new target');
+  await p.waitForTimeout(500);
+  // #owner opens at Who and where; its owner is a find-and-pick, not a list.
+  await h.inView(p.getByRole('heading', { name: 'Who and where' }), 'entry', 'Who and where, opened from #owner');
+  h.set('errors', await p.getByRole('button', { name: /^Owner: Rhea Kapoor\. Change$/ }).isVisible() && await p.getByRole('button', { name: /^Feeds into\b/ }).first().isVisible(), 'the owner or Feeds into is not a find-and-pick');
+  await h.checkpoint('owner');
   await p.context().close();
 }, []);
 
