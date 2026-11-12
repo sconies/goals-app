@@ -94,6 +94,10 @@ describe('MCP server', () => {
     expect(ids(await call('find_goals', {}))).toEqual(all);
     // A scope narrows the other filters, and they narrow it.
     expect(ids(await call('find_goals', { scope: 'team', status: 'off' })).every((id) => team.includes(id))).toBe(true);
+    // A Goals link's scope= is read too (build review of #116); the scope argument wins over it.
+    expect(ids(await call('find_goals', { query: 'scope=mine' }))).toEqual(ids(await call('find_goals', { scope: 'mine' })));
+    expect(ids(await call('find_goals', { query: '/goals?scope=team&status=off' }))).toEqual(ids(await call('find_goals', { scope: 'team', status: 'off' })));
+    expect(ids(await call('find_goals', { query: 'scope=mine', scope: 'all' }))).toEqual(all);
   });
 
   it('says why a scope someone doesn’t have finds nothing, and refuses a scope that doesn’t exist', async () => {
