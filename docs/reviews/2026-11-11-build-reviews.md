@@ -74,6 +74,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #198 Metrics: the build review's findings on ML2 and ML3 | 3 | 0 | 0 | 0 |
 | #201 Backlog: NR | planning | 0 | 0 | 0 |
 | #197 Goal entry review fixes | 2 | 0 | 0 | 0 |
+| #195 IM4: past imports | 3 | 0 | 4 | 7 |
 
 **High findings, and where each stands**
 
@@ -809,3 +810,26 @@ Takes #186's medium, #189's two mediums and three of its lows, and #129's medium
 - the engine asks when a row clears a unit, the saving rule records only past stages as done, and MCP reads the engine's list of question kinds.
 
 No finding. Still open with track 2: #129's 1 (Continue goes dead after "Change" on Check) and 6 (Check cuts its values to one line), #184's two lows, #189's "confirm writes Checked" low, the stale-draft medium (GE4), and all of #194's.
+
+### #195 IM4: past imports (track 3, merged 13:51 UTC, 12 Nov)
+
+Read first by a separate reviewing session, on screen at 1440, 390 and 360 and with throwaway tests; nothing here was re-run by this reviewer. No high finding.
+
+**1. Medium. An import that only changes or adds a team cannot be undone from the app, and the Undo sheet says something untrue.** `undoImport` counts goals, check-ins and people as restored (`src/domain/removal.ts:557`); teams, reviews and asks are put back but not counted. `PastImports.tsx:62` shows Undo only above 0, and `src/ui/UndoImport.tsx:56-63` says "Nothing left to undo: all 0 rows have changed since." A People file changing one team's objective: no Undo button, though the MCP tool would undo it. Fix: count every kind the plan puts back, and test on whether the commit is empty.
+
+**2. Medium. A partial Undo leaves live goals feeding a goal it has just deleted.** Each added goal is judged alone (`removal.ts:495-503`), never by whether a kept goal still has it as parent, and `deleteGoal`'s `detach` (`:248`) is skipped. Import adds a parent and child, someone changes the child's target, Undo: the child stays live under a removed parent. The same happens, unnamed, when a later import added the child. Fix: keep and name the parent, or detach as a delete does.
+
+**3. Medium. Undo removes a person the import added even when they now lead a team** (`removal.ts:520-524` checks only actions and owned goals). After Undo, CI/CD was led by a removed person with nothing skipped. Reviews and asks follow the same lines (read).
+
+**4. Medium. Past imports labels three kinds of entry wrongly** (`importName`, `removal.ts:587-592`). A corrected check-in from the form is listed as "A spreadsheet"; adding emails on People is "Bulk edit on Goals"; the page's own line does not mention corrected check-ins.
+
+**Lows.**
+- Undoing two imports newest first leaves the older one stuck: the first Undo's own changes count as "changed since" (`removal.ts:487-488`).
+- "Saved n changes" and "n rows go back" count different things ("1 goal deleted" becomes 2 rows).
+- After Save, Check flashes "Nothing has been saved" with new Must fix groups for about 270 ms before Imported appears (dev server).
+- A search with no match on Past imports shows a blank list with no words (`PastImports.tsx:36-39`).
+- "Undo this import" in Activity is 32 px high on a phone.
+- Wording: "1 of its 3 rows have changed since"; "undid loaded a spreadsheet"; the Undo hint shown to someone who cannot undo.
+- The rule page says MCP says "Nothing left to undo"; the tool says "Undo would put back 0 rows" and then marks the import undone (read).
+
+**Checked and fine.** Undo twice, by a non-author, and of an old import are refused. The sheet, the toast and the store agree. Rows changed since are skipped and named, never overwritten. A person marked as left and a goal deleted by a row's Action come back whole, with links, reviews and asks. `asBefore` is used for every kind with removal fields. The screen and `undo_import` call the same rule. The Undo is confirmed in a sheet that says what it will do; no stripes, pills or emoji. **Unconfirmed:** a goal added by an import and then watched or carried into next year.
