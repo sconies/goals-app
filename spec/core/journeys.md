@@ -126,6 +126,7 @@ Per-area checks from the fit-and-finish reports.
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 | F16 | New goal fits a phone: first field and Continue on the first screen, no step over two screens, 44 px controls (F16) | `NEW-GOAL-STEPS` `GOAL-CREATE` | `evals/finish/11-new-goal-phone.cjs` |
 | N12 | Held at company size: ${SIZE.people.toLocaleString('en-GB')} people, ${SIZE.teams.toLocaleString('en-GB')} teams and ${SIZE.goals.toLocaleString('en-GB')} goals; no select of everything, pickers within ${PICKER_MS} ms, list bars within ${LIST_MS} ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
+| P19 | The import’s preview keeps the design rules: Must fix and Check are words with the warning mark, a full outline and no stripe, plain counts, no capsules, no emoji | `IMPORT-PREVIEW` `DESIGN-RULES` | `evals/finish/18-import-design.cjs` |
 
 ## Review notes
 

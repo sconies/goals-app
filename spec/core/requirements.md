@@ -513,7 +513,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, F15, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -739,7 +739,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
-- **Journeys and checks:** U46
+- **Journeys and checks:** U46, U89
 
 ## Demo
 
@@ -941,7 +941,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6
+- **Journeys and checks:** F11, P6, P19
 
 ### SHAPE-MATCHES-WORD
 
