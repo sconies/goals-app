@@ -77,7 +77,7 @@ function guide(all: Stage[], rows: Record<string, number>): string {
     '',
     `**What the kit fully supports today:** ${drills.length === 1 ? `stage ${drills[0]!.n} only` : `stages ${drills.map((s) => s.n).join(', ')}`}. Stage 1 has everything a rebuild needs in this folder: the records it reads, the rules in plain words with worked examples, the conformance data for every goal in every week of the demo workspace (${Object.values(rows).reduce((a, b) => a + b, 0)} rows in five files, one of them every check-in judged again by what a check-in must say), and a harness that runs a rebuild and scores it. Only Numbers and names is shown by worked examples alone, with no conformance rows.`,
     '',
-    '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it.',
+    '**Copying the code instead of rebuilding it?** The stage for that is [swap the outside parts](adapters.md): write an adapter for each part of the outside world your platform provides (the database, sign-in, files, where numbers come from), until its contract test passes. It sits beside the numbered stages, not after them: a team that copies Faro does it first and may need none of the others. Its goals store is the demo-scale port: before building on it for the whole company, read [the ports at company scale](ports-at-scale.md), the query and command ports that replace it. And before copying anything, read [don’t copy this](dont-copy.md): what is right for a demo and wrong for the internal app.',
     '',
     '**What is an outline:** every other stage. Their pages say what to build and what proves it, so a rebuild can start, but the proof is by hand, and each lists the gaps where the kit doesn’t yet hold what a rebuild needs. Each grows a drill as the kit grows (backlog item 8k: every item adds its module’s stage and runs its drill).',
     '',
@@ -362,6 +362,27 @@ export const CONTRACT_MAP: [string, string][] = [
   ['resets the example only when it has one', 'Not carried across: the example, `hasExample` and `resetExample` are the demo’s plumbing. They stay with the demo’s own store.'],
 ];
 
+/** AS part 3 (deep review A7): what a team copying Faro should leave behind, each with what to do instead. */
+const dontCopy = () => GENERATED + [
+  '# Don’t copy this',
+  '',
+  'Things in Faro that are right for a demo, or a shortcut taken on purpose, and wrong to carry into the internal app. Each says what Faro does, why, and what to do instead. The rest of the kit says what *to* copy.',
+  '',
+  '| In Faro | Why it is so | Instead |',
+  '|---|---|---|',
+  '| `api/mcp.js`, the AI tools’ server, is a 1.5 MB built bundle committed to the repository; CI fails a pull request that changes `server/` without rebuilding it (`npm run build:mcp`) | The host finds a function by its file before any build runs, so the built file has to be there | Build the server in your pipeline and deploy what it builds. Never commit a build: it conflicts on every merge and hides what changed |',
+  '| One browser bundle, its first download held to a budget by `scripts/check-bundle.mjs` (over 300 KB compressed), with screens a first visit doesn’t need loaded when opened | The demo grew one screen at a time; the budget stops it growing and each release pays for what it adds | [R4](../requirements/internal/r4-scale-and-safety.md)’s budget is 300 KB for the first screen. Split by route from the start, and load each feature module only when it is switched on and opened |',
+  '| The goals store loads a whole workspace into the browser, and the rules read it (`Store.load`, `Snapshot`) | 126 goals load in a moment, and every rule stays a pure function over plain rows | Read through [the query and command ports](ports-at-scale.md): paged summary rows in, one action and its input out, the server setting the actor, time and ids |',
+  '| The actions run in the browser; the database only checks each row’s workspace and the version of a goal or review (`okr_commit`) | Faro has no server of its own beyond the AI tools’ endpoint | Run `src/domain/actions` on the server ([R1](../requirements/internal/r1-sign-in-and-access.md)): the browser asks, the server decides |',
+  '| Demo plumbing beside the store port: the example workspace, resetting it and its storage key (`hasExample`, `resetExample` in `src/data/store.ts`) | The demo is the product people try first | Keep demo data out of the port: a seeding script for a test environment, never a method every adapter must carry |',
+  '| Goal keys are worked out twice: in TypeScript before the save (`src/domain/goalKey.ts`) and by a database trigger at the save (migration 0021) | Two people adding goals at once must not get one key; the app shows a key before the database has given one | Give keys in one place, the server, and show “saving…” until it answers |',
+  '| Sign-in by a link to one of the demo’s people, and access rules written for a demo ([access today](access-today.md)) | Anyone can try every role in a minute | Your platform’s single sign-on and roles ([R1](../requirements/internal/r1-sign-in-and-access.md)); nothing of the demo’s access survives |',
+  '| The rules’ words are hand-written beside their worked examples (`src/spec/rules.ts`) | The examples run against the code, so a wrong number fails the spec | Copy the rules and their examples; treat the prose as a draft to check. The examples can’t drift; the sentences can |',
+  '',
+  'The scorecard’s words are scored in a file of their own (`scorecard-words.csv`, when asked): a rebuild in other words, or another language, still scores the rules in `scorecard.csv`.',
+  '',
+].join('\n');
+
 const portsAtScale = () => GENERATED + [
   '# The ports at company scale',
   '',
@@ -481,6 +502,7 @@ export function rebuildFiles(mods: ModuleWithRebuild[], rows: Record<string, num
     'spec/rebuild/stage-3-core-screens.md': stage3(),
     'spec/rebuild/adapters.md': adapters(browser),
     'spec/rebuild/ports-at-scale.md': portsAtScale(),
+    'spec/rebuild/dont-copy.md': dontCopy(),
     'spec/rebuild/drill.mjs': '// Generated by npm run spec from scripts/drill.mjs. Edit that file, not this copy.\n' + harness,
   };
   for (const s of all) if (s.module) out[`spec/rebuild/${s.file}`] = moduleStage(s, mods.find((m) => m.id === s.module)!, all);

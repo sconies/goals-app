@@ -15,7 +15,7 @@ import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
-import { MODULE_RECORDS } from '../core/records';
+import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
@@ -754,7 +754,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
-      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, MODULE_RECORDS),
+      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, recordsOn(ws)),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
       pinView: async (id, pinned) => { await run('pinView', { viewId: id, pinned }); },
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },

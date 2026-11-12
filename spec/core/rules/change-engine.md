@@ -105,6 +105,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a typed cell is the same as what was written › compares numbers at the column’s written precision, never with a tolerance
 - one reader › reads RFC 4180 CSV in one pass: quotes, doubled quotes, line breaks in a cell, a byte-order mark, CRLF
 - one reader › knows each sheet by its header, whatever the file is called
+- a module’s own sheet in a file loaded back (AS part 3) › is named as written for reading, not called unknown
 
 ### [src/domain/removal.test.ts](../../../src/domain/removal.test.ts)
 
