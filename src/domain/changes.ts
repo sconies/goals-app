@@ -16,6 +16,8 @@ const shapeName = { straight: 'Straight line', back: 'Back-loaded', stepped: 'Th
 function goalFields(g: Goal, l: Lookup): Record<string, string> {
   const f: Record<string, string> = {
     Name: g.title,
+    // Proposed (GE10): so proposing a goal, or making it active, is a change History shows.
+    State: g.proposedAt ? 'Proposed' : '—',
     Type: kindLabel(g),
     Team: l.teamName(g.teamId),
     Owner: l.person(g.ownerId)?.name ?? g.ownerId,

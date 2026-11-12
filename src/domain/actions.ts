@@ -3,6 +3,7 @@
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
 import { mayChangeGoal, mayPostCheckIn } from './goalRights';
+import { withProposed } from './proposed';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
@@ -252,7 +253,7 @@ export function newReview(x: ActionContext, v: { name: string; everyWeeks: numbe
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
     you stopped watching brings the same watch back (one watch per person and thing). */
 export function watch(x: ActionContext, kind: Watch['kind'], ref: string): Commit | null {
-  if (kind === 'level' ? !isLevel(x.cycle, ref) : !x.snapshot.goals.some((g) => g.id === ref)) no(kind === 'level' ? `There’s no level called “${ref}” here. The levels are ${levelsOf(x.cycle).map((l) => `${l.name} (${l.id})`).join(', ')}.` : 'There’s no goal with that ID in this cycle.');
+  if (kind === 'level' ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no(kind === 'level' ? `There’s no level called “${ref}” here. The levels are ${levelsOf(x.cycle).map((l) => `${l.name} (${l.id})`).join(', ')}.` : 'There’s no goal with that ID in this cycle.');
   if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
   const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
   return { watches: [old ? { ...old, removedAt: null, removedBy: null } : { id: x.newId('w'), personId: x.actor.id, kind, ref }], changes: [] };
@@ -350,7 +351,8 @@ export function startNextCycle(x: ActionContext): { commit: Commit; name: string
     no(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made!.at.slice(0, 10))}` : ''}.`);
   }
   const map = new Map<string, string>(); // old goal id → its copy's
-  const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: (g) => { const id = x.newId('goal'); map.set(g.id, id); return id; } }, x.now);
+  // Proposed goals carry as proposed (rule 14), so they go in beside the judged ones.
+  const next = nextCycle(x.cycle, withProposed(x.snapshot), x.snapshot.checkIns, x.snapshot.retros ?? [], { cycle: x.newId('cycle'), goal: (g) => { const id = x.newId('goal'); map.set(g.id, id); return id; } }, x.now);
   const rb = startReadBack({ cycle: x.cycle, next: { name: next.cycle.name, firstDay: cycleDates(next.cycle).firstDay, weeks: next.cycle.weeks }, goals: x.snapshot.goals, checkIns: x.snapshot.checkIns, retros: x.snapshot.retros ?? [] });
   const finish = rb.finish + rb.openFinish;
   const parts = [`${rb.carried} ${rb.carried === 1 ? 'goal carries' : 'goals carry'} on`, ...(finish ? [`${finish} finish`] : []), ...(rb.stop ? [`${rb.stop} stop`] : [])];
