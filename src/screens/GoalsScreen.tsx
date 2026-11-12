@@ -37,6 +37,8 @@ import { ATTENTION, HANDLED_LINE } from '../domain/vocabulary';
 
 // The map loads only when someone opens it, so the rest of the app stays small.
 const GoalMap = lazy(() => import('./GoalMap').then((m) => ({ default: m.GoalMap })));
+// Proposed goals (GE10) are listed only with the State filter on: loaded then.
+const ProposedList = lazy(() => import('./ProposedList').then((m) => ({ default: m.ProposedList })));
 
 type Show = 'outcomes' | 'attention' | 'levels' | 'teams' | 'mine' | 'watching';
 
@@ -206,6 +208,21 @@ export function GoalsScreen() {
   // The phone's one button for how the goals are seen: "View: List, as trees"; "View: Board"; "View: Map".
   const viewSays = `View: ${layoutName(layout)}${!onMap && !switchOn && group !== 'none' ? `, ${groupWord.toLowerCase()}` : ''}`;
   const viewItems = views.map((v) => ({ label: v.name + (v.pinned ? ' · pinned' : ''), current: activeView?.id === v.id, onClick: () => openView(v) }));
+  // Proposed goals (GE10): never among these, counted apart in the count line, and listed with the State filter on.
+  const proposedHere = (app.snapshot.proposed ?? []).filter((g) => scope === 'all' || (scope === 'mine' ? g.ownerId === app.viewer.id
+    : scope === 'team' ? facts.teams.some((t) => t.id === g.teamId) : watchedGoals(app.viewer.id, { ...app.snapshot, goals: [...app.snapshot.goals, g] }).some((w) => w.id === g.id)));
+  const stateOn = params.get('state') === 'proposed';
+  const setState = (on: boolean) => { const p = latest(); if (on) p.set('state', 'proposed'); else p.delete('state'); setParams(p); };
+  const proposedLink = proposedHere.length > 0 ? <> · <a className="linkish proposed-count" href="?state=proposed" onClick={(e) => { e.preventDefault(); setState(true); }}>{proposedHere.length} proposed</a></> : null;
+  if (stateOn) return (
+    <div className="page goals-page" data-part="Goals">
+      <div className="page-head row between goals-head">
+        <span className="goals-title"><h1 className="title-xl">Goals</h1><span className="hint goals-period">{periodNow(app.cycle, app.today)}</span></span>
+        <span className="actions"><Link className="btn ghost sm new-goal-quiet" to="/goals/new">New goal</Link></span>
+      </div>
+      <Suspense fallback={null}><ProposedList goals={proposedHere} onRemove={() => setState(false)} /></Suspense>
+    </div>
+  );
   return (
     <div className={frame} data-part={show === 'watching' ? 'Watching' : 'Goals'}>
       {/* A phone draws no title (its top bar names the page); this one is for screen readers there. */}
@@ -268,7 +285,7 @@ export function GoalsScreen() {
             <button type="button" className="btn view-open" aria-haspopup="dialog" onClick={() => setSheetOpen(true)}>{viewSays}</button>
           </div>
           {/* The one count line (rule 4); the filter line follows it. */}
-          {line && <p className="small goals-line" role="status">{line}</p>}
+          {(line || proposedLink) && <p className="small goals-line" role="status">{line}{proposedLink}</p>}
         </>} />}
       </div>
       {actions.sheets}

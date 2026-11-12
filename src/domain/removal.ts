@@ -8,6 +8,7 @@
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
 import { mayChangeGoal, mayPostCheckIn } from './goalRights';
+import { withdrawnSummary, withProposed } from './proposed';
 import type { Commit } from './commit';
 import { byRecarry } from './copies';
 import { NotAllowed, type ActionContext } from './actions';
@@ -237,7 +238,7 @@ export function deletePerson(x: ActionContext, id: string): Commit {
 /* ---------- goals ---------- */
 
 const liveGoal = (x: ActionContext, id: string) => {
-  const g = x.snapshot.goals.find((v) => v.id === id || v.key === id);
+  const g = withProposed(x.snapshot).find((v) => v.id === id || v.key === id);
   if (!g) no('There’s no goal with that ID in this cycle.');
   return g!;
 };
@@ -246,10 +247,10 @@ export const goalHasCheckIns = (s: Pick<Snapshot, 'checkIns'>, goalId: string) =
 
 /** What leaving the tree takes: the goals feeding it move up to what it fed, other goals stop listing it, its open asks are withdrawn. */
 function detach(x: ActionContext, g: Goal, how: 'stopped' | 'deleted') {
-  const parent = g.parentId ? x.snapshot.goals.find((v) => v.id === g.parentId) : undefined;
+  const parent = g.parentId ? withProposed(x.snapshot).find((v) => v.id === g.parentId) : undefined;
   const goals: Goal[] = [];
   const changes: Change[] = [];
-  for (const c of x.snapshot.goals) {
+  for (const c of withProposed(x.snapshot)) {
     if (c.id === g.id) continue;
     const child = c.parentId === g.id;
     const helps = c.alsoHelps?.includes(g.id);
@@ -301,7 +302,7 @@ export function deleteGoal(x: ActionContext, goalId: string): Commit {
   return {
     goals: [{ ...g, removedAt: x.now, removedBy: x.actor.id }, ...d.goals],
     ...(d.requests.length ? { requests: d.requests } : {}),
-    changes: [log(x, { entity: 'goal', entityId: g.id, goalId: g.id, action: 'removed', summary: `Deleted ${g.title}`, diffs: [{ field: 'Goal', from: g.title, to: '—' }] }), ...d.changes],
+    changes: [log(x, { entity: 'goal', entityId: g.id, goalId: g.id, action: 'removed', summary: g.proposedAt ? withdrawnSummary(g.title) : `Deleted ${g.title}`, diffs: [{ field: 'Goal', from: g.title, to: '—' }] }), ...d.changes],
   };
 }
 

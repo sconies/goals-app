@@ -1264,7 +1264,7 @@ function raiseAsk(v, now, newId) {
 	};
 	return {
 		ask: a,
-		change: change$1(a, a.goalIds[0], v.askedBy, now, newId("chg"), "asked", v.summary, [{
+		change: change$2(a, a.goalIds[0], v.askedBy, now, newId("chg"), "asked", v.summary, [{
 			field: FIELD[v.kind],
 			from: "—",
 			to: a.ask
@@ -1288,7 +1288,7 @@ function answerAsk(r, answer, by, now, newId) {
 	const summary = r.kind === "question" ? "Answered the question" : r.kind === "update" ? "Answered the ask for an update" : "Answered the request";
 	return {
 		request,
-		changes: r.goalIds.map((g) => change$1(r, g, by, now, newId("chg"), "answered", summary, [{
+		changes: r.goalIds.map((g) => change$2(r, g, by, now, newId("chg"), "answered", summary, [{
 			field: FIELD[r.kind],
 			from: "—",
 			to: r.ask
@@ -1310,7 +1310,7 @@ function markDone(r, note, by, now, newId) {
 			answeredAt: now,
 			updatedAt: now
 		},
-		changes: r.goalIds.map((g) => change$1(r, g, by, now, newId("chg"), "done", "Marked the action done", [{
+		changes: r.goalIds.map((g) => change$2(r, g, by, now, newId("chg"), "done", "Marked the action done", [{
 			field: "Action",
 			from: ASK_STATUS.open.label,
 			to: ASK_STATUS.done.label
@@ -1336,7 +1336,7 @@ function withdrawAsk(r, goalId, by, now, newId, why = ASK_STATUS.withdrawn.label
 	const summary = !own ? "No longer waiting on this request" : r.kind === "update" ? "Withdrew the ask for an update" : r.kind === "question" ? "Withdrew the question" : r.kind === "action" ? "Withdrew the action" : "Withdrew the request";
 	return {
 		request,
-		changes: [change$1(r, goalId, by, now, newId("chg"), "withdrawn", summary, own ? [{
+		changes: [change$2(r, goalId, by, now, newId("chg"), "withdrawn", summary, own ? [{
 			field: FIELD[r.kind],
 			from: r.ask,
 			to: why
@@ -1379,7 +1379,7 @@ function editAsk(r, v, people, by, now, newId) {
 	if (!diffs.length) return null;
 	return {
 		request: after,
-		changes: [change$1(r, r.goalIds[0], by, now, newId("chg"), "edited", `Corrected ${r.kind === "question" ? "a question" : r.kind === "action" ? "an action" : "the request"}`, diffs)]
+		changes: [change$2(r, r.goalIds[0], by, now, newId("chg"), "edited", `Corrected ${r.kind === "question" ? "a question" : r.kind === "action" ? "an action" : "the request"}`, diffs)]
 	};
 }
 /**
@@ -1410,7 +1410,7 @@ function requestsAfterCheckIn(goal, c, s, actorId, now, newId) {
 					updatedAt: now
 				};
 				out.push(next);
-				changes.push(change$1(next, goal.id, actorId, now, newId("chg"), "edited", "Changed the request", [{
+				changes.push(change$2(next, goal.id, actorId, now, newId("chg"), "edited", "Changed the request", [{
 					field: "Request",
 					from: same.ask,
 					to: ask
@@ -1460,7 +1460,7 @@ function linkRequest$1(r, goal, s, by, now, newId) {
 		goalIds: [...r.goalIds.filter((g) => g !== goal.id), goal.id],
 		updatedAt: now
 	};
-	const changes = [change$1(r, goal.id, by, now, newId("chg"), "linked", "Waiting on the same request as another goal", [{
+	const changes = [change$2(r, goal.id, by, now, newId("chg"), "linked", "Waiting on the same request as another goal", [{
 		field: "Waiting on",
 		from: "—",
 		to: askText(r, s.people)
@@ -1620,7 +1620,7 @@ function liveNotes(changes) {
 	}
 	return writtenNotes(changes).filter((c) => !removed.has(c.entityId));
 }
-var norm$3, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$1, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
+var norm$3, ASK_KIND_LABEL, ASK_STATUS_LABEL, asksOf, openAsksFor, openFor, openForPerson, openUpdateAsk, isOverdue, isResolved, canAnswer, canMarkDone, change$2, FIELD, UPDATE_ASK, normaliseAsk, isLegacyUpdateAsk, updateAskText;
 var init_asks = __esmMin((() => {
 	init_status();
 	init_vocabulary();
@@ -1641,7 +1641,7 @@ var init_asks = __esmMin((() => {
 	isResolved = (r) => r.status === "answered" || r.status === "done";
 	canAnswer = (r, p) => r.kind !== "action" && (!r.recipientId || r.recipientId === p.id || p.admin);
 	canMarkDone = (r, p) => r.kind === "action" && (r.recipientId === p.id || r.askedBy === p.id || p.admin);
-	change$1 = (r, goalId, actorId, at, id, action, summary, diffs) => ({
+	change$2 = (r, goalId, actorId, at, id, action, summary, diffs) => ({
 		id,
 		at,
 		actorId,
@@ -1935,9 +1935,13 @@ function newToken() {
 function mayAddGoal(_actor, _ownerId) {
 	return true;
 }
-/** Whether `actor` may change a goal (its name, plan, owner, unit or decimals): its owner, or an admin. */
+/**
+* Whether `actor` may change a goal (its name, plan, owner, unit or decimals): its owner, or an admin; and, while a goal
+* is proposed (domain/proposed isProposed: proposed, not removed or stopped), whoever proposed it (GE10, rule 14).
+*/
 function mayChangeGoal(actor, goal) {
-	return !!actor.admin || goal.ownerId === actor.id;
+	if (!!actor.admin || goal.ownerId === actor.id) return true;
+	return !!goal.proposedAt && !goal.removedAt && !goal.stoppedAt && goal.proposedBy === actor.id;
 }
 /**
 * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
@@ -1958,6 +1962,21 @@ var init_goalRights = __esmMin((() => {
 		"setup",
 		"table"
 	];
+}));
+// src/domain/proposed.ts
+/** Whether a draft says nothing yet about how it is measured: none of its type's own required fields is filled in. */
+function measureEmpty(d) {
+	if (d.kind === "metric") return !d.start.trim() && !d.target.trim();
+	if (d.kind === "range") return !d.limit.trim();
+	return !d.stages.some((s) => s.name.trim() || s.dueWeek.trim());
+}
+var PROPOSED, isProposed, judged, withProposed, withdrawnSummary;
+var init_proposed = __esmMin((() => {
+	PROPOSED = "Proposed";
+	isProposed = (g) => !!g.proposedAt && !g.removedAt && !g.stoppedAt;
+	judged = (goals) => goals.filter((g) => !g.stoppedAt && !g.proposedAt);
+	withProposed = (s) => s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals;
+	withdrawnSummary = (title) => `Withdrew the proposal “${title}”`;
 }));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
@@ -2030,6 +2049,14 @@ function reviewDate(cycle, week) {
 	const d = /* @__PURE__ */ new Date(weekDate(cycle, week) + "T00:00:00Z");
 	d.setUTCDate(d.getUTCDate() + cycle.reviewDay);
 	return d.toISOString().slice(0, 10);
+}
+/** The review a goal set up today first reports to: its week, and its date as an ISO date ("first check-ins are due before Thursday 12 Nov"). */
+function firstReview(cycle, today) {
+	const week = firstWeekFrom(cycle, today.toISOString(), cycle.reviewDay);
+	return {
+		week,
+		date: reviewDate(cycle, week)
+	};
 }
 /**
 * Consecutive weeks, counting back from the latest finished one, in which every goal the
@@ -3155,7 +3182,7 @@ function readWeekCode(c, raw) {
 /** "9–15 Nov 2026", "28 Sep–4 Oct 2026", "28 Dec 2026–3 Jan 2027"; without the year: "9–15 Nov", "28 Dec–3 Jan". */
 function datesOf(c, n, withYear = true) {
 	const a = new Date(mondayOf(c, n)), b = new Date(mondayOf(c, n) + 6 * DAY$3);
-	const dm = (x) => `${x.getUTCDate()} ${MONTHS$2[x.getUTCMonth()]}`;
+	const dm = (x) => `${x.getUTCDate()} ${MONTHS$3[x.getUTCMonth()]}`;
 	if (!withYear) return a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
 	if (a.getUTCFullYear() !== b.getUTCFullYear()) return `${dm(a)} ${a.getUTCFullYear()}–${dm(b)} ${b.getUTCFullYear()}`;
 	return (a.getUTCMonth() === b.getUTCMonth() ? `${a.getUTCDate()}–${dm(b)}` : `${dm(a)}–${dm(b)}`) + " " + b.getUTCFullYear();
@@ -3204,11 +3231,11 @@ function weeksProblem(c, from, to) {
 	};
 	return null;
 }
-var DAY$3, MONTHS$2, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
+var DAY$3, MONTHS$3, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered, defaultTo;
 var init_weeks = __esmMin((() => {
 	init_year();
 	DAY$3 = 864e5;
-	MONTHS$2 = [
+	MONTHS$3 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -3301,6 +3328,13 @@ function draftOf(g) {
 		name: s.name,
 		dueWeek: String(s.dueWeek)
 	}));
+	return d;
+}
+/** A draft that builds back exactly this goal, its plan's first week included: what a screen saves when a rule has
+changed the goal itself (the first check-in's re-base, keeping a check-in's decimal places). */
+function draftFor(g) {
+	const d = draftOf(g);
+	if (g.kind === "metric") d.fromWeek = String(g.plan.fromWeek ?? 0);
 	return d;
 }
 /**
@@ -3535,7 +3569,7 @@ function quarters(c) {
 	].map((n) => ({
 		n,
 		label: `Q${n}`,
-		months: `${MONTHS$1[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$1[(m0 + 3 * (n - 1) + 2) % 12]}`,
+		months: `${MONTHS$2[(m0 + 3 * (n - 1)) % 12]}–${MONTHS$2[(m0 + 3 * (n - 1) + 2) % 12]}`,
 		from: (n - 1) * 13 + 1,
 		to: n === 4 ? c.weeks : n * 13
 	}));
@@ -3629,7 +3663,7 @@ function yearWeeks(startDate) {
 	const thu = new Date(Date.parse(startDate + "T00:00:00Z") + 10 * DAY$2);
 	return goalYear(thu.getUTCFullYear(), thu.getUTCMonth()).weeks;
 }
-var isYear, DAY$2, MONTHS$1, bornWeek;
+var isYear, DAY$2, MONTHS$2, bornWeek;
 var init_year = __esmMin((() => {
 	init_format();
 	init_goal();
@@ -3638,7 +3672,7 @@ var init_year = __esmMin((() => {
 	init_vocabulary();
 	isYear = (c) => c.weeks >= 48;
 	DAY$2 = 864e5;
-	MONTHS$1 = [
+	MONTHS$2 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -4181,9 +4215,11 @@ function currentCycle(cycles, today) {
 */
 function scopeToCycle(s, cycle, records = []) {
 	const inCycle = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt);
-	const goals = inCycle.filter((g) => !g.stoppedAt);
+	const goals = judged(inCycle);
 	const stopped = inCycle.filter((g) => g.stoppedAt);
+	const proposed = inCycle.filter(isProposed);
 	const ids = new Set(goals.map((g) => g.id));
+	const withIds = /* @__PURE__ */ new Set([...ids, ...proposed.map((g) => g.id)]);
 	const stoppedIds = new Set(stopped.map((g) => g.id));
 	const checkIns = s.checkIns.filter((c) => !c.removedAt);
 	const decisions = s.decisions.filter((d) => !d.removedAt);
@@ -4195,18 +4231,19 @@ function scopeToCycle(s, cycle, records = []) {
 		people,
 		cycles: s.cycles.filter((c) => !c.removedAt),
 		goals,
+		proposed,
 		keysIssued: lastKey(s.goals, s.keysIssued),
 		checkIns: checkIns.filter((c) => ids.has(c.goalId)),
-		decisions: decisions.filter((d) => ids.has(d.goalId)),
+		decisions: decisions.filter((d) => withIds.has(d.goalId)),
 		reviews: reviews.filter((r) => !r.endedAt),
 		watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
 		views: (s.views ?? []).filter((v) => !v.deletedAt),
-		...s.modules ? { modules: carryModules(s.modules, ids, records) } : {},
+		...s.modules ? { modules: carryModules(s.modules, withIds, records) } : {},
 		retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
 		requests: (s.requests ?? requestsFromCheckIns({
 			...s,
 			goals
-		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),
+		}, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => withIds.has(id))),
 		archive: {
 			goals: stopped,
 			checkIns: checkIns.filter((c) => stoppedIds.has(c.goalId)),
@@ -4242,7 +4279,7 @@ function cycleState(c, today) {
 /** "Sun 3 Jan 2027": a day with its weekday and year, as the year's end is said. */
 function dayWithYear(iso) {
 	const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
-	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+	return `${WEEKDAYS$1[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS$1[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "Jan–Mar 2027" for a cycle starting on a date and running some weeks. */
 function cycleName(startDate, weeks) {
@@ -4296,7 +4333,7 @@ function nextCycle(old, goals, checkIns, retros, ids, now) {
 		}))
 	};
 }
-var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS, RESULT_LABEL;
+var DAY$1, addDays, laterCycle, isoDay, wrapUpOpenOn, startFromLine, WEEKDAYS$1, MONTHS$1, RESULT_LABEL;
 var init_cycle = __esmMin((() => {
 	init_vocabulary();
 	init_asks();
@@ -4307,6 +4344,7 @@ var init_cycle = __esmMin((() => {
 	init_yearName();
 	init_status();
 	init_records();
+	init_proposed();
 	DAY$1 = 864e5;
 	addDays = (iso, n) => new Date(Date.parse(iso + "T00:00:00Z") + n * DAY$1).toISOString().slice(0, 10);
 	laterCycle = (cycles, c) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
@@ -4322,7 +4360,7 @@ var init_cycle = __esmMin((() => {
 		"Fri",
 		"Sat"
 	];
-	MONTHS = [
+	MONTHS$1 = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -4444,6 +4482,7 @@ var init_people = __esmMin((() => {
 function goalFields(g, l) {
 	const f = {
 		Name: g.title,
+		State: g.proposedAt ? "Proposed" : "—",
 		Type: kindLabel(g),
 		Team: l.teamName(g.teamId),
 		Owner: l.person(g.ownerId)?.name ?? g.ownerId,
@@ -4864,6 +4903,7 @@ var init_columns = __esmMin((() => {
 			e("Owner", "Who owns it, by name. A name works when only one person has it; Owner email is exact.", (r) => or$1(r.c.name(r.g.ownerId))),
 			e("Owner email", "Who owns it, by email: what tells two people with the same name apart.", (r) => r.c.email(r.g.ownerId), "Changes the owner; when Owner and Owner email disagree, the one you changed counts"),
 			e("Type", `${oneOf(Object.values(TYPE_WORDS.word))}: move a number, keep one in range, or hit dated stages.`, (r) => TYPE_WORDS.word[r.g.kind], "Sets a new goal’s type; it can’t change on an existing goal"),
+			e("State", "active or proposed.", (r) => r.g.stoppedAt ? "stopped" : r.g.proposedAt ? "proposed" : "active"),
 			e("Unit", "Number and range goals: what the number counts (%, days, ms).", (r) => r.g.kind === "milestone" ? null : or$1(r.g.unit)),
 			e("Decimals", "Number and range goals: how many decimal places the number has (0 to 3).", (r) => r.g.kind === "milestone" ? null : r.g.decimals),
 			e("Start", "Number goals: where the plan starts.", (r) => metricOf$1(r.g)?.plan.start ?? null, "Changes the plan; needs a reason once check-ins have started"),
@@ -4903,7 +4943,7 @@ var init_columns = __esmMin((() => {
 			e("Source", "Where the number comes from, and who owns that source.", (r) => or$1(r.g.source)),
 			e("Definition", "Exactly what is counted.", (r) => or$1(r.g.definition)),
 			e("Reason", "Why the plan is changing, or why the goal stops. Written by you; empty in an export.", blank, "Kept in the change log with the change"),
-			w("Status", "Where the goal stands now, in the status words defined under Words below.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
+			w("Status", "Where the goal stands now, in the status words defined under Words below; Proposed for a proposed goal.", (r) => r.g.stoppedAt ? STOPPED : r.s.statusLabel),
 			w("Since", "How long it has stood so.", (r) => or$1(r.s.story.since)),
 			w("Now", "The latest number, or stages done.", (r) => or$1(r.s.now)),
 			w("Plan this week", "Number goals: the plan’s number this week.", (r) => r.s.planNow != null ? r.s.planNowText : null),
@@ -5196,6 +5236,12 @@ var init_columns = __esmMin((() => {
 				example: TYPE_WORDS.word.metric,
 				empty: "Read from the columns filled in: Start and Target a number goal, Limit a range goal, Stages a stages goal (none, or two of them, is Must fix). A goal’s type can’t change later",
 				also: ["goal type"]
+			},
+			State: {
+				required: { optional: "active" },
+				format: "active or proposed",
+				example: "proposed",
+				empty: "As it is"
 			},
 			Unit: {
 				required: { optional: "no unit" },
@@ -6022,7 +6068,6 @@ var init_find = __esmMin((() => {
 	init_levels();
 	init_goalKey();
 	init_query();
-	init_vocabulary();
 	fold$2 = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 	wordsOf = (s) => fold$2(s).split(/[\s/\-,.:()]+/).filter(Boolean);
 	MAX_PAGE = 200;
@@ -6032,7 +6077,7 @@ var init_find = __esmMin((() => {
 		s.owner,
 		s.team,
 		levelName(null, s.goal.level),
-		LABEL[s.status],
+		s.statusLabel,
 		s.story.why ?? "",
 		s.story.doing ?? "",
 		s.story.needs ?? "",
@@ -6049,7 +6094,7 @@ var init_find = __esmMin((() => {
 			s.owner,
 			s.team
 		].filter(Boolean).join(" · "),
-		status: s.status,
+		...s.state === "proposed" ? { state: "proposed" } : { status: s.status },
 		key: s.goal.key ?? null
 	});
 	personRow = (r, p) => ({
@@ -6384,7 +6429,7 @@ var init_tableLayout = __esmMin((() => {
 /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it isn't an ask: it asks nothing of anyone. */
 function addNote(x, goal, text) {
 	const t = text.trim();
-	if (t.length < 2) no$2("Write the comment.");
+	if (t.length < 2) no$3("Write the comment.");
 	return { changes: [{
 		id: x.newId("chg"),
 		at: x.now,
@@ -6403,7 +6448,7 @@ function addNote(x, goal, text) {
 }
 /** Ask a goal's owner for an update: open on their Home until they check in (or answer it), or it's withdrawn. Null when it's already asked. */
 function askForUpdate(x, goal) {
-	if (goal.ownerId === x.actor.id) no$2("It’s your own goal: post a check-in instead.");
+	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: post a check-in instead.");
 	if (openUpdateAsk(goal.id, x.snapshot)) return null;
 	const latest = latestOf(x, goal);
 	const { ask, change } = raiseAsk({
@@ -6411,7 +6456,7 @@ function askForUpdate(x, goal) {
 		goalIds: [goal.id],
 		askedBy: x.actor.id,
 		recipientId: goal.ownerId,
-		ask: updateAskText(nameOf(x, goal.ownerId)?.split(" ")[0], latest?.week ?? null),
+		ask: updateAskText(nameOf$1(x, goal.ownerId)?.split(" ")[0], latest?.week ?? null),
 		summary: UPDATE_ASK
 	}, x.now, x.newId);
 	return {
@@ -6423,7 +6468,7 @@ function askForUpdate(x, goal) {
 function undoUpdateAsk(x, goal) {
 	const ask = openUpdateAsk(goal.id, x.snapshot);
 	if (!ask) return null;
-	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$2("Only whoever asked, or an admin, can undo the ask.");
+	if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can undo the ask.");
 	const w = withdrawAsk(ask, goal.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [w.request],
@@ -6433,8 +6478,8 @@ function undoUpdateAsk(x, goal) {
 /** Ask a goal's owner a question, outside a review (a review's questions come through reviewCall). Open until they answer it. */
 function askQuestion(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$2("Write the question.");
-	if (goal.ownerId === x.actor.id) no$2("It’s your own goal: there’s no one to ask. Comment instead.");
+	if (t.length < 2) no$3("Write the question.");
+	if (goal.ownerId === x.actor.id) no$3("It’s your own goal: there’s no one to ask. Comment instead.");
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	const { ask, change } = raiseAsk({
 		kind: "question",
@@ -6444,7 +6489,7 @@ function askQuestion(x, goal, text, opts = {}) {
 		ask: t,
 		reviewId: review?.id ?? null,
 		week: opts.week ?? null,
-		summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf(x, goal.ownerId) ?? "the owner"} a question`
+		summary: review ? `Asked the owner a question in ${review.name}` : `Asked ${nameOf$1(x, goal.ownerId) ?? "the owner"} a question`
 	}, x.now, x.newId);
 	return {
 		requests: [ask],
@@ -6454,10 +6499,10 @@ function askQuestion(x, goal, text, opts = {}) {
 /** Agree an action on a goal: someone (the owner, unless named) does it, by a week if one is given. */
 function addAction(x, goal, text, opts = {}) {
 	const t = text.trim();
-	if (t.length < 2) no$2("Write the action.");
+	if (t.length < 2) no$3("Write the action.");
 	const who = opts.assigneeId ?? goal.ownerId;
-	if (!x.snapshot.people.some((p) => p.id === who)) no$2("The person for the action isn’t in this workspace.");
-	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$2(`The due week is between 1 and ${x.cycle.weeks}.`);
+	if (!x.snapshot.people.some((p) => p.id === who)) no$3("The person for the action isn’t in this workspace.");
+	if (opts.dueWeek != null && !(opts.dueWeek >= 1 && opts.dueWeek <= x.cycle.weeks)) no$3(`The due week is between 1 and ${x.cycle.weeks}.`);
 	const review = opts.reviewId ? x.snapshot.reviews.find((r) => r.id === opts.reviewId) : void 0;
 	const { ask, change } = raiseAsk({
 		kind: "action",
@@ -6473,7 +6518,7 @@ function addAction(x, goal, text, opts = {}) {
 	change.diffs.splice(1, 0, {
 		field: "Who",
 		from: "—",
-		to: nameOf(x, who) ?? "—"
+		to: nameOf$1(x, who) ?? "—"
 	});
 	return {
 		requests: [ask],
@@ -6482,10 +6527,10 @@ function addAction(x, goal, text, opts = {}) {
 }
 /** Answer a decision or help, an ask for an update or a question: the person asked, or an admin (anyone, for an ask to no one in particular). */
 function answerRequest(x, r, answer) {
-	if (r.status !== "open") no$2("That ask isn’t open any more.");
-	if (r.kind === "action") no$2("An action is marked done, not answered.");
-	if (!canAnswer(r, x.actor)) no$2(`Only ${nameOf(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
-	if (answer.trim().length < 2) no$2("Write the answer.");
+	if (r.status !== "open") no$3("That ask isn’t open any more.");
+	if (r.kind === "action") no$3("An action is marked done, not answered.");
+	if (!canAnswer(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "the person asked"} or an admin can answer it.`);
+	if (answer.trim().length < 2) no$3("Write the answer.");
 	const { request, changes } = answerAsk(r, answer, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -6494,9 +6539,9 @@ function answerRequest(x, r, answer) {
 }
 /** Mark an action done, with an optional note: whoever does it, whoever asked for it, or an admin. */
 function markActionDone(x, r, note = "") {
-	if (r.status !== "open") no$2("That action isn’t open any more.");
-	if (r.kind !== "action") no$2("Only an action is marked done; answer the others.");
-	if (!canMarkDone(r, x.actor)) no$2(`Only ${nameOf(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
+	if (r.status !== "open") no$3("That action isn’t open any more.");
+	if (r.kind !== "action") no$3("Only an action is marked done; answer the others.");
+	if (!canMarkDone(r, x.actor)) no$3(`Only ${nameOf$1(x, r.recipientId) ?? "whoever does it"}, whoever asked for it, or an admin can mark it done.`);
 	const { request, changes } = markDone(r, note, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -6505,10 +6550,10 @@ function markActionDone(x, r, note = "") {
 }
 /** A goal's owner (or an admin) says the goal waits on a decision or help raised for another goal. */
 function linkRequest(x, r, goal) {
-	if (r.status !== "open") no$2("That request isn’t open any more.");
-	if (r.kind !== "decision") no$2("Only a decision or help can be shared by several goals.");
-	if (!ownsOrAdmin$2(x, goal)) no$2("Only the goal’s owner or an admin can link it to a request.");
-	if (r.goalIds.includes(goal.id)) no$2("That goal is already waiting on this request.");
+	if (r.status !== "open") no$3("That request isn’t open any more.");
+	if (r.kind !== "decision") no$3("Only a decision or help can be shared by several goals.");
+	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can link it to a request.");
+	if (r.goalIds.includes(goal.id)) no$3("That goal is already waiting on this request.");
 	const { requests, changes } = linkRequest$1(r, goal, x.snapshot, x.actor.id, x.now, x.newId);
 	return {
 		requests,
@@ -6520,10 +6565,10 @@ function linkRequest(x, r, goal) {
 * goal linked to someone else's decision or help, its owner stops waiting on it (the ask stays open for the others).
 */
 function withdrawRequest(x, r, goal) {
-	if (r.status !== "open") no$2("That ask isn’t open any more.");
+	if (r.status !== "open") no$3("That ask isn’t open any more.");
 	const g = goal ?? x.snapshot.goals.find((v) => v.id === r.goalIds[0]);
-	if (!g || !r.goalIds.includes(g.id)) no$2("That goal isn’t waiting on this ask.");
-	if (!canWithdraw(r, x.actor, g)) no$2(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
+	if (!g || !r.goalIds.includes(g.id)) no$3("That goal isn’t waiting on this ask.");
+	if (!canWithdraw(r, x.actor, g)) no$3(r.kind === "decision" ? "Only the goal’s owner, whoever asked, or an admin can withdraw it." : "Only whoever asked, or an admin, can withdraw it.");
 	const { request, changes } = withdrawAsk(r, g.id, x.actor.id, x.now, x.newId);
 	return {
 		requests: [request],
@@ -6539,7 +6584,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 	const text = note.trim();
 	const week = extra.week ?? sessionWeek(review, x.week, x.cycle);
 	if (kind === "ask") {
-		if (goal.ownerId === x.actor.id) no$2("It’s your own goal: add a note instead.");
+		if (goal.ownerId === x.actor.id) no$3("It’s your own goal: add a note instead.");
 		return askQuestion(x, goal, text, {
 			reviewId: review.id,
 			week
@@ -6551,7 +6596,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 		reviewId: review.id,
 		week
 	});
-	if (kind === "note" && text.length < 2) no$2("Write the note.");
+	if (kind === "note" && text.length < 2) no$3("Write the note.");
 	const d = {
 		id: x.newId("dec"),
 		goalId: goal.id,
@@ -6587,7 +6632,7 @@ function reviewCall(x, goal, review, kind, note, extra = {}) {
 * as a note whose words start "We accept the risk:" (decide.ts reads it back). Anyone may; only the screen keeps it to those in the review.
 */
 function acceptRisk(x, goal, review, reason, week) {
-	if (reason.trim().length < 5) no$2("Say why the review accepts the risk.");
+	if (reason.trim().length < 5) no$3("Say why the review accepts the risk.");
 	return reviewCall(x, goal, review, "note", acceptNote(reason), { week });
 }
 /**
@@ -6597,10 +6642,10 @@ function acceptRisk(x, goal, review, reason, week) {
 function editCall(x, d, note, extra) {
 	const ask = "goalIds" in d ? d : askById(x, d.id);
 	if (ask) {
-		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$2("Only whoever asked, or an admin, can correct it.");
-		if (ask.status !== "open") no$2("It’s been answered or closed: comment instead.");
-		if (note.trim().length < 2) no$2("Write the new wording.");
-		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$2("The person for the action isn’t in this workspace.");
+		if (ask.askedBy !== x.actor.id && !x.actor.admin) no$3("Only whoever asked, or an admin, can correct it.");
+		if (ask.status !== "open") no$3("It’s been answered or closed: comment instead.");
+		if (note.trim().length < 2) no$3("Write the new wording.");
+		if (extra?.assigneeId && !x.snapshot.people.some((p) => p.id === extra.assigneeId)) no$3("The person for the action isn’t in this workspace.");
 		const out = editAsk(ask, {
 			ask: note,
 			...ask.kind === "action" && extra ? {
@@ -6614,8 +6659,8 @@ function editCall(x, d, note, extra) {
 		};
 	}
 	const dec = d;
-	if (dec.byId !== x.actor.id && !x.actor.admin) no$2("Only whoever said it, or an admin, can correct it.");
-	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$2("Write the new wording.");
+	if (dec.byId !== x.actor.id && !x.actor.admin) no$3("Only whoever said it, or an admin, can correct it.");
+	if (dec.kind !== "acknowledge" && note.trim().length < 2) no$3("Write the new wording.");
 	const after = {
 		...dec,
 		note: note.trim(),
@@ -6643,14 +6688,14 @@ function editCall(x, d, note, extra) {
 }
 /** Set up a review (anyone), or change one (someone in it, whoever set it up, or an admin). */
 function saveReview(x, review, before) {
-	if (!review.name.trim()) no$2("Give the review a name.");
-	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$2("Hold it every 1 to 13 weeks.");
-	if (!(review.weekday >= 0 && review.weekday <= 4)) no$2("Pick a weekday, Monday to Friday.");
-	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$2("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
+	if (!review.name.trim()) no$3("Give the review a name.");
+	if (!(review.everyWeeks >= 1 && review.everyWeeks <= 13)) no$3("Hold it every 1 to 13 weeks.");
+	if (!(review.weekday >= 0 && review.weekday <= 4)) no$3("Pick a weekday, Monday to Friday.");
+	if (!review.scope.goals.length && !review.scope.trees.length && !review.scope.levels.length) no$3("Pick the goals it walks: goals, a goal and what feeds it, or a level.");
 	const ids = new Set(x.snapshot.goals.map((g) => g.id));
-	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$2("One of the goals isn’t in this cycle.");
-	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$2("One of the people isn’t in this workspace.");
-	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$2("Only someone in the review, whoever set it up, or an admin can change it.");
+	if ([...review.scope.goals, ...review.scope.trees].some((g) => !ids.has(g))) no$3("One of the goals isn’t in this cycle.");
+	if (review.people.some((p) => !x.snapshot.people.some((q) => q.id === p))) no$3("One of the people isn’t in this workspace.");
+	if (before && !x.actor.admin && !before.people.includes(x.actor.id) && before.createdBy !== x.actor.id) no$3("Only someone in the review, whoever set it up, or an admin can change it.");
 	const diffs = before ? [
 		...before.name !== review.name ? [{
 			field: "Name",
@@ -6712,7 +6757,7 @@ function newReview(x, v) {
 /** Watch a goal, a goal and everything feeding it, or a whole level. Null when already watched. Watching again what
 you stopped watching brings the same watch back (one watch per person and thing). */
 function watch(x, kind, ref) {
-	if (kind === "level" ? !isLevel(x.cycle, ref) : !x.snapshot.goals.some((g) => g.id === ref)) no$2(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
+	if (kind === "level" ? !isLevel(x.cycle, ref) : !withProposed(x.snapshot).some((g) => g.id === ref)) no$3(kind === "level" ? `There’s no level called “${ref}” here. The levels are ${levelsOf$1(x.cycle).map((l) => `${l.name} (${l.id})`).join(", ")}.` : "There’s no goal with that ID in this cycle.");
 	if (x.snapshot.watches.some((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref)) return null;
 	const old = (x.full?.watches ?? []).find((w) => w.personId === x.actor.id && w.kind === kind && w.ref === ref && w.removedAt);
 	return {
@@ -6732,8 +6777,8 @@ function watch(x, kind, ref) {
 /** Stop watching: your own watches only. Kept, and logged, so it can be undone. */
 function unwatch(x, watchId) {
 	const w = x.snapshot.watches.find((v) => v.id === watchId);
-	if (!w) no$2("There’s no watch with that ID.");
-	if (w.personId !== x.actor.id) no$2("That’s someone else’s watch.");
+	if (!w) no$3("There’s no watch with that ID.");
+	if (w.personId !== x.actor.id) no$3("That’s someone else’s watch.");
 	return {
 		watches: [{
 			...w,
@@ -6759,10 +6804,10 @@ function unwatch(x, watchId) {
 }
 /** Admins: add someone, or change their name, job title, team or admin rights. Null when nothing changed. */
 function savePerson(x, p, before) {
-	if (!x.actor.admin) no$2("Only admins can add people or change them.");
-	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$2("There’s no team with that ID.");
+	if (!x.actor.admin) no$3("Only admins can add people or change them.");
+	if (p.teamId && !x.snapshot.teams.some((t) => t.id === p.teamId)) no$3("There’s no team with that ID.");
 	const problems = personProblems(p, x.snapshot.people, before);
-	if (problems.length) no$2(problems.join(" "));
+	if (problems.length) no$3(problems.join(" "));
 	const ch = personChange(before, p, lookupOf(x.snapshot).teamName, x.actor.id, x.now, x.newId("chg"));
 	if (before && !ch) return null;
 	return {
@@ -6772,14 +6817,14 @@ function savePerson(x, p, before) {
 }
 /** An owner's (or an admin's) wrap-up of a goal, in the last two weeks of the cycle. */
 function saveRetro(x, goal, v) {
-	if (!ownsOrAdmin$2(x, goal)) no$2("Only the goal’s owner or an admin can wrap it up.");
+	if (!ownsOrAdmin$2(x, goal)) no$3("Only the goal’s owner or an admin can wrap it up.");
 	const cycle = x.full?.cycles.find((c) => c.id === goal.cycleId) ?? x.cycle;
 	const today = new Date(x.now);
 	if (!wrapUpOpenOn(cycle, today)) {
 		const d = cycleDates(cycle);
-		no$2(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
+		no$3(cycleState(cycle, today) === "closed" ? `${cycle.name}’s wrap-up closed on ${dayWithYear(d.wrapUpCloses)}.` : `${cycle.name}’s wrap-up opens on ${dayWithYear(d.wrapUpOpens)}.`);
 	}
-	if (v.learned.trim().length < 10) no$2("Say what was learned, in a sentence (10 characters or more).");
+	if (v.learned.trim().length < 10) no$3("Say what was learned, in a sentence (10 characters or more).");
 	const before = (x.full?.retros ?? x.snapshot.retros ?? []).find((r) => r.goalId === goal.id && r.cycleId === cycle.id) ?? null;
 	const retro = {
 		id: before?.id ?? x.newId("retro"),
@@ -6826,7 +6871,7 @@ function saveRetro(x, goal, v) {
 	if (!full) return own;
 	const later = laterCycle(full.cycles, cycle);
 	const copy = later && goal.key ? full.goals.find((g) => g.cycleId === later.id && g.key === goal.key && !g.removedAt) : void 0;
-	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$2(`It already has check-ins in ${later.name}. Stop it there instead.`);
+	if (copy && retro.next === "stop" && !copyUntouched(copy, full)) no$3(`It already has check-ins in ${later.name}. Stop it there instead.`);
 	return own;
 }
 /** Two commits as one save: their records and changes side by side. */
@@ -6843,19 +6888,19 @@ function mergeCommits(a, b) {
 * it early moves nobody. Its change keeps what it added, so it can be undone until someone uses it (removal undoStart).
 */
 function startNextCycle(x) {
-	if (!x.actor.admin) no$2("Only admins can start the next cycle.");
+	if (!x.actor.admin) no$3("Only admins can start the next cycle.");
 	const today = new Date(x.now);
 	const full = x.full ?? x.snapshot;
 	const state = cycleState(x.cycle, today);
-	if (state === "before" || state === "running") no$2(startFromLine(x.cycle));
+	if (state === "before" || state === "running") no$3(startFromLine(x.cycle));
 	const later = laterCycle(full.cycles ?? [], x.cycle);
 	if (later) {
 		const made = full.changes.find((c) => c.entity === "cycle" && c.entityId === later.id && c.action === "created");
 		const by = made ? full.people.find((p) => p.id === made.actorId)?.name : null;
-		no$2(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
+		no$3(`${later.name} has already been started${by ? `, by ${by} on ${dayWithYear(made.at.slice(0, 10))}` : ""}.`);
 	}
 	const map = /* @__PURE__ */ new Map();
-	const next = nextCycle(x.cycle, x.snapshot.goals, x.snapshot.checkIns, x.snapshot.retros ?? [], {
+	const next = nextCycle(x.cycle, withProposed(x.snapshot), x.snapshot.checkIns, x.snapshot.retros ?? [], {
 		cycle: x.newId("cycle"),
 		goal: (g) => {
 			const id = x.newId("goal");
@@ -6929,15 +6974,15 @@ function startNextCycle(x) {
 /** Save a view of the goals: a new one, or one of yours (an admin: any) renamed or changed. */
 function saveView(x, v) {
 	const clean = v.name.trim().slice(0, 80);
-	if (!clean) no$2("Give the view a name.");
+	if (!clean) no$3("Give the view a name.");
 	const old = v.id ? liveView(x, v.id) : void 0;
-	if (v.id && !old) no$2("There’s no view with that ID.");
+	if (v.id && !old) no$3("There’s no view with that ID.");
 	if (isTableView(v)) {
 		const problems = layoutProblems(parseLayout(v.params));
-		if (problems.length) no$2(problems.join(" "));
+		if (problems.length) no$3(problems.join(" "));
 	}
-	if (old && isTableView(old) !== isTableView(v)) no$2(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
-	if (old && old.personId !== x.actor.id && !x.actor.admin) no$2("Only its owner or an admin can change this view.");
+	if (old && isTableView(old) !== isTableView(v)) no$3(isTableView(old) ? "That view is of a data table; save a table layout to it." : "That view is of the Goals screen, not a data table.");
+	if (old && old.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner or an admin can change this view.");
 	const view = old ? {
 		...old,
 		name: clean,
@@ -6982,8 +7027,8 @@ function saveView(x, v) {
 */
 function saveTableView(x, v, head) {
 	const problems = layoutProblems(v.layout, head);
-	if (problems.length) no$2(problems.join(" "));
-	if (v.layout.cols && !v.layout.cols.length) no$2("Show at least one column.");
+	if (problems.length) no$3(problems.join(" "));
+	if (v.layout.cols && !v.layout.cols.length) no$3("Show at least one column.");
 	const widths = Object.fromEntries(Object.entries(v.layout.widths).map(([c, w]) => [c, clampWidth(v.layout.table, c, w)]));
 	return saveView(x, {
 		id: v.id,
@@ -6998,7 +7043,7 @@ function saveTableView(x, v, head) {
 function deleteView(x, id) {
 	const v = liveView(x, id);
 	if (!v) return null;
-	if (v.personId !== x.actor.id && !x.actor.admin) no$2("Only its owner, or an admin, can delete this view.");
+	if (v.personId !== x.actor.id && !x.actor.admin) no$3("Only its owner, or an admin, can delete this view.");
 	const what = isTableView(v) ? "saved layout" : v.pinned ? "pinned view" : "view";
 	return {
 		views: [{
@@ -7026,9 +7071,9 @@ function deleteView(x, id) {
 }
 /** Admins: show a view to everyone in the workspace, or stop. Null when it already is. */
 function pinView(x, id, pinned) {
-	if (!x.actor.admin) no$2("Only admins can pin a view for everyone.");
+	if (!x.actor.admin) no$3("Only admins can pin a view for everyone.");
 	const v = liveView(x, id);
-	if (!v) no$2("There’s no view with that ID.");
+	if (!v) no$3("There’s no view with that ID.");
 	if (v.pinned === pinned) return null;
 	return {
 		views: [{
@@ -7056,11 +7101,11 @@ function pinView(x, id, pinned) {
 /** Admins: a personal token for an assistant to act as someone. The store makes the secret and keeps only its hash
 (Store.issueToken): in the shared database, the database does. */
 function createToken(x, personId, name) {
-	if (!x.actor.admin) no$2("Only admins can make tokens.");
+	if (!x.actor.admin) no$3("Only admins can make tokens.");
 	const who = x.snapshot.people.find((p) => p.id === personId);
-	if (!who) no$2("There’s no one with that ID in this workspace.");
-	if (!name.trim()) no$2("Say what the token is for, e.g. “Claude on my laptop”.");
-	if (name.trim().length > 120) no$2("Keep what it’s for to 120 characters.");
+	if (!who) no$3("There’s no one with that ID in this workspace.");
+	if (!name.trim()) no$3("Say what the token is for, e.g. “Claude on my laptop”.");
+	if (name.trim().length > 120) no$3("Keep what it’s for to 120 characters.");
 	const t = {
 		id: x.newId("tok"),
 		personId,
@@ -7092,9 +7137,9 @@ function createToken(x, personId, name) {
 /** Stop a token working: an admin, or the token's person. Null when it's already revoked. */
 function revokeToken(x, id) {
 	const t = (x.snapshot.tokens ?? []).find((v) => v.id === id);
-	if (!t) no$2("There’s no token with that ID.");
+	if (!t) no$3("There’s no token with that ID.");
 	if (t.revokedAt) return null;
-	if (!x.actor.admin && t.personId !== x.actor.id) no$2("Only an admin or the token’s person can revoke it.");
+	if (!x.actor.admin && t.personId !== x.actor.id) no$3("Only an admin or the token’s person can revoke it.");
 	return {
 		tokens: [{
 			...t,
@@ -7122,7 +7167,7 @@ function sendFeedback(x, mood, text, path) {
 		"good",
 		"meh",
 		"bad"
-	].includes(mood)) no$2("Mood is good, meh or bad.");
+	].includes(mood)) no$3("Mood is good, meh or bad.");
 	return {
 		feedback: [{
 			id: x.newId("fb"),
@@ -7137,10 +7182,10 @@ function sendFeedback(x, mood, text, path) {
 }
 /** Admins: give the workspace a new name. Null when it already has that name. */
 function renameWorkspace(x, ws, name) {
-	if (!x.actor.admin) no$2("Only admins can rename the workspace.");
+	if (!x.actor.admin) no$3("Only admins can rename the workspace.");
 	const clean = name.trim().replace(/\s+/g, " ");
 	const named = nameProblem(clean, "workspace");
-	if (named) no$2(named);
+	if (named) no$3(named);
 	if (clean === ws.name) return null;
 	return {
 		workspace: { name: clean },
@@ -7166,8 +7211,8 @@ function renameWorkspace(x, ws, name) {
 * guide's "What the app records"). Off, nothing is recorded or sent for the workspace. Null when it already is.
 */
 function setRecording(x, ws, on) {
-	if (!x.actor.admin) no$2("Only admins can turn recording on or off.");
-	if (typeof on !== "boolean") no$2("Say whether to record: on or off.");
+	if (!x.actor.admin) no$3("Only admins can turn recording on or off.");
+	if (typeof on !== "boolean") no$3("Say whether to record: on or off.");
 	const was = ws.recording !== false;
 	if (was === on) return null;
 	return {
@@ -7194,9 +7239,9 @@ function setRecording(x, ws, on) {
 * build has, so a module that needs this one can be named in the log as going off with it. Null when it already is.
 */
 function setModule(x, ws, modules, id, on) {
-	if (!x.actor.admin) no$2("Only admins can switch features on or off.");
+	if (!x.actor.admin) no$3("Only admins can switch features on or off.");
 	const m = modules.find((k) => k.id === id);
-	if (!m) no$2(`There’s no feature called ${id}.`);
+	if (!m) no$3(`There’s no feature called ${id}.`);
 	const was = ws.modulesOff ?? [];
 	if (was.includes(id) === !on) return null;
 	const off = on ? was.filter((k) => k !== id) : [...was, id].sort();
@@ -7224,18 +7269,18 @@ function setModule(x, ws, modules, id, on) {
 }
 /** Admins: add a team, or rename one or change its lead. Null commit when nothing changed. */
 function saveTeam(x, t) {
-	if (!x.actor.admin) no$2("Only admins can add or change teams.");
+	if (!x.actor.admin) no$3("Only admins can add or change teams.");
 	const clean = t.name.trim().replace(/\s+/g, " ");
-	if (!clean) no$2("Give the team a name.");
-	if (clean.length > 60) no$2("Keep the team’s name to 60 characters or fewer.");
+	if (!clean) no$3("Give the team a name.");
+	if (clean.length > 60) no$3("Keep the team’s name to 60 characters or fewer.");
 	const before = t.id ? x.snapshot.teams.find((v) => v.id === t.id) : void 0;
-	if (t.id && !before) no$2("There’s no team with that ID.");
+	if (t.id && !before) no$3("There’s no team with that ID.");
 	const same = x.snapshot.teams.find((v) => v.id !== before?.id && v.name.trim().toLowerCase() === clean.toLowerCase());
-	if (same) no$2(`There’s already a team called ${same.name}.`);
+	if (same) no$3(`There’s already a team called ${same.name}.`);
 	const leadId = t.leadId === void 0 ? before?.leadId ?? "" : t.leadId ?? "";
-	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$2("The team lead isn’t in this workspace.");
+	if (leadId && !x.snapshot.people.some((p) => p.id === leadId)) no$3("The team lead isn’t in this workspace.");
 	const objective = t.objective === void 0 ? before?.objective ?? "" : t.objective.trim().replace(/\s+/g, " ");
-	if (objective.length > 280) no$2("Keep what the team is here to do to 280 characters or fewer.");
+	if (objective.length > 280) no$3("Keep what the team is here to do to 280 characters or fewer.");
 	const team = {
 		id: before?.id ?? x.newId("team"),
 		name: clean,
@@ -7302,15 +7347,15 @@ function teamMembers(x, teamId) {
 }
 /** Admins: remove a team. One with people or goals is emptied first: give `moveTo`, another team, and they move there. */
 function removeTeam(x, id, moveTo) {
-	if (!x.actor.admin) no$2("Only admins can remove teams.");
+	if (!x.actor.admin) no$3("Only admins can remove teams.");
 	const team = x.snapshot.teams.find((t) => t.id === id);
-	if (!team) no$2("There’s no team with that ID.");
+	if (!team) no$3("There’s no team with that ID.");
 	const { people, goals, named } = teamMembers(x, id);
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	const what = [people.length ? plural(people.length, "person", "people") : "", goals.length ? plural(goals.length, "goal", "goals") : ""].filter(Boolean).join(" and ");
 	const to = moveTo ? x.snapshot.teams.find((t) => t.id === moveTo) : void 0;
-	if (moveTo && (!to || moveTo === id)) no$2("Move them to another team that’s in this workspace.");
-	if (what && !to) no$2(`${team.name} still has ${what}. Move them to another team first.`);
+	if (moveTo && (!to || moveTo === id)) no$3("Move them to another team that’s in this workspace.");
+	if (what && !to) no$3(`${team.name} still has ${what}. Move them to another team first.`);
 	const movedPeople = people.map((p) => ({
 		...p,
 		teamId: to.id
@@ -7366,13 +7411,14 @@ function removeTeam(x, id, moveTo) {
 }
 /** Admins only can delete a workspace; it has to be one of the workspace's own (not an example). */
 function canDeleteWorkspace(actor, kind, name, confirmName) {
-	if (!actor.admin) no$2("Only admins can delete the workspace.");
-	if (kind === "example") no$2("Examples can be reset, not deleted.");
-	if (confirmName.trim() !== name) no$2(`To confirm, give the workspace’s name exactly: “${name}”.`);
+	if (!actor.admin) no$3("Only admins can delete the workspace.");
+	if (kind === "example") no$3("Examples can be reset, not deleted.");
+	if (confirmName.trim() !== name) no$3(`To confirm, give the workspace’s name exactly: “${name}”.`);
 }
-var NotAllowed, no$2, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf, watchWhat, initialsOf$1, liveView;
+var NotAllowed, no$3, lookupOf, ownsOrAdmin$2, latestOf, askById, nameOf$1, watchWhat, initialsOf$1, liveView;
 var init_actions = __esmMin((() => {
 	init_goalRights();
+	init_proposed();
 	init_levels();
 	init_decide();
 	init_thresholds();
@@ -7388,7 +7434,7 @@ var init_actions = __esmMin((() => {
 	init_status();
 	init_tableLayout();
 	NotAllowed = class extends Error {};
-	no$2 = (msg) => {
+	no$3 = (msg) => {
 		throw new NotAllowed(msg);
 	};
 	lookupOf = (s) => ({
@@ -7399,7 +7445,7 @@ var init_actions = __esmMin((() => {
 	ownsOrAdmin$2 = (x, g) => mayChangeGoal(x.actor, g);
 	latestOf = (x, g) => checkInsFor(g, x.snapshot.checkIns).at(-1) ?? null;
 	askById = (x, id) => asksOf(x.snapshot).find((r) => r.id === id);
-	nameOf = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
+	nameOf$1 = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
 	watchWhat = (x, w) => {
 		const title = (x.full ?? x.snapshot).goals.find((g) => g.id === w.ref)?.title ?? "a goal";
 		return w.kind === "level" ? `every ${w.ref.replace("-", " ")} goal` : w.kind === "tree" ? `${title} and what feeds it` : title;
@@ -7855,13 +7901,22 @@ function lateShapeOf(d, start, target, ctx) {
 		...end != null && end !== ctx.cycleWeeks ? { endWeek: end } : {}
 	}, d.points, ctx.cycleWeeks);
 }
-var GOAL_FIELDS$1, withUnit, CHECK_IDS, capital;
+/**
+* Rule 2 for a proposed goal: the type's own required fields are optional, all together. A draft that says nothing of
+* how it is measured saves (as dated stages with none); one that says part of it is judged as any goal is.
+*/
+function proposedMustFix(d, ctx) {
+	const all = goalMustFix(d, ctx);
+	return measureEmpty(d) ? all.filter((f) => !MEASURE_REQUIRED.has(f.id)) : all;
+}
+var GOAL_FIELDS$1, withUnit, CHECK_IDS, capital, MEASURE_REQUIRED, unsaidDraft;
 var init_goalEntry = __esmMin((() => {
 	init_actions();
 	init_changes();
 	init_checkin();
 	init_columns();
 	init_goal();
+	init_proposed();
 	init_goalRights();
 	init_find();
 	init_numbers();
@@ -7917,6 +7972,107 @@ var init_goalEntry = __esmMin((() => {
 		"far-from-plan"
 	];
 	capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+	MEASURE_REQUIRED = /* @__PURE__ */ new Set([
+		"start-empty",
+		"target-empty",
+		"limit-empty",
+		"stage-none"
+	]);
+	unsaidDraft = (d) => ({
+		...d,
+		kind: "milestone",
+		stages: []
+	});
+}));
+// src/domain/proposedActions.ts
+/** Rule 2's full list for the goal as it stands, as if it were made active from `fromWeek` (this week by default). */
+function readyToActivate(goal, ctx) {
+	const d = draftFor(goal);
+	if (goal.kind === "metric") d.fromWeek = String(ctx.fromWeek ?? Math.max(0, ctx.week));
+	return goalMustFix(d, {
+		...ctx,
+		existing: null,
+		door: "form"
+	});
+}
+/** The goal made active from a week: its proposal cleared; a number goal's plan starts that week, its hand-set weeks before it dropped. */
+function activated(goal, fromWeek) {
+	const g = {
+		...goal,
+		proposedAt: null,
+		proposedBy: null
+	};
+	if (g.kind !== "metric") return g;
+	const points = g.plan.points?.filter((p) => p.week > fromWeek);
+	const { points: _drop, ...plan } = g.plan;
+	return {
+		...g,
+		plan: {
+			...plan,
+			fromWeek,
+			...points?.length ? { points } : {}
+		}
+	};
+}
+/**
+* Make a proposed goal active (rule 14): its owner or an admin, when nothing is missing. A number goal's plan starts
+* from `fromWeek`, this week unless said. History says "Made it active, from week {n}". The app's toast has Undo,
+* which puts the goal back as it was (domain/removal undoRemoval).
+*/
+function activate(x, i) {
+	const g = goalIn(x, i.goalId) ?? no$2("That goal no longer exists. Reload to see the latest.");
+	if (!isProposed(g)) no$2(`“${g.title}” is already active.`);
+	if (!mayActivate(x.actor, g)) no$2(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
+	const from = i.fromWeek ?? Math.max(0, x.week);
+	const missing = readyToActivate(g, {
+		cycleWeeks: x.cycle.weeks,
+		week: x.week,
+		startDate: x.cycle.startDate,
+		fromWeek: from
+	});
+	if (missing.length) no$2(`“${g.title}” can’t be made active yet: ${missing.map((f) => f.text).join(" ")}`);
+	const goal = activated(g, from);
+	const words = g.kind === "metric" ? `Made it active, from week ${from}` : "Made it active";
+	return {
+		commit: {
+			goals: [goal],
+			changes: [change$1(x, goal, words, [{
+				field: "State",
+				from: PROPOSED,
+				to: "Active"
+			}, ...g.kind === "metric" && (g.plan.fromWeek ?? 0) !== from ? [{
+				field: "From",
+				from: `week ${g.plan.fromWeek ?? 0}`,
+				to: `week ${from}`
+			}] : []])]
+		},
+		goal
+	};
+}
+var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1;
+var init_proposedActions = __esmMin((() => {
+	init_actions();
+	init_proposed();
+	init_goal();
+	init_goalEntry();
+	NOTHING_TO_CHECK_IN = "This goal is proposed, so there is nothing to check in. Make it active first.";
+	mayActivate = (actor, goal) => !!actor.admin || goal.ownerId === actor.id;
+	no$2 = (msg) => {
+		throw new NotAllowed(msg);
+	};
+	goalIn = (x, ref) => withProposed(x.snapshot).find((g) => g.id === ref || g.key === ref) ?? (x.allGoals ?? []).find((g) => !g.removedAt && (g.id === ref || g.key === ref));
+	nameOf = (x, id) => x.snapshot.people.find((p) => p.id === id)?.name;
+	change$1 = (x, g, summary, diffs) => ({
+		id: x.newId("chg"),
+		at: x.now,
+		actorId: x.actor.id,
+		goalId: g.id,
+		entity: "goal",
+		entityId: g.id,
+		action: "edited",
+		summary,
+		diffs
+	});
 })), VIA_LABEL, VIA_MCP;
 var init_via = __esmMin((() => {
 	VIA_LABEL = {
@@ -8085,8 +8241,8 @@ function departs(x, p, to, summary) {
 	};
 	const goalsTo = handTo(to.goalsTo, "goals");
 	const asksTo = handTo(to.asksTo, "asks");
-	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$2(l.goals.length, "goal", "goals")}: choose who takes them over.`);
-	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$2((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
+	if (l.goals.length && !goalsTo) no$1(`${p.name} owns ${plural$3(l.goals.length, "goal", "goals")}: choose who takes them over.`);
+	if ((l.asked.length || l.asking.length) && !asksTo) no$1(`${p.name} has ${plural$3((/* @__PURE__ */ new Set([...l.asked, ...l.asking])).size, "open ask", "open asks")}: choose who takes them over.`);
 	const goals = l.goals.map((g) => ({
 		...g,
 		ownerId: goalsTo.id
@@ -8126,12 +8282,12 @@ function departs(x, p, to, summary) {
 				},
 				...goals.length ? [{
 					field: "Goals handed over",
-					from: plural$2(goals.length, "goal", "goals"),
+					from: plural$3(goals.length, "goal", "goals"),
 					to: goalsTo.name
 				}] : [],
 				...asks.size ? [{
 					field: "Open asks handed over",
-					from: plural$2(asks.size, "ask", "asks"),
+					from: plural$3(asks.size, "ask", "asks"),
 					to: asksTo.name
 				}] : [],
 				...reviews.length ? [{
@@ -8221,10 +8377,10 @@ function deletePerson(x, id) {
 }
 /** What leaving the tree takes: the goals feeding it move up to what it fed, other goals stop listing it, its open asks are withdrawn. */
 function detach(x, g, how) {
-	const parent = g.parentId ? x.snapshot.goals.find((v) => v.id === g.parentId) : void 0;
+	const parent = g.parentId ? withProposed(x.snapshot).find((v) => v.id === g.parentId) : void 0;
 	const goals = [];
 	const changes = [];
-	for (const c of x.snapshot.goals) {
+	for (const c of withProposed(x.snapshot)) {
 		if (c.id === g.id) continue;
 		const child = c.parentId === g.id;
 		const helps = c.alsoHelps?.includes(g.id);
@@ -8325,7 +8481,7 @@ function deleteGoal(x, goalId) {
 			entityId: g.id,
 			goalId: g.id,
 			action: "removed",
-			summary: `Deleted ${g.title}`,
+			summary: g.proposedAt ? withdrawnSummary(g.title) : `Deleted ${g.title}`,
 			diffs: [{
 				field: "Goal",
 				from: g.title,
@@ -8502,14 +8658,14 @@ function canUndoStart(full, cycleId) {
 	const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
 	if (checkIns) return {
 		ok: false,
-		why: `${plural$2(checkIns, "check-in is", "check-ins are")} in it`
+		why: `${plural$3(checkIns, "check-in is", "check-ins are")} in it`
 	};
 	const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
 	const changed = new Set([...ids].filter((id) => !made.has(id) && !full.changes.some((ch) => ch.goalId === id && /carries on into /.test(ch.summary))));
 	for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId) && !byRecarry(ch.summary)) changed.add(ch.goalId);
 	if (changed.size) return {
 		ok: false,
-		why: `${plural$2(changed.size, "goal in it has", "goals in it have")} been changed`
+		why: `${plural$3(changed.size, "goal in it has", "goals in it have")} been changed`
 	};
 	if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return {
 		ok: false,
@@ -8864,7 +9020,7 @@ function undoPlan(x, importId) {
 		entityId: importId,
 		action: "undone",
 		importId,
-		summary: `Undid ${entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural$2(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
+		summary: `Undid ${entry.summary.replace(/:.*$/, "").toLowerCase()}: ${plural$3(restored, "row", "rows")} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ""}`,
 		diffs: [{
 			field: "Import",
 			from: entry.summary,
@@ -8915,7 +9071,7 @@ function viaOf(entry) {
 }
 /** "Nothing to undo: it changed no rows." or "Nothing left to undo: all 3 rows have changed since.": rule 9's line when Undo would put back nothing. */
 function nothingToUndo(skipped) {
-	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$2(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
+	return skipped ? `Nothing left to undo: ${skipped === 1 ? "its one row has" : `all ${plural$3(skipped, "row", "rows")} have`} changed since.` : "Nothing to undo: it changed no rows.";
 }
 /** Everything removed, stopped, ended or marked as left in the last 30 days, newest first. After that it drops off this list; the row stays. */
 function recentlyRemoved(full, now, days = 30, records = []) {
@@ -9087,9 +9243,10 @@ function restoreRemoved(x, kind, id, records = []) {
 		}
 	}
 }
-var no$1, fullOf, plural$2, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
+var no$1, fullOf, plural$3, ownsOrAdmin$1, log$1, nameIn, commentOf, hasHistory, livePerson, notSelfOrLastAdmin, liveGoal, goalHasCheckIns, ownersCheckIns, liveReview, importEntry, importUndone, canUndoImport, onDay, keptText, REMOVED_LABEL, removedKinds, excerpt, canRestore;
 var init_removal = __esmMin((() => {
 	init_goalRights();
+	init_proposed();
 	init_copies();
 	init_actions();
 	init_asks();
@@ -9102,7 +9259,7 @@ var init_removal = __esmMin((() => {
 		throw new NotAllowed(msg);
 	};
 	fullOf = (x) => x.full ?? x.snapshot;
-	plural$2 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	plural$3 = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 	ownsOrAdmin$1 = (x, g) => mayChangeGoal(x.actor, g);
 	log$1 = (x, v) => ({
 		id: x.newId("chg"),
@@ -9129,7 +9286,7 @@ var init_removal = __esmMin((() => {
 		if (p.admin && !x.snapshot.people.some((v) => v.admin && v.id !== p.id)) no$1("They’re the only admin: make someone else an admin first.");
 	};
 	liveGoal = (x, id) => {
-		const g = x.snapshot.goals.find((v) => v.id === id || v.key === id);
+		const g = withProposed(x.snapshot).find((v) => v.id === id || v.key === id);
 		if (!g) no$1("There’s no goal with that ID in this cycle.");
 		return g;
 	};
@@ -9648,17 +9805,17 @@ var init_sheets = __esmMin((() => {
 function describe(cs) {
 	const c = cs.counts;
 	const parts = [
-		c.newPeople && plural$1(c.newPeople, "new person", "new people"),
-		c.people && `${plural$1(c.people, "person", "people")} changed`,
-		c.teams && `${plural$1(c.teams, "team")} changed`,
-		c.newGoals && plural$1(c.newGoals, "new goal"),
-		c.goals && `${plural$1(c.goals, "goal")} changed`,
-		c.plans && `${plural$1(c.plans, "plan")} changed`,
-		c.checkIns && `${plural$1(c.checkIns, "check-in")}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ""}`,
+		c.newPeople && plural$2(c.newPeople, "new person", "new people"),
+		c.people && `${plural$2(c.people, "person", "people")} changed`,
+		c.teams && `${plural$2(c.teams, "team")} changed`,
+		c.newGoals && plural$2(c.newGoals, "new goal"),
+		c.goals && `${plural$2(c.goals, "goal")} changed`,
+		c.plans && `${plural$2(c.plans, "plan")} changed`,
+		c.checkIns && `${plural$2(c.checkIns, "check-in")}${c.backfilled ? ` (${c.backfilled} for past weeks)` : ""}`,
 		c.replaced && `${c.replaced} replaced`,
-		c.stopped && `${plural$1(c.stopped, "goal")} ${lower({ label: STOPPED })}`,
-		c.deleted && `${plural$1(c.deleted, "goal")} deleted`,
-		c.left && `${plural$1(c.left, "person", "people")} ${lower({ label: LEFT })}`
+		c.stopped && `${plural$2(c.stopped, "goal")} ${lower({ label: STOPPED })}`,
+		c.deleted && `${plural$2(c.deleted, "goal")} deleted`,
+		c.left && `${plural$2(c.left, "person", "people")} ${lower({ label: LEFT })}`
 	].filter(Boolean);
 	return parts.length ? parts.join(", ") : "No changes";
 }
@@ -10080,7 +10237,7 @@ function planChanges(input) {
 		if (action === void 0) return;
 		if (newAdminRows.some((x) => x.row === row) && newAdminRows.length >= 3) {
 			if (adminsAnswer?.choice === "leave") return leave("People", row);
-			if (!adminsAnswer) raise("many-admins", "People", row, name || email, `${plural$1(newAdminRows.length, "person", "people")} would become admins. Is that right?`, {
+			if (!adminsAnswer) raise("many-admins", "People", row, name || email, `${plural$2(newAdminRows.length, "person", "people")} would become admins. Is that right?`, {
 				column: "Admin",
 				answers: ANSWERS.sure
 			});
@@ -10249,7 +10406,7 @@ function planChanges(input) {
 		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
-	const work = new GoalSet(s.goals);
+	const work = new GoalSet(withProposed(s));
 	const fileIds = /* @__PURE__ */ new Map();
 	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : void 0;
 	/** The goal a row says: its key first (a goal carried into this cycle keeps its key, not its ID), then its ID. */
@@ -10716,7 +10873,7 @@ function planChanges(input) {
 					id: actor.id,
 					admin: admin()
 				}, { ownerId: d.ownerId }, via) ? "" : " " + MARKS_STAGES(people.get(d.ownerId)?.name ?? "Its owner");
-				const a = ask("past-stage", "Goals", row, d.title, `${plural$1(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
+				const a = ask("past-stage", "Goals", row, d.title, `${plural$2(past.length, "stage")} of “${d.title}” ${past.length === 1 ? "is" : "are"} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(", ")}. ${past.length === 1 ? "Is it" : "Are they"} done?${marks}`, {
 					column: "Stages",
 					answers: ANSWERS.pastStage
 				});
@@ -10735,6 +10892,33 @@ function planChanges(input) {
 		if (has(r, "effect")) d.effect = val(r, "effect");
 		if (has(r, "source")) d.source = val(r, "source");
 		if (has(r, "definition")) d.definition = val(r, "definition");
+		const wasProposed = !!existing && isProposed(existing);
+		let proposing = wasProposed;
+		if (has(r, "state") && val(r, "state")) {
+			const w = fold$1(val(r, "state"));
+			if (["active", "live"].includes(w)) proposing = false;
+			else if ([
+				"proposed",
+				"draft",
+				"proposal"
+			].includes(w)) proposing = true;
+			else if (!(w === "stopped" && existing?.stoppedAt)) return raise("unknown-word", "Goals", row, label, `State says “${val(r, "state")}”. Use active or proposed.`, {
+				column: "State",
+				found: val(r, "state")
+			});
+		}
+		if (existing && proposing && !wasProposed && started(existing.id)) return raise("cant-change", "Goals", row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, {
+			column: "State",
+			found: "state-has-check-ins"
+		});
+		if (existing && proposing && !wasProposed && !canChange(existing)) return raise("not-allowed", "Goals", row, existing.title, notYours(existing), { answers: ANSWERS.leaveOnly });
+		if (wasProposed && !proposing && !mayActivate({
+			id: actor.id,
+			admin: admin()
+		}, existing)) return raise("not-allowed", "Goals", row, existing.title, `${people.get(existing.ownerId)?.name ?? "Its owner"} or an admin can make this active.`, {
+			column: "State",
+			answers: ANSWERS.leaveOnly
+		});
 		const ownerNow = people.get(d.ownerId);
 		const feedsCols = [
 			"feeds into ref",
@@ -10743,7 +10927,7 @@ function planChanges(input) {
 			"feeds into"
 		].filter((c) => has(r, c) && (c !== "feeds into ref" || !!ref(r, c)));
 		const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
-		const fix = goalMustFix({
+		const fix = (proposing ? proposedMustFix : goalMustFix)({
 			...d,
 			parentId: feeds ? d.parentId || "(read below)" : ""
 		}, {
@@ -10759,6 +10943,7 @@ function planChanges(input) {
 			} : null
 		});
 		if (fix.length) {
+			if (wasProposed && !proposing) return raise(MUST_KIND[fix[0].id], "Goals", row, d.title, `“${d.title}” can’t be made active yet: ${fix.map((f) => f.text).join(" ")}`, { column: "State" });
 			for (const f of fix) raise(MUST_KIND[f.id], "Goals", row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? "Goal" });
 			return;
 		}
@@ -10796,7 +10981,7 @@ function planChanges(input) {
 			r
 		});
 		let built = buildGoal({
-			...d,
+			...proposing && measureEmpty(d) ? unsaidDraft(d) : d,
 			parentId: existing?.parentId ?? ""
 		}, cycle, {
 			id: gid,
@@ -10809,6 +10994,16 @@ function planChanges(input) {
 		if (key) built = {
 			...built,
 			key
+		};
+		if (proposing && !wasProposed) built = {
+			...built,
+			proposedAt: now,
+			proposedBy: actor.id
+		};
+		if (wasProposed && !proposing) built = {
+			...built,
+			proposedAt: null,
+			proposedBy: null
 		};
 		if (existing && d.whyHelps === "" && "whyHelps" in built) delete built.whyHelps;
 		if (action) {
@@ -10854,9 +11049,9 @@ function planChanges(input) {
 		const deletes = goalRows.filter(({ r }) => codeOf(GOAL_ACTION_WORDS, val(r, "action")) === "delete").length;
 		const lefts = removalRows.length - stops - deletes;
 		const parts = [
-			stops && `stops ${plural$1(stops, "goal")}`,
-			deletes && `deletes ${plural$1(deletes, "goal")}`,
-			lefts && `marks ${plural$1(lefts, "person", "people")} as left`
+			stops && `stops ${plural$2(stops, "goal")}`,
+			deletes && `deletes ${plural$2(deletes, "goal")}`,
+			lefts && `marks ${plural$2(lefts, "person", "people")} as left`
 		].filter(Boolean);
 		return `This file ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}. Is that right?`;
 	}
@@ -11381,6 +11576,10 @@ function planChanges(input) {
 			g = goalNamed("Check-ins", row, name, "Goal", val(r, "goal"), "", `There’s no goal called “${val(r, "goal")}”. Add the Goal key column to be exact.`, `There’s no goal called “${val(r, "goal")}” that only one goal has. Add the Goal key column to be exact.`);
 			if (!g) continue;
 		}
+		if (isProposed(g)) {
+			raise("cant-change", "Check-ins", row, g.title, NOTHING_TO_CHECK_IN, { column: "Goal key" });
+			continue;
+		}
 		const weekRaw = val(r, "week");
 		const read = weekRaw ? weekCell(weekRaw, "Check-ins", row, g.title) : { n: null };
 		if (read.problem) {
@@ -11518,6 +11717,10 @@ function planChanges(input) {
 			raise("bad-key", "Check-ins", row, p.goalId, "That goal no longer exists. Reload to see the latest.");
 			continue;
 		}
+		if (isProposed(g)) {
+			raise("cant-change", "Check-ins", row, g.title, NOTHING_TO_CHECK_IN);
+			continue;
+		}
 		const w = p.week;
 		if (!Number.isInteger(w) || w < 1) {
 			raise("week-wrong", "Check-ins", row, g.title, "Check-ins start in week 1; week 0 is the start of the year.");
@@ -11564,7 +11767,7 @@ function planChanges(input) {
 			for (let k = ciOut.length - 1; k >= 0; k--) if (ids.has(ciOut[k].id)) ciOut.splice(k, 1);
 			for (let k = items.length - 1; k >= 0; k--) if (items[k].sheet === "Check-ins" && replacing.some((x) => x.row === items[k].row)) items.splice(k, 1);
 			for (let k = changes.length - 1; k >= 0; k--) if (changes[k].entity === "check-in" && ids.has(changes[k].entityId)) changes.splice(k, 1);
-		} else if (!a) for (const x of replacing) raise("replaces-others", "Check-ins", x.row, x.name, `${plural$1(replacing.length, "row")} replace check-ins other people posted.`, { answers: ANSWERS.replaces });
+		} else if (!a) for (const x of replacing) raise("replaces-others", "Check-ins", x.row, x.name, `${plural$2(replacing.length, "row")} replace check-ins other people posted.`, { answers: ANSWERS.replaces });
 	}
 	const reqOut = /* @__PURE__ */ new Map();
 	const requestsNow = () => [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()];
@@ -11917,7 +12120,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11928,6 +12131,8 @@ var init_changeset = __esmMin((() => {
 	init_goalRights();
 	init_numbers();
 	init_goalKey();
+	init_proposed();
+	init_proposedActions();
 	init_format();
 	init_people();
 	init_plan();
@@ -11956,11 +12161,11 @@ var init_changeset = __esmMin((() => {
 	};
 	rowOf = (r, i) => Number(r.__row ?? i + 2);
 	blankRow = (r) => Object.entries(r).every(([k, v]) => k === "__row" || !String(v).trim());
-	plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+	plural$2 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 	commaDecimal = (raw) => /^[-+]?\d+,\d{1,2}(\s*(%|[a-z]+))?$/i.test(raw.trim());
 	isFormula = (raw) => raw.trim().startsWith("=");
 	oddKind = (text) => /below zero/i.test(text) ? "below zero" : /100 ?times|th of/.test(text) ? "far from the start" : /100%/.test(text) ? "over 100%" : /billion/.test(text) ? "a billion" : /far outside/.test(text) ? "far outside the plan" : /past the target/.test(text) ? "past the target" : /Last week was/.test(text) ? "far from the last number" : /margin/.test(text) ? "margin" : text;
-	examplesLine = (n) => n ? `${plural$1(n, "example row")} left out.` : "";
+	examplesLine = (n) => n ? `${plural$2(n, "example row")} left out.` : "";
 	FIELD_COLUMN = {
 		title: "Goal",
 		teamId: "Team",
@@ -13055,8 +13260,87 @@ function summarise(goal, s, cycle, today, week) {
 		story: storyOf(goal, s, cycle, week, today)
 	};
 }
+/** Every goal's summary. Judged goals only: a proposed goal's is domain/proposedSummary's (its status rules are never run). */
 function summariseAll(goals, s, cycle, today, week) {
 	return goals.map((g) => summarise(g, s, cycle, today, week));
+}
+// src/domain/proposedSummary.ts
+init_format();
+init_levels();
+init_plan();
+init_proposed();
+/** A proposed goal stored with nothing measured: dated stages with no stages (no column says a type is unknown). */
+var measureUnsaid = (g) => isProposed(g) && g.kind === "milestone" && g.stages.length === 0;
+function proposedSummary(goal, s, cycle, week) {
+	const owner = s.people.find((p) => p.id === goal.ownerId)?.name ?? "—";
+	const team = s.teams.find((t) => t.id === goal.teamId)?.name ?? "—";
+	const unsaid = measureUnsaid(goal);
+	const target = unsaid ? "Not said yet" : targetText(goal);
+	const none = "none";
+	const story = {
+		status: none,
+		since: null,
+		where: "",
+		outlook: null,
+		why: null,
+		doing: null,
+		byWhen: null,
+		needs: null,
+		answered: null,
+		next: null,
+		warnings: [],
+		flags: [],
+		feeds: null,
+		result: null,
+		quarters: [],
+		label: PROPOSED
+	};
+	return {
+		goal,
+		owner,
+		team,
+		state: "proposed",
+		level: levelName(cycle, goal.level),
+		type: unsaid ? "Not said yet" : kindLabel(goal),
+		status: none,
+		statusLabel: PROPOSED,
+		now: "",
+		nowValue: null,
+		planNow: null,
+		planNowText: "—",
+		planThen: null,
+		target,
+		dueWeek: goal.kind === "metric" ? planEnd(goal.plan, cycle.weeks) : goal.kind === "milestone" ? Math.max(0, ...goal.stages.map((x) => x.dueWeek)) : cycle.weeks,
+		gap: "",
+		gapTone: "on",
+		lastWeek: null,
+		lastPostedAt: null,
+		quietDays: 0,
+		attention: {
+			goal,
+			status: {
+				status: none,
+				calc: none,
+				latest: null,
+				greener: false,
+				daysSinceCheckIn: null,
+				week
+			},
+			flags: [],
+			weight: 0,
+			handled: null,
+			lookedAt: null
+		},
+		forecast: null,
+		projection: null,
+		feedsInto: goal.parentId ? withProposed(s).find((g) => g.id === goal.parentId)?.title ?? null : null,
+		why: "",
+		pathToGreen: "",
+		needs: "",
+		series: [],
+		checkIns: [],
+		story
+	};
 }
 // src/app/reads.ts
 init_cycle();
@@ -13101,8 +13385,15 @@ function searchRows(s, cycle, today, week, columns) {
 		let v;
 		return () => v ??= f();
 	};
+	const goals = () => {
+		const r = goalRows(s, cycle, today, week, columns);
+		return s.proposed?.length ? {
+			...r,
+			summaries: [...r.summaries, ...s.proposed.map((g) => proposedSummary(g, s, cycle, week))]
+		} : r;
+	};
 	return {
-		goal: once(() => goalRows(s, cycle, today, week, columns)),
+		goal: once(goals),
 		person: once(() => personRows(s)),
 		team: once(() => teamRows(s))
 	};
@@ -13228,6 +13519,7 @@ function localSearch(rows, finders = {}) {
 }
 // src/domain/export.ts
 init_changeset();
+init_proposed();
 init_goal();
 init_asks();
 init_levels();
@@ -13250,14 +13542,18 @@ CHECK_INS.columns.map((c) => c.header);
 */
 function prepare(x, withStopped = false) {
 	const a = withStopped && !x.goals ? x.snapshot.archive : void 0;
-	const s = a?.goals.length ? {
+	const base = withStopped && !x.goals && x.snapshot.proposed?.length ? {
 		...x.snapshot,
-		goals: [...x.snapshot.goals, ...a.goals],
-		checkIns: [...x.snapshot.checkIns, ...a.checkIns],
-		decisions: [...x.snapshot.decisions, ...a.decisions]
+		goals: [...x.snapshot.goals, ...x.snapshot.proposed]
 	} : x.snapshot;
+	const s = a?.goals.length ? {
+		...base,
+		goals: [...base.goals, ...a.goals],
+		checkIns: [...base.checkIns, ...a.checkIns],
+		decisions: [...base.decisions, ...a.decisions]
+	} : base;
 	const goals = x.goals ?? s.goals;
-	const sums = summariseAll(goals, s, x.cycle, x.today, x.week);
+	const sums = goals.map((g) => isProposed(g) ? proposedSummary(g, s, x.cycle, x.week) : summarise(g, s, x.cycle, x.today, x.week));
 	const c = contextOf(x, s);
 	return {
 		goals,
@@ -13555,6 +13851,7 @@ function toJson$1(x) {
 					by: name(g.stoppedBy ?? "") || null,
 					reason: g.stopReason ?? null
 				} } : {},
+				...s.state === "proposed" ? { state: "proposed" } : {},
 				now: {
 					status: s.status,
 					statusLabel: g.stoppedAt ? STOPPED : s.statusLabel,
@@ -13879,7 +14176,7 @@ var COUNT_WORDS = [
 ];
 /** "two", "three" … for small counts in a sentence; digits from 11. */
 var countWord = (n) => COUNT_WORDS[n] ?? String(n);
-var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+var plural$1 = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 var pct$2 = (r) => `${Math.round(r * 100)}%`;
 var round$1 = (v, decimals) => Number(v.toFixed(decimals));
 /** "weeks 42–44", or "week 44" for one. */
@@ -14113,7 +14410,7 @@ function milestoneFacts(goal, own, week, stale) {
 		key: "plan",
 		label: "Against plan",
 		value: m.calc === "done" ? "Every stage done" : stagesBehind(m.late.map((s) => s.kind)),
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
+		detail: `${m.doneCount} of ${plural$1(m.stages.length, "stage")} done; ${m.dueCount} due by week ${week}`,
 		tone: m.late.length ? "bad" : "good"
 	});
 	const span = own.filter((c) => c.stages).slice(-3);
@@ -14142,7 +14439,7 @@ function milestoneFacts(goal, own, week, stale) {
 		key: "since",
 		label: "Since last update",
 		value: "First check-in",
-		detail: `${m.doneCount} of ${plural(m.stages.length, "stage")} done in week ${latest.week}`,
+		detail: `${m.doneCount} of ${plural$1(m.stages.length, "stage")} done in week ${latest.week}`,
 		tone: "flat"
 	});
 	else {
@@ -14158,7 +14455,7 @@ function milestoneFacts(goal, own, week, stale) {
 		out.push({
 			key: "since",
 			label: "Since last update",
-			value: first ? `${first.s.name} slipped ${plural(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural(done.length, "stage")} done` : "No change",
+			value: first ? `${first.s.name} slipped ${plural$1(first.s.expectedWeek - first.b.expectedWeek, "week")}` : done.length ? `${plural$1(done.length, "stage")} done` : "No change",
 			detail: parts.length ? `Since week ${prev.week}: ${parts.join("; ")}` : `Same as week ${prev.week}`,
 			tone: slips.length ? "bad" : done.length ? "good" : "flat"
 		});
@@ -14171,7 +14468,7 @@ function milestoneFacts(goal, own, week, stale) {
 		key: "projection",
 		label: "Projection",
 		value: `Finished in week ${finish}`,
-		detail: finish > due ? `${plural(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
+		detail: finish > due ? `${plural$1(finish - due, "week")} after its week ${due} date` : `By its week ${due} date`,
 		tone: finish > due ? "bad" : "good"
 	});
 	else if (stale) out.push({
@@ -14184,7 +14481,7 @@ function milestoneFacts(goal, own, week, stale) {
 	else out.push({
 		key: "projection",
 		label: "Projection",
-		value: finish > due ? `Finishes week ${finish}, ${plural(finish - due, "week")} late` : `Finishes by week ${due}`,
+		value: finish > due ? `Finishes week ${finish}, ${plural$1(finish - due, "week")} late` : `Finishes by week ${due}`,
 		detail: nextText,
 		tone: finish > due ? "bad" : "good"
 	});
@@ -15116,7 +15413,8 @@ var help$2 = [
 				"Optional: it can be left out; the table says what an empty cell gives.",
 				"Leave empty: Faro fills it in, such as a new goal’s Key.",
 				"Worked out: Faro writes it and never reads it back, such as Status. Leave it or delete it.",
-				"On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away."
+				"On a row already here, nothing is required: an empty cell keeps what is there, except where the table says empty clears it. So an empty Admin keeps an admin an admin; type no to take it away.",
+				"State on Goals says active or proposed. proposed adds a goal that is proposed, not yet active (its Start and Target, Limit or Stages may wait), or makes one with no check-ins proposed again; active makes a proposed goal active, once it has everything an active goal needs. A proposed goal’s worked-out columns are empty, and its Status says Proposed. A check-in row for a proposed goal is a Must fix."
 			]
 		}],
 		routes: [],
@@ -15761,7 +16059,8 @@ var CORE_ARTICLES = [
 					"Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.",
 					"In the Table, select goals to change their owner or level, watch them or export them.",
 					"In the sidebar, Goals has your saved views under it.",
-					"The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere."
+					"The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.",
+					"Proposed goals are never among these and never counted with them: the count line adds “· 1 proposed”, a link that lists them. The Filters sheet has State: Active (the default) or Proposed."
 				]
 			},
 			{
@@ -16023,7 +16322,7 @@ var CORE_ARTICLES = [
 		sections: [
 			{
 				heading: "What it’s for",
-				text: ["Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place."]
+				text: ["Understanding one goal in a couple of seconds, then acting on it: checking in, answering what’s asked of you, commenting or watching. Each fact is said once, in one place.", "A proposed goal’s page is simpler: Proposed above the title, what it would measure, and Make it active, Change it or Withdraw it for those who may (see Proposed goals)."]
 			},
 			{
 				heading: "The summary bar",
@@ -16291,7 +16590,9 @@ var CORE_ARTICLES = [
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
 				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
 				"A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
-				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title."
+				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title.",
+				"Check asks “Is it under way?”. “Yes: publish it as active” is judged against its plan and check-ins are due. “Not yet: propose it” saves it as a proposed goal: everyone can see it and comment, nothing is due and it has no status until its owner or an admin makes it active. The block under it then reads After you propose it, and the button Propose goal. A goal for someone else starts on “Not yet”.",
+				"A proposed goal may leave how it’s measured unsaid: its numbers or stages become optional, all together, and Who and where offers “Skip: say how it’s measured later”. Check then reads “How it’s measured isn’t said yet.”"
 			]
 		}, {
 			heading: "Who can",
@@ -16338,6 +16639,53 @@ var CORE_ARTICLES = [
 		related: [
 			"edit-goal",
 			"check-in",
+			"goals"
+		]
+	},
+	{
+		id: "goal-proposed",
+		title: "Proposed goals",
+		summary: "A goal can be proposed before anyone is held to it: everyone can see it and comment, it has no status and nothing is due, and its owner or an admin makes it active when it is agreed.",
+		group: "goals",
+		sections: [
+			{
+				heading: "What it’s for",
+				text: ["Putting a goal in front of its would-be owner, or a leader, without committing them: a goal for someone else, a level above your team, or next quarter’s idea."]
+			},
+			{
+				heading: "How to use it",
+				list: [
+					"Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.",
+					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
+					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
+					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
+					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
+					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
+				]
+			},
+			{
+				heading: "Who can",
+				text: ["Anyone can propose a goal, for anyone. Its owner or an admin makes it active. Whoever proposed it may also change or withdraw it while it is proposed. Everyone can comment, ask its owner a question and watch it."]
+			}
+		],
+		routes: ["/goals?state=proposed"],
+		screens: ["ProposedGoal", "ProposedList"],
+		reqs: ["GOAL-PROPOSED"],
+		keywords: [
+			"proposed",
+			"propose",
+			"proposal",
+			"not yet",
+			"make it active",
+			"activate",
+			"withdraw",
+			"draft",
+			"agreed",
+			"under way"
+		],
+		related: [
+			"new-goal",
+			"goal-page",
 			"goals"
 		]
 	},
@@ -17677,6 +18025,22 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goal-proposed",
+		date: "2026-11-12",
+		title: "Propose a goal before it starts",
+		points: [
+			"New goal’s last step asks whether the goal is under way. If not, propose it: everyone can see it, and nothing is due.",
+			"Its owner or an admin makes it active when it is agreed.",
+			"Proposed goals are counted apart, and listed under Goals with the Proposed filter."
+		],
+		articles: [
+			"goal-proposed",
+			"new-goal",
+			"goals",
+			"columns"
+		]
+	},
 	{
 		id: "batch-refs",
 		date: "2026-11-12",
@@ -20045,6 +20409,7 @@ var MORE_RULE_PAGES = [
 	["years-and-weeks", "Years and weeks"],
 	["new-goal", "New goal"],
 	["read-back", "The read-back"],
+	["proposed", "Proposed goals"],
 	["not-born-late", "A goal not born late"],
 	["finding", "Finding things"],
 	["navigation", "Navigation: the menu, the lit item and a page’s name"],
@@ -20168,6 +20533,7 @@ init_review();
 init_progress();
 init_tableLayout();
 init_goalKey();
+init_proposed();
 init_removal();
 init_via();
 /** A status as the assistant reads it: the words people see, with the code beside them. */
@@ -20228,7 +20594,7 @@ async function save$2(ctx, c, done, nothing) {
 var name$1 = (ctx, id) => ctx.snapshot.people.find((p) => p.id === id)?.name ?? "—";
 /** A goal by its ID or its key (G-12). */
 var goalOf$2 = (ctx, id) => {
-	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
 	if (!g) throw new Error(`There’s no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
@@ -22398,6 +22764,7 @@ var FEEDBACK_TOOLS = [
 // src/mcp/removeTools.ts
 init_actions();
 init_goalKey();
+init_proposed();
 init_removal();
 init_status();
 init_vocabulary();
@@ -22448,7 +22815,7 @@ async function save$1(ctx, c, done) {
 	return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
 }
 var goalOf$1 = (ctx, id) => {
-	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
 	if (!g) throw new Error(`There’s no live goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
@@ -23475,6 +23842,67 @@ var tools_default = [{
 	id: "spreadsheets",
 	part: tools
 }];
+// src/domain/readBack.ts
+init_goalEntry();
+init_goal();
+init_format();
+init_levels();
+init_plan();
+init_progress();
+init_review();
+init_vocabulary();
+init_weeks();
+var MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+];
+var first = (name) => name.split(" ")[0] ?? name;
+var plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+/** "Thursday 12 Nov": the weekday and date a check-in is due by (with the year when it isn't today's). */
+function dueWords(c, week) {
+	const day = /* @__PURE__ */ new Date(reviewDate(c.cycle, week) + "T00:00:00Z");
+	const year = day.getUTCFullYear() === c.today.getUTCFullYear() ? "" : ` ${day.getUTCFullYear()}`;
+	return `${WEEKDAY[c.cycle.reviewDay]} ${day.getUTCDate()} ${MONTHS[day.getUTCMonth()]}${year}`;
+}
+/**
+* "Make it active"'s read-back (2.15): the plan as it would run from `fromWeek`, then when the first check-in is due.
+* For a number goal: "From 40% in week 48 (23–29 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027): 5 weeks, not
+* the 7 you proposed. Its first check-in is due by Thursday 26 Nov, then every week."
+*/
+function activeReadBack(goal, c) {
+	const cy = c.cycle;
+	const parts = [];
+	let firstWeek = c.fromWeek;
+	if (goal.kind === "metric") {
+		const to = goal.plan.endWeek ?? cy.weeks, was = to - (goal.plan.fromWeek ?? 0), n = to - c.fromWeek;
+		const num = (v) => fmt(v, goal);
+		parts.push(`From ${num(goal.plan.start)} in ${weekSays(cy, c.fromWeek, "sentence")} to ${num(goal.plan.target)} by ${weekSays(cy, to, "sentence")}: ${plural(n, "week")}${n !== was ? `, not the ${was} you proposed` : ""}.`);
+	} else if (goal.kind === "range") parts.push(`At or ${goal.range.bound === "atMost" ? "under" : "over"} ${fmt(goal.range.limit, goal)}, from ${weekSays(cy, c.fromWeek, "sentence")}.`);
+	else {
+		const last = Math.max(0, ...goal.stages.map((s) => s.dueWeek));
+		parts.push(`${plural(goal.stages.length, "stage")}, the last due ${weekSays(cy, last, "sentence")}.`);
+		firstWeek = c.week;
+	}
+	if (c.rhythm === "weekly") {
+		const due = Math.max(firstReview(cy, c.today).week, firstWeek);
+		parts.push(`Its first check-in is due by ${dueWords({
+			cycle: cy,
+			today: c.today
+		}, due)}, then every week.`);
+	} else parts.push("Nothing is due.");
+	if (c.proposer) parts.push(`${first(c.proposer)}${c.watchers ? ` and its ${plural(c.watchers, "watcher")}` : ""} see that it is active.`);
+	return parts.join(" ");
+}
 // src/mcp/tools.ts
 init_levels();
 init_actions();
@@ -23485,6 +23913,9 @@ init_attention();
 init_vocabulary();
 init_removal();
 init_goalKey();
+init_proposed();
+init_proposedActions();
+init_weeks();
 init_tableLayout();
 var str = (description, extra = {}) => ({
 	type: "string",
@@ -23713,7 +24144,7 @@ async function change(ctx, tables, opts) {
 }
 /** A goal by its ID or its key (G-12). */
 var goalRef = (ctx, id) => {
-	const g = findGoal(ctx.snapshot.goals, String(id ?? ""));
+	const g = findGoal(withProposed(ctx.snapshot), String(id ?? ""));
 	if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? "")) ? "key" : "ID"} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
 	return g;
 };
@@ -23762,7 +24193,8 @@ var GOAL_FIELDS = {
 	feeds_into_id: str("The ID or key (G-12) of the goal this one feeds. Empty string to unlink."),
 	why_it_helps: str("Why we expect it to help the goal it feeds."),
 	source: str("Where the number comes from."),
-	definition: str("Exactly what is counted.")
+	definition: str("Exactly what is counted."),
+	state: str("active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.", { enum: ["active", "proposed"] })
 };
 var GOAL_COLS = {
 	title: "goal",
@@ -23785,7 +24217,8 @@ var GOAL_COLS = {
 	feeds_into_id: "feeds into id",
 	why_it_helps: "why it helps",
 	source: "source",
-	definition: "definition"
+	definition: "definition",
+	state: "state"
 };
 var CORE_TOOLS = [
 	{
@@ -23829,7 +24262,8 @@ var CORE_TOOLS = [
 				mine: bool("Only goals you own (the same as scope \"mine\")."),
 				scope: str("Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.", { enum: SCOPES }),
 				query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(", ")}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ["met", "missed"])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
-				view: str("The name of a saved view: one of yours, or one pinned for everyone.")
+				view: str("The name of a saved view: one of yours, or one pinned for everyone."),
+				state: str("active (the default) or proposed: proposed goals have no status and are listed only when asked for.", { enum: ["active", "proposed"] })
 			}
 		},
 		annotations: {
@@ -23894,7 +24328,10 @@ var CORE_TOOLS = [
 					v
 				}] : [];
 			});
-			let list = found.map((r) => byId.get(r.id)).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
+			const proposedOnly = a.state === "proposed";
+			const inScopeOf = (g) => !inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === "mine" ? g.ownerId === ctx.actor.id : scope === "team" ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false;
+			const wordsOf = (g) => `${g.title} ${g.key ?? ""}`.toLowerCase();
+			let list = proposedOnly ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week)) : found.map((r) => byId.get(r.id)).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
 			if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== "handled"), ...list.filter((s) => attentionGroup(s.attention) === "handled")];
 			const data = list.map((s) => ({
 				key: s.goal.key ?? null,
@@ -23904,8 +24341,9 @@ var CORE_TOOLS = [
 				level: s.goal.level,
 				owner: s.owner,
 				team: s.team,
-				status: s.status,
-				statusLabel: LABEL[s.status],
+				status: s.state === "proposed" ? null : s.status,
+				statusLabel: s.statusLabel,
+				state: s.state ?? "active",
 				needsAttention: needsAttention(s.attention),
 				beingHandled: s.attention.handled?.text ?? null,
 				lookedAt: s.attention.lookedAt?.text ?? null,
@@ -23946,12 +24384,27 @@ var CORE_TOOLS = [
 			const g = goalRef(ctx, a.goal_id);
 			const j = toJson$1({
 				ws: ctx.ws,
-				snapshot: ctx.snapshot,
+				snapshot: isProposed(g) ? {
+					...ctx.snapshot,
+					goals: [...ctx.snapshot.goals, g]
+				} : ctx.snapshot,
 				cycle: ctx.cycle,
 				week: ctx.week,
 				today: ctx.today,
 				goals: [g]
 			});
+			if (isProposed(g)) {
+				const data = {
+					cycle: j.cycle,
+					goal: j.goals[0],
+					state: "proposed",
+					notes: j.notes
+				};
+				return {
+					data,
+					text: JSON.stringify(data, null, 2)
+				};
+			}
 			const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === "stale";
 			const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({
 				label: c.label,
@@ -24089,6 +24542,77 @@ var CORE_TOOLS = [
 				confirm: a.confirm === true,
 				answers: a.answers
 			});
+		}
+	},
+	{
+		name: "make_goal_active",
+		title: "Make a proposed goal active",
+		description: "Its owner or an admin: make a proposed goal active. A number goal’s plan runs from this week, or from the week given. From then it is judged against its plan and check-ins are due. Use dry_run first to read back the dates and when the first check-in is due, and say it to the person.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			required: ["goal_id"],
+			properties: {
+				goal_id: str("The goal’s ID or its key, e.g. G-12."),
+				from: str("Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week."),
+				dry_run: DRY
+			}
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false
+		},
+		async run(a, ctx) {
+			const g = goalRef(ctx, a.goal_id);
+			let fromWeek;
+			if (a.from != null && a.from !== "") {
+				const r = readWeekCode(ctx.cycle, String(a.from));
+				if (!("n" in r)) throw new Error(r.text ?? `From says “${String(a.from)}”. Write a year and a week, like 2026-W48.`);
+				fromWeek = r.n;
+			}
+			let out;
+			try {
+				out = activate(ctx, {
+					goalId: g.id,
+					fromWeek
+				});
+			} catch (e) {
+				if (e instanceof NotAllowed) return {
+					isError: true,
+					text: e.message
+				};
+				throw e;
+			}
+			const says = activeReadBack(g, {
+				cycle: ctx.cycle,
+				week: ctx.week,
+				today: ctx.today,
+				rhythm: "weekly",
+				fromWeek: fromWeek ?? Math.max(0, ctx.week)
+			});
+			if (a.dry_run) return {
+				data: {
+					saved: false,
+					readBack: says
+				},
+				text: `Checked, not saved (dry run). ${says}`
+			};
+			await ctx.save({
+				...out.commit,
+				changes: out.commit.changes.map((x) => ({
+					...x,
+					diffs: [...x.diffs, VIA_MCP]
+				}))
+			});
+			return {
+				data: {
+					saved: true,
+					readBack: says
+				},
+				text: `“${g.title}” is active (as ${ctx.actor.name}). ${says}`
+			};
 		}
 	},
 	{
@@ -46579,7 +47103,9 @@ function goalToRows(ws, g) {
 				removed_by: g.removedBy,
 				stopped_at: g.stoppedAt,
 				stopped_by: g.stoppedBy,
-				stop_reason: g.stopReason
+				stop_reason: g.stopReason,
+				proposed_at: g.proposedAt,
+				proposed_by: g.proposedBy
 			})
 		},
 		stages: g.kind === "milestone" ? g.stages.map((s) => ({
@@ -46626,7 +47152,9 @@ function goalFromRows(r, stageRows) {
 		...who("removedBy", r.removed_by),
 		...when("stoppedAt", r.stopped_at),
 		...who("stoppedBy", r.stopped_by),
-		...who("stopReason", r.stop_reason)
+		...who("stopReason", r.stop_reason),
+		...when("proposedAt", r.proposed_at),
+		...who("proposedBy", r.proposed_by)
 	};
 	if (r.kind === "metric") {
 		const op = r.original_plan;

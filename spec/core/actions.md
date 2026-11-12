@@ -15,11 +15,12 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 | Action | Does | Who may | AI tools |
 |---|---|---|---|
-| [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; Anyone, for anyone (Lane, 11 Nov); Admins | — |
+| [planChanges](#planchanges) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone; Add someone; change their name, job title, team or admin rights | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov); Admins | — |
 | [postCheckIn](#postcheckin) | Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI) | The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via | [`post_check_in`](tools.md#post_check_in), [`bulk_change`](tools.md#bulk_change) |
-| [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
-| [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stop_goal`](tools.md#stop_goal) |
-| [deleteGoal](#deletegoal) | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`delete_goal`](tools.md#delete_goal) |
+| [saveGoal](#savegoal) | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI); Add a goal, at any level, owned by anyone | The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it; Anyone, for anyone (Lane, 11 Nov) | [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change) |
+| [activate](#activate) | Make a proposed goal active (GE10) | The goal’s owner, or an admin (not whoever proposed it, unless they are one) | — |
+| [stopGoal](#stopgoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`stop_goal`](tools.md#stop_goal) |
+| [deleteGoal](#deletegoal) | Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed) | The goal’s owner, or an admin; a proposal also whoever proposed it | [`delete_goal`](tools.md#delete_goal) |
 | [deleteCheckIn](#deletecheckin) | Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`delete_check_in`](tools.md#delete_check_in) |
 | [saveRetro](#saveretro) | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`wrap_up_goal`](tools.md#wrap_up_goal) |
 | [recordStagesDone](#recordstagesdone) | Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | — |
@@ -90,7 +91,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `ChangeSet`
 
-**Who may:** The goal’s owner, or an admin (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone); Admins (to add someone; change their name, job title, team or admin rights).
+**Who may:** The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone); Admins (to add someone; change their name, job title, team or admin rights).
 
 **The rule:** `planChanges`, in `src/domain/changeset.ts`.
 
@@ -165,10 +166,11 @@ Every change a person makes, as the command port runs it ([the ports at company 
 | `confirm` | `boolean` | no | Yes to every question rule 3 asks (the tools' and older screens' one switch). |
 | `metric` | `GoalMeasure \| null` | no | What measures it, as the form chose (the goal.measure place): its name and which way is better, for the wrong-side question; null for nothing. Left out, what measures it now (domain/records goalMeasureOf), for a goal being changed. |
 | `stagesDone` | `string[]` | no | A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the stages the draft says are done (answered yes to stage-past). |
+| `state` | `'active' \| 'proposed'` | no | A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being changed keeps its state: it is made active by domain/proposed activate, never by a save. |
 
 **Result:** `{ commit: Commit \| null; goal: Goal; }` ([Goal](data-model.md#goal))
 
-**Who may:** The goal’s owner, or an admin (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone).
+**Who may:** The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it (to change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)); Anyone, for anyone (Lane, 11 Nov) (to add a goal, at any level, owned by anyone).
 
 **The rule:** `planGoal`, in `src/domain/goalEntry.ts`.
 
@@ -185,9 +187,35 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **AI tools that do the same:** [`create_goal`](tools.md#create_goal), [`update_goal`](tools.md#update_goal), [`set_plan_numbers`](tools.md#set_plan_numbers), [`bulk_change`](tools.md#bulk_change)
 
+## activate
+
+**Does:** Make a proposed goal active (GE10).
+
+**Input**:
+
+| Field | Type | Needed | What it is |
+|---|---|---|---|
+| `goalId` | `string` | yes |  |
+| `fromWeek` | `number` | no |  |
+
+**Result:** `{ commit: Commit; goal: Goal; }` ([Goal](data-model.md#goal))
+
+**Who may:** The goal’s owner, or an admin (not whoever proposed it, unless they are one).
+
+**The rule:** `activate`, in `src/domain/proposedActions.ts`.
+
+**Refuses with:**
+
+- “That goal no longer exists. Reload to see the latest.”
+- ““…” is already active.”
+- “… or an admin can make this active.”
+- ““…” can’t be made active yet: …”
+
+**AI tools that do the same:** none
+
 ## stopGoal
 
-**Does:** Stop a goal that has check-ins (with a reason); delete one that has none.
+**Does:** Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed).
 
 **Input**:
 
@@ -198,7 +226,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** The goal’s owner, or an admin.
+**Who may:** The goal’s owner, or an admin; a proposal also whoever proposed it.
 
 **The rule:** `stopGoal`, in `src/domain/removal.ts`.
 
@@ -213,7 +241,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 ## deleteGoal
 
-**Does:** Stop a goal that has check-ins (with a reason); delete one that has none.
+**Does:** Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed).
 
 **Input**:
 
@@ -223,7 +251,7 @@ Every change a person makes, as the command port runs it ([the ports at company 
 
 **Result:** `Commit`
 
-**Who may:** The goal’s owner, or an admin.
+**Who may:** The goal’s owner, or an admin; a proposal also whoever proposed it.
 
 **The rule:** `deleteGoal`, in `src/domain/removal.ts`.
 
@@ -1421,9 +1449,9 @@ From the [metrics](../modules/metrics/README.md) module.
 | Field | Type | Needed | What it is |
 |---|---|---|---|
 | `name` | `string` | no |  |
-| `decimals` | `number` | no | Places after the decimal point it's shown with. |
 | `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
 | `unit` | `string` | no |  |
+| `decimals` | `number` | no | Places after the decimal point it's shown with. |
 | `source` | `string` | no | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
 | `direction` | `MetricDirection` | no |  |
 | `meaning` | `string` | no | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
@@ -1969,6 +1997,9 @@ export interface SaveGoalInput {
   /** A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the
       stages the draft says are done (answered yes to stage-past). */
   stagesDone?: string[];
+  /** A new goal only: 'proposed' saves it proposed, not yet active (GE10, rule 14); left out, active. A goal being
+      changed keeps its state: it is made active by domain/proposed activate, never by a save. */
+  state?: 'active' | 'proposed';
 }
 ```
 

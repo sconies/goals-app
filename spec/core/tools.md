@@ -21,6 +21,7 @@ Every tool Faro’s MCP server offers an AI assistant: what it does, the argumen
 | [`get_goal`](#get_goal) | One goal in full | reads | — |
 | [`post_check_in`](#post_check_in) | Post a check-in | changes | [postCheckIn](actions.md#postcheckin) |
 | [`update_goal`](#update_goal) | Change a goal | changes | [saveGoal](actions.md#savegoal) |
+| [`make_goal_active`](#make_goal_active) | Make a proposed goal active | changes | — |
 | [`create_goal`](#create_goal) | Add a goal | changes | [saveGoal](actions.md#savegoal) |
 | [`set_plan_numbers`](#set_plan_numbers) | Set plan numbers by hand | changes | [saveGoal](actions.md#savegoal) |
 | [`add_comment`](#add_comment) | Comment on a goal | changes | [addNote](actions.md#addnote) |
@@ -143,6 +144,7 @@ No arguments.
 | `scope` | one of `mine`, `team`, `watching`, `all` | no | Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why. |
 | `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
+| `state` | one of `active`, `proposed` | no | active (the default) or proposed: proposed goals have no status and are listed only when asked for. |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -197,6 +199,14 @@ No arguments.
     "view": {
       "type": "string",
       "description": "The name of a saved view: one of yours, or one pinned for everyone."
+    },
+    "state": {
+      "type": "string",
+      "description": "active (the default) or proposed: proposed goals have no status and are listed only when asked for.",
+      "enum": [
+        "active",
+        "proposed"
+      ]
     }
   }
 }
@@ -250,7 +260,7 @@ No arguments.
 
 </details>
 
-**Gives back:** the text, and `data`:
+**Gives back:** the text, and `data`, one of:
 
 ```ts
 {
@@ -348,6 +358,173 @@ No arguments.
             postedBy: string | null;
             backfilled: boolean;
         }[];
+        state?: string | undefined;
+        stopped?: {
+            at: string;
+            by: string | null;
+            reason: string | null;
+        } | undefined;
+        stages?: {
+            id: string;
+            name: string;
+            dueWeek: number;
+        }[] | undefined;
+        unit?: string | undefined;
+        decimals?: number | undefined;
+        range?: {
+            mustStay: string;
+            limit: number;
+            margin: number;
+        } | undefined;
+        plan?: {
+            start: number;
+            target: number;
+            shape: PlanShape;
+            from: string;
+            to: string;
+            fromWeek: number;
+            dueWeek: number;
+            setByHand: boolean;
+            byWeek: {
+                week: number;
+                value: number;
+            }[];
+        } | undefined;
+        earlierPlans?: {
+            untilWeek: number;
+            start: number;
+            target: number;
+            shape: PlanShape;
+        }[] | undefined;
+        id: string;
+        key: string | null;
+        title: string;
+        level: string;
+        type: 'milestone' | 'metric' | 'range';
+        team: string | null;
+        owner: string | null;
+        ownerId: string;
+        ownerEmail: string | null;
+        feedsIntoId: string | null;
+        whyItHelps: string | null;
+        source: string | null;
+        definition: string | null;
+    } | undefined;
+    state: string;
+    notes: {
+        at: string;
+        status?: AskStatus | undefined;
+        statusLabel?: string | undefined;
+        answer?: string | null | undefined;
+        who?: string | null | undefined;
+        dueWeek?: number | null | undefined;
+        goalId: string;
+        goalKey: string | null;
+        week: number;
+        kind: string;
+        by: string;
+        text: string;
+    }[];
+}
+```
+
+```ts
+{
+    cycle: {
+        quarter?: string | undefined;
+        quarters?: {
+            label: string;
+            months: string;
+            from: number;
+            to: number;
+        }[] | undefined;
+        id: string;
+        name: string;
+        startDate: string;
+        weeks: number;
+        currentWeek: number;
+    };
+    goal: {
+        now: {
+            status: DisplayStatus;
+            statusLabel: string;
+            statusMeaning: string;
+            value: number | null;
+            text: string;
+            planThisWeek: number | null;
+            gap: string;
+            lastCheckInWeek: number | null;
+            forecast: string | null;
+            projection: {
+                likeliest: number;
+                low: number;
+                high: number;
+                byWeek: number;
+                fittedWeeks: number[];
+            } | null;
+        };
+        story: {
+            since: string | null;
+            where: string;
+            outlook: string | null;
+            whyItsOff: string | null;
+            recoveryPlan: string | null;
+            byWhen: string | null;
+            needs: string | null;
+            nextStep: string | null;
+            warnings: string[];
+            warningKinds: StoryFlag[];
+            feeds: string | null;
+        };
+        needsAttention: {
+            needs: boolean;
+            beingHandled: string | null;
+            flags: {
+                kind: FlagKind;
+                label: string;
+                detail: string;
+            }[];
+        };
+        quarters: {
+            quarter: string;
+            months: string;
+            weeks: number[];
+            result: 'open' | 'missed' | 'none' | 'met';
+            resultLabel: string | null;
+            text: string;
+        }[];
+        result: {
+            kind: ResultKind;
+            label: string;
+            dueWeek: number;
+            week: number | null;
+        } | null;
+        checkIns: {
+            id: string;
+            week: number;
+            weekStarting: string;
+            value: number | null;
+            stages: StageUpdate[] | null;
+            planThatWeek: number | null;
+            call: Status;
+            callLabel: string;
+            calculated: Status;
+            calculatedLabel: string;
+            cause: Cause | null;
+            why: string | null;
+            whyGreener: string | null;
+            pathToGreen: {
+                what: string;
+                byWeek: number | null;
+                needs: string | null;
+                state: RecoveryState;
+            } | null;
+            next: string | null;
+            postedAt: string;
+            postedBy: string | null;
+            backfilled: boolean;
+        }[];
+        state?: string | undefined;
         stopped?: {
             at: string;
             by: string | null;
@@ -626,6 +803,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `why_it_helps` | string | no | Why we expect it to help the goal it feeds. |
 | `source` | string | no | Where the number comes from. |
 | `definition` | string | no | Exactly what is counted. |
+| `state` | one of `active`, `proposed` | no | active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed. |
 | `reason` | string | no | Why the plan is changing. |
 | `confirm` | boolean | no | True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan). |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
@@ -746,6 +924,14 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
       "type": "string",
       "description": "Exactly what is counted."
     },
+    "state": {
+      "type": "string",
+      "description": "active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.",
+      "enum": [
+        "active",
+        "proposed"
+      ]
+    },
     "reason": {
       "type": "string",
       "description": "Why the plan is changing."
@@ -806,6 +992,63 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 
 **Does the same as:** [saveGoal](actions.md#savegoal), so it refuses with their words too.
 
+## make_goal_active
+
+**Make a proposed goal active.** Its owner or an admin: make a proposed goal active. A number goal’s plan runs from this week, or from the week given. From then it is judged against its plan and check-ins are due. Use dry_run first to read back the dates and when the first check-in is due, and say it to the person.
+
+**Kind:** changes. Hints: readOnlyHint false, destructiveHint false, idempotentHint true, openWorldHint false.
+
+**Input:**
+
+| Argument | Type | Needed | What it is |
+|---|---|---|---|
+| `goal_id` | string | yes | The goal’s ID or its key, e.g. G-12. |
+| `from` | string | no | Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week. |
+| `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
+
+<details><summary>The input schema, as JSON</summary>
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "goal_id"
+  ],
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The goal’s ID or its key, e.g. G-12."
+    },
+    "from": {
+      "type": "string",
+      "description": "Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Check the change without saving it. Use it to see what would change, or what is missing."
+    }
+  }
+}
+```
+
+</details>
+
+**Gives back:** the text, and `data`:
+
+```ts
+{
+    saved: boolean;
+    readBack: string;
+}
+```
+
+**Refuses with:**
+
+- “There's no goal with … … in …. Use find_goals to get IDs and keys.”
+
+**Does the same as:** no action: it reads, or does something only an assistant needs.
+
 ## create_goal
 
 **Add a goal.** Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number. What is possible but unlikely (no unit, over 100%, a target a hundred times the start, a link to a lower level) is a question: ask the person, then call again with "confirm": true (a name another goal in its team has is asked through "answers").
@@ -838,6 +1081,7 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
 | `why_it_helps` | string | no | Why we expect it to help the goal it feeds. |
 | `source` | string | no | Where the number comes from. |
 | `definition` | string | no | Exactly what is counted. |
+| `state` | one of `active`, `proposed` | no | active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed. |
 | `confirm` | boolean | no | True once the person has said yes to every question a goal was asked (Check: a number that looks unlikely, no unit, a link to a lower level, a plan change that flips which way is better or is far outside the old plan). |
 | `answers` | object | no | Answers to the questions (Check) a dry run asked, by the group id it gave: {"<id>": "<choice>"} or {"<id>": {"choice": "choose", "value": "Platform"}}. One answer covers every row in its group. Ask the person; never answer for them. |
 | `dry_run` | boolean | no | Check the change without saving it. Use it to see what would change, or what is missing. |
@@ -962,6 +1206,14 @@ The records it names: [DisplayStatus](data-model.md#displaystatus), [StageUpdate
     "definition": {
       "type": "string",
       "description": "Exactly what is counted."
+    },
+    "state": {
+      "type": "string",
+      "description": "active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.",
+      "enum": [
+        "active",
+        "proposed"
+      ]
     },
     "confirm": {
       "type": "boolean",
@@ -5276,6 +5528,7 @@ From the [spreadsheets](../modules/spreadsheets/README.md) module: switched off 
             postedBy: string | null;
             backfilled: boolean;
         }[];
+        state?: string | undefined;
         stopped?: {
             at: string;
             by: string | null;
