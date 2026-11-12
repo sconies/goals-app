@@ -103,6 +103,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
 - the levels in a check-in (rules 2 and 3) › says why the button does nothing
 - the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
+- the levels in a check-in (rules 2 and 3) › keeps an answer given in the table check-in in History, as the form does (build review of #160)
+- the levels in a check-in (rules 2 and 3) › writes a number in a question with the app’s formatter: 1 hour, not 1 hours (build review of #160)
 
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 
