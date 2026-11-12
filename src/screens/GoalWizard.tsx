@@ -5,11 +5,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
-import { dueOptions, isYear } from '../domain/year';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
-import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
+import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, planSpanOf, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
 import { fmt } from '../domain/format';
 import { placesText } from '../domain/numbers';
@@ -22,8 +21,10 @@ import { newId } from '../data/store';
 import { Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
-import { DateRange, DecimalsLine, DueField, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
-import { weekDates, yearEndWeek } from '../domain/plan';
+import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
+import { WeekPick } from '../ui/WeekPick';
+import { datesOf, lastWeekOffered, weekSays } from '../domain/weeks';
+import { planSays, rangeSays, spanSays } from '../domain/weekChoices';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
@@ -72,8 +73,6 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const prefs = usePrefs();
   const { cycle, week } = app;
   const step = stepIndex(useParams().step) ?? 0;
-  // When the target is due: the end of the cycle, or the end of the year (a year goal carries across cycles).
-  const yearEnd = yearEndWeek(cycle);
   const params = new URLSearchParams(loc.search);
   const defaultParent = app.goal(params.get('parent') ?? '')?.id ?? '';
   const viewerTeam = app.viewer.teamId ?? '';
@@ -82,8 +81,11 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [saving, setSaving] = useState(false);
   const [asking, setAsking] = useState(false);
   useMark(STEP_MARKS[step] ?? null);
-  const endOptions = dueOptions(cycle, week, yearEnd);
-  const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
+  // From and To (rule 13): picked weeks, from this week to the year's end until chosen.
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: null });
+  const endChoice = span.to;
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
+  const setTo = (n: number) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} });
   const top = useRef<HTMLDivElement>(null);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check.
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
@@ -103,12 +105,12 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const goal: WizardDraft = { ...d, level: level ?? d.level };
   // What can't be saved (goal entry, rule 2): the same rule and words as the edit page, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
-  const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
+  const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
   const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
@@ -217,7 +219,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     return {
       id: 'preview', cycleId: cycle.id, teamId: d.teamId, ownerId: d.ownerId, title: d.title || 'New goal', io: d.io, level: goal.level, guardrail: d.guardrail,
       parentId: null, effect: null, source: '', definition: '', createdAt: '', kind: 'metric', unit: d.unit, decimals: places,
-      plan: { start: s, target: t, shape: d.shape, ...(week > 0 ? { fromWeek: week } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) },
+      plan: { start: s, target: t, shape: d.shape, ...(span.from ? { fromWeek: span.from } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) },
       originalPlan: null, rebaselinedWeek: null,
     };
   })();
@@ -251,9 +253,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     },
     ...(number ? [{ step: 2, label: 'Measured by', value: measure ? measure.says ?? 'The metric chosen on step 3.' : d.definition.trim() ? 'No metric: measured as described.' : 'No metric: not described yet.' }] : []),
     {
-      step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)} by week ${endChoice}` : 'Not set yet')
+      step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} in ${weekSays(cycle, span.from, 'short')} to ${num(d.target)} by ${weekSays(cycle, endChoice, 'short')}` : 'Not set yet')
         : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : 'Not set yet')
-          : named.length === 1 ? '1 stage' : `${named.length} stages, the last due week ${lastDue}`,
+          : named.length === 1 ? `1 stage, due ${weekSays(cycle, lastDue, 'short')}` : `${named.length} stages, the last due ${weekSays(cycle, lastDue, 'short')}`,
     },
   ];
 
@@ -366,16 +368,30 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             {number && (anyNumber || shown) && questions('unit')}
             {d.kind === 'metric' && (
               <>
-                <div className="num-pair with-arrow">
-                  <label className="field"><span className="small strong">Today (week {Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" data-field="start" value={d.start} onChange={(e) => set({ start: e.target.value })} onBlur={leave('start')} aria-invalid={invalid('start')} aria-describedby={invalid('start') ? 'start-fix' : undefined} />{showErr('start')}{keepOffer('start')}</label>
-                  <span className="arrow"><Icon name="arrow-right" /></span>
-                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} />{showErr('target')}{keepOffer('target')}{holdOffer}</label>
+                {/* Baseline with From, then Target with To (2.4, item 3): each a number and a week, picked (2.13). */}
+                <div className="week-rows">
+                  <div className="field">
+                    <label className="stack" style={{ gap: 4 }}><span className="small strong">Baseline</span><input className="input big-input" inputMode="decimal" data-field="start" value={d.start} onChange={(e) => set({ start: e.target.value })} onBlur={leave('start')} aria-invalid={invalid('start')} aria-describedby={invalid('start') ? 'start-fix' : 'start-hint'} /></label>
+                    {showErr('start')}{keepOffer('start')}
+                  </div>
+                  <div onBlur={leave('fromWeek')}>
+                    <WeekPick cycle={cycle} week={week} field="from" label="From" labelClass="small strong" value={span.from} onChange={setFrom} invalid={invalid('fromWeek')} dataField="fromWeek" />
+                    {showErr('fromWeek')}{questions('fromWeek')}
+                  </div>
+                  {!invalid('start') && <span className="hint week-rows-hint" id="start-hint">The number in the week the plan runs from.</span>}
+                  <div className="field">
+                    <label className="stack" style={{ gap: 4 }}><span className="small strong">Target</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} /></label>
+                    {showErr('target')}{keepOffer('target')}{holdOffer}
+                  </div>
+                  <div onBlur={leave('endWeek')}>
+                    <WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" labelClass="small strong" value={endChoice} onChange={setTo} invalid={invalid('endWeek')} dataField="endWeek" />
+                    {showErr('endWeek')}{questions('endWeek')}
+                  </div>
                 </div>
+                <p className="small muted span-says" role="status">{spanSays(cycle, span.from, endChoice, week)}</p>
                 {questions('start')}
                 {questions('target')}
                 {decimalsLine}
-                <DueField label="By when?" labelClass="small strong" options={endOptions} choice={endChoice} onChoose={(w) => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })} dates={weekDates(cycle, endChoice)}
-                  after={endChoice > cycle.weeks ? `It carries into next ${isYear(cycle) ? 'year' : 'cycle'} with this plan.` : undefined} />
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
                   <legend className="small strong" style={{ marginBottom: 8 }}>How will progress come?</legend>
                   <div className="seg full" role="group" aria-label="How will progress come?">
@@ -414,8 +430,10 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             )}
             {d.kind === 'range' && <>{questions('limit')}{questions('margin')}</>}
             {d.kind === 'range' && decimalsLine}
+            {d.kind === 'range' && <p className="small muted">{rangeSays(cycle, week)}</p>}
+            {d.kind === 'milestone' && <p className="small muted">At least one stage, each with a name and the week it’s due. This is {weekSays(cycle, Math.max(0, week), 'short')}, {datesOf(cycle, Math.max(0, week))}.</p>}
             {d.kind === 'milestone' && (
-              <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={null} rowErrors={showsFor('stages') ? stageErrors(fix) : []} onLeave={leave('stages')} below={(i) => questions('stages', i)}
+              <StageFields stages={d.stages} cycle={cycle} week={week} labelClass="small strong" error={null} rowErrors={showsFor('stages') ? stageErrors(fix) : []} onLeave={leave('stages')} below={(i) => questions('stages', i)}
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
             {/* With no metric chosen: said in words, so the goal's page doesn't open on "not described yet". */}
@@ -439,9 +457,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
               <span className="h3">{d.title || 'Untitled goal'}</span>
               <p>
                 <strong>{owner?.name ?? 'Someone'}</strong> owns it and checks in weekly. {d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null
-                  ? <>It moves from <strong>{fmt(parseNumber(d.start)!, unitFmt)}</strong> to <strong>{fmt(parseNumber(d.target)!, unitFmt)}</strong> by week {endChoice} <DateRange>({weekDates(cycle, endChoice)})</DateRange>, {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
+                  ? <>It moves {planSays(cycle, span.from, endChoice, fmt(parseNumber(d.start)!, unitFmt), fmt(parseNumber(d.target)!, unitFmt))}, {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
                   : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
-                    : d.kind === 'milestone' ? <>{named.length === 1 ? '1 stage' : `${named.length} stages, the last due week ${lastDue}`}.{(['yes', 'no'] as const).map((k) => { const n = named.filter((s) => s.done === k).length; return n ? ` ${n} ${n === 1 ? 'stage is' : 'stages are'} already ${k === 'yes' ? 'done' : 'overdue'}.` : ''; }).join('')}</> : null}
+                    : d.kind === 'milestone' ? <>{named.length === 1 ? `1 stage, due ${weekSays(cycle, lastDue, 'sentence')}` : `${named.length} stages, the last due ${weekSays(cycle, lastDue, 'sentence')}`}.{(['yes', 'no'] as const).map((k) => { const n = named.filter((s) => s.done === k).length; return n ? ` ${n} ${n === 1 ? 'stage is' : 'stages are'} already ${k === 'yes' ? 'done' : 'overdue'}.` : ''; }).join('')}</> : null}
               </p>
             </div>
             <ul className="review-rows" aria-label="Change a step">

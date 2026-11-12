@@ -1,5 +1,5 @@
 /* The status rules. Pure functions: same inputs, same answer, on every screen. */
-import { daysSince, currentWeek, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
+import { daysSince, currentWeek, weekDate, goalAsOf, hasEnded, planAt, projectionFor, type Point, type Projection, planEnd } from './plan';
 import type { CheckIn, Cycle, DisplayStatus, Goal, MetricGoal, MilestoneGoal, RangeGoal, StageUpdate, Status } from './types';
 import { RULES } from './thresholds';
 import { LABEL, STATUS_ORDER } from './vocabulary';
@@ -236,7 +236,10 @@ export const projects = (goal: Goal, status: DisplayStatus) => status !== 'stale
  */
 export function daysWithoutUpdate(goal: Goal, cycle: Cycle, latest: CheckIn | null, today: Date): number {
   if (latest) return daysSince(latest.postedAt, today);
-  return daysSince(goal.createdAt && goal.createdAt.slice(0, 10) > cycle.startDate ? goal.createdAt : cycle.startDate, today);
+  // A plan that starts later (its From still to come, goal entry rule 13) begins then: nothing is late before it.
+  const from = goal.kind === 'metric' && (goal.plan.fromWeek ?? 0) > 0 ? weekDate(cycle, goal.plan.fromWeek!) : '';
+  const began = [cycle.startDate, goal.createdAt ? goal.createdAt.slice(0, 10) : '', from].reduce((a, b) => (b > a ? b : a));
+  return daysSince(began, today);
 }
 
 /**

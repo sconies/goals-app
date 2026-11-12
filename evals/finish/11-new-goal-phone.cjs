@@ -20,8 +20,8 @@ module.exports = {
         await p.waitForTimeout(250);
         if (step === 'measure') {
           await p.getByLabel('Unit').fill('%');
-          await p.getByLabel(/^Today \(week/).fill('20');
-          await p.getByLabel(/^Target \(week/).fill('90');
+          await p.getByLabel(/^Baseline$/).fill('20');
+          await p.getByLabel(/^Target$/).fill('90');
           await p.evaluate(() => document.activeElement && document.activeElement.blur());
           await p.evaluate(() => window.scrollTo(0, 0));
           await p.waitForTimeout(250);
