@@ -832,8 +832,8 @@ function QuarterStrip({ goal }: { goal: Goal }) {
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
             <span className="q-head"><span className="strong">{r.quarter.label} <span className="hint nowrap">{r.quarter.months}</span></span>
-              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : 'None due'}</span></span>
-            {r.kind !== 'none' ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
+              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : r.before ? 'Not applicable' : 'None due'}</span></span>
+            {r.kind !== 'none' || r.before ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
           </li>
         ))}
       </ol>

@@ -111,7 +111,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Results, once a goal is due', list: [
         ...(['completed', 'late', 'missed'] as const).map((k) => define(RESULT[k])),
-        `Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs.`,
+        `Each quarter of a goal year is ${QUARTER.met.label} or ${QUARTER.missed.label} against the owner’s own plan, in the same words; ${lower(QUARTER.open)} while it runs. A quarter that ended before the goal was set up is not applicable: it is never judged and counts nowhere.`,
         `At the wrap-up the owner says how it landed in their own words, shown as “${OWNER_VIEW_LABEL}”. It never changes the result.`,
       ] },
       { heading: 'Against the plan', list: [
@@ -412,6 +412,7 @@ const CORE_ARTICLES: Article[] = [
         'Select a square to read it in words beside the grid: the week and its dates, the goal, the call, the number and that week’s plan. The arrow keys move between squares.',
         'Once a goal is done it needs no more check-ins, so the weeks after say “Done since week 37” (its week), not that a check-in is missing.',
         'On a goal on track or done now, a quarter it didn’t meet is shown quietly, as history, rather than as a warning.',
+        'A quarter that ended before a goal was set up says Not applicable, with the week it was set up. It is never judged, and is in no count of met or not met.',
         'A goal year is about 52 weeks from the month the workspace picked, in four quarters. Quarter targets are read off the owner’s plan.',
       ] },
     ],
@@ -485,7 +486,7 @@ const CORE_ARTICLES: Article[] = [
       ] },
       { heading: 'Changing it', list: [
         'Change this goal (in About, or the “…” menu) opens the goal’s form. Each change asks why once check-ins have started, and the reason goes in the activity for everyone watching.',
-        'Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for whoever posted it or an admin; after a newer one it can only be corrected.',
+        'Your own comments have Edit (they then say edited) and Remove; an admin can remove anyone’s, leaving “Comment removed” in its place. The latest check-in has Delete this check-in, for the goal’s owner (check-ins are theirs, whoever posted it); after a newer one it can only be corrected.',
         'Whoever agreed a next step, or an admin, can change its words, who or when with Change on its row; the log keeps the before and after.',
       ] },
       { heading: 'A done goal', list: [
@@ -583,7 +584,7 @@ const CORE_ARTICLES: Article[] = [
         'Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in; stages you said are already done count as its first check-in, so it can then be stopped, with a reason, but not deleted). With every stage already done, no check-in is due. Publish it: the goal’s page opens with “Published”, and nothing on the form asks again once you have pressed it; the owner is then offered the first check-in.',
         'On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.',
         'Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.',
-        'A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.',
+        'A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again. Setting up a goal for someone else, the question adds that they mark done stages at the first check-in (“Mateo marks done stages at the first check-in.”): a check-in is the owner’s, so the goal is published without it.',
         'Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses (with nothing typed, the week highlighted), Escape or Tab away closes.',
         'To can run into next year: the line under the numbers says “It runs past the end of 2026 and carries into 2027 with this plan.” A From still to come is fine too: until that week nothing is due, and the goal reads “No check-in yet · starts week 50”. A From in the past is asked about (“Week 40 was 6 weeks ago. Has this been running since then?”); “No, start from this week” puts it back. A To already past, and a plan longer than a year, are asked about too. A stage is due within this goal year; a range applies from the week it is published to the end of the year.',
         'An unfinished goal is kept as a draft.',
@@ -793,7 +794,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'What each removal does', list: [
         'A person who has left: an admin opens them on Workspace, under People, and chooses Mark as left. The dialog first asks who takes over their goals and their open asks (the ones they raised and the ones waiting on them). They then disappear from pickers, counts, reviews and Home, and their MCP token stops working. Everything they did keeps their name, as “Maya Patel (left)”. Someone with no goals, check-ins, notes or asks is deleted instead.',
         'A goal with check-ins is stopped, with a reason (“…” menu → Stop this goal). It leaves the numbers, reviews, Home, Watching and the lists of what needs attention, but its page stays, marked Stopped with its reason, and so do its history, its place in exports and Activity. The goals feeding it now feed what it fed; its open asks are withdrawn with a note. A goal with no check-ins is deleted instead.',
-        'A check-in: Delete this check-in, under the latest one on the goal’s page, by whoever posted it or an admin. Once a newer one is posted it can only be corrected. The status goes back to the one before.',
+        'A check-in: Delete this check-in, under the latest one on the goal’s page, by the goal’s owner. Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction. Once a newer one is posted it can only be corrected. The status goes back to the one before.',
         'A review: End this review, at the foot of its page, by whoever set it up or an admin. It keeps its notes and actions and stops showing as due. One that was never held is deleted.',
         'A comment: its author can edit it (it then says edited), and its author or an admin can remove it; its place in the thread says “Comment removed”, so the conversation still reads. A note said in a review works the same way, leaving “Note removed”.',
         'A saved view: Delete, from its menu. An admin can delete anyone’s. Stopping watching works the same way.',
@@ -1081,6 +1082,7 @@ const CORE_ARTICLES: Article[] = [
         'Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.',
         'Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.',
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.',
+        'Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
         'Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.',
       ] },

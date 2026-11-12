@@ -33,6 +33,37 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['data', 'feedback'],
   },
   {
+    id: 'quarters-before-set-up',
+    date: '2026-11-12',
+    title: 'Quarters before a goal existed are not judged',
+    points: [
+      'A goal set up part way through the year no longer shows the quarters that ended before it as Not met. They say Not applicable, with the week it was set up.',
+      'Those quarters are in no count of met or not met, and no longer raise “Last quarter not met” on the goal or in the overview.',
+    ],
+    articles: ['history', 'status'],
+  },
+  {
+    id: 'set-up-check-in-owners',
+    date: '2026-11-12',
+    title: 'Stages already done are the owner’s to mark',
+    points: [
+      'Setting up a goal for someone else, a stage already past is still asked about, and the question says they mark done stages at their first check-in. The goal is published without a check-in on it.',
+      'Delete this check-in is for the goal’s owner, whoever posted it.',
+      'Undoing an import puts a check-in back only for someone who may check in on that goal: an admin can undo a workbook they loaded, but not an owner’s own correction.',
+    ],
+    articles: ['new-goal', 'removing'],
+  },
+  {
+    id: 'mcp-new-goal-keys',
+    date: '2026-11-12',
+    title: 'AI tools hear each new goal’s key',
+    points: [
+      'When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.',
+      'A dry run says the key each new goal would get.',
+    ],
+    articles: ['ai-assistants'],
+  },
+  {
     id: 'question-in-view',
     date: '2026-11-12',
     title: 'A question about a number is where you can see it',

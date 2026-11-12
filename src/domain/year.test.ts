@@ -142,3 +142,35 @@ describe('quarters read off the owner’s plan', () => {
     expect(gap(after)).toEqual(gap(before));
   });
 });
+
+describe('a quarter that ended before the goal was set up (MCP load, 12 Nov)', () => {
+  // Goals loaded in week 46 showed Q1 to Q3 as Not met, and every one was flagged "Last quarter not met".
+  const born = '2026-11-12T10:00:00Z';
+  const range = { ...goal(s.goals.find((g) => g.kind === 'range')!.id), id: 'new-range', createdAt: born };
+  const metric = { ...(s.goals.find((g) => g.kind === 'metric') as MetricGoal), id: 'new-metric', createdAt: born };
+  const early = { ...metric, id: 'new-early', plan: { ...metric.plan, fromWeek: 23 } };
+  const on = new Date('2026-11-12T12:00:00Z');
+
+  it('is never judged, whatever week the baseline is from, and says why', () => {
+    for (const g of [range, metric, early]) {
+      const rs = quarterResults(g, cycle, s.checkIns, 46);
+      expect(rs.map((q) => q.kind)).toEqual(['none', 'none', 'none', 'open']);
+      expect(rs[2]!.text).toBe('Q3: before the goal was set up in week 46');
+    }
+  });
+
+  it('even with numbers loaded for those weeks', () => {
+    const cis = [3, 20, 35].map((w) => ({ ...s.checkIns.find((c) => c.goalId === range.id && c.value != null)!, id: `x${w}`, goalId: range.id, week: w, value: 999 }));
+    expect(quarterResults(range, cycle, cis, 46).map((q) => q.kind)).toEqual(['none', 'none', 'none', 'open']);
+  });
+
+  it('raises no “Last quarter not met” on its story', () => {
+    const snap = { ...s, goals: [...s.goals, range, early] };
+    for (const g of [range, early]) expect(storyOf(g, snap, cycle, 46, on).flags).not.toContain('missed-quarter');
+  });
+
+  it('a goal set up during a quarter is still judged on it', () => {
+    const mid = { ...range, createdAt: '2026-08-05T10:00:00Z' };
+    expect(quarterResults(mid, cycle, [], 46).map((q) => q.kind)).toEqual(['none', 'none', 'missed', 'open']);
+  });
+});
