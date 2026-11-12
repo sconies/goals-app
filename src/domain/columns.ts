@@ -549,6 +549,10 @@ const FIELDS: Record<FillKind, Record<string, Field>> = {
   },
 };
 
+/** Whether a new row must have a column (null when the column has no field facts: worked out). Goal entry's rule 1
+    (domain/goalEntry fieldNeed) reads the form's needs from here, so the form and a file can't disagree. */
+export const fieldNeedOf = (kind: FillKind, header: string): Required => FIELDS[kind][header]?.required ?? null;
+
 /** The headers a sheet's field table has facts for, as written in it (a test checks each is a real column). */
 export const fieldHeaders = (kind: FillKind): string[] => Object.keys(FIELDS[kind]);
 

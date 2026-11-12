@@ -1,7 +1,6 @@
 /* Creating and editing goals: the form, its checks, and re-baselining. */
 import { parseNumber } from './checkin';
-import { nameProblem } from './thresholds';
-import { farOutside, fixed, notNumberText, precisionProblem, setupProblem } from './numbers';
+import { farOutside, fixed, setupProblem, typedDecimals } from './numbers';
 import { planAt, planCheckpoints, planEnd, planHistoryOf } from './plan';
 import type { CheckIn, Cycle, Goal, GoalKind, Io, Level, MetricGoal, MetricPlan, PlanShape, Status } from './types';
 import { assessMilestone } from './status';
@@ -43,8 +42,8 @@ export interface GoalDraft {
 export function blankGoal(teamId: string, ownerId: string, parentId: string): GoalDraft {
   return {
     kind: 'metric', title: '', teamId, ownerId, io: 'input', level: 'team', guardrail: false, parentId, effect: '', whyHelps: '', alsoHelps: [], endWeek: '', points: {},
-    source: '', definition: '', unit: '%', decimals: '0', start: '', target: '', shape: 'straight',
-    bound: 'atMost', limit: '', margin: '1', stages: [{ id: 's1', name: '', dueWeek: '' }],
+    source: '', definition: '', unit: '', decimals: '', start: '', target: '', shape: 'straight',
+    bound: 'atMost', limit: '', margin: '', stages: [{ id: 's1', name: '', dueWeek: '' }],
   };
 }
 
@@ -60,54 +59,26 @@ export function draftOf(g: Goal): GoalDraft {
   return d;
 }
 
-export type GoalErrors = Partial<Record<'title' | 'teamId' | 'ownerId' | 'start' | 'target' | 'limit' | 'margin' | 'decimals' | 'effect' | 'stages' | 'points', string>>;
+/** A draft that builds back exactly this goal, its plan's first week included: what a screen saves when a rule has
+    changed the goal itself (the first check-in's re-base, keeping a check-in's decimal places). */
+export function draftFor(g: Goal): GoalDraft {
+  const d = draftOf(g);
+  if (g.kind === 'metric') d.fromWeek = String(g.plan.fromWeek ?? 0);
+  return d;
+}
 
-export function validateGoal(d: GoalDraft, cycle: Cycle, existing?: Goal | null, week?: number): GoalErrors {
-  const e: GoalErrors = {};
-  const named = nameProblem(d.title, 'goal');
-  if (named) e.title = named;
-  if (!d.teamId) e.teamId = 'Choose a team.';
-  if (!d.ownerId) e.ownerId = 'Choose an owner.';
-  if (d.effect.trim() && parseNumber(d.effect) == null) e.effect = notNumberText(d.effect);
-  // A number field's problem: empty (the field's own ask), letters (the one message), or more decimal places than the
-  // goal keeps (refused, never rounded: domain/numbers).
-  const dp = d.kind === 'milestone' ? null : parseNumber(d.decimals);
-  const places = dp != null && dp >= 0 && dp <= 3 && Number.isInteger(dp) ? dp : null;
-  const numberProblem = (raw: string, empty: string): string | null => {
-    if (!raw.trim()) return empty;
-    const n = parseNumber(raw);
-    if (n == null) return notNumberText(raw);
-    return places == null ? null : precisionProblem(raw, n, places);
-  };
-  if (d.kind !== 'milestone' && places == null) e.decimals = 'Between 0 and 3.';
-  if (d.kind === 'metric') {
-    const sp = numberProblem(d.start, 'Enter where it starts.'), tp = numberProblem(d.target, 'Enter the target.');
-    if (sp) e.start = sp;
-    if (tp) e.target = tp;
-    else if (!sp && parseNumber(d.start) === parseNumber(d.target)) e.target = 'The target has to differ from the start.';
-    // Plan numbers typed by hand. One already stored (an existing goal's plan) is not re-judged unless it was changed.
-    const stored = new Map(existing?.kind === 'metric' ? (existing.plan.points ?? []).map((p) => [String(p.week), p.value]) : []);
-    const typed = Object.entries(d.points).filter(([w, v]) => v.trim() !== '' && parseNumber(v) !== stored.get(w));
-    const bad = typed.map(([, v]) => (parseNumber(v) == null ? notNumberText(v) : places == null ? null : precisionProblem(v, parseNumber(v), places))).find(Boolean);
-    if (bad) e.points = bad;
+/**
+ * The decimal places a goal keeps (goal entry, rule 2): the ones chosen in Decimals, or, when none were, the most typed
+ * in its numbers (Today, Target, Limit), at most 3. Null when Decimals says something that isn't 0 to 3. A new goal
+ * starts with Decimals empty, so what is typed is what is kept.
+ */
+export function decimalsFor(d: Pick<GoalDraft, 'kind' | 'decimals' | 'start' | 'target' | 'limit'>): number | null {
+  if (d.decimals.trim()) {
+    const n = parseNumber(d.decimals);
+    return n != null && Number.isInteger(n) && n >= 0 && n <= 3 ? n : null;
   }
-  if (d.kind === 'range') {
-    const lp = numberProblem(d.limit, 'Enter the limit.');
-    if (lp) e.limit = lp;
-    const m = parseNumber(d.margin);
-    if (d.margin.trim() && m == null) e.margin = notNumberText(d.margin);
-    else if (m == null || m < 0) e.margin = 'Enter a warning margin of zero or more.';
-    else if (places != null) { const mp = precisionProblem(d.margin, m, places); if (mp) e.margin = mp; }
-  }
-  if (d.kind === 'milestone') {
-    const rows = d.stages.filter((s) => s.name.trim() || s.dueWeek.trim());
-    if (!rows.length) e.stages = 'Add at least one stage.';
-    else if (rows.some((s) => !s.name.trim())) e.stages = 'Every stage needs a name.';
-    else if (rows.some((s) => { const w = parseNumber(s.dueWeek); return w == null || !Number.isInteger(w) || w < 1 || w > cycle.weeks; })) e.stages = 'Every stage needs a due week between 1 and ' + cycle.weeks + '.';
-    // A new goal's stage already past is asked about, so it isn't born late without anyone saying so (rule 3).
-    else if (!existing && week != null && rows.some((s) => pastStage(parseNumber(s.dueWeek)!, week) && !s.done)) e.stages = 'Say whether this stage is done.';
-  }
-  return e;
+  const typed = d.kind === 'metric' ? [d.start, d.target] : d.kind === 'range' ? [d.limit] : [];
+  return Math.min(3, Math.max(0, ...typed.map((t) => typedDecimals(t))));
 }
 
 /**
@@ -189,10 +160,10 @@ export function buildGoal(d: GoalDraft, cycle: Cycle, base: { id: string; create
     };
     const plan = withPoints(shaped, d.points, cycle.weeks);
     const history = existing?.kind === 'metric' ? replanned(existing, plan, checkInsStarted, week) : { originalPlan: null, rebaselinedWeek: null };
-    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: num(d.decimals), plan, ...history };
+    return { ...common, kind: 'metric', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, plan, ...history };
   }
   if (d.kind === 'range') {
-    return { ...common, kind: 'range', unit: d.unit.trim(), decimals: num(d.decimals), range: { bound: d.bound, limit: num(d.limit), margin: num(d.margin) } };
+    return { ...common, kind: 'range', unit: d.unit.trim(), decimals: decimalsFor(d) ?? 0, range: { bound: d.bound, limit: num(d.limit), margin: parseNumber(d.margin) ?? 0 } };
   }
   const stages = d.stages
     .filter((s) => s.name.trim())

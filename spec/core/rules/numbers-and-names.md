@@ -44,7 +44,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 ## Where it lives
 
 - [src/domain/numbers.ts](../../../src/domain/numbers.ts): `typedDecimals`, `precisionProblem`, `placesToKeep`, `exampleNumber`, `notNumberText`, `groupDigits`, `fixed`, `farOutside`, `setupProblem`
-- [src/domain/goal.ts](../../../src/domain/goal.ts): `validateGoal`, `planHint`, `planQuestion`
+- [src/domain/goal.ts](../../../src/domain/goal.ts): `planHint`, `planQuestion`
 - [src/domain/people.ts](../../../src/domain/people.ts): `sameNameNote`, `personTell`, `nameWithTell`, `avatarHues`, `duplicateTitles`, `goalTell`, `sameTitleNote`
 - [src/domain/thresholds.ts](../../../src/domain/thresholds.ts): `MIN_NAME`, `nameProblem`
 

@@ -48,9 +48,10 @@ module.exports = {
       if (Math.max(...segs.map((s) => s[0])) - Math.min(...segs.map((s) => s[0])) > 1) f('(9) the step bar segments are uneven');
       if (segs[0][1] !== segs[1][1]) f('(9) done and current steps are different colours');
       if (segs[3][1] !== 'rgb(210, 206, 196)') f(`(9) steps to come are ${segs[3][1]}`);
-      // (22) unit and decimals line up with today and target
-      const [u, dd, t, g] = [await box(p.getByLabel('Unit')), await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Today \(week/)), await box(p.getByLabel(/^Target \(week/))];
-      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(dd.r, g.r)) f(`(22) Unit/Decimals (${u.x}, ${dd.x}) don't line up with Today/Target (${t.x}, ${g.x})`);
+      // (22) the unit lines up with today (decimals are worked out and said in a line: goal entry 2.4)
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Today \(week/))];
+      if (!near(u.x, t.x)) f(`(22) Unit (${u.x}) doesn't line up with Today (${t.x})`);
+      if (await p.getByLabel('Decimals', { exact: true }).count()) f('(22) Decimals is still a field to fill in');
       // (8) a single due date is words
       if (await p.getByRole('button', { name: 'Year end' }).count()) f('(8) a single due date is still a one-button choice');
       const due = p.locator('.due-only');
@@ -94,9 +95,9 @@ module.exports = {
       if (xt[0]?.[1] !== 'Now' || xt[xt.length - 1]?.[1] !== 'Wk 53' || xt.length < 4) f(`(2) at ${w} the x-axis is ${xt.map((t) => t[1]).join(', ')}`);
       const gaps = xt.slice(1).map((t, i) => t[0] - xt[i][0]);
       if (Math.min(...gaps) < 36) f(`(2) at ${w} week labels are ${Math.min(...gaps).toFixed(0)}px apart`);
-      const [u, t] = [await box(p.getByLabel('Unit')), await box(p.getByLabel(/^Today \(week/))];
-      const [dd, g] = [await box(p.getByLabel('Decimals')), await box(p.getByLabel(/^Target \(week/))];
-      if (!near(u.x, t.x) || !near(dd.x, g.x) || !near(t.y, g.y)) f(`(22) at ${w} Unit/Decimals and Today/Target aren't one grid`);
+      const [u, t] = [await box(p.getByLabel(/^Unit/)), await box(p.getByLabel(/^Today \(week/))];
+      const g = await box(p.getByLabel(/^Target \(week/));
+      if (!near(u.x, t.x) || !near(t.y, g.y)) f(`(22) at ${w} Unit and Today/Target aren't one grid`);
       // Each date on one line: its text has one line box.
       const lines = await p.locator('.plantable td.pt-date, .plantable .pt-week, .plantable tbody tr:last-child td.num').evaluateAll((es) => Math.max(...es.map((e) => {
         const r = document.createRange(); r.selectNodeContents(e);

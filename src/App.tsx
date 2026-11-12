@@ -8,7 +8,6 @@ import { CheckInFlow } from './screens/CheckInFlow';
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { Watching } from './screens/Watching';
-import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
@@ -34,6 +33,7 @@ const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ de
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
 // Changing a goal is opened by its owner now and then, never on a first visit.
 const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
+const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ default: m.GoalWizard })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));

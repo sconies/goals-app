@@ -23,6 +23,19 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-needs-said',
+    date: '2026-11-12',
+    title: 'New goal says what it needs',
+    points: [
+      'Each step says what is needed and marks what is optional.',
+      'A problem shows under its field as you leave it, and is counted by the button.',
+      'The unit is yours to give: it no longer starts as %. Decimals follow what you type, and you can change them.',
+      'Anyone can add a goal for anyone, at any level, from New goal, a spreadsheet or an AI assistant. Choosing someone else as owner says who can change it afterwards: them, or an admin.',
+      'A spreadsheet, set-up and the AI assistant say a goal’s problems in the same words as New goal.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
     id: 'goal-edit-one-page',
     date: '2026-11-12',
     title: 'Changing a goal is one page',

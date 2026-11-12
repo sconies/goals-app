@@ -779,7 +779,7 @@ journey('U49', ['ONBOARDING', 'WORKSPACES', 'REVIEWS', 'CALENDAR-WEEKS', 'DEMO-M
   await see(p, 'What outcome are you after?');
   await p.getByRole('button', { name: 'Next' }).click();
   const outcomeSays = (await p.getByRole('alert').allInnerTexts()).join(' | ');
-  if (!/Give the outcome a name/.test(outcomeSays) || !/Add today’s number/.test(outcomeSays) || !/Add the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
+  if (!/Give the outcome a name/.test(outcomeSays) || !/Enter where it starts today/.test(outcomeSays) || !/Enter the target/.test(outcomeSays)) fail('the outcome step doesn’t say what each field needs: ' + outcomeSays);
   await h.fill(p.getByLabel('Outcome', { exact: true }), 'Weekly active users');
   await p.getByLabel('Outcome: today').fill('1200');
   await p.getByLabel('Outcome: target').fill('2000');
@@ -4703,6 +4703,71 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   // No select anywhere on the steps lists people, teams or goals.
   const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((x) => x.options.length)));
   h.set('a11y', big <= 60, `a select lists ${big} options`);
+  await p.context().close();
+}, ['logged']);
+
+/* Goal entry, GE1 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs. The Must fix half of U93;
+   the questions (over 100%, asked and remembered) come with GE2. The file and AI tools' side is N19
+   (evals/goalEntry.eval.ts): the same faults there return the same words. */
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Today empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Today and Target.” above the button, focus on Today; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. Dated stages: two called “Design” and one with no week each get their own line', 24, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await see(p, 'What do you want to achieve?');
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Review wait for Amara’s teams');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  // Anyone may choose anyone as owner (Lane, 11 Nov): said, so nobody is surprised who can change it afterwards.
+  await pickIn(p, /^Owner · checks in weekly/, 'amara', /Amara/);
+  await see(p, 'Amara will own it. After it is published, only Amara or an admin can change it.', 'choosing Amara as owner doesn’t say who can change it after');
+  await h.checkpoint('who');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await see(p, 'Everything here is needed unless it says optional.', 'the measure step doesn’t say what is needed');
+  const unit = p.getByLabel(/^Unit/);
+  h.set('entry', (await unit.inputValue()) === '' && /optional/.test(await p.locator('label.field', { has: unit }).innerText()), 'Unit doesn’t start empty and optional');
+  // Nothing is said while typing: the target's Must fix waits for the field to be left, or for Continue.
+  await h.fill(p.getByLabel(/^Target \(week/), '30 mins');
+  h.set('errors', !(await p.getByRole('alert').filter({ hasText: 'has words in it' }).count()), 'a Must fix shows while typing');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await see(p, '2 things to fix above: Today and Target.', 'the line above the button doesn’t count the two things to fix');
+  const startFix = await p.getByRole('alert').filter({ hasText: 'Enter where it starts today.' }).isVisible();
+  const targetFix = await p.getByRole('alert').filter({ hasText: '“30 mins” has words in it. Type the number only, like 30; the unit goes in Unit.' }).isVisible();
+  const focused = await p.evaluate(() => document.activeElement?.getAttribute('data-field'));
+  h.set('errors', startFix && targetFix && focused === 'start' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `each Must fix isn’t under its field with focus on Today (start ${startFix}, target ${targetFix}, focus ${focused})`);
+  await h.fill(unit, 'min');
+  await h.fill(p.getByLabel(/^Today \(week/), '42');
+  await see(p, 'Kept as whole numbers, as you typed them.', 'the decimals line doesn’t say what is kept');
+  h.set('a11y', !(await p.getByLabel('Decimals', { exact: true }).count()), 'Decimals is still a field to fill in');
+  await h.checkpoint('measure');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/]+\?published=1/);
+  h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
+
+  // Dated stages: each row's own fault under it.
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed builds in three stages');
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design');
+  await h.fill(p.getByLabel('Stage 1: due week'), '50');
+  await h.click(p.getByRole('button', { name: 'Add a stage' }));
+  await h.fill(p.getByLabel('Stage 2', { exact: true }), 'Design');
+  await h.fill(p.getByLabel('Stage 2: due week'), '52');
+  await h.click(p.getByRole('button', { name: 'Add a stage' }));
+  await h.fill(p.getByLabel('Stage 3', { exact: true }), 'Pilot');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  const twice = await p.locator('.stage').nth(1).getByRole('alert').filter({ hasText: 'Two stages are called “Design”.' }).isVisible();
+  const noWeek = await p.locator('.stage').nth(2).getByRole('alert').filter({ hasText: 'Choose the week “Pilot” is due.' }).isVisible();
+  h.set('errors', twice && noWeek, `the stage rows don’t each say their own fault (twice ${twice}, no week ${noWeek})`);
+  await p.getByRole('button', { name: 'Close and keep the draft' }).click();
   await p.context().close();
 }, ['logged']);
 
