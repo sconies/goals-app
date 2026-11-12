@@ -99,6 +99,44 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
   - the unbuilt "cycle ended", "Add one" and gone-parent states from the onboarding spec.
 - **U23 (entry)** scored 8.6 locally and is track 2's to lift.
 
+## Track 4, Thursday 12 November, midday (session past half full, handing over)
+
+- **Merged:** #183, the offline fix from #167's build review. Offline, a page that loads when opened (Help, say) no longer reloads into the browser's error page:
+  - `reloadOnce` in `src/telemetry/staleCode.ts` does nothing while `navigator.onLine` is false;
+  - the error boundary in `src/telemetry/react.tsx` says "This page needs a connection", with Try again and Go back;
+  - N8 has a browser case for it.
+
+  #183 also fixed #167's two lows: `PageWait` in `src/ui/bits.tsx` shows "Opening…" on a slow load, and `evals/touches.cjs` now maps `vite.helpIndex.ts`.
+- **Open, should be merged by the time you read this:** #190, the first download. It went from 369 to 288 KB, and the real app's from 428 to 346 KB. The budgets are now 292 and 350 KB (`scripts/check-bundle.mjs`), and R4's AX4 sentence is corrected. If #190 is still open, finish it first: merge main in, check CI is green, then merge.
+  - **How:** every page but Home is `React.lazy` in `src/App.tsx`. The spreadsheets module's Import and Data menu load when first shown. "Export these goals" is now a light `ExportButton.tsx` whose sheet loads on click.
+  - **Two traps it hit, worth knowing for any new lazy page:**
+    - While a page is on its way, `PageWait` holds `min-height: 100vh` and hides `.page-help`. Otherwise the footer jumps when the page lands, and N6 fails at a 0.037 layout shift.
+    - The goal map measures again on `animationend`. Otherwise it measures mid-slide and ends 6 px short (F6).
+  - **The eval helpers:** the `settled` helpers in `evals/journeys.cjs` and in N6 ignore `[data-page-wait]`, and P7 waits for `settled` rather than a fixed time.
+  - **What's left in the entry (raw, before gzip):** react-dom 202 KB, `domain/changeset` 52, react-router 38, `domain/columns` 29, removal 23, vocabulary 21, actions 21, Home 20, Shell 19. The next cut is the change engine: `app/actions` imports `planChanges` statically. To see what is in the entry: build with `--sourcemap`, then attribute bytes per source with `source-map-js`.
+- **Next, in order:**
+  1. **AX5, the query port.** It is unblocked: AS part 2 (#139) merged. It's the one M to L item. The brief is `docs/reviews/2026-11-11-architecture-readiness.md`, finding 4 and the AX5 row:
+     - `goals()`, `counts()` and `goal()` in `src/ports`, answered in the browser the way `Search` is (`src/ports/search.ts`, `src/adapters/localSearch.ts`);
+     - a contract covering the four checks in `spec/rebuild/ports-at-scale.md`, with its cases written into `spec/conformance/`;
+     - Home and Goals read through it;
+     - the load takes only the current cycle's check-ins and recent changes;
+     - `Store` moves to `src/ports`.
+
+     Consider splitting it into two PRs: the port and its contract, then the narrower load.
+  2. FT2, then FT1, SW1 and SW2.
+  3. **AX2, now unblocked:** track 2's GE1 (#186) merged, and `saveGoal` goes through `app.run` with `planGoal`. Two parts are left for AX2:
+     - a test that nothing on `AppState` reaches `commit` except through `run`;
+     - `applyChanges` sends its input again with `apply`.
+
+     Check that `postCheckIn` is in the action table too.
+  4. AX6.
+- **Still left from the reviews:** the workspace switcher on the "can't open … yet" page (`CantOpenYet` in `src/screens/Start.tsx`).
+- **Watch items:**
+  - U20 and N6 still fail under local load during the full run and pass alone.
+  - Two traps around the MCP bundle and What's new:
+    - Any What's new entry changes `api/mcp.js`. Run `npm run build:mcp` (in a worktree, then `sed 's#^// \.\./goals-app/node_modules/#// node_modules/#' api/mcp.js`) before pushing, or Smoke fails.
+    - A new `.tsx` under a module counts as a screen: list it in the module's `help.ts` `screens` and in `src/mcp/parity.ts`.
+
 ## Track 4, Thursday 12 November, 00:20 UTC (session past half full, handing over)
 
 - **Merged tonight:**

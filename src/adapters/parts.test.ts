@@ -12,8 +12,12 @@ import { signInIdentity } from './signIn';
 import { contractWorkspace } from '../ports/contracts/store';
 import { browserPrefs, fixedClock, memoryFiles, pickerIdentity, systemClock } from './local';
 import { localSearch } from './localSearch';
+import { localGoals } from './localGoals';
+import { goalsContract } from '../ports/contracts/goals';
+import { asOf, type ConformanceWorkspace } from '../spec/conformance';
+import conformanceJson from '../../spec/conformance/workspace.json';
 import { prefsContract, searchContract, searchContractWorkspace } from '../ports/contracts/search';
-import { searchRows } from '../app/reads';
+import { goalRows, searchRows } from '../app/reads';
 import { currentWeek } from '../domain/plan';
 import { CHECK_IN_MOMENT } from '../spec/conformance';
 import { freshPostgres } from './postgres/testDb';
@@ -89,6 +93,13 @@ searchContract('over the workspace in this browser', async () => {
   const s = searchContractWorkspace(await buildExample(at));
   const cycle = s.cycles[0]!;
   return localSearch(searchRows(s, cycle, at, currentWeek(cycle, at)));
+});
+// The query port over the conformance workspace as it was built for: the moment goals.csv, status.csv and flags.csv read.
+const conf = conformanceJson as unknown as ConformanceWorkspace;
+const builtFor = new Date(conf.builtFor);
+goalsContract('over the workspace in this browser', async () => asOf(conf, builtFor), async (s) => {
+  const rows = goalRows(s, conf.cycle, builtFor, currentWeek(conf.cycle, builtFor));
+  return localGoals(() => rows);
 });
 const prefsStorage = memory();
 prefsContract('in this browser', () => browserPrefs('faro-prefs:', () => prefsStorage));
