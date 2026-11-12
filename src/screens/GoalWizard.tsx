@@ -46,7 +46,7 @@ const SHAPES: [PlanShape, string, string][] = [
 const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 /** What New goal keeps in its draft beyond the goal: where it stopped, and what was chosen by hand rather than followed. */
-type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers };
+type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers; measureKept?: string };
 
 /** /goals/new (and /goals/new/<step>): a draft's step, or the first. */
 export function GoalWizard() {
@@ -108,9 +108,10 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
+  const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
   const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric }));
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
@@ -199,7 +200,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       // own weeks, in the same save, so the goal isn't born late (OB2's rule 3). What measures it (the goal.measure place)
       // is saved in the same commit, so the link sees the new goal.
       const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
-      const g = await app.saveGoal(draft, null, { answers, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
+      const g = await app.saveGoal(draft, null, { answers, metric, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });
@@ -352,7 +353,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {stepSays(stepFields(2, d.kind).filter((f) => noMetric || (f !== 'definition' && f !== 'source')), d.kind) && <p className="small muted step-says">{STEP_SAYS}</p>}
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })}
               untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} onNone={setSaidNone} />}
             {number && !filled && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">Unit{optional('unit')}</span>

@@ -23,6 +23,43 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-entry-review-fixes',
+    date: '2026-11-12',
+    title: 'Goal forms that show you what’s left',
+    points: [
+      'On a phone, New goal’s steps take the whole screen, so the tab bar no longer covers Back and Continue.',
+      'Changing a goal, Save with a question still open takes you to it and says where it is. “No, I’ll change it” takes you back to the field.',
+      'A target on the worse side of the metric that measures a goal is asked about wherever the goal is changed, and your answer is kept in its History.',
+      'A spreadsheet row or the AI assistant can no longer save a new goal with an Effect that isn’t a number: it says so, in the form’s words.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'metric-fixes',
+    date: '2026-11-12',
+    title: 'Metrics: a few things put right',
+    points: [
+      'New goal keeps the metric you chose when you go back a step, reload or close and keep the draft.',
+      'A goal you make for someone else can be measured by a metric straight away.',
+      'A goal whose metric changed unit or direction since now says so on its page.',
+      'Removing a metric counts every goal it measured, stopped ones too, and putting it back links them all again.',
+      'See goals in a unit finds the goals in that unit.',
+    ],
+    articles: ['metrics'],
+  },
+  {
+    id: 'past-imports',
+    date: '2026-11-12',
+    title: 'Past imports, each with Undo',
+    points: [
+      'Data lists every import, who made it and what it changed: Spreadsheets, then Past imports.',
+      'Undo says first which rows have changed since, and why they will stay.',
+      'Saving an import ends on a page that says what was saved, with Undo beside it.',
+      'In Activity an import is one entry, its changes folded under it.',
+    ],
+    articles: ['past-imports', 'import'],
+  },
+  {
     id: 'goal-dates-picked',
     date: '2026-11-12',
     title: 'Pick a goal’s weeks, with their dates',
