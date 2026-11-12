@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'new-goal-fixes',
+    date: '2026-11-12',
+    title: 'New goal fixes',
+    points: [
+      'Change an answer on Check that a later step no longer fits (a number goal turned into dated stages) and Continue now takes you to that step and says what it needs, instead of doing nothing.',
+      'Check shows each answer in full, wrapping long ones instead of cutting them short.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'goal-entry-review-fixes',
     date: '2026-11-12',
     title: 'Goal forms that show you what’s left',

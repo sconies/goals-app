@@ -176,8 +176,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     // "Continue" is never disabled: pressed with a Must fix, every field on the step says its own, and focus goes to the
     // first; with none but a question open, focus goes to the first question (rule 4).
     if (to > step) for (let i = step; i < to; i++) {
-      const at = stepState(i, stepErrors(i), checks, answers);
-      if (!at.go) { setTried((t) => [...t, i]); if (i === step) { if (at.check) focusCheck(at.check); else focusField(at.focus); } return; }
+      const st = stepState(i, stepErrors(i), checks, answers);
+      if (!st.go) {
+        setTried((t) => [...t, i]);
+        // A later step that no longer holds (a "Change" from Check made it wrong) is where Continue goes, its faults shown.
+        if (i === step) { if (st.check) focusCheck(st.check); else focusField(st.focus); } else nav(at(i), { state: { from: step } });
+        return;
+      }
     }
     // Each Continue is one history entry, so the browser's Back steps back a step.
     nav(at(to), { state: { from: step } });

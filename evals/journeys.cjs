@@ -4735,7 +4735,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
-  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10%( in week \d+)? to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -4747,6 +4747,14 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  // A Change from Check that makes a later step wrong: Continue goes to that step and says so (build review of #129).
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await p.getByRole('button', { name: 'Change what' }).click();
+  await p.getByRole('button', { name: /Hit dated stages/ }).click();
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('errors', /\/goals\/new\/measure(\?|$)/.test(p.url()) && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after changing the type stayed on ${p.url()} without saying what the stages step needs`);
   // No select anywhere on the steps lists people, teams or goals.
   const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((x) => x.options.length)));
   h.set('a11y', big <= 60, `a select lists ${big} options`);
