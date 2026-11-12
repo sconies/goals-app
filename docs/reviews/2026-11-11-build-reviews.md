@@ -61,6 +61,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #180 A parent and its child moving in one save are written once (review of #179) | 5 | 0 | 0 | 0 |
 | #181 Set-up never leaves a row out quietly; the grid takes a decimal comma (review of #145) | 3 | 0 | 0 | 0 |
 | #129 OB1: New goal asks in a better order, each step an address | 2 | 0 | 6 | 6 |
+| #183 Offline, a page that loads when opened says it needs a connection (review of #167) | 4 | 0 | 0 | 0 |
+| #187 AS part 3, the rest: migration 0040, records tests | 3 | 0 | 0 | 0 |
+| #190 The first download: 369 KB to 282 KB | planning | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -658,3 +661,15 @@ Read first by a separate reviewing session, on screen at 1440 and 390 and with t
 - Not built from the spec: the "cycle has ended" state, "Add one" for admins with no teams, the gone-parent line; step fields and two errors are assembled in the screen (read).
 
 **Checked and fine.** The draft survives Continue, Back, the browser's Back and Forward and a reload; a later step's address opens the first step that needs something. What is saved equals what Check shows for a number goal. A double-click publishes once. No stripes, emoji or sideways scroll; one primary button per step; each step's title names it.
+
+### #183 Offline, a page that loads when opened says it needs a connection (track 4, merged 05:02 UTC, 12 Nov)
+
+Takes #167's medium and both lows. Offline, a part that cannot be fetched no longer triggers the stale-code reload; the page says it needs a connection, with "Try again" and "Go back" (`src/telemetry/react.tsx:45-84`, `src/telemetry/staleCode.ts:37-40`). A page on its way shows "Opening…" after a moment, and a change to `vite.helpIndex.ts` now runs Help's journeys. Read, with its unit test and the N8 check. No finding.
+
+### #187 AS part 3, the rest: migration 0040, records tests (track 3, merged 06:06 UTC, 12 Nov)
+
+Takes #164's lows. Migration `0040_module_rows_strict.sql` replaces `okr_same_workspace` and `okr_write` in `faro` only, with no new function, table or grant, and is safe to run twice. A save that names a metric table both under `modules` and under its old key now stops with the reason, `"modules": null` means no module rows, and anything else that is not an object stops. `src/data/rpc.test.ts` runs all three on PGlite. Recently removed and its MCP tools list only the records of modules that are switched on (`src/core/records.ts:14-17`), and the import names a module's own sheet as "written for reading; not loaded back". Read, migration included. No finding.
+
+### #190 The first download: 369 KB to 282 KB (merged 11:55 UTC, 12 Nov)
+
+Every page but Home now loads when opened, as do the spreadsheets module's Import, Data menu and export sheet. This is the change that turned main's full evals red when #128 made a few pages lazy; here the journeys' "page has arrived" tests were changed with it (`evals/journeys.cjs`, `evals/notes/6-print-motion.cjs`), and CI on main, full evals included, passed at this commit. The waiting page holds a screen's height so nothing jumps. Read. No finding.
