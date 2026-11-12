@@ -28,7 +28,7 @@ import { PartPath } from './Markup';
 import type { InboxFeedback } from './feedback';
 import type { InboxData } from './inboxData';
 import { PAGE_SIZE, TABS, filterChoices, filterItems, inboxItems, itemFor, itemIds, itemLine, itemParam, itemSize, nextAfter, pageOf, stepKey, tabCounts, tabOf, type InboxFilter, type InboxItem, type InboxTab } from './inboxList';
-import { MOOD_WORD, STATUS_WORD, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus, type StatusChange } from './model';
+import { ADMINS_TRIAGE, mayTriage, MOOD_WORD, STATUS_WORD, namedParts, problemText, sentFrom, stepText, type Markup, type MarkupStatus, type StatusChange } from './model';
 import type { ListedMarkup, OpenedMarkup } from './ops';
 
 /** A markup's status: its shape and its word, always together. Diamonds, so they're never read as a goal's status. */
@@ -48,7 +48,7 @@ export function MarkupStatusMark({ status }: { status: MarkupStatus }) {
 }
 
 type Item = InboxItem<ListedMarkup>;
-type Change = Omit<StatusChange, 'by'>;
+type Change = Omit<StatusChange, 'by' | 'admin'>;
 /** The last change, and how to take it back. */
 interface Undo { done: string; run: () => Promise<void> }
 
@@ -148,8 +148,9 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
   };
 
   // Keys, on a computer: J and K move, I marks in hand, F fixed, W won't fix. Not while typing, or with a sheet open.
-  const keyState = useRef({ rows, openRow, handle, narrow, tab });
-  keyState.current = { rows, openRow, handle, narrow, tab };
+  const triage = mayTriage(app.viewer);
+  const keyState = useRef({ rows, openRow, handle, narrow, tab, triage });
+  keyState.current = { rows, openRow, handle, narrow, tab, triage };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = keyState.current;
@@ -162,7 +163,8 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
         const to = stepKey(k.rows, k.openRow?.key ?? null, key === 'j' ? 1 : -1);
         const r = k.rows.find((x) => x.key === to);
         if (r) { e.preventDefault(); openItem(r); document.querySelector(`[data-row="${CSS.escape(r.key)}"]`)?.scrollIntoView({ block: 'nearest' }); }
-      } else if (k.openRow && key === 'i' && k.tab === 'new') { e.preventDefault(); void k.handle([k.openRow], { status: 'in-hand' }); }
+      } else if (!k.triage) return;
+      else if (k.openRow && key === 'i' && k.tab === 'new') { e.preventDefault(); void k.handle([k.openRow], { status: 'in-hand' }); }
       else if (k.openRow && key === 'f' && k.tab !== 'closed') { e.preventDefault(); setForm('fixed'); }
       else if (k.openRow && key === 'w' && k.tab !== 'closed') { e.preventDefault(); setForm('wont-fix'); }
     };
@@ -275,18 +277,18 @@ export default function Inbox({ data, narrow, inPage = false }: { data: InboxDat
               ) : (
                 <>
                   <div className="ibx-listbar">
-                    <label className="check ibx-pick-all"><input type="checkbox" checked={pageAll} onChange={(e) => setSelected((s) => { const n = new Set(s); for (const r of shown.rows) { if (e.target.checked) n.add(r.key); else n.delete(r.key); } return n; })} /><span>{pageAll ? 'All on this page' : 'Select this page'}</span></label>
+                    {triage ? <label className="check ibx-pick-all"><input type="checkbox" checked={pageAll} onChange={(e) => setSelected((s) => { const n = new Set(s); for (const r of shown.rows) { if (e.target.checked) n.add(r.key); else n.delete(r.key); } return n; })} /><span>{pageAll ? 'All on this page' : 'Select this page'}</span></label> : <p className="tiny muted ibx-readonly">{ADMINS_TRIAGE}</p>}
                     {narrow ? <span className="tiny muted">{shown.from}–{shown.to} of {rows.length}</span> : <Pager compact shown={shown} total={rows.length} onPage={setPage} />}
                   </div>
-                  {selected.size > 0 && (
+                  {triage && selected.size > 0 && (
                     <BulkBar tab={tab} rows={picked.length} items={pickedCount} busy={busy} form={bulkForm} setForm={setBulkForm}
                       onChange={(c) => void handle(picked, c)} onClear={() => { setSelected(new Set()); setBulkForm(null); }} />
                   )}
                   <ul className="mk-list ibx-list" aria-label={`${TABS.find(([t]) => t === tab)![1]}, ${shown.from} to ${shown.to} of ${rows.length}`}>
-                    {shown.rows.map((r) => <Row key={r.key} r={r} open={r.key === openRow?.key} picked={selected.has(r.key)} onPick={() => toggle(r.key)} onOpen={() => openItem(r)} />)}
+                    {shown.rows.map((r) => <Row key={r.key} r={r} open={r.key === openRow?.key} picked={selected.has(r.key)} onPick={triage ? () => toggle(r.key) : undefined} onOpen={() => openItem(r)} />)}
                   </ul>
                   {shown.pages > 1 && <div className="ibx-listbar ibx-listfoot"><span /><Pager shown={shown} total={rows.length} onPage={setPage} /></div>}
-                  {!narrow && <p className="tiny muted ibx-keys">Keys: J and K move through the list, I marks in hand, F fixed, W won’t fix.</p>}
+                  {!narrow && <p className="tiny muted ibx-keys">{triage ? 'Keys: J and K move through the list, I marks in hand, F fixed, W won’t fix.' : 'Keys: J and K move through the list.'}</p>}
                 </>
               )}
             </div>
@@ -326,12 +328,12 @@ function Pager({ shown, total, onPage, compact = false }: { shown: ReturnType<ty
 }
 
 /** One row: a tick box for a batch, then the row itself, which opens it. Its status comes first, as a shape and a word. */
-function Row({ r, open, picked, onPick, onOpen }: { r: Item; open: boolean; picked: boolean; onPick: () => void; onOpen: () => void }) {
+function Row({ r, open, picked, onPick, onOpen }: { r: Item; open: boolean; picked: boolean; onPick?: () => void; onOpen: () => void }) {
   const app = useApp();
   const line = itemLine(r);
   return (
-    <li className={'ibx-row' + (open ? ' open' : '') + (picked ? ' picked' : '')} data-row={r.key} aria-current={open ? 'true' : undefined}>
-      <label className="ibx-pick"><input type="checkbox" checked={picked} onChange={onPick} aria-label={`Select: ${short(line, 80)}`} /></label>
+    <li className={'ibx-row' + (open ? ' open' : '') + (picked ? ' picked' : '')} data-row={r.key} aria-current={open ? 'true' : undefined} style={onPick ? undefined : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      {onPick && <label className="ibx-pick"><input type="checkbox" checked={picked} onChange={onPick} aria-label={`Select: ${short(line, 80)}`} /></label>}
       {r.kind === 'markup' ? (() => {
         const m = r.markups[0]!;
         const part = namedParts(m)[0];
@@ -507,7 +509,9 @@ function FeedbackDetail({ f, busy, form, setForm, onChange }: { f: InboxFeedback
 
 /** The next step is the main action; the others are plain. For a folded row, they apply to every markup in it. */
 function Actions({ status, busy, form, setForm, onChange, onIssue, n }: { status: MarkupStatus; busy: boolean; form: string | null; setForm: (f: 'fixed' | 'wont-fix' | null) => void; onChange: (c: Change) => void; onIssue?: () => void; n: number }) {
-  if (form) return null;
+  const app = useApp();
+  // Only an admin changes the status (mayTriage, the rule statusPatch keeps); everyone else reads.
+  if (form || !mayTriage(app.viewer)) return null;
   const open = status === 'new' || status === 'in-hand';
   const all = n > 1 ? ` (all ${n})` : '';
   return (

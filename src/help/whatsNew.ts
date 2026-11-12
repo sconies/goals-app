@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'admins-triage-and-start-over',
+    date: '2026-11-12',
+    title: 'Admins change feedback, and start a workspace over',
+    points: [
+      'Anyone can still read Feedback and send their own. Only an admin marks it in hand, fixed or won’t fix; everyone else sees a line saying so.',
+      'Feedback’s address /inbox now opens it, instead of Page not found.',
+      'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
+    ],
+    articles: ['inbox', 'demo'],
+  },
+  {
     id: 'import-way-in',
     date: '2026-11-12',
     title: 'Paste rows, and headers that are nearly right',

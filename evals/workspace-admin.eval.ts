@@ -131,4 +131,11 @@ describe('Admins look after the workspace: its name and its teams', () => {
     const teams = (await amara.call('list_people')).data!.teams as { name: string; people: number }[];
     expect(teams.find((t) => t.name === 'Insights Platform')!.people).toBeGreaterThan(0);
   });
+  it(R('Start over (Lane, 12 Nov): anyone may in the shared example, which only resets this browser’s copy; in a workspace of someone’s own it removes it, so only an admin'), () => {
+    const member = { admin: false }, admin = { admin: true };
+    expect(A.mayStartOver(member, 'example')).toBe(true);
+    expect(A.mayStartOver(admin, 'example')).toBe(true);
+    expect(A.mayStartOver(member, 'own')).toBe(false);
+    expect(A.mayStartOver(admin, 'own')).toBe(true);
+  });
 });
