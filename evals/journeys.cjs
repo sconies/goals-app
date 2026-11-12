@@ -1564,7 +1564,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await h.fill(row, '30');
   await h.checkpoint('plan table');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, 'with plan numbers set by hand', 'the summary says the plan was set by hand');
+  await see(p, 'with the weeks’ numbers set by hand', 'the read-back says the plan was set by hand');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
   // About this goal is open on a first visit, with the plan week by week (the flagship page, 5 Nov).
@@ -5009,6 +5009,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Nothing is saved until you publish.', 'Check doesn’t say nothing is saved yet');
+  await h.inView(p.getByRole('button', { name: 'Publish goal' }), 'entry', 'Publish goal');
   const rows = p.locator('.read-back');
   const rowText = async (id) => ((await rows.locator(`li[data-row="${id}"] .rr-value`).innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const want = {
@@ -5041,7 +5042,7 @@ journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it�
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 3000 }).catch(() => {});
   const opened = /\/goals\/new\/measure(\?|$)/.test(p.url());
-  h.set('errors', opened && await p.getByText('Add at least one stage.').first().isVisible().catch(() => false), `Continue after another type stayed on ${p.url()} and didn’t open the stages`);
+  h.set('errors', opened && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after another type stayed on ${p.url()} and didn’t open the stages`);
   if (opened) {
     await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
     await pickWeek(p, 'Stage 1: due', '50');
