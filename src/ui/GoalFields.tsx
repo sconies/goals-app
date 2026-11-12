@@ -1,5 +1,5 @@
 /* Fields the new-goal wizard, Edit goal and setting up a workspace share, so they look and behave the same in each. */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { levelsOf } from '../domain/levels';
 import { useApp } from '../app/state';
 import type { Cycle, Level } from '../domain/types';
@@ -8,6 +8,7 @@ import type { GoalAnswers, GoalCheck, MustFix } from '../domain/goalEntry';
 import { placesText } from '../domain/numbers';
 import { Icon } from './Icon';
 import { CheckBlock, CheckSaid, MustFixLine } from './Levels';
+import { questionAppeared } from './questionInView';
 
 
 /** A field's Must fix: said in words under the field, with the warning mark (ui/Levels, shared with the check-in). */
@@ -35,9 +36,17 @@ export function Questions({ checks, answers, onAnswer, onNo, onChange, alertSlot
     <>
       {checks.map((c) => answers[c.slot] === c.key
         ? <CheckSaid key={c.slot} onChange={() => onChange(c)}>{c.readBack || `You said: ${c.yes}.`}</CheckSaid>
-        : <CheckBlock key={c.slot} id={`q-${c.slot.replace(/[^\w-]/g, '-')}`} slot={c.slot} question={c.question} yes={c.yes} no={c.no} alert={alertSlot === c.slot} onYes={() => onAnswer(c)} onNo={() => onNo(c)} />)}
+        : <OpenQuestion key={c.slot} c={c} alert={alertSlot === c.slot} onYes={() => onAnswer(c)} onNo={() => onNo(c)} />)}
     </>
   );
+}
+
+/** One open question. Asked while a number is typed, it is scrolled into view (U93: on a phone it was below the fold),
+    leaving focus in the field; asked again for new values (150 then 160), the same. */
+function OpenQuestion({ c, alert, onYes, onNo }: { c: GoalCheck; alert: boolean; onYes: () => void; onNo: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { questionAppeared(ref.current); }, [c.slot, c.key]);
+  return <CheckBlock id={`q-${c.slot.replace(/[^\w-]/g, '-')}`} slot={c.slot} question={c.question} yes={c.yes} no={c.no} alert={alert} onYes={onYes} onNo={onNo} blockRef={ref} />;
 }
 
 /** A date range that never breaks inside itself ("28 Dec–3 Jan 2027"). */

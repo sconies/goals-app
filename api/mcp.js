@@ -16082,7 +16082,7 @@ var CORE_ARTICLES = [
 				"A number has only the number in it: “12 days” in a goal that counts % is a problem to fix (“the unit goes in Unit”); in a goal that counts days it’s 12. A target the same as the start offers to make it a number to keep in range instead. Each stage needs its own name and a week; two stages with one name, or one with no week, are each said under their own row.",
 				"A warning margin for a range is optional: left empty, it warns only once the limit is crossed.",
 				"Some things are possible but unlikely, so they are asked about, never refused. A question sits under the field it is about, marked Check, with two answers: the first keeps what you typed, the second changes it. Asked: a number with no unit (is it a plain count?), a percentage over 100, a time, money or percentage below zero, a target a hundred times the start (or a hundredth of it), a billion or more, a target on the worse side of the start for the metric that measures it, a warning margin as wide as the limit, weeks set by hand that leave most of the change to the end, a goal with the same name in the same team, an owner in another team than the goal’s (“Move it to …” moves it), and a goal feeding one at a lower level (“No, it feeds nothing” removes the link).",
-				"Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
+				"A question asked while you type is brought into view, on a phone too, and the cursor stays in the field. Continue waits for the questions on its step: focus goes to the first, and the line above the button says “Answer the question above, under Target.” Answered, a question folds to one line, “You said 150% is right.”, with Change. Your answer holds for the values it was about: change the number and it asks again. Each answer is kept in the goal’s History, as Checked.",
 				"Two goals can have the same name (two teams can both “Reduce latency”). You’re told which other goal has it, with its key, team and owner, and wherever both could be on screen each shows its key beside the title."
 			]
 		}, {
@@ -16150,7 +16150,7 @@ var CORE_ARTICLES = [
 					"Plan by week shows the numbers week by week; type over any week.",
 					"After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s history.",
 					"Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about. A target on the worse side of the start for the metric that measures the goal is asked about too (“Lead time for changes is better lower, but the target is above today”), here, in a spreadsheet and through the AI assistant, and your answer is kept in the goal’s History as Checked.",
-					"Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.",
+					"A question asked while you type is brought into view, and the cursor stays in the field. Save changes waits for the questions: pressed with one still open, it takes you to the first, wherever it is on the page, and the line above the button says where (“Answer the question above, under Target.”). The second answer, such as “No, I’ll change the numbers”, takes you back to the field.",
 					"A target on the other side of the start flips which way is better, so it is never saved quietly: the form says so (“This makes higher better”) and saves once you tick the yes beneath it. A start, target or week’s number far outside the plan it replaces is asked about the same way. The import, Data and the AI assistant ask the same questions.",
 					"The original plan stays on the chart, dotted, and earlier weeks and closed quarters stay judged against the plan of their day. There is no approval step.",
 					"A goal’s type can’t change once check-ins have started."
@@ -17089,6 +17089,7 @@ var CORE_ARTICLES = [
 					"Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.",
 					"Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.",
 					"It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.",
+					"Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.",
 					"Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.",
 					"Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you."
 				]
@@ -17476,6 +17477,20 @@ var WHATS_NEW = [
 			"Home now really lists your goals worst first, then by name, as the last release said."
 		],
 		articles: ["any-device", "home"]
+	},
+	{
+		id: "mcp-new-goal-keys",
+		date: "2026-11-12",
+		title: "AI tools hear each new goal’s key",
+		points: ["When an AI tool adds a goal through MCP, alone or in a batch, it is told the new goal’s key (G-12) and ID at once, so it can link or check in on it without searching for it first.", "A dry run says the key each new goal would get."],
+		articles: ["ai-assistants"]
+	},
+	{
+		id: "question-in-view",
+		date: "2026-11-12",
+		title: "A question about a number is where you can see it",
+		points: ["In New goal and Change a goal, a question raised as you type, such as a target over 100%, now scrolls into view, on a phone too. The cursor stays where you are typing.", "Continue or Save changes with a question open takes you straight to it."],
+		articles: ["new-goal", "edit-goal"]
 	},
 	{
 		id: "import-headers-steadier",
@@ -23294,6 +23309,7 @@ var answersOf = (a) => Object.fromEntries(Object.entries(a ?? {}).map(([k, v]) =
 	...v.value != null ? { value: String(v.value) } : {}
 }]));
 async function change(ctx, tables, opts) {
+	const keyOf = (id) => (ctx.snapshot.goals.find((g) => g.id === id) ?? cs.commit?.goals?.find((g) => g.id === id))?.key ?? null;
 	const cs = planChanges({
 		tables,
 		snapshot: ctx.snapshot,
@@ -23333,6 +23349,7 @@ async function change(ctx, tables, opts) {
 		summary: describe(cs),
 		changes: cs.items.map((x) => ({
 			goalId: x.goalId,
+			...x.goalId ? { key: keyOf(x.goalId) } : {},
 			goal: x.goal,
 			kind: x.kind,
 			summary: x.summary,
@@ -23367,8 +23384,15 @@ async function change(ctx, tables, opts) {
 			field: q.field,
 			question: q.text
 		}))),
-		needsConfirm: cs.needsConfirm
+		needsConfirm: cs.needsConfirm,
+		/** The goals the change adds: each one's ID and key, to use straight away (feeds_into_id, post_check_in, Goal key). */
+		created: cs.items.filter((x) => x.kind === "new goal").map((x) => ({
+			id: x.goalId,
+			key: keyOf(x.goalId),
+			title: x.goal
+		}))
 	};
+	const createdLine = () => data.created.length ? `\nNew ${data.created.length === 1 ? "goal" : "goals"}: ${data.created.map((x) => `${x.key ?? "—"} · ${x.id} · ${x.title}`).join("; ")}.` : "";
 	const lines = (l) => l.map((x) => `- ${x.goal ? x.goal + ": " : ""}${x.message}`).join("\n");
 	if (errors.length) return {
 		isError: true,
@@ -23408,15 +23432,23 @@ async function change(ctx, tables, opts) {
 	})))}` : ""}${cs.leftOut.length ? `\nLeft out at the person's answer: ${cs.leftOut.length} row(s).` : ""}${examples ? `\n${examples.trim()}` : ""}`;
 	if (opts.dry || !cs.commit) return {
 		data,
-		text: `Checked, not saved (dry run). Would save: ${what}`
+		text: `Checked, not saved (dry run). Would save: ${what}${createdLine()}`
 	};
 	await ctx.save(cs.commit);
+	data.created = data.created.map((x) => ({
+		...x,
+		key: keyOf(x.id)
+	}));
+	data.changes = data.changes.map((x) => x.goalId ? {
+		...x,
+		key: keyOf(x.goalId)
+	} : x);
 	return {
 		data: {
 			...data,
 			saved: true
 		},
-		text: `Saved as ${ctx.actor.name}: ${what}`
+		text: `Saved as ${ctx.actor.name}: ${what}${createdLine()}`
 	};
 }
 /** A goal by its ID or its key (G-12). */
