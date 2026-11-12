@@ -1,7 +1,8 @@
 /* F16: New goal on a phone (onboarding spec, section 6; OB1). At 390 × 844 and 360 × 800, on each of the four steps:
    the step's first field and its primary button are on the first screen with the keyboard closed; no step is taller
    than two screens (the measure step with the plan table folded); every control is at least 44 px high, "Change"
-   included; nothing scrolls sideways; nothing (the tab bar) covers Back or Continue. Set-up's steps join this check with OB3. */
+   included; nothing scrolls sideways; nothing covers Back or Continue, and the tab bar doesn't show (focus mode). Set-up's
+   steps join this check with OB3. */
 const steps = ['what', 'who', 'measure', 'check'];
 
 module.exports = {
@@ -31,13 +32,13 @@ module.exports = {
         if (!fr || fr.y + fr.height > h) f(`${at}: the first field is not on the first screen`);
         const primary = await p.locator('.focus-foot .btn.primary').boundingBox();
         if (!primary || primary.y + primary.height > h || primary.y < 0) f(`${at}: the primary button is not on the first screen`);
-        // In the box is not enough: the tab bar once sat over it (#129's review). The middle of each foot button must be it.
-        const covered = await p.evaluate(() => [...document.querySelectorAll('.focus-foot .btn')].filter((b) => {
-          const r = b.getBoundingClientRect();
-          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-          return !hit || !b.contains(hit);
-        }).map((b) => (b.textContent || '').trim()));
+        // On the screen is not enough: nothing (a tab bar, a sidebar) may sit over it. New goal is focus mode (build review of #129).
+        const covered = await p.evaluate(() => [...document.querySelectorAll('.focus-foot .btn')].filter((b) => b.getClientRects().length).map((b) => {
+          const r = b.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return top && (top === b || b.contains(top)) ? null : (b.textContent || '').trim();
+        }).filter(Boolean));
         if (covered.length) f(`${at}: something covers ${covered.join(' and ')}`);
+        if (await p.locator('.tabbar:visible, .side:visible').count()) f(`${at}: the tab bar or sidebar shows; New goal is focus mode`);
         const tall = await p.evaluate(() => document.documentElement.scrollHeight);
         if (tall > 2 * h) f(`${at}: the step is ${tall}px tall, over two screens`);
         const [sw, iw] = await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);

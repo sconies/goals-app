@@ -4590,7 +4590,7 @@ function requiredLine(kind) {
 	if (kind === "checkIns") return `${req("Goal key")} (or ${req("Goal")}), ${req("Week")}, and ${req("Value")} or ${req("Stages")}.`;
 	return `${req("Name")} and ${req("Email")}.`;
 }
-var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
+var ROLE_WORD, norm$1, unknownWord, wordsAndAlso, oneOf, andList, TYPE_WORDS, SHAPE_WORDS, BOUND_WORDS, YES_WORDS, CALL_WORDS, causeCodes, CAUSE_WORDS, RECOVERY_WORDS, GOAL_ACTION_WORDS, PERSON_ACTION_WORDS, m$1, e, w, sh$1, moduleColumn, cellOr, blank, or$1, metricOf$1, rangeOf, parentOf, quarter, stagesSpec, RESULT_COLUMNS, GOALS, PLAN, WEEK_COLUMN, isWeekHeader, planWeekValue, CHECK_INS, PEOPLE, RESULTS, ASKS, NOTES, SHEETS, START_HERE, sheetNamesWith, specOf, headersOf, columnOf, isWorkedOut, KEY_COLUMNS, rowsOf, asksFor, notesFor, TYPE_NAME, FILL_SHEETS, wordList, causeWords, FIELDS$1, emptyText, isFillIn;
 var init_columns = __esmMin((() => {
 	init_levels();
 	init_asks();
@@ -4893,6 +4893,7 @@ var init_columns = __esmMin((() => {
 		means: "The plan’s number that week, from the week after Plan from week to the due week. Empty before and after. If the plan changed, earlier check-ins were judged against the plan of their day (Plan that week on Check-ins).",
 		loaded: "Sets the plan numbers by hand; needs a reason once check-ins have started"
 	};
+	isWeekHeader = (h) => /^week \d+$/i.test(h.trim());
 	planWeekValue = (r, week) => {
 		const from = r.g.plan.fromWeek ?? 0, end = planEnd(r.g.plan, r.c.x.cycle.weeks);
 		return week <= from || week > end ? null : Number(planAt(r.g.plan, week, r.c.x.cycle.weeks).toFixed(r.g.decimals));
@@ -5038,6 +5039,7 @@ var init_columns = __esmMin((() => {
 		...sheets.map((x) => x.spec.name)
 	];
 	specOf = (kind) => SHEETS.find((x) => x.kind === kind);
+	headersOf = (kind) => specOf(kind).columns.map((c) => c.header);
 	columnOf = (kind, header) => specOf(kind).columns.find((c) => c.header.toLowerCase() === header.toLowerCase());
 	isWorkedOut = (kind, header) => ["worked", "shown"].includes(columnOf(kind, header)?.role ?? "");
 	KEY_COLUMNS = {
@@ -7475,6 +7477,7 @@ function goalMustFix(d, ctx) {
 	return out.sort((a, b) => GOAL_FIELDS$1.indexOf(a.field) - GOAL_FIELDS$1.indexOf(b.field));
 }
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
+/** "a Team goal", "an SVP goal", "a north star": a level with its article (rule 3's feeds-lower; the read-back, rule 5). */
 function aLevel(levels, l, top) {
 	const name = levelName(levels, l);
 	const said = top ? name.charAt(0).toLowerCase() + name.slice(1) : `${name} goal`;
@@ -8975,17 +8978,7 @@ function stagesFromNow(stages, week, weeks = 52) {
 	const scale = Math.min(1, room / last);
 	return parts.map((p) => p.at == null ? p.name : `${p.name}@${Math.min(weeks, Math.max(0, week) + Math.max(1, Math.round(p.at * scale)))}`).join("; ");
 }
-var init_templates = __esmMin((() => {})), LOADED;
-var init_sheets = __esmMin((() => {
-	init_columns();
-	LOADED = {
-		goals: "goals",
-		plan: "plan",
-		checkIns: "checkIns",
-		people: "people"
-	};
-	Object.keys(LOADED);
-}));
+var init_templates = __esmMin((() => {}));
 // src/domain/problemLevels.ts
 /** Edits between two strings, a swap of two letters counting as one (Damerau, optimal string alignment). */
 function editDistance(a, b) {
@@ -9081,6 +9074,7 @@ function groupTitle(kind, sheet, count, first) {
 		case "loop": return `${n$1(count, "goal")} would feed ${count === 1 ? "itself" : "themselves"}`;
 		case "near-ref": return `${n$1(count, "row")} name${count === 1 ? "s" : ""} a ${THING[col] ?? "record"} that isn’t here: “${v}”. Did you mean ${first.suggest}?`;
 		case "near-word": return `${col} says “${v}” on ${n$1(count, "row")}. Read it as ${first.suggest}?`;
+		case "near-header": return first.message;
 		case "same-person": return first.message;
 		case "same-goal": return `${n$1(count, "new goal")} ${count === 1 ? "has a name its team already uses" : "have names their teams already use"}: “${v}”. Are they new?`;
 		case "other-goal": return first.message;
@@ -9354,6 +9348,84 @@ var init_problemLevels = __esmMin((() => {
 		note: 2
 	};
 }));
+// src/domain/sheets.ts
+/** Every name a sheet of a kind reads a column by, folded: its headers, the engine's extra ones, and the field table's `also`. */
+function namesOf(kind) {
+	const out = /* @__PURE__ */ new Map();
+	for (const h of headersOf(kind)) out.set(fold$1(h), h);
+	for (const h of ALSO_READ[kind] ?? []) out.set(fold$1(h), h);
+	if (FILL_SHEETS.includes(kind)) {
+		for (const row of fieldTable(kind)) for (const a of row.also ?? []) if (!out.has(fold$1(a))) out.set(fold$1(a), row.header);
+	}
+	return out;
+}
+/**
+* How a sheet of a kind reads one header: `exact` (its own, any case, or a plan's "Week N"), `also` (another name the
+* field table gives the column: "Goal name" is Goal), `near` (one letter out of exactly one of them: "Targett" is
+* Target, asked about), or `unknown`. `as` is the column it is read as.
+*/
+function headerMatch(kind, header) {
+	const h = header.trim();
+	if (!h) return {
+		how: "unknown",
+		as: null
+	};
+	if (kind === "plan" && isWeekHeader(h.toLowerCase())) return {
+		how: "exact",
+		as: h
+	};
+	const names = NAMES.get(kind);
+	const at = names.get(fold$1(h));
+	if (at) return alsoOf(kind, h) ? {
+		how: "also",
+		as: at
+	} : {
+		how: "exact",
+		as: at
+	};
+	const m = near(h, [...names.keys()]);
+	if ("near" in m) return {
+		how: "near",
+		as: names.get(m.near)
+	};
+	return {
+		how: "unknown",
+		as: null
+	};
+}
+var LOADED, ALSO_READ, ALL_KINDS, NAMES, alsoOf;
+var init_sheets = __esmMin((() => {
+	init_columns();
+	init_problemLevels();
+	LOADED = {
+		goals: "goals",
+		plan: "plan",
+		checkIns: "checkIns",
+		people: "people"
+	};
+	Object.keys(LOADED);
+	ALSO_READ = {
+		goals: [
+			"reason",
+			"reason for change",
+			"owner id"
+		],
+		plan: ["reason", "reason for change"],
+		checkIns: ["reason"],
+		people: []
+	};
+	ALL_KINDS = [
+		"goals",
+		"plan",
+		"checkIns",
+		"people",
+		"results",
+		"asks",
+		"notes"
+	];
+	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
+	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
+}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -9386,6 +9458,25 @@ function fileDiffs(file, changed, unchanged, left) {
 		from: "—",
 		to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ""}`
 	}];
+}
+/** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
+function namedHeaders(t, nearOk) {
+	const out = { ...t };
+	for (const [key, kind, sheet] of TABLE_SHEETS) {
+		const recs = t[key];
+		if (!recs?.length) continue;
+		const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== "__row");
+		const rename = /* @__PURE__ */ new Map();
+		for (const k of keys) {
+			const m = headerMatch(kind, k);
+			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			const to = m.as.toLowerCase();
+			if (keys.includes(to)) continue;
+			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+		}
+		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+	}
+	return out;
 }
 function planChanges(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
@@ -9420,6 +9511,26 @@ function planChanges(input) {
 			sheet,
 			row
 		});
+	};
+	input = {
+		...input,
+		tables: namedHeaders(input.tables, (sheet, header, as) => {
+			const a = answerOf("near-header", sheet, "Header", header);
+			if (a?.choice === "use") return true;
+			if (!a) raise("near-header", sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, {
+				column: "Header",
+				found: header,
+				suggest: as,
+				answers: [{
+					choice: "use",
+					label: `Read it as ${as}`
+				}, {
+					choice: "ignore",
+					label: "Don’t read it"
+				}]
+			});
+			return false;
+		})
 	};
 	/**
 	* A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
@@ -11462,7 +11573,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -11583,6 +11694,28 @@ var init_changeset = __esmMin((() => {
 		"odd-number",
 		"feeds-lower",
 		"no-unit"
+	];
+	TABLE_SHEETS = [
+		[
+			"goals",
+			"goals",
+			"Goals"
+		],
+		[
+			"plan",
+			"plan",
+			"Plan"
+		],
+		[
+			"checkIns",
+			"checkIns",
+			"Check-ins"
+		],
+		[
+			"people",
+			"people",
+			"People"
+		]
 	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
@@ -14362,8 +14495,10 @@ var help$2 = [
 				heading: "How to use it",
 				list: [
 					"On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.",
+					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
+					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once.",
 					"Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.",
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
@@ -15725,9 +15860,10 @@ var CORE_ARTICLES = [
 				"Each step says what it needs: “Everything here is needed unless it says optional”, and an optional field says “· optional” after its name. A problem shows under its own field once you have changed it and moved on, never while you type. Continue is never greyed out: pressed with something to fix, every problem on the step shows, the first field is chosen, and one line above the button counts them (“2 things to fix above: Unit and Target”).",
 				"Step 2, who and where: the owner starts as you and the team follows the owner until you change it. Type to find a person, a team or a goal: nothing is chosen from a list of everything. The level starts one below the goal it feeds, else Team; if you lead a team that already has SVP or north-star goals, you’re asked. “Feeds into” suggests the goals one level up in the team first, worst first. “Also helps” can be set here too.",
 				"Step 3, how it’s measured: for a number, its unit (optional, and empty to start: type %, days, incidents or whatever it counts), then two rows: Baseline with From (the number, and the week it was true, when the plan starts) and Target with To (the number, and the week it is due). From starts as this week and To as the end of the year; the line under them says how many weeks that is. Then how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. “Adjust the plan week by week” opens the plan table, where any week can be typed over. Say how it’s measured and where the number comes from, so everyone reads it the same way.",
-				"Step 4, check: the goal read back in words, each row with Change. Publish it. The owner is then offered the first check-in.",
+				"Step 4, check: “Does this read right?” Nothing is saved until you publish. The goal is read back in sentences, each with Change to its step: What (the type, the numbers with their weeks and dates, how progress comes, and whether higher or lower is better), Who and where (owner, team, level, what it feeds, what else it helps, a guardrail), Measured by (the metric, or how it’s measured in words), Left as usual (every default you didn’t change, such as “Whole numbers.” or “Feeds nothing.”) and You said (each question you answered). After Change, Continue brings you straight back; a change that leaves a later step needing something (another type, say) opens that step first.",
+				"Under the rows, After you publish says what happens next: when the first check-in is due (“Its first check-in is due by Thursday 12 Nov, then every week”, with what the plan expects the week after), who sees it (for someone else: they see it on their Home next time they open Faro; Faro doesn’t send email), the reviews that will walk it, and how long it can still be changed freely or deleted (until its first check-in). Publish it; the owner is then offered the first check-in.",
 				"On a phone the steps take the whole screen, as every form does: the tab bar steps aside, so Back and Continue are always in reach.",
-				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not.",
+				"Each step has its own address, so your browser’s Back steps back a step and a reload stays where you were. “Close and keep the draft” keeps it; New goal later picks it up where it stopped, with “Start a new one” if you’d rather not. Changing an answer from Check and pressing Continue goes to the first step that no longer holds, with what it needs said there.",
 				"A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen. Change the stage’s week and it asks again.",
 				"Each week is chosen, never typed as a bare number: From, To and a stage’s Due open a short list of weeks, each with its dates and year (“Week 46 · 9–15 Nov 2026”). Up to three named weeks come first (for To: the end of this quarter, the end of the year, the end of Q1 next year); then the years, and that year’s weeks, with this week and each quarter’s end marked. Type in it to jump: “50” is week 50 of the year shown, “14 Dec” the week holding that day, “2027 5” week 5 of 2027. Up and Down move a week, Page Up and Page Down four, Left and Right change the year, Enter chooses, Escape closes.",
 				"To can run into next year: the line under the numbers says “It runs past the end of 2026 and carries into 2027 with this plan.” A From still to come is fine too: until that week nothing is due, and the goal reads “No check-in yet · starts week 50”. A From in the past is asked about (“Week 40 was 6 weeks ago. Has this been running since then?”); “No, start from this week” puts it back. A To already past, and a plan longer than a year, are asked about too. A stage is due within this goal year; a range applies from the week it is published to the end of the year.",
@@ -15775,7 +15911,11 @@ var CORE_ARTICLES = [
 			"to",
 			"week",
 			"date",
-			"year"
+			"year",
+			"read back",
+			"check",
+			"publish",
+			"first check-in"
 		],
 		related: [
 			"edit-goal",
@@ -17109,6 +17249,36 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "goal-read-back",
+		date: "2026-11-12",
+		title: "Read your goal back before it’s published",
+		points: [
+			"The last step says, in sentences, what you typed and what was left as usual.",
+			"It says when the first check-in is due and how long you can still delete it.",
+			"It names the reviews that will walk the goal, and who sees it if it’s someone else’s."
+		],
+		articles: ["new-goal"]
+	},
+	{
+		id: "import-way-in",
+		date: "2026-11-12",
+		title: "Paste rows, and headers that are nearly right",
+		points: [
+			"Paste cells from a spreadsheet straight into Import.",
+			"A title row above the headers, or “Goal name” for Goal, is read.",
+			"A header one letter out is asked about once: “Read it as Target?”",
+			"A file Faro can’t use says what it found, and offers the template."
+		],
+		articles: ["import"]
+	},
+	{
+		id: "new-goal-fixes",
+		date: "2026-11-12",
+		title: "New goal fixes",
+		points: ["Change an answer on Check that a later step no longer fits (a number goal turned into dated stages) and Continue now takes you to that step and says what it needs, instead of doing nothing.", "Check shows each answer in full, wrapping long ones instead of cutting them short."],
+		articles: ["new-goal"]
+	},
 	{
 		id: "goal-entry-review-fixes",
 		date: "2026-11-12",
@@ -19039,6 +19209,7 @@ var _virtual_faro_modules_default = [{
 		"U89",
 		"U94",
 		"U90",
+		"U95",
 		"F7",
 		"F8",
 		"F17",

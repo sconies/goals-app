@@ -133,9 +133,9 @@ module.exports = {
       await cont(p); await cont(p);
       const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
-      if (rr.length !== 5 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
-      // (23) the plan is read back with its weeks' dates (GE9): "from 20% in week 45 (2–8 Nov 2026) to 90% by week 53 (…)".
-      if (!/by week \d+ \(\d/.test((await p.locator('.summary-card').textContent()) || '')) f('(23) Check doesn’t say the due week with its dates');
+      if (rr.length < 4 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the read-back's rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
+      // (23) the plan is read back with its weeks' dates (GE9, GE3): "A number to move: from 20% in week 45 (2–8 Nov 2026) to 90% by week 53 (…)".
+      if (!/by week \d+ \(\d/.test((await p.locator('.review-rows li[data-row="what"]').textContent()) || '')) f('(23) Check doesn’t say the due week with its dates');
       await c.close();
     }
 
@@ -299,10 +299,9 @@ module.exports = {
       await cont(p);
       await p.getByLabel('Unit').fill('%'); await p.getByLabel(/^Baseline$/).fill('20'); await p.getByLabel(/^Target$/).fill('90');
       await cont(p);
-      const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
-      if (!/Team level, top of its own tree\./.test(fits)) f(`new goal: Where it fits reads “${fits}”`);
-      const who = (await p.locator('.review-rows li').filter({ has: p.locator('.strong', { hasText: /^Owner$/ }) }).innerText().catch(() => '')).replace(/\s+/g, ' ');
-      if (!/Rhea Kapoor · CI\/CD team/.test(who)) f(`new goal: Owner reads “${who}”`);
+      // The read-back (GE3) says the owner, team and level in one sentence.
+      const who = (await p.locator('.review-rows li[data-row="who"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+      if (!/Rhea Kapoor owns it, in CI\/CD\. It’s a Team goal and feeds nothing: it’s at the top of its own tree\./.test(who)) f(`new goal: Who and where reads “${who}”`);
       await c.close();
     }
     return fails;

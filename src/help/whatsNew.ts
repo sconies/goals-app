@@ -23,6 +23,39 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-read-back',
+    date: '2026-11-12',
+    title: 'Read your goal back before it’s published',
+    points: [
+      'The last step says, in sentences, what you typed and what was left as usual.',
+      'It says when the first check-in is due and how long you can still delete it.',
+      'It names the reviews that will walk the goal, and who sees it if it’s someone else’s.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'import-way-in',
+    date: '2026-11-12',
+    title: 'Paste rows, and headers that are nearly right',
+    points: [
+      'Paste cells from a spreadsheet straight into Import.',
+      'A title row above the headers, or “Goal name” for Goal, is read.',
+      'A header one letter out is asked about once: “Read it as Target?”',
+      'A file Faro can’t use says what it found, and offers the template.',
+    ],
+    articles: ['import'],
+  },
+  {
+    id: 'new-goal-fixes',
+    date: '2026-11-12',
+    title: 'New goal fixes',
+    points: [
+      'Change an answer on Check that a later step no longer fits (a number goal turned into dated stages) and Continue now takes you to that step and says what it needs, instead of doing nothing.',
+      'Check shows each answer in full, wrapping long ones instead of cutting them short.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'goal-entry-review-fixes',
     date: '2026-11-12',
     title: 'Goal forms that show you what’s left',

@@ -236,8 +236,9 @@ module.exports = {
 
     /* ---------- Import preview and Export ---------- */
     [c, r] = await open(390, 844, 'mateo', '/data/import');
-    const steps = await r.evaluate(() => { const ol = document.querySelector('.import-steps'), h = document.querySelector('.page-head h1'); return Math.round(ol.querySelector('li').getBoundingClientRect().left - h.getBoundingClientRect().left); });
-    if (steps > 1) fails.push(`[W15] import steps start ${steps}px in from the title`);
+    // The way in (IM5): the drop area starts on the title's left edge.
+    const steps = await r.evaluate(() => { const d = document.querySelector('.dropzone'), h = document.querySelector('.page-head h1'); return d && h ? Math.round(d.getBoundingClientRect().left - h.getBoundingClientRect().left) : 99; });
+    if (steps > 1) fails.push(`[W15] the drop area starts ${steps}px in from the title`);
     await r.getByLabel('Choose a spreadsheet').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('ID,Goal,Week 45,Week 46,Week 47\nmttr-pir,Post-incident actions closed within 30 days,30,31,32\n') });
     await r.waitForTimeout(500);
     const ta = await r.evaluate(() => { const t = document.querySelector('textarea'); return t ? getComputedStyle(t).borderTopColor : null; });

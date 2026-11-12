@@ -103,12 +103,18 @@
 /* Disclosures are 44px to hit (3). */
 .goal-form .disclose > summary { display: list-item; min-height: 44px; padding: 11px 0; }
 
-/* Check and publish (3, 23): each step a 44px row with Change on the right. */
+/* Check and publish (3, 23): the read-back (GE3), each row a small label with Change on its right (44px to hit), over its
+   sentence at the row's full width, so a phone's step stays within two screens (F16). The sentence wraps: never cut to one line (build review of #129, finding 6), never wider than the column (F18). */
 .goal-form .review-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.goal-form .review-rows li { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 0 16px; border-top: 1px solid var(--line-2); }
+.goal-form .review-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 0 16px 10px; border-top: 1px solid var(--line-2); }
 .goal-form .review-rows li:first-child { border-top: 0; }
-.goal-form .review-rows .rr-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.goal-form .review-rows .linkish { min-height: 44px; }
+.goal-form .review-rows .rr-label { grid-column: 1; grid-row: 1; padding-top: 10px; }
+.goal-form .review-rows li:has(> .linkish) .rr-label { padding-top: 0; }
+.goal-form .review-rows .rr-value { grid-column: 1 / -1; grid-row: 2; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.goal-form .review-rows .linkish { grid-column: 2; grid-row: 1; min-height: 44px; }
+.goal-form .read-back-name { margin: 0; overflow-wrap: anywhere; }
+.goal-form .after-publish { display: flex; flex-direction: column; gap: 8px; }
+.goal-form .after-publish p { margin: 0; }
 
 /* The sticky footer's rule runs at the column's width on a tablet or desktop, not 24px past it each side (20). */
 @container app (min-width: 761px) {

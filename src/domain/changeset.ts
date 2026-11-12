@@ -36,7 +36,7 @@ import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
-import { recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
+import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
 import { goalMeasureOf, type ModuleRecords } from './records';
 import { ANSWERS, fold, groupId, groupIssues, issueOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
@@ -215,6 +215,27 @@ function fileDiffs(file: ChangeInput['file'], changed: number, unchanged: number
   return [{ field: 'File', from: '—', to: file.name }, { field: 'Rows', from: '—', to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ''}` }];
 }
 
+const TABLE_SHEETS: [keyof Tables, 'goals' | 'plan' | 'checkIns' | 'people', Sheet][] = [['goals', 'goals', 'Goals'], ['plan', 'plan', 'Plan'], ['checkIns', 'checkIns', 'Check-ins'], ['people', 'people', 'People']];
+/** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
+function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: string) => boolean): Tables {
+  const out: Tables = { ...t };
+  for (const [key, kind, sheet] of TABLE_SHEETS) {
+    const recs = t[key];
+    if (!recs?.length) continue;
+    const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== '__row');
+    const rename = new Map<string, string>();
+    for (const k of keys) {
+      const m = headerMatch(kind, k);
+      if (!m.as || m.how === 'exact' || m.how === 'unknown') continue;
+      const to = m.as.toLowerCase();
+      if (keys.includes(to)) continue;
+      if (m.how === 'also' || nearOk(sheet, k, m.as)) rename.set(k, to);
+    }
+    if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
+  }
+  return out;
+}
+
 export function planChanges(input: ChangeInput): ChangeSet {
   const { snapshot: s, cycle, week, now, newId, via } = input;
   const create = input.mode === 'create';
@@ -235,6 +256,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
   const leave = (sheet: Sheet, row: number) => { if (!leftOut.some((x) => x.sheet === sheet && x.row === row)) leftOut.push({ sheet, row }); };
+  // Rule 3, at every door (a file, a paste, MCP): a column under another name the field table gives it ("Goal name") is
+  // read as that column; one a letter out ("Targett") is asked about once (near-header), and read so once answered.
+  input = { ...input, tables: namedHeaders(input.tables, (sheet, header, as) => {
+    const a = answerOf('near-header', sheet, 'Header', header);
+    if (a?.choice === 'use') return true;
+    if (!a) raise('near-header', sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, { column: 'Header', found: header, suggest: as, answers: [{ choice: 'use', label: `Read it as ${as}` }, { choice: 'ignore', label: 'Don’t read it' }] });
+    return false;
+  }) };
   /**
    * A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
    * question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
