@@ -91,6 +91,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #216 KT1: the handoff kit's small errors | planning | 0 | 0 | 0 |
 | #222 The workspace boundary: admins-only triage and Start over, the switcher | polish | 0 | 3 | 4 |
 | #227 Check-ins are the owner's (R1) | polish | 1 | 4 | 4 |
+| #225 Correct this check-in corrects it | 1 | 0 | 6 | 5 |
 | #171 U9, U111 and U23: three stale checks | 1 | 0 | 0 | 0 |
 | #220 GE9 review fixes | 2 | 0 | 0 | 0 |
 | #232 R1: the two exceptions named | polish | 0 | 0 | 0 |
@@ -98,6 +99,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #231 IM4 review fixes | 3 | 0 | 0 | 0 |
 | #236 IM5 review fixes | 3 | 0 | 0 | 0 |
 | #235 KT2: changes.csv and drills for stages 2 and 3 | planning | 0 | 0 | 0 |
+| #241 U93: a question about a number is where you can see it | 2 | 0 | 2 | 2 |
 | #238, #237, #240 Handovers | planning, 5 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1047,3 +1049,38 @@ Each was read from its diff and message; none was re-run on screen. No finding i
 - **#236 (track 3).** Takes #199's mediums 2 to 5. Re-run on main for medium 2: `Name, Email, Title, Team` is read as People, with "Not read: the column Title".
 - **#235.** The change engine's cases as a conformance file and drills for rebuild stages 2 and 3: the spec's generator and the drill script only.
 - **#238, #237, #240.** Handovers. Not reviewed.
+
+### #225 Correct this check-in corrects it (track 1, merged 17:54 UTC, 12 Nov)
+
+Read first by a separate reviewing session, on screen and with throwaway tests at #241's merge; nothing here was re-run by this reviewer. No high finding. The first reader rated 1 high by the brief's wording; it is logged as medium because it is the Undo gap already recorded under #227's medium 4, and what it restores is the same person's own earlier check-in. On the main path a correction leaves one live check-in for the week, keeps the old record whole for Undo, and is refused for anyone but the owner.
+
+**1. Medium. A previous owner can still undo their correction after handing the goal over, and the new owner cannot.** A correction is saved as an import of one (`src/domain/changeset.ts:1495-1524`), and `undoImport` asks only who made it (`src/domain/removal.ts:485`), never `mayPostCheckIn`.
+
+**2. Medium. After Undo, History still says the week was corrected.** The check-in's row shows the newest "Why corrected" change for its ID without asking whether that import was undone (`src/screens/GoalScreen.tsx:978-990`): "Week 46 · 37 hours" with "Corrected week 46: 37 hours is now 38 hours" beneath.
+
+**3. Medium. The queue's "Correct it" still adds a second check-in**: `src/screens/CheckInQueue.tsx:103` links without `?correct=1`, so the form says "This adds another check-in" and asks no reason.
+
+**4. Medium. A correction that changes only the words, the call or a stage's expected week says "37 hours is now 37 hours"** (`changeset.ts:1253-1255`, `:1550-1553`; the toast repeats it).
+
+**5. Medium. A correction draft reopened at its second step has lost the reason and cannot be posted from there.** The reason is component state, not part of the draft (`src/screens/CheckInFlow.tsx:248`), and its field is on the first step only; the second step gives an error toast with nothing to type into.
+
+**6. Medium. Data's tables and the engine's MCP route replace a week's check-in with no reason and different History words** ("Posted an update for week 46", no "Why corrected"; `changeset.ts:1297-1300`). Older than this PR, which promises one meaning for "correct".
+
+**Lows.**
+- `?correct=1` on a goal with no check-in this week is headed "Correct a check-in" but posts a new one; `?week=` is ignored.
+- The correction form opens empty and offers "No new number this week" (`CheckInFlow.tsx:255`).
+- A correction and a second check-in share one step marker, which is left behind after saving (`:272`).
+- Wording: "Undid corrected a check-in"; Past imports never names the goal, week or numbers; the reason's message does not give the minimum; ten full stops pass and 50,000 characters are accepted.
+- A week with two check-ins keeps both after a correction, and the form does not say it corrects the newer.
+
+**Unconfirmed, and Lane's call.** On 11 Jan 2027 the form corrected week 53 with no warning; the design says a cycle that has ended can't be corrected here, and no rule says so.
+
+### #241 U93: a question about a number is where you can see it, on a phone too (track 2, merged 18:40 UTC, 12 Nov)
+
+Read first by the same reviewing session. No high finding. At 390 by 844 the question comes fully above the sticky button, focus stays in the field, and reduced motion is respected.
+
+**1. Medium. On a short screen the page see-saws on every keystroke.** The helper keeps the field 16 px from the top (`src/ui/questionInView.ts:8`, `:30-36`), the browser's own caret scrolling keeps it 72 px down (`src/styles.css:1445`), and the question scrolls again whenever its key changes, which is each digit (`src/ui/GoalFields.tsx:48`). At 390 by 420, typing into Target bounces the page 42 px per key.
+
+**2. Medium (read). With a real on-screen keyboard the question can still be behind it**: the fold is taken from `window.innerHeight`, never `visualViewport` (`questionInView.ts:11-22`). U93 and the unit test use a full-height screen.
+
+**Lows.** The page jumps back after the person scrolls away and types one more digit; typing in Baseline scrolls to Target's question. Set-up's Continue does not use the helper (`src/screens/Onboarding.tsx:253-257`), and no journey covers Change a goal or set-up (read).
