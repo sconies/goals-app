@@ -4,7 +4,7 @@ import { carries, carryCopy, carryExtras, carryKind } from './carry';
 import type { Commit } from './commit';
 import { laterCycle } from './cycle';
 import type { Ask, Change, CheckIn, Cycle, Goal, Retro, Review, Watch } from './types';
-import { hasModuleRows, rowsLeaving, type ModuleRecords, type ModuleRows } from './records';
+import { applyModuleRows, hasModuleRows, rowsLeaving, type ModuleRecords, type ModuleRows } from './records';
 import { copyUntouched } from './copies';
 import { mergeCommits } from './actions';
 
@@ -81,15 +81,40 @@ export function recarry(goal: Goal, full: CarryRows, extra: { checkIns?: CheckIn
 export function withRecarry(full: CarryRows, c: Commit, x: { now: string; actorId: string; newId: (p: string) => string; records?: readonly ModuleRecords[] }): Commit {
   if (c.cycles?.length || !full.cycles.some((v) => !v.removedAt && laterCycle(full.cycles, v))) return c;
   const ids = new Set([...(c.goals ?? []).map((g) => g.id), ...(c.checkIns ?? []).map((ci) => ci.goalId), ...(c.retros ?? []).map((r) => r.goalId)]);
+  // Each goal's turn reads the rows as the save and the turns before it leave them, so a parent and its child moving in
+  // one save see each other (whichever comes first), and no row is written twice (build review of #179).
+  let work = fold(full, c);
   let out = c;
   for (const id of ids) {
     const goal = (c.goals ?? []).find((g) => g.id === id) ?? full.goals.find((g) => g.id === id);
     if (!goal) continue;
     const retro = (c.retros ?? []).find((r) => r.goalId === id);
-    const re = recarry(goal, full, { checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id), ...(retro ? { retro } : {}) }, x);
-    if (re) out = mergeCommits(out, re);
+    const re = recarry(goal, work, { checkIns: (c.checkIns ?? []).filter((ci) => ci.goalId === id), ...(retro ? { retro } : {}) }, x);
+    if (re) { out = mergeCommits(out, re); work = fold(work, re); }
   }
-  return out;
+  return onePerId(out);
+}
+
+type Row = { id: string };
+/** Rows by ID, the later one winning, each where it first appeared (a new goal still comes before its children). */
+const byId = <T extends Row>(rows: T[]): T[] => [...new Map(rows.map((r) => [r.id, r] as const)).values()];
+const upsert = <T extends Row>(rows: T[] | undefined, more: T[] | undefined): T[] => byId([...(rows ?? []), ...(more ?? [])]);
+
+/** The rows as they will be once a commit is saved: what recarry reads for the next goal. */
+function fold(full: CarryRows, c: Commit): CarryRows {
+  return {
+    ...full,
+    goals: upsert(full.goals, c.goals), checkIns: upsert(full.checkIns, c.checkIns), changes: [...full.changes, ...c.changes],
+    retros: upsert(full.retros, c.retros), watches: upsert(full.watches, c.watches), requests: upsert(full.requests, c.requests),
+    reviews: upsert(full.reviews, c.reviews), modules: applyModuleRows(full.modules, c.modules),
+  };
+}
+
+/** A commit with each record once, its latest version (a store writes a row once per save). */
+function onePerId(c: Commit): Commit {
+  const out: Record<string, unknown> = { ...c };
+  for (const [k, v] of Object.entries(c)) if (Array.isArray(v) && v.every((r) => r && typeof (r as Row).id === 'string')) out[k] = byId(v as Row[]);
+  return out as unknown as Commit;
 }
 
 /** Whether a removed copy was taken out by recarry: its latest change says so. */
