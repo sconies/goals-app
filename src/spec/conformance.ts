@@ -10,6 +10,10 @@ import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../dom
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
 import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
+import { localGoals } from '../adapters/localGoals';
+import { allGoalsNow } from '../ports/goals';
+import { parseQuery } from '../domain/query';
+import { STATUS_ORDER } from '../domain/vocabulary';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { planChanges } from '../domain/changeset';
 import type { ModuleRows } from '../domain/records';
@@ -201,6 +205,28 @@ export function findRowsOf(w: ConformanceWorkspace): string[][] {
   });
 }
 
+/* ---------- the query port ---------- */
+
+/** The Goals queries goals.csv answers through the query port (AX5): each as a Goals link's parameters. */
+export const GOAL_QUERIES = [
+  '', 'status=off', 'status=off,risk', 'attention=1', 'attention=1&needs=stale', 'team=cicd', 'owner=rhea', 'level=north-star',
+  'kind=milestone', 'q=tunde', 'q=rolback', 'q=zzzz', 'quiet=2', 'feeds=ns-lead', 'sort=title', 'sort=last', 'sort=due.desc', 'status=on&sort=gap',
+];
+export const GOALS_HEADER = ['query', 'total', 'near', ...STATUS_ORDER, 'attention', 'ids'];
+
+/** What the query port's goals() and counts() give for each query, on the workspace as it was built for. */
+export function goalsQueryRowsOf(w: ConformanceWorkspace): string[][] {
+  const moment = new Date(w.builtFor);
+  const rows = goalRows(asOf(w, moment), w.cycle, moment, currentWeek(w.cycle, moment));
+  const port = localGoals(() => rows);
+  return GOAL_QUERIES.map((q) => {
+    const query = parseQuery(new URLSearchParams(q));
+    const page = allGoalsNow(port.now!, { query });
+    const c = port.now!.counts({ query });
+    return [q, String(page.total), page.near ?? '', ...STATUS_ORDER.map((k) => String(c.status[k])), String(c.attention), page.rows.map((r) => r.goal.id).join(' ')];
+  });
+}
+
 /* ---------- navigation ---------- */
 
 /** The addresses navigation.csv answers for each viewer (the navigation rules, AR2). */
@@ -336,7 +362,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

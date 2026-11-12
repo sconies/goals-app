@@ -34,12 +34,6 @@ export function withExpectations(c: Commit, s: Snapshot): Commit {
   };
 }
 
-/** A save refused because someone else changed the same thing first. */
-export class StaleError extends Error {
-  constructor(what: string) { super('stale: ' + what); this.name = 'StaleError'; }
-}
-export const isStale = (e: unknown) => e instanceof StaleError || (e instanceof Error && /\bstale: /.test(e.message));
-
 /** Throws StaleError if the stored data has moved on from what the save expected. */
 export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
   if (!e) return;
@@ -48,36 +42,21 @@ export function checkExpectations(s: Snapshot, e: Expectations | undefined) {
   for (const x of e.checkIns) { const c = s.checkIns.find((y) => y.goalId === x.goalId && y.week === x.week); if ((c?.id ?? null) !== x.id) throw new StaleError(`check-in ${x.goalId} week ${x.week}`); }
 }
 
-/** The real app, or the demo: the example data, a role switcher and a reset, kept in each visitor's browser. */
-export type Mode = 'live' | 'demo';
+export type { Mode, Store } from '../ports/store';
+export { isStale, StaleError } from '../ports/store';
+import { StaleError, type Store } from '../ports/store';
 
-/** Where the app keeps its records. The browser, Supabase and plain-Postgres stores implement it, and each passes the same contract test (src/ports/contracts/store.ts). */
-export interface Store {
-  readonly kind: 'browser' | 'supabase' | 'postgres';
-  /** Whether the example workspace is part of this store (the demo) or not (the real app). */
+/**
+ * The demo's own plumbing (backlog AX5): a store that holds the example workspace and can start it again. Only the
+ * browser store does; the shared stores have no example, and the ports know nothing of it.
+ */
+export interface ExampleStore extends Store {
   readonly hasExample: boolean;
-  workspaces(): Promise<Workspace[]>;
-  load(workspaceId: string): Promise<Snapshot>;
-  /** Saves records and their change-log entries together. A check-in with a new id is added; one with an existing id is corrected. */
-  commit(workspaceId: string, c: Commit): Promise<void>;
-  createWorkspace(ws: Workspace, data: Snapshot): Promise<void>;
-  /** Starts an example workspace again from its demo data. Only the demo has examples. */
+  /** Starts an example workspace again from its demo data. */
   resetExample(id?: string): Promise<Snapshot>;
-  /** Deletes a workspace someone set up, and everything in it. Examples can only be reset. */
-  deleteWorkspace(id: string): Promise<void>;
-  /**
-   * Saves a new AI assistant token (domain/actions createToken: the token without its secret, and its change-log
-   * entry) and returns the secret, this once. The shared database makes the secret itself and keeps only its hash.
-   */
-  issueToken(workspaceId: string, c: Commit): Promise<string>;
-  /**
-   * Why saves aren't being kept, if they aren't: the browser refused to store them (full, or blocked in a private
-   * window). The changes still apply for this visit; the app says so instead of letting them vanish on reload.
-   */
-  saveProblem?(): string | null;
-  /** Called whenever saveProblem changes. Returns a function that stops listening. */
-  onSaveProblem?(listener: () => void): () => void;
 }
+/** The store's example plumbing, when it holds the example (the demo); null for the real app's store. */
+export const examplesOf = (s: Store): ExampleStore | null => ('hasExample' in s && (s as ExampleStore).hasExample ? (s as ExampleStore) : null);
 
 /** Applies a commit to a snapshot. Shared by the browser store and the app's optimistic update. */
 export function applyCommit(s: Snapshot, c: Commit): Snapshot {
@@ -136,7 +115,7 @@ export const SAVE_PROBLEM = {
 /** The browser refused to store something: out of room, or storage turned off. */
 const isFull = (e: unknown) => e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22);
 
-export class BrowserStore implements Store {
+export class BrowserStore implements ExampleStore {
   readonly kind = 'browser' as const;
   readonly hasExample: boolean;
   /** Each workspace as it is now, for this visit (and the only copy when the browser won't store it). */

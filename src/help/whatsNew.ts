@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'your-goals-worst-first',
+    date: '2026-11-12',
+    title: 'Your goals, worst first',
+    points: [
+      'On Home, the goals you own that have nothing flagged are listed worst first, then by name, as Goals lists them.',
+      'Home and Goals now read their lists and counts the same way, so the numbers on each agree.',
+    ],
+    articles: ['home'],
+  },
+  {
     id: 'smaller-first-download',
     date: '2026-11-12',
     title: 'Faro opens faster',

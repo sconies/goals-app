@@ -16,7 +16,7 @@ import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS, recordsOn } from '../core/records';
-import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
+import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
@@ -322,7 +322,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
   const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
-  const [wsId, setWsId] = useState<string | null>(() => invited || read(K.ws) || (store.hasExample ? EXAMPLE.id : null));
+  const [wsId, setWsId] = useState<string | null>(() => invited || read(K.ws) || (examplesOf(store) ? EXAMPLE.id : null));
   const [empty, setEmpty] = useState(false);
   // The snapshot and the workspace it belongs to travel together, so a save can never go to a different workspace
   // than the one on screen, even while another one is loading.
@@ -521,7 +521,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       return shared;
     };
     const hues = () => (hueMap ??= avatarHues([...people.values()]));
-    const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
+    const ws = workspaces.find((w) => w.id === wsId) ?? (examplesOf(store) ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     // The demo shows someone until a person is picked; outside it, nobody signed in can see the workspace (the picker
     // asks) but can't save anything: the person below is only for drawing the screen, never an actor (AX3).
     const fallback = sc.people.find((p) => p.id === 'rhea') ?? sc.people.find((p) => sc.goals.some((g) => g.ownerId === p.id)) ?? sc.people[0]!;
@@ -607,7 +607,9 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
       resetExample: async () => {
-        const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
+        const demo = examplesOf(store);
+        if (!demo) throw new Error('Only the demo has an example to reset.');
+        const s = await demo.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
         // Everything else the demo keeps in this browser goes too: drafts, what's been seen, walkthroughs, layouts.
         forgetDemoBrowser();
         if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: loadMark() });

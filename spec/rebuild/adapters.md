@@ -18,7 +18,8 @@ For a team that copies Faro’s code rather than rebuilding it from this kit: ev
 
 | Part | Interface | Contract | Adapters today |
 |---|---|---|---|
-| The goals store (demo scale: see [the ports at company scale](ports-at-scale.md)) | `Store` (`src/data/store.ts`) | `storeContract` (`src/ports/contracts/store.ts`) | browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`) |
+| The goals store (demo scale: see [the ports at company scale](ports-at-scale.md)) | `Store` (`src/ports/store.ts`) | `storeContract` (`src/ports/contracts/store.ts`) | browser (`src/data/store.ts`), Supabase (`src/adapters/supabase/goalsStore.ts`), plain Postgres (`src/adapters/postgres/goalsStore.ts`) |
+| Goal lists and counts (the query port’s first cut) | `Goals` (`src/ports/goals.ts`) | `goalsContract` (`src/ports/contracts/goals.ts`), its cases in `spec/conformance/goals.csv` | over the loaded workspace (`src/adapters/localGoals.ts`) |
 | Markups | `MarkupStore` (`src/markup/ops.ts`) | `markupContract` | Supabase (`src/adapters/supabase/markups.ts`), this browser (`src/markup/backend.ts`) |
 | Feedback | `FeedbackStore` (`src/markup/feedback.ts`) | `feedbackContract` | Supabase (`src/adapters/supabase/feedback.ts`), this browser (`localFeedback`) |
 | Who is viewing | `Identity` (`src/ports/index.ts`), passed to the app beside the store (`src/main.tsx`) | `identityContract` (any identity); `pickerContract` (what the picker adds) | the “Who are you?” picker (`src/adapters/local.ts`); a sign-in by email (`src/adapters/signIn.ts`), the shape yours copies (R1, R2) |
