@@ -1,4 +1,4 @@
-/* Goals on a phone: goals first (backlog G, Lane's markup, 9 Nov). Loaded last, and only below 600px, so the desktop
+/* Goals on a phone: goals first (backlog G, Lane's markup, 9 Nov). Loaded last, and only below 700px (goals spec, 2.4), so the desktop
    Goals page is exactly as it was. Which goals and how to see them become two choices on one line (Views and Layout);
    the week is a small line beside New goal; what each layout is moves into the Layout menu and Help; the first-check-in note
    is one line with Why?. */
@@ -15,7 +15,7 @@
 .view-menu-list .menu-extra { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
 .view-menu-list .menu-extra:empty { display: none; }
 
-@container app (max-width: 600px) {
+@container app (max-width: 699px) {
   .goals-page .layout-about { display: none !important; }
   /* The health line (backlog GP) is for wider screens: on a phone the goals come first, and the Views button counts them. */
   .goals-page .goals-about { display: none !important; }
@@ -71,7 +71,7 @@
   .goals-page .filterbar-row { flex-wrap: wrap; }
   .goals-page .filterbar-row > .filter-search { flex: 1 1 140px; }
 }
-@container app (max-width: 600px) {
+@container app (max-width: 699px) {
   /* The phone (2.4): the tabs; the search and Filter and sort; the switch and View; the count line. Group, Layout,
      Sort and Views are in the View sheet and Filter and sort. */
   .goals-page .goals-toolbar > .views-menu, .goals-page .filterbar-row > .view-menu { display: none; }

@@ -26,6 +26,14 @@ Which week it is, and what a goal’s plan says its number should be in any week
 
 **Plans that changed.** When a plan changes after check-ins started, the plan before is kept (`planHistory`, oldest first: each applied to the weeks before its `untilWeek`). The plan *as of* a week is the first kept plan whose `untilWeek` is later than that week, or else the current plan. (Older data keeps only `originalPlan` and `rebaselinedWeek`: read it as one kept plan until that week.) A check-in is always judged against the plan as of its own week.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A plan’s first week is between −104 and 104 (a plan carried from an earlier year starts before week 0). (`okr_goals_plan_from_week_check`)
+- A plan’s due week, when it has one, is 1 to 104. (`okr_goals_plan_end_week_check`)
+- A milestone stage is due in week 1 or later. (`okr_stages_due_week_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
