@@ -128,8 +128,9 @@ describe('linking a goal to a metric', () => {
     const w = world();
     const g = w.goal('ns-lead');
     expect(M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', null)).toBeNull();
-    const c = M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd')!;
-    expect(c.changes[0]).toMatchObject({ action: 'edited', diffs: [{ field: 'Slice', from: M.COMPANY, to: 'CI/CD' }] });
+    refused(() => M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd'), /Say why this goal is measured differently now/);
+    const c = M.linkGoalMetric(w.x('rhea'), g, 'metric_lead-time', 'cicd', '', 'CI/CD owns the number now')!;
+    expect(c.changes[0]).toMatchObject({ action: 'edited', summary: 'Measured by “Lead time for changes” for CI/CD: CI/CD owns the number now', diffs: [{ field: 'Slice', from: M.COMPANY, to: 'CI/CD' }] });
   });
   it('refuses a milestone goal, a different unit, a team that isn’t here and a removed metric', () => {
     const w = world();

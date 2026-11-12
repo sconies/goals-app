@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'metric-part',
+    date: '2026-11-12',
+    title: 'Measure a goal by one part of a number',
+    points: [
+      '“Measured by” now has “Which part”: tier-1 services, a region, release builds. Parts other goals on the metric already use are offered under it.',
+      'A goal takes its unit and which way is better from its metric, shown as “From the metric”; its target and dates stay its own.',
+      'Once a goal has check-ins, changing what measures it asks why, and its History says so.',
+      'A goal’s About lists what its metric says: for whom, what it means, where the number comes from and the goal’s own target.',
+    ],
+    articles: ['metric-slices', 'metric-measured-by'],
+  },
+  {
     id: 'mcp-keys-pages',
     date: '2026-11-12',
     title: 'AI assistants get the right key and a page of goals at a time',

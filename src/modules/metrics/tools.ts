@@ -9,6 +9,7 @@ import * as M from './rules';
 import * as L from './rulesLibrary';
 import { checkReads, goalsOfMetric, libraryReads, lineOf } from './reads';
 import { metricChecks, unansweredChecks, unitChecks, type CheckField } from './rulesDefine';
+import { forWords, linkChecks, type LinkCheck } from './rulesParts';
 import { goalStatus } from '../../domain/status';
 import { LABEL } from '../../domain/vocabulary';
 import type { DisplayStatus } from '../../domain/types';
@@ -205,11 +206,14 @@ const tools: ToolDef[] = [
   {
     name: 'link_goal_metric',
     title: 'Say which metric measures a goal',
-    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out). Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.',
+    description: 'Measure a goal by a metric, for a slice: a team’s number (team) or the whole company’s (team left out), and optionally one part of it (part). A first call that raises a question saves nothing and returns `checks`; call again with `answers`. Or give unlink true to stop measuring it by one. The goal’s owner or an admin. The goal must have a number (not dated stages) in the metric’s unit; its own target is the target in that metric. A goal aiming the other way from the metric’s better direction is allowed, with a warning. Linking again the same way changes nothing.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['goal'], properties: {
       goal: str('The goal’s ID or key (G-12).'),
       metric: str('The metric’s ID or name. Required unless unlinking.'),
       team: str('The slice: a team by ID or name. Leave out for the whole company.'),
+      part: str('Which part of that number, up to 60 characters (“tier-1 services”, a region). Leave out or empty for all of it. Reuse a part other goals on the metric use: get_metric lists them.'),
+      reason: str('Why the goal is measured differently now. Required when a goal with check-ins changes its metric, team or part; it shows in the goal’s History.'),
+      answers: { type: 'object', additionalProperties: false, description: 'Answers to the checks a first call returned: part ("keep" or "use:<part>"), others ("carry-on": another goal already measures the same number).', properties: { part: { type: 'string' }, others: { type: 'string' } } },
       unlink: { type: 'boolean', description: 'Stop measuring the goal by its metric.' },
     } },
     annotations: WRITE,
@@ -225,9 +229,19 @@ const tools: ToolDef[] = [
         if (a.metric == null || a.metric === '') return { isError: true, text: 'Say which metric, by ID or name, or give unlink true.' };
         const m = metricOf(ctx, a.metric);
         const teamId = sliceOf(ctx, a.team);
+        const ans = (a.answers ?? {}) as Record<string, string>;
+        const typed = typeof a.part === 'string' ? a.part.trim() : '';
+        const part = ans.part?.startsWith('use:') ? ans.part.slice(4) : typed;
+        const reason = typeof a.reason === 'string' ? a.reason : '';
         const { warnings } = M.linkProblems(g, m);
-        const c = M.linkGoalMetric(ax(ctx), g, m.id, teamId);
-        if (!c) return { data: { saved: false, warnings }, text: `${g.title} is already measured by ${m.name} for ${M.sliceName(ctx.snapshot, teamId)}.` };
+        // The questions rule 2 asks about the part (a Must fix refuses in linkGoalMetric; aim and decimals stay warnings).
+        const answered = (c: LinkCheck) => (/already measures/.test(c.words) ? ans.others === 'carry-on' : !!ans.part);
+        const all = linkChecks(g, m, { teamId, part }, { errors: M.linkProblems(g, m).errors, warnings: [] }, M.linkReads(ax(ctx), g, m.id), reason);
+        // A Must fix refuses first (linkGoalMetric says it); questions are asked only of a link that could be saved.
+        const open = all.some((c) => c.kind === 'fix') ? [] : all.filter((c) => c.kind === 'check' && !answered(c));
+        if (open.length) return { data: { saved: false, checks: open.map(({ field, words, answers }) => ({ field, words, answers: answers.map((x) => x.choice) })) }, text: ['Nothing saved yet. Answer these, then call again with answers:', ...open.map((c) => `${c.field}: ${c.words} (${c.answers.map((x) => x.choice).join(' / ')})`)].join('\n') };
+        const c = M.linkGoalMetric(ax(ctx), g, m.id, teamId, part, reason);
+        if (!c) return { data: { saved: false, warnings }, text: `${g.title} is already measured by ${m.name} for ${forWords(M.sliceName(ctx.snapshot, teamId), part)}.` };
         await save(ctx, c);
         return { data: { saved: true, warnings }, text: [`${g.title}: ${c.changes[0]!.summary.charAt(0).toLowerCase()}${c.changes[0]!.summary.slice(1)} (as ${ctx.actor.name}).`, ...warnings.map((w) => `Warning: ${w}`)].join('\n') };
       });

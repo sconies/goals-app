@@ -88,3 +88,9 @@
 .metric-form .level-check .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .metric-form .level-check .level-actions .btn { min-height: 44px; }
 @media (max-width: 560px) { .metric-form .level-check .level-actions { flex-direction: column; } .metric-form .level-check .level-actions .btn { width: 100%; } }
+
+/* MT2: "Which part" questions sit under the field, as the metric form's; the answers stack on a phone. */
+.measured-by .level-check .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.measured-by .level-check .level-actions .btn { min-height: 44px; }
+@media (max-width: 560px) { .measured-by .level-check .level-actions { flex-direction: column; } .measured-by .level-check .level-actions .btn { width: 100%; } }
+.from-metric .label { margin-right: var(--s1); }

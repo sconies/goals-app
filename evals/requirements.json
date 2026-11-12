@@ -783,6 +783,12 @@
       "use": "copy"
     },
     {
+      "id": "METRIC-PARTS",
+      "area": "Metrics",
+      "text": "A goal is measured by a metric for a team or the whole company and optionally one part of that number, takes the metric's unit and direction, and says why when what measures it changes after check-ins (MT2). \"Measured by\" shows \"From the metric\" ({unit}, {decimals in words}, {direction}, and where the number comes from) and, under For, \"Which part\" (optional, at most 60 characters), with the parts other goals on the metric use offered under it. A part spelt like one in use (the same once case, accents, punctuation and a trailing s are set aside, or one edit away; never for two characters) is a Check (Use it / Keep yours); another live goal on the same metric, team and part is a Check (Carry on). On a goal with check-ins, changing its metric, For or part needs Why, which its History entry gives. A goal's About lists Measured by: For, What it means, From the metric, Where the number comes from, Caveats, This goal's own and, when it differs from the metric's meaning, For this goal. A metric's page shows each goal's For with its part. link_goal_metric takes part and reason, returns checks and saves nothing until it gets answers.",
+      "use": "copy"
+    },
+    {
       "id": "METRICS-CARE",
       "area": "Metrics",
       "text": "A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks \"This looks like …\" as a Check (METRIC-DEFINED), with Use that one or Mine is different: keep it. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.",

@@ -1526,13 +1526,15 @@ From the [metrics](../modules/metrics/README.md) module.
 
 **Does:** Say which metric measures a goal, or stop.
 
-**Input**:
+**Input** (`LinkInput`):
 
 | Field | Type | Needed | What it is |
 |---|---|---|---|
 | `goalId` | `string` | yes |  |
 | `metricId` | `string` | yes |  |
 | `teamId` | `string \| null` | yes |  |
+| `part` | `string` | no |  |
+| `reason` | `string` | no |  |
 
 **Result:** `Commit \| null`
 
@@ -1574,7 +1576,7 @@ From the [metrics](../modules/metrics/README.md) module.
 
 ## The types the actions name
 
-Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 36 types.
+Each type an action’s input or result names that isn’t a record in [the data model](data-model.md), as the code declares it (with its comments), in A to Z order. 37 types.
 
 ### Answers
 
@@ -1907,6 +1909,14 @@ In `src/domain/removal.ts`.
 
 ```ts
 export interface KeptRow { name: string; reason: string; at: string; by: string }
+```
+
+### LinkInput
+
+In `src/modules/metrics/actions.ts`.
+
+```ts
+type LinkInput = { goalId: string; metricId: string; teamId: string | null; part?: string; reason?: string };
 ```
 
 ### Metric
