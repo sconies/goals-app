@@ -18,6 +18,7 @@ import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { MotionLayer } from './ui/Count';
+import { PageWait } from './ui/bits';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
@@ -55,7 +56,7 @@ export function Routed() {
       <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
-      <Suspense fallback={null}>
+      <Suspense fallback={<PageWait />}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />

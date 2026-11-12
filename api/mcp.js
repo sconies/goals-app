@@ -9839,7 +9839,7 @@ function planChanges(input) {
 			raise("checkin-incomplete", "Check-ins", row, g.title, `${open[0].question} Answer it first.`);
 			return;
 		}
-		if (!post && g.kind !== "milestone" && commaDecimal(draft.value) && ask("decimal-comma", "Check-ins", row, g.title, `“${draft.value}” was read as ${parseNumber(draft.value)}: a comma as the decimal mark.`, {
+		if (!post && !TYPED_ON_SCREEN.includes(via) && g.kind !== "milestone" && commaDecimal(draft.value) && ask("decimal-comma", "Check-ins", row, g.title, `“${draft.value}” was read as ${parseNumber(draft.value)}: a comma as the decimal mark.`, {
 			answers: ANSWERS.sure,
 			suggest: String(parseNumber(draft.value)),
 			found: ""
@@ -10489,7 +10489,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, EMPTY_NUMBER, initialsOf;
+var VIA_LABEL, VIA_MCP, ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, EMPTY_NUMBER, initialsOf;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -10527,6 +10527,7 @@ var init_changeset = __esmMin((() => {
 		"mcp",
 		"table"
 	];
+	TYPED_ON_SCREEN = ["bulk", "form"];
 	has = (r, k) => Object.prototype.hasOwnProperty.call(r, k);
 	val = (r, k) => (r[k] ?? "").trim();
 	ref = (r, k) => {
@@ -13664,7 +13665,7 @@ var CORE_ARTICLES = [
 					"Everyone you add needs an email: it tells two people with the same name apart, in the app, in spreadsheets and through MCP.",
 					"Set up from inside the app (from the workspace switcher or Workspace), “Who are you?” starts as the person you are now; change anything that’s different.",
 					"A starting point can be one of four templates, your spreadsheet, a blank workspace, or goals set up later. Your spreadsheet, or goals set up later, skips the outcome and goals steps, and set-up says so: Next goes straight to Check.",
-					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created.",
+					"Your spreadsheet can be the Excel template, or a whole workbook exported from another workspace: set-up reads its People (never its Asks), and its goals with their keys, decimals, due weeks, definitions and why each helps, their plans, and their past check-ins. Each sheet is known by its header row. Every row is checked as Import checks it, and a problem is shown on its row before anything is created. A name or word one letter out (an owner typed “Ben Ortz”, a Type of “Numbr”) is a problem to fix here too: set-up doesn’t ask “Did you mean…?” yet, and never leaves a goal out without saying so.",
 					"Uploading a spreadsheet never replaces the people you’ve already typed: its people are added after them, anyone already there (the same email, or the same name) isn’t added twice, and what the file knows fills only fields you left empty. It says what it added; Undo puts the table back as it was.",
 					"A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.",
 					"Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.",
@@ -13875,6 +13876,7 @@ var CORE_ARTICLES = [
 				list: [
 					"On Home, choose “Or type all your numbers in one table” under Start check-in.",
 					"Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.",
+					"Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.",
 					"Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.",
 					"After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.",
 					"The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account."
@@ -15759,6 +15761,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Unsaved answers are kept as a draft and offered back. A save either lands whole or not at all, and never overwrites someone else’s change without telling you.",
 					"When Faro is updated while you have it open, the page you are on may reload itself once, at the same address, to load the new version. Anything you were typing is kept as a draft. If it still can’t load, you see Reload and Home instead.",
+					"Offline, a page Faro hasn’t loaded yet (Help, say) tells you it needs a connection instead of reloading. Try again opens it once you’re back online; Go back returns you to where you were.",
 					"Feedback, in the menu’s last group or in More, has Send feedback: it tells your admins (or, in the demo, the people building the app) how it is working for you, or marks up the screen for the people building Faro."
 				]
 			},
@@ -15929,7 +15932,23 @@ var WHATS_NEW = [
 			"metric-measured-by",
 			"new-goal",
 			"metrics"
-		]
+		],
+		id: "offline-page-needs-connection",
+		date: "2026-11-12",
+		title: "Offline, a page that hasn’t loaded says so",
+		points: [
+			"Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.",
+			"It says the page needs a connection, with Try again and Go back.",
+			"On a slow connection, such a page says “Opening…” while it loads."
+		],
+		articles: ["any-device"]
+	},
+	{
+		id: "setup-near-miss-stops",
+		date: "2026-11-12",
+		title: "Set-up says when a row is one letter out",
+		points: ["Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.", "The one-table check-in takes a decimal comma again: 3,9 posts as 3.9."],
+		articles: ["set-up", "check-in-table"]
 	},
 	{
 		id: "new-goal-order",

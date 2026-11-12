@@ -6,7 +6,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { planChanges, records, type ChangeInput, type Rec } from './changeset';
 import { LEVEL_WORDS, TYPE_WORDS, wordsAndAlso } from './columns';
 import { CHECK_KINDS, editDistance, fold, groupIssues, issueOf, levelOf, MUST_KINDS, near, whereText } from './problemLevels';
-import { currentWeek } from './plan';
+import { currentWeek, planAt } from './plan';
 import type { MetricGoal, Snapshot } from './types';
 
 const today = new Date('2026-11-11T12:00:00Z');
@@ -109,6 +109,15 @@ describe('rule 7: one answer covers every row in its group', () => {
     const done = run('amara', t, { answers: { [p.id]: { choice: 'keep' } } });
     expect(done.issues.filter((i) => i.level === 'must')).toEqual([]);
     expect((done.commit?.goals ?? []).find((x) => x.id === g.id)).toMatchObject({ decimals: 2 });
+  });
+  it('[IMPORT-LEVELS] a decimal comma is asked about in a file, and read as a decimal point in the check-in grid, where it’s typed', () => {
+    const g = s.goals.find((x) => x.cycleId === cycle.id && x.kind === 'metric' && x.decimals === 1 && !x.removedAt && !s.checkIns.some((c) => c.goalId === x.id && c.week === week)) as MetricGoal;
+    const at = planAt(g.plan, week, cycle.weeks).toFixed(1);
+    const t = { checkIns: [rec({ 'Goal ID': g.id, Week: String(week), Value: at.replace('.', ',') })] };
+    expect(run('amara', t).issues.map((i) => i.kind)).toContain('decimal-comma');
+    const grid = run('amara', t, { via: 'bulk' });
+    expect(grid.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(grid.commit!.checkIns!.find((c) => c.goalId === g.id)).toMatchObject({ week, value: Number(at) });
   });
   it('[IMPORT-LEVELS] a stage already past (C4): “They’re done” records them done in their due weeks; “Count them from this week” moves them', () => {
     const t = { goals: [rec({ Goal: 'Runbooks rewritten', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Draft@40; Signed off@50' })] };

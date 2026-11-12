@@ -32,6 +32,25 @@ export const WHATS_NEW: NewsEntry[] = [
       'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
     ],
     articles: ['metric-measured-by', 'new-goal', 'metrics'],
+    id: 'offline-page-needs-connection',
+    date: '2026-11-12',
+    title: 'Offline, a page that hasn’t loaded says so',
+    points: [
+      'Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.',
+      'It says the page needs a connection, with Try again and Go back.',
+      'On a slow connection, such a page says “Opening…” while it loads.',
+    ],
+    articles: ['any-device'],
+  },
+  {
+    id: 'setup-near-miss-stops',
+    date: '2026-11-12',
+    title: 'Set-up says when a row is one letter out',
+    points: [
+      'Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.',
+      'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
+    ],
+    articles: ['set-up', 'check-in-table'],
   },
   {
     id: 'new-goal-order',
