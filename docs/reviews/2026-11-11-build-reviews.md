@@ -106,6 +106,12 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #245, #253, #263 KT3 to KT5: contracts, import issue kinds and screens in the kit | track 6 | 0 | 0 | 0 |
 | #251, #258 Two journeys' checks | evals | 0 | 0 | 0 |
 | #259 BT: a batch names its own rows with Ref | import | 0 | 1 | 1 |
+| #239 Quarters before a goal existed are not judged | 5 | 0 | 0 | 5 |
+| #242 MCP: every create says the new goal's id and key | 5 | 0 | 1 | 2 |
+| #249 MCP: every list answers in one shape | 5 | 0 | 1 | 3 |
+| #261 find_goals: a pasted Goals link keeps its tab | 5 | 0 | 0 | 3 |
+| #234 FS2: search words on Data and Feedback | 1 | 0 | 3 | 2 |
+| #255 CK2: the table check-in | 1 | 0 | 0 | 2 |
 | #244, #246, #254, #260 Backlog and handovers | planning, 6, 7 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
@@ -1107,7 +1113,7 @@ The search and preferences contracts as data, run by the drill through a shim; w
 
 U4 now confirms publishing by the page's lasting line, not the toast, and U141 sets the three marks it never set. Evals only. The rest are documents. Not reviewed.
 
-### #259 BT: a batch names its own rows with Ref (import, merged 20:26 UTC, 12 Nov)
+### #259 BT: a batch names its own rows with Ref (import, merged 20:25 UTC, 12 Nov)
 
 A Goals row's Ref lets Feeds into ref and a check-in's Goal ref name a goal the same file adds. Read, then probed in the engine with a throwaway test on main at `a7144ae5`. No high finding.
 
@@ -1120,3 +1126,43 @@ A Goals row's Ref lets Feeds into ref and a check-in's Goal ref name a goal the 
 ### #266 and #267
 
 #266 is the planning handover (documents; not reviewed). #267 regenerates `spec/core/help-guide.md`, the stale page that turned main red when #257 met #263; the spec test passes on main again.
+
+### Six smaller pull requests: #239, #242, #249, #261, #234 and #255 (merged 18:49 to 20:06 UTC, 12 Nov)
+
+Read first by a reviewing session working on the merged code at `1900c84e`, with throwaway tests and the demo on screen at 1440 and 390; I re-read the code behind each medium. No high finding. Findings are run unless marked read.
+
+**#239 Quarters before a goal existed are not judged.** No medium.
+
+- Low. A goal created in a quarter's last week reads "before the goal was set up" for a quarter still running (`src/domain/year.ts:82-83`, `born >= q.to`); created a day earlier it reads "Not met: no number reported", as the demo's G-124 does.
+- Low. The one-page print still says "None due" where the goal page and History say "Not applicable" (`src/screens/Print.tsx:159-160`).
+- Low. "Not applicable" is typed in two screens and is missing from History's key.
+- Low. Weeks before the goal existed still count in the run of check-ins, the trend and the forecast; only the quarters skip them, and nothing on screen says so.
+- Low (read). No eval or journey for a visible change.
+
+**#242 MCP: every create says the new goal's id and key.**
+
+1. Medium (run in the test harness; not against the database). The answer can give a key that belongs to another goal. After the save the key is read back from the request's own copy (`src/mcp/tools.ts`, `keyOf`), while the database gives the key itself (`supabase/migrations/0021_goal_keys.sql`). With another goal taking G-127 between this request's load and its commit, the answer said G-127 and the store held G-128. The window is one request, but the comment beside it claims this case is covered. Fix: have the commit return the stored keys, or reload the new goals before answering.
+
+- Low. A dry run prints an ID that the save then replaces. Low. A refused `bulk_change` still lists goals in `data.created`, with `key: null`.
+
+**#249 MCP: every list answers in one shape.**
+
+1. Medium. `find_goals` for the demo's 126 goals is now 81,272 characters of text, about four times the old one line per goal, with no limit or paging; the same data is sent again as structured content. The indent alone is 22,000 of it (`src/mcp/listed.ts:6`, `JSON.stringify(data, null, 2)`). Fix: drop the indent and give `find_goals` a limit or a short default field set.
+
+- Low. `find_goals`' description still describes the old text ("Off track (off)"), and no list tool says it answers as JSON. Low. Empty answers lost their hints, and `why` is present only sometimes, so the keys are not the same every time. Low. `get_wrap_up`, `get_my_work`, `whats_new` and `get_help` are not on the shape (outside the PR's stated scope).
+
+**#261 find_goals: a pasted Goals link keeps its tab.** No medium.
+
+- Low. A link the screen opens is refused by the tool when its scope is unknown or has a `#…` tail ("There's no scope …"); the screen falls back to the opening tab. Low. A saved view replaces the whole link, scope included, and the description does not say so. Low. `mine: true` answers without the `why` that `scope: "mine"` gives.
+
+**#234 FS2: search words on Data and Feedback.**
+
+1. Medium. A typed key finds nothing on Check-ins and Asks, though the key is in a shown column. `applyTable` gives the matcher only a column called "Key" (`src/domain/tableFilter.ts:75`), and a search that is one key matches only by key (`src/domain/find.ts`, `wordsMatch`); Check-ins has "Goal key" and Asks "Goal keys". `/data?t=checkIns&q=G-48` shows no row where the old search found 44. Fix: where a table has no Key column, match a typed key as words or against its goal-key column.
+2. Medium. A number with a decimal point finds mostly unrelated rows: words break at "." and ",", so `12.5` on Check-ins matches 169 rows (15 before). Fix: keep a typed number whole.
+3. Medium. Hiding a column changes what the search finds, and the screen never says so. On Goals, `kapoor` finds 8 rows; with Owner unticked it finds none and suggests "fewer or plainer words". Goals shows 14 of 45 columns by default. Fix: on an empty result say that only the columns shown are searched.
+
+- Low. Words after a quote mark, bracket, @, #, £ or underscore cannot be found (`example.com` finds none of 97 people); find's existing rule, newly applied to free text. Low (read). No eval or journey.
+
+**#255 CK2: the table check-in.** No medium. Owner-only holds through the table's path (an admin and two members are each refused on another's goal), and a double press posts once.
+
+- Low. Two questions still build the unit by hand: "the target of 1 incidents", "(2 to 1 hours)" (`src/domain/checkin.ts:113, 117`). Low. A "Yes" answer to a question is lost on refresh; the draft keeps the number but not the answer (`src/screens/QuickCheckIn.tsx:57`).
