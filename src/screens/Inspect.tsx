@@ -14,14 +14,8 @@ import { Icon } from '../ui/Icon';
 import { PersonPick } from '../ui/PersonPick';
 import { ASK_STATUS, DECIDED, EDITED, LABEL } from '../domain/vocabulary';
 
-/* ---------- review order: fixed when a session starts, so moving between goals doesn't reshuffle it ---------- */
-const orderKey = (ws: string, review: string, week: number) => `goals-app-review:${ws}:${review}:${week}`;
-export function saveReviewOrder(ws: string, review: string, week: number, ids: string[]) {
-  try { sessionStorage.setItem(orderKey(ws, review, week), JSON.stringify(ids)); } catch { /* private mode: the live order is used */ }
-}
-function loadReviewOrder(ws: string, review: string, week: number): string[] | null {
-  try { const v = sessionStorage.getItem(orderKey(ws, review, week)); return v ? (JSON.parse(v) as string[]) : null; } catch { return null; }
-}
+import { loadReviewOrder, saveReviewOrder } from './reviewOrder';
+export { saveReviewOrder };
 
 /** Where this goal sits in the review being walked (from `?review=<id>`), and how to move on. */
 export function useReview(goalId: string) {
