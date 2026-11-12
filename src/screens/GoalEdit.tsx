@@ -87,8 +87,9 @@ function EditSheet({ goal }: { goal: Goal }) {
     try {
       const after: Goal = { ...built, pending: null };
       const changed = JSON.stringify(after) !== JSON.stringify({ ...goal, pending: null });
-      if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined);
-      if (measure) await app.run(measure.action, measure.input(after));
+      // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
+      if (changed) await app.saveGoal(after, goal, needReason ? d.reason.trim() : undefined, measure ? { also: measure } : undefined);
+      else if (measure) await app.run(measure.action, measure.input(after));
       app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s activity.' : needReason ? 'Saved. The change and your reason are in the goal’s activity.' : 'Saved.');
       clear();
       back();

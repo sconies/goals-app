@@ -4703,6 +4703,8 @@ journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as
   await p.locator('.goal-bar').waitFor();
   // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
   await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
+  // Back twice: to Goals filtered to it, then to the metric.
+  await p.goBack();
   await p.goBack();
   await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
   await p.goto(url('/metrics/lead-time'));

@@ -137,8 +137,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     try {
       // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
       const done = g.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
-      await app.saveGoal(g, null, undefined, done.length ? { stagesDone: done } : undefined);
-      if (measure) await app.run(measure.action, measure.input(g));
+      // What measures it is saved with the goal, in one save (a module's action, from the goal.measure place).
+      await app.saveGoal(g, null, undefined, { ...(done.length ? { stagesDone: done } : {}), ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });

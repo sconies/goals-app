@@ -119,7 +119,8 @@ export interface AppState {
   withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
   /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. A new goal's stages said
       to be already done (`stagesDone`, onboarding rule 3) are recorded done in the same save (actions.recordStagesDone). */
-  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[] }): Promise<void>;
+  /** `also`: a module's action for the goal as saved (what measures it), saved in the same commit, so it sees the goal. */
+  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[]; also?: { action: string; input: (goal: Goal) => unknown } }): Promise<void>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -698,7 +699,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (!before && opts?.stagesDone?.length) {
           try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
         }
-        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
+        // What the form's module place chose (goal.measure): run on the workspace with this goal in it, saved with it.
+        let also: Commit | null = null;
+        if (opts?.also) {
+          const input = opts.also.input(after);
+          try { also = commitOf(opts.also.action, performAny({ ...rx(), snapshot: { ...sc, goals: [...sc.goals.filter((g) => g.id !== after.id), after] } }, opts.also.action, input), input); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        }
+        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? []), ...(also?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}), ...(also?.modules ? { modules: also.modules } : {}) });
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
