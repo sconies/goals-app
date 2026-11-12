@@ -62,7 +62,7 @@ type Who = { goalsTo?: string | null; asksTo?: string | null };
 export const ACTIONS = {
   /* Goals, plans and check-ins. planChanges previews; the dispatcher saves it only with `apply`. */
   planChanges: (x: RunContext, i: { tables: Tables; via: Via; reason?: string; confirm?: boolean; answers?: Answers; apply?: boolean; file?: { name: string; leftOut?: number } }) =>
-    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, file: i.file }),
+    eng().planChanges({ tables: i.tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via: i.via, reason: i.reason, confirm: i.confirm, answers: i.answers, full: x.full, records: x.records, file: i.file }),
   /* One check-in from its screen, through the same engine (check-in spec, rule 13). The week defaults to this one. */
   postCheckIn: (x: RunContext, i: { goalId: string; draft: Draft; mode: PostMode; week?: number; reason?: string }) =>
     eng().postCheckIn(x, { goalId: goalOf(x, i.goalId).id, week: i.week ?? x.week, draft: i.draft, mode: i.mode, reason: i.reason }),

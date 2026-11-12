@@ -1,18 +1,21 @@
 import { sameTitleNote } from '../domain/people';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useApp } from '../app/state';
 import { goalDraftKey, useDraft } from '../app/drafts';
 import { MIN_REASON } from '../domain/checkin';
 import { buildGoal, draftFor, planChanged, type GoalDraft } from '../domain/goal';
-import { checksContext, goalChecks, goalMustFix, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
+import { checksContext, goalChecks, goalMustFix, openLine, planSpanOf, REASON_EMPTY, sameNamedIn, unanswered, type GoalAnswers, type GoalCheck, type GoalField } from '../domain/goalEntry';
 import { mayChangeGoal } from '../domain/goalRights';
 import { makesLoop } from '../domain/tree';
+import { goalMeasureOf } from '../domain/records';
+import { MODULE_RECORDS } from '../core/records';
 import type { Goal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Empty } from '../ui/bits';
 import { PlanTable } from '../ui/PlanTable';
 import { FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
+import { FixLine } from '../ui/Levels';
 import { WeekPick } from '../ui/WeekPick';
 import { lastWeekOffered } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
@@ -50,7 +53,7 @@ function EditSheet({ goal }: { goal: Goal }) {
   const nav = useNavigate();
   const { cycle, week } = app;
   const started = app.checkInsOf(goal).length > 0;
-  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '' }));
+  const [d, set, clear, restored] = useDraft<GoalDraft & { reason: string; answers?: GoalAnswers; measureKept?: string }>(goalDraftKey(app.ws.id, goal.id) + ':edit', () => ({ ...draftFor(goal), reason: '' }));
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const loc = useLocation();
@@ -85,12 +88,20 @@ function EditSheet({ goal }: { goal: Goal }) {
   // link to a lower level, an owner in another team). An answer holds for the values it was about.
   // What measures the goal, when a module offers it (the goal.measure place): saved with the goal.
   const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
+  const form = useRef<HTMLFormElement>(null);
   const answers: GoalAnswers = d.answers ?? {};
+  // What measures it: the choice made here, else what measures it now (the saving rule reads the same).
+  const metric = goal.kind !== 'metric' ? null : measure ? measure.metric ?? null : goalMeasureOf(MODULE_RECORDS, app.snapshot, goal.id);
   const checks = goalChecks(d, checksContext(d, { person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals) },
-    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: goal.kind === 'metric' ? measure?.metric ?? null : null }));
+    { week, cycleWeeks: cycle.weeks, existing: goal, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric }));
   const open = unanswered(checks, answers);
   const confirmed = open.length === 0;
-  const onNo = (c: GoalCheck) => { if (c.opens) nav('/goals/' + c.opens); else if (c.noDoes) set(c.noDoes); };
+  // No: the goal it opens, or the change it makes, or else back to the field to change it (as on New goal).
+  const onNo = (c: GoalCheck) => {
+    if (c.opens) nav('/goals/' + c.opens);
+    else if (c.noDoes) set(c.noDoes);
+    else setTimeout(() => form.current?.querySelector<HTMLElement>(`input[data-field="${c.field}"], [data-field="${c.field}"] input, [data-field="${c.field}"] button`)?.focus(), 0);
+  };
   const questions = (f: GoalField) => (
     <Questions checks={checks.filter((c) => c.field === f)} answers={answers} onAnswer={(c) => set({ answers: { ...answers, [c.slot]: c.key } })} onNo={onNo}
       onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest }); }} alertSlot={tried ? open[0]?.slot ?? null : null} />
@@ -111,7 +122,10 @@ function EditSheet({ goal }: { goal: Goal }) {
 
   const save = async () => {
     setTried(true);
-    if (!built || saving || (replanning && !reasonOk) || !confirmed || measure?.blocks) return;
+    // A question still open, maybe off screen: focus goes to the first, which scrolls it into view (goal entry rule 4,
+    // as New goal's Continue does), and the line above Save says where it is.
+    if (built && !confirmed) { const slot = open[0]!.slot; setTimeout(() => form.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); return; }
+    if (!built || saving || (replanning && !reasonOk) || measure?.blocks) return;
     setSaving(true);
     try {
       const after: Goal = { ...built, pending: null };
@@ -119,11 +133,12 @@ function EditSheet({ goal }: { goal: Goal }) {
       // Saved through the saveGoal action (goal entry, rule 7): the rights, Must fix, question and reason are the rule's.
       const { reason, answers: _a, ...draft } = d;
       // A changed goal and what measures it are one save, so the link is judged against the goal as changed.
-      if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, ...(measure ? { also: measure } : {}) });
+      if (changed) await app.saveGoal(draft, goal, { ...(replanning ? { reason: reason.trim() } : {}), answers, metric, ...(measure ? { also: measure } : {}) });
       else if (measure) await app.run(measure.action, measure.input(after));
-      app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
       clear();
+      // The goal's page, then the toast: never "Saved." beside a button still saying "Saving…".
       back();
+      app.toast(!changed && measure === undefined ? 'Nothing changed.' : replanning ? 'Saved. The plan change and your reason are in the goal’s history.' : 'Saved.');
     } catch {
       setSaving(false);
     }
@@ -144,7 +159,7 @@ function EditSheet({ goal }: { goal: Goal }) {
       <div className="focus-top">
         <FormClose keeps onClose={back} />
       </div>
-      <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
+      <form ref={form} className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         <h1 className="qtitle big">Change {goal.title}</h1>
         {restored && <div className="restored small">Restored your unsaved edits. <button type="button" className="linkish" onClick={() => { clear(); window.location.reload(); }}>Discard them</button></div>}
 
@@ -152,14 +167,14 @@ function EditSheet({ goal }: { goal: Goal }) {
           <h2 className="block-title" id="definition-h">What it is</h2>
           <label className="field">
             <span className="field-label">Name</span>
-            <input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
+            <input className="input" data-field="title" value={d.title} onChange={(e) => set({ title: e.target.value })} aria-invalid={tried && !!errors.title} />
             {err('title')}
             {!errors.title && d.title.trim() !== goal.title && (() => { const twin = sameTitleNote(d.title, goal.id, app.snapshot.goals, (id) => app.team(id)?.name ?? ''); return twin ? <span className="hint tone-risk" role="status">{twin}</span> : null; })()}
           </label>
           {goal.kind !== 'milestone' && (
             <label className="field"><span className="field-label">What it measures</span><textarea className="input" rows={3} value={d.definition} onChange={(e) => set({ definition: e.target.value })} placeholder="What counts, over what period, and anything left out" /></label>
           )}
-          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} />
+          <Place name="goal.measure" goal={goal} kind={goal.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })} />
         </section>
 
         <section className="stack edit-part" id="plan" aria-labelledby="plan-h">
@@ -171,9 +186,9 @@ function EditSheet({ goal }: { goal: Goal }) {
             <>
               {/* Baseline with From, then Target with To: each a number and a week, picked (2.6, item 2; 2.13). */}
               <div className="week-rows">
-                <label className="field"><span className="field-label">Baseline{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
+                <label className="field"><span className="field-label">Baseline{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" data-field="start" value={d.start} onChange={(e) => set({ start: e.target.value })} aria-invalid={tried && !!errors.start} />{err('start')}</label>
                 <div><WeekPick cycle={cycle} week={week} field="from" label="From" value={span.from} onChange={setFrom} invalid={tried && !!errors.fromWeek} dataField="fromWeek" />{err('fromWeek')}</div>
-                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
+                <label className="field"><span className="field-label">Target{d.unit ? ` (${d.unit})` : ''}</span><input className="input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} aria-invalid={tried && !!errors.target} />{err('target')}</label>
                 <div><WeekPick cycle={cycle} week={week} field="to" from={span.from} label="To" value={endChoice} onChange={(n) => set({ endWeek: n === cycle.weeks ? '' : String(n), points: {} })} invalid={tried && !!errors.endWeek} dataField="endWeek" />{err('endWeek')}</div>
               </div>
               <p className="hint span-says">{spanSays(cycle, span.from, endChoice, week)}</p>
@@ -207,8 +222,8 @@ function EditSheet({ goal }: { goal: Goal }) {
                   <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                 </div>
               </div>
-              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
-              <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
+              <label className="field"><span className="field-label">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} aria-invalid={tried && !!errors.limit} />{err('limit')}</label>
+              <label className="field"><span className="field-label">Warn this close</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} aria-invalid={tried && !!errors.margin} />{err('margin')}</label>
             </div>
           )}
           {goal.kind === 'range' && <>{questions('unit')}{questions('limit')}{questions('margin')}</>}
@@ -252,6 +267,7 @@ function EditSheet({ goal }: { goal: Goal }) {
           </div>
         </details>
 
+        {tried && valid && !confirmed && <FixLine>{openLine(open)}</FixLine>}
         <div className="focus-foot">
           <button className="btn primary big-btn" type="submit" aria-disabled={saving || (tried && (!valid || (replanning && !reasonOk) || !confirmed))}>{label}</button>
         </div>

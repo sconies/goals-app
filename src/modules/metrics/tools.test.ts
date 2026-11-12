@@ -111,9 +111,29 @@ describe('metric library tools', () => {
     expect(((await call('list_metrics')).structuredContent!.metrics as unknown[]).length).toBe(13);
   });
 
+  it('asks, through the change engine, about a target on the worse side of the metric that measures the goal (wrong-side)', async () => {
+    // Lead time for changes is better lower: a plan that rises is asked about, with the form's words.
+    const { call } = await setup('rhea');
+    const r = await call('update_goal', { goal_id: 'ns-lead', start: 20, target: 22, reason: 'Re-based on the new dashboard', dry_run: true });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]!.text).toMatch(/“Lead time for changes” is better lower, but the target \(22 hours\) is above today \(20 hours\)\. Is that the plan\?/);
+    // Switched off, the library says nothing measures it, so nothing is asked about it.
+    const off = await (await setup('rhea', ['metrics'])).call('update_goal', { goal_id: 'ns-lead', start: 20, target: 22, reason: 'Re-based on the new dashboard', dry_run: true });
+    expect(off.content[0]!.text).not.toMatch(/is better lower/);
+  });
+
   it('says the library is off where an admin has switched it off', async () => {
     const { call } = await setup('grace', ['metrics']);
     const r = await call('list_metrics');
     expect(r.isError).toBe(true);
+  });
+  it('find_goals reads the metric filter in a Goals link, and save_metric asks before changing a unit goals use (review, 11 Nov)', async () => {
+    const { call } = await setup('rhea');
+    const found = await call('find_goals', { query: 'metric=metric_lead-time' });
+    expect((found.structuredContent!.goals as { id: string }[]).map((g) => g.id)).toEqual(['ns-lead']);
+    const asked = await call('save_metric', { id: 'metric_lead-time', unit: 'days' });
+    expect(asked.isError).toBe(true);
+    expect(asked.content[0]!.text).toMatch(/1 goal is measured by this metric. .* save it again with confirm/);
+    expect((await call('save_metric', { id: 'metric_lead-time', unit: 'days', confirm: true })).isError).toBe(false);
   });
 });

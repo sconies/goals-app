@@ -38,6 +38,9 @@ export interface ImportPlan {
   cs: ChangeSet | null;
   /** The file came from another workspace, and that question isn't answered yet. */
   otherWorkspace: boolean;
+  /** The change set to save: `cs` with the reason typed for plan changes, worked out once, when saving (#191 review:
+      the reason is kept out of the preview's inputs, so typing it doesn't re-check the whole file on every key). */
+  toSave: () => ChangeSet | null;
 }
 
 export function useImportPlan(): ImportPlan {
@@ -48,6 +51,10 @@ export function useImportPlan(): ImportPlan {
   const out = useMemo(() => (base && st.leftOut.length ? leaveOut(base, st.leftOut, isNewIn(app.snapshot)) : null), [base, st.leftOut, app.snapshot]);
   const tables = out?.tables ?? base;
   const left = [...st.leftOut, ...(out?.also ?? [])];
-  const cs = useMemo(() => (tables && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, { name: st.name, leftOut: left.length }) : null), [tables, otherWorkspace, st.reason, st.answers, st.name, left.length, app]);
-  return { st, base, left, also: out?.also ?? [], cs, otherWorkspace };
+  const file = { name: st.name, leftOut: left.length };
+  const cs = useMemo(() => (tables && !otherWorkspace ? app.previewChanges(tables, 'spreadsheet', '', false, st.answers, file) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tables, otherWorkspace, st.answers, st.name, left.length, app]);
+  const toSave = () => (cs && tables && cs.needsReason && st.reason.trim() ? app.previewChanges(tables, 'spreadsheet', st.reason, false, st.answers, file) : cs);
+  return { st, base, left, also: out?.also ?? [], cs, otherWorkspace, toSave };
 }

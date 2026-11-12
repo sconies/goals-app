@@ -27,6 +27,7 @@ import { sameTitleGoals } from './people';
 
 export { decimalsFor, unanswered };
 import { checkInsFor } from './status';
+import { goalMeasureOf, type GoalMeasure } from './records';
 import { nameProblem } from './thresholds';
 import { makesLoop } from './tree';
 import type { Commit } from './commit';
@@ -275,14 +276,15 @@ export interface ChecksContext {
   parent?: { id: string; title: string; level: Level } | null;
   sameNamed?: readonly { id: string; key: string; title: string; ownerName: string }[];
   /** What measures it, when a module says (the goal.measure place, ML2): its name and which way is better. */
-  metric?: { name: string; direction: 'lower' | 'higher' } | null;
+  metric?: GoalMeasure | null;
   mustFix?: readonly MustFix[];
   /** The cycle's first day (week 0): with it, From and To are asked about, with their dates (rule 13). */
   startDate?: string;
 }
 
 /** "A north star", "An SVP goal": a level as the start of a sentence; `noun` false leaves "goal" off a plain name. */
-function aLevel(levels: LevelsOf, l: Level, top: boolean): string {
+/** "a Team goal", "an SVP goal", "a north star": a level with its article (rule 3's feeds-lower; the read-back, rule 5). */
+export function aLevel(levels: LevelsOf, l: Level, top: boolean): string {
   const name = levelName(levels, l);
   const said = top ? name.charAt(0).toLowerCase() + name.slice(1) : `${name} goal`;
   return (/^[aeiou]/i.test(said) || /^[AEFHILMNORSX][A-Z]/.test(said) ? 'an ' : 'a ') + said;
@@ -442,14 +444,19 @@ export interface ChecksLookup {
 export const sameNamedIn = (goals: readonly Goal[]) => (title: string, teamId: string) =>
   sameTitleGoals(title, null, goals.filter((g) => g.teamId === teamId && !g.removedAt && !g.stoppedAt));
 
-/** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named. */
-export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'>): ChecksContext {
+/** Rule 3's context for a draft, from lookups: the owner and their team, the goal's team, what it feeds, the same-named.
+    `savedAs`: the id a new goal's draft has been saved under, once it has (it is then not asked about itself). */
+export function checksContext(d: GoalDraft, look: ChecksLookup, base: Pick<ChecksContext, 'week' | 'cycleWeeks' | 'existing' | 'door' | 'levels' | 'mustFix' | 'metric' | 'startDate'> & { savedAs?: string | null }): ChecksContext {
+  const { savedAs, ...rest } = base;
   const owner = d.ownerId ? look.person(d.ownerId) : undefined;
   const team = d.teamId ? look.team(d.teamId) : undefined;
   const parent = d.parentId ? look.goal(d.parentId) : undefined;
-  const named = team && d.title.trim() ? look.sameNamed(d.title, team.id).filter((g) => g.id !== base.existing?.id) : [];
+  // A goal is never its own twin: not the goal being changed, nor the new goal this draft has just been saved as (a
+  // screen still drawn while the goal's page opens sees it among the team's goals).
+  const self = new Set([base.existing?.id, savedAs].filter((id): id is string => !!id));
+  const named = team && d.title.trim() ? look.sameNamed(d.title, team.id).filter((g) => !self.has(g.id)) : [];
   return {
-    ...base,
+    ...rest,
     owner: owner ? { name: owner.name, teamId: owner.teamId ?? null, teamName: owner.teamId ? look.team(owner.teamId)?.name ?? null : null } : null,
     team: team ? { id: team.id, name: team.name } : null,
     parent: parent ? { id: parent.id, title: parent.title, level: parent.level } : null,
@@ -498,7 +505,15 @@ export function stepState(step: number, mustFix: readonly MustFix[], checks: rea
   const open = unanswered(checks.filter((c) => on(c.field)), answers);
   if (!open.length) return { go: true, focus: null, check: null, says: '' };
   const first = open[0]!;
-  return { go: false, focus: first.field, check: first.slot, says: open.length === 1 ? `Answer the question above, under ${FIELD_LABEL[first.field] ?? first.field}.` : `Answer the ${open.length} questions above.` };
+  return { go: false, focus: first.field, check: first.slot, says: openLine(open) };
+}
+
+/** The line above a form's button while questions are open (rule 4): "Answer the question above, under Target." or
+    "Answer the 2 questions above.". New goal's steps and the edit page say it the same way. */
+export function openLine(open: readonly GoalCheck[]): string {
+  const first = open[0];
+  if (!first) return '';
+  return open.length === 1 ? `Answer the question above, under ${FIELD_LABEL[first.field] ?? first.field}.` : `Answer the ${open.length} questions above.`;
 }
 
 /* ---------- rule 7: saving ---------- */
@@ -514,6 +529,9 @@ export interface SaveGoalInput {
   answers?: GoalAnswers;
   /** Yes to every question rule 3 asks (the tools' and older screens' one switch). */
   confirm?: boolean;
+  /** What measures it, as the form chose (the goal.measure place): its name and which way is better, for the wrong-side
+      question; null for nothing. Left out, what measures it now (domain/records goalMeasureOf), for a goal being changed. */
+  metric?: GoalMeasure | null;
   /** A new goal's stages already done when it was set up (OB2's rule 3), recorded in the same save. When left out, the
       stages the draft says are done (answered yes to stage-past). */
   stagesDone?: string[];
@@ -550,7 +568,7 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   if (fix.length) throw new NotAllowed(`Not saved. Must fix: ${fix.map((f) => f.text).join(' ')}`);
   const checks = goalChecks(i.draft, checksContext(i.draft, {
     person: ownerOf, team: (id) => s.teams.find((t) => t.id === id), goal: (id) => findGoal(s.goals, id), sameNamed: sameNamedIn(s.goals),
-  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', levels: x.cycle, startDate: x.cycle.startDate }));
+  }, { week: x.week, cycleWeeks: x.cycle.weeks, existing, door: 'form', levels: x.cycle, startDate: x.cycle.startDate, metric: i.draft.kind !== 'metric' ? null : i.metric !== undefined ? i.metric : existing ? goalMeasureOf(x.records, s, existing.id) : null }));
   const answers: GoalAnswers = i.confirm ? Object.fromEntries(checks.map((c) => [c.slot, c.key])) : i.answers ?? {};
   const open = unanswered(checks, answers);
   if (open.length) throw new NotAllowed(`Not saved. Check with the person first: ${open.map((c) => c.question).join(' ')}`);
@@ -569,7 +587,9 @@ export function planGoal(x: ActionContext, i: SaveGoalInput): { commit: Commit |
   // Each question answered is kept with the change, as "Checked": the question, then the answer (section 4).
   change.diffs.push(...checkedDiffs(i.draft, checks, answers));
   // Stages already done at set-up go in the same save as the goal, so it is never seen late in between (OB2's rule 3).
-  const doneIds = i.stagesDone ?? (i.draft.kind === 'milestone' ? i.draft.stages.filter((st) => st.done === 'yes').map((st) => st.id) : []);
+  const said = i.stagesDone ?? (i.draft.kind === 'milestone' ? i.draft.stages.filter((st) => st.done === 'yes').map((st) => st.id) : []);
+  // Only a stage already past can be done at set-up: one due later would be a check-in dated ahead of this week.
+  const doneIds = goal.kind === 'milestone' ? said.filter((id) => goal.stages.some((st) => st.id === id && pastStage(st.dueWeek, x.week))) : [];
   const done = !existing && doneIds.length ? stagesDoneAtSetUp(goal, doneIds, x.actor.id, x.now, x.newId('ci')) : null;
   const doneChange = done ? checkInChange(null, done, goal, x.actor.id, x.newId('chg')) : null;
   return { commit: { goals: [goal], changes: [change, ...(doneChange ? [doneChange] : [])], ...(done ? { checkIns: [done] } : {}) }, goal };

@@ -14,15 +14,23 @@ import { metricPath } from './rulesLibrary';
 import { measureDefaults, measuredBySays, measureFormProblems } from './rulesMeasure';
 import './metrics.css';
 
+/** The choice as the form's draft keeps it: the metric (null: "No metric") and whether it's for the whole company. */
+function readKept(kept: string | undefined): { metricId: string | null; company: boolean } | null {
+  if (!kept) return null;
+  try { const v = JSON.parse(kept) as { metricId?: unknown; company?: unknown }; return { metricId: typeof v.metricId === 'string' ? v.metricId : null, company: v.company === true }; } catch { return null; }
+}
+
 /** A metric being added in place, from what was typed in the picker. */
 interface Adding { name: string; unit: string; direction: MetricDirection | ''; meaning: string }
 
-export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill, onNone }: PlaceProps['goal.measure']) {
+export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onChange, fill, onNone, kept, onKeep }: PlaceProps['goal.measure']) {
   const app = useApp();
   const link = goal ? linkOf(app.snapshot, goal.id) : undefined;
-  const [metricId, setMetricId] = useState<string | null>(link?.metricId ?? null);
+  // The choice lives in the form's draft (kept), so Back, a reload and "Close and keep the draft" don't lose it.
+  const was = readKept(kept);
+  const [metricId, setMetricId] = useState<string | null>(was ? was.metricId : link?.metricId ?? null);
   // "For": the goal's team, or the whole company. A goal already measured keeps the slice it has.
-  const [company, setCompany] = useState(link ? link.teamId == null : false);
+  const [company, setCompany] = useState(was ? was.company : link ? link.teamId == null : false);
   const [adding, setAdding] = useState<Adding | null>(null);
   const [addErr, setAddErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,6 +43,22 @@ export function MeasuredBy({ goal, kind, unit, decimals, teamId, untouched, onCh
   const slice = company || !team ? null : team.id;
   const dp = parseNumber(decimals) ?? 0;
   const problems = metric ? measureFormProblems(metric, { kind, unit, decimals: dp }) : { errors: [], warnings: [] };
+
+  // Kept in the draft whenever the choice or the slice changes.
+  useEffect(() => {
+    if (was?.metricId === metricId && was?.company === company) return;
+    if (!was && metricId === (link?.metricId ?? null) && company === (link ? link.teamId == null : false)) return;
+    onKeep?.(JSON.stringify({ metricId, company }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metricId, company]);
+  // A metric found again in the draft: the form's unit and decimals it filled are said in one line again, as before.
+  useEffect(() => {
+    if (!was || !fill) return;
+    const m = metricsOf(app.snapshot).find((x) => x.id === was.metricId);
+    onNone?.(!m);
+    if (m && !goal && unit.trim().toLowerCase() === m.unit.trim().toLowerCase()) { fill({ unit, decimals, hidden: true }); setHidden(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // What to save with the goal, said back to the form whenever the choice, the slice or the form's unit changes.
   useEffect(() => {

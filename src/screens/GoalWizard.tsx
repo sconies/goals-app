@@ -15,6 +15,7 @@ import { placesText } from '../domain/numbers';
 import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
 import { NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
+import { readBack, reviewsJoining } from '../domain/readBack';
 import { worstFirst } from '../domain/order';
 import type { GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
@@ -24,7 +25,7 @@ import { PlanTable } from '../ui/PlanTable';
 import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { WeekPick } from '../ui/WeekPick';
 import { datesOf, lastWeekOffered, weekSays } from '../domain/weeks';
-import { planSays, rangeSays, spanSays } from '../domain/weekChoices';
+import { rangeSays, spanSays } from '../domain/weekChoices';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
@@ -46,7 +47,7 @@ const SHAPES: [PlanShape, string, string][] = [
 const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 /** What New goal keeps in its draft beyond the goal: where it stopped, and what was chosen by hand rather than followed. */
-type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers };
+type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers; measureKept?: string };
 
 /** /goals/new (and /goals/new/<step>): a draft's step, or the first. */
 export function GoalWizard() {
@@ -62,6 +63,9 @@ export function GoalWizard() {
   }
   return <Wizard key={round} onFresh={() => { clearDraft(key); setRound((r) => r + 1); }} />;
 }
+
+/** The goal's page (lazy, as in App): fetched early so Publish opens it at once. A failed fetch is left to the route. */
+const loadGoalPage = () => import('./GoalScreen').then(() => undefined, () => undefined);
 
 /** The form's own unit and decimals, before anyone types: a metric chosen then fills them (rule 5). */
 const BLANK = blankGoal('', '', '');
@@ -79,6 +83,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [d, set, clear, restored] = useDraft<WizardDraft>(goalDraftKey(app.ws.id, null), () => ({ ...blankGoal(viewerTeam, app.viewer.id, defaultParent), step: 0 }));
   const [tried, setTried] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  // The goal this draft was published as: from then on nothing here asks again or says what's missing; the goal's page
+  // opens with the toast (the wizard stays drawn while that page loads).
+  const [published, setPublished] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   useMark(STEP_MARKS[step] ?? null);
   // From and To (rule 13): picked weeks, from this week to the year's end until chosen.
@@ -108,9 +115,14 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', startDate: cycle.startDate, owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
   // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
   const answers: GoalAnswers = d.answers ?? {};
-  const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
+  const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
+  const live: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published }));
+  // Pressing Publish freezes the questions as they were: the save puts the new goal among the team's goals before it
+  // returns, and nothing it changes may ask again (or say a question is open) while the goal's page opens.
+  const frozen = useRef<GoalCheck[] | null>(null);
+  const checks = frozen.current ?? live;
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
@@ -163,35 +175,46 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   // A later step opened with an earlier one unfilled goes to the first unfilled one, its errors not yet shown.
   const firstBad = [0, 1, 2].find((i) => i < step && stepErrors(i).length);
   useEffect(() => { if (firstBad == null && d.step !== step) set({ step }); }, [firstBad, step, d.step, set]);
+  // The goal's page loads while Check is read, so Publish opens it at once.
+  useEffect(() => { if (step === 3) void loadGoalPage(); }, [step]);
   useEffect(() => { top.current?.querySelector<HTMLElement>('.focus-body input, .focus-body select, .focus-body textarea, .focus-body button.kindcard, .focus-body .pick button')?.focus(); }, [step]);
 
-  const at = (i: number) => `/goals/new/${NEW_GOAL_STEPS[i]!.slug}`;
+  const atStep = (i: number) => `/goals/new/${NEW_GOAL_STEPS[i]!.slug}`;
   const focusField = (f: GoalField | null) => {
     if (!f) return;
     setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`)?.focus(), 0);
   };
   const focusCheck = (slot: string | null) => { if (slot) setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); };
+  // After "Change" on Check, Continue comes straight back to it: said in the history entry Change made, so it holds for
+  // that entry only (the browser's Back to another step doesn't carry it).
+  const fromCheck = step < 3 && !!(loc.state as { fromCheck?: boolean } | null)?.fromCheck;
   const go = (to: number) => {
     // "Continue" is never disabled: pressed with a Must fix, every field on the step says its own, and focus goes to the
-    // first; with none but a question open, focus goes to the first question (rule 4).
+    // first; with none but a question open, focus goes to the first question (rule 4). A later step the change has made
+    // unfinished (Change on What, then another type) is opened at its first fault, still on the way back to Check (build
+    // review of #129, finding 1: Continue went dead).
     if (to > step) for (let i = step; i < to; i++) {
       const at = stepState(i, stepErrors(i), checks, answers);
-      if (!at.go) { setTried((t) => [...t, i]); if (i === step) { if (at.check) focusCheck(at.check); else focusField(at.focus); } return; }
+      if (!at.go) {
+        setTried((t) => [...t, i]);
+        if (i !== step) nav(atStep(i), { state: { from: step, fromCheck } });
+        if (at.check) focusCheck(at.check); else focusField(at.focus);
+        return;
+      }
     }
     // Each Continue is one history entry, so the browser's Back steps back a step.
-    nav(at(to), { state: { from: step } });
+    nav(atStep(to), { state: { from: step } });
   };
   const back = () => {
     // Back after a Continue is the browser's Back; arriving some other way, it replaces this step with the one before.
     if ((loc.state as { from?: number } | null)?.from === step - 1) nav(-1);
-    else nav(at(step - 1), { replace: true });
+    else nav(atStep(step - 1), { replace: true });
   };
-  // After "Change" on Check, Continue comes straight back to it.
-  const [fromCheck, setFromCheck] = useState(false);
 
   const publish = async () => {
     const bad = [0, 1, 2].find((i) => stepErrors(i).length || stepOpen(i).length);
-    if (bad != null) { setTried([0, 1, 2]); nav(at(bad)); return; }
+    if (bad != null) { setTried([0, 1, 2]); nav(atStep(bad)); return; }
+    frozen.current = checks;
     setSaving(true);
     try {
       // Saved through the saveGoal action (goal entry, rule 7): the same rights, Must fix and questions as every other door.
@@ -199,11 +222,15 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       // own weeks, in the same save, so the goal isn't born late (OB2's rule 3). What measures it (the goal.measure place)
       // is saved in the same commit, so the link sees the new goal.
       const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
-      const g = await app.saveGoal(draft, null, { answers, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
+      const g = await app.saveGoal(draft, null, { answers, metric, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
-      app.toast(`Published “${g.title}”`);
+      setPublished(g.id);
+      // The page and the toast together: the page's code is (almost always) here already.
+      await loadGoalPage();
       nav('/goals/' + g.id + '?published=1', { replace: true });
+      app.toast(`Published “${g.title}”`);
     } catch {
+      frozen.current = null;
       setSaving(false);
     }
   };
@@ -221,38 +248,26 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const owner = app.person(d.ownerId);
   const teamName = (id: string) => app.team(id)?.name ?? '';
   const unitFmt = { unit: d.unit, decimals: places };
-  const num = (s: string) => { const n = parseNumber(s); return n == null ? '' : fmt(n, unitFmt); };
   const suggestions = useMemo(
     () => (level ? parentSuggestions(cycle, level, d.teamId, app.viewer.id, app.snapshot.goals, worstFirst(app), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'goal').map((r) => r.id)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [level, d.teamId, app.snapshot],
   );
   const twins = sameTitleGoals(d.title, null, app.snapshot.goals.filter((g) => !g.removedAt));
-  const named = d.stages.filter((s) => s.name.trim());
-  const lastDue = Math.max(0, ...named.map((s) => parseNumber(s.dueWeek) ?? 0));
   const alsoHelps = (d.alsoHelps ?? []).map((id) => app.goal(id)).filter((g): g is NonNullable<typeof g> => !!g);
   const number = d.kind !== 'milestone';
   const noMetric = !measure;
 
-  // The words for each step on Check, beside its Change.
-  const checkRows: { step: number; label: string; value: string }[] = [
-    { step: 0, label: 'What', value: [d.title.trim() || 'Untitled goal', KINDS.find(([k]) => k === d.kind)?.[1] ?? ''].join(' · ') },
-    { step: 1, label: 'Owner', value: [owner?.name ?? 'No one yet', teamName(d.teamId) ? `${teamName(d.teamId)} team` : ''].filter(Boolean).join(' · ') },
-    {
-      step: 1, label: 'Where it fits', value: [
-        level ? `${levelName(cycle, level)} level` : 'No level yet',
-        parent ? `feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}` : 'top of its own tree',
-        ...(alsoHelps.length ? [`also helps ${alsoHelps.map((g) => `“${g.title}”`).join(', ')}`] : []),
-        ...(d.guardrail ? ['a guardrail'] : []),
-      ].join(', ') + '.',
-    },
-    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? measure.says ?? 'The metric chosen on step 3.' : d.definition.trim() ? 'No metric: measured as described.' : 'No metric: not described yet.' }] : []),
-    {
-      step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} in ${weekSays(cycle, span.from, 'short')} to ${num(d.target)} by ${weekSays(cycle, endChoice, 'short')}` : 'Not set yet')
-        : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : 'Not set yet')
-          : named.length === 1 ? `1 stage, due ${weekSays(cycle, lastDue, 'short')}` : `${named.length} stages, the last due ${weekSays(cycle, lastDue, 'short')}`,
-    },
-  ];
+  // The read-back (goal entry, rule 5): the goal in sentences, each row with Change to its step, then what happens after
+  // it is published. The rhythm and Reviews switches (FT) aren't built yet: weekly, and Reviews on (spec, 11).
+  const said = checks.filter((c) => c.id !== 'stage-past' && c.readBack && answers[c.slot] === c.key).map((c) => c.readBack);
+  const read = step === 3 ? readBack(goal, {
+    cycle, week, today: app.today, level, owner: owner ? { name: owner.name, isViewer: owner.id === app.viewer.id } : null, teamName: teamName(d.teamId),
+    parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: alsoHelps.map((g) => g.title),
+    metric: measure && number ? measure.says ?? 'The metric chosen on step 3.' : null, answers: said, rhythm: 'weekly', reviewsOn: true,
+    reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, app.snapshot.reviews, app.snapshot.goals, cycle) : [],
+    wsName: app.ws.name,
+  }) : null;
 
   return (
     <div className="focus goal-form" ref={top}>
@@ -261,7 +276,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         <Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} />
         <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
-      {firstBad != null && <Navigate replace to={at(firstBad)} />}
+      {firstBad != null && <Navigate replace to={atStep(firstBad)} />}
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
         {restored && !asking && (
           <div className="restored small" role="status">Picked up the goal you hadn’t published. <button type="button" className="linkish" onClick={() => setAsking(true)}>Start a new one</button></div>
@@ -269,7 +284,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         {asking && (
           <div className="restored small" role="alertdialog" aria-label="Discard the draft">
             <span>Discard the draft of “{d.title.trim() || 'Untitled goal'}”?</span>{' '}
-            <button type="button" className="btn sm" onClick={() => { onFresh(); nav(at(0), { replace: true }); }}>Discard it</button>{' '}
+            <button type="button" className="btn sm" onClick={() => { onFresh(); nav(atStep(0), { replace: true }); }}>Discard it</button>{' '}
             <button type="button" className="linkish" onClick={() => setAsking(false)}>Keep it</button>
           </div>
         )}
@@ -352,7 +367,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {stepSays(stepFields(2, d.kind).filter((f) => noMetric || (f !== 'definition' && f !== 'source')), d.kind) && <p className="small muted step-says">{STEP_SAYS}</p>}
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure}
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} decimals={d.decimals} teamId={d.teamId} onChange={setMeasure} kept={d.measureKept} onKeep={(k) => set({ measureKept: k })}
               untouched={d.unit === BLANK.unit && d.decimals === BLANK.decimals} fill={(f) => { set({ unit: f.unit, decimals: f.decimals }); setFilled(f.hidden); }} onNone={setSaidNone} />}
             {number && !filled && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">Unit{optional('unit')}</span>
@@ -445,28 +460,26 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
           </>
         )}
 
-        {step === 3 && (
+        {step === 3 && read && (
           <>
             <h1 className="qtitle big">Does this read right?</h1>
-            <div className="summary-card">
-              <span className="h3">{d.title || 'Untitled goal'}</span>
-              <p>
-                <strong>{owner?.name ?? 'Someone'}</strong> owns it and checks in weekly. {d.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null
-                  ? <>It moves {planSays(cycle, span.from, endChoice, fmt(parseNumber(d.start)!, unitFmt), fmt(parseNumber(d.target)!, unitFmt))}, {Object.values(d.points).some((v) => v.trim()) ? 'with plan numbers set by hand' : SHAPES.find((s) => s[0] === d.shape)?.[1].toLowerCase()}.</>
-                  : d.kind === 'range' && parseNumber(d.limit) != null ? <>It stays {d.bound === 'atMost' ? 'at or under' : 'at or above'} <strong>{fmt(parseNumber(d.limit)!, unitFmt)}</strong>, with a warning within {d.margin || 0}.</>
-                    : d.kind === 'milestone' ? <>{named.length === 1 ? `1 stage, due ${weekSays(cycle, lastDue, 'sentence')}` : `${named.length} stages, the last due ${weekSays(cycle, lastDue, 'sentence')}`}.{(['yes', 'no'] as const).map((k) => { const n = named.filter((s) => s.done === k).length; return n ? ` ${n} ${n === 1 ? 'stage is' : 'stages are'} already ${k === 'yes' ? 'done' : 'overdue'}.` : ''; }).join('')}</> : null}
-              </p>
-            </div>
-            <ul className="review-rows" aria-label="Change a step">
-              {checkRows.map((r) => (
-                <li key={r.label}>
-                  <span className="strong">{r.label}</span>
-                  <span className="muted rr-value">{r.value}</span>
-                  <button type="button" className="linkish" aria-label={'Change ' + r.label.toLowerCase()} onClick={() => { setFromCheck(true); go(r.step); }}>Change</button>
+            <p className="small muted">Nothing is saved until you publish.</p>
+            <h2 className="h3 read-back-name">{d.title.trim() || 'Untitled goal'}</h2>
+            {/* Each row wraps: a sentence is never cut to one line (build review of #129, finding 6). */}
+            <ul className="review-rows read-back" aria-label="Read back">
+              {read.rows.map((r) => (
+                <li key={r.id} data-row={r.id}>
+                  <span className="small strong rr-label">{r.label}</span>
+                  <span className="rr-value">{r.text}</span>
+                  {r.step != null && <button type="button" className="linkish" aria-label={'Change ' + r.label.toLowerCase()} onClick={() => nav(atStep(r.step!), { state: { from: 3, fromCheck: true } })}>Change</button>}
                 </li>
               ))}
             </ul>
-            {[0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
+            <section className="after-publish" aria-labelledby="after-publish">
+              <h2 className="small strong" id="after-publish">After you publish</h2>
+              {read.after.map((t) => <p key={t} className="small">{t}</p>)}
+            </section>
+            {saving || published ? null : [0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
               : [0, 1, 2].some((i) => stepOpen(i).length) ? <div className="note-bad small">A question is still to answer; publishing takes you to it.</div> : null}
           </>
         )}
@@ -475,7 +488,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         <div className="focus-foot nav-foot">
           {step > 0 && <button type="button" className="btn" onClick={back}>Back</button>}
           <span style={{ flex: 1 }} />
-          <button className="btn primary big-btn" type="submit" disabled={saving}>{saving ? 'Saving…' : step < 3 ? 'Continue' : 'Publish goal'}</button>
+          <button className="btn primary big-btn" type="submit" disabled={saving}>{published ? 'Published' : saving ? 'Saving…' : step < 3 ? 'Continue' : 'Publish goal'}</button>
         </div>
       </form>
     </div>

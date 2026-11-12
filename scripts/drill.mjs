@@ -13,9 +13,10 @@
    A folder with no drill.json but the five CSVs in it is scored as it is, without running anything.
    find.csv (the find rules: what a search for a goal, a person or a team finds), goals.csv (the query port's answers to
    Goals queries: counts and every goal in order), navigation.csv (the menu, the lit
-   item and a page's name) and import.csv (the change engine's kinds, levels and sentences) are not part of stage 1,
+   item and a page's name), import.csv (the change engine's kinds, levels and sentences) and readback.csv (New goal's
+   read-back, stage 3) are not part of stage 1,
    nor is metrics.csv (the metric library's rules 1 to 3, stage 4): each is scored only when drill.json lists it under
-   "also" ({ "stage": 1, "run": "…", "also": ["find", "goals", "navigation", "import", "metrics"] }) or --files names it.
+   "also" ({ "stage": 1, "run": "…", "also": ["find", "goals", "navigation", "import", "metrics", "readback"] }) or --files names it.
 
    Options:
      --files status,flags   score only these files (the others are listed as not scored)
@@ -32,9 +33,9 @@ import { fileURLToPath } from 'node:url';
 
 const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
 /** Files beyond stage 1's, scored only when asked for ("also" in drill.json, or --files). */
-const ALSO = ['scorecard-words', 'find', 'goals', 'navigation', 'import', 'metrics'];
+const ALSO = ['scorecard-words', 'find', 'goals', 'navigation', 'import', 'metrics', 'readback'];
 /** The columns that name a row: a row in the rebuild's file is matched to the expected row with the same values in them. */
-const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], 'scorecard-words': ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], goals: ['query'], navigation: ['viewer', 'address'], import: ['case'], metrics: ['rule', 'ask', 'row'] };
+const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], 'scorecard-words': ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], goals: ['query'], navigation: ['viewer', 'address'], import: ['case'], readback: ['case'], metrics: ['rule', 'ask', 'row'] };
 /** Numbers are written with up to 6 decimal places, so two that differ by rounding in the last place still match. */
 const TOLERANCE = 1.5e-6;
 

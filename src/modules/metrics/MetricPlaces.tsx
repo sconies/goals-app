@@ -4,7 +4,8 @@
 import { Link } from 'react-router';
 import { useApp } from '../../app/state';
 import type { PlaceProps } from '../../core/app';
-import { canLinkGoal, measureOf } from './rules';
+import { canLinkGoal, linkProblems, measureOf } from './rules';
+import { WarnMark } from '../../ui/bits';
 import { directionWords, findMetrics, liveLinks, metricPath, type LibraryRow } from './rulesLibrary';
 import { libraryReads } from './reads';
 import './metrics.css';
@@ -18,7 +19,15 @@ export function GoalMeasuredBy({ goal }: PlaceProps['goal.facts']) {
   const app = useApp();
   const m = measureOf(app.snapshot, goal);
   if (!m) return null;
-  return <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link> · {m.metric.unit}, {directionWords(m.metric.direction)}</p>;
+  // The metric changed after the goal was linked (its unit or direction): the goal says so, with what differs.
+  const p = linkProblems(goal, m.metric);
+  const differ = [...p.errors, ...p.warnings];
+  return (
+    <>
+      <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link> · {m.metric.unit}, {directionWords(m.metric.direction)}</p>
+      {differ.length > 0 && <p className="small metric-differs" role="note"><WarnMark /> {differ.join(' ')}</p>}
+    </>
+  );
 }
 
 /** goal.sections: the metric that measures the goal, for which slice, what it means, and the other goals it measures.

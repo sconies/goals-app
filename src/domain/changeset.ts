@@ -36,7 +36,8 @@ import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
 import { deleteGoal, markPersonLeft, stopGoal } from './removal';
 import { stagesFromNow } from './templates';
-import { recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
+import { headerMatch, recordsOf, parseDelimited, type Rec, type Tables } from './sheets';
+import { goalMeasureOf, type ModuleRecords } from './records';
 import { ANSWERS, fold, groupId, groupIssues, issueOf, near, SHEET_ORDER, type Answer, type Answers, type Choice, type Issue, type IssueGroup, type IssueKind, type Sheet } from './problemLevels';
 import type { Ask, Change, CheckIn, Cycle, Diff, Goal, MetricGoal, MetricPlan, Person, Review, Snapshot, StageUpdate, Status, Team } from './types';
 import { FLAG, LEFT, lower, STOPPED } from './vocabulary';
@@ -128,6 +129,8 @@ export interface ChangeInput {
   full?: Snapshot;
   /** Check-ins posted from a screen, judged by the same loop as a sheet's rows (rule 13). */
   posts?: CheckInPost[];
+  /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
+  records?: readonly ModuleRecords[];
   /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
       summary keeps both (rule 9: its File and Rows diffs). */
   file?: { name: string; leftOut?: number };
@@ -191,10 +194,10 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
 
 /** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
 const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
-  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
+  'below-zero': 'odd-number', 'over-100': 'odd-number', 'wrong-side': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
-const GOAL_QUESTION: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
+export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
 /** What `confirm` (the tools' and older screens' one switch) answers yes: every question of rule 3 the engine asks here. */
 const CONFIRMED: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit'];
 
@@ -205,6 +208,30 @@ function fileDiffs(file: ChangeInput['file'], changed: number, unchanged: number
   if (!file?.name) return [];
   const out = left + (file.leftOut ?? 0);
   return [{ field: 'File', from: '—', to: file.name }, { field: 'Rows', from: '—', to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ''}` }];
+}
+
+const TABLE_SHEETS: [keyof Tables, 'goals' | 'plan' | 'checkIns' | 'people', Sheet][] = [['goals', 'goals', 'Goals'], ['plan', 'plan', 'Plan'], ['checkIns', 'checkIns', 'Check-ins'], ['people', 'people', 'People']];
+/** The tables with each column under another name, or one letter out and answered, renamed to the column it is (rule 3). */
+function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: string) => boolean): Tables {
+  const out: Tables = { ...t };
+  for (const [key, kind, sheet] of TABLE_SHEETS) {
+    const recs = t[key];
+    if (!recs?.length) continue;
+    const keys = [...new Set(recs.flatMap((r) => Object.keys(r)))].filter((k) => k !== '__row');
+    const rename = new Map<string, string>();
+    for (const k of keys) {
+      const m = headerMatch(kind, k);
+      if (!m.as || m.how === 'unknown') continue;
+      const to = m.as.toLowerCase();
+      // A header the same as the column's but for punctuation, an accent or spacing ("Target.", "Owner_email") is read
+      // as that column too: only a key that is already the column's own name is left as it is (#199 review, high).
+      if (k === to) continue;
+      if (keys.includes(to)) continue;
+      if (m.how !== 'near' || nearOk(sheet, k, m.as)) rename.set(k, to);
+    }
+    if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
+  }
+  return out;
 }
 
 export function planChanges(input: ChangeInput): ChangeSet {
@@ -227,6 +254,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
   const leave = (sheet: Sheet, row: number) => { if (!leftOut.some((x) => x.sheet === sheet && x.row === row)) leftOut.push({ sheet, row }); };
+  // Rule 3, at every door (a file, a paste, MCP): a column under another name the field table gives it ("Goal name") is
+  // read as that column; one a letter out ("Targett") is asked about once (near-header), and read so once answered.
+  input = { ...input, tables: namedHeaders(input.tables, (sheet, header, as) => {
+    const a = answerOf('near-header', sheet, 'Header', header);
+    if (a?.choice === 'use') return true;
+    if (!a) raise('near-header', sheet, 1, header, `A column on ${sheet} is called “${header}”. Read it as ${as}?`, { column: 'Header', found: header, suggest: as, answers: [{ choice: 'use', label: `Read it as ${as}` }, { choice: 'ignore', label: 'Don’t read it' }] });
+    return false;
+  }) };
   /**
    * A Check on a row: answered "leave", the row is left out ('leave'); answered otherwise, its answer; unanswered, the
    * question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
@@ -739,7 +774,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A new number has no unit unless the row says one (C2: never "%" by default); none is asked about, once a file.
     if (!existing && d.kind !== 'milestone') d.unit = has(r, 'unit') ? val(r, 'unit') : '';
     else if (has(r, 'unit') && d.kind !== 'milestone') d.unit = val(r, 'unit');
-    if (!existing && d.kind !== 'milestone' && !d.unit.trim() && ask('no-unit', 'Goals', row, d.title, 'This number has no unit. Is it a plain count?', { column: 'Unit', answers: ANSWERS.noUnit }) === 'leave') return;
+    // A new number with no unit, or one whose unit a row clears, is asked about: the form's no-unit, in its words.
+    if ((!existing || (existing.kind !== 'milestone' && !!existing.unit.trim())) && d.kind !== 'milestone' && !d.unit.trim() && ask('no-unit', 'Goals', row, d.title, 'This number has no unit. Is it a plain count?', { column: 'Unit', answers: ANSWERS.noUnit }) === 'leave') return;
     // Numbers as typed: a formula is Must fix; a comma as the decimal mark is read, and asked about once.
     for (const [col, head] of [['start', 'Start'], ['target', 'Target'], ['limit', 'Limit'], ['margin', 'Margin']] as const) {
       const raw = val(r, col);
@@ -838,7 +874,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (has(r, 'definition')) d.definition = val(r, 'definition');
     // What can't be saved: goal entry's rule 2, the same rule and words as New goal, the edit page and set-up's cards.
     const ownerNow = people.get(d.ownerId);
-    const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
+    // What it feeds is read once every goal in the file exists (below), but whether it feeds one is known now: a row that
+    // names a goal in a Feeds into column, else what the goal feeds already. The Effect is judged with it, as the form does.
+    const feedsCols = (['feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(r, c));
+    const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
+    const fix = goalMustFix({ ...d, parentId: feeds ? d.parentId || '(read below)' : '' }, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
     if (fix.length) {
       for (const f of fix) raise(MUST_KIND[f.id], 'Goals', row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? 'Goal' });
       return;
@@ -854,7 +894,9 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // past (past-stage); a changed plan's question is asked once the change is known (plan-question, below), and a link
     // to a lower level once the links are read (feeds-lower). An owner in another team isn't asked of a file: its Team
     // column says the team in so many words, where the form's team follows the owner until chosen by hand.
-    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle, startDate: cycle.startDate });
+    // What measures it is known for a goal already linked to a metric (a new one is linked after it is saved).
+    const metric = d.kind === 'metric' && existing ? goalMeasureOf(input.records, s, existing.id) : null;
+    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle, startDate: cycle.startDate, metric });
     for (const c of checks) {
       const kind = ENGINE_CHECK[c.id];
       if (!kind) continue;

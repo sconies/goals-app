@@ -61,6 +61,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - bulk changes › lets an owner load the whole workbook back after changing only their own goal (research round 1)
 - bulk changes › tells which sheet is which from its header alone
 - bulk changes › adds a new goal and changes an existing one, logging both
+- bulk changes › refuses an Effect that isn’t a number on a new goal’s row, in the form’s words, though its parent is read later
+- bulk changes › asks about a target on the worse side of the metric that measures the goal (wrong-side), from a module’s records
+- bulk changes › asks about a unit a row clears, as the form does (no-unit)
 - bulk changes › only lets owners change their own goals; admins can change any; anyone may add a goal for anyone
 - bulk changes › asks for a reason when a plan changes after check-ins started
 - bulk changes › sets plan numbers by hand from the Plan sheet

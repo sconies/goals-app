@@ -435,6 +435,31 @@ journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON
   await p.context().close();
 });
 
+journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is then refused: as Hamid, an admin, the “…” menu on Rhea’s goal has Change this goal but no Check in for Rhea, since only the owner checks in; Rhea checks in from the bar', 4, async (h, device) => {
+  // Polish track, item 4 (review of 12 Nov): the menu offered Check in for Rhea, and the check-in then refused it.
+  let p = h.use(await newPage(device, 'hamid'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').waitFor();
+  await h.checkpoint('goal');
+  await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
+  const menu = p.getByRole('group', { name: 'More about this goal' });
+  await h.inView(menu.getByRole('link', { name: 'Change this goal' }), 'entry', 'Change this goal');
+  if (await menu.getByRole('link', { name: /^Check in for/ }).count()) fail('an admin is offered a check-in that only the owner may post');
+  h.set('errors', true);
+  await p.context().close();
+  // The owner's own way in is on the bar, and it opens her check-in.
+  p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/goals/ci-docker'));
+  await p.locator('.goal-bar').waitFor();
+  const own = p.locator('.goal-bar .bar-actions').getByRole('link', { name: /^Check in/ }).first();
+  h.set('one-action', await own.isVisible(), 'the owner has no check-in on the bar');
+  await h.click(own);
+  await see(p, 'This week’s value');
+  if (await p.getByText(/checks in on this goal/).isVisible().catch(() => false)) fail('the owner’s check-in is refused');
+  h.set('finish', true);
+  await p.context().close();
+});
+
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/'));
@@ -614,7 +639,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await see(p, 'Does this read right?');
   await see(p, 'Mean time to restore service', 'the summary says what it feeds');
-  await see(p, 'SVP level', 'the summary says its level');
+  await see(p, 'It’s an SVP goal', 'the read-back says its level');
   await h.checkpoint('step 4');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
@@ -1564,7 +1589,7 @@ journey('U18', ['PLAN-SHAPE', 'GOAL-CREATE', 'YEAR'], 'Set a goal for the year a
   await h.fill(row, '30');
   await h.checkpoint('plan table');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, 'with plan numbers set by hand', 'the summary says the plan was set by hand');
+  await see(p, 'with the weeks’ numbers set by hand', 'the read-back says the plan was set by hand');
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/goal_/);
   // About this goal is open on a first visit, with the plan week by week (the flagship page, 5 Nov).
@@ -1634,7 +1659,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await h.click(menu);
   await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
   await p.waitForURL(/\/data\/import/);
-  await see(p, 'Import from a spreadsheet');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await h.checkpoint('import');
   const csv = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
   const input = p.getByLabel('Choose a spreadsheet');
@@ -4193,7 +4218,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.goto(url('/data'));
   await h.click(p.locator('.data-export > summary'));
   await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
-  await see(p, 'Import from a spreadsheet');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
   await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
@@ -4279,7 +4304,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.locator('.data-export > summary').waitFor();
   await p.goto(url('/import'));
   await p.waitForURL(/\/data\/import/);
-  await see(p, 'Import from a spreadsheet', 'Import did not come back');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.', 'Import did not come back');
   // Off again, then Undo straight away, without leaving the page: it comes back (Lane, 11 Nov: the Undo said "back on"
   // and left it off). Checked, not scored: the steps above are the journey.
   await p.goto(url('/workspace/features'));
@@ -4638,7 +4663,7 @@ journey('U80', ['GOAL-SAYS'], 'Watch and comments say what they do before you do
   await p.context().close();
 }, []);
 
-journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
+journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'], 'Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; Save with a question open focuses the question, in view, and says where it is (900 hours on Lead time, better lower, asks wrong-side); #owner opens at Who and where, its owner found by typing', 6, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // An old link to one part of the form lands on that section of the one page, and the address says so.
   await p.goto(url('/goals/ns-lead/edit?part=plan'));
@@ -4663,6 +4688,24 @@ journey('U136', ['GOAL-EDIT-PAGE', 'NAV-FORMS', 'PLAN-CHANGE', 'FIND-AND-PICK'],
   h.set('progress', !!rb && !!fb && rb.y + rb.height <= fb.y && fb.y + fb.height <= vh + 1, `the reason box (${rb && Math.round(rb.y + rb.height)}) is under Save changes (${fb && Math.round(fb.y)}), or the bar is off the screen`);
   await h.inView(p.getByRole('button', { name: 'Save changes' }), 'progress', 'Save changes, held at the foot');
   await h.checkpoint('plan');
+  // Save with a question open, maybe out of sight: focus goes to the first question, which comes into view, and the line
+  // above Save says where it is, as New goal's Continue does (GE2 review). 900 hours is far outside the plan.
+  await p.getByLabel(/^Target/).fill('900');
+  await reason.fill('Moving to the new dashboard');
+  await p.locator('#more').scrollIntoViewIfNeeded();
+  await p.getByRole('button', { name: 'Save changes' }).click();
+  await p.waitForTimeout(300);
+  const said = (await p.locator('.fix-line').innerText().catch(() => '')).trim();
+  const onQ = await p.evaluate(() => { const e = document.activeElement; if (!e || !e.matches('[data-check]')) return null; const r = e.getBoundingClientRect(); return { top: r.top, h: innerHeight }; });
+  h.set('errors', /^Answer the (question above, under Target|\d+ questions above)\.$/.test(said) && !!onQ && onQ.top >= 0 && onQ.top < onQ.h, `Save with a question open says “${said}”, with focus ${onQ ? `on a question at ${Math.round(onQ.top)}px` : 'not on a question'}`);
+  h.set('logged', (await h.snapshot()).goals.find((g) => g.id === 'ns-lead').plan.target !== 900, 'Save with a question open saved');
+  // Lead time for changes is better lower: what measures the goal now asks the wrong-side question here too.
+  h.set('errors', await p.getByText(/“Lead time for changes” is better lower, but the target \(900 hours\) is above today/).isVisible(), 'a target above today on a lower-is-better metric is not asked about');
+  // "No, I'll change the numbers" goes back to the field, as on New goal.
+  await p.getByRole('button', { name: 'No, I’ll change the numbers' }).click();
+  await p.waitForTimeout(200);
+  h.set('errors', (await p.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-field'))) === 'target', '“No, I’ll change the numbers” does not go back to Target');
+  await p.getByLabel(/^Target/).fill('20');
   // Closing keeps the draft: back on the goal, nothing saved; opened again, the new target is there.
   await h.click(p.getByRole('button', { name: 'Close and keep the draft' }));
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/);
@@ -4717,7 +4760,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
   await see(p, 'Does this read right?');
   const read = await p.locator('.review-rows').innerText();
-  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /10% to 80%/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
+  h.set('progress', /feeds “Releases behind a feature flag”/.test(read) && /also helps “Merge-to-deploy time/.test(read) && /Measured by/.test(read) && /from 10% in week \d+ .*to 80% by week/.test(read), `Check doesn’t read it all back: ${read.replace(/\s+/g, ' ')}`);
   // The browser's Back returns to step 3 with the numbers kept; a reload stays there and says the draft was picked up.
   await p.goBack();
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -4729,6 +4772,14 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.getByRole('button', { name: 'Close and keep the draft' }).click();
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  // A Change from Check that makes a later step wrong: Continue goes to that step and says so (build review of #129).
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await p.getByRole('button', { name: 'Change what' }).click();
+  await p.getByRole('button', { name: /Hit dated stages/ }).click();
+  await p.getByRole('button', { name: /Continue/ }).click();
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 5000 }).catch(() => {});
+  h.set('errors', /\/goals\/new\/measure(\?|$)/.test(p.url()) && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after changing the type stayed on ${p.url()} without saying what the stages step needs`);
   // No select anywhere on the steps lists people, teams or goals.
   const big = await p.evaluate(() => Math.max(0, ...[...document.querySelectorAll('select')].map((x) => x.options.length)));
   h.set('a11y', big <= 60, `a select lists ${big} options`);
@@ -4738,7 +4789,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4773,7 +4824,26 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.checkpoint('measure');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
+  // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
+  // beside the “Published” toast.
+  await p.route('**/assets/**', async (r) => { await new Promise((res) => setTimeout(res, 1200)); await r.continue().catch(() => {}); });
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  const mixed = new Set();
+  for (const t0 = Date.now(); Date.now() - t0 < 15000;) {
+    const s = await p.evaluate(() => ({
+      page: !!document.querySelector('.first-checkin'),
+      note: [...document.querySelectorAll('.note-bad')].map((e) => e.textContent).join(' | '),
+      saving: [...document.querySelectorAll('.focus-foot .btn.primary')].some((e) => /Saving/.test(e.textContent || '')),
+      toast: [...document.querySelectorAll('.toast')].some((e) => /Published/.test(e.textContent || '')),
+    })).catch(() => null);
+    if (s?.note) mixed.add(`the Check step says “${s.note}”`);
+    if (s?.saving && s.toast) mixed.add('the button says “Saving…” beside the “Published” toast');
+    if (s?.page) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  await p.unroute('**/assets/**');
+  h.set('finish', mixed.size === 0, `after Publish ${[...mixed].join(', and ')}`);
   await p.waitForURL(/\/goals\/[^/]+\?published=1/);
   h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
 
@@ -4970,6 +5040,78 @@ journey('U82', ['METRICS-MEASURED-BY', 'FIND-AND-PICK'], 'A goal is linked where
 }, []);
 
 /* Looking after metrics (ML3, docs/design/metrics/spec.md 2.3, 2.5, 2.8, rules 3 and 4). */
+journey('U137', ['GOAL-ENTRY-REQUIRED', 'NEW-GOAL-STEPS'], 'Read back before it’s saved: as Tunde on Wednesday 11 Nov, a goal in CI/CD feeding G-41, 40% to 90%; the Check step says What, Who and where, Measured by, Left as usual and You said as sentences, each whole on a phone; “After you publish” names Thursday 12 Nov and “the plan says 47% for week 47”, and the reviews it joins; “Change” on Left as usual goes to the measure step and “Continue” returns; “Change” on What and another type, then Continue, opens the step that now needs something, and Continue from there comes back; publishing lands on the goal with ?published=1 and History keeps the answer as Checked. (With the rhythm off, “Nothing is due.”, and with Reviews off no review line: when FT builds the switches.)', 30, async (h, device) => {
+  const p = h.use(await newPage(device, 'tunde'));
+  // Wednesday 11 Nov 2026: week 46, the day before Thursday's review (the spec's worked example).
+  const on = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2026-11-11';
+  await p.goto(on('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.progressShown('wizard');
+  await h.fill(p.getByLabel(/Name it the way/), 'Signed artifacts in staging');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await pickIn(p, /^Feeds into\b/, 'G-41', /Mean time to restore service/);
+  await pickIn(p, /^Team\b/, 'CI/CD', /CI\/CD/);
+  // Tunde is in Build & Release: asked, and the answer is read back under You said.
+  await h.click(p.getByRole('button', { name: 'Keep it in CI/CD' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Baseline$/), '40');
+  await h.fill(p.getByLabel(/^Target$/), '90');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await see(p, 'Nothing is saved until you publish.', 'Check doesn’t say nothing is saved yet');
+  await h.inView(p.getByRole('button', { name: 'Publish goal' }), 'entry', 'Publish goal');
+  const rows = p.locator('.read-back');
+  const rowText = async (id) => ((await rows.locator(`li[data-row="${id}"] .rr-value`).innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const want = {
+    what: 'A number to move: from 40% in week 46 (9–15 Nov 2026) to 90% by week 53 (28 Dec 2026–3 Jan 2027), the same amount each week. Higher is better.',
+    who: 'Tunde Bakare owns it, in CI/CD. It’s an SVP goal and feeds “Mean time to restore service (P1 and P2)” (G-41).',
+    usual: 'Whole numbers. From this week to the end of 2026. Steady. Not a guardrail. Helps no other goal.',
+    said: 'Tunde is in Build & Release; the goal stays in CI/CD.',
+  };
+  for (const [id, text] of Object.entries(want)) { const got = await rowText(id); h.set('finish', got === text, `the read-back’s ${id} row reads “${got}”, not “${text}”`); }
+  h.set('finish', /^No metric/.test(await rowText('measured')), 'the read-back has no Measured by row');
+  const after = (await p.locator('.after-publish').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  h.set('attention', after.includes('Its first check-in is due by Thursday 12 Nov, then every week. The first number sets where it stands; the plan says 47% for week 47.'), `“After you publish” reads “${after}”`);
+  h.set('attention', after.includes('It joins Platform leadership weekly and Reliability weekly.') && after.includes('Everyone in Example: Platform Engineering can see it.') && after.includes('Until its first check-in you can change anything, or delete it.'), `“After you publish” doesn’t say who sees it, the reviews it joins or how long it can be taken back: “${after}”`);
+  // Each sentence is whole: wrapped, never cut to one line with an ellipsis (build review of #129, finding 6).
+  const cut = await rows.locator('.rr-value').evaluateAll((es) => es.filter((e) => e.scrollWidth > e.clientWidth + 1 || getComputedStyle(e).textOverflow === 'ellipsis' || getComputedStyle(e).whiteSpace === 'nowrap').length);
+  const whoBox = await rows.locator('li[data-row="who"] .rr-value').boundingBox();
+  h.set('a11y', !cut && (device !== 'phone' || (!!whoBox && whoBox.height > 30)), `the read-back cuts ${cut} sentence(s) short (Who and where is ${whoBox ? Math.round(whoBox.height) : '?'}px tall)`);
+  await h.checkpoint('check');
+  // Change on Left as usual goes to the measure step; Continue comes straight back.
+  await h.click(rows.getByRole('button', { name: 'Change left as usual' }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
+  h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()), `Continue after Change on Left as usual went to ${p.url()}, not back to Check`);
+  // Change on What and another type: Continue opens the step that now needs something (it went dead: build review of
+  // #129, finding 1), says what, and Continue from there comes back to Check.
+  await h.click(rows.getByRole('button', { name: 'Change what' }));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Hit dated stages/ }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/, { timeout: 3000 }).catch(() => {});
+  const opened = /\/goals\/new\/measure(\?|$)/.test(p.url());
+  h.set('errors', opened && await p.locator('.fix-line').first().waitFor({ timeout: 3000 }).then(() => true, () => false), `Continue after another type stayed on ${p.url()} and didn’t open the stages`);
+  if (opened) {
+    await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Pilot');
+    await pickWeek(p, 'Stage 1: due', '50');
+    await h.click(p.getByRole('button', { name: /Continue/ }));
+    await p.waitForURL(/\/goals\/new\/check(\?|$)/, { timeout: 3000 }).catch(() => {});
+    h.set('finish', /\/goals\/new\/check(\?|$)/.test(p.url()) && (await rowText('what')) === 'Dated stages: 1 stage, the last due week 50 (7–13 Dec 2026).', `after the stages, Continue went to ${p.url()} and What reads “${await rowText('what')}”`);
+  }
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/?]+\?.*published=1/);
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Signed artifacts in staging');
+  const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
+  h.set('logged', !!checked && /Which team is this goal for\?/.test(checked.from) && checked.to === 'Keep it in CI/CD', 'History doesn’t keep the answer as Checked');
+  await p.context().close();
+}, []);
+
 journey('U109', ['GOAL-DATES'], 'Dates are picked: as Tunde on the measure step, Baseline and Target each sit beside a week, From “Week 45 · 2–8 Nov 2026 · This week” and To “Week 53 · 28 Dec 2026–3 Jan 2027 · The end of 2026”; opening To lists the three named weeks, then 2026 from week 46, and 2027; typing “14 Dec” chooses week 51; “The end of Q1 2027” closes as “Week 13 · 29 Mar–4 Apr 2027” and the line says it carries into 2027; the keyboard alone moves From to week 40, which asks whether it has been running since, and “No, start from this week” puts it back. Check reads “from 42 min in week 45 (2–8 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)”, and so does the published goal’s About. A stage’s Due is the same picker; no number field for a week is on the step', 30, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
@@ -5309,6 +5451,61 @@ journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook 
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);
+
+journey('U96', ['IMPORT-PREVIEW'], 'Leave a row out and save the rest: as Amara, a file with one goal that has no owner offers “Leave this row out and save the rest”; the sheet names the row and why; left out, the focus goes to Save, the rest saves, and Imported says 1 row was left out and offers it as a download', 10, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('u96.csv', 'Goal,Owner,Team,Unit,Start,Target\nKept cache hit rate,Rhea Kapoor,CI/CD,%,20,90\nOrphan cache size,,CI/CD,GB,20,10\n'));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await h.click(p.getByRole('button', { name: 'Leave this row out and save the rest' }));
+  const sheet = p.getByRole('dialog');
+  await see(sheet, 'Orphan cache size', 'the sheet does not name the row it leaves out');
+  await h.checkpoint('leave out');
+  await h.click(sheet.getByRole('button', { name: 'Leave them out' }));
+  await see(p, '1 row was left out at your choice', 'the preview does not say a row was left out');
+  await p.waitForTimeout(100);
+  h.set('attention', await p.evaluate(() => document.activeElement?.textContent?.trim() === 'Save 1 change'), `the focus is on ${await p.evaluate(() => document.activeElement?.tagName + ' ' + (document.activeElement?.textContent ?? '').trim().slice(0, 40))}`);
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  await see(p, '1 row was left out.', 'Imported does not say a row was left out');
+  h.set('errors', await p.getByRole('button', { name: 'Download them' }).isVisible(), 'the rows left out are not offered as a download');
+  const s = await h.snapshot();
+  h.set('finish', s.goals.some((g) => g.title === 'Kept cache hit rate') && !s.goals.some((g) => g.title === 'Orphan cache size'), 'the wrong goals were saved');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'entry', 'logged']);
+journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  await see(p, 'Up to 5,000 rows a file', 'Import does not say how many rows a file may have');
+  await h.inView(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }), 'entry', 'Paste rows, beside Choose a file');
+  await h.click(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }));
+  const box = p.getByRole('textbox', { name: 'Paste rows from a spreadsheet' });
+  await box.waitFor();
+  await h.fill(box, 'Goal name\tOwner\tTeam\tUnit\tStart\tTargett\nPasted cache hit rate\tRhea Kapoor\tCI/CD\t%\t20\t90\n');
+  await h.click(p.getByRole('button', { name: 'Check these rows' }));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, 'A column on Goals is called “Targett”. Read it as Target?', 'a header one letter out is not asked about');
+  await h.checkpoint('near header');
+  await h.click(p.getByRole('radio', { name: 'Read it as Target' }));
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.title === 'Pasted cache hit rate');
+  h.set('finish', !!g && g.plan && g.plan.target === 90 && g.ownerId === 'rhea', `the pasted goal: ${JSON.stringify(g && { target: g.plan && g.plan.target, owner: g.ownerId })}`);
+  // A title row above the headers.
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('titled.csv', 'Platform goals FY27,,\nGoal,Owner,Team,Unit,Start,Target\nTitled cache size,Rhea Kapoor,CI/CD,GB,20,10\n'));
+  await see(p, 'Row 2 of titled.csv is the header row; 1 row above it was skipped.', 'a title row above the headers is not said');
+  h.set('attention', true);
+  // No Faro sheet: what was found, and the template.
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('staff.csv', 'Name,Department,Salary band\nAna,Ops,B\n'));
+  await see(p, 'Its first sheet’s headers are Name, Department, Salary band…', 'a file with no Faro sheet does not say what it found');
+  h.set('errors', await p.getByRole('alert').getByRole('button', { name: 'Download the template' }).isVisible(), 'the template is not offered beside the problem');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'logged']);
 
 journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tunde, a workbook with his own target changed and Rhea’s changed gives one group “1 row changes a goal you don’t own” with “Leave these rows out”, and a People row changed gives the admins-only group; both left out, his change saves and Rhea’s goal is as it was', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
