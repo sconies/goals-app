@@ -1378,6 +1378,56 @@ journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong i
   await h.checkpoint('posted');
 });
 
+journey('U138', ['ONE-PER-WEEK', 'CHANGE-LOG', 'IMPORT-UNDO'], 'Correct this check-in replaces it: after posting, the link asks why (under 10 characters is a Must fix), the week keeps one check-in with the new number, History says what it was and why, and Undo puts it back', 8, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week: she posts the plan's number, then corrects it.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const right = Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW));
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(right));
+  await answerChecks(p);
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  await h.checkpoint('posted');
+  // The link opens the correction, never a second check-in.
+  await h.click(p.getByRole('link', { name: 'Correct this check-in' }));
+  await p.waitForURL(/\/check-in\/ci-docker\?correct=1/);
+  await see(p, 'Why are you changing it?', 'the correction asks why');
+  await h.fill(field, String(right + 1));
+  await answerChecks(p);
+  const why = p.getByLabel('Why are you changing it?');
+  await h.fill(why, 'typo');
+  await h.click(p.getByRole('button', { name: /Post check-in|Continue/ }));
+  await see(p, 'Must fix', 'a reason under 10 characters is not a Must fix');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW).length === 1, 'something posted with a reason under 10 characters');
+  await h.fill(why, 'I read the dashboard for the wrong week');
+  await h.click(p.getByRole('button', { name: /Post check-in|Continue/ }));
+  // Mode `correct`: the account step may follow; posting goes to the goal.
+  if (!/\/goals\/ci-docker/.test(p.url())) { const post = p.getByRole('button', { name: 'Post check-in' }); if (await post.count()) await h.click(post); }
+  await p.waitForURL(/\/goals\/ci-docker/);
+  const toast = p.getByRole('status').filter({ hasText: `Week ${NOW} corrected` });
+  await toast.waitFor();
+  h.set('progress', /is now/.test(await toast.innerText()), `the toast said “${(await toast.innerText()).replace(/\s+/g, ' ')}”`);
+  const s2 = await h.snapshot();
+  const week = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', week.length === 1 && week[0].value === right + 1, `week ${NOW} holds ${week.map((c) => c.value).join(', ') || 'nothing'}`);
+  const hist = p.locator('#history');
+  await hist.waitFor();
+  await see(hist, `Corrected week ${NOW}`, 'History does not say the week was corrected');
+  await see(hist, 'I read the dashboard for the wrong week', 'History does not keep why it was corrected');
+  h.set('attention', true);
+  await h.checkpoint('corrected');
+  // Undo takes the correction back: the week holds the number first posted.
+  await h.click(toast.getByRole('button', { name: 'Undo' }));
+  await see(p, 'Undone');
+  const s3 = await h.snapshot();
+  const back = s3.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('logged', back.length === 1 && back[0].value === right, `after Undo week ${NOW} holds ${back.map((c) => c.value).join(', ') || 'nothing'}`);
+});
+
 journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).

@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'correct-check-in',
+    date: '2026-11-12',
+    title: 'Correct this check-in corrects it',
+    points: [
+      'The link under a posted check-in now replaces it, instead of adding a second check-in for the week.',
+      'It asks why you are changing it, in a sentence, and History keeps what the check-in said before and why it changed.',
+      'Undo on the message after saving puts the first check-in back.',
+    ],
+    articles: ['check-in'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',

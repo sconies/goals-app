@@ -18,7 +18,8 @@ import { PickOne } from '../ui/Pick';
 import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
-import { CheckBlock, MustFixBlock } from '../ui/Levels';
+import { CheckBlock, MustFixBlock, MustFixLine } from '../ui/Levels';
+import { MIN_CORRECT_REASON } from '../domain/changeset';
 import { draftFor } from '../domain/goal';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
@@ -52,6 +53,8 @@ function Flow({ goalId }: { goalId?: string }) {
   const fromTable = (location.state as { fromTable?: FromTable } | null)?.fromTable;
   // Opened from the week's list, closing goes back to it (with the draft kept); otherwise Home, as before.
   const closeTo = (location.state as { from?: string } | null)?.from === 'queue' ? '/check-in' : '/';
+  // "Correct this check-in" (?correct=1): one goal's check-in this week, replaced with a reason (check-in spec 2.7).
+  const correcting = !!goalId && new URLSearchParams(location.search).get('correct') === '1';
   // The queue is fixed when the flow opens, so posting doesn't reshuffle it. It's kept for the tab, so a reload carries
   // on where it was ("2 of 2"), not from a shorter queue of what's still due.
   const [{ queue, start }] = useState<{ queue: string[]; start: number }>(() => {
@@ -106,7 +109,7 @@ function Flow({ goalId }: { goalId?: string }) {
       <div className="focus-top">
         {/* The goal counter is words; the dots under the title are this goal's steps, so the two never look alike. */}
         {/* Which week it's for, from the first screen: corrections and late check-ins are where weeks get mixed up (U8). */}
-        <span className="small strong ci-week">Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
+        <span className="small strong ci-week">{correcting ? 'Correct a check-in · ' : ''}Week {app.week} check-in{queue.length > 1 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}</span>
         <span className="row ci-top-actions" style={{ gap: 'var(--s2)' }}>
           {drafting && !justPosted && <button type="button" className="linkish small ci-discard" onClick={() => discardRef.current()}>Discard draft</button>}
           <FormClose keeps onClose={() => nav(closeTo)} />
@@ -115,7 +118,7 @@ function Flow({ goalId }: { goalId?: string }) {
       {justPosted ? (
         <Posted goal={goal} c={justPosted} updated={updated} left={queue.length - index - 1} nextTitle={app.goal(queue[index + 1] ?? '')?.title} onNext={next} />
       ) : (
-        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
+        <GoalCheckIn key={goal.id + ':' + fresh} goal={goal} correct={correcting} onPosted={(c, updated) => { setUpdated(updated); setJustPosted(c); }} onSkip={goal.kind !== 'milestone' ? () => setNoData(true) : undefined} onDiscarded={() => { setDrafting(false); setFresh((n) => n + 1); }} onDrafting={setDrafting} discardRef={discardRef} />
       )}
     </div>
     </>
@@ -221,8 +224,8 @@ function Posted({ goal, c, updated, left, nextTitle, onNext }: { goal: Goal; c: 
         <Link className="btn big-btn" to={`/goals/${goal.id}?posted=1`}>View the goal</Link>
       </div>
       {left > 0 && <p className="tiny muted">{left} to go</p>}
-      {/* A mistake is cheap to fix: check in again and the newer one becomes the week's status; both are kept. */}
-      <p className="small muted">Got something wrong? <Link className="linkish" to={`/check-in/${goal.id}`}>Correct this check-in</Link></p>
+      {/* A mistake is cheap to fix: the correction replaces this check-in, with a reason, and History keeps what it was. */}
+      <p className="small muted">Got something wrong? <Link className="linkish" to={`/check-in/${goal.id}?correct=1`}>Correct this check-in</Link></p>
     </div>
   );
 }
@@ -234,16 +237,22 @@ type Step = 'measure' | 'carry' | 'account';
  * something changed, one short account on one screen: what changed, what happens next, by when (Senior UX review,
  * finding 11). An on-plan goal is just the number. The button says Continue until the step that posts.
  */
-function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardRef }: { goal: Goal; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void; onDiscarded: () => void; onDrafting: (on: boolean) => void; discardRef: { current: () => void } }) {
+function GoalCheckIn({ goal, correct, onPosted, onSkip, onDiscarded, onDrafting, discardRef }: { goal: Goal; correct?: boolean; onPosted: (c: CheckIn, updated: boolean) => void; onSkip?: () => void; onDiscarded: () => void; onDrafting: (on: boolean) => void; discardRef: { current: () => void } }) {
   const app = useApp();
   const { week, cycle } = app;
   const own = app.checkInsOf(goal);
   // Already checked in this week? This one is added alongside it (ad hoc), starting from where the last one left off.
   const existing = [...own].reverse().find((c) => c.week === week) ?? null;
+  // A correction replaces the week's newest check-in (mode `correct`); with none this week there is nothing to correct.
+  const correcting = !!correct && !!existing;
+  const [reason, setReason] = useState('');
+  const reasonOk = reason.trim().length >= MIN_CORRECT_REASON;
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const nav = useNavigate();
   const previous = own[own.length - 1] ?? null;
   // What the new number is compared with: last week's, never this week's earlier check-in (rule 5).
   const lastNumber = previousFor(own, week).number;
-  const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week), () => emptyDraft(goal, previous));
+  const [draft, keep, clear, restored] = useDraft<Draft>(checkInDraftKey(app.ws.id, goal.id, week) + (correcting ? ':correct' : ''), () => emptyDraft(goal, previous));
   // Once something is typed it's a draft, and can be discarded.
   const [touched, setTouched] = useState(false);
   const set = (patch: Partial<Draft>) => { setTouched(true); keep(patch); };
@@ -346,8 +355,10 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
       const from = d.ptgState === 'help' ? app.person(helpFrom) : undefined;
       // The app names who it's for, so a "Elena:" typed at the start isn't doubled ("Elena Ruiz: Elena: ...").
       const ask = from ? d.ptgWhat.trim().replace(new RegExp(`^(${[from.name, from.name.split(' ')[0]!].map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:,–-]\\s*`, 'i'), '') : '';
-      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, existing ? 'again' : 'new');
+      const c = await app.postCheckIn(goal, { ...d, proposeTarget: '', ...(from ? { ptgWhat: ask, needs: `${from.name}: ${ask}` } : {}) }, correcting ? 'correct' : existing ? 'again' : 'new', correcting ? reason.trim() : undefined);
       clear();
+      // A correction goes to the goal, where History shows it; the toast says what changed, with Undo.
+      if (correcting) { nav(`/goals/${goal.id}`); return; }
       onPosted(c, !!existing);
     } catch {
       inFlight.current = false;
@@ -365,6 +376,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const storyOk = !e.codes.includes('story-unchanged');
   const primary = () => {
     if (step === 'measure') {
+      if (correcting && !reasonOk) { setTried(true); reasonRef.current?.focus(); return; }
       if (!valueOk || e.codes.includes('greener-why')) { setTried(true); return; }
       if (open.length) { setTried(true); checkRef.current?.focus(); return; }
       if (offer) { setTried(true); return; }
@@ -439,7 +451,9 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
         </Sheet>
       )}
       <GoalHead goal={goal} previous={existing ?? previous} compact={step !== 'measure'} teamLine={!isEveryday(app.cycle, goal.level) ? `${levelName(app.cycle, goal.level)} · ${team?.name ?? ''}` : team?.name} steps={{ at: stepNo, of: stepsOf }} />
-      {existing && step === 'measure' && <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>}
+      {existing && step === 'measure' && (correcting
+        ? <p className="hint">This replaces your week {week} check-in{goal.kind !== 'milestone' && existing.value != null ? ` (${fmt(existing.value, goal)})` : ''}. Its History keeps what it was, and why you changed it.</p>
+        : <p className="hint">You checked in for week {week} already. This adds another check-in: both stay in the history, and the latest is this week’s status.</p>)}
       {restored && step === 'measure' && <p className="hint">Picked up where you left off.</p>}
 
       {step === 'measure' && (
@@ -514,6 +528,15 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
             </>
           )}
           <StatusSheet open={statusOpen} onClose={() => setStatusOpen(false)} e={e} draft={draft} set={set} milestoneDone={goal.kind === 'milestone' && e.calc === 'done'} />
+          {/* A correction says why, so anyone reading the week later knows (rule 8: "Why corrected" in History). */}
+          {correcting && (
+            <label className="field ci-correct-why">
+              <span className="field-label">Why are you changing it?</span>
+              <textarea ref={reasonRef} className={'input' + (tried && !reasonOk ? ' invalid' : '')} rows={2} value={reason} onChange={(ev) => setReason(ev.target.value)}
+                placeholder="e.g. I read last week’s dashboard by mistake" aria-invalid={tried && !reasonOk} aria-describedby={tried && !reasonOk ? 'reason-msg' : undefined} />
+              {tried && !reasonOk && <MustFixLine id="reason-msg">Say why, in a sentence, so anyone reading week {week} later knows.</MustFixLine>}
+            </label>
+          )}
         </section>
       )}
 
