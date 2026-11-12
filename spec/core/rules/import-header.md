@@ -51,3 +51,4 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - rule 3: the header row › a header one letter out is near
 - rule 3: the header row › readTables keeps each row’s number in the sheet, says the header row, and doesn’t list a near header as not read
 - rule 3 in the engine (every door) › asks once about a header one letter out, and reads it once answered
+- rule 3 in the engine (every door) › reads a header that differs only by punctuation, an accent or spacing as its column (#199 review)
