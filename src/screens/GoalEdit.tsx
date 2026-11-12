@@ -17,7 +17,7 @@ import { PlanTable } from '../ui/PlanTable';
 import { FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { FixLine } from '../ui/Levels';
 import { WeekPick } from '../ui/WeekPick';
-import { lastWeekOffered } from '../domain/weeks';
+import { defaultTo } from '../domain/weeks';
 import { spanSays } from '../domain/weekChoices';
 import { parseNumber } from '../domain/checkin';
 import { FormClose } from '../ui/FormClose';
@@ -107,9 +107,9 @@ function EditSheet({ goal }: { goal: Goal }) {
       onChange={(c) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest }); }} alertSlot={tried ? open[0]?.slot ?? null : null} />
   );
   // From and To (rule 13), picked; and the plan from the shape (before any numbers typed by hand), for the plan table.
-  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal });
+  const span = planSpanOf(d, { week, cycleWeeks: cycle.weeks, existing: goal, startDate: cycle.startDate });
   const endChoice = span.to;
-  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(n < cycle.weeks ? cycle.weeks : lastWeekOffered(cycle)) } : {}) });
+  const setFrom = (n: number) => set({ fromWeek: String(n), points: {}, ...(span.to <= n ? { endWeek: String(defaultTo(cycle, n)) } : {}) });
   const shapedPlan = goal.kind === 'metric' && parseNumber(d.start) != null && parseNumber(d.target) != null && parseNumber(d.start) !== parseNumber(d.target)
     ? { start: parseNumber(d.start) as number, target: parseNumber(d.target) as number, shape: d.shape, ...(span.from ? { fromWeek: span.from } : {}), ...(endChoice !== cycle.weeks ? { endWeek: endChoice } : {}) }
     : null;

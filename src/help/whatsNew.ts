@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'weeks-picked-steadier',
+    date: '2026-11-12',
+    title: 'Weeks in files and the week list: fewer surprises',
+    points: [
+      'A file with To filled in and Due week left empty now loads; a To before From says so in its own words.',
+      'In a file with no Start column, a bare number under From is asked about: it may be where the goal starts, not a week.',
+      'In the year’s last week, a new goal runs to the end of next year unless you choose otherwise.',
+      'In the week list, the highlight follows the pointer only when it moves, and Escape or Tab away closes the list.',
+    ],
+    articles: ['import', 'new-goal'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',
