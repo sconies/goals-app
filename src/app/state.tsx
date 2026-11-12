@@ -8,6 +8,7 @@ import type { GoalDraft } from '../domain/goal';
 import type { SaveGoalInput } from '../domain/goalEntry';
 import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
+import { invitedTo } from '../domain/dayOne';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
@@ -86,7 +87,8 @@ export interface AppState {
   week: number;
   today: Date;
   viewer: Person;
-  setViewer(id: string): void;
+  /** Say who you are here (the picker). `arriving`: chosen on the arrival screen, so the log says so once (rule S4). */
+  setViewer(id: string, arriving?: boolean): void;
   person(id: string): Person | undefined;
   /** A person's name, with their team or job title beside it when someone else here has the same name (backlog N). */
   personName(id: string): string;
@@ -230,6 +232,14 @@ export interface SetupState {
   today: Date;
   hasWorkspaces: boolean;
   createWorkspace(name: string, data: Snapshot, meId?: string, recording?: boolean): Promise<string>;
+  /** Every workspace the store lists, once `listed`; the one open (or opening), if any. */
+  workspaces: Workspace[];
+  listed: boolean;
+  openId: string | null;
+  /** Open a workspace someone chose (Welcome's Open, an invitation), and remember it on this device. */
+  open(id: string): void;
+  /** What this device remembers (Welcome, set-up spec 2.1): each workspace you've said who you are in, last opened first. */
+  remembered(): { ws: Workspace; me: string; week: number | null }[];
   toasts: Toast[];
   toast(text: string, kind?: Toast['kind']): void;
 }
@@ -282,6 +292,8 @@ export const correctedLine = (summary: string) => {
   return a ? `Week ${a[1]} added: ${a[2]}.` : summary;
 };
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+type Seen = Record<string, { me: string; at: string; startDate?: string; weeks?: number }>;
+const readSeen = (k: string): Seen => { try { return (JSON.parse(read(k) ?? '{}') as Seen) ?? {}; } catch { return {}; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 /** Now, as the person's own wall-clock time: weeks turn over at their midnight on Sunday, wherever they are. */
 const wallClock = (clock: Clock) => () => {
@@ -326,7 +338,7 @@ export const useToasts = () => useContext(ToastCtx);
 export function AppProvider({ store, identity: given, mode = 'demo', clock = systemClock, today: pinned, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
   const today = useMemo(() => pinned ?? wallClock(clock), [pinned, clock]);
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
-  const K = mode === 'demo' ? { ws: 'goals-app-workspace' } : { ws: 'goals-live-workspace' };
+  const K = mode === 'demo' ? { ws: 'goals-app-workspace', seen: 'goals-app-seen' } : { ws: 'goals-live-workspace', seen: 'goals-live-seen' };
   // Who is viewing (src/ports Identity), passed in beside the store: the "Who are you?" picker unless a sign-in is given.
   const identity = useMemo(() => given ?? viewerPicker(mode), [given, mode]);
   // Outside the demo, a save needs someone signed in (or chosen): set as the snapshot is worked out below.
@@ -338,11 +350,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   workspacesNow.current = workspaces;
   /** The feature switch saving now, if any: the next waits for it (setModule). */
   const moduleSwitches = useRef<Promise<void>>(Promise.resolve());
-  // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
-  // workspace they were invited to, not whichever one this browser or the site would open first.
-  const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
+  // An invitation names its workspace (/join/<id>; the link /ready copied before, /?workspace=<id>, leads there), so a
+  // colleague opens the workspace they were invited to and nothing else, whatever this browser had open (set-up ST1).
+  const [invited] = useState(() => { try { return invitedTo(location.pathname, location.search); } catch { return null; } });
   const [wsId, setWsId] = useState<string | null>(() => invited || read(K.ws) || (examplesOf(store) ? EXAMPLE.id : null));
+  // Nothing open: no workspace yet, or none chosen on this device (Welcome), or an invitation to one that isn't there.
   const [empty, setEmpty] = useState(false);
+  const [listed, setListed] = useState(false);
   // The snapshot and the workspace it belongs to travel together, so a save can never go to a different workspace
   // than the one on screen, even while another one is loading.
   const [loaded, setLoaded] = useState<{ ws: string; snap: Snapshot; at: number } | null>(null);
@@ -359,6 +373,8 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
   const [noEntry, setNoEntry] = useState<NoEntry | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
+  // Someone who just chose their name on the arrival screen: their arrival is logged once the app acts as them (rule S4).
+  const arriving = useRef<string | null>(null);
 
   const toast = useCallback((text: string, kind: Toast['kind'] = 'success', action?: ToastAction) => {
     const id = ++toastId.current;
@@ -395,15 +411,16 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       const list = await store.workspaces();
       if (!live) return;
       setWorkspaces(list);
-      const id = wsId && list.some((w) => w.id === wsId) ? wsId : list[0]?.id ?? null;
+      setListed(true);
+      // Only a workspace someone chose opens: one this browser remembers, or the one an invitation names. A browser that
+      // remembers none goes to Welcome, never to whichever workspace the store lists first (set-up spec W1). A sign-in
+      // that can't be chosen (the internal app's shape) opens the first it may (SR1 is the platform's to finish).
+      const id = wsId && list.some((w) => w.id === wsId) ? wsId : identity.choose ? null : list[0]?.id ?? null;
       if (!id) { setEmpty(true); setLoaded(null); return; }
       setEmpty(false);
       if (id !== wsId) { write(K.ws, id); setWsId(id); return; }
-      // Opened from an invitation: remembered like a switch, and the address no longer names it.
-      if (invited && id === invited && read(K.ws) !== id) {
-        write(K.ws, id);
-        try { const u = new URL(location.href); u.searchParams.delete('workspace'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* no history */ }
-      }
+      // Opened from an invitation: remembered like a switch.
+      if (invited && id === invited && read(K.ws) !== id) write(K.ws, id);
       const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
       const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
@@ -697,7 +714,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         moduleSwitches.current = step.catch(() => undefined);
         return step;
       },
-      setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
+      setViewer: (id, arrival) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); if (arrival) arriving.current = id; setViewerId(id); },
       person: (id) => people.get(id),
       personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
@@ -814,7 +831,37 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
     });
   }, [loaded, wanted, viewerId, noEntry, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
-  const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
+  // The arrival, logged as the person who arrived, once the app acts as them (rule S4: domain/actions arrive).
+  useEffect(() => {
+    if (!value || !arriving.current || !value.viewerChosen || value.viewer.id !== arriving.current) return;
+    arriving.current = null;
+    void value.run('arrive', {}).catch(() => undefined);
+  }, [value]);
+
+  // What this device remembers for Welcome: each workspace you are someone in, as whom, and its year, by when last opened.
+  const seenKey = value && value.viewerChosen && value.ws.kind !== 'example' ? `${value.ws.id}\t${value.viewer.id}` : null;
+  useEffect(() => {
+    if (!seenKey || !value) return;
+    const all = readSeen(K.seen);
+    all[value.ws.id] = { me: value.viewer.name, at: clock().toISOString(), startDate: value.cycle.startDate, weeks: value.cycle.weeks };
+    write(K.seen, JSON.stringify(all));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seenKey]);
+
+  const setup = useMemo<SetupState>(() => ({
+    mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast, workspaces, listed, openId: wsId,
+    open: (id) => { write(K.ws, id); setWsId(id); },
+    remembered: () => {
+      const seen = readSeen(K.seen);
+      return workspaces.filter((w) => seen[w.id] && w.kind !== 'example').sort((a, b) => (seen[a.id]!.at < seen[b.id]!.at ? 1 : -1)).map((w) => {
+        const s = seen[w.id]!;
+        const week = s.startDate && s.weeks ? currentWeek({ startDate: s.startDate, weeks: s.weeks } as Cycle, today()) : null;
+        return { ws: w, me: s.me, week: week != null && week >= 1 && week <= (s.weeks ?? 0) ? week : null };
+      });
+    },
+    // K is derived from mode, which never changes while the app runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [mode, today, workspaces, createWorkspace, toasts, toast, listed, wsId]);
 
   let body: ReactNode;
   if (error) {

@@ -5,7 +5,7 @@ import { usePrefs } from '../app/search';
 import { useGoalCounts, useGoalList } from '../app/goals';
 import { EMPTY_QUERY } from '../domain/query';
 import { countList } from '../domain/order';
-import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
+import { gettingStarted, inviteLink, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
 import { dayOneRows, homeFacts, wrapUpScope } from '../app/reads';
 import { useApp } from '../app/state';
@@ -325,7 +325,7 @@ function GettingStarted() {
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
   const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today) }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
   if (!rows.length) return null;
-  const invite = `${location.origin}${app.mode === 'demo' ? '/demo' : ''}/?workspace=${encodeURIComponent(app.ws.id)}`;
+  const invite = inviteLink(location.origin, app.mode, app.ws.id);
   return (
     <section className="block getting-started" aria-labelledby="getting-started" data-part="Getting started">
       <h2 className="block-title" id="getting-started">Getting started</h2>
