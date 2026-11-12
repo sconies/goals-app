@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'mcp-keys-pages',
+    date: '2026-11-12',
+    title: 'AI assistants get the right key and a page of goals at a time',
+    points: [
+      'When an AI assistant adds goals, the key it is told is the one the goal holds once saved, even when someone else adds a goal at the same moment.',
+      'A dry run says the key each new goal would get and no ID yet; a change that isn’t saved lists no new goals.',
+      'Finding goals answers 50 at a time, with how many match in all and how to ask for the next page.',
+      'History’s key now has None due and Not applicable, and a goal’s printed page says Not applicable for a quarter that ended before it was set up, as its page does.',
+    ],
+    articles: ['ai-assistants', 'history'],
+  },
+  {
     id: 'proposed-fixes',
     date: '2026-11-12',
     title: 'Proposed goals, four fixes',

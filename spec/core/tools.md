@@ -127,7 +127,7 @@ No arguments.
 
 ## find_goals
 
-**Find goals.** List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “Off track (off)”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the Needs attention list (flagged for something new that nobody has picked up yet, then those being handled below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.
+**Find goals.** List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “Off track (off)”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the Needs attention list (flagged for something new that nobody has picked up yet, then those being handled below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal. Answers as JSON, the same keys every time: week, weeks, total (how many match), offset, goals (at most limit of them, 50 unless asked), more (how to ask for the next page, or null) and why (why nothing matches, or null).
 
 **Kind:** reads. Hints: readOnlyHint true, openWorldHint false.
 
@@ -145,6 +145,8 @@ No arguments.
 | `query` | string | no | A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (Off track (off), At risk (risk), No recent update (stale), No check-in yet (none), On track (on), Done (done), Not started (planned)), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the Needs attention list, those being handled below the rest), needs (because: Off track (off), Missed its own date (missed-path), No recent update (stale), Decision or help needed (decision), No path to green (no-path), At risk (risk), Getting worse (trend), Greener than calculated (greener), Date slipped (slipped)), due (quarter or a week), quiet (no update for this many weeks), qtr (Met (met), Not met (missed)), result (Met (completed), Met late (late), Not met (missed), Not finished yet (open)), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse). |
 | `view` | string | no | The name of a saved view: one of yours, or one pinned for everyone. |
 | `state` | one of `active`, `proposed` | no | active (the default) or proposed: proposed goals have no status and are listed only when asked for. |
+| `limit` | integer | no | How many goals to list, from offset: 50 unless asked, at most 200. |
+| `offset` | integer | no | How many matching goals to skip, for the next page (as “more” says). |
 
 <details><summary>The input schema, as JSON</summary>
 
@@ -207,6 +209,17 @@ No arguments.
         "active",
         "proposed"
       ]
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "description": "How many goals to list, from offset: 50 unless asked, at most 200."
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many matching goals to skip, for the next page (as “more” says)."
     }
   }
 }
@@ -2116,15 +2129,7 @@ No arguments.
 ```
 
 ```ts
-{
-    articles: {
-        id: string;
-        title: string;
-        summary: string;
-        group: string;
-        path: string;
-    }[];
-}
+{}
 ```
 
 **Refuses with:**
@@ -2212,15 +2217,7 @@ No arguments.
 **Gives back:** the text, and `data`:
 
 ```ts
-{
-    entries: {
-        id: string;
-        date: string;
-        title: string;
-        points: string[];
-        articles: string[];
-    }[];
-}
+{}
 ```
 
 **Refuses with:**

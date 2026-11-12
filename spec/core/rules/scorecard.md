@@ -155,6 +155,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - quarters read off the owner’s plan › counts a template’s stage weeks from now, within the year (research round 1)
 - quarters read off the owner’s plan › keeps the latest number judged against the plan of its own week after a later re-plan (research round 2)
 - a quarter that ended before the goal was set up (MCP load, 12 Nov) › is never judged, whatever week the baseline is from, and says why
+- a quarter that ended before the goal was set up (MCP load, 12 Nov) › says the same word on every screen: Not applicable, then In progress (#239’s review)
 - a quarter that ended before the goal was set up (MCP load, 12 Nov) › even with numbers loaded for those weeks
 - a quarter that ended before the goal was set up (MCP load, 12 Nov) › raises no “Last quarter not met” on its story
 - a quarter that ended before the goal was set up (MCP load, 12 Nov) › a goal set up during a quarter is still judged on it
