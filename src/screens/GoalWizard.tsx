@@ -102,7 +102,10 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const shown = tried.includes(step);
   // A Must fix shows under its field once the field has been changed and left, and for every field on Continue; never while typing.
   const [left, setLeft] = useState<GoalField[]>([]);
-  const leave = (f: GoalField) => () => { if (!left.includes(f)) setLeft((l) => [...l, f]); };
+  // Not when the field is left by pressing a button (Continue, Add a stage): showing it then would move the button from
+  // under the pointer before the press lands; Continue shows every Must fix on the step anyway.
+  const pressing = useRef(false);
+  const leave = (f: GoalField) => () => { if (!pressing.current && !left.includes(f)) setLeft((l) => [...l, f]); };
   const showsFor = (f: GoalField) => shown || left.includes(f);
   const errorOf = (f: GoalField) => (showsFor(f) ? fix.find((x) => x.field === f) : undefined);
   const showErr = (f: GoalField) => { const e = errorOf(f); return e ? <FieldError id={`${f}-fix`}>{e.text}</FieldError> : null; };
@@ -223,7 +226,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
         <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
       </div>
       {firstBad != null && <Navigate replace to={at(firstBad)} />}
-      <form className="focus-body" onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
+      <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
         {restored && !asking && (
           <div className="restored small" role="status">Picked up the goal you hadn’t published. <button type="button" className="linkish" onClick={() => setAsking(true)}>Start a new one</button></div>
         )}

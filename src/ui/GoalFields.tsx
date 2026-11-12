@@ -133,7 +133,7 @@ export function StageFields({ stages, onChange, onAdd, error, rowErrors, labelCl
 
 /** The stage rows' own Must fix, from goal entry's rule 2: a name twice or missing under the name, a week under the week. */
 export const stageErrors = (fix: readonly MustFix[]): StageError[] =>
-  fix.filter((f) => f.field === 'stages').map((f) => ({ row: f.row ?? 0, field: f.id === 'stage-name' || f.id === 'stage-twice' ? 'name' : f.id === 'stage-week' ? 'week' : 'row', text: f.text }));
+  fix.filter((f) => f.field === 'stages').map((f) => ({ row: f.row ?? 0, field: f.id === 'stage-name' || f.id === 'stage-twice' || f.id === 'stage-none' ? 'name' : f.id === 'stage-week' ? 'week' : 'row', text: f.text }));
 
 /**
  * Decimals, worked out (goal entry 2.4, item 4): no field, one line under the numbers, "Kept as whole numbers, as you

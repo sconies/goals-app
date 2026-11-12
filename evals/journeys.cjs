@@ -4731,7 +4731,7 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await p.waitForURL(/\/goals\/new\/who(\?|$)/);
   // Anyone may choose anyone as owner (Lane, 11 Nov): said, so nobody is surprised who can change it afterwards.
   await pickIn(p, /^Owner · checks in weekly/, 'amara', /Amara/);
-  await see(p, 'Amara will own it. After it is published, only Amara or an admin can change it.', 'choosing Amara as owner doesn’t say who can change it after');
+  h.set('attention', await p.getByRole('status').filter({ hasText: 'Amara will own it. After it is published, only Amara or an admin can change it.' }).isVisible(), 'choosing Amara as owner doesn’t say who can change it after');
   await h.checkpoint('who');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
@@ -4742,7 +4742,8 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.fill(p.getByLabel(/^Target \(week/), '30 mins');
   h.set('errors', !(await p.getByRole('alert').filter({ hasText: 'has words in it' }).count()), 'a Must fix shows while typing');
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  await see(p, '2 things to fix above: Today and Target.', 'the line above the button doesn’t count the two things to fix');
+  const line = await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)');
+  h.set('errors', line.trim() === '2 things to fix above: Today and Target.', `the line above the button says “${line.trim()}”, not “2 things to fix above: Today and Target.”`);
   const startFix = await p.getByRole('alert').filter({ hasText: 'Enter where it starts today.' }).isVisible();
   const targetFix = await p.getByRole('alert').filter({ hasText: '“30 mins” has words in it. Type the number only, like 30; the unit goes in Unit.' }).isVisible();
   const focused = await p.evaluate(() => document.activeElement?.getAttribute('data-field'));
