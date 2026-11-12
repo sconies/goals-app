@@ -521,7 +521,7 @@ const portsAtScale = () => GENERATED + [
   '## Gaps in the kit',
   '',
   '- Of the query port, Faro has `goals()`, `counts()` and `goal()` (`src/ports/goals.ts`) with a contract; the other calls (`people()`, `teams()`, `activity()`, `asksFor()`, `review()`) are still sketches, and the command port has no contract test: [the actions](../core/actions.md) say what each command takes, gives back and refuses, but nothing runs them against a server yet. The command port’s calling side does exist (`app.run`, above), but its body still runs the rule in the browser and saves through `Store`.',
-  '- Most rule functions take a whole `Snapshot`; which records each action and rule actually reads isn’t listed anywhere, so step 3 starts by finding out. Being handled is the exception: [accepting scale](scale.md) lists what it reads, one goal’s records, and a company-size workspace to test against.',
+  '- Most rule functions take a whole `Snapshot`. [What each action and summary reads](reads.md) lists, worked out by running them, the records each action uses and the lists it reads whole today, which is where step 3 starts; and proves a goal’s summary row, being handled included, needs only that goal’s own records. [Accepting scale](scale.md) has a company-size workspace to test against.',
   '- Home’s goal list and counts and Goals’ filtered list and counts read through the query port; the other screens, and the rest of Home and Goals (trees, groups, reviews, asks), read the app’s loaded state directly, and which query each needs isn’t listed.',
   '- Goal keys are worked out in the rules and again by a database trigger (`supabase/migrations/0021_goal_keys.sql`); at company scale the server’s is the one that counts.',
   '',
