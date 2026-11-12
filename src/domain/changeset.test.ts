@@ -67,7 +67,7 @@ describe('bulk changes', () => {
     ] }));
     expect(real(cs)).toEqual([]);
     // Matched by a name only one person has, and said so.
-    expect(cs.issues).toEqual([expect.objectContaining({ severity: 'note', message: expect.stringMatching(/“Mateo Fernández” matched by name/) })]);
+    expect(cs.issues).toEqual([expect.objectContaining({ severity: 'note', message: expect.stringMatching(/“Mateo Fernández” matched by name/) }), expect.objectContaining({ kind: 'default', message: expect.stringMatching(/the owner’s team; the row gave none/) })]);
     expect(cs.counts).toEqual(expect.objectContaining({ newGoals: 1, goals: 1 }));
     const after = applyCommit(s, cs.commit!);
     const fresh = after.goals.find((g) => g.title === 'Runbooks with an owner')!;

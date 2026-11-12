@@ -23,7 +23,8 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
   // The questions, one per group; a plan question keeps its own block below (with the reason it may need).
   const checks = cs.groups.filter((g) => g.level === 'check' && g.kind !== 'plan-question');
   // Questions answered here: shown closed, with Change, until the file is chosen again.
-  const answered = cs.groups.length ? Object.keys(answers).filter((id) => !cs.groups.some((g) => g.id === id)) : [];
+  // (Kept after the last question is answered, when no group is left: IM2 review.)
+  const answered = Object.keys(answers).filter((id) => !cs.groups.some((g) => g.id === id));
   const fixable = cs.groups.filter((g) => g.level === 'must' && usable(g).length);
   // What each answer was to, so its closed line says "{what was asked}: {answer}".
   const [said, setSaid] = useState<Record<string, { title: string; label: string }>>({});
@@ -40,7 +41,7 @@ export function Preview({ cs, name, reason, setReason, onConfirm, answers = {}, 
     <div className="change-review">
       <section className="block">
         <span className="hint">{name}</span>
-        <p className="lede">{total ? describe(cs) + '.' : errors.length ? `${errors.length} ${errors.length === 1 ? 'row has' : 'rows have'} a problem, so the file can’t be checked yet. Nothing has been saved.` : 'Nothing in this file changes anything.'}{cs.unchanged ? ` ${cs.unchanged} ${cs.unchanged === 1 ? 'row is' : 'rows are'} the same as now.` : ''}</p>
+        <p className="lede">{total ? describe(cs) + '.' : errors.length ? `${errors.length} ${errors.length === 1 ? 'row has' : 'rows have'} a problem, so the file can’t be checked yet. Nothing has been saved.` : checks.length ? 'Answer the questions below to see what will change. Nothing has been saved.' : 'Nothing in this file changes anything.'}{cs.unchanged ? ` ${cs.unchanged} ${cs.unchanged === 1 ? 'row is' : 'rows are'} the same as now.` : ''}</p>
       </section>
 
       {errors.length > 0 && (
@@ -146,10 +147,10 @@ function GroupQuestion({ g, onAnswer }: { g: IssueGroup; onAnswer: (g: IssueGrou
 }
 
 /** "wk 3: 12, wk 4: 14" as weeks and values. */
-const planWeeks = (s: string) => [...s.matchAll(/wk (\d+): ([^,]+)/g)].map((m) => ({ week: Number(m[1]), value: m[2]!.trim() }));
+export const planWeeks = (s: string) => [...s.matchAll(/wk (\d+): ([^,]+)/g)].map((m) => ({ week: Number(m[1]), value: m[2]!.trim() }));
 
 /** A plan change as a table: each week whose number changes, what it was and what it will be. */
-function PlanDiff({ d, goal, weeks }: { d: Diff; goal?: Goal; weeks: number }) {
+export function PlanDiff({ d, goal, weeks }: { d: Diff; goal?: Goal; weeks: number }) {
   const was = new Map(planWeeks(d.from).map((x) => [x.week, x.value]));
   const rows = planWeeks(d.to).map((x) => ({ ...x, was: was.get(x.week) ?? (goal?.kind === 'metric' ? fmt(planAt(goal.plan, x.week, weeks), goal) : '—') })).filter((x) => x.was !== x.value);
   if (!rows.length) return null;

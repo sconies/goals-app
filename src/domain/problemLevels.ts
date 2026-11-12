@@ -100,7 +100,13 @@ export const SHEET_ORDER: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
 export interface Choice { choice: string; label: string; needsValue?: boolean; options?: string[] }
 
 /** An answer to one group (rule 7): its choice, a value for a choice that needs one, and rows not covered by it. */
-export interface Answer { choice: string; value?: string; except?: number[] }
+export interface Answer {
+  choice: string;
+  value?: string;
+  except?: number[];
+  /** The cells' own values the answer was given for (an unlikely number's): a different number is asked again. */
+  covers?: string[];
+}
 export type Answers = Record<string, Answer>;
 
 /**
@@ -122,6 +128,8 @@ export interface Issue {
   suggest?: string;
   message: string;
   answers?: Choice[];
+  /** The cell's own text, where the group's `found` is a kind of value (an unlikely number): what an answer covers. */
+  value?: string;
   group: string;
   goal: string;
   severity: 'error' | 'warning' | 'note';
@@ -132,11 +140,11 @@ export const groupId = (kind: IssueKind, sheet: Sheet, column?: string, found?: 
   [kind, sheet, column ?? '', fold(found ?? '')].map((p) => p.replace(/\s+/g, '-')).join(':').toLowerCase();
 
 /** An issue, with its level and group worked out from its kind. */
-export function issueOf(kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: { column?: string; found?: string; suggest?: string; answers?: Choice[] } = {}): Issue {
+export function issueOf(kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: { column?: string; found?: string; suggest?: string; answers?: Choice[]; value?: string } = {}): Issue {
   const level = levelOf(kind);
   return {
     sheet, row, name, kind, level, message, group: groupId(kind, sheet, x.column, x.found), goal: name, severity: SEVERITY[level],
-    ...(x.column ? { column: x.column } : {}), ...(x.found != null && x.found !== '' ? { found: x.found } : {}), ...(x.suggest ? { suggest: x.suggest } : {}), ...(x.answers?.length ? { answers: x.answers } : {}),
+    ...(x.column ? { column: x.column } : {}), ...(x.found != null && x.found !== '' ? { found: x.found } : {}), ...(x.suggest ? { suggest: x.suggest } : {}), ...(x.answers?.length ? { answers: x.answers } : {}), ...(x.value != null ? { value: x.value } : {}),
   };
 }
 
@@ -207,6 +215,8 @@ export interface IssueGroup {
   /** One row's own sentence, as an example. */
   example: string;
   answers: Choice[];
+  /** Its rows' own values, where they differ under one question (an unlikely number): what an answer covers. */
+  values?: string[];
 }
 
 const n = (k: number, one: string, many = one + 's') => `${k} ${k === 1 ? one : many}`;
@@ -274,6 +284,7 @@ export function groupIssues(issues: readonly Issue[]): IssueGroup[] {
       id, level: first.level, kind: first.kind, sheet: first.sheet,
       ...(first.column ? { column: first.column } : {}), ...(first.found ? { found: first.found } : {}), ...(first.suggest ? { suggest: first.suggest } : {}),
       title: groupTitle(first.kind, first.sheet, list.length, first), where: whereText(first.sheet, rows), rows, count: list.length, example: first.message, answers: first.answers ?? [],
+      ...(list.some((x) => x.value != null) ? { values: [...new Set(list.flatMap((x) => (x.value != null ? [x.value] : [])))] } : {}),
     };
   }).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || b.count - a.count);
 }

@@ -1,0 +1,39 @@
+/* The import's preview and changes (backlog IM3; import spec 2.3, 2.4). Must fix and Check are the shared level blocks
+   (src/ui/Levels: a wash with a full outline, the warning mark and the word); counts are plain numbers. No edge stripes,
+   no capsules, no emoji (docs/design-rules.md). */
+.import-check { gap: var(--s4); }
+.import-file-line { overflow-wrap: anywhere; }
+.import-section { gap: var(--s3); }
+.import-section > .h2, .import-nothing > .h2 { margin: 0; }
+.import-counts-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.import-counts-table th, .import-counts-table td { padding: var(--s2) var(--s2); border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; }
+.import-counts-table thead th { color: var(--muted); font-size: 0.75rem; }
+.import-counts-table tbody th { font-weight: 550; }
+.import-counts-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.import-counts-lines { display: none; margin: 0; padding: 0; list-style: none; flex-direction: column; gap: var(--s1); font-size: var(--t-sm); }
+@media (max-width: 699px) {
+  .import-counts-table { display: none; }
+  .import-counts-lines { display: flex; }
+}
+.import-group { gap: var(--s2); }
+.import-answers { display: flex; flex-direction: column; gap: var(--s1); margin: 0; padding: 0; border: 0; min-width: 0; }
+.import-answer { display: flex; align-items: center; gap: var(--s2); min-height: 44px; cursor: pointer; }
+.import-answer input { width: 18px; height: 18px; margin: 0; flex: none; }
+.import-value { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.import-value .input { flex: 1 1 200px; min-width: 0; min-height: 44px; }
+.import-value .btn { min-height: 44px; }
+.import-show { min-height: 44px; }
+.import-rows { overflow-x: auto; max-width: 100%; }
+.import-rows-table { border-collapse: collapse; font-size: var(--t-sm); width: 100%; }
+.import-rows-table th, .import-rows-table td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.import-rows-table .num { text-align: right; font-variant-numeric: tabular-nums; width: 4em; }
+.import-fix-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.import-fix-actions > * { min-height: 44px; }
+.import-answered { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: 10px; font-size: var(--t-sm); }
+.import-answered .btn { min-height: 44px; flex: none; }
+.import-nothing { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); }
+.import-nothing p { margin: 0; }
+.import-shows button { min-height: 44px; }
+.import-changes { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
+.import-change { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.import-leave-list { max-height: 40vh; overflow: auto; }

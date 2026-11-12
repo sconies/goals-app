@@ -513,6 +513,17 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     reviews.push({ ...asBefore(cur, before), version: cur.version });
   }
   const teams = (u.teams ?? []).flatMap(({ id, before }) => (before && full.teams.some((t) => t.id === id) ? [before] : []));
+  // A team the import added goes again, once nothing left in the workspace sits in it: its goals and people go back above.
+  const goneGoals = new Set(goals.filter((g) => g.removedAt).map((g) => g.id));
+  const gonePeople = new Set(people.filter((p) => p.removedAt).map((p) => p.id));
+  const removeTeams = (u.teams ?? []).filter(({ id, before }) => !before && full.teams.some((t) => t.id === id)
+    && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id))
+    && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !gonePeople.has(p.id))).map(({ id }) => id);
+  for (const id of removeTeams) changes.push(log(x, { entity: 'workspace', entityId: id, action: 'removed', summary: `Removed the team “${full.teams.find((t) => t.id === id)!.name}”: an import that added it was undone`, diffs: [{ field: 'Team', from: full.teams.find((t) => t.id === id)!.name, to: '—' }], importId }));
+  // What the import added and Undo removes keeps a team that exists, so restoring it later finds one.
+  const home = full.teams.find((t) => !removeTeams.includes(t.id))?.id;
+  if (home) for (const list of [goals, people] as { teamId: string | null }[][]) for (const r of list) if (r.teamId && removeTeams.includes(r.teamId)) r.teamId = home;
+  for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push(`The team ${full.teams.find((t) => t.id === id)!.name}: has goals or people since`);
   for (const { id, before } of u.requests) {
     const cur = asksOf(full).find((r) => r.id === id);
     if (!cur) continue;
@@ -526,7 +537,7 @@ export function undoImport(x: ActionContext, importId: string): { commit: Commit
     summary: `Undid ${entry!.summary.replace(/:.*$/, '').toLowerCase()}: ${plural(restored, 'row', 'rows')} put back${skipped.length ? `, ${skipped.length} skipped as changed since` : ''}`,
     diffs: [{ field: 'Import', from: entry!.summary, to: 'Undone' }, ...(skipped.length ? [{ field: 'Skipped', from: '—', to: skipped.join('; ') }] : [])],
   }));
-  return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), changes } };
+  return { restored, skipped, commit: { ...(goals.length ? { goals } : {}), ...(checkIns.length ? { checkIns } : {}), ...(people.length ? { people } : {}), ...(requests.length ? { requests } : {}), ...(reviews.length ? { reviews } : {}), ...(teams.length ? { teams } : {}), ...(removeTeams.length ? { removeTeams } : {}), changes } };
 }
 
 /* ---------- recently removed, and restoring ---------- */

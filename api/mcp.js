@@ -8280,6 +8280,26 @@ function undoImport(x, importId) {
 		});
 	}
 	const teams = (u.teams ?? []).flatMap(({ id, before }) => before && full.teams.some((t) => t.id === id) ? [before] : []);
+	const goneGoals = new Set(goals.filter((g) => g.removedAt).map((g) => g.id));
+	const gonePeople = new Set(people.filter((p) => p.removedAt).map((p) => p.id));
+	const removeTeams = (u.teams ?? []).filter(({ id, before }) => !before && full.teams.some((t) => t.id === id) && !full.goals.some((g) => g.teamId === id && !g.removedAt && !goneGoals.has(g.id)) && !full.people.some((p) => p.teamId === id && !p.removedAt && !p.leftAt && !gonePeople.has(p.id))).map(({ id }) => id);
+	for (const id of removeTeams) changes.push(log$1(x, {
+		entity: "workspace",
+		entityId: id,
+		action: "removed",
+		summary: `Removed the team “${full.teams.find((t) => t.id === id).name}”: an import that added it was undone`,
+		diffs: [{
+			field: "Team",
+			from: full.teams.find((t) => t.id === id).name,
+			to: "—"
+		}],
+		importId
+	}));
+	const home = full.teams.find((t) => !removeTeams.includes(t.id))?.id;
+	if (home) {
+		for (const list of [goals, people]) for (const r of list) if (r.teamId && removeTeams.includes(r.teamId)) r.teamId = home;
+	}
+	for (const { id, before } of u.teams ?? []) if (!before && !removeTeams.includes(id) && full.teams.some((t) => t.id === id)) skipped.push(`The team ${full.teams.find((t) => t.id === id).name}: has goals or people since`);
 	for (const { id, before } of u.requests) {
 		const cur = asksOf(full).find((r) => r.id === id);
 		if (!cur) continue;
@@ -8321,6 +8341,7 @@ function undoImport(x, importId) {
 			...requests.length ? { requests } : {},
 			...reviews.length ? { reviews } : {},
 			...teams.length ? { teams } : {},
+			...removeTeams.length ? { removeTeams } : {},
 			changes
 		}
 	};
@@ -8647,7 +8668,8 @@ function issueOf(kind, sheet, row, name, message, x = {}) {
 		...x.column ? { column: x.column } : {},
 		...x.found != null && x.found !== "" ? { found: x.found } : {},
 		...x.suggest ? { suggest: x.suggest } : {},
-		...x.answers?.length ? { answers: x.answers } : {}
+		...x.answers?.length ? { answers: x.answers } : {},
+		...x.value != null ? { value: x.value } : {}
 	};
 }
 /** "Goals, row 5"; "Goals, rows 18 to 31"; "Goals, rows 2 to 4 and 9"; over three runs, the first three and "and 12 more". */
@@ -8734,7 +8756,8 @@ function groupIssues(issues) {
 			rows,
 			count: list.length,
 			example: first.message,
-			answers: first.answers ?? []
+			answers: first.answers ?? [],
+			...list.some((x) => x.value != null) ? { values: [...new Set(list.flatMap((x) => x.value != null ? [x.value] : []))] } : {}
 		};
 	}).sort((a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level] || b.count - a.count);
 }
@@ -8993,6 +9016,17 @@ function planChanges(input) {
 	const items = [];
 	const leftOut = [];
 	let unchanged = 0;
+	const unchangedBy = {
+		Goals: 0,
+		Plan: 0,
+		"Check-ins": 0,
+		People: 0
+	};
+	/** A row that says what's already there. */
+	const same = (sheet) => {
+		unchanged++;
+		unchangedBy[sheet]++;
+	};
 	let examples = 0;
 	const changes = [];
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
@@ -9013,7 +9047,8 @@ function planChanges(input) {
 	* question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
 	*/
 	const ask = (kind, sheet, row, name, message, x) => {
-		const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : void 0);
+		const given = answerOf(kind, sheet, x.column, x.found);
+		const a = (given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value)) ? given : void 0) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: "right" } : input.confirm && kind === "other-goal" ? { choice: "change" } : void 0);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
 			return "leave";
@@ -9055,7 +9090,7 @@ function planChanges(input) {
 				column: w.what,
 				found,
 				suggest: m.near,
-				answers: ANSWERS.nearWord(m.near, words)
+				answers: ANSWERS.nearWord(m.near, words.filter((x) => codeOf(w, x) !== code))
 			});
 			return;
 		}
@@ -9324,7 +9359,10 @@ function planChanges(input) {
 		});
 		if (action === "left") {
 			if (!before) return raise("removal-refused", "People", row, name || email, `${LEFT} needs someone already here: their email or ID.`, { column: "Action" });
-			if (!admin()) return raise("not-allowed", "People", row, before.name, "Only an admin can mark someone as left.", { answers: ANSWERS.leaveOnly });
+			if (!admin()) {
+				if (answerOf("not-allowed", "People")?.choice === "leave") return leave("People", row);
+				return raise("not-allowed", "People", row, before.name, "Only an admin can mark someone as left.", { answers: ANSWERS.leaveOnly });
+			}
 			const to = pickPerson("People", r, { name: "takes over" }, null, "Takes over");
 			if (to.left) return leave("People", row);
 			if (to.problem) return raise(to.kind, "People", row, before.name, `Takes over: ${to.problem}`, to.extra);
@@ -9409,7 +9447,7 @@ function planChanges(input) {
 		if (emailSets && has(r, "email") && !email && before.email) return raise("cant-change", "People", row, before.name, "Their email can be changed, not taken away. Type it back in.", { column: "Email" });
 		objective(r, row, after);
 		if (JSON.stringify(after) === JSON.stringify(before)) {
-			unchanged++;
+			same("People");
 			return;
 		}
 		if (!admin()) {
@@ -9429,7 +9467,8 @@ function planChanges(input) {
 		const v = val(r, "team objective");
 		if (!t || t.leadId !== p.id && !v || t.objective === v) return;
 		if (!admin()) {
-			raise("not-allowed", "People", row, p.name, "Only an admin can change a team’s objective.", { answers: ANSWERS.leaveOnly });
+			if (answerOf("not-allowed", "People")?.choice === "leave") leave("People", row);
+			else raise("not-allowed", "People", row, p.name, "Only an admin can change a team’s objective.", { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, {
@@ -9539,7 +9578,7 @@ function planChanges(input) {
 	const stoppedByRef = (r) => r && !goalByRef(r) ? findGoal(s.archive?.goals ?? [], r) : void 0;
 	const warnedStopped = /* @__PURE__ */ new Set();
 	const leftAlone = (sheet, row, g) => {
-		unchanged++;
+		same(sheet);
 		if (!warnedStopped.has(g.id)) {
 			warnedStopped.add(g.id);
 			note("left-alone", sheet, row, g.title, `“${g.title}” is ${lower({ label: STOPPED })}, so its rows are left as they are.`);
@@ -9644,8 +9683,9 @@ function planChanges(input) {
 				const owner = people.get(existing.ownerId);
 				const ownerGiven = [ref(r, "owner"), ref(r, "owner email")].filter(Boolean);
 				const teamGiven = ref(r, "team");
-				const ownerDiffers = ownerGiven.every((v) => !owner || fold$1(v) !== fold$1(owner.name) && normalEmail(v) !== normalEmail(owner.email));
-				const teamDiffers = !teamGiven || fold$1(teamGiven) !== fold$1(teams.get(existing.teamId)?.name ?? "");
+				const given = via !== "mcp";
+				const ownerDiffers = (given || ownerGiven.length > 0) && ownerGiven.every((v) => !owner || fold$1(v) !== fold$1(owner.name) && normalEmail(v) !== normalEmail(owner.email));
+				const teamDiffers = given ? !teamGiven || fold$1(teamGiven) !== fold$1(teams.get(existing.teamId)?.name ?? "") : !!teamGiven && fold$1(teamGiven) !== fold$1(teams.get(existing.teamId)?.name ?? "");
 				if (ownerDiffers && teamDiffers) {
 					const k = existing.key ?? existing.id;
 					const a = ask("other-goal", "Goals", row, title, `${k} is “${existing.title}” here, owned by ${owner?.name ?? "someone"}. Row ${row} calls it “${title}”${ownerGiven.length || teamGiven ? ", with another owner and team" : ""}. Is it the same goal?`, {
@@ -9682,7 +9722,13 @@ function planChanges(input) {
 					answers: ANSWERS.sameGoal(k)
 				});
 				if (a === "leave") return;
-				if (a && a.choice === "same") existing = same;
+				if (a && a.choice === "same") {
+					if (touched.has(same.id)) return raise("duplicate", "Goals", row, same.title, `“${same.title}” has another row in this file. Give each goal one row.`, {
+						column: "Key",
+						answers: ANSWERS.duplicate
+					});
+					existing = same;
+				}
 			} else if (same && create) return raise("duplicate", "Goals", row, title, `“${title}” is on two rows. Give each goal one row.`, { column: "Goal" });
 		}
 		const label = title || existing?.title || "";
@@ -9707,6 +9753,7 @@ function planChanges(input) {
 		const d = existing ? draftOf(existing) : blankGoal(tm?.id ?? owner?.teamId ?? [...teams.values()][0]?.id ?? "", owner.id, "");
 		if (title) d.title = title;
 		if (owner) d.ownerId = owner.id;
+		if (!existing && !tm && owner?.teamId && teams.get(owner.teamId)) note("default", "Goals", row, title, `Team: ${teams.get(owner.teamId).name} (the owner’s team; the row gave none).`, { column: "Team" });
 		if (tm) d.teamId = tm.id;
 		const lvl = readWord(LEVEL_WORDS, val(r, "level"), "Goals", row, label);
 		if (lvl === void 0) return;
@@ -9892,7 +9939,8 @@ function planChanges(input) {
 			if (ask(kind, "Goals", row, d.title, c.question, {
 				column: FIELD_COLUMN[c.field] ?? "Goal",
 				found: c.id,
-				answers: ANSWERS.odd
+				answers: ANSWERS.odd,
+				...kind === "odd-number" ? { value: val(r, (FIELD_COLUMN[c.field] ?? "").toLowerCase()) } : {}
 			}) === "leave") return;
 		}
 		const gid = existing?.id ?? newId("goal", d.title);
@@ -10117,6 +10165,7 @@ function planChanges(input) {
 		const startChanged = startTyped != null && !sameAsWritten(startTyped, orig.plan.start, g.decimals);
 		if (!typed.size && !startChanged) {
 			if (!touched.has(id)) unchanged++;
+			unchangedBy.Plan++;
 			return;
 		}
 		if (removals.some((x) => x.g.id === id)) return raise("cant-change", "Plan", row, g.title, `This file also stops or deletes “${g.title}”, so its plan can’t change in it.`);
@@ -10199,7 +10248,7 @@ function planChanges(input) {
 		const after = work.get(id);
 		const ch = goalChange(t.before, after, lookup, actor.id, now, newId("chg"));
 		if (!ch) {
-			unchanged++;
+			same(t.sheet);
 			continue;
 		}
 		if (t.before && !canChange(t.before)) {
@@ -10278,8 +10327,19 @@ function planChanges(input) {
 		}
 	}
 	const imported = /* @__PURE__ */ new Map();
+	const answeredGoal = (r) => {
+		const v = val(r, "goal");
+		if (!v || val(r, "goal key") || val(r, "goal id")) return void 0;
+		const a = answerOf("near-ref", "Check-ins", "Goal", v) ?? answerOf("unknown-ref", "Check-ins", "Goal", v);
+		if (a?.choice === "use") {
+			const all = [...work.values()];
+			const m = near(v, all.map((g) => g.title));
+			return "near" in m ? all.find((g) => g.title === m.near) : void 0;
+		}
+		if (a?.choice === "choose" && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
+	};
 	const skipCheckIns = twice("Check-ins", ciRows.map(({ r, row }) => {
-		const g = goalFor(r);
+		const g = goalFor(r) ?? answeredGoal(r);
 		const w = weekCell(val(r, "week"), "Check-ins", row, "", false).n;
 		const cid = create ? "" : val(r, "id");
 		return {
@@ -10296,7 +10356,7 @@ function planChanges(input) {
 				raise("cant-change", "Check-ins", row, g.title, `Nothing is different from what week ${w} already says.`);
 				return;
 			}
-			unchanged++;
+			same("Check-ins");
 			imported.set(g.id, [...imported.get(g.id) ?? [], existing]);
 			return;
 		}
@@ -10359,7 +10419,8 @@ function planChanges(input) {
 			if (soft && !soft.block && ask("odd-number", "Check-ins", row, g.title, `Week ${w}: ${soft.text}`, {
 				column: "Value",
 				found: oddKind(soft.text),
-				answers: ANSWERS.odd
+				answers: ANSWERS.odd,
+				value: String(draft.value)
 			}) === "leave") return;
 		}
 		const keeps = post?.mode === "correct" && existing;
@@ -10372,7 +10433,7 @@ function planChanges(input) {
 		};
 		const ch = checkInChange(existing, c, g, actor.id, newId("chg"));
 		if (!ch) {
-			unchanged++;
+			same("Check-ins");
 			return;
 		}
 		if (again) ch.summary = ch.summary.replace("Checked in for week", "Checked in again for week");
@@ -10820,6 +10881,7 @@ function planChanges(input) {
 	const result = {
 		items,
 		unchanged,
+		unchangedBy,
 		examples,
 		issues,
 		groups: groupIssues(issues),
@@ -13824,7 +13886,10 @@ var help$2 = [
 					"Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.",
 					"Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.",
 					"The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.",
-					"Every row is checked with the app’s own rules and shown before anything is saved. Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is listed under Check these plan changes and saves only once you say yes.",
+					"Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).",
+					"Plan changes after check-ins need a reason. A plan change that flips which way is better, or puts a number far outside the old plan, is a question, and saves only once you say yes.",
+					"A file that changes nothing says Nothing would change. If it edits worked-out cells, such as Status, it says so: Faro never reads them, so to change where a goal stands, post a check-in.",
+					"A file exported from another workspace is asked about first: its keys and IDs belong there, so its rows can be added as new goals, or not at all.",
 					"Past weeks are marked as loaded later, so history never looks like a fresh update. Rows that change nothing are left alone, and so are a stopped goal’s rows.",
 					"Loaded the wrong file? Undo this import, on its entry in Activity, puts every row back as it was, stopped goals and people who left included."
 				]
@@ -13837,6 +13902,9 @@ var help$2 = [
 					"The same problem on many rows is said once, with how many rows and where, and one answer covers them all: fourteen rows naming “Platfrom” are one question.",
 					"A name or word one letter out is always asked about, never guessed and never quietly refused. Case, accents, “&” for “and” and punctuation don’t count, so “ci cd” is CI/CD.",
 					"Some answers leave rows out (“Leave these rows out”): those rows aren’t saved, and the rest are.",
+					"Fix the rows in the file: Download the rows to fix gives just those rows, each with a Problem column saying what is wrong. Choose the corrected file and your answers still apply.",
+					"Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.",
+					"An answered question closes to what was asked and your answer, with Change.",
 					"An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal."
 				]
 			},
@@ -13845,8 +13913,17 @@ var help$2 = [
 				text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
 			}
 		],
-		routes: ["/data/import", "/import"],
-		screens: ["Import"],
+		routes: [
+			"/data/import",
+			"/import",
+			"/data/import/check",
+			"/data/import/check/changes"
+		],
+		screens: [
+			"Import",
+			"Check",
+			"Changes"
+		],
 		reqs: [
 			"BULK-IMPORT",
 			"WORKSPACES",
@@ -13855,7 +13932,8 @@ var help$2 = [
 			"ROUND-TRIP",
 			"IMPORT-ACTIONS",
 			"SPREADSHEETS-ON-DATA",
-			"IMPORT-LEVELS"
+			"IMPORT-LEVELS",
+			"IMPORT-PREVIEW"
 		],
 		keywords: [
 			"import",
@@ -13879,7 +13957,11 @@ var help$2 = [
 			"question",
 			"typo",
 			"near miss",
-			"did you mean"
+			"did you mean",
+			"preview",
+			"rows to fix",
+			"leave out",
+			"changes"
 		],
 		related: [
 			"columns",
@@ -16490,6 +16572,18 @@ var WHATS_NEW = [
 		articles: ["home"]
 	},
 	{
+		id: "import-preview",
+		date: "2026-11-12",
+		title: "A clearer check before an import is saved",
+		points: [
+			"Counts by sheet first; then what must be fixed; then questions; then the changes, if you want them.",
+			"It says which sheets and columns it didn’t read.",
+			"Download just the rows to fix, or leave them out and save the rest.",
+			"An answered question stays on the page with Change, and a corrected file keeps your answers."
+		],
+		articles: ["import"]
+	},
+	{
 		id: "smaller-first-download",
 		date: "2026-11-12",
 		title: "Faro opens faster",
@@ -18312,7 +18406,11 @@ var _virtual_faro_modules_default = [{
 	name: "Spreadsheets",
 	summary: "Download the goals as an Excel workbook or CSV files, and load changes back from a spreadsheet, with every change shown before it’s saved.",
 	needs: [],
-	routes: ["/data/import"],
+	routes: [
+		"/data/import",
+		"/data/import/check",
+		"/data/import/check/changes"
+	],
 	redirects: [["/import", "/data/import"]],
 	navigation: [],
 	places: [
@@ -18333,7 +18431,8 @@ var _virtual_faro_modules_default = [{
 		"IMPORT-ACTIONS",
 		"SPREADSHEETS-ON-DATA",
 		"FIELD-TABLE",
-		"IMPORT-LEVELS"
+		"IMPORT-LEVELS",
+		"IMPORT-PREVIEW"
 	],
 	journeys: [
 		"U19",
@@ -18341,24 +18440,30 @@ var _virtual_faro_modules_default = [{
 		"U46",
 		"U48",
 		"U87",
+		"U88",
+		"U89",
+		"U94",
 		"F7",
 		"F8",
+		"F17",
 		"N5"
 	],
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Tools for it on Data and Goals, and Help’s table of every column.",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Tools for it on Data and Goals, and Help’s table of every column.",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
 			"A workbook downloaded from the rebuild and loaded straight back changes nothing: every row reads as unchanged, on any day and at any number of decimal places.",
 			"A workbook with one wrong row saves nothing, and the preview names the row and the problem.",
+			"A file with one row to fix offers the rows to fix as a download, its first column Problem, and leaving them out saves the rest; a new goal left out takes its check-ins and the goals that feed into it with it, each saying why.",
+			"A workbook loaded back with Status edited on two rows changes nothing and says so, and a column nothing reads is named in the file line.",
 			"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
 			"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
 			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\")."
 		],
-		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; a download, a load and the preview (IM3) are still scored only by Faro’s own eval scripts."]
+		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
 }];
 // src/core/module.ts
