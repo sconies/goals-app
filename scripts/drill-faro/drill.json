@@ -1,1 +1,1 @@
-{ "stage": 1, "run": "node main.mjs", "also": ["scorecard-words", "find", "goals", "navigation", "import", "changes", "metrics", "readback", "home"] }
+{ "stage": 1, "run": "node main.mjs", "shim": "node shim.mjs", "also": ["scorecard-words", "find", "goals", "navigation", "import", "changes", "metrics", "readback", "home"] }

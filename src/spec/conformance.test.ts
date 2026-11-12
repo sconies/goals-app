@@ -2,7 +2,9 @@
    and fail on any difference from the files. A rebuild proves itself the same way (spec/conformance/README.md). */
 import fs from 'node:fs';
 import path from 'node:path';
-import { CHANGES_HEADER, changeRowsOf, conformanceFiles, importCases, type ConformanceWorkspace } from './conformance';
+import { CHANGES_HEADER, changeRowsOf, conformanceFiles, importCases, importRowsOf, IMPORT_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHECK_KINDS, MUST_KINDS, NOTE_KINDS } from '../domain/problemLevels';
+import { ISSUE_KINDS } from '../domain/issueKinds';
 
 const dir = path.resolve(__dirname, '../../spec/conformance');
 
@@ -50,5 +52,28 @@ describe('changes.csv (stage 2’s drill)', () => {
     }
     expect(items('saves-plan-with-reason')[0]![col('needs_reason')]).toBe('yes');
     expect(items('saves-person')[0]![col('diffs')]).toContain('Team: CI/CD → Build & Release');
+  });
+});
+
+describe('import.csv covers every issue kind (KT gap 2)', () => {
+  const w = JSON.parse(fs.readFileSync(path.join(dir, 'workspace.json'), 'utf8')) as ConformanceWorkspace;
+  const rows = importRowsOf(w);
+  const raised = new Set(rows.flatMap((r) => r[IMPORT_HEADER.indexOf('kinds')]!.split(' ').filter(Boolean)));
+  const all = [...MUST_KINDS, ...CHECK_KINDS, ...NOTE_KINDS];
+
+  it('every kind the engine raises has a case that raises it', () => {
+    expect(all.filter((k) => !ISSUE_KINDS[k].raisedBy && !raised.has(k))).toEqual([]);
+  });
+
+  it('a kind said not to be raised by the engine has no case, and says what raises it instead', () => {
+    expect(all.filter((k) => ISSUE_KINDS[k].raisedBy && raised.has(k))).toEqual([]);
+    for (const k of all) expect(ISSUE_KINDS[k].when.length).toBeGreaterThan(10);
+  });
+
+  it('the kinds page names each kind once, with its case', () => {
+    const page = fs.readFileSync(path.resolve(__dirname, '../../spec/core/import-issues.md'), 'utf8');
+    for (const k of all) expect(page.match(new RegExp(`^\\| \`${k}\` \\|`, 'gm'))?.length).toBe(1);
+    expect(page).toContain('| `near-ref` | ');
+    expect(page).toMatch(/\| Goals \| Goal \| `goal name`/);
   });
 });

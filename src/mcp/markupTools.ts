@@ -5,9 +5,10 @@
    operations as the inbox (src/markup/ops.ts), through the database's functions for tokens (migration 0031): no
    secret beyond the token. A change is recorded as the token's person, via the assistant. */
 import type { InboxFeedback } from '../markup/feedback';
-import { MarkupError, MOOD_WORD, STATUS_WORD, STATUSES, groupMarkups, namedParts, partText, placeOf, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from '../markup/model';
-import { PICTURES_UNREADABLE, type MarkupOps, type MarkupPicture } from '../markup/ops';
+import { ADMINS_TRIAGE, mayTriage, MarkupError, MOOD_WORD, STATUS_WORD, STATUSES, groupMarkups, namedParts, partText, placeOf, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from '../markup/model';
+import { issueUrlOf, PICTURES_UNREADABLE, type MarkupOps, type MarkupPicture } from '../markup/ops';
 import type { McpContext, ToolDef, ToolImage, ToolResult } from './tools';
+import { listed } from './listed';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
@@ -49,7 +50,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
     async run(a, ctx): Promise<ToolResult> {
       const list = await inbox(ctx).list({ ...(a.workspace ? { workspaceId: String(a.workspace) } : {}), ...(a.status ? { status: a.status as MarkupStatus } : {}), limit: Number(a.limit ?? 50) });
       const rows = list.map((m) => ({ id: m.id, status: m.status, line: m.line, place: placeOf(m), route: m.route, from: sentFrom(m), by: m.personName, at: m.createdAt, issueUrl: m.issueUrl, fixedIn: m.fixedIn }));
-      return { data: { markups: rows }, text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join('\n') : 'No markups.' };
+      return listed({ markups: rows });
     },
   },
   {
@@ -156,8 +157,12 @@ export const MARKUP_TOOLS: ToolDef[] = [
       const ops = inbox(ctx);
       const id = String(a.id ?? '');
       if (!a.status && !a.issue_url) return { isError: true, text: 'Give a status, an issue_url, or both.' };
-      let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-      if (a.status) m = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP`, admin: !!ctx.actor.admin });
+      // Everything that can refuse is asked before anything is saved, so a refused call changes nothing: the address,
+      // then the status (it refuses a member, and a fix with no entry), and only then the address is kept.
+      if (a.issue_url) issueUrlOf(String(a.issue_url));
+      if (a.issue_url && !mayTriage(ctx.actor)) throw new MarkupError(ADMINS_TRIAGE);
+      let m = a.status ? await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP`, admin: !!ctx.actor.admin }) : null;
+      if (a.issue_url) m = await ops.setIssueUrl(id, String(a.issue_url), !!ctx.actor.admin);
       return { data: { markup: m }, text: `${id} is ${STATUS_WORD[m!.status]}${m!.fixedIn ? `, fixed in ${m!.fixedIn}` : ''}${m!.issueUrl ? `, issue ${m!.issueUrl}` : ''}.` };
     },
   },

@@ -16,6 +16,7 @@ Faro has no AI built in. It has an MCP server at `/api/mcp` (it introduces itsel
 - **Parity is checked.** `src/mcp/parity.ts` maps every action in the app, and every screen, to its tools. A test fails if a new action or screen has no tools, or no reason why an assistant doesn't need any.
 - **Not for assistants.** A token belongs to one workspace, so an assistant can't create, switch or reset a workspace, or choose who it is. Those stay in the app.
 - **Logged.** Each change is logged as that person, marked "via MCP" (`VIA_MCP` in `src/domain/changeset.ts`). Changes made before 9 Nov say "AI assistant (MCP)" and still count as made through MCP.
+- **One shape for lists.** `find_goals`, every `list_` tool and `get_activity` answer the same way every time, filtered or not: their data as structured content, and the same data as JSON for the text (`listed` in `src/mcp/listed.ts`). A test holds every `list_` tool to it.
 - **Tokens.** A token is shown once. Only its SHA-256 hash is stored, and it can be revoked at any time.
 
 ## Connecting
@@ -61,9 +62,9 @@ Other assistants:
 | Tool | What it does |
 |---|---|
 | `post_check_in` | Post a week's number or stages, this week or an earlier week. Posting again for a week corrects it |
-| `create_goal` / `update_goal` | Add or change a goal. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it. A goal that can't be saved comes back as "Not saved. Must fix:" with each problem in the words New goal uses (goal entry, rule 2); one that raises a question comes back as "Not saved. Check with the person first:" with every question (rule 3), each also in `data.questions` with its `id` and `field`, and saves once called again with `"confirm": true` |
+| `create_goal` / `update_goal` | Add or change a goal. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it. A goal that can't be saved comes back as "Not saved. Must fix:" with each problem in the words New goal uses (goal entry, rule 2); one that raises a question comes back as "Not saved. Check with the person first:" with every question (rule 3), each also in `data.questions` with its `id` and `field`, and saves once called again with `"confirm": true`. A new goal comes back with its ID and key, in `data.created` and on its line in the text |
 | `set_plan_numbers` | Set planned values for particular weeks |
-| `bulk_change` | Many goals, plan numbers and check-ins at once, using the export's columns. It checks first and saves only with `apply: true` |
+| `bulk_change` | Many goals, plan numbers and check-ins at once, using the export's columns. It checks first and saves only with `apply: true`. Every goal it adds is in `data.created` (`id`, `key`, `title`): on a dry run the key it would get, once saved the key it has; each entry in `data.changes` carries its goal's `key` too |
 | `add_comment` | Comment on a goal |
 | `ask_for_update` / `undo_update_ask` | Ask a goal's owner for an update (an ask, open until they check in or answer it), or withdraw it |
 | `ask_question` | Ask a goal's owner a question, outside a review: open until they answer it |

@@ -404,7 +404,7 @@ function MarkupDetail({ row, data, busy, form, setForm, onChange }: { row: Extra
     try { window.open(await data.ops!.issueLink(id), '_blank', 'noopener'); setIssueForm(true); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
   };
   const keepIssue = async () => {
-    try { const next = await data.ops!.setIssueUrl(id, issue); data.patchMarkup(next); setIssueForm(false); app.toast('Kept the issue’s address'); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
+    try { const next = await data.ops!.setIssueUrl(id, issue, !!app.viewer.admin); data.patchMarkup(next); setIssueForm(false); app.toast('Kept the issue’s address'); } catch (e) { app.toast(e instanceof Error ? e.message : String(e), 'error'); }
   };
   const notes = shown?.strokes.flatMap((s) => (s.kind === 'note' && s.text ? [s] : [])) ?? [];
   return (

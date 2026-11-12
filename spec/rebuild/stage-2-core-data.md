@@ -32,8 +32,8 @@ Stage 2’s drill scores the change engine: for each case (rows loaded from a sh
 
 | File | Rows expected | Columns, in this order |
 |---|---|---|
-| `changes.csv` | 96 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
-| `import.csv` | 52 | `case`, `actor`, `sheet`, `rows`, `answers`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves` |
+| `changes.csv` | 109 | `case`, `row`, `actor`, `sheet`, `line`, `rows`, `answers`, `given`, `target`, `name`, `kind`, `diffs`, `counts`, `unchanged`, `needs_reason`, `saves` |
+| `import.csv` | 58 | `case`, `actor`, `sheet`, `rows`, `answers`, `given`, `kind`, `level`, `group`, `message`, `must`, `questions`, `saves`, `kinds` |
 
 - What each file’s rows are, and the cases or viewers to run, is in [the conformance data](../conformance/README.md#the-files): every input a row needs is in the row or in `workspace.json`. Rows are matched by their key columns, columns by name, text exactly.
 
@@ -60,6 +60,6 @@ Stage 2’s drill scores the change engine: for each case (rows loaded from a sh
 Where the kit doesn’t yet hold what this stage needs, so a rebuild would have to guess:
 
 - References across workspaces: a rebuild refuses a save to one workspace whose rows point at another’s records (an owner, team, cycle or parent goal, a check-in’s goal). Faro’s database checks only each row’s own workspace (migration 0038), so Faro can’t show it; R1’s membership is how the server knows.
-- The spreadsheet columns the engine reads are listed in `docs/export-format.md`, which is not in the kit.
+- The spreadsheet columns the engine reads are in [the export format](../core/export-format.md), and every kind of issue it raises, with its trigger, sentence and answers and every column’s other spellings, in [the issue kinds](../core/import-issues.md).
 - The engine’s every message and column rule are in Faro’s code and tests, not the spec (its page says so); the drill’s rows show them case by case.
 - The drill scores what the engine would save, not the store: nothing scores that a save is all or nothing, that undo restores the records, or the change log’s entries.

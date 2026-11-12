@@ -12,6 +12,7 @@ import { describe, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
 import { questionsLine, type Answer, type Choice, type IssueGroup, type Sheet } from '../../domain/problemLevels';
+import { tooLarge } from '../../domain/importLimits';
 import { parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
@@ -30,9 +31,6 @@ const blank = (r: Record<string, string>) => Object.entries(r).every(([k, v]) =>
 const rowKey = (x: { sheet: string; row: number }) => `${x.sheet}:${x.row}`;
 const uniqueRows = <T extends { sheet: Sheet; row: number }>(list: readonly T[]) => [...new Map(list.map((x) => [rowKey(x), x])).values()];
 
-/** The most rows Faro reads from one file, and the largest file (spec 2.1). */
-export const MAX_ROWS = 30_000;
-const MAX_BYTES = 20 * 1024 * 1024;
 
 /** Reads tables into the import, or says why not: nothing that looks like a Faro sheet, or too many rows. */
 function take(got: ReadTables, name: string, onProblem: (text: string, template?: boolean) => void): boolean {
@@ -41,7 +39,8 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
     onProblem(`Nothing in ${name} looks like a Faro sheet.${heads} Faro looks for Goal and Owner (goals), Goal key and Week (check-ins), or Name and Email (people). The template has the right headers.`, true);
     return false;
   }
-  if (got.rowCount > MAX_ROWS) { onProblem(`${name} has ${got.rowCount.toLocaleString('en-GB')} rows. Faro reads up to ${MAX_ROWS.toLocaleString('en-GB')} in one file. Split it and import each part.`); return false; }
+  const big = tooLarge(name, { rows: got.rowCount });
+  if (big) { onProblem(big); return false; }
   importStore.chose(got, name);
   return true;
 }
@@ -49,7 +48,8 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
 /** Reads a chosen file into the import, staying on the preview. Shared by Import and the preview's own "Choose…". */
 export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void): Promise<boolean> {
   if (!f) return false;
-  if (f.size > MAX_BYTES) { onProblem(`${f.name} is larger than 20 MB. Faro reads up to ${MAX_ROWS.toLocaleString('en-GB')} rows in one file. Split it and import each part.`); return false; }
+  const big = tooLarge(f.name, { bytes: f.size });
+  if (big) { onProblem(big); return false; }
   let got: ReadTables;
   try { got = await readChanges(f); } catch {
     onProblem(`Faro can’t read ${f.name}. Save it as .xlsx or .csv and try again.`);

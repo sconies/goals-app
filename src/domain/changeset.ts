@@ -24,7 +24,7 @@ import {
 } from './columns';
 import { blankGoal, buildGoal, draftOf, goalAsOf, planChanged, planQuestion, replanned, stagesDoneAtSetUp, type GoalDraft } from './goal';
 import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFixId } from './goalEntry';
-import { mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
+import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
@@ -264,14 +264,21 @@ export function planChanges(input: ChangeInput): ChangeSet {
   /** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
   /** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
   const held = new Set<string>();
+  /** Every issue by its sheet and row (rule 10: a row's questions are found without reading every issue). */
+  const issuesAt = new Map<string, Issue[]>();
   const raise = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => {
     if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === 'must') return;
-    issues.push(issueOf(kind, sheet, row, name, message, x));
+    const i = issueOf(kind, sheet, row, name, message, x);
+    issues.push(i);
+    const at = `${sheet}|${row}`;
+    const list = issuesAt.get(at);
+    if (list) list.push(i); else issuesAt.set(at, [i]);
   };
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
   /** The answer given to a group, if any (rule 7). */
   const answerOf = (kind: IssueKind, sheet: Sheet, column?: string, found?: string): Answer | undefined => answers[groupId(kind, sheet, column, found)];
-  const leave = (sheet: Sheet, row: number) => { if (!leftOut.some((x) => x.sheet === sheet && x.row === row)) leftOut.push({ sheet, row }); };
+  const leftSet = new Set<string>();
+  const leave = (sheet: Sheet, row: number) => { if (!leftSet.has(`${sheet}|${row}`)) { leftSet.add(`${sheet}|${row}`); leftOut.push({ sheet, row }); } };
   // Rule 3, at every door (a file, a paste, MCP): a column under another name the field table gives it ("Goal name") is
   // read as that column; one a letter out ("Targett") is asked about once (near-header), and read so once answered.
   input = { ...input, tables: namedHeaders(input.tables, (sheet, header, as) => {
@@ -308,6 +315,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
   };
 
   /* ---------- people and teams first, so a goal row can name someone this same file adds ---------- */
+  /** The workspace as saved, by id (rule 10). */
+  const savedGoal = new Map(s.goals.map((g) => [g.id, g]));
+  const savedPerson = new Map(s.people.map((p) => [p.id, p]));
+  const savedTeam = new Map(s.teams.map((t) => [t.id, t]));
+  const savedCheckIn = new Map(s.checkIns.map((c) => [c.id, c]));
   const people = new Map<string, Person>(s.people.map((p) => [p.id, p]));
   const teams = new Map<string, Team>(s.teams.map((t) => [t.id, t]));
   const teamNamed = (name: string) => [...teams.values()].find((t) => fold(t.name) === fold(name));
@@ -583,10 +595,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
   /* ---------- goals ---------- */
   // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
-  const work = new Map<string, Goal>(s.goals.map((g) => [g.id, g]));
+  const work = new GoalSet(s.goals);
   // Set-up from another workspace's export: its IDs are that workspace's, so they're mapped to the new goals' IDs.
   const fileIds = new Map<string, string>();
-  const goalByRef = (r: string) => (r ? work.get(fileIds.get(r) ?? r) ?? findGoal([...work.values()], r) : undefined);
+  const goalByRef = (r: string) => (r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : undefined);
   /** The goal a row says: its key first (a goal carried into this cycle keeps its key, not its ID), then its ID. */
   const goalOf = (keyRef: string, id: string) => goalOfRow(keyRef, id).g;
   /** The same, with a problem when the key and the ID name different goals (an ID from another cycle is just passed over). */
@@ -597,7 +609,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     return { g: byKey ?? byId };
   };
   /** The goals with a name (folded), but one. */
-  const titled = (t: string, but = '') => [...work.values()].filter((g) => g.id !== but && fold(g.title) === fold(t));
+  const titled = (t: string, but = '') => work.titled(t, but);
   /**
    * The goal a name names (Feeds into, a check-in's Goal): the one goal with that name; one one letter out is asked
    * about; several with it, or none, is Must fix. Undefined with the problem raised.
@@ -611,9 +623,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       raise('ambiguous-ref', sheet, row, name, several, { column, found: v, answers: [{ choice: 'choose', label: 'Choose which', needsValue: true, options: list.map((g) => g.key ?? g.id) }] });
       return undefined;
     }
-    const all = [...work.values()].filter((g) => g.id !== but);
-    const m = near(v, all.map((g) => g.title));
-    const hit = 'near' in m ? all.find((g) => g.title === m.near) : undefined;
+    const hit = work.nearTitle(v, but);
     const kind: IssueKind = hit ? 'near-ref' : 'unknown-ref';
     const a = answerOf(kind, sheet, column, v);
     if (a?.choice === 'leave') { leave(sheet, row); return undefined; }
@@ -651,7 +661,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, 'key'))).filter((k): k is string => !!k) : [];
   let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ''))), 0);
   const touched = new Map<string, { before: Goal | null; row: number; sheet: Sheet; reason: string; plan: boolean }>();
-  const started = (id: string) => s.checkIns.some((c) => c.goalId === id);
+  const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
+  const started = (id: string) => withCheckIns.has(id);
   // R1's row, stated once (domain/goalRights): its owner, or an admin (anyone, while a new workspace is set up).
   const canChange = (g: Goal) => mayChangeGoal({ id: actor.id, admin: admin() }, g);
   const notYours = (g: Goal) => `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) or an admin can change “${g.title}”.`;
@@ -893,9 +904,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (!existing && !create && d.kind === 'milestone') {
       const past = d.stages.filter((st) => { const w = parseNumber(st.dueWeek); return w != null && w < week; });
       if (past.length) {
-        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?`, { column: 'Stages', answers: ANSWERS.pastStage });
+        // Saying they're done is a check-in, so the owner's (R1): from anyone else it's asked, and said, but not recorded.
+        const marks = mayPostCheckIn({ id: actor.id, admin: admin() }, { ownerId: d.ownerId }, via) ? '' : ' ' + MARKS_STAGES(people.get(d.ownerId)?.name ?? 'Its owner');
+        const a = ask('past-stage', 'Goals', row, d.title, `${plural(past.length, 'stage')} of “${d.title}” ${past.length === 1 ? 'is' : 'are'} due before this week (week ${week}): ${past.map((st) => `${st.name}@${st.dueWeek}`).join(', ')}. ${past.length === 1 ? 'Is it' : 'Are they'} done?${marks}`, { column: 'Stages', answers: ANSWERS.pastStage });
         if (a === 'leave') return;
-        if (a?.choice === 'done') doneIds = past.map((st) => st.id);
+        if (a?.choice === 'done' && !marks) doneIds = past.map((st) => st.id);
         if (a?.choice === 'from-now') {
           const moved = stagesFromNow(d.stages.map((st) => `${st.name}@${st.dueWeek}`).join('; '), week, cycle.weeks).split(';').map((x) => x.trim());
           d.stages = d.stages.map((st, k) => ({ ...st, dueWeek: /@\s*(\d+)$/.exec(moved[k] ?? '')?.[1] ?? st.dueWeek }));
@@ -993,7 +1006,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (!p) { missing = true; raise('bad-key', 'Goals', l.row, g.title, `${c === 'feeds into key' ? 'Feeds into key' : 'Feeds into ID'} ${v} isn’t a goal in ${cycle.name}.`, { column: c === 'feeds into key' ? 'Feeds into key' : 'Feeds into ID', found: v }); }
       return { c, p: p ?? null };
     });
-    if (missing) { if (leftOut.some((x) => x.sheet === 'Goals' && x.row === l.row)) touched.delete(l.id); continue; }
+    if (missing) { if (leftSet.has(`Goals|${l.row}`)) touched.delete(l.id); continue; }
     const ids = new Set(found.map((x) => x.p?.id ?? ''));
     if (ids.size > 1) { raise('conflicting-refs', 'Goals', l.row, g.title, 'Feeds into and Feeds into key name different goals. Change just one of them.', { column: 'Feeds into' }); continue; }
     const parentId = [...ids][0] || null;
@@ -1034,7 +1047,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (g.kind !== 'metric') return raise('cant-change', 'Plan', row, g.title, 'Only number goals have plan numbers.', { column: 'Key' });
     // Compared with the plan as it was before this file, so a Goals row's new target isn't undone by the Plan sheet's
     // old numbers: only the weeks typed differently from the plan before count.
-    const orig = (touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? g) as MetricGoal;
+    const orig = (touched.get(id)?.before ?? savedGoal.get(id) ?? g) as MetricGoal;
     const origEnd = planEnd(orig.plan, cycle.weeks);
     // A week counts as typed only when it differs from the plan's own number as the export writes it (rule 9, IM0):
     // a tolerance of half a unit misread a number that falls on the half (0.405 written 0.41) as a change.
@@ -1077,7 +1090,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const points = typed.size ? [...new Set([...kept.keys(), ...Array.from({ length: end - from - 1 }, (_, k) => from + 1 + k)])].filter((w) => w > from && w < end).sort((a, b) => a - b)
       .map((w) => ({ week: w, value: kept.get(w) ?? Number(planAt(g.plan, w, cycle.weeks).toFixed(g.decimals + 2)) })) : g.plan.points ?? [];
     const plan: MetricPlan = { ...g.plan, start, target, ...(points.length ? { points } : {}) };
-    const before = touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? null;
+    const before = touched.get(id)?.before ?? savedGoal.get(id) ?? null;
     const next: MetricGoal = { ...g, plan, ...(before?.kind === 'metric' ? replanned(before, plan, started(id), week) : {}) };
     work.set(id, next);
     const t = touched.get(id);
@@ -1091,8 +1104,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // A Value with more decimal places than its goal keeps: one group for the file, and one answer ("Keep 2 decimal places
   // for these 900 goals") gives each goal the places, as a change to its Decimals that its owner or an admin may make.
   const precise = new Map<string, number>();
-  for (const { r } of ciRows) {
+  /** The first check-in row naming each goal. */
+  const firstRow = new Map<string, number>();
+  for (const { r, row } of ciRows) {
     const g = goalFor(r);
+    if (g && !firstRow.has(g.id)) firstRow.set(g.id, row);
     const raw = val(r, 'value');
     if (!g || g.kind === 'milestone' || !raw) continue;
     const n = parseNumber(raw);
@@ -1104,8 +1120,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
       const g = work.get(gid)!;
       if (g.kind === 'milestone' || places <= g.decimals || (!create && !canChange(g))) continue;
       work.set(gid, { ...g, decimals: places } as Goal);
-      const row = ciRows.find(({ r }) => goalFor(r)?.id === gid)!.row;
-      if (!touched.has(gid)) touched.set(gid, { before: s.goals.find((x) => x.id === gid) ?? null, row, sheet: 'Check-ins', reason: '', plan: false });
+      const row = firstRow.get(gid)!;
+      if (!touched.has(gid)) touched.set(gid, { before: savedGoal.get(gid) ?? null, row, sheet: 'Check-ins', reason: '', plan: false });
     }
   }
   const placesAnswer = ANSWERS.precision(Math.max(0, ...precise.values()), precise.size);
@@ -1138,7 +1154,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     goalOut.set(id, after);
     changes.push(ch);
     // Every question this row asks (goal entry, rule 3), said on its item: the preview's and the tools' questions.
-    const asked = issues.filter((x) => x.sheet === t.sheet && x.row === t.row && x.level === 'check' && GOAL_QUESTION.includes(x.kind)).map((x) => ({ id: x.kind === 'plan-question' ? (x.found === 'direction' ? 'direction' : 'far-from-plan') : x.kind === 'no-unit' || !x.found || x.kind === 'feeds-lower' ? x.kind : x.found, field: x.column ?? 'Goal', text: x.message }));
+    const asked = (issuesAt.get(`${t.sheet}|${t.row}`) ?? []).filter((x) => x.level === 'check' && GOAL_QUESTION.includes(x.kind)).map((x) => ({ id: x.kind === 'plan-question' ? (x.found === 'direction' ? 'direction' : 'far-from-plan') : x.kind === 'no-unit' || !x.found || x.kind === 'feeds-lower' ? x.kind : x.found, field: x.column ?? 'Goal', text: x.message }));
     items.push({ sheet: t.sheet, row: t.row, goalId: id, goal: after.title, kind: !t.before ? 'new goal' : needs || (t.plan && planChanged(t.before, after)) ? 'plan' : 'goal', summary: ch.summary, diffs: ch.diffs, needsReason: needs, ...(q ? { question: { text: q.text, confirm: q.confirm } } : {}), ...(asked.length ? { questions: asked } : {}) });
   }
 
@@ -1149,7 +1165,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // Stages a new goal's row said were done (C4): one check-in in the week of the latest, as set-up records them.
   for (const x of doneAtSetUp) {
     const g = goalOut.get(x.goalId);
-    if (!g) continue;
+    if (!g || !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) continue;
     const c = stagesDoneAtSetUp(g, x.stageIds, actor.id, now, newId('ci'));
     if (!c) continue;
     const ch = checkInChange(null, c, g, actor.id, newId('chg'));
@@ -1166,7 +1182,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const v = val(r, 'goal');
     if (!v || val(r, 'goal key') || val(r, 'goal id')) return undefined;
     const a = answerOf('near-ref', 'Check-ins', 'Goal', v) ?? answerOf('unknown-ref', 'Check-ins', 'Goal', v);
-    if (a?.choice === 'use') { const all = [...work.values()]; const m = near(v, all.map((g) => g.title)); return 'near' in m ? all.find((g) => g.title === m.near) : undefined; }
+    if (a?.choice === 'use') return work.nearTitle(v);
     if (a?.choice === 'choose' && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
     return undefined;
   };
@@ -1193,9 +1209,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const removing = removals.find((x) => x.g.id === g.id);
     if (removing) { raise('cant-change', 'Check-ins', row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`); return; }
     // Check-ins are the owner's (R1; goalRights mayPostCheckIn): an admin may bring others' in only from a workbook.
-    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, g, via)) {
+    // Asked of the owner before this file's own changes, so one change can't take a goal and check in on it at once.
+    const owned = s.goals.find((x) => x.id === g.id) ?? g;
+    if (!create && !mayPostCheckIn({ id: actor.id, admin: admin() }, owned, via)) {
       if (!post && answerOf('not-allowed', 'Check-ins')?.choice === 'leave') { leave('Check-ins', row); return; }
-      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(g.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
+      raise('not-allowed', 'Check-ins', row, g.title, `Only ${people.get(owned.ownerId)?.name ?? 'its owner'} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
       return;
     }
     // A screen's post answers what it was asked first (rule 2): an unlikely number is never posted unanswered.
@@ -1290,7 +1308,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // The check-in's own ID, when the row has one, says exactly which check-in it is: it never changes, nor does its goal
     // or week. Set-up starts afresh: another workspace's IDs mean nothing here.
     const cid = create ? '' : val(r, 'id');
-    const byId = cid ? s.checkIns.find((c) => c.id === cid) : undefined;
+    const byId = cid ? savedCheckIn.get(cid) : undefined;
     if (cid && (!byId || byId.goalId !== g.id)) { raise('bad-key', 'Check-ins', row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`, { column: 'ID', found: cid }); continue; }
     if (byId && byId.week !== w) { raise('cant-change', 'Check-ins', row, g.title, `Check-in ${cid} is for week ${byId.week}; a check-in’s week can’t change.`, { column: 'Week' }); continue; }
 
@@ -1352,7 +1370,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // Check-ins posted from a screen (rule 13): the same judgement, with the mode saying how each meets its week's.
   for (const [i, p] of (input.posts ?? []).entries()) {
     const row = i + 1;
-    const g = work.get(p.goalId) ?? s.goals.find((x) => x.id === p.goalId);
+    const g = work.get(p.goalId) ?? savedGoal.get(p.goalId);
     if (!g) { raise('bad-key', 'Check-ins', row, p.goalId, 'That goal no longer exists. Reload to see the latest.'); continue; }
     const w = p.week;
     if (!Number.isInteger(w) || w < 1) { raise('week-wrong', 'Check-ins', row, g.title, 'Check-ins start in week 1; week 0 is the start of the year.'); continue; }
@@ -1381,8 +1399,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
   /* ---------- asks: a goal's latest check-in raises, continues or withdraws its ask, as in the app (domain/asks) ---------- */
   const reqOut = new Map<string, Ask>();
   const requestsNow = () => [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()];
+  // Each goal's latest week, saved or written here: an ask follows a goal's latest check-in only.
+  const lastWeek = new Map<string, number>();
+  for (const x of [...s.checkIns, ...ciOut]) lastWeek.set(x.goalId, Math.max(lastWeek.get(x.goalId) ?? -Infinity, x.week));
   for (const c of ciOut) {
-    const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
+    const later = (lastWeek.get(c.goalId) ?? -Infinity) > c.week;
     const g = work.get(c.goalId);
     if (later || !g) continue;
     const r = requestsAfterCheckIn(g, c, { ...s, people: [...people.values()], requests: requestsNow() }, actor.id, now, newId);
@@ -1419,20 +1440,21 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const reviewsOut = new Map<string, Review>();
   const reviewsBefore = new Map<string, Review>();
   if (removals.length || leaving.length) {
+    const written = new Set(ciOut.map((o) => o.id));
     const xOf = (): ActionContext => ({
-      snapshot: { ...s, people: [...people.values()], teams: [...teams.values()], goals: [...work.values()], checkIns: [...s.checkIns.filter((c) => !ciOut.some((o) => o.id === c.id)), ...ciOut], requests: requestsNow(), reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v) },
+      snapshot: { ...s, people: [...people.values()], teams: [...teams.values()], goals: [...work.values()], checkIns: [...s.checkIns.filter((c) => !written.has(c.id)), ...ciOut], requests: requestsNow(), reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v) },
       cycle, week, actor, now, newId, ...(input.full ? { full: input.full, allGoals: input.full.goals } : {}),
     });
     const merge = (c: Commit) => {
       for (const g of c.goals ?? []) {
-        if (!touched.has(g.id)) touched.set(g.id, { before: s.goals.find((x) => x.id === g.id) ?? null, row: 0, sheet: 'Goals', reason: '', plan: false });
+        if (!touched.has(g.id)) touched.set(g.id, { before: savedGoal.get(g.id) ?? null, row: 0, sheet: 'Goals', reason: '', plan: false });
         work.set(g.id, g);
         goalOut.set(g.id, g);
       }
       for (const r of c.requests ?? []) reqOut.set(r.id, r);
-      for (const p of c.people ?? []) { if (!peopleTouched.has(p.id)) peopleTouched.set(p.id, { before: s.people.find((x) => x.id === p.id) ?? null, row: 0 }); people.set(p.id, p); peopleOut.set(p.id, p); }
+      for (const p of c.people ?? []) { if (!peopleTouched.has(p.id)) peopleTouched.set(p.id, { before: savedPerson.get(p.id) ?? null, row: 0 }); people.set(p.id, p); peopleOut.set(p.id, p); }
       for (const v of c.reviews ?? []) { if (!reviewsBefore.has(v.id)) reviewsBefore.set(v.id, s.reviews.find((x) => x.id === v.id)!); reviewsOut.set(v.id, v); }
-      for (const t of c.teams ?? []) { if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, { before: s.teams.find((x) => x.id === t.id) ?? null, row: 0 }); teams.set(t.id, t); teamsOut.set(t.id, t); }
+      for (const t of c.teams ?? []) { if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, { before: savedTeam.get(t.id) ?? null, row: 0 }); teams.set(t.id, t); teamsOut.set(t.id, t); }
       changes.push(...c.changes);
     };
     for (const x of removals) {
@@ -1484,9 +1506,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // New goals before the goals that feed into them, so each link points at a goal that's already saved.
   const ordered: Goal[] = [];
   const pending = [...goalOut.values()];
+  const waiting = new Set(pending.map((g) => g.id));
   while (pending.length) {
-    const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
-    ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
+    const i = pending.findIndex((g) => !g.parentId || !waiting.has(g.parentId));
+    const [g] = pending.splice(i < 0 ? 0 : i, 1);
+    waiting.delete(g!.id);
+    ordered.push(g!);
   }
   if (create) {
     result.created = { people: [...people.values()], teams: [...teams.values()], goals: ordered, checkIns: ciOut, requests: [...reqOut.values()], keysIssued: lastKeyGiven };
@@ -1507,10 +1532,10 @@ export function planChanges(input: ChangeInput): ChangeSet {
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),
-        people: [...peopleOut.values()].map((p) => ({ id: p.id, before: s.people.find((x) => x.id === p.id) ?? null })),
+        people: [...peopleOut.values()].map((p) => ({ id: p.id, before: savedPerson.get(p.id) ?? null })),
         requests: [...reqOut.values()].map((r) => ({ id: r.id, before: requestsBefore.find((x) => x.id === r.id) ?? null })),
         ...(reviewsOut.size ? { reviews: [...reviewsOut.keys()].map((id) => ({ id, before: reviewsBefore.get(id) ?? null })) } : {}),
-        ...(teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({ id, before: s.teams.find((x) => x.id === id) ?? null })) } : {}),
+        ...(teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({ id, before: savedTeam.get(id) ?? null })) } : {}),
       },
     };
     result.commit = {
@@ -1596,3 +1621,71 @@ const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).map((w) =
 
 /** The words a check-in's columns take, for a tool's or a sheet's description. */
 export const CALL_CHOICES = oneOf(Object.values(CALL_WORDS.word));
+
+/**
+ * Rule 10. The working set of goals, by id, kept indexed by key and by folded title as goals are added and changed, so
+ * no row scans every goal: a file of thousands of rows is checked in about the time it takes to read. Lookups give what
+ * a scan in the set's order would: by id, then by key; goals with a name in the order they were first set; a name one
+ * letter out worked out once per name until a goal changes.
+ */
+class GoalSet extends Map<string, Goal> {
+  private readonly byKey = new Map<string, string>();
+  private readonly titles = new Map<string, Set<string>>();
+  private readonly folded = new Map<string, string>();
+  private readonly order = new Map<string, number>();
+  private readonly nearMemo = new Map<string, Goal | undefined>();
+  constructor(goals: readonly Goal[]) {
+    super();
+    for (const g of goals) this.set(g.id, g);
+  }
+  override set(id: string, g: Goal): this {
+    const old = super.get(id);
+    if (old) this.unindex(id, old);
+    if (!this.order.has(id)) this.order.set(id, this.order.size);
+    super.set(id, g);
+    if (g.key && !this.byKey.has(g.key)) this.byKey.set(g.key, id);
+    const f = fold(g.title);
+    this.folded.set(id, f);
+    const list = this.titles.get(f);
+    if (list) list.add(id); else this.titles.set(f, new Set([id]));
+    this.nearMemo.clear();
+    return this;
+  }
+  override delete(id: string): boolean {
+    const old = super.get(id);
+    if (old) { this.unindex(id, old); this.nearMemo.clear(); }
+    return super.delete(id);
+  }
+  private unindex(id: string, g: Goal) {
+    if (g.key && this.byKey.get(g.key) === id) {
+      this.byKey.delete(g.key);
+      // Another goal with the same key (never in a sound workspace) takes its place, as a scan would find it.
+      for (const [other, x] of this) if (other !== id && x.key === g.key) { this.byKey.set(g.key, other); break; }
+    }
+    this.titles.get(this.folded.get(id) ?? '')?.delete(id);
+  }
+  /** A goal by its id, else its key (findGoal over the set). */
+  byRef(ref: string): Goal | undefined {
+    if (!ref) return undefined;
+    const hit = super.get(ref);
+    if (hit) return hit;
+    const k = normalKey(ref);
+    const id = k ? this.byKey.get(k) : undefined;
+    return id ? super.get(id) : undefined;
+  }
+  /** The goals with a name (folded), but one, in the order they were first set. */
+  titled(t: string, but = ''): Goal[] {
+    const ids = [...(this.titles.get(fold(t)) ?? [])].filter((id) => id !== but);
+    return ids.sort((a, b) => this.order.get(a)! - this.order.get(b)!).map((id) => super.get(id)!);
+  }
+  /** The one goal whose name is one letter out from `v` (rule 4), but one; undefined when none or several are. */
+  nearTitle(v: string, but = ''): Goal | undefined {
+    const memo = `${but}\u0000${v}`;
+    if (this.nearMemo.has(memo)) return this.nearMemo.get(memo);
+    const all = [...this.values()].filter((g) => g.id !== but);
+    const m = near(v, all.map((g) => g.title));
+    const hit = 'near' in m ? all.find((g) => g.title === m.near) : undefined;
+    this.nearMemo.set(memo, hit);
+    return hit;
+  }
+}

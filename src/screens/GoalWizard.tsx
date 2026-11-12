@@ -126,7 +126,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const metric = d.kind === 'metric' ? measure?.metric ?? null : null;
   const live: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
     person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
-  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published }));
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, startDate: cycle.startDate, mustFix: fix, metric, savedAs: published, actor: app.viewer }));
   // Pressing Publish freezes the questions as they were: the save puts the new goal among the team's goals before it
   // returns, and nothing it changes may ask again (or say a question is open) while the goal's page opens.
   const frozen = useRef<GoalCheck[] | null>(null);

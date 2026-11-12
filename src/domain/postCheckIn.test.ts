@@ -72,6 +72,15 @@ describe('one way to save a check-in (rule 13)', () => {
     expect(() => postCheckIn(x(), post({ week: week - 1, mode: 'again' }))).toThrow(`Week ${week - 1} has passed. Correct it, or add it, with a reason.`);
   });
 
+  it('asks the owner before the change’s own edits: an admin can’t take a goal and check in on it in one change (#227 review)', () => {
+    const take = (who: string, owner: string) => planChanges({ tables: { goals: [{ __row: '2', key: goal.key!, owner: person(owner).name }], checkIns: [{ __row: '2', 'goal id': goal.id, week: String(week), value: onPlan }] }, snapshot: fresh, cycle, week, actor: person(who), now: '2026-11-05T13:00:00Z', newId: (p) => `${p}_o${++n}`, via: 'mcp' });
+    const admin = take('amara', 'amara');
+    expect(admin.commit).toBeNull();
+    expect(admin.issues.find((i) => i.kind === 'not-allowed')!.message).toMatch(/^Only Mateo .* \(its owner\) can check in on/);
+    // The owner handing it on and checking in for the week, at once, is the owner's check-in.
+    expect(take('mateo', 'rhea').commit!.checkIns![0]!.authorId).toBe('mateo');
+  });
+
   it('lets only the owner post, in the engine’s words: not someone else, and not an admin (Lane, 12 Nov)', () => {
     expect(() => postCheckIn(x(fresh, 'rhea'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);
     expect(() => postCheckIn(x(fresh, 'amara'), post())).toThrow(/Only Mateo .* \(its owner\) can check in on/);
@@ -189,5 +198,21 @@ describe('the levels in a check-in (rules 2 and 3)', () => {
     const asked = checkInLevels(goal, week, draft, checkInsFor(goal, fresh.checkIns)).checks[0]!;
     const out = postCheckIn(x(fresh), post({ draft: { ...draft, answers: { [asked.id]: asked.key } } }));
     expect(out.commit.changes[0]!.diffs).toContainEqual({ field: 'Asked', from: asked.question, to: asked.yes });
+  });
+
+  it('keeps an answer given in the table check-in in History, as the form does (build review of #160)', () => {
+    const last = checkInsFor(goal, fresh.checkIns).filter((c) => c.week < week && c.value != null).at(-1)!;
+    const draft = { ...emptyDraft(goal, null), value: String(Math.round(last.value! / 4)), cause: 'slower' as const, why: 'The tracker export lost half the incidents', ptgWhat: 'Re-run the export by hand', ptgBy: week + 2 };
+    const asked = checkInLevels(goal, week, draft, checkInsFor(goal, fresh.checkIns)).checks[0]!;
+    const table = (answers?: Answers) => planChanges({ tables: {}, posts: [post({ draft: { ...draft, answers } })], ...x(fresh), via: 'bulk' });
+    expect(table().commit).toBeNull();
+    const cs = table({ [asked.id]: asked.key });
+    expect(cs.commit!.changes[0]!.diffs).toContainEqual({ field: 'Asked', from: asked.question, to: asked.yes });
+  });
+
+  it('writes a number in a question with the app’s formatter: 1 hour, not 1 hours (build review of #160)', () => {
+    const hours = { ...goal, unit: 'hours', decimals: 0 } as Goal;
+    const q = checkInLevels(hours, week, { ...emptyDraft(hours, null), value: '1' }, [{ ...checkInsFor(goal, fresh.checkIns).at(-1)!, goalId: hours.id, week: week - 1, value: 10 }]).checks[0];
+    expect(q?.question).toMatch(/Is 1 hour right\?/);
   });
 });
