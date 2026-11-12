@@ -127,6 +127,11 @@
       "text": "Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back."
     },
     {
+      "id": "GOAL-DATES",
+      "area": "Goals",
+      "text": "A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
@@ -845,6 +850,11 @@
       "id": "IMPORT-LEVELS",
       "area": "Data",
       "text": "Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused."
+    },
+    {
+      "id": "IMPORT-PREVIEW",
+      "area": "Data",
+      "text": "Before anything is saved an import says which sheets and columns it read and which it did not, then counts by sheet, then what must be fixed, then its questions, then the changes on request with before and after and every default it used. Saving is all or nothing unless the person chooses to leave named rows out."
     },
     {
       "id": "IMPORT-ACTIONS",

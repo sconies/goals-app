@@ -74,7 +74,7 @@ describe('The layers', () => {
 });
 
 // @ts-expect-error: a plain JavaScript script, run by CI with node, has no type declarations.
-import { checkPickers, selectsOfEverything } from '../../scripts/check-pickers.mjs';
+import { checkPickers, selectsOfEverything, typedWeeks } from '../../scripts/check-pickers.mjs';
 
 describe('The pickers lint (find spec, N12)', () => {
   it('holds in this repository: nothing new is chosen from a list of everything', () => {
@@ -84,6 +84,13 @@ describe('The pickers lint (find spec, N12)', () => {
     const find = selectsOfEverything as (s: string) => number[];
     expect(find('<label>\n<select value={x}>{app.snapshot.people.map((p) => <option key={p.id}>{p.name}</option>)}</select>')).toEqual([2]);
     expect(find('<select>{weeks.map((w) => <option key={w}>{w}</option>)}</select>')).toEqual([]);
+  });
+  it('finds a week typed as a number, and not a field about a week (goal entry, N12)', () => {
+    const typed = typedWeeks as (s: string) => number[];
+    expect(typed('<input className="input stage-week" inputMode="numeric" aria-label={named(`Stage ${i + 1}: due week`)} value={s.dueWeek} />')).toEqual([1]);
+    expect(typed('<input placeholder="Due week" />')).toEqual([1]);
+    expect(typed('<input aria-label={`Plan for week ${week}`} />')).toEqual([]);
+    expect(typed('<input placeholder="One thing that will move this before next week" />')).toEqual([]);
   });
 });
 

@@ -30,6 +30,7 @@ import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
+import { readWeekCode, weekUnknownText } from './weeks';
 import { checkInsFor } from './status';
 import { makesLoop } from './tree';
 import { asksOf, requestsAfterCheckIn } from './asks';
@@ -86,6 +87,8 @@ export interface Item {
 export interface ChangeSet {
   items: Item[];
   unchanged: number;
+  /** The same, by sheet: the preview's counts table. */
+  unchangedBy: Record<Sheet, number>;
   /** Rows whose Action says Example (the template's): left out, and said (C15). */
   examples: number;
   /** Every problem, a row each, with its kind and level (domain/problemLevels), in the file's order: sheet, then row. */
@@ -177,7 +180,7 @@ export const examplesLine = (n: number): string => (n ? `${plural(n, 'example ro
 
 /** The columns a goal form's field is, for its problem on the Goals sheet. */
 /** A goal field's column on the Goals sheet, where a Must fix from goal entry's rule 2 (domain/goalEntry) is said. */
-const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit' };
+const FIELD_COLUMN: Partial<Record<GoalField, string>> = { title: 'Goal', teamId: 'Team', ownerId: 'Owner', level: 'Level', parentId: 'Feeds into', start: 'Start', target: 'Target', limit: 'Limit', margin: 'Margin', decimals: 'Decimals', effect: 'Effect', stages: 'Stages', points: 'Plan', unit: 'Unit', fromWeek: 'Plan from week', endWeek: 'Due week' };
 /** Each Must fix's kind among the engine's (domain/problemLevels): every one is a Must fix; the kind says which sort. */
 const MUST_KIND: Record<MustFixId, IssueKind> = {
   'name-empty': 'required-empty', 'name-short': 'required-empty', 'owner-empty': 'required-empty', 'team-empty': 'required-empty', 'level-empty': 'required-empty',
@@ -185,11 +188,12 @@ const MUST_KIND: Record<MustFixId, IssueKind> = {
   'feeds-loop': 'loop', 'not-number': 'not-a-number', 'has-words': 'not-a-number', 'too-precise': 'precision', 'plan-point': 'not-a-number', 'decimals-lose': 'precision',
   'decimals-range': 'unknown-word', 'same-as-start': 'impossible-number', 'margin-negative': 'impossible-number',
   'stage-name': 'stage-format', 'stage-week': 'stage-format', 'stage-twice': 'stage-format', 'stage-done-removed': 'cant-change',
+  'to-before-from': 'plan-order', 'week-unknown': 'week-wrong', 'week-beyond': 'week-wrong',
 };
 
 /** Goal entry's questions (rule 3) as the engine's kinds: the unlikely numbers are one kind, grouped by question. */
 const ENGINE_CHECK: Partial<Record<GoalCheckId, IssueKind>> = {
-  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number',
+  'below-zero': 'odd-number', 'over-100': 'odd-number', hundredfold: 'odd-number', billion: 'odd-number', 'margin-wide': 'odd-number', 'late-plan': 'odd-number', 'long-plan': 'odd-number',
 };
 /** The kinds that are goal entry's questions: said on their item, and answered yes, all of them, by `confirm`. */
 const GOAL_QUESTION: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit', 'plan-question'];
@@ -206,9 +210,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const items: Item[] = [];
   const leftOut: { sheet: Sheet; row: number }[] = [];
   let unchanged = 0;
+  const unchangedBy: Record<Sheet, number> = { Goals: 0, Plan: 0, 'Check-ins': 0, People: 0 };
+  /** A row that says what's already there. */
+  const same = (sheet: Sheet) => { unchanged++; unchangedBy[sheet]++; };
   let examples = 0;
   const changes: Change[] = [];
-  type Extra = { column?: string; found?: string; suggest?: string; answers?: Choice[] };
+  type Extra = { column?: string; found?: string; suggest?: string; answers?: Choice[]; value?: string };
   /** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
   const raise = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => { issues.push(issueOf(kind, sheet, row, name, message, x)); };
   const note = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra = {}) => raise(kind, sheet, row, name, message, x);
@@ -220,7 +227,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
    * question is raised (null) and the row is read on as it says, so nothing else about it waits for the answer.
    */
   const ask = (kind: IssueKind, sheet: Sheet, row: number, name: string, message: string, x: Extra): Answer | 'leave' | null => {
-    const a = answerOf(kind, sheet, x.column, x.found) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : undefined);
+    const given = answerOf(kind, sheet, x.column, x.found);
+    // Only an answer the question offers counts ("banana" answers nothing), and one given for some numbers covers only
+    // those numbers: a different number, in this file or the next, is asked again (IM2 review).
+    const fits = given && (!x.answers?.length || x.answers.some((c) => c.choice === given.choice)) && (!given.covers || x.value == null || given.covers.includes(x.value));
+    const a = (fits ? given : undefined) ?? (input.confirm && CONFIRMED.includes(kind) ? { choice: 'right' } : input.confirm && kind === 'other-goal' ? { choice: 'change' } : undefined);
     if (a?.choice === 'leave') { leave(sheet, row); return 'leave'; }
     if (a) return a;
     raise(kind, sheet, row, name, message, x);
@@ -256,7 +267,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (a?.choice === 'use') return code;
       if (pick(a)) return pick(a);
       if (a?.choice === 'leave') { leave(sheet, row); return undefined; }
-      raise('near-word', sheet, row, name, `${w.what} says “${found}”. Read it as ${m.near}?`, { column: w.what, found, suggest: m.near, answers: ANSWERS.nearWord(m.near, words) });
+      raise('near-word', sheet, row, name, `${w.what} says “${found}”. Read it as ${m.near}?`, { column: w.what, found, suggest: m.near, answers: ANSWERS.nearWord(m.near, words.filter((x) => codeOf(w, x) !== code)) });
       return undefined;
     }
     const a = answerOf('unknown-word', sheet, w.what, found);
@@ -413,7 +424,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
     if (action === 'left') {
       if (!before) return raise('removal-refused', 'People', row, name || email, `${LEFT} needs someone already here: their email or ID.`, { column: 'Action' });
-      if (!admin()) return raise('not-allowed', 'People', row, before.name, 'Only an admin can mark someone as left.', { answers: ANSWERS.leaveOnly });
+      if (!admin()) { if (answerOf('not-allowed', 'People')?.choice === 'leave') return leave('People', row); return raise('not-allowed', 'People', row, before.name, 'Only an admin can mark someone as left.', { answers: ANSWERS.leaveOnly }); }
       // An email, or a name only one person has (the field table), found as an owner is: one one letter out is asked.
       const to = pickPerson('People', r, { name: 'takes over' }, null, 'Takes over');
       if (to.left) return leave('People', row);
@@ -472,7 +483,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     };
     if (emailSets && has(r, 'email') && !email && before.email) return raise('cant-change', 'People', row, before.name, 'Their email can be changed, not taken away. Type it back in.', { column: 'Email' });
     objective(r, row, after);
-    if (JSON.stringify(after) === JSON.stringify(before)) { unchanged++; return; }
+    if (JSON.stringify(after) === JSON.stringify(before)) { same('People'); return; }
     if (!admin()) { if (answerOf('not-allowed', 'People')?.choice === 'leave') return leave('People', row); return raise('not-allowed', 'People', row, before.name, 'Only an admin can change people.', { answers: ANSWERS.leaveOnly }); }
     people.set(before.id, after);
     peopleTouched.set(before.id, { before, row });
@@ -483,7 +494,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const t = teams.get(p.teamId);
     const v = val(r, 'team objective');
     if (!t || (t.leadId !== p.id && !v) || t.objective === v) return;
-    if (!admin()) { raise('not-allowed', 'People', row, p.name, 'Only an admin can change a team’s objective.', { answers: ANSWERS.leaveOnly }); return; }
+    if (!admin()) { if (answerOf('not-allowed', 'People')?.choice === 'leave') leave('People', row); else raise('not-allowed', 'People', row, p.name, 'Only an admin can change a team’s objective.', { answers: ANSWERS.leaveOnly }); return; }
     if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, { before: t, row });
     teams.set(t.id, { ...t, objective: v });
   }
@@ -548,6 +559,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
    * A date outside the cycle is never read as a week.
    */
   const weekCell = (raw: string, sheet: Sheet, row: number, name: string, say = true): { n: number | null; problem?: string } => {
+    // A goal year and its week (2026-W48; goal entry, rule 13).
+    if (/^\d{4}\s*-?\s*W\s*\d{1,2}$/i.test(raw.trim())) { const r = readWeekCode({ startDate: cycle.startDate, weeks: cycle.weeks }, raw); return 'n' in r ? { n: r.n } : { n: null, problem: r.text ?? weekUnknownText(cycle, 'The week', raw) }; }
     const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim()) ?? (() => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw.trim()); return m ? [m[0], m[3], m[2]!.padStart(2, '0'), m[1]!.padStart(2, '0')] as unknown as RegExpExecArray : null; })();
     if (!iso) return { n: parseNumber(raw) };
     const at = Date.parse(`${iso[1]}-${iso[2]}-${iso[3]}T00:00:00Z`);
@@ -561,7 +574,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const stoppedByRef = (r: string) => (r && !goalByRef(r) ? findGoal(s.archive?.goals ?? [], r) : undefined);
   const warnedStopped = new Set<string>();
   const leftAlone = (sheet: Sheet, row: number, g: Goal) => {
-    unchanged++;
+    same(sheet);
     if (!warnedStopped.has(g.id)) { warnedStopped.add(g.id); note('left-alone', sheet, row, g.title, `“${g.title}” is ${lower({ label: STOPPED })}, so its rows are left as they are.`); }
   };
   // New goals take the next keys, in the order of their rows; no key is used twice in a workspace. In create mode a
@@ -639,8 +652,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
         const owner = people.get(existing.ownerId);
         const ownerGiven = [ref(r, 'owner'), ref(r, 'owner email')].filter(Boolean);
         const teamGiven = ref(r, 'team');
-        const ownerDiffers = ownerGiven.every((v) => !owner || (fold(v) !== fold(owner.name) && normalEmail(v) !== normalEmail(owner.email)));
-        const teamDiffers = !teamGiven || fold(teamGiven) !== fold(teams.get(existing.teamId)?.name ?? '');
+        // A file's row that gives no owner or team counts them as differing (09h: keys from another workspace). Through
+        // the AI tools a call names only what it changes, so a rename by key is a rename: only what it gives counts.
+        const given = via !== 'mcp';
+        const ownerDiffers = (given || ownerGiven.length > 0) && ownerGiven.every((v) => !owner || (fold(v) !== fold(owner.name) && normalEmail(v) !== normalEmail(owner.email)));
+        const teamDiffers = given ? !teamGiven || fold(teamGiven) !== fold(teams.get(existing.teamId)?.name ?? '') : !!teamGiven && fold(teamGiven) !== fold(teams.get(existing.teamId)?.name ?? '');
         if (ownerDiffers && teamDiffers) {
           const k = existing.key ?? existing.id;
           const a = ask('other-goal', 'Goals', row, title, `${k} is “${existing.title}” here, owned by ${owner?.name ?? 'someone'}. Row ${row} calls it “${title}”${ownerGiven.length || teamGiven ? ', with another owner and team' : ''}. Is it the same goal?`, { column: 'Key', found: k, answers: ANSWERS.otherGoal });
@@ -664,7 +680,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
         const k = same.key ?? same.id;
         const a = ask('same-goal', 'Goals', row, title, `A goal called “${same.title}” is already here (${[k, teams.get(same.teamId)?.name].filter(Boolean).join(', ')}). Is this a new goal, or the same one?`, { column: 'Goal', found: title, answers: ANSWERS.sameGoal(k) });
         if (a === 'leave') return;
-        if (a && a.choice === 'same') existing = same;
+        if (a && a.choice === 'same') {
+          // Two rows answered "the same" for one goal: both are named, as any goal on two rows is (IM2 review).
+          if (touched.has(same.id)) return raise('duplicate', 'Goals', row, same.title, `“${same.title}” has another row in this file. Give each goal one row.`, { column: 'Key', answers: ANSWERS.duplicate });
+          existing = same;
+        }
       } else if (same && create) return raise('duplicate', 'Goals', row, title, `“${title}” is on two rows. Give each goal one row.`, { column: 'Goal' });
     }
     const label = title || existing?.title || '';
@@ -684,6 +704,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const d: GoalDraft = existing ? draftOf(existing) : blankGoal(tm?.id ?? owner?.teamId ?? [...teams.values()][0]?.id ?? '', owner!.id, '');
     if (title) d.title = title;
     if (owner) d.ownerId = owner.id;
+    // A default used is said on the change (section 4, "Fine, and said"): the team a new goal takes from its owner.
+    if (!existing && !tm && owner?.teamId && teams.get(owner.teamId)) note('default', 'Goals', row, title, `Team: ${teams.get(owner.teamId)!.name} (the owner’s team; the row gave none).`, { column: 'Team' });
     if (tm) d.teamId = tm.id;
     const lvl = readWord(LEVEL_WORDS, val(r, 'level'), 'Goals', row, label);
     if (lvl === undefined) return;
@@ -727,30 +749,45 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const shape = readWord(SHAPE_WORDS, val(r, 'plan'), 'Goals', row, d.title);
     if (shape === undefined) return;
     if (shape && shape !== d.shape) { d.shape = shape; d.points = {}; }
-    if (has(r, 'plan from week') && d.kind === 'metric' && val(r, 'plan from week')) {
-      const n = parseNumber(val(r, 'plan from week'));
-      if (n == null || !Number.isInteger(n) || n < -104 || n > 104) return raise('week-wrong', 'Goals', row, d.title, 'Plan from week should be a whole number of weeks from the cycle start.', { column: 'Plan from week' });
-      const cur = existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : null;
-      if (cur == null || n !== cur) d.fromWeek = String(n);
-    }
+    // From and To (goal entry, rule 13) beside Plan from week and Due week, read as Owner and Owner email are: a column that
+    // says what the goal says now is ignored, the one that differs counts, and two that differ and disagree are a Must fix.
+    // From and To are a goal year and its week (2026-W46); the old columns are weeks from the cycle's start.
     let dueChanged = false;
-    if (has(r, 'due week') && d.kind === 'metric') {
-      const w = val(r, 'due week');
-      const read = w ? weekCell(w, 'Goals', row, d.title) : { n: null };
-      if (read.problem) return raise('week-wrong', 'Goals', row, d.title, read.problem, { column: 'Due week' });
-      const n = read.n;
-      if (w && (n == null || !Number.isInteger(n) || n < 1 || n > 104)) return raise('week-wrong', 'Goals', row, d.title, 'Due week should be a whole number of weeks from the cycle start, up to 104.', { column: 'Due week' });
-      const next = w && n !== cycle.weeks ? String(n) : '';
-      dueChanged = next !== d.endWeek;
-      d.endWeek = next;
+    if (d.kind === 'metric') {
+      const was = existing?.kind === 'metric' ? existing.plan : null;
+      // One pair: the new column (a goal year's week) and the old (the cycle's week); null when neither says anything new.
+      const pair = (col: 'from' | 'to', old: 'plan from week' | 'due week', head: string, oldHead: string, cur: number | null): number | null | false => {
+        const said: [string, string, number][] = [];
+        for (const [c, h] of [[col, head], [old, oldHead]] as const) {
+          const raw = has(r, c) ? val(r, c) : '';
+          // An empty Due week is the cycle's end (it clears); any other empty cell says nothing.
+          if (!raw && !(c === 'due week' && has(r, c))) continue;
+          let n: number | null, msg: string | undefined;
+          if (c === col) { const x = readWeekCode(cycle, raw); n = 'n' in x ? x.n : null; msg = 'text' in x ? x.text : undefined; }
+          else if (c === 'due week' && raw) { const x = weekCell(raw, 'Goals', row, d.title); n = x.n; msg = x.problem; }
+          else n = raw ? parseNumber(raw) : cycle.weeks;
+          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h }); return false; }
+          if (n !== cur) said.push([h, raw, n]);
+        }
+        if (said.length === 2 && said[0]![2] !== said[1]![2]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${said[0]![1]} and ${oldHead} says ${said[1]![1]}. Change just one of them.`, { column: head }); return false; }
+        return said[0]?.[2] ?? null;
+      };
+      const from = pair('from', 'plan from week', 'From', 'Plan from week', was ? was.fromWeek ?? 0 : null);
+      if (from === false) return;
+      if (from != null) d.fromWeek = String(from);
+      if (has(r, 'to') || has(r, 'due week')) {
+        const to = pair('to', 'due week', 'To', 'Due week', was ? planEnd(was, cycle.weeks) : null);
+        if (to === false) return;
+        if (to != null) { const next = to !== cycle.weeks ? String(to) : ''; dueChanged = next !== d.endWeek; d.endWeek = next; }
+      }
     }
     if (d.kind === 'metric' && (!existing || d.fromWeek != null || dueChanged)) {
-      // The due week against the start the goal will have, always (C3): its own Plan from week, else what it has, else this week.
+      // The due week against the start the goal will have, always (C3): its own From, else what it has, else this week.
+      // One that isn't after it is goal entry's Must fix (to-before-from), said below in its words.
       const from = d.fromWeek != null ? Number(d.fromWeek) : existing?.kind === 'metric' ? existing.plan.fromWeek ?? 0 : week > 0 ? week : 0;
       const end = parseNumber(d.endWeek) ?? cycle.weeks;
-      if (from >= end) return raise('plan-order', 'Goals', row, d.title, `Due week (${end}) has to come after the plan starts (week ${from}).`, { column: 'Due week' });
       // A new goal whose whole plan is already past: a finished goal added for the record, or a mistake (past-plan).
-      if (!existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
+      if (from < end && !existing && !create && end < week && ask('past-plan', 'Goals', row, d.title, `“${d.title}” has a plan that ended in week ${end}; it’s week ${week}.`, { column: 'Due week', answers: ANSWERS.pastPlan }) === 'leave') return;
     }
     if (val(r, 'limit')) d.limit = val(r, 'limit');
     const bound = readWord(BOUND_WORDS, val(r, 'must stay'), 'Goals', row, d.title);
@@ -796,7 +833,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (has(r, 'definition')) d.definition = val(r, 'definition');
     // What can't be saved: goal entry's rule 2, the same rule and words as New goal, the edit page and set-up's cards.
     const ownerNow = people.get(d.ownerId);
-    const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
+    const fix = goalMustFix(d, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
     if (fix.length) {
       for (const f of fix) raise(MUST_KIND[f.id], 'Goals', row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? 'Goal' });
       return;
@@ -812,11 +849,11 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // past (past-stage); a changed plan's question is asked once the change is known (plan-question, below), and a link
     // to a lower level once the links are read (feeds-lower). An owner in another team isn't asked of a file: its Team
     // column says the team in so many words, where the form's team follows the owner until chosen by hand.
-    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle });
+    const checks = goalChecks(d, { week, cycleWeeks: cycle.weeks, existing, door: 'table', levels: cycle, startDate: cycle.startDate });
     for (const c of checks) {
       const kind = ENGINE_CHECK[c.id];
       if (!kind) continue;
-      if (ask(kind, 'Goals', row, d.title, c.question, { column: FIELD_COLUMN[c.field] ?? 'Goal', found: c.id, answers: ANSWERS.odd }) === 'leave') return;
+      if (ask(kind, 'Goals', row, d.title, c.question, { column: FIELD_COLUMN[c.field] ?? 'Goal', found: c.id, answers: ANSWERS.odd, ...(kind === 'odd-number' ? { value: val(r, (FIELD_COLUMN[c.field] ?? '').toLowerCase()) } : {}) }) === 'leave') return;
     }
 
     const gid = existing?.id ?? newId('goal', d.title);
@@ -941,7 +978,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
       if (!sameAsWritten(n!, was, g.decimals)) typed.set(w, n!);
     }
     const startChanged = startTyped != null && !sameAsWritten(startTyped, orig.plan.start, g.decimals);
-    if (!typed.size && !startChanged) { if (!touched.has(id)) unchanged++; return; }
+    if (!typed.size && !startChanged) { if (!touched.has(id)) unchanged++; unchangedBy.Plan++; return; }
     if (removals.some((x) => x.g.id === id)) return raise('cant-change', 'Plan', row, g.title, `This file also stops or deletes “${g.title}”, so its plan can’t change in it.`);
     if (!create && !canChange(g)) {
       if (answerOf('not-allowed', 'Plan')?.choice === 'leave') return leave('Plan', row);
@@ -999,7 +1036,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   for (const [id, t] of touched) {
     const after = work.get(id)!;
     const ch = goalChange(t.before, after, lookup, actor.id, now, newId('chg'));
-    if (!ch) { unchanged++; continue; }
+    if (!ch) { same(t.sheet); continue; }
     // Rows for other people's goals are fine as long as they don't change anything (a full workbook carries them all).
     if (t.before && !canChange(t.before)) {
       if (answerOf('not-allowed', t.sheet)?.choice === 'leave') { leave(t.sheet, t.row); continue; }
@@ -1042,8 +1079,18 @@ export function planChanges(input: ChangeInput): ChangeSet {
   // This file's check-ins so far, by goal: later weeks are judged with the earlier ones.
   const imported = new Map<string, CheckIn[]>();
   // One goal and week on two rows (C14), or one check-in's ID twice: every row named, none applied, unless answered.
+  // A goal named one letter out and answered ("Use …", or one chosen) is that goal here too, so two rows for it in one
+  // week are caught (IM2 review): the answer is read without raising anything.
+  const answeredGoal = (r: Rec): Goal | undefined => {
+    const v = val(r, 'goal');
+    if (!v || val(r, 'goal key') || val(r, 'goal id')) return undefined;
+    const a = answerOf('near-ref', 'Check-ins', 'Goal', v) ?? answerOf('unknown-ref', 'Check-ins', 'Goal', v);
+    if (a?.choice === 'use') { const all = [...work.values()]; const m = near(v, all.map((g) => g.title)); return 'near' in m ? all.find((g) => g.title === m.near) : undefined; }
+    if (a?.choice === 'choose' && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
+    return undefined;
+  };
   const skipCheckIns = twice('Check-ins', ciRows.map(({ r, row }) => {
-    const g = goalFor(r);
+    const g = goalFor(r) ?? answeredGoal(r);
     const w = weekCell(val(r, 'week'), 'Check-ins', row, '', false).n;
     const cid = create ? '' : val(r, 'id');
     return { row, name: g?.title ?? val(r, 'goal'), id: cid ? 'c:' + cid : g && w != null ? `${g.id}:${w}` : '' };
@@ -1059,7 +1106,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // that can be changed is compared, so a change to any of them counts.
     if (existing && sameCheckIn(existing, draft, g)) {
       if (post) { raise('cant-change', 'Check-ins', row, g.title, `Nothing is different from what week ${w} already says.`); return; }
-      unchanged++; imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
+      same('Check-ins'); imported.set(g.id, [...(imported.get(g.id) ?? []), existing]); return;
     }
     // A goal this file stops or deletes keeps its check-ins as they are: a whole workbook carries them unchanged.
     const removing = removals.find((x) => x.g.id === g.id);
@@ -1107,7 +1154,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // A number that looks unlikely (far from the last, far outside the plan, over 100%, past the target) is asked (C6).
     if (!post && !create && g.kind !== 'milestone' && ASKS_NUMBERS.includes(via)) {
       const soft = valueProblem(draft.value, prev?.value ?? null, g.unit, g);
-      if (soft && !soft.block && ask('odd-number', 'Check-ins', row, g.title, `Week ${w}: ${soft.text}`, { column: 'Value', found: oddKind(soft.text), answers: ANSWERS.odd }) === 'leave') return;
+      if (soft && !soft.block && ask('odd-number', 'Check-ins', row, g.title, `Week ${w}: ${soft.text}`, { column: 'Value', found: oddKind(soft.text), answers: ANSWERS.odd, value: String(draft.value) }) === 'leave') return;
     }
     // A correction from a screen keeps the time and the lateness of what it replaces: it is never an on-time check-in of
     // its own, and never takes one away (rule 12).
@@ -1118,7 +1165,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const made = asRecorded ? asWritten(asOf, w, draft, e, actor.id, at.toISOString(), existing?.id ?? newId('ci')) : toCheckIn(asOf, cycle, w, draft, ctx, actor.id, at, existing?.id ?? newId('ci'));
     const c: CheckIn = { ...made, ...(backfilled ? { backfilled: true } : {}) };
     const ch = checkInChange(existing, c, g, actor.id, newId('chg'));
-    if (!ch) { unchanged++; return; }
+    if (!ch) { same('Check-ins'); return; }
     if (again) ch.summary = ch.summary.replace('Checked in for week', 'Checked in again for week');
     ch.diffs.push(...answeredDiffs(asked, draft.answers));
     if (post?.mode === 'correct') {
@@ -1351,7 +1398,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const needsConfirm = issues.some((x) => x.kind === 'plan-question');
   // Saved only with no Must fix and every Check answered (rule 7), a reason where one is needed, and something to save.
   const ok = !issues.some((x) => x.level === 'must' || x.level === 'check') && !needsReason && items.length > 0;
-  const result: ChangeSet = { items, unchanged, examples, issues, groups: groupIssues(issues), leftOut, needsReason, needsConfirm, commit: null, counts };
+  const result: ChangeSet = { items, unchanged, unchangedBy, examples, issues, groups: groupIssues(issues), leftOut, needsReason, needsConfirm, commit: null, counts };
   // New goals before the goals that feed into them, so each link points at a goal that's already saved.
   const ordered: Goal[] = [];
   const pending = [...goalOut.values()];

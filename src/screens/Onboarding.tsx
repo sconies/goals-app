@@ -479,7 +479,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
               <span className="hint">The one number that says whether this year worked. Everything else feeds it.</span>
               {d.template !== 'blank' && <span className="hint">Example numbers. Change them to yours.</span>}
             </div>
-            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline />
+            <SetupGoalFields g={d.outcome} owners={owners} onChange={(p) => set({ outcome: { ...d.outcome, ...p } })} issue={tried ? goalIssue(2) : undefined} errors={tried ? goalErr(d.outcome, true) : undefined} headline startDate={d.startDate} />
           </section>
         )}
 
@@ -492,7 +492,7 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
             </div>
             {d.goals.map((g, i) => (
               <div key={i} className="goalcard">
-                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} />
+                <SetupGoalFields g={g} owners={owners} ownerHint={i === 0 ? 'Give a teammate one, so they have something to check in on. You can leave it for now.' : undefined} onChange={(p) => updateGoal(i, p)} issue={tried ? goalIssue(i + 3) : undefined} errors={tried && g.title.trim() ? goalErr(g) : undefined} week={currentWeek({ startDate: d.startDate, weeks: yearWeeks(d.startDate) } as Cycle, setup.today)} weeks={yearWeeks(d.startDate)} startDate={d.startDate} />
                 <button type="button" className="linkish tap" onClick={() => { setRemoved({ goal: g, at: i }); set({ goals: d.goals.filter((_, k) => k !== i) }); }}>Remove this goal</button>
               </div>
             ))}
@@ -571,7 +571,7 @@ function cardChecks(g: GoalRow): GoalCheck[] {
   return goalChecks(d, { week: 0, cycleWeeks: 53, existing: null, door: 'setup', mustFix }).filter((c) => CARD_CHECKS.includes(c.id));
 }
 
-function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number }) {
+function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 0, weeks = 52, startDate, ownerHint }: { ownerHint?: string; g: GoalRow; owners: OwnerPick; onChange: (p: Partial<GoalRow>) => void; issue?: string; errors?: { title: string | null; start: string | null; target: string | null; limit: string | null }; headline?: boolean; week?: number; weeks?: number; startDate: string }) {
   const titleIssue = errors?.title;
   const say = (text: string | null | undefined) => (text ? <span className="hint tone-off field-error" role="alert">{text}</span> : null);
   const any = !!errors && !!(errors.title || errors.start || errors.target || errors.limit);
@@ -615,7 +615,7 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
       ) : null}
       {g.kind !== 'milestone' && questions}
       {g.kind !== 'milestone' ? null : (
-        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} weeks={weeks} />
+        <StageRows value={g.stages ?? ''} onChange={(stages) => onChange({ stages })} goalName={g.title || 'Goal'} cycle={{ startDate, weeks }} week={week} />
       )}
       {/* Asked here, in the open, so a new goal page doesn't say "not described yet" (setup review, 8 Nov). */}
       {g.kind !== 'milestone' && (
@@ -634,11 +634,11 @@ function SetupGoalFields({ g, owners, onChange, issue, errors, headline, week = 
  * Stages as rows (name and week), with the same fields as the new-goal wizard and Edit goal. Kept in the text form the
  * importer reads ("Design@3; Pilot@7").
  */
-function StageRows({ value, onChange, goalName, weeks }: { value: string; onChange: (v: string) => void; goalName: string; weeks: number }) {
+function StageRows({ value, onChange, goalName, cycle, week }: { value: string; onChange: (v: string) => void; goalName: string; cycle: { startDate: string; weeks: number }; week: number }) {
   const parsed = value.split(';').map((x) => x.trim()).filter(Boolean).map((x, i) => { const [n, w] = x.split('@'); return { id: 's' + i, name: (n ?? '').trim(), dueWeek: (w ?? '').trim() }; });
   const stages = parsed.length ? parsed : [{ id: 's0', name: '', dueWeek: '' }];
   const save = (next: { name: string; dueWeek: string }[]) => onChange(next.map((r) => `${r.name.replace(/[;@]/g, ' ')}@${r.dueWeek.replace(/\D/g, '')}`).join('; '));
-  return <StageFields stages={stages} onChange={save} onAdd={() => save([...stages, { name: '', dueWeek: '' }])} error={null} labelClass="field-label" weeks={weeks} goalName={goalName} />;
+  return <StageFields stages={stages} onChange={save} onAdd={() => save([...stages, { name: '', dueWeek: '' }])} error={null} labelClass="field-label" cycle={cycle} week={week} goalName={goalName} />;
 }
 
 function UploadButton({ onFile, label = 'Upload a spreadsheet' }: { onFile: (f: File) => void; label?: string }) {

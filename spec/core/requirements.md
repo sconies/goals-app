@@ -277,6 +277,14 @@ Every way of adding a goal says what it needs before it is refused, checks it wi
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** U93
 
+### GOAL-DATES
+
+A goal's weeks are chosen, not typed, and are always shown with their dates and year: the baseline's week (From) and the week the target is due (To) are named the same on every screen, in the sheet and by the tools.
+
+- **Rule:** [Years and weeks](rules/years-and-weeks.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U109
+
 ### NEW-GOAL-TRUTH
 
 A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
@@ -505,7 +513,7 @@ Every main screen works at every width from a 360px phone, through a tablet held
 The fit-and-finish review's rules hold: text follows the browser's text size; controls share one height (40px, 44px on touch, 32px in rows); one focus ring; the app's own icons, never glyph characters; on phones, tables, toolbars and two-column rows stack rather than squeeze; the tablet rail names its icons and fits the Demo box; nothing scrolls sideways; every page and every Goals layout starts at the same left edge.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
-- **Journeys and checks:** F10, F15, P10
+- **Journeys and checks:** F10, F15, F17, P10
 
 ### FIT-AND-FINISH-AREAS
 
@@ -731,7 +739,7 @@ Whatever is exported loads straight back as no change: every demo workspace as a
 - **Rule:** [The change engine](rules/change-engine.md)
 - **Help:** “Data” (`data`), screens `DataTables`, `DataFilters`, `DataLayout`
 - **Tests:** `evals/format.eval.ts` (5)
-- **Journeys and checks:** U46
+- **Journeys and checks:** U46, U89
 
 ## Demo
 
@@ -933,7 +941,7 @@ A research hub for people and AI agents: what the app is for, a note that access
 The app follows docs/design-rules.md on every screen: no coloured edge stripes or inset accent bars on cards, rows or tiles; no quote bars; no emoji or dingbat icons; no gradients; no capsule badges for states. Status is always a shape plus a word; off track gets a full-surface wash, never an edge.
 
 - **Help:** “What the statuses mean” (`status`)
-- **Journeys and checks:** F11, P6
+- **Journeys and checks:** F11, P6, P19
 
 ### SHAPE-MATCHES-WORD
 

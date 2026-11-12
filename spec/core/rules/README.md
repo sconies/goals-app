@@ -16,6 +16,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [The change engine](change-engine.md) | The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP. |
 | [The field table](field-table.md) | For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import. |
 | [Kinds, levels and near misses](import-levels.md) | Every problem the change engine finds is data: a kind, and a level its kind fixes (Must fix, Check, or said); problems group by kind, one answer covers a group, and a name one letter out is asked about, never guessed. |
+| [What an import read, and leaving rows out](import-preview.md) | Before an import is saved, it says which sheets and columns it read and which it did not, counts by sheet, and may leave named rows out with the rows that depend on them; worked-out cells a file edited are counted and said, never read. |
 | [Deciding in a review](review-decide.md) | A goal behind leaves a review with a next step (an owner and a week) or an accepted risk with a reason; the next session opens with what the last one agreed. |
 | [A year’s end](year-end.md) | A cycle’s real first and last days, where it stands on a day, and the week its results are judged at: the clock, not a button, ends a year. |
 | [Starting the next year](start-next-year.md) | Which cycle everyone is in, what an admin’s start prepares and reads back first, and when it can be undone. |
@@ -29,6 +30,7 @@ Every core rule lives in `src/domain`: pure functions, with no database, screen 
 | [A goal’s history](goal-history.md) | Every week of a goal, checked in or not, its comments, what reviews said and its changes, under four filters with counts. |
 | [Who a comment reaches](comment-reach.md) | The line under a goal’s comment box: everyone in the workspace can read a comment, and the goal’s owner and the people watching it see it on Home. |
 | [Goal entry](goal-entry.md) | What a goal needs, what can’t be saved and who may save it: one rule for New goal, the edit page, set-up’s cards, a spreadsheet’s Goals rows and the AI tools, in the same words. |
+| [Years and weeks](years-and-weeks.md) | A goal’s weeks are counted from its cycle’s start and shown as a goal year’s week with its dates and their year; one rule converts each way, for the picker, the sheet and the AI tools. |
 | [New goal](new-goal.md) | New goal asks what, then who and where, then how it’s measured, then reads it back; its level starts from the goal it feeds, and “Feeds into” suggests the goals one level up. |
 | [A goal not born late](not-born-late.md) | A stage already past when a goal is set up is asked about, and one said to be done counts as on time; a goal’s first number may restart its plan. |
 | [Finding things](finding.md) | What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls. |
