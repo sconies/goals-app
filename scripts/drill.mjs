@@ -42,12 +42,12 @@ import { fileURLToPath } from 'node:url';
 
 const FILES = ['status', 'flags', 'projection', 'scorecard', 'checkin'];
 /** Files beyond stage 1's, scored only when asked for ("also" in drill.json, or --files). */
-const ALSO = ['scorecard-words', 'find', 'goals', 'navigation', 'import', 'changes', 'metrics', 'readback', 'home'];
+const ALSO = ['scorecard-words', 'find', 'goals', 'navigation', 'import', 'changes', 'metrics', 'readback', 'home', 'zone'];
 /** What each stage's drill scores by default: stage 1 the core rules, stage 2 the change engine (what it raises and what
     it would save), stage 3 the screens' words (the menu and page names, New goal's read-back, Find, Home's lead). */
 const STAGES = { 1: FILES, 2: ['changes', 'import'], 3: ['navigation', 'readback', 'find', 'home'] };
 /** The columns that name a row: a row in the rebuild's file is matched to the expected row with the same values in them. */
-const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], 'scorecard-words': ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], goals: ['query'], navigation: ['viewer', 'address'], import: ['case'], changes: ['case', 'row'], readback: ['case'], metrics: ['rule', 'ask', 'row'], home: ['viewer', 'day'] };
+const KEYS = { status: ['week', 'goal'], flags: ['week', 'goal'], projection: ['week', 'goal'], scorecard: ['week', 'goal', 'cell'], 'scorecard-words': ['week', 'goal', 'cell'], checkin: ['checkin'], find: ['kind', 'q'], goals: ['query'], navigation: ['viewer', 'address'], import: ['case'], changes: ['case', 'row'], readback: ['case'], metrics: ['rule', 'ask', 'row'], home: ['viewer', 'day'], zone: ['moment', 'goal'] };
 /** Numbers are written with up to 6 decimal places, so two that differ by rounding in the last place still match. */
 const TOLERANCE = 1.5e-6;
 

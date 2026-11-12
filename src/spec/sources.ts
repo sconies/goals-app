@@ -218,7 +218,9 @@ export function checks(r: Repo): Check[] {
 
 /* ---------- requirements, routes, screens, modules ---------- */
 
-export interface Requirement { id: string; area: string; text: string }
+/** What the internal app does with a requirement (backlog KT, gap 7): `copy` it, `replace` it by its own platform's way (`by` names the internal requirement, R1 to R10), or leave it out as `demo-only`, Faro's own. */
+export type RequirementUse = 'copy' | 'replace' | 'demo-only';
+export interface Requirement { id: string; area: string; text: string; use: RequirementUse; by?: string }
 export interface RequirementsFile {
   requirements: Requirement[];
   journeys: { id: string; rank: number; title: string; who: string }[];

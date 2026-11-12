@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second to sixth. The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second to seventh (the seventh did KT9 and KT10). The next session starts from here.
 
 ## The brief
 
@@ -76,6 +76,17 @@ The ground rules:
 
 - **KT8, gap 6's last items.** `src/spec/thresholds.ts` (`NAMED_THRESHOLDS`, `thresholdClashes`): every page of `spec/` and `llms.txt` that names a threshold in words must give the code's number; a new named threshold gets a line there. `RULE_PAGES`' third column is now each rule's `summary` from `src/spec/rules.ts`, word for word (`spec.test.ts` checks), so `llms.txt` says what the rule page says.
 
+- **KT9, gap 7.** What to copy, the logical model and the SQL-only limits:
+  - **Tags:** every requirement in `evals/requirements.json` has `use`: `copy`, `replace` (with `by`, R1 to R10) or `demo-only`. `src/spec/uses.ts` gives the words; the requirements page opens with the counts and lists, each requirement says its tag, and a module page says it in brackets. A new requirement needs a tag, or `spec.test.ts` fails (`wrongUses`).
+  - **The logical model:** `src/spec/logical.ts` (`LOGICAL`, `SCOPE_RULES`) opens `spec/core/data-model.md` with keys, uniqueness, references and the workspace-scope rules. Every field it names is checked against `src/domain/types.ts` (`wrongLogical`).
+  - **Limits:** `src/spec/limits.ts` (`LIMITS`, `NOT_LIMITS`) says every check constraint in `schema.sql` in words on its rule's page ("Limits the records hold"), with the code that holds it too where traced. A new check constraint must go in one of the two lists, or the spec test fails (`wrongLimits`).
+  - **dont-copy.md:** five more rows, the review's section 5.
+
+- **KT10, gap 8.** The home zone as a parameter, and data that scores it:
+  - **Reference:** `src/spec/zones.ts`: `wallClock` reads a moment on a zone's clock dressed as UTC, then `weekIn` and `daysSinceIn` count as the UTC rules do; `momentOf` takes a zone's clock time to a moment (the earlier one when clocks go back). Tests: `src/spec/zones.test.ts`.
+  - **Rule page:** weeks-and-plans says the zone is a parameter, with a worked example (New York against UTC). R3's "Required" examples now run.
+  - **zone.csv:** its input is `zone` in `workspace.json` (`ZONE_CASE`: New York, check-ins near midnight, the night the clocks go back). It is scored when asked (`ALSO` and `KEYS` in `scripts/drill.mjs`; drill-faro asks for it).
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -91,7 +102,7 @@ The ground rules:
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
 2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-3. **Gaps 7 to 9:** the rest, in the review's order (gap 6 is done: KT1 and KT8).
+3. **Gap 9:** the last one (gap 6 is done: KT1 and KT8; gap 7: KT9; gap 8: KT10).
 
 ## Things to know
 

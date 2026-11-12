@@ -3,6 +3,7 @@
 import ts from 'typescript';
 import { files, read, type Repo } from './sources';
 import { cell, table } from './md';
+import { logicalSection } from './logical';
 
 interface Field { name: string; type: string; optional: boolean; doc: string }
 interface Decl { name: string; kind: 'interface' | 'type'; doc: string; extends: string[]; fields: Field[]; text: string; exported: boolean }
@@ -54,6 +55,7 @@ export function dataModelMarkdown(r: Repo): string {
     '',
     'Every screen, export and AI tool derives what it shows from these records with the pure rules in `src/domain` (see [the rules](rules/README.md)). Ids are strings. Dates are ISO 8601: a day is `yyyy-mm-dd`, a moment a full UTC timestamp. Weeks are counted from a cycle’s start: week 0 is the first seven days.',
     '',
+    ...logicalSection(),
     '## The records the core rules read',
     '',
     'A rebuild of the core rules needs these: a **Cycle**, **Goal** (one of three kinds), **CheckIn**, **Person**, **Team**, **Decision** (what was said in a review), **Ask** and **Review**. The **Snapshot** holds a workspace’s records together. The rest (change log, watches, views, tokens, feedback, retros) belong to features around the rules.',

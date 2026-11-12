@@ -25,6 +25,12 @@ What a search matches, the near miss offered when nothing does, and the one sear
 
 **The seam.** Screens, pickers and the AI tools reach this through the `Search` port (`src/ports/search.ts`), whose browser adapter calls these rules over the loaded workspace and whose contract is these examples. A server's search replaces the adapter; it may leave the near miss out.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A saved view’s name has 1 to 80 characters. (`okr_views_name_check`; the code holds it too, in `src/domain/actions.ts`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

@@ -93,7 +93,7 @@
 }
 /* Phones: the search and Filters share a line (4, 31). The switch sits in the row above, between whose goals and the
    layout; Group is in the Views menu (goals spec, 2.4). */
-@container app (max-width: 600px) {
+@container app (max-width: 699px) {
   .goals-page .filterbar-row > .attention-switch, .goals-page .filterbar-row > .group-menu { display: none; }
   /* No title on a phone's page (its top bar names it): the heading stays for screen readers. */
   .goals-page .goals-head .goals-title, .goals-page .page-head.goals-head:not(:has(.actions > a:not(.new-goal-quiet))) { display: none; }
