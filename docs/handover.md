@@ -102,9 +102,15 @@ The track 3 build session that took over from #236's handover is past half its c
   - NR's four questions, all as recommended: pre-fill only; readings per team slice where the source has them, otherwise no pre-fill; a reading older than 7 days is ignored; an override is recorded only. NR is not yet picked to build.
   - Track 7 builds all its rows in order: GD, BL, MS, BT, MI, GR, MT, TG, MC, WM (after its bugs and SM).
   - The Candy shop register is made up: it stays.
+- **Decided by Lane, 12 Nov, 19:35–20:45:**
+  - Track 7 builds round 2's MT1–MT3 (after BT), then MS, MI, GR, MQ.
+  - WM is built in Faro with track 7b's set-up token rules, all as recommended: anyone makes one for themselves in Settings; it lives 24 hours or 3 workspaces; the admin token it issues is revoked with it by default; set-up through it stops when the new workspace's first week starts. R1 rule 5b.
+  - Auto-merge: Lane switched it on at 20:45, but GitHub still refused it on #272 at 20:47 ("not enabled for this repository"). Settings → General → Pull Requests → Allow auto-merge on sconies/goals-app; a branch rule requiring the smoke check, up to date, would make it wait for CI.
 - **Waiting for Lane:**
-  1. Turn on "Allow auto-merge" (GitHub → Settings → General → Pull Requests).
-  2. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+  1. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+  2. A Fable 5.2 design session: Lane asked for one; what it should design is still to come.
+- **Running at 20:45 UTC:** track 1 session_012kbr92tVe7c6Re4gj42nCe; track 2 session_012kbr8zF82vbVLvoqfYaQad (also owns U4 failing on main); track 3 session_012kbr937S18WZrjrr2frmGt; track 4 session_012kbr8xdoEbLiMQaBAxLeuJ; track 5b session_012kbr911Du8PPXJLDueSVE5 (done; AD in the backlog waits for Lane); track 6 session_012kbr91sUqGSh61W6Ua3T2T (gap 4); track 7b session_012kbr92c7taPQJmK4jDJU9E; journey triage (Sonnet) session_012kbr8zmHFGvAAd7i5cGmWi (U12, U59, U61, U65, U117, U31); reviewer session_012kbr8y4Bh3MudNC1bdo3RN.
+- **Learned 12 Nov evening:** two merges of generated-spec inputs a minute apart left main red (#266 fixed it). When a merge touches the spec's inputs, run `npm run spec` on main afterwards.
 - **Started 12 Nov, 18:33:** track 5b at session_012kbr911Du8PPXJLDueSVE5 (the handover below); track 3 fresh at session_012kbr8zZqujTFrEwfJVWKrS (IM7, IM6, IM8 from #236's handover comment). The old track 3 session (session_012kbr921FQTvNkQhGBnLtxb) has finished.
 - **Habits learned:**
   - Rebuild api/mcp.js after every merge of main, from a real node_modules (`cp -al`, never `ln -s`).
