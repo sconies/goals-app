@@ -315,8 +315,12 @@ export function checkInLevels(goal: Goal, week: number, draft: Draft, own: Check
 /** Whether a number goal has reached its target with this number (the same number then is expected). */
 const reached = (goal: Goal, n: number) => goal.kind === 'metric' && (goal.plan.target >= goal.plan.start ? n >= goal.plan.target : n <= goal.plan.target);
 
-/** The Checks not yet answered for the value they are about. */
-export const unanswered = (checks: Check[], answers: Answers | undefined): Check[] => checks.filter((c) => answers?.[c.id] !== c.key);
+/**
+ * The Checks not yet answered for the values they are about: a check is answered when `answers[slot]` (its `slot`, or
+ * its id) holds its key, so a changed value asks again. Shared by the check-in and goal entry (rule 3).
+ */
+export const unanswered = <C extends { id: string; key: string; slot?: string }>(checks: readonly C[], answers: Readonly<Record<string, string | undefined>> | undefined): C[] =>
+  checks.filter((c) => answers?.[c.slot ?? c.id] !== c.key);
 
 /** Rule 3. Whether the step's button acts, and if not, the line under it. */
 export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; says: string } {
@@ -329,6 +333,7 @@ export function stepState(mustFix: MustFix[], open: Check[]): { go: boolean; say
   return { go: true, says: '' };
 }
 
-/** The answers given, as History keeps them: one `Asked` difference per question answered yes. */
-export const answeredDiffs = (checks: Check[], answers: Answers | undefined) =>
-  checks.filter((c) => answers?.[c.id] === c.key).map((c) => ({ field: 'Asked', from: c.question, to: c.yes }));
+/** The answers given, as History keeps them: one difference per question answered (`Asked` for a check-in; goal entry's
+    are `Checked`), from the question to the answer given (its yes, unless `said` says otherwise). */
+export const answeredDiffs = <C extends { id: string; key: string; slot?: string; question: string; yes: string }>(checks: readonly C[], answers: Readonly<Record<string, string | undefined>> | undefined, field = 'Asked', said: (c: C) => string = (c) => c.yes) =>
+  checks.filter((c) => answers?.[c.slot ?? c.id] === c.key).map((c) => ({ field, from: c.question, to: said(c) }));

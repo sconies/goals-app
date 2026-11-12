@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'goal-questions',
+    date: '2026-11-12',
+    title: 'Unlikely values are asked about, once',
+    points: [
+      'Over 100%, below zero, no unit, an owner in another team, a link to a lower level: New goal asks under the field, and remembers your answer.',
+      'Change the number and it asks again. Your answers are kept in the goal’s History.',
+      'A stage already past is asked about in the same way, and so are the numbers on set-up’s goal cards and the edit page.',
+      'Spreadsheets and assistants are asked the same questions.',
+    ],
+    articles: ['new-goal', 'ai-assistants'],
+  },
+  {
     id: 'metrics-sort-out',
     date: '2026-11-12',
     title: 'Metrics say what they’re missing',

@@ -6,9 +6,10 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { emptyDraft, evaluate, valueProblem } from './checkin';
 import { planChanges, type ChangeInput, type Rec } from './changeset';
 import { fmt, fmtDiff, rangeText } from './format';
-import { blankGoal, draftOf, planHint, type GoalDraft } from './goal';
+import { blankGoal, draftOf, type GoalDraft } from './goal';
+import { goalChecks } from './goalEntry';
 import { goalMustFix } from './goalEntry';
-import { farOutside, fixed, groupDigits, notNumberText, precisionProblem, setupProblem, typedDecimals } from './numbers';
+import { farOutside, fixed, groupDigits, notNumberText, precisionProblem, typedDecimals } from './numbers';
 import { currentWeek } from './plan';
 import type { Goal, MetricGoal } from './types';
 
@@ -129,20 +130,22 @@ describe('plausibility: asked, never refused', () => {
   });
 
   it('asks about a set-up number below zero for a time, money or percentage, a target a hundred times the start, or a billion', () => {
-    expect(setupProblem('days', -5, 10)).toBe('Below zero days. Fine for a change or a balance; otherwise check the sign.');
-    expect(setupProblem('', -5, 10)).toBeNull();
-    expect(setupProblem('signups', 10, 5000)).toBe('The target is over 100 times the start (10 to 5,000). Is that right?');
-    expect(setupProblem('signups', 0, 999_999_999)).toBeNull();
-    expect(setupProblem('signups', 0, 1_000_000_000)).toBe('That’s a billion or more. Is it right?');
-    expect(planHint({ kind: 'metric', unit: '%', start: '50', target: '120', limit: '' })).toMatch(/Over 100%/);
-    expect(planHint({ kind: 'range', unit: 'min', start: '', target: '', limit: '-3' })).toMatch(/Below zero min/);
+    // Goal entry's rule 3 (domain/goalEntry goalChecks): the same questions at every door.
+    const asked = (d: Partial<GoalDraft>) => goalChecks({ ...blankGoal('t', 'p', ''), title: 'A goal', ...d }, { week: 1, cycleWeeks: 53, existing: null, door: 'form' }).filter((c) => c.id !== 'no-unit').map((c) => c.question);
+    expect(asked({ unit: 'days', start: '-5', target: '10' })).toEqual(['-5 days is below zero. That’s fine for a change or a balance. Is it right here?']);
+    expect(asked({ unit: '', start: '-5', target: '10' })).toEqual([]);
+    expect(asked({ unit: 'signups', start: '10', target: '5000' })).toEqual(['The target (5,000 signups) is over 100 times where it starts (10 signups). Is that right?']);
+    expect(asked({ unit: 'signups', start: '1', target: '999999999' })).toEqual(['The target (999,999,999 signups) is over 100 times where it starts (1 signups). Is that right?']);
+    expect(asked({ unit: 'signups', start: '0', target: '1000000000' })).toEqual(['1,000,000,000 signups is a billion or more. Is it right?']);
+    expect(asked({ unit: '%', start: '50', target: '120' })[0]).toMatch(/^The target is over 100%\./);
+    expect(asked({ kind: 'range', unit: 'min', limit: '-3' })).toEqual(['-3 min is below zero. That’s fine for a change or a balance. Is it right here?']);
   });
 
   it('asks it in an import without refusing the row, and saves once it is answered (C6)', () => {
     const t = { goals: [rec({ Goal: 'Grow weekly signups', 'Owner email': owner.email ?? '', Start: '10', Target: '5000', Unit: 'signups' })] };
     const cs = planChanges(base(t));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(cs.issues.find((i) => i.kind === 'odd-number')).toMatchObject({ level: 'check', message: expect.stringMatching(/over 100 times the start/) });
+    expect(cs.issues.find((i) => i.kind === 'odd-number')).toMatchObject({ level: 'check', message: expect.stringMatching(/over 100 times where it starts/) });
     expect(cs.commit).toBeNull();
     expect(planChanges({ ...base(t), answers: { [cs.groups.find((g) => g.kind === 'odd-number')!.id]: { choice: 'right' } } }).commit).not.toBeNull();
   });
