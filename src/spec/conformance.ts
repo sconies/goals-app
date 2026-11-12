@@ -10,7 +10,7 @@ import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../dom
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
 import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
-import { litItem, menuGroups, pageName, phoneTabs, type NavId, type PlaceNames } from '../domain/navigation';
+import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import type { ModuleRows } from '../domain/records';
 import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
