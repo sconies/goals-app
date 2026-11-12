@@ -54,6 +54,28 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
+## Track 5 (polish), Thursday 12 November, 18:15 UTC (session past half full, handing over)
+
+Brief: the planning session's polish track (Muse's review of 12 Nov, items 1 to 6), then Lane's decisions of the same day. **Merged:** #207 (no "Check in for" in an admin's goal menu; backlog SM), #209 (the map's wait said only after 300 ms; F6), #213 (FLIP keyed by row kind, so a layout switch draws in place; `evals/layoutSwitch.eval.ts`, F5), #222 (the workspace boundary: admins-only triage `mayTriage`, `mayStartOver`, `/inbox`, the switcher says Switch, the can't-open page lists other workspaces, `landingLine`, `WORKSPACE_MEANS`), #227 (owner-only check-ins: `mayPostCheckIn` in `goalRights.ts`, asked by `judge` in `planChanges`), #232 (R1 names the two admin exceptions, `ADMIN_CHECK_IN_DOORS`, and a test that each records who). Not reproduced or by design, reported: Map Delete (off since 9 Nov), the status mark (not clickable-looking), Needs attention 2 vs 0 (the count follows the tab and leaves out what is being handled), the missing spaces (the reviewer's tool).
+
+**Next: the build review of #227 and #222** (the build reviews file on branch build-reviews, draft #134, sections "#227" and "#222"; it is not on main yet), as the planning session ordered it on 12 Nov:
+
+1. **The HIGH, first.** A set-up check-in (stages "Yes, done in week N" when a goal is created) is written with the creator as author and never asks `mayPostCheckIn`, so anyone creating a goal for someone else puts a check-in on it. Three places: `src/domain/goalEntry.ts` around 593-596 (the form's save), `src/domain/changeset.ts` around 1116-1119 (the create path: sheet, bulk, MCP `create_goal` and `bulk_change`), and `recordStagesDone` in `src/domain/actions.ts` (~599, owner or admin today). Ask `mayPostCheckIn(actor, goal, via)` in all three (the form's via is `form`; `recordStagesDone` is the form's too). When the creator isn't the owner, publish without the set-up check-in and say so at the stage question: "Mateo marks done stages at the first check-in" (Lane's owner-only decision covers the screen change). Tests: stages done by a non-owner (form, sheet, MCP), and **delete and undo** against the rule (`deleteCheckIn`/`canDeleteCheckIn` and `undoImport`/`canUndoImport` in `src/domain/removal.ts`, ~311-325 and ~485: today an admin deletes an owner's check-in, the owner can't delete one an admin loaded). Reproduce first as Oskar: New goal, dated stages, owner Mateo, one stage done in week 40, Publish; Mateo's goal reads Done with `authorId: oskar`.
+2. **Small ones:**
+   - #227 medium 2: in `judge`, decide `mayPostCheckIn` against the goal's owner **before** the file's own changes (today `g` is the goal as the file changed it, so one `bulk_change` can change the owner and check in for them).
+   - #227 medium 5, words: `post_check_in`'s description (`src/mcp/tools.ts` ~296), `src/spec/rules.ts` ~370 and `src/spec/internal.ts` ~372 still say an admin may check in. Then `npm run spec`.
+   - `update_markup` (`src/mcp/markupTools.ts` ~159-160): run the status change (it throws for a member) **before** `setIssueUrl`, so a refused call saves nothing; `ops.ts` ~110 has no role check of its own.
+   - Lows: `src/screens/Respond.tsx` ~75 offers "Check in for week N" to anyone with an update ask (show it to the owner only); an admin-loaded check-in is headed "What the owner said" (say the author's name when it isn't the owner).
+3. **#227 medium 3:** the exceptions are keyed on `via` only, so one pasted row on Import counts as a workbook. Put the route on what the action is (a file loaded, a past week corrected), not only `via`. If it is more than small, add it to the backlog instead.
+4. **Leave:** the icon-rail switcher (in SM's row now) and trusting the browser's `viewer.admin` (Faro's open door; R1 asks the rebuild for server checks).
+
+**Habits learned today:**
+- `api/mcp.js` bundles What's new, so **every merge of main means `npm run build:mcp` again**, and CI builds the PR merged with the latest main. Merge one PR at a time; after each, merge main into the next and rebuild.
+- **Build `api/mcp.js` from a real `node_modules`.** A symlinked one (`ln -s`) writes `../../../home/user/...` paths into the bundle and CI fails it. In a worktree use `cp -al <main checkout>/node_modules node_modules` (hard links: instant, real paths). Check with `grep -c home/user api/mcp.js` (must be 0).
+- Merging main: take main's What's new and put the branch's entry back on top (an entry needs its closing `},` before main's next one).
+- U4 (8.9, "publishing is not confirmed") fails on main: not this track's, reported for track 2. U78 and P9 time out under four-shard load and pass alone (`ONLY=U78,PLATFORM CHECKS=P9`).
+- Journey ids: U141 is this track's; other tracks took U137 and U142.
+
 ## Track 1 (Home, reviews, the check-in), Thursday 12 November, evening (session past half, handing over)
 
 Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this session:
