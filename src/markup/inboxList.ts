@@ -4,6 +4,7 @@
    and its tests use it; it reads nothing from the network or the page. */
 import type { InboxFeedback } from './feedback';
 import { MOOD_WORD, namedParts, partText, type Markup, type MarkupStatus } from './model';
+import { textMatches } from '../domain/find';
 
 /** The inbox's three tabs: New, In hand, and Closed (fixed or won't fix). */
 export type InboxTab = 'new' | 'in-hand' | 'closed';
@@ -61,11 +62,11 @@ function haystack(i: InboxItem): string {
   return i.markups.flatMap((m) => [m.line, m.route, m.path, m.personName, m.workspaceName, m.demo ? 'demo' : '', ...namedParts(m).map(partText), ...m.strokes.flatMap((s) => (s.kind === 'note' ? [s.text] : []))]).join(' ');
 }
 
-/** The rows a filter shows, newest first. Search matches every word typed, in any order, ignoring case. */
+/** The rows a filter shows, newest first. Search is find's rule 1: each word typed starts a word in the row, in any order. */
 export function filterItems<M extends Markup>(items: readonly InboxItem<M>[], f: InboxFilter): InboxItem<M>[] {
-  const words = f.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const q = f.q.trim();
   return items.filter((i) => i.tab === f.tab && (f.kind === 'all' || i.kind === f.kind) && (!f.page || i.page === f.page) && (!f.person || i.person === f.person)
-    && (!words.length || ((h) => words.every((w) => h.includes(w)))(haystack(i).toLowerCase())));
+    && (!q || textMatches(haystack(i), q)));
 }
 
 /** How many pieces each tab holds, with the filter's kind, page, person and search (a folded row counts each markup). */

@@ -56,6 +56,22 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
 | The rebuild kit and its drill | `spec/rebuild/README.md`; the harness is `npm run drill -- <folder>` (item 8k) |
 | Handing Faro to the internal team: the checklist | `docs/handoff.md` (hand-written; keep it in step with 8g, 0c, 8c, 11) |
 
+## Track 1, Thursday 12 November, 18:10 UTC (session full, handing over; supersedes the evening entry below)
+
+- **Merged today:** HM1 (#169), the correction (#225: Correct this check-in posts mode `correct`, with a reason, History's line and Undo; journey U142), #171 (U9, U111, U23).
+- **Open:** #234 (fs2-gated, gate passed; merge on green CI after merging main).
+- **Rebuilt from main, typecheck and unit tests passed, evals not yet run, no PR yet:** `ck2-gated`, `find-goals-scope-gated`, `gl2-gated`, `nv2-gated`. For each one in turn, in a worktree: merge `origin/main`; put the branch's What's new entry back on top of main's, dated today; `npm run build:mcp` (in a worktree, then `sed -i 's#^// \.\./goals-app/node_modules/#// node_modules/#' api/mcp.js`); then typecheck, `npm test`, `npm run spec` and `npm run evals:changed`; then a draft PR, green CI and merge. The script `/tmp/claude-0/s/wtmerge.sh` did this and is gone with this container, but its steps are as listed.
+- **U4 fails on main** (8.9, "publishing is not confirmed", since "Publishing a goal says one thing"). It's not track 1's. It needs an owner; every full local run reports it.
+- **The build reviewer's findings on HM1 (#169)** (none high; full text on `build-reviews`, #134, section "#169"), to fix before HM2. These are mediums:
+  1. "Nothing is asked of you today." sits above "Needs your response" while asks wait: `quietLine` (home.ts) ignores `f.asks`.
+  2. At 390 px the lead's line and the quiet line's second line are cut with an ellipsis (`home-watching.css`, written for the old titles list).
+  3. After the year ends, people in a review get a "Not held yet" lead that never goes (`reads.ts` sessions have no `hasEnded` test).
+  4. An admin's Home no longer says the year is ending or offers Start 2027 (AdminCard gone, HM7 not built).
+  5. With two reviews on one day, the second is nowhere on Home (`ThisWeek` takes the single `d.next`).
+
+  Lows: your goals with nothing flagged come in stored order (ask with `sort: 'worst'` in `useMineAsk`); unused `useGoalCounts` calls; sessionToDo, the on-time test and day names restated; the check-in lead and the cell both say the review is today; no `homeFacts` test at the year's end or with two sessions; "Example: Platform Engineering" under the greeting.
+- **Next, in the brief's order:** the four branches above; FS1's mediums; RV7 and HM2 (`rv7-who-may-speak`, `hm2-asks-wait` are stale: re-apply only their intended files, as the evening entry says); the habit moment; N12's Find timing and #110's lows.
+
 ## Track 5 (polish), Thursday 12 November, 18:15 UTC (session past half full, handing over)
 
 Brief: the planning session's polish track (Muse's review of 12 Nov, items 1 to 6), then Lane's decisions of the same day. **Merged:** #207 (no "Check in for" in an admin's goal menu; backlog SM), #209 (the map's wait said only after 300 ms; F6), #213 (FLIP keyed by row kind, so a layout switch draws in place; `evals/layoutSwitch.eval.ts`, F5), #222 (the workspace boundary: admins-only triage `mayTriage`, `mayStartOver`, `/inbox`, the switcher says Switch, the can't-open page lists other workspaces, `landingLine`, `WORKSPACE_MEANS`), #227 (owner-only check-ins: `mayPostCheckIn` in `goalRights.ts`, asked by `judge` in `planChanges`), #232 (R1 names the two admin exceptions, `ADMIN_CHECK_IN_DOORS`, and a test that each records who). Not reproduced or by design, reported: Map Delete (off since 9 Nov), the status mark (not clickable-looking), Needs attention 2 vs 0 (the count follows the tab and leaves out what is being handled), the missing spaces (the reviewer's tool).
