@@ -136,6 +136,9 @@ export interface ChangeInput {
   posts?: CheckInPost[];
   /** The feature modules' records in this build (core/records): what measures a goal, for goal entry's wrong-side question. */
   records?: readonly ModuleRecords[];
+  /** The file the rows came from, and how many of its rows the person left out before the engine saw them: the import's
+      summary keeps both (rule 9: its File and Rows diffs). */
+  file?: { name: string; leftOut?: number };
 }
 
 /* ---------- reading files ---------- */
@@ -204,6 +207,13 @@ export const GOAL_QUESTION: readonly IssueKind[] = ['odd-number', 'feeds-lower',
 const CONFIRMED: IssueKind[] = ['odd-number', 'feeds-lower', 'no-unit'];
 
 /* ---------- the change set ---------- */
+
+/** The import summary's File and Rows diffs (rule 9): "654 changed, 397 unchanged, 5 left out". */
+function fileDiffs(file: ChangeInput['file'], changed: number, unchanged: number, left: number): Diff[] {
+  if (!file?.name) return [];
+  const out = left + (file.leftOut ?? 0);
+  return [{ field: 'File', from: '—', to: file.name }, { field: 'Rows', from: '—', to: `${changed} changed, ${unchanged} unchanged${out ? `, ${out} left out` : ''}` }];
+}
 
 export function planChanges(input: ChangeInput): ChangeSet {
   const { snapshot: s, cycle, week, now, newId, via } = input;
@@ -1431,7 +1441,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const requestsBefore = asksOf(s);
     const summary: Change = {
       id: sumId, at: now, actorId: actor.id, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', importId,
-      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }],
+      summary: `${via === 'spreadsheet' ? 'Loaded a spreadsheet' : via === 'mcp' ? 'Changes via MCP' : via === 'table' ? 'Edited the data tables' : via === 'form' ? 'Corrected a check-in' : 'Bulk edit'}: ${describe(result).toLowerCase()}`, diffs: via === 'form' ? [] : [{ field: 'Via', from: '—', to: VIA_LABEL[via] }, ...fileDiffs(input.file, items.length, unchanged, leftOut.length)],
       undo: {
         goals: ordered.map((g) => ({ id: g.id, before: touched.get(g.id)?.before ?? null })),
         checkIns: ciOut.map((c) => ({ id: c.id, before: ciBefore.get(c.id) ?? null })),

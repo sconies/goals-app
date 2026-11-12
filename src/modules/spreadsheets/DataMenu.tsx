@@ -31,6 +31,7 @@ export function DataMenu({ table, asShown }: PlaceProps['data.tools']) {
       { label: 'Everything, as zipped CSVs', onClick: () => void saveAndSay(app.toast, name('goals-csv', app.cycle.name), { kind: 'zip', files: csvFiles(workbook(input)) }, 'CSV files saved') },
       { label: 'The template', onClick: () => void saveTemplate(app) },
       { label: 'Import a spreadsheet…', onClick: () => nav('/data/import') },
+      { label: 'Past imports', onClick: () => nav('/data/imports') },
     ]} />
   );
 }

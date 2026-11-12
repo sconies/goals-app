@@ -131,8 +131,8 @@ export function page(all: FoundRow[], ask: SearchAsk): Pick<SearchAnswer, 'rows'
   return { total: all.length, rows, next: from + size < all.length ? String(from + size) : null };
 }
 
-/** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
-export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source].join(' ');
+/** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source, and its unit (so "See goals in min" finds them). */
+export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source, s.goal.kind !== 'milestone' ? s.goal.unit : ''].join(' ');
 export const goalRow = (s: GoalSummary): FoundRow => ({ kind: 'goal', id: s.goal.id, name: s.goal.title, detail: [s.goal.key, s.owner, s.team].filter(Boolean).join(' · '), status: s.status, key: s.goal.key ?? null });
 
 /** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */

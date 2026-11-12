@@ -28,3 +28,7 @@ export function rowsSheets(read: ReadTables, tables: Tables, rows: readonly RowP
 
 /** The chosen file's name without its extension: "{original}-rows-to-fix". */
 export const baseName = (name: string) => name.replace(/\.[a-z0-9]+$/i, '') || 'import';
+
+/** The rows left out, each with why, as the download's Problem column says it. */
+export const leftRowsOf = (left: readonly ({ sheet: Sheet; row: number; because?: string })[]): RowProblem[] =>
+  left.map((x) => ({ sheet: x.sheet, row: x.row, problem: x.because ? `Left out: ${x.because}.` : 'Left out at your choice.' }));

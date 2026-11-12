@@ -218,9 +218,13 @@ describe('removing, archiving and undoing', () => {
     const later = { ...w.x('rhea').snapshot.goals.find((g) => g.id === b!.id)!, title: 'Changed since' };
     w.apply({ goals: [later], changes: [{ id: 'chg_later', at: w.x('rhea').now, actorId: 'rhea', goalId: b!.id, entity: 'goal', entityId: b!.id, action: 'edited', summary: 'x', diffs: [] }] });
     expect(() => R.undoImport(w.x('tariq'), entry.entityId)).toThrow(NotAllowed);
+    // Rule 9: the dry run says the same as Undo, and saves nothing.
+    const preview = R.undoPreview(w.x('rhea'), entry.entityId);
     const out = R.undoImport(w.x('rhea'), entry.entityId);
+    expect(preview).toEqual({ restores: out.restored, skipped: out.skipped });
     w.apply(out.commit);
-    expect(out.skipped).toEqual(['Changed since: changed since']);
+    expect(out.skipped).toEqual([{ name: 'Changed since', reason: 'It was changed on 5 Nov', at: expect.any(String), by: 'rhea' }]);
+    expect(R.pastImports(w.full.changes).find((p) => p.entry.entityId === entry.entityId)!.undone).toMatchObject({ action: 'undone' });
     const now = w.x('rhea').snapshot;
     expect(now.goals.find((g) => g.id === a!.id)!.title).toBe(a!.title);
     expect(now.goals.some((g) => g.title === 'Imported goal')).toBe(false);
