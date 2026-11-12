@@ -852,7 +852,7 @@ function HistorySection({ goal, focusComposer }: { goal: Goal; focusComposer: bo
   const all = params.get('all') === '1';
   const q = params.get('hq') ?? '';
   const weekWanted = Number(params.get('week')) || null;
-  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, reviews: app.snapshot.reviews };
+  const input = { goal, checkIns: app.checkInsOf(goal), changes: app.snapshot.changes.filter((c) => c.goalId === goal.id), cycle: app.cycle, week: app.week, asks: asksOf(app.snapshot).filter((r) => r.goalIds.includes(goal.id)) };
   const h = goalHistory(input, filter, q);
   const whole = goalHistory(input);
   const shown = all || q || weekWanted ? h.entries : h.entries.slice(0, 12);

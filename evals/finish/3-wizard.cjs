@@ -5,13 +5,17 @@ const box = (loc) => loc.first().evaluate((e) => { const r = e.getBoundingClient
 const css = (loc, prop) => loc.first().evaluate((e, p) => getComputedStyle(e)[p], prop);
 const col = (p) => box(p.locator('.focus-body'));
 const name = async (p, t = 'Runbooks with an owner') => p.getByLabel(/Name it the way/).fill(t);
+// Mateo leads SRE, which owns north stars, so New goal asks his level (OB1, rule 1).
+const team = (p) => p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
 const cont = async (p) => { await p.getByRole('button', { name: /Continue/ }).click(); await p.waitForTimeout(150); };
-const toNumbers = async (p) => {
-  await name(p); await cont(p);
+// New goal's order (OB1): what, who and where, how it's measured, check. The plan table is folded under the chart.
+const toNumbers = async (p, table = true) => {
+  await name(p); await cont(p); await team(p); await cont(p);
   await p.getByLabel('Unit').fill('%');
   await p.getByLabel(/^Today \(week/).fill('20');
   await p.getByLabel(/^Target \(week/).fill('90');
   await p.waitForTimeout(250);
+  if (table) { await p.getByText('Adjust the plan week by week').click(); await p.waitForTimeout(100); }
 };
 const noSideScroll = async (p, where, fail) => {
   const [sw, iw] = await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
@@ -114,23 +118,22 @@ module.exports = {
       const pi = await box(p.getByLabel(/^Plan for week \d+/));
       const row = await box(p.locator('.plantable tbody tr').nth(1));
       if (pi.h < 44 || row.h < 52) f(`(3) on touch plan inputs are ${pi.h}px in ${row.h}px rows`);
-      await cont(p);
       const sum = await box(p.locator('.disclose > summary'));
-      if (sum.h < 44) f(`(3) the data source disclosure is ${sum.h}px tall`);
-      // (21) Team and Owner stacked 24px apart
-      // Team and Owner are find-and-pick fields (FS1): their boxes are the fields themselves.
-      const [team, owner] = [await box(p.locator('.fit-pair > .field').nth(0)), await box(p.locator('.fit-pair > .field').nth(1))];
-      const teamField = team; const ownerField = owner;
-      if (owner.y > team.y + 1 && ownerField.y - teamField.b < 23.5) f(`(21) stacked Team and Owner are ${ownerField.y - teamField.b}px apart`);
+      if (sum.h < 44) f(`(3) the plan table's disclosure is ${sum.h}px tall`);
+      // Who and where, one step back (the browser's Back).
+      await p.goBack(); await p.waitForTimeout(200);
+      // (21) Owner and Team stacked 24px apart
+      const [ownerField, teamField] = [await box(p.locator('.fit-pair > .stack').nth(0)), await box(p.locator('.fit-pair > .stack').nth(1))];
+      if (teamField.y > ownerField.y + 1 && teamField.y - ownerField.b < 23.5) f(`(21) stacked Owner and Team are ${teamField.y - ownerField.b}px apart`);
       // (27) the guardrail box on the column's edge, level with the first line
       const cb = await box(p.locator('.check input')); const lab = await box(p.locator('.check span')); const c1 = await col(p);
       if (!near(cb.x, c1.x, 0.5)) f(`(27) the guardrail box is at ${cb.x}, the column at ${c1.x}`);
       if (!near(lab.x - cb.r, 12, 1)) f(`(27) the guardrail box is ${lab.x - cb.r}px from its words`);
       if (Math.abs((cb.y + cb.h / 2) - (lab.y + 11)) > 2) f('(27) the guardrail box is not level with the first line');
-      await cont(p);
+      await cont(p); await cont(p);
       const rr = await p.locator('.review-rows li').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
       const ch = await p.locator('.review-rows .linkish').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().height));
-      if (rr.length !== 3 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
+      if (rr.length !== 5 || Math.min(...rr) < 44 || Math.min(...ch) < 44) f(`(3, 23) the review's Change rows are ${rr.join('/')}px, Change ${ch.join('/')}px`);
       const date = await box(p.locator('.summary-card .nobreak'));
       if (date.h > 24) f('(23) the due date breaks inside itself');
       await c.close();
@@ -139,7 +142,7 @@ module.exports = {
     // Limits (5) at 1280 and 390.
     for (const w of [1280, 390]) {
       const [c, p] = await open(w, 900, 'mateo', '/goals/new');
-      await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p);
+      await name(p); await p.getByRole('button', { name: /Keep a number in range/ }).click(); await cont(p); await team(p); await cont(p);
       const [seg, lim, warn] = [await box(p.locator('.limits .seg')), await box(p.getByLabel('Limit')), await box(p.getByLabel('Warn this close'))];
       if (w > 600 && (!near(seg.b, lim.b) || !near(lim.b, warn.b))) f(`(5) at ${w} limit row bottoms ${seg.b}/${lim.b}/${warn.b}`);
       if (w > 600 && !near(seg.h, 44, 0.5)) f(`(5) at ${w} the Must stay track is ${seg.h}px`);
@@ -154,7 +157,7 @@ module.exports = {
     // Stages (12, 13, 14) at 1280 and 390.
     for (const w of [1280, 390]) {
       const [c, p] = await open(w, 900, 'mateo', '/goals/new');
-      await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await cont(p);
+      await name(p); await p.getByRole('button', { name: /Hit dated stages/ }).click(); await cont(p); await team(p); await cont(p); await cont(p);
       const err = p.locator('.stage .field-error');
       if (!(await err.count())) f(`(13) at ${w} the stage error is not under Stage 1`);
       else {
@@ -176,15 +179,15 @@ module.exports = {
       await c.close();
     }
 
-    // Resume prompt (24) at 360.
+    // Picking up a draft (24, now OB1's line) at 360: one line above the heading, and "Start a new one" is 44px.
     {
-      const [c, p] = await open(360, 780, 'mateo', '/goals/new');
+      const [c, p] = await open(360, 780, 'mateo', '/goals/new', true);
       await name(p, 'Half-written');
-      await p.goto(p.url().replace('/goals/new', '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
-      const b = await p.locator('.resume-actions .btn').evaluateAll((es) => es.map((e) => { const r = e.getBoundingClientRect(); return [r.width, r.top, r.bottom]; }));
-      const c1 = await col(p);
-      if (b.length !== 2 || !near(b[0][0], c1.w) || !near(b[1][0], c1.w) || !near(b[1][1] - b[0][2], 12, 1)) f(`(24) resume buttons ${b.map((x) => x[0]).join('/')}px wide, column ${c1.w}`);
-      if (((await p.locator('.resume-actions .btn.primary').textContent()) || '').trim() !== 'Resume') f('(24) the resume button repeats the goal name');
+      await p.goto(p.url().replace(/\/goals\/new\/what/, '/goals?scope=all')); await p.goto(p.url().replace('/goals?', '/goals/new?')); await p.waitForTimeout(300);
+      const [line, h1] = [await box(p.locator('.restored')), await box(p.locator('h1'))];
+      if (!(line.b <= h1.y)) f('(24) the pick-up line is not above the heading');
+      const sn = await box(p.getByRole('button', { name: 'Start a new one' }));
+      if (sn.h < 44) f(`(24) “Start a new one” is ${sn.h}px tall`);
       await c.close();
     }
 
@@ -215,15 +218,13 @@ module.exports = {
       await c.close();
     }
 
-    // Wizard step 3 at 390 with the data source open (1).
+    // Wizard step 3 at 390: where the number comes from, focused, never under the footer (1).
     {
       const [c, p] = await open(390, 700, 'mateo', '/goals/new');
       await toNumbers(p);
       // How it's measured is asked in the open on the numbers step, as set-up does (re-review, 8 Nov, backlog T).
       if (!(await p.getByRole('textbox', { name: /^How it’s measured/ }).isVisible())) f('(T7) New goal: “How it’s measured” is not shown on the numbers step');
-      await cont(p);
-      await p.getByText('Data source (optional)').click();
-      for (const lab of ['Data source']) {
+      for (const lab of ['Where the number comes from']) {
         // (A label that wraps its field is named with the field's text too, so a goal with a definition reads “Definition Share of…”.)
         const el = p.getByRole('textbox', { name: new RegExp('^' + lab) });
         await p.evaluate(() => window.scrollTo(0, 0));
@@ -282,13 +283,19 @@ module.exports = {
     // team named as a team (it read "CI/CD · Rhea Kapoor" beside Where it fits).
     {
       const [c, p] = await open(1280, 900, 'rhea', '/goals/new');
-      await toNumbers(p); await cont(p);
-      // Feeds into is find-and-pick (FS1): with nothing chosen its field says what nothing means.
-      const feeds = await p.getByRole('button', { name: /^Feeds into\b/ }).first().innerText().catch(() => null);
-      if (feeds?.trim() !== 'Nothing: top of its own tree') f(`new goal: Feeds into starts as “${feeds}”, not empty`);
+      await name(p); await cont(p);
+      if (!(await p.getByRole('button', { name: /^Feeds into\b.*(Choose a goal|Nothing: top of its own tree)/ }).isVisible().catch(() => false))) f('new goal: Feeds into does not start empty');
+      // Rhea leads a team with SVP goals, so her level is asked, not assumed (OB1, rule 1).
+      await cont(p);
+      if (!(await p.getByText('Choose a level.').isVisible().catch(() => false))) f('new goal: Rhea is not asked the level');
+      await p.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'Team' }).click();
+      await cont(p);
+      await p.getByLabel('Unit').fill('%'); await p.getByLabel(/^Today \(week/).fill('20'); await p.getByLabel(/^Target \(week/).fill('90');
       await cont(p);
       const fits = (await p.locator('.review-rows li', { hasText: 'Where it fits' }).innerText().catch(() => '')).replace(/\s+/g, ' ');
-      if (!/Feeds nothing · CI\/CD team · Rhea Kapoor/.test(fits)) f(`new goal: Where it fits reads “${fits}”`);
+      if (!/Team level, top of its own tree\./.test(fits)) f(`new goal: Where it fits reads “${fits}”`);
+      const who = (await p.locator('.review-rows li').filter({ has: p.locator('.strong', { hasText: /^Owner$/ }) }).innerText().catch(() => '')).replace(/\s+/g, ' ');
+      if (!/Rhea Kapoor · CI\/CD team/.test(who)) f(`new goal: Owner reads “${who}”`);
       await c.close();
     }
     return fails;

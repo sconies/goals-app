@@ -129,7 +129,8 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
     return () => document.removeEventListener('mousedown', away);
   }, [open]);
 
-  const options: ({ none: true } | FoundRow)[] = [...(none && !several ? [{ none: true as const }] : []), ...rows];
+  // The "none" row leads the suggestions; once something is typed, Enter takes the first match, not nothing.
+  const options: ({ none: true } | FoundRow)[] = [...(none && !several && !typed ? [{ none: true as const }] : []), ...rows];
   const close = () => { setOpen(false); setQ(''); requestAnimationFrame(() => opener.current?.focus()); };
   const choose = (o: { none: true } | FoundRow) => {
     if ('none' in o) { onChange([]); close(); return; }

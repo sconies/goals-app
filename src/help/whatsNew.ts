@@ -23,6 +23,37 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'setup-near-miss-stops',
+    date: '2026-11-12',
+    title: 'Set-up says when a row is one letter out',
+    points: [
+      'Setting up from a spreadsheet, a goal whose owner or word is one letter out (“Ben Ortz”, “Numbr”) stops set-up, with the problem on its row. It was being left out without a word.',
+      'The one-table check-in takes a decimal comma again: 3,9 posts as 3.9.',
+    ],
+    articles: ['set-up', 'check-in-table'],
+  },
+  {
+    id: 'new-goal-order',
+    date: '2026-11-12',
+    title: 'New goal asks in a better order',
+    points: [
+      'What, then who and where, then how it’s measured, then check.',
+      'Type to find the owner, the team and the goal it feeds. “Also helps” can be set as you create it.',
+      'Your browser’s Back steps back a step.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
+    id: 'history-asks-by-review',
+    date: '2026-11-12',
+    title: 'Renaming a review keeps its asks under Reviews',
+    points: [
+      'In a goal’s History, an ask raised in a review stays under Reviews after the review is renamed. It used to move to Comments.',
+      'An ask raised outside a review is under Comments, whatever its words say.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'carry-stays-true',
     date: '2026-11-12',
     title: 'Next year’s goals follow this year’s last changes',

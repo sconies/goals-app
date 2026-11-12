@@ -259,7 +259,15 @@ A lead can create a metric, range or milestone goal with a plan, and invalid inp
 
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Tests:** `evals/scenarios.eval.ts` (3)
-- **Journeys and checks:** U4, U18, U25
+- **Journeys and checks:** F16, U4, U18, U25
+
+### NEW-GOAL-STEPS
+
+New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything.
+
+- **Rule:** [New goal](rules/new-goal.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** F16, U84
 
 ### NEW-GOAL-TRUTH
 
@@ -1084,7 +1092,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U91
+- **Journeys and checks:** F11, N12, U63, U84, U91
 
 ### FIND-ANYWHERE
 

@@ -28,6 +28,7 @@ The core screens, so a person can do every core journey: check in, read a goal, 
 - The menu, the lit item and a page’s name as three rules of the viewer and the address ([navigation](../core/rules/navigation.md)), drawn by the shell: a module adds a menu item in a group, names its pages from their thing, and fills places on a goal’s, a person’s and a team’s page.
 - Where you are (requirements `NAV-WHERE`, `NAV-BACK`, `NAV-FORMS`): the browser’s title is the page’s own name by rule 2; one back link per page by rule 4, which goes back in the tab’s history (stepping over forms) so it agrees with the browser’s Back, and up to the parent when there is no history; a form’s one closing control in words, asking first before throwing typed words away.
 - New goal and the first check-in keep day one honest ([a goal not born late](../core/rules/not-born-late.md)): a stage already past is asked about and, if done, recorded done in its own week; a first number off the plan may restart it. These are rules, with the status rules, not screen details.
+- New goal in four steps, each an address ([New goal](../core/rules/new-goal.md)): what, who and where, how it’s measured, check. Its level and the suggestions for what it feeds are rules. In the internal app New goal becomes R6c’s draft-and-propose, and owners and teams come from the directory (R2).
 
 ## Exit criteria
 

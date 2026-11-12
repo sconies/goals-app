@@ -69,4 +69,5 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › keeps the copy true for a check-in from the change engine too: the check-in screens, the tables and a spreadsheet
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stop, then carry it on, brings the same copy back; stopping again takes it out; never two (build review of #152, high 1)
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent copy that leaves takes its children’s copies’ parent and effect; brought back, they’re under it again (high 2)
+- the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › a parent and its child leaving or coming back in one save: each row once, the child under its parent (build review of #179)
 - the carry rule (rule 5: the copy) and what comes with a goal (rule 6) › stopping a goal in the old year takes its copy out; a stored copy written in another order is the same copy (high 3, medium 4)
