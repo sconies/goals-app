@@ -21,7 +21,9 @@ export function GoalMeasuredBy({ goal }: PlaceProps['goal.facts']) {
   return <p className="goal-measured-by small">Measured by <Link to={metricPath(m.metric)}>{m.metric.name}</Link> · {m.metric.unit}, {directionWords(m.metric.direction)}</p>;
 }
 
-/** goal.sections: the metric that measures the goal, for which slice, what it means, and the other goals it measures. */
+/** goal.sections: the metric that measures the goal, for which slice, what it means, and the other goals it measures.
+    The place sits inside About this goal (after its facts), so this is a part of About with its own small heading, not
+    a section of the page with a rule of its own. */
 export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   const app = useApp();
   const m = measureOf(app.snapshot, goal);
@@ -32,11 +34,8 @@ export function GoalMetric({ goal }: PlaceProps['goal.sections']) {
   }
   const others = liveLinks(libraryReads(app.snapshot, app.stamp()), m.metric.id).filter((l) => l.goalId !== goal.id).length;
   return (
-    <section className="block goal-section stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
-      <div className="section-head">
-        <h2 className="block-title" id="g-metric">Measured by {m.metric.name}, for {m.slice === 'The whole company' ? 'the whole company' : m.slice}</h2>
-        <p className="section-purpose">What the number means, from the metric library.</p>
-      </div>
+    <section className="stack metric-block" aria-labelledby="g-metric" data-part="Measured by">
+      <h3 className="label" id="g-metric">Measured by {m.metric.name}, for {m.slice === 'The whole company' ? 'the whole company' : m.slice}</h3>
       {m.metric.meaning ? <p>{m.metric.meaning}</p> : <p className="hint">Its meaning hasn’t been written yet.</p>}
       {m.metric.source && <p className="small">Where the number comes from: {m.metric.source}</p>}
       {m.metric.caveats && <p className="small">Caveats: {m.metric.caveats}</p>}
