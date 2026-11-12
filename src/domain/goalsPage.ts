@@ -70,9 +70,22 @@ export function attentionCount(sums: GoalSummary[], query: GoalQuery, ctx: Query
   return applyQuery(sums, { ...query, attention: false, needs: [], sort: null }, ctx).filter((s) => needsAttention(s.attention)).length;
 }
 
+/**
+ * What the query port's counts() says about a query's goals (src/ports/goals.ts): how many in each status, and how many
+ * need attention among `unflagged`, the same query with its attention filter left off (the Goals switch's count).
+ */
+export function goalsCounted(matched: GoalSummary[], unflagged: GoalSummary[]): { status: Record<DisplayStatus, number>; attention: number } {
+  const status = Object.fromEntries(STATUS_ORDER.map((k) => [k, 0])) as Record<DisplayStatus, number>;
+  for (const s of matched) status[s.status]++;
+  return { status, attention: unflagged.filter((s) => needsAttention(s.attention)).length };
+}
+
+/** What a count reads of a goal's summary: a list row from the query port is enough. */
+type Counted = Pick<GoalSummary, 'status' | 'attention'>;
+
 /** The statuses that have goals, worst first: "2 off track · 4 at risk". */
-function statusList(sums: GoalSummary[], flagged = false): string {
-  const counts = new Map<DisplayStatus, GoalSummary[]>();
+function statusList(sums: Counted[], flagged = false): string {
+  const counts = new Map<DisplayStatus, Counted[]>();
   for (const s of sums) counts.set(s.status, [...(counts.get(s.status) ?? []), s]);
   const order = [...STATUS_ORDER] as DisplayStatus[];
   return order.filter((k) => counts.get(k)?.length).map((k) => {
@@ -92,7 +105,7 @@ function statusList(sums: GoalSummary[], flagged = false): string {
  * Switch on: "{n} need attention: " then the statuses of those, and how many are being handled below. Nothing shown:
  * no line (the page's empty words say it).
  */
-export function goalsLine(shown: GoalSummary[], narrowed: boolean, order: string, attention: boolean): string {
+export function goalsLine(shown: Counted[], narrowed: boolean, order: string, attention: boolean): string {
   if (!attention) {
     const head = countLine({ thing: 'goal', things: 'goals' }, shown.length, narrowed, order);
     return head ? `${head} ${statusList(shown)}` : '';

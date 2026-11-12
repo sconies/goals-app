@@ -294,7 +294,7 @@ describe('the carry rule (rule 5: the copy) and what comes with a goal (rule 6)'
     const s1 = started();
     const old = s1.goals.find((g) => g.cycleId === cycle.id && g.kind === 'metric' && s1.goals.some((x) => x.cycleId !== cycle.id && x.key === g.key) && (g.plan.endWeek ?? 0) <= cycle.weeks) as MetricGoal;
     const value = Math.round(planAt(old.plan, 53, cycle.weeks));
-    const out = postCheckIn({ ...ctx(s1, '2026-12-29'), week: 53 }, { goalId: old.id, week: 53, draft: { ...emptyDraft(old, null), value: String(value) }, mode: 'new' });
+    const out = postCheckIn({ ...ctx(s1, '2026-12-29'), week: 53, actor: s1.people.find((p) => p.id === old.ownerId)! }, { goalId: old.id, week: 53, draft: { ...emptyDraft(old, null), value: String(value) }, mode: 'new' });
     const s2 = save(s1, out.commit, '2026-12-29');
     // A final number on plan meets the target, so the goal now finishes and its untouched copy leaves 2027.
     expect(live(s2, old)).toHaveLength(0);

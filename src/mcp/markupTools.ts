@@ -8,6 +8,7 @@ import type { InboxFeedback } from '../markup/feedback';
 import { MarkupError, MOOD_WORD, STATUS_WORD, STATUSES, groupMarkups, namedParts, partText, placeOf, problemText, sentFrom, stepText, type Markup, type MarkupStatus } from '../markup/model';
 import { PICTURES_UNREADABLE, type MarkupOps, type MarkupPicture } from '../markup/ops';
 import type { McpContext, ToolDef, ToolImage, ToolResult } from './tools';
+import { listed } from './listed';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
@@ -49,7 +50,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
     async run(a, ctx): Promise<ToolResult> {
       const list = await inbox(ctx).list({ ...(a.workspace ? { workspaceId: String(a.workspace) } : {}), ...(a.status ? { status: a.status as MarkupStatus } : {}), limit: Number(a.limit ?? 50) });
       const rows = list.map((m) => ({ id: m.id, status: m.status, line: m.line, place: placeOf(m), route: m.route, from: sentFrom(m), by: m.personName, at: m.createdAt, issueUrl: m.issueUrl, fixedIn: m.fixedIn }));
-      return { data: { markups: rows }, text: rows.length ? rows.map((r) => `${r.id} · ${STATUS_WORD[r.status]} · “${r.line}” · ${r.place} · ${r.by}, ${r.from}, ${r.at.slice(0, 10)}`).join('\n') : 'No markups.' };
+      return listed({ markups: rows });
     },
   },
   {
@@ -143,7 +144,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'update_markup',
     title: 'Change a markup',
-    description: 'Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
+    description: 'Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
       id: str('The markup’s id (mk_…).'),
       status: str('Its new status.', { enum: STATUSES }),
@@ -157,7 +158,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
       const id = String(a.id ?? '');
       if (!a.status && !a.issue_url) return { isError: true, text: 'Give a status, an issue_url, or both.' };
       let m = a.issue_url ? await ops.setIssueUrl(id, String(a.issue_url)) : null;
-      if (a.status) m = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP` });
+      if (a.status) m = await ops.setStatus(id, { status: a.status as MarkupStatus, fixedIn: a.fixed_in as string | undefined, reason: a.reason as string | undefined, by: `${ctx.actor.name} via MCP`, admin: !!ctx.actor.admin });
       return { data: { markup: m }, text: `${id} is ${STATUS_WORD[m!.status]}${m!.fixedIn ? `, fixed in ${m!.fixedIn}` : ''}${m!.issueUrl ? `, issue ${m!.issueUrl}` : ''}.` };
     },
   },

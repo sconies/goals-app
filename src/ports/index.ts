@@ -4,6 +4,7 @@
 
    | Part              | Interface        | Adapters today                                                           |
    | The goals store   | Store            | browser (data/store.ts), Supabase, plain Postgres (src/adapters/)       |
+   |                   |                  | (ports/store.ts; the demo's example plumbing is the browser store's)     |
    | Markups           | MarkupStore      | Supabase (adapters/supabase/markups.ts), this browser (markup/backend)  |
    | Feedback          | FeedbackStore    | Supabase (adapters/supabase/feedback.ts), this browser (markup/feedback)|
    | Who is viewing    | Identity         | the "Who are you?" picker (adapters/local.ts); your sign-in replaces it |
@@ -11,11 +12,13 @@
    | Files             | Files            | Supabase Storage (adapters/supabase/files.ts), memory (adapters/local)  |
    | Numbers           | NumberSource     | the metric module's demo (modules/metrics/numbers.ts); yours otherwise  |
    | Finding things    | Search           | over the loaded workspace (adapters/localSearch.ts); a server's search  |
+   | Goal lists, counts| Goals            | over the loaded workspace (adapters/localGoals.ts); a server's queries  |
    | Small preferences | Prefs            | this browser (adapters/local.ts); later, the server                      |
 
    Supabase is imported only by src/adapters/supabase/ (the layers lint, rule 4). */
 
-export type { Store } from '../data/store';
+export type { Store } from './store';
+export type { Goals, GoalAsk, GoalPage, GoalCounts, GoalRow } from './goals';
 export type { MarkupStore } from '../markup/ops';
 export type { FeedbackStore } from '../markup/feedback';
 

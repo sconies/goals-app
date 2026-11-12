@@ -7,7 +7,7 @@ import { NotAllowed } from '../domain/actions';
 import { currentCycle, scopeToCycle } from '../domain/cycle';
 import { currentWeek } from '../domain/plan';
 import { commandNames } from '../spec/rebuild';
-import { actionNames, commitOf, MODULE_ACTIONS, perform, performAny, type RunContext } from './actions';
+import { actionNames, commitOf, loadEngine, MODULE_ACTIONS, perform, performAny, type RunContext } from './actions';
 
 const today = new Date('2026-11-05T12:00:00Z');
 let n = 0;
@@ -55,7 +55,8 @@ describe('one way to run an action', () => {
     expect(() => perform(x, 'addNote', { goalId: 'no-such-goal', text: 'Hi' })).toThrow(/no longer exists/);
   });
 
-  it('previews a change set without saving it, and saves it only when asked to apply', () => {
+  it('previews a change set without saving it, and saves it only when asked to apply', async () => {
+    await loadEngine();
     const x = as('rhea');
     const goal = x.snapshot.goals.find((g) => g.ownerId === 'rhea')!;
     const input = { tables: { goals: [{ __row: '2', id: goal.id, goal: `${goal.title}, renamed` }] }, via: 'bulk' as const };

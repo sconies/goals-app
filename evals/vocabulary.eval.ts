@@ -71,7 +71,6 @@ const ALLOWED: { file: string; word: string; why: string }[] = [
   { file: 'src/ui/AiAssistants.tsx', word: 'Done', why: 'The button that closes the assistants sheet, not a status.' },
   { file: 'src/ui/goalRows.tsx', word: 'Done', why: 'The button that closes the Watch sheet once you are watching (goal spec, 2.5): finished with this sheet, not a status.' },
   { file: 'src/ui/ResearchBar.tsx', word: 'Done', why: 'A research session’s outcome as the tester reports it (Done, Stuck, Gave up), not a goal’s status.' },
-  { file: 'src/screens/Home.tsx', word: 'Open', why: 'The verb on a button that opens a goal, not an ask’s state.' },
   { file: 'src/domain/columns.ts', word: 'Action', why: 'The one format’s Action column (what to do with a row: stop or delete a goal, mark someone as left), not an ask’s kind.' },
   { file: 'src/domain/changeset.ts', word: 'Action', why: 'The one format’s Action column, named as the column a problem is in (domain/problemLevels), not an ask’s kind.' },
   { file: 'src/domain/tableLayout.ts', word: 'Action', why: 'The data tables leave the one format’s Action column out, by its header; not an ask’s kind.' },

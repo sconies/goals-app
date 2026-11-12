@@ -191,8 +191,7 @@ function GoalView({ goal }: { goal: Goal }) {
         { label: 'Share image', onClick: () => void share.image() },
         { label: 'Copy link', onClick: () => void share.link() },
         { label: 'Print or save as PDF', to: `/goals/${goal.id}/print` },
-        // An admin checks in for the owner from here; the owner's own buttons are on the bar.
-        ...(!stopped && !isOwner && app.viewer.admin && week > 0 ? [{ label: `Check in for ${ownerFirst}`, to: '/check-in/' + goal.id }] : []),
+        // No "Check in for …": only the owner checks in (OWNER-ONLY); their buttons are on the bar.
         ...(!stopped && canEdit ? [{ label: 'Change this goal', to: `/goals/${goal.id}/edit` }] : []),
         // Stop a goal with history (with a reason), or delete one set up by mistake: its owner or an admin.
         ...(!stopped && canEdit ? [{ label: goalRemoveLabel(own.length > 0), onClick: () => setRemoving(true) }] : []),
@@ -833,8 +832,8 @@ function QuarterStrip({ goal }: { goal: Goal }) {
         {rs.map((r) => (
           <li key={r.quarter.n} className={'q-' + r.kind + (r.quarter.n === now ? ' q-now' : '')}>
             <span className="q-head"><span className="strong">{r.quarter.label} <span className="hint nowrap">{r.quarter.months}</span></span>
-              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : 'None due'}</span></span>
-            {r.kind !== 'none' ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
+              <span className="q-result"><QuarterMark kind={r.kind} done={r.quarter.n === now ? (app.week - r.quarter.from + 1) / (r.quarter.to - r.quarter.from + 1) : 0} />{r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label : r.kind === 'open' ? (r.quarter.n === now ? QUARTER.open.label : 'To come') : r.before ? 'Not applicable' : 'None due'}</span></span>
+            {r.kind !== 'none' || r.before ? <span className="small">{quarterWords(r.text)}</span> : r.doneWeek != null && <span className="small">{STATUS.done.label} in week {r.doneWeek}</span>}
           </li>
         ))}
       </ol>
@@ -976,6 +975,10 @@ function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) 
  *  reason out, inside a group that says it once; `sameAs` points to the newer week that already said it. */
 function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number; sameAsWhere?: 'above' | 'below'; above?: boolean; latestWeek?: number }) {
   const [isOpen, setOpen] = useState(false);
+  const app = useApp();
+  // A corrected check-in says so on its row (check-in spec 2.7): the engine's own summary and the reason given.
+  const fix = [...app.snapshot.changes].reverse().find((x) => x.entity === 'check-in' && x.entityId === c.id && x.diffs.some((d) => d.field === 'Why corrected'));
+  const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
@@ -984,6 +987,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
         <Chip k={c.status} />
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
+      {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>
   );

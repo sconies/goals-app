@@ -9,8 +9,9 @@ import { findGoal, isKey } from '../domain/goalKey';
 import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { listed } from './listed';
 import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
-import { VIA_MCP } from '../domain/changeset';
+import { VIA_MCP } from '../domain/via';
 
 const str = (description: string, extra: object = {}) => ({ type: 'string', description, ...extra });
 const int = (description: string) => ({ type: 'integer', description });
@@ -50,7 +51,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
       const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws)).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
-      return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };
+      return listed({ removed: list });
     },
   },
   {
@@ -216,7 +217,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
       const kept = (k: R.KeptRow) => ({ row: k.name, reason: k.reason, at: k.at });
       if (a.dry_run === true) {
         const p = R.undoPreview(ax(ctx), String(a.import_id ?? ''));
-        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
+        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: !p.restores ? `Nothing saved. ${R.nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(R.keptText).join('; ')}.` : ''}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
       }
       const out = R.undoImport(ax(ctx), String(a.import_id ?? ''));
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });

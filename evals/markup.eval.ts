@@ -94,11 +94,23 @@ describe('The open inbox (backlog O)', () => {
       update: async (id, p) => Object.assign(list.find((m) => m.id === id)!, p),
     } });
     const before = { ...list[0]! };
-    expect(await ops.setStatus('mk_x', { status: 'wont-fix', reason: 'Calm is the point.', by: 'Mateo' })).toMatchObject({ status: 'wont-fix', statusBy: 'Mateo' });
-    const back = await ops.setStatus('mk_x', undoChange(before, 'Amara'));
+    expect(await ops.setStatus('mk_x', { status: 'wont-fix', reason: 'Calm is the point.', by: 'Mateo', admin: true })).toMatchObject({ status: 'wont-fix', statusBy: 'Mateo' });
+    const back = await ops.setStatus('mk_x', undoChange(before, 'Amara', true));
     expect(back).toMatchObject({ status: 'new', wontFixReason: null, statusBy: 'Amara' });
-    await ops.setStatus('mk_x', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Mateo' });
-    expect(await ops.setStatus('mk_x', undoChange({ status: 'wont-fix', fixedIn: null, wontFixReason: 'Calm is the point.' }, 'Amara'))).toMatchObject({ status: 'wont-fix', fixedIn: null, wontFixReason: 'Calm is the point.' });
+    await ops.setStatus('mk_x', { status: 'fixed', fixedIn: WHATS_NEW[0]!.id, by: 'Mateo', admin: true });
+    expect(await ops.setStatus('mk_x', undoChange({ status: 'wont-fix', fixedIn: null, wontFixReason: 'Calm is the point.' }, 'Amara', true))).toMatchObject({ status: 'wont-fix', fixedIn: null, wontFixReason: 'Calm is the point.' });
+  });
+  it(I('only an admin changes an item’s status (Lane, 12 Nov), however it is asked: the rule refuses anyone else, and leaves the item as it was'), async () => {
+    const { markupOps } = await import('../src/markup/ops');
+    const { mayTriage } = await import('../src/markup/model');
+    const m = { id: 'mk_y', status: 'new', fixedIn: null, wontFixReason: null, statusBy: null, statusAt: null, pictures: [] } as unknown as import('../src/markup/model').Markup;
+    const ops = markupOps({ entries: WHATS_NEW.map((e) => e.id), repo: 'sconies/goals-app', store: {
+      list: async () => [m], get: async () => m, pictureUrl: async () => null, update: async (_id, p) => Object.assign(m, p),
+    } });
+    await expect(ops.setStatus(m.id, { status: 'in-hand', by: 'Mateo', admin: false })).rejects.toThrow('Only an admin can change the status of feedback.');
+    expect(m.status).toBe('new');
+    expect(mayTriage({ admin: false })).toBe(false);
+    expect(mayTriage({ admin: true })).toBe(true);
   });
 });
 
@@ -114,7 +126,7 @@ describe('Feedback joins the open inbox', () => {
 
   it(F('anyone triages feedback with the markups’ states, New, In hand, Fixed (in a What’s new entry) and Won’t fix (with a reason), under the table’s rules'), async () => {
     const triage = (patch: object) => as<{ status: string; fixed_in: string | null; wont_fix_reason: string | null }>('anon', 'select * from okr_feedback_triage($1, $2)', ['fb_e1', JSON.stringify(patch)]);
-    expect((await triage({ status: 'in-hand', status_by: 'Mateo' })).rows[0]!.status).toBe('in-hand');
+    expect((await triage({ status: 'in-hand', status_by: 'Mateo', admin: true })).rows[0]!.status).toBe('in-hand');
     await expect(triage({ status: 'fixed' })).rejects.toThrow();
     await expect(triage({ status: 'wont-fix' })).rejects.toThrow();
     expect((await triage({ status: 'wont-fix', wont_fix_reason: 'It grows as you type since release 1.' })).rows[0]).toMatchObject({ status: 'wont-fix', wont_fix_reason: 'It grows as you type since release 1.' });
@@ -213,7 +225,8 @@ describe('The AI triages feedback, as it does markups (migration 0028)', () => {
     };
     let n = 0;
     const call = async (name: string, args: object) => (await (await serve(new Request('https://x/api/mcp', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++n, method: 'tools/call', params: { name, arguments: args } }) }), deps)).json() as { result: { content: { text: string }[]; isError: boolean } }).result;
-    expect((await call('list_feedback', { status: 'new' })).content[0]!.text).toContain('fb_m1 · New · It’s OK · “The filters are hard to find” · /goals · Mateo, Acme');
+    // A list answers as JSON, its text the same as its data (MCP load, 12 Nov).
+    expect(JSON.parse((await call('list_feedback', { status: 'new' })).content[0]!.text).feedback).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'fb_m1', status: 'new', text: 'The filters are hard to find', screen: '/goals', by: 'Mateo', from: 'Acme' })]));
     expect((await call('get_feedback', { id: 'fb_m1' })).content[0]!.text).toContain('From Mateo in Acme');
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: 'no-such-entry' })).isError).toBe(true);
     expect((await call('update_feedback', { id: 'fb_m1', status: 'fixed', fixed_in: WHATS_NEW[0]!.id })).content[0]!.text).toBe(`fb_m1 is Fixed, fixed in ${WHATS_NEW[0]!.id}.`);

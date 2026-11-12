@@ -1,6 +1,8 @@
 /* The import in progress, worked out (backlog IM3): the file's tables (as new rows, when it came from another
    workspace; without the rows left out), and the change set the engine makes of them with the answers given. Shared by
    the preview and the changes list, so both say the same. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../../app/engineReady';
 import { useMemo } from 'react';
 import { useApp } from '../../app/state';
 import type { ChangeSet } from '../../domain/changeset';

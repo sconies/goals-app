@@ -1,6 +1,8 @@
 /* Bulk actions on the goals ticked in the table: change their owner or level, or watch them. Changes go through the
    bulk-change engine, so the same rules, rights and change log apply as for Import and Data. Exporting is Goals' own
    "Export these goals" (the spreadsheets module), which starts from what's shown. */
+// The change engine, for this screen's previews (src/app/engineReady.ts).
+import '../app/engineReady';
 import { LEVEL_WORDS } from '../domain/levels';
 import { useState } from 'react';
 import { useApp } from '../app/state';
