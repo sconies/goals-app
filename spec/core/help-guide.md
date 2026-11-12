@@ -761,12 +761,13 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 #### How to use it
 
 - On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.
-- Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
+- Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
 - What a new row must have is on the Import page and in Every column, and what it needs: a goal needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. A check-in, Goal key (or Goal), Week, and Value or Stages. A person, Name and Email.
 - Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.
 - A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.
 - Each sheet is known by its header row, whatever the file or sheet is called. Start here (or the README of an older file), Results, Asks, Notes and Metrics are for reading, and left out. So are rows whose Action says Example, such as the template’s: the preview, Data’s review and the AI assistant count them.
 - Rows find their goal by its key, then its ID, so a file from last cycle still finds the goals carried over. People are found by email, then by a name only one person has; the preview notes when a name was used.
+- To build a whole tree in one file, give each new goal’s row a Ref of your own (top, a1, anything, each row its own). Another row then names it in Feeds into ref, and a check-in in Goal ref, before it has a key. Refs belong to the file: they are never kept, and an export leaves them empty.
 - Every column you can change counts: a change to any of them is applied, or shown as a problem. Worked-out columns (Status, Gap, Calculated…) are ignored.
 - The Action column: Stop a goal with check-ins (say why in Reason), Delete one set up by mistake, or mark someone as Left (their goals and asks go to Takes over: an email, or a name only one person has). The same rules as the app apply, and the preview shows what each does.
 - Every row is checked with the app’s own rules, and Check this import shows the result before anything is saved: the file and what was read (sheets and columns it didn’t read are named), counts by sheet, then what must be fixed, then questions, then what will be saved. Show the changes lists every change in the file’s order, 50 at a time, with each field before and after and how a value Faro supplied was worked out (“the owner’s team; the row gave none”).
@@ -1209,10 +1210,12 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 - Do what you can: check in, set up and change goals and plans, answer requests, take part in reviews, watch goals, save views, and (as an admin) manage people and teams and turn recording on or off.
 - Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.
 - It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”. A goal it can’t save comes back as “Not saved. Must fix:” with each problem in the words New goal uses. A goal that raises a question (over 100%, no unit, a link to a lower level, a plan that flips which way is better) comes back as “Not saved. Check with the person first:” with every question; it saves once you have said yes to each and it calls again with “confirm”.
+- In one bulk change it can add a whole tree of goals and their first numbers: each new goal’s row has a Ref, and the rows below name it in Feeds into ref or Goal ref. One dry run checks it all.
 - Adding goals, one at a time or many at once, it is told each new goal’s key (G-12) and ID straight away, so it can link, check in on or change them without searching first.
 - Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
 - Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.
 - Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.
+- Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.
 
 #### How to connect
 
