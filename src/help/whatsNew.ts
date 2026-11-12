@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'polish-no-check-in-for',
+    date: '2026-11-12',
+    title: 'No check-in offered that can’t be posted',
+    points: [
+      'A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.',
+      'The owner checks in from the button on the goal’s bar, as before.',
+    ],
+    articles: ['goal-page', 'check-in'],
+  },
+  {
     id: 'import-preview-steadier',
     date: '2026-11-12',
     title: 'Checking an import: quicker and steadier',

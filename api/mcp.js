@@ -9469,10 +9469,11 @@ function namedHeaders(t, nearOk) {
 		const rename = /* @__PURE__ */ new Map();
 		for (const k of keys) {
 			const m = headerMatch(kind, k);
-			if (!m.as || m.how === "exact" || m.how === "unknown") continue;
+			if (!m.as || m.how === "unknown") continue;
 			const to = m.as.toLowerCase();
+			if (k === to) continue;
 			if (keys.includes(to)) continue;
-			if (m.how === "also" || nearOk(sheet, k, m.as)) rename.set(k, to);
+			if (m.how !== "near" || nearOk(sheet, k, m.as)) rename.set(k, to);
 		}
 		if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
 	}
@@ -15635,7 +15636,7 @@ var CORE_ARTICLES = [
 				list: [
 					"One main button, for what you’d most likely do next, in this order: answer a question or a decision asked of you here; post the first check-in, or check in for this week when it’s due (the owner); mark your next step done; Add a next step, when the goal is behind and its owner has no next step open; ask a quiet goal’s owner for an update.",
 					"Beside it, a plain button: the owner always has Check in again (unless the main button is the check-in); anyone else has Watch, or Watching once they do.",
-					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). An admin checks in for the owner from there."
+					"The “…” menu has Share image, Copy link, Print or save as PDF, and for the owner or an admin Change this goal and Stop this goal (with check-ins, asking why) or Delete this goal (with none). Only the owner checks in, from the bar."
 				]
 			},
 			{
@@ -17271,6 +17272,13 @@ var WHATS_NEW = [
 			"What’s new in Faro is now a line at the foot of Home."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "polish-no-check-in-for",
+		date: "2026-11-12",
+		title: "No check-in offered that can’t be posted",
+		points: ["A goal’s “…” menu no longer offers an admin “Check in for” its owner: it led to a page saying only the owner checks in.", "The owner checks in from the button on the goal’s bar, as before."],
+		articles: ["goal-page", "check-in"]
 	},
 	{
 		id: "import-preview-steadier",

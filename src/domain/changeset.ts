@@ -226,10 +226,13 @@ function namedHeaders(t: Tables, nearOk: (sheet: Sheet, header: string, as: stri
     const rename = new Map<string, string>();
     for (const k of keys) {
       const m = headerMatch(kind, k);
-      if (!m.as || m.how === 'exact' || m.how === 'unknown') continue;
+      if (!m.as || m.how === 'unknown') continue;
       const to = m.as.toLowerCase();
+      // A header the same as the column's but for punctuation, an accent or spacing ("Target.", "Owner_email") is read
+      // as that column too: only a key that is already the column's own name is left as it is (#199 review, high).
+      if (k === to) continue;
       if (keys.includes(to)) continue;
-      if (m.how === 'also' || nearOk(sheet, k, m.as)) rename.set(k, to);
+      if (m.how !== 'near' || nearOk(sheet, k, m.as)) rename.set(k, to);
     }
     if (rename.size) out[key] = recs.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])) as Rec);
   }
