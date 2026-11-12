@@ -84,6 +84,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #214 IM5 review: a header differing only by punctuation is read again | 3 | 0 | 0 | 0 |
 | #207 Goal menu: no "Check in for" the owner | polish | 0 | 0 | 0 |
 | #209 Map: "Drawing the map…" only after 300 ms | polish | 0 | 0 | 0 |
+| #193 AX5, first part: the query port and its contract | 4 | 0 | 4 | 5 |
 
 **High findings, and where each stands**
 
@@ -918,3 +919,24 @@ Fixes #199's high: `namedHeaders` now renames every key that is not already the 
 ### #207 Goal menu: no "Check in for" the owner, and #209 Map: "Drawing the map…" only after 300 ms (polish, merged 16:27 and 16:48 UTC, 12 Nov)
 
 #207 removes an admin's menu item that led to a page saying only the owner checks in (`src/screens/GoalScreen.tsx`), with a journey that nothing offered is then refused. #209 shows the map's waiting line only after 300 ms, holding the map's height meanwhile (`src/screens/GoalsScreen.tsx`, `MapWait`), and F6 checks both the quick and the slow load. Read. No finding.
+
+### #193 AX5, first part: the query port and its contract; the first download 293 to 263 KB (track 4, merged 16:37 UTC, 12 Nov)
+
+Read first by a separate reviewing session, with throwaway tests, a production build and the dev server; nothing here was re-run by this reviewer. No high finding. The port returns the same goals, counts and order as the code it replaced, across 1,742 combinations of viewer, scope and query, and the bundle claim holds.
+
+**1. Medium. When the change engine fails to load, Post check-in does nothing and says nothing, and the tab cannot post until reloaded.** `run` awaits `ready(name)` with no toast on failure (`src/app/state.tsx:593`), and the form's `catch` only re-enables the button (`src/screens/CheckInFlow.tsx:352-355`). On a production build with the engine's chunk blocked and then allowed again, Post was pressed twice with no result and no further request; Chromium keeps the failed module. The draft is kept. Every other action that needs the engine fails the same way (read). Fix: toast a failed load, with the offline words when offline, and add a journey.
+
+**2. Medium. What's new and the guide say Home lists your goals "worst first, then by name"; the code lists them in stored order, as before.** `applyQuery` sorts only when a sort is set (`src/domain/query.ts:212`), and Home asks with none. For 13 of the 29 owners with more than one goal the order is not worst first; as Rhea it reads On track, Done, On track, No check-in yet. Fix: ask with the sort, or withdraw the entry, the guide's words and two comments.
+
+**3. Medium. The port's default order and its scope are not things a server could answer.** With no sort the adapter returns the workspace array's order (`src/adapters/localGoals.ts:23`), and the conformance file pins it. Scope travels as a list of every goal's ID built from the whole snapshot (`src/screens/GoalsScreen.tsx:121`), so the browser must already hold every goal (read). Fix: a defined default order, and scope as data.
+
+**4. Medium. Each hook makes its own port, so Home and Goals summarise the whole workspace two or three times per change** (`src/app/goals.ts:12-19`). At ten times the demo's size that is about 550 ms on Home, where the old code took 20 ms. Fix: one port per workspace as loaded.
+
+**Lows.**
+- Paging by key repeats rows when the `after` goal has gone (`localGoals.ts:33`): 145 rows for 126 goals. Not reachable today; a server adapter would copy it.
+- The engine guard in `src/app/engine.test.ts` is a one-line pattern that misses `import * as`, re-exports, double quotes and multi-line imports; the bundle budget is the real protection.
+- `counts()` gives an attention count that disagrees with its own list on a near miss, and the conformance file now pins it (read; as before this PR).
+- The switch's count is written twice: `attentionCount` has no caller left, and the adapter restates its query (read).
+- No eval or journey came with the change, and the contract's cases are written out by the adapter they test (read).
+
+**Checked and fine.** Home's counts for all 97 people. Stopped, removed and last-year goals are not listed. With the engine delayed by 7 s, Quick check-in, Data, People, bulk edit and Import show "Opening…" and then draw; a save started before it arrives waits, saves once and loses nothing. The unread dot, Home's news line and all 131 releases on What's new. A build measures 263 KB against 265, with the engine in its own chunk. The layers lint and all 1,319 unit tests pass.
