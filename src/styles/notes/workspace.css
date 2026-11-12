@@ -107,6 +107,8 @@
 .ws-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 .ws-switch[aria-expanded='true'] { border-color: var(--line); background: var(--surface); }
 .ws-switch-chev { flex: none; color: var(--muted); }
+.ws-switch-word { flex: none; }
+.ws-switch:hover .ws-switch-word, .ws-switch:focus-visible .ws-switch-word { color: var(--fg); }
 .ws-switch-top { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-height: 24px; padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
 .ws-switch-top > .ellipsis { min-width: 0; }
 .ws-switch-top svg { flex: none; }

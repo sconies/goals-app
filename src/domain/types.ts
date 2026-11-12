@@ -54,7 +54,7 @@ export interface Cycle {
   weeks: number;
   /** Day of the weekly review, 0 = Monday. Check-ins are due before it. */
   reviewDay: number;
-  /** The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). Set by a workspace from CF2. */
+  /** The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). The rules read it, but nothing stores it yet: the database has no column for it and a goal's level must be one of Faro's three (okr_goals_level_check in schema.sql), so every cycle has Faro's three today. Levels set per workspace are R6a's. */
   levels?: LevelDef[] | null;
   /** Deleted (only a cycle with no check-ins): kept, hidden, restorable. */
   removedAt?: string | null;
@@ -338,7 +338,7 @@ export interface Workspace {
   name: string;
   kind: 'example' | 'own';
   createdAt: string;
-  /** Whether the app records how it is used here (src/telemetry): on unless an admin has turned it off. */
+  /** Whether the app records how it is used here (src/telemetry). Stored only when off, so a missing value means on (the demo's example records); a workspace set up in the app starts off unless its set-up box was ticked (requirement TELEMETRY-SWITCH), and only an admin turns it on or off after. */
   recording?: boolean;
   /** Feature modules an admin has switched off here, by id (docs/architecture.md). Everything else is on. */
   modulesOff?: string[];

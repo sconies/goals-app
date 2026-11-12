@@ -1,0 +1,53 @@
+/* N26: Home's one primary, and quiet when quiet (docs/design/home/spec.md, HM1). run({ open, url }) returns a list of failures.
+   [HOME-OWNER] On every day of two weeks for four of the demo's people, at a phone's and a computer's size: at most one
+   primary button on Home, and none when there is no lead (the quiet line); the lead's button in the first screen (above
+   the phone's tab bar at 390×844, above the fold at 1440×900); and Home never says "0 weeks", "None you’re in" or
+   "You’re all set", nor links to a bare /goals or an old show= address. */
+const DAYS = Array.from({ length: 14 }, (_, i) => new Date(Date.UTC(2026, 10, 9 + i)).toISOString().slice(0, 10));
+const PEOPLE = ['tunde', 'rhea', 'amara', 'oskar'];
+const SIZES = [[390, 844, true], [1440, 900, false]];
+
+module.exports = {
+  id: 'N26',
+  area: 'home',
+  title: 'Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says',
+  reqs: ['HOME-OWNER'],
+  async run({ open }) {
+    const fails = [];
+    const check = (ok, msg) => { if (!ok) fails.push(msg); };
+    for (const who of PEOPLE) for (const [w, h, touch] of SIZES) {
+      const [c, p] = await open(w, h, who, '/?today=' + DAYS[0], touch);
+      for (const day of DAYS) {
+        const at = `${who}, ${day}, ${w}px`;
+        if (day !== DAYS[0]) await p.goto(p.url().replace(/today=[\d-]+/, 'today=' + day));
+        await p.locator('.page.home .home-hero').first().waitFor({ timeout: 8000 }).catch(() => {});
+        const seen = await p.evaluate(() => {
+          const bar = [...document.querySelectorAll('.tabbar')].find((e) => getComputedStyle(e).position === 'fixed' && e.getClientRects().length);
+          const fold = bar ? bar.getBoundingClientRect().top : innerHeight;
+          const home = document.querySelector('.page.home');
+          const primaries = [...(home?.querySelectorAll('.btn.primary') ?? [])].filter((e) => e.getClientRects().length);
+          const hero = home?.querySelector('.home-hero');
+          return {
+            lead: hero?.getAttribute('data-lead') ?? 'missing',
+            primaries: primaries.length,
+            bottom: primaries[0] ? primaries[0].getBoundingClientRect().bottom : null,
+            fold,
+            text: home?.innerText ?? '',
+            hrefs: [...(home?.querySelectorAll('a[href]') ?? [])].map((a) => a.getAttribute('href').replace(/^\/demo/, '')),
+          };
+        });
+        check(seen.lead !== 'missing', `${at}: Home has neither a lead nor the quiet line`);
+        check(seen.primaries <= 1, `${at}: ${seen.primaries} primary buttons`);
+        if (seen.lead === 'none') {
+          check(seen.primaries === 0, `${at}: nothing is asked, but Home has a primary button`);
+          check(/Nothing is asked of you today\.| in for week \d+\./.test(seen.text), `${at}: the quiet line is not one of its sentences`);
+        } else check(seen.primaries === 1 && seen.bottom != null && seen.bottom <= seen.fold, `${at}: the lead’s button (${seen.lead}) is not in the first screen (${Math.round(seen.bottom ?? -1)}px, fold ${Math.round(seen.fold)}px)`);
+        check(!/\b0 weeks\b|None you’re in|You’re all set/.test(seen.text), `${at}: Home says something it no longer says`);
+        const bad = seen.hrefs.filter((x) => /^\/goals(\?)?$/.test(x.replace(/[?&]today=[\d-]+/, '')) || /[?&]show=/.test(x));
+        check(!bad.length, `${at}: a bare or old Goals link (${bad.join(' ')})`);
+      }
+      await c.close();
+    }
+    return fails;
+  },
+};

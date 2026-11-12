@@ -15,7 +15,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U2 | What needs me? Home shows what’s due, off track, stale or slipping | Team lead | `ATTENTION` `PROFILES` `STALE` | 1 | `evals/journeys.cjs` |
 | U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `REVIEW-DECIDE` `ONE-ASK` | 30 | `evals/journeys.cjs` |
 | U4 | Set up a goal, step by step | Team lead | `GOAL-CREATE` `PLAN-SHAPE` `HIERARCHY` `LEVELS` `CHANGE-LOG` `DRAFTS` | 13 | `evals/journeys.cjs` |
-| U5 | Load your own data and switch between it and the example | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
+| U5 | Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
 | U7 | An owner changes a target with a reason; a watcher sees it | Owner, then sponsor | `REASON-AHEAD` `REBASELINE` `CHANGE-LOG` `PLAN-CHANGE` `WATCHING` | 16 | `evals/journeys.cjs` |
 | U8 | Watching: see what has gone quiet and chase it | Goals coach | `STALE` `ATTENTION` `WATCHING` `ONE-WATCHING` `ONE-ASK` | 5 | `evals/journeys.cjs` |
@@ -50,7 +50,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at |  | `ONE-ACCOUNT` `PATH-TO-GREEN` `WALKTHROUGHS` | 14 | `evals/journeys.cjs` |
 | U40 | Research notes followed up: a cause for anything else, demo feedback that says where it goes, and a research session that ends after its last task |  | `OTHER-CAUSE` `DEMO-FEEDBACK` `RESEARCH` | 16 | `evals/journeys.cjs` |
 | U41 | Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send | Anyone using the app | `MARKUP` | 14 | `evals/journeys.cjs` |
-| U42 | Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand | Anyone using the app | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` | 23 | `evals/journeys.cjs` |
+| U42 | Anyone opens the inbox with no sign-in; an admin opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand. A member reads it all with no way to change a status, and /inbox opens it | Anyone using the app | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` `INBOX-TRIAGE` | 23 | `evals/journeys.cjs` |
 | U43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | An admin | `PERSON-LEFT` `UNDO-REMOVE` `REMOVE-ANYTHING` | 10 | `evals/journeys.cjs` |
 | U44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | A goal owner | `GOAL-STOP` `UNDO-REMOVE` `REMOVE-ANYTHING` | 11 | `evals/journeys.cjs` |
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |
@@ -90,6 +90,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U111 | A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week |  | `HONEST-CHECKIN` `ONE-PER-WEEK` | 6 | `evals/journeys.cjs` |
 | U115 | Start 2027 only prepares it: on 21 Dec 2026 the read-back counts every goal once; afterwards everyone is still in 2026 and Cycles offers Undo, which puts 2026 back; started again, 2027 opens for everyone on 4 Jan 2027. A workspace whose only year is 2027 says when it starts and has nothing due |  | `CARRY-GOALS` | 8 | `evals/journeys.cjs` |
 | U117 | The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open |  | `RESULTS` `YEAR` | 6 | `evals/journeys.cjs` |
+| U122 | The owner’s week on Home: on Monday nothing is asked and there is no primary button; the day before the deadline the check-in is the one primary; a completed week is one sentence with the next date; a passed deadline is never said to someone who met it; each count opens exactly its goals |  | `HOME-OWNER` | 6 | `evals/journeys.cjs` |
 | U135 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet |  | `GOALS-MENUS` `GOAL-MAP` `SAVED-VIEWS` | 14 | `evals/journeys.cjs` |
 | U136 | Change a goal is one page: an old “?part=plan” link lands on Plan and target; the four sections in order, each with its anchor; one way out, “Close and keep the draft”, which keeps a changed target for next time; Save changes stays at the foot and never covers the reason box; Save with a question open focuses the question, in view, and says where it is (900 hours on Lead time, better lower, asks wrong-side); #owner opens at Who and where, its owner found by typing |  | `GOAL-EDIT-PAGE` `NAV-FORMS` `PLAN-CHANGE` `FIND-AND-PICK` | 6 | `evals/journeys.cjs` |
 | U137 | Read back before it’s saved: as Tunde on Wednesday 11 Nov, a goal in CI/CD feeding G-41, 40% to 90%; the Check step says What, Who and where, Measured by, Left as usual and You said as sentences, each whole on a phone; “After you publish” names Thursday 12 Nov and “the plan says 47% for week 47”, and the reviews it joins; “Change” on Left as usual goes to the measure step and “Continue” returns; “Change” on What and another type, then Continue, opens the step that now needs something, and Continue from there comes back; publishing lands on the goal with ?published=1 and History keeps the answer as Checked. (With the rhythm off, “Nothing is due.”, and with Reviews off no review line: when FT builds the switches.) |  | `GOAL-ENTRY-REQUIRED` `NEW-GOAL-STEPS` | 30 | `evals/journeys.cjs` |
@@ -103,12 +104,15 @@ Checks run across every screen: design rules, widths, motion, errors.
 |---|---|---|---|
 | P1 | Animation switches off under reduced motion | `MOTION` | `evals/journeys.cjs` |
 | P2 | Loading shows a skeleton, and an unreachable database becomes a clear error with Try again | `MOTION` `NO-ERRORS` | `evals/journeys.cjs` |
+| P3 | Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word | `PHONE` `A11Y` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
+| P4 | Every screen on desktop: no sideways scroll, no serious accessibility issues, status as shape plus word | `A11Y` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P6 | Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word | `DESIGN-RULES` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P7 | Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold | `WIDE-SCREENS` | `evals/journeys.cjs` |
 | P8 | The goals start in the first screen: the Goals header stays short on a phone and a desktop | `WIDE-SCREENS` `PHONE` | `evals/journeys.cjs` |
 | P9 | Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width | `EVERY-WIDTH` | `evals/journeys.cjs` |
 | P10 | Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge | `FIT-AND-FINISH` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
+| P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 
 ## Fit and finish
 
@@ -127,7 +131,7 @@ Per-area checks from the fit-and-finish reports.
 | F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 | F16 | New goal fits a phone: first field and Continue on the first screen, no step over two screens, 44 px controls (F16) | `NEW-GOAL-STEPS` `GOAL-CREATE` | `evals/finish/11-new-goal-phone.cjs` |
-| N12 | Held at company size: ${SIZE.people.toLocaleString('en-GB')} people, ${SIZE.teams.toLocaleString('en-GB')} teams and ${SIZE.goals.toLocaleString('en-GB')} goals; no select of everything, pickers within ${PICKER_MS} ms, list bars within ${LIST_MS} ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
+| N12 | Held at company size: 15,000 people, 1,500 teams and 30,000 goals; no select of everything, pickers within 200 ms, list bars within 300 ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
 | P19 | The import’s preview keeps the design rules: Must fix and Check are words with the warning mark, a full outline and no stripe, plain counts, no capsules, no emoji | `IMPORT-PREVIEW` `DESIGN-RULES` | `evals/finish/18-import-design.cjs` |
 
 ## Review notes
@@ -138,14 +142,15 @@ Checks that Lane’s review notes stay fixed.
 |---|---|---|---|
 | N1 | Review notes, reviews | `REVIEW-LIST-STATE` `REVIEW-AGENDA` `REVIEW-DECIDE` | `evals/notes/1-reviews.cjs` |
 | N2 | Review notes, goal-page (the flagship page) | `GOAL-SUMMARY` `GOAL-PAGE-BAR` `GOAL-PAGE` | `evals/notes/2-goal-page.cjs` |
-| N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-DASHBOARD` | `evals/notes/3-attention-home.cjs` |
+| N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-OWNER` | `evals/notes/3-attention-home.cjs` |
 | N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
-| N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
+| N7 | Help and what’s new: reachable everywhere, searchable, opened for the page you’re on, and an unread dot that clears | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
-| N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-DASHBOARD` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
+| N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-OWNER` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |
 | N15 | Said once: an ask’s words, this week’s reason, and what a goal measures, each in one place on its page | `GOAL-ASK-ONCE` `GOAL-HISTORY` | `evals/notes/11-said-once.cjs` |
+| N26 | Home: one primary at most, none when nothing is asked, in the first screen, and none of the words Home no longer says | `HOME-OWNER` | `evals/notes/12-home.cjs` |
 
 ## The ease test
 

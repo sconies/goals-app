@@ -94,12 +94,12 @@
     {
       "id": "UPDATE-ANYTIME",
       "area": "Check-in",
-      "text": "The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it replaces that week's number and status, and the change log keeps the before and after."
+      "text": "The owner can post an update at any time from the goal page. It is the same check-in flow; after this week's check-in it is a second check-in for the week: the newest is that week's number and status, and the first is kept (ONE-PER-WEEK). Correcting a week is different: it replaces the week's newest, with a reason, and the change log keeps the before and after."
     },
     {
       "id": "OWNER-ONLY",
       "area": "Check-in",
-      "text": "Only the goal's owner can post its check-in."
+      "text": "Only the goal's owner checks in on the check-in screen: the owner's call is the official status, so it comes from them. Through the change engine (a spreadsheet, the data tables, the AI tools) an admin may also post or correct one, as R1's access table says (mayChangeGoal)."
     },
     {
       "id": "STALE",
@@ -522,9 +522,9 @@
       "text": "Needs attention means new since something was agreed (Lane, 10 Nov): a goal that is red or amber is being handled only when, since its latest check-in, an action with an owner and a due week was agreed (and isn't overdue), or, when it is amber, its request was answered, and nothing new has happened since. A red goal stays counted until it has an action. A goal only marked reviewed or noted still needs attention, and says who looked. It is shown as being handled everywhere (Home, Watching, reviews, the AI), with one line saying what that means, and never hidden: wherever the goals that need attention are listed (the Needs attention tab and filter in every layout, the map, Home, Watching, the AI's find_goals), those being handled are listed below them, a count of goals that need attention counts the first group and says so, and on the Board a goal being handled says so on its card."
     },
     {
-      "id": "HOME-DASHBOARD",
+      "id": "HOME-OWNER",
       "area": "Home",
-      "text": "Home opens with a slim dashboard (your goals by status, your on-time check-in streak, watched goals that need attention, your next review) above what needs you, and shows the goals you own and the ones you watch. Each count of goals by status opens just those goals in Goals (\"11 off track\" lists the 11). On a phone, what someone asked of you wraps to two lines at word breaks, never cut mid-word."
+      "text": "Home opens on what is asked of you today, with one primary action, or says that nothing is; a check-in becomes the primary action the day before it is due, when late, or when a review you are in will read it. Your goals are counted once, each count opens exactly those goals, and a completed week is one sentence with the next date."
     },
     {
       "id": "SETTINGS",
@@ -539,7 +539,7 @@
     {
       "id": "WORKSPACE-ADMIN",
       "area": "Workspace",
-      "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it."
+      "text": "Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may."
     },
     {
       "id": "GOALS-SCOPE",
@@ -799,7 +799,7 @@
     {
       "id": "INBOX-TRIAGE",
       "area": "Feedback",
-      "text": "The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox."
+      "text": "The inbox works at hundreds of items: tabs New, In hand and Closed, each with its count, and “Nothing new” when New is empty; filters for kind, page and person, and a search; markups on the same part of the same page folded into one row (“6 on this part”) and handled together; on a computer, the list and the open item side by side, with keys J and K to move, I in hand, F fixed and W won’t fix; on a phone, one item at a time with Next; handling an item opens the next, with Undo; ticking rows changes a batch at once; 25 rows a page. Only an admin changes a status, refused by the rule otherwise; everyone reads and sends feedback. The New count shows beside Inbox in Workspace’s menu as plain text. The separate Feedback block is gone: feedback is in the inbox."
     },
     {
       "id": "MCP-FEEDBACK",
