@@ -80,6 +80,10 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #202 GE3: the read-back | 2 | 0 | 5 | 3 |
 | #208 New goal: Publish shows one outcome, not three | 2 | 0 | 0 | 0 |
 | #212, #210, #205 A handoff-kit review, track 2's handover, a product-feedback evaluation | planning, 2 | 0 | 0 | 0 |
+| #204 IM3's build review fixes | 3 | 0 | 0 | 0 |
+| #214 IM5 review: a header differing only by punctuation is read again | 3 | 0 | 0 | 0 |
+| #207 Goal menu: no "Check in for" the owner | polish | 0 | 0 | 0 |
+| #209 Map: "Drawing the map…" only after 300 ms | polish | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -97,7 +101,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Fixed** by #180; the reproduction re-run in both orders: no record twice, and the child's copy returns under its parent |
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
-| #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Open** |
+| #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Fixed** by #214; the reproduction re-run: "Target.", "Tárget" and "Due_week" are read, a near miss is asked about, an unknown column is named |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -902,3 +906,15 @@ Takes #202's last low (the "A question is still to answer" flash after Publish).
 ### #212, #210 and #205 Documents (merged 16:00 to 16:01 UTC, 12 Nov)
 
 A review of the handoff kit, track 2's handover and an evaluation of product feedback: three documents, no code. Not reviewed.
+
+### #204 IM3's build review fixes (track 3, merged 16:08 UTC, 12 Nov)
+
+Takes #191's four mediums and four of its small slips. The preview is worked out without the reason and once more with it when saving (`src/modules/spreadsheets/importPlan.ts`, `toSave`), so typing the reason no longer re-checks the file. The answer picker takes its width; focus goes to the next question or Save after an answer; U96 leaves a row out and saves the rest on screen. Read, not re-run. No finding.
+
+### #214 IM5 review: a header that differs only by punctuation is read as its column again (track 3, merged 16:12 UTC, 12 Nov)
+
+Fixes #199's high: `namedHeaders` now renames every key that is not already the column's own name (`src/domain/changeset.ts`). Re-run on main with this review's probe: `Target.`, `Tárget` and `Due_week` each give the plan change `Target` gives; `Tar get` and `Targett` are asked about; `Budget` is named as not read. No finding. #199's medium 2 is still there: `Name, Email, Title, Team` is refused as not a Faro sheet (re-run); its mediums 3 to 5 were not re-checked.
+
+### #207 Goal menu: no "Check in for" the owner, and #209 Map: "Drawing the map…" only after 300 ms (polish, merged 16:27 and 16:48 UTC, 12 Nov)
+
+#207 removes an admin's menu item that led to a page saying only the owner checks in (`src/screens/GoalScreen.tsx`), with a journey that nothing offered is then refused. #209 shows the map's waiting line only after 300 ms, holding the map's height meanwhile (`src/screens/GoalsScreen.tsx`, `MapWait`), and F6 checks both the quick and the slow load. Read. No finding.
