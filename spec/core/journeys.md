@@ -104,12 +104,15 @@ Checks run across every screen: design rules, widths, motion, errors.
 |---|---|---|---|
 | P1 | Animation switches off under reduced motion | `MOTION` | `evals/journeys.cjs` |
 | P2 | Loading shows a skeleton, and an unreachable database becomes a clear error with Try again | `MOTION` `NO-ERRORS` | `evals/journeys.cjs` |
+| P3 | Every screen on phone: no sideways scroll, no serious accessibility issues, status as shape plus word | `PHONE` `A11Y` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
+| P4 | Every screen on desktop: no sideways scroll, no serious accessibility issues, status as shape plus word | `A11Y` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P6 | Design rules on every screen: no coloured edges, accent bars, glyph icons, gradients, glass or state capsules, and every status shape beside its own word | `DESIGN-RULES` `SHAPE-MATCHES-WORD` | `evals/journeys.cjs` |
 | P7 | Wide screens and a short laptop: nothing clipped, each kind of page uses the room it has, and a goal’s chart is above the fold | `WIDE-SCREENS` | `evals/journeys.cjs` |
 | P8 | The goals start in the first screen: the Goals header stays short on a phone and a desktop | `WIDE-SCREENS` `PHONE` | `evals/journeys.cjs` |
 | P9 | Every width from a small phone to an ultra-wide monitor: no sideways scroll, nothing cut off, navigation always there, prose a readable width | `EVERY-WIDTH` | `evals/journeys.cjs` |
 | P10 | Fit and finish: text follows the browser’s size, one control height, phone tables and toolbars that stack, a usable rail, no sideways scroll, one left edge | `FIT-AND-FINISH` | `evals/journeys.cjs` |
 | P15 | A comment in the demo survives a reload, only the saves are stored, and a browser that refuses says so | `DEMO-STORAGE` | `evals/journeys.cjs` |
+| P17 | Checked within F11: Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 
 ## Fit and finish
 
@@ -128,7 +131,7 @@ Per-area checks from the fit-and-finish reports.
 | F11 | Find-and-pick fits a phone, and a choice is never a capsule (F11, P17) | `FIND-AND-PICK` `DESIGN-RULES` | `evals/finish/10-pickers.cjs` |
 | F14 | A goal’s page reads in one order on a computer and a phone, and what to act on is in the first screen | `GOAL-ACT` `GOAL-ASK-ONCE` | `evals/finish/10-goal-order.cjs` |
 | F16 | New goal fits a phone: first field and Continue on the first screen, no step over two screens, 44 px controls (F16) | `NEW-GOAL-STEPS` `GOAL-CREATE` | `evals/finish/11-new-goal-phone.cjs` |
-| N12 | Held at company size: ${SIZE.people.toLocaleString('en-GB')} people, ${SIZE.teams.toLocaleString('en-GB')} teams and ${SIZE.goals.toLocaleString('en-GB')} goals; no select of everything, pickers within ${PICKER_MS} ms, list bars within ${LIST_MS} ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
+| N12 | Held at company size: 15,000 people, 1,500 teams and 30,000 goals; no select of everything, pickers within 200 ms, list bars within 300 ms (N12) | `FIND-AND-PICK` `LIST-BAR` | `evals/finish/11-company-size.cjs` |
 | P19 | The import’s preview keeps the design rules: Must fix and Check are words with the warning mark, a full outline and no stripe, plain counts, no capsules, no emoji | `IMPORT-PREVIEW` `DESIGN-RULES` | `evals/finish/18-import-design.cjs` |
 
 ## Review notes
@@ -142,7 +145,7 @@ Checks that Lane’s review notes stay fixed.
 | N3 | Review notes, attention-home | `ATTENTION-HANDLED` `HOME-OWNER` | `evals/notes/3-attention-home.cjs` |
 | N4 | Review notes, shell-settings: Settings with theme, accent and sidebar; Goals as a nav section; no switcher for one workspace; Back on detail pages; workspace and team admin; Faro’s name, logo and colours | `SETTINGS` `NAV-GOALS` `WORKSPACE-ADMIN` `BRAND` `LAUNCH` | `evals/notes/4-shell-settings.cjs` |
 | N6 | Review notes, print-motion | `PRINT-EXPORT` `MOTION-ALIVE` | `evals/notes/6-print-motion.cjs` |
-| N7 | ([^ | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
+| N7 | Help and what’s new: reachable everywhere, searchable, opened for the page you’re on, and an unread dot that clears | `HELP-GUIDE` `WHATS-NEW` | `evals/notes/7-help.cjs` |
 | N8 | Telemetry: one trace from action to save to result, nothing anyone types, nothing at all when switched off, and quiet when it can’t send | `TELEMETRY-SIGNALS` `TELEMETRY-PRIVACY` `TELEMETRY-FLOWS` `TELEMETRY-SWITCH` `STALE-RELOAD` | `evals/notes/8-telemetry.cjs` |
 | N9 | The flagship goal page: five journeys at 390 and 1280; status once, no repeats, what to act on in the first screen, motion and Share | `GOAL-PAGE-BAR` `GOAL-PAGE-ONCE` `GOAL-PAGE-INTENT` `GOAL-PAGE-ALIVE` `GOAL-SHARE` `PROJECTION-RANGE` `CHART-READ` `GOAL-PAGE-SCORECARD` | `evals/notes/9-goal-page.cjs` |
 | N10 | Talk-path polish: search by key, Home counts that open their goals, teams worst first, one rule for a decision waiting, the Board’s own status, phone wrapping and targets | `READABLE-IDS` `SAVED-VIEWS` `HOME-OWNER` `VIEWS` `ONBOARDING` | `evals/notes/10-talk-polish.cjs` |

@@ -14929,7 +14929,7 @@ week,goal,cell,tone,likelihood
 31,G-49,hit,good,likely
 31,G-50,limit,good,
 31,G-50,since,flat,
-31,G-50,room,flat,
+31,G-50,room,good,
 31,G-50,hit,bad,very-unlikely
 31,G-51,plan,good,
 31,G-51,since,flat,
@@ -15406,7 +15406,7 @@ week,goal,cell,tone,likelihood
 32,G-49,hit,flat,possible
 32,G-50,limit,good,
 32,G-50,since,flat,
-32,G-50,room,flat,
+32,G-50,room,good,
 32,G-50,hit,bad,very-unlikely
 32,G-51,plan,good,
 32,G-51,since,good,
@@ -15883,7 +15883,7 @@ week,goal,cell,tone,likelihood
 33,G-49,hit,bad,very-unlikely
 33,G-50,limit,good,
 33,G-50,since,good,
-33,G-50,room,flat,
+33,G-50,room,good,
 33,G-50,hit,bad,unlikely
 33,G-51,plan,good,
 33,G-51,since,flat,
@@ -17314,7 +17314,7 @@ week,goal,cell,tone,likelihood
 36,G-49,hit,bad,very-unlikely
 36,G-50,limit,good,
 36,G-50,since,bad,
-36,G-50,room,flat,
+36,G-50,room,good,
 36,G-50,hit,good,likely
 36,G-51,plan,flat,
 36,G-51,since,good,
@@ -18117,7 +18117,7 @@ week,goal,cell,tone,likelihood
 38,G-10,next,flat,
 38,G-11,limit,good,
 38,G-11,since,flat,
-38,G-11,room,flat,
+38,G-11,room,good,
 38,G-11,hit,flat,possible
 38,G-12,plan,bad,
 38,G-12,since,good,
@@ -18594,7 +18594,7 @@ week,goal,cell,tone,likelihood
 39,G-10,next,flat,
 39,G-11,limit,good,
 39,G-11,since,flat,
-39,G-11,room,flat,
+39,G-11,room,good,
 39,G-11,hit,bad,very-unlikely
 39,G-12,plan,bad,
 39,G-12,since,good,
@@ -20206,7 +20206,7 @@ week,goal,cell,tone,likelihood
 42,G-57,hit,flat,possible
 42,G-58,limit,good,
 42,G-58,since,bad,
-42,G-58,room,flat,
+42,G-58,room,good,
 42,G-58,hit,good,likely
 42,G-59,plan,flat,
 42,G-59,since,good,
@@ -20405,7 +20405,7 @@ week,goal,cell,tone,likelihood
 42,G-109,hit,good,likely
 42,G-110,limit,good,
 42,G-110,since,good,
-42,G-110,room,flat,
+42,G-110,room,good,
 42,G-110,hit,good,likely
 42,G-111,plan,good,
 42,G-111,since,flat,
@@ -20629,7 +20629,7 @@ week,goal,cell,tone,likelihood
 43,G-43,hit,good,likely
 43,G-44,limit,good,
 43,G-44,since,good,
-43,G-44,room,flat,
+43,G-44,room,good,
 43,G-44,hit,flat,possible
 43,G-45,plan,bad,
 43,G-45,since,good,
@@ -20774,7 +20774,7 @@ week,goal,cell,tone,likelihood
 43,G-80,hit,bad,very-unlikely
 43,G-81,limit,good,
 43,G-81,since,good,
-43,G-81,room,flat,
+43,G-81,room,good,
 43,G-81,hit,flat,possible
 43,G-82,plan,flat,
 43,G-82,since,good,
@@ -21160,7 +21160,7 @@ week,goal,cell,tone,likelihood
 44,G-57,hit,bad,unlikely
 44,G-58,limit,good,
 44,G-58,since,bad,
-44,G-58,room,flat,
+44,G-58,room,good,
 44,G-58,hit,bad,unlikely
 44,G-59,plan,flat,
 44,G-59,since,flat,

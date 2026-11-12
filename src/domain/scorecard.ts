@@ -178,7 +178,7 @@ function rangeCard(goal: RangeGoal, cycle: Cycle, checkIns: CheckIn[], week: num
     const room = round((limit - a.actual) * -better, goal.decimals);
     cells.push({ key: 'limit', label: 'Vs the limit', value: a.out ? 'Outside it' : a.near ? 'Inside, near it' : 'Inside it', sub: `must stay ${lim}`, tone: a.out ? 'bad' : a.near ? 'flat' : 'good' });
     const over = bound === 'atMost' ? 'over' : 'under';
-    cells.push({ key: 'room', label: 'Room to the limit', value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? 'None: at the limit' : `${amount(room, goal)} ${over}`, sub: `warning within ${amount(margin, goal)}`, tone: room < 0 ? 'bad' : room <= margin ? 'flat' : 'good' });
+    cells.push({ key: 'room', label: 'Room to the limit', value: room > 0 ? `${amount(room, goal)} of room` : room === 0 ? 'None: at the limit' : `${amount(room, goal)} ${over}`, sub: `warning within ${amount(margin, goal)}`, tone: room < 0 ? 'bad' : a.near || a.out ? 'flat' : 'good' }); // near as the status says it (strictly within the margin), so this cell and Vs the limit agree at room = margin
     gap = room >= 0 ? `${amount(room, goal)} inside the limit` : `${amount(room, goal)} ${over} the limit`;
   }
   cells.splice(1, 0, sinceCell(goal, cycle, checkIns, week, stale, better));
