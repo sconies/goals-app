@@ -112,6 +112,21 @@ _Superseded in part: a newer track 2 session (session_012kbr8xSSMxeAr6Wx9a4R2W) 
     - Screens that preview changes while they render import `src/app/engineReady.ts`. U45 caught Quick check-in previewing before the engine was there.
     - Small names that pulled the engine in live in `src/domain/via.ts`. `src/app/engine.test.ts` lists who may import the engine at run time.
     - Help's index in the first download holds only the newest What's new release. Every release's title is in `virtual:faro-news-index` (`src/help/newsIndex.ts`), and `lookup.test.ts` guards this.
+- **First, #193's build review** (reviewer session, 12 Nov 17:17; full text in draft PR #134, `docs/reviews/2026-11-11-build-reviews.md`, section "#193"). No high findings: the port matches the old code across 1,742 viewer, scope and query combinations. Fix the mediums in one PR before anything else:
+  1. **A failed engine load is silent.** When the change engine's chunk fails to load, Post check-in does nothing and says nothing, and the tab can't post until it is reloaded.
+     - `run` awaits `ready(name)` with no toast (`src/app/state.tsx`, about line 593).
+     - `CheckInFlow.tsx`'s catch (about lines 352–355) only re-enables the button.
+     - Chromium keeps the failed module, so a second `import()` in `loadEngine` never fetches it again.
+     - Fix: toast the failure, in the offline words when offline; reset `engine` so the next try fetches afresh, or reload once via `staleCode`; add a journey.
+  2. **Home's order isn't what we told people.** What's new (`your-goals-worst-first`), the Home guide article and two comments say Home lists your goals worst first. `applyQuery` sorts only when `q.sort` is set (`src/domain/query.ts`, about line 212), and Home asks with none: 13 of 29 owners with several goals don't see worst first. Fix: ask with `sort: 'worst'` in `useMineAsk` (`src/screens/Home.tsx`), so the words become true.
+  3. **The port's default order and its scope aren't server-shaped.** With no sort, rows come in the workspace array's order, and `goals.csv` pins that order. Scope travels as `among`, a list of every goal's id. A server could answer neither. Give the default order a rule (worst first, then by title), and name scopes in the ask (`scope: 'mine' | 'team:<id>' | 'watching'`) instead of sending ids.
+  4. **Summaries are worked out two or three times per change.** Each hook makes its own port (`src/app/goals.ts`, lines 12–19), so Home and Goals run `summariseAll` two or three times: about 550 ms on Home at ten times the demo's size, against 20 ms before. Make one port per snapshot (a context, or a memo keyed on the snapshot).
+  - **Lows:**
+    - Keyset paging restarts from the top when the `after` goal has gone (`localGoals.ts`, about line 33).
+    - `engine.test.ts`'s pattern misses `import * as`, re-exports, double quotes and imports split over several lines. The bundle budget is the real guard.
+    - On a near miss, `counts().attention` disagrees with its own list.
+    - `attentionCount` (`goalsPage.ts`) has no caller now.
+    - No journey came with the change, and `goals.csv` is written by the adapter it tests.
 - **Next, in order:**
   1. **AX5 part 2, the narrower load.** The load takes only the current cycle's check-ins and the last few weeks of changes; Activity and a goal's History fetch older pages.
      - Watch what reads the change log beyond Activity and History: `creatorOf` (Getting started), undo, the wrap-up of last year while it stays open, and `statusChange`.
