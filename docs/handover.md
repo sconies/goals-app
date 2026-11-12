@@ -2,7 +2,7 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
-## Planning state, Thursday 12 November, 18:30 UTC (planning session handing over)
+## Planning state, Thursday 12 November, 18:30 UTC (planning moved to session_012kbr939zneZWtAo7UQEHRP)
 
 - **How we work now:** no freeze. Lane (11 Nov): "Do all the recommended work." Each track merges its own green PRs after the gate and reports to the planning session **once, when done or blocked**, never with progress updates. A new planning session tells every track its new session ID.
 - **Open build tracks (Opus):**
@@ -25,13 +25,15 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
   - Backlog items NR (readings fill in the check-in) and SM (small workspaces).
   - The kit's ten gaps (KT) are built.
   - Muse's chart and "Needs attention" findings are by design.
+- **Decided by Lane, 12 Nov evening (planning session session_012kbr939zneZWtAo7UQEHRP):**
+  - Keep #192's 3 KB `MARGIN_KB` on the bundle budgets (its "Lane, 12 Nov" citation now stands).
+  - NR's four questions, all as recommended: pre-fill only; readings per team slice where the source has them, otherwise no pre-fill; a reading older than 7 days is ignored; an override is recorded only. NR is not yet picked to build.
+  - Track 7 builds all its rows in order: GD, BL, MS, BT, MI, GR, MT, TG, MC, WM (after its bugs and SM).
+  - The Candy shop register is made up: it stays.
 - **Waiting for Lane:**
-  1. Turn on "Allow auto-merge" (GitHub → Settings → General → Pull Requests). Six tracks race to merge, and every PR conflicts in whatsNew.ts and api/mcp.js.
-  2. Confirm or drop the 3 KB `MARGIN_KB` on the bundle budgets that #192 brought in, citing "Lane, 12 Nov". It's unconfirmed. Budgets are 265 and 324 KB against 263 and 321 KB, under R4's 300.
-  3. NR's four questions: pre-fill or post; readings per team slice; how old a reading may be; what an override does.
-  4. Which of track 7's new backlog rows to build, and in what order.
-  5. Whether the metrics register Lane loaded into "Candy shop" is real company data (CLAUDE.md: Faro never holds real data).
-  6. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+  1. Turn on "Allow auto-merge" (GitHub → Settings → General → Pull Requests).
+  2. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+- **Started 12 Nov, 18:33:** track 5b at session_012kbr911Du8PPXJLDueSVE5 (the handover below); track 3 fresh at session_012kbr8zZqujTFrEwfJVWKrS (IM7, IM6, IM8 from #236's handover comment). The old track 3 session (session_012kbr921FQTvNkQhGBnLtxb) has finished.
 - **Habits learned:**
   - Rebuild api/mcp.js after every merge of main, from a real node_modules (`cp -al`, never `ln -s`).
   - Run only one eval run per machine; U20, U58 and P9 time out under load.
