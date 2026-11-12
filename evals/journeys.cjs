@@ -5314,8 +5314,9 @@ journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pas
   const p = h.use(await newPage(device, 'amara'));
   await p.goto(url('/data/import'));
   await see(p, 'Up to 5,000 rows a file', 'Import does not say how many rows a file may have');
+  await h.inView(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }), 'entry', 'Paste rows, beside Choose a file');
   await h.click(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }));
-  const box = p.getByLabel('Paste rows from a spreadsheet');
+  const box = p.getByRole('textbox', { name: 'Paste rows from a spreadsheet' });
   await box.waitFor();
   await h.fill(box, 'Goal name\tOwner\tTeam\tUnit\tStart\tTargett\nPasted cache hit rate\tRhea Kapoor\tCI/CD\t%\t20\t90\n');
   await h.click(p.getByRole('button', { name: 'Check these rows' }));
