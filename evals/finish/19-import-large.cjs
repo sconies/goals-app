@@ -14,9 +14,11 @@ module.exports = {
     for (const [k, budget] of [[1000, 3000], [5000, 8000], [30000, 20000]]) {
       const [c, p] = await open(1440, 900, 'amara', '/data/import');
       await p.getByRole('button', { name: 'Choose a file' }).waitFor();
-      await p.evaluate(() => { window.__long = []; new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push(Math.round(e.duration)); }).observe({ type: 'longtask' }); });
       const t = Date.now();
       await p.getByLabel('Choose a spreadsheet').setInputFiles({ name: `n18-${k}.csv`, mimeType: 'text/csv', buffer: Buffer.from(rows(k)) });
+      // Watched from when the file is handed over: Playwright's own work putting 30,000 rows into the input is a long task
+      // of the test's, not the page's. The page reads the file after this (File.text() is asynchronous).
+      await p.evaluate(() => { window.__long = []; new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push(Math.round(e.duration)); }).observe({ type: 'longtask' }); });
       const ok = await p.getByRole('heading', { name: 'Check this import' }).waitFor({ timeout: budget * 2 }).then(() => true, () => false);
       const took = Date.now() - t;
       if (!ok) { fails.push(`${k} rows: no preview after ${Math.round(took / 1000)} s`); await c.close(); continue; }

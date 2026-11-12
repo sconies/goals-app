@@ -121,11 +121,14 @@ export function Check() {
   }
   const rechecking = !!run?.running;
 
-  const must = cs.groups.filter((g) => g.level === 'must');
-  const checks = cs.groups.filter((g) => g.level === 'check');
+  // While a large file is checked again after an answer, the change set on screen is the one before it: a group just
+  // answered closes at once, as it does for a small file.
+  const waiting = (id: string) => rechecking && !!st.answers[id];
+  const must = cs.groups.filter((g) => g.level === 'must' && !waiting(g.id));
+  const checks = cs.groups.filter((g) => g.level === 'check' && !waiting(g.id));
   const mustIssues = cs.issues.filter((i) => i.level === 'must');
   const mustRows = uniqueRows(mustIssues);
-  const answered = Object.keys(st.answers).filter((id) => st.said[id] && !cs.groups.some((g) => g.id === id));
+  const answered = Object.keys(st.answers).filter((id) => st.said[id] && (waiting(id) || !cs.groups.some((g) => g.id === id)));
   const answeredChecks = answered.filter((id) => st.said[id]!.level === 'check');
   const answeredMust = answered.filter((id) => st.said[id]!.level === 'must');
   const total = cs.items.length;
