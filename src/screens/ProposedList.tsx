@@ -4,7 +4,7 @@
 import '../styles/notes/proposed.css';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
-import { fmt } from '../domain/format';
+import { fmt, staysText } from '../domain/format';
 import { measureUnsaid } from '../domain/proposedSummary';
 import { weeksProposed } from '../domain/proposedActions';
 import type { Goal } from '../domain/types';
@@ -22,7 +22,7 @@ function proposedWhen(g: Goal, today: Date, by: string | null): string {
 export function wouldMeasure(g: Goal): string {
   if (measureUnsaid(g)) return 'Not said yet';
   if (g.kind === 'metric') return `${fmt(g.plan.start, g)} to ${fmt(g.plan.target, g)}`;
-  if (g.kind === 'range') return `At ${g.range.bound === 'atMost' ? 'most' : 'least'} ${fmt(g.range.limit, g)}`;
+  if (g.kind === 'range') { const s = staysText(g); return s[0]!.toUpperCase() + s.slice(1); }
   return `${g.stages.length} ${g.stages.length === 1 ? 'stage' : 'stages'}`;
 }
 

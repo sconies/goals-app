@@ -3,11 +3,12 @@
    the first Thursday of the month it starts in, so in a January year week n is ISO week n, and the year runs to the
    week before the next one's week 1 (52 or 53 weeks). Week 0 is the week before, for setting starting numbers. Quarter targets aren't entered separately:
    they're read off the owner's own plan, so any week in between has a target too. */
-import { fmt, fmtDiff } from './format';
+import { fmt, fmtDiff, staysText } from './format';
+import { rangeOut, rangeSide } from './range';
 import { goalAsOf } from './goal';
 import { currentWeek, planAt, planEnd } from './plan';
 import { checkInsFor, doneCheckIn } from './status';
-import { shortWord } from './vocabulary';
+import { QUARTER, QUARTER_NOT_JUDGED, shortWord } from './vocabulary';
 import type { CheckIn, Cycle, Goal } from './types';
 
 export const isYear = (c: Cycle) => c.weeks >= 48;
@@ -69,6 +70,13 @@ export interface QuarterResult {
   before?: true;
 }
 
+/** A quarter's result in a word, as every screen says it: Met, Not met, In progress (the running quarter), To come, Not
+    applicable (before the goal was set up) or None due. */
+export const quarterLabel = (r: Pick<QuarterResult, 'kind' | 'before' | 'quarter'>, nowQuarter: number): string =>
+  r.kind === 'met' || r.kind === 'missed' ? QUARTER[r.kind].label
+    : r.kind === 'open' ? (r.quarter.n === nowQuarter ? QUARTER.open.label : QUARTER_NOT_JUDGED.later.label)
+      : r.before ? QUARTER_NOT_JUDGED.before.label : QUARTER_NOT_JUDGED.none.label;
+
 /** The week of the cycle a goal was set up in: 0 for one set up before the cycle began (or carried into it). */
 export const bornWeek = (g: Pick<Goal, 'createdAt'>, c: Cycle) => (g.createdAt ? currentWeek(c, new Date(g.createdAt)) : 0);
 
@@ -108,11 +116,11 @@ export function quarterResult(g: Goal, c: Cycle, checkIns: CheckIn[], q: Quarter
     const done = due.filter((s) => last?.stages?.some((u) => u.stageId === s.id && u.doneWeek != null && u.doneWeek <= q.to));
     return r(done.length === due.length ? 'met' : 'missed', `${done.length} of ${due.length} ${due.length === 1 ? 'stage' : 'stages'} due ${done.length === 1 ? 'was' : 'were'} done`);
   }
-  if (!ended) return r('open', `must stay ${g.range.bound === 'atMost' ? 'at most' : 'at least'} ${fmt(g.range.limit, g)}`);
+  if (!ended) return r('open', `must stay ${staysText(g)}`);
   const v = last?.value;
   if (v == null) return r('missed', 'no number reported');
-  const out = g.range.bound === 'atMost' ? v > g.range.limit : v < g.range.limit;
-  return r(out ? 'missed' : 'met', `${fmt(v, g)} at the end, ${out ? 'outside' : 'inside'} the ${fmt(g.range.limit, g)} limit`);
+  const out = rangeOut(g.range, v);
+  return r(out ? 'missed' : 'met', `${fmt(v, g)} at the end, ${out ? 'outside' : 'inside'} the ${fmt(rangeSide(g.range, v).limit, g)} limit`);
 }
 
 export function quarterResults(g: Goal, c: Cycle, checkIns: CheckIn[], week: number): QuarterResult[] {

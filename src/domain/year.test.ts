@@ -5,7 +5,7 @@ import { currentWeek, weekDate, weekDates } from './plan';
 import { assessPosted } from './status';
 import { storyOf } from './story';
 import type { Cycle, MetricGoal } from './types';
-import { dueOptions, goalYear, goalYearFor, periodLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor, yearWeeks } from './year';
+import { dueOptions, goalYear, goalYearFor, periodLabel, quarterLabel, quarterOf, quarterResult, quarterResults, quarters, shortPeriod, startMonth, targetAt, yearStartFor, yearWeeks } from './year';
 import { yearName } from './yearName';
 import { stagesFromNow } from './templates';
 
@@ -157,6 +157,13 @@ describe('a quarter that ended before the goal was set up (MCP load, 12 Nov)', (
       expect(rs.map((q) => q.kind)).toEqual(['none', 'none', 'none', 'open']);
       expect(rs[2]!.text).toBe('Q3: before the goal was set up in week 46');
     }
+  });
+
+  it('says the same word on every screen: Not applicable, then In progress (#239’s review)', () => {
+    const rs = quarterResults(metric, cycle, s.checkIns, 46);
+    expect(rs.map((q) => quarterLabel(q, 4))).toEqual(['Not applicable', 'Not applicable', 'Not applicable', 'In progress']);
+    expect(quarterLabel({ ...rs[3]!, kind: 'open' }, 3)).toBe('To come');
+    expect(quarterLabel({ ...rs[0]!, before: undefined }, 4)).toBe('None due');
   });
 
   it('even with numbers loaded for those weeks', () => {

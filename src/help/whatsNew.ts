@@ -35,6 +35,41 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'forms-close-in-words',
+    date: '2026-11-12',
+    title: 'Every form closes in words, and Back finds your list',
+    points: [
+      'Editing a goal, New goal and the one-table check-in now close with “Close and keep the draft”, top right, as the other forms do.',
+      'A goal opened from a saved view says “Back to” the view’s name.',
+      'From Check-in’s list, Back comes back to the list. “Start with…” walks only what is still due, and its count is the list’s.',
+      'Page not found has a Find field, so you can look for what you meant.',
+    ],
+    articles: ['getting-around', 'check-in'],
+  },
+  {
+    id: 'range-between',
+    date: '2026-11-12',
+    title: 'Keep a number between two others',
+    points: [
+      'A range can now keep a number between two others: “keep it between 99.5% and 99.95%”. Must stay has Between beside At most and At least, in New goal and Change this goal.',
+      'It is out of range above the upper limit or below the lower one, and at risk within the warning margin of either. The chart draws both limits.',
+      'In a spreadsheet, write both numbers in Limit (99.5–99.95, or 99.5 to 99.95); an export writes them the same way.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'mcp-keys-pages',
+    date: '2026-11-12',
+    title: 'AI assistants get the right key and a page of goals at a time',
+    points: [
+      'When an AI assistant adds goals, the key it is told is the one the goal holds once saved, even when someone else adds a goal at the same moment.',
+      'A dry run says the key each new goal would get and no ID yet; a change that isn’t saved lists no new goals.',
+      'Finding goals answers 50 at a time, with how many match in all and how to ask for the next page.',
+      'History’s key now has None due and Not applicable, and a goal’s printed page says Not applicable for a quarter that ended before it was set up, as its page does.',
+    ],
+    articles: ['ai-assistants', 'history'],
+  },
+  {
     id: 'proposed-fixes',
     date: '2026-11-12',
     title: 'Proposed goals, four fixes',

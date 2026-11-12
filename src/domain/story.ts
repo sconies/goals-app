@@ -3,7 +3,8 @@
    (a date that has slipped, no recovery plan, a call greener than the numbers, a goal gone quiet).
    Also the result once a goal is due: Completed, Completed late or Did not meet. */
 import { causeLabel } from './checkin';
-import { fmt, fmtDiff, NO_VALUE } from './format';
+import { fmt, fmtDiff, NO_VALUE, staysText } from './format';
+import { rangeOut } from './range';
 import { isEveryday, levelName } from './levels';
 import { planAt, planEnd, resultWeek, weekDates } from './plan';
 import { assessPosted, checkInsFor, goalStatus, projects } from './status';
@@ -63,7 +64,7 @@ export function goalResult(g: Goal, cycle: Cycle, checkIns: CheckIn[], week: num
     else {
       const end = own.filter((c) => c.week >= due && c.value != null).pop();
       if (!end) return week > due ? make('missed', null) : null;
-      const out = g.range.bound === 'atMost' ? end.value! > g.range.limit : end.value! < g.range.limit;
+      const out = rangeOut(g.range, end.value!);
       return out ? make('missed', end.week) : make('completed', end.week);
     }
   }
@@ -147,7 +148,7 @@ export function storyOf(g: Goal, s: Snapshot, cycle: Cycle, week: number, today:
       if (status === 'stale') where += ` The plan for this week is ${fmt(planAt(g.plan, week, cycle.weeks), g)}.`;
     }
   } else if (g.kind === 'range' && a.kind === 'range') {
-    const lim = (g.range.bound === 'atMost' ? 'at most ' : 'at least ') + fmt(g.range.limit, g);
+    const lim = staysText(g);
     where = a.actual == null ? `${NO_VALUE}. Must stay ${lim}.` : `${fmt(a.actual, g)} in week ${a.week}; must stay ${lim}${a.out ? ', and it isn’t' : a.near ? ', and it’s close' : ''}.`;
   } else if (g.kind === 'milestone' && a.kind === 'milestone') {
     const late = a.late.map((x) => `${x.name} (due week ${x.dueWeek}, now expected week ${x.expectedWeek})`);

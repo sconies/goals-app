@@ -270,7 +270,7 @@ describe('one Needs attention', () => {
       const reviewed = sorted([...new Set(s.reviews.flatMap((r) => agendaOf({ ...reviewSession(r, s, cycle, today, week), covered: new Set() }).discuss.filter((a) => !a.handled).map((a) => a.goal.id)))]);
       const inReviews = sorted(rule.filter((id) => s.reviews.some((r) => reviewSession(r, s, cycle, today, week).items.some((a) => a.goal.id === id))));
       // The AI assistant: find_goals with the same filter.
-      const ai = await callTool('find_goals', { needs_attention: true }, context(s, today));
+      const ai = await callTool('find_goals', { needs_attention: true, limit: 200 }, context(s, today));
       const aiIds = sorted(((ai.data as { goals: { id: string }[] }).goals).map((g) => g.id));
       expect(rule.length, 'something needs attention on this day').toBeGreaterThan(0);
       expect(home).toEqual(rule);
