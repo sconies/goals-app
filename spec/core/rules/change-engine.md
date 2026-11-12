@@ -87,7 +87,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - one way to save a check-in (rule 13) › corrects a week with a reason, as an import that can be undone, keeping when it was posted
 - one way to save a check-in (rule 13) › refuses “new” or “again” for a week that has passed: that is a correction
 - one way to save a check-in (rule 13) › lets only the owner post, in the engine’s words: not someone else, and not an admin (Lane, 12 Nov)
-- one way to save a check-in (rule 13) › closes every door to posting for someone else but the admin’s workbook and Data tables, which stay for Lane to decide
+- one way to save a check-in (rule 13) › closes every door to posting for someone else but the two exceptions Lane kept: an admin’s workbook and an admin’s correction in Data
+- one way to save a check-in (rule 13) › records who made the change through each exception: the admin as author and actor, with the door as its Via, and says whose it replaced
 - a correction keeps the week it gives (K6) › a row that gives a week keeps the week, though the old record was still investigating
 - what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
 - what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
