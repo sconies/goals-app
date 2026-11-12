@@ -440,13 +440,19 @@ journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is th
   let p = h.use(await newPage(device, 'hamid'));
   await p.goto(url('/goals/ci-docker'));
   await p.locator('.goal-bar').waitFor();
+  const s0 = await h.snapshot();
   await h.checkpoint('goal');
+  // What an admin comes to see is there: the goal's status, on its bar.
+  h.set('attention', await p.locator('.goal-bar .bar-status').isVisible(), 'the goal has no status on its bar');
   await h.click(p.locator('.goal-bar summary[aria-label="More about this goal"]').first());
   const menu = p.getByRole('group', { name: 'More about this goal' });
   await h.inView(menu.getByRole('link', { name: 'Change this goal' }), 'entry', 'Change this goal');
   if (await menu.getByRole('link', { name: /^Check in for/ }).count()) fail('an admin is offered a check-in that only the owner may post');
   h.set('errors', true);
+  // Nothing refused, so nothing half-saved: Hamid's visit wrote nothing to the log.
+  const s1 = await h.snapshot();
   await p.context().close();
+  h.set('logged', s1.changes.length === s0.changes.length && s1.checkIns.length === s0.checkIns.length, `Hamid's visit changed the log (${s0.changes.length} to ${s1.changes.length} entries)`);
   // The owner's own way in is on the bar, and it opens her check-in.
   p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals/ci-docker'));
@@ -458,7 +464,8 @@ journey('U141', ['OWNER-ONLY', 'ADMIN', 'PROFILES'], 'Nothing offered that is th
   if (await p.getByText(/checks in on this goal/).isVisible().catch(() => false)) fail('the owner’s check-in is refused');
   h.set('finish', true);
   await p.context().close();
-});
+  // Two pages and one action each: no steps to count, so no progress to show.
+}, ['progress']);
 
 journey('U2', ['ATTENTION', 'PROFILES', 'STALE'], 'What needs me? Home shows what’s due, off track, stale or slipping', 1, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
