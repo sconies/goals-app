@@ -246,6 +246,7 @@ A faster weekly check-in when most of your goals are on plan.
 - On Home, choose “Or type all your numbers in one table” under Start check-in.
 - Each row is judged as you type. A row that is off plan asks for a cause, a sentence and, when behind, how it gets back on plan.
 - Type numbers as you write them: a comma as the decimal mark (3,9) reads as 3.9, as in the one-by-one check-in.
+- A number that looks wrong (ten times last week’s, say) is asked about under its row, as on the one-by-one check-in, and the row waits until you answer. Your answer is kept in the goal’s History. A number that can’t be posted at all says “Must fix” under its row.
 - Post counts the rows that are ready and posts those (“Post 2 check-ins”). A row that still needs something says so under it, and the bar above Post says how many aren’t ready; they stay in the table until they are.
 - After posting you land on the same confirmation as the one-by-one check-in: the week’s ring, each goal posted with its number and status, and any rows kept back.
 - The table and the one-by-one check-in share one draft per goal: a number typed in one is there in the other. Drafts are kept across a refresh until you post them. Use the normal check-in for milestones or a longer account.
@@ -738,7 +739,7 @@ Routes: `/data`. Screens: `DataTables`, `DataFilters`, `DataLayout`. Requirement
 - Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.
 - Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.
 - Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.
-- Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.
+- Export and Import are where files come and go (when the workspace has Spreadsheets on). Export saves this table as shown, as .xlsx or .csv, with the visible columns in order, filtered and sorted, and says how many rows and columns that is; Everything… opens the one Export, the whole workbook. Import opens the Import page, which has the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table) and Past imports. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.
 - IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.
 
 #### Changing data
@@ -759,7 +760,7 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 
 #### How to use it
 
-- On Data, open Spreadsheets and choose Import a spreadsheet. Download the workbook there first to start from what is already in the app, or the template to start from nothing.
+- On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.
 - Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.
 - What a new row must have is on the Import page and in Every column, and what it needs: a goal needs Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. A check-in, Goal key (or Goal), Week, and Value or Stages. A person, Name and Email.
 - Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.
@@ -795,21 +796,23 @@ Owners change their own goals; admins can change any, and add and change people.
 
 ### Exporting
 
-`export`, from the spreadsheets module. Take the goals out as an Excel workbook, zipped CSVs, one CSV, JSON, or a brief to paste into an AI chat.
+`export`, from the spreadsheets module. One button: Export .xlsx. Zipped CSVs, one sheet as CSV, JSON and a brief for an AI chat are under Other formats.
 
 Screens: `Export`, `ExportButton`, `DataMenu`. Requirements: `EXPORT`, `SHARED-DOWNLOADS`, `ONE-FORMAT`.
 
 #### How to use it
 
-- On Goals, choose Export these goals. Pick everything this year, or just what is shown now (it starts there when the goals are filtered).
-- On Data, Spreadsheets has the rest: the open table exactly as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template.
+- On Goals, choose Export these goals. When the goals are filtered, it starts from the ones shown now; Everything in the cycle is one click away, with how many goals, check-ins and people that is.
+- Export .xlsx is the one button. The file’s name is at the foot of the sheet before you press it, and the message after says it again: Exported platform-goals-all-2026-11-05.xlsx.
+- On Data, Export saves the open table exactly as laid out, as .xlsx or .csv, with the columns that say which record each row is added so it loads back; the menu says how many rows and columns that is. Everything… opens the same Export as Goals. Import is beside it.
 - Excel workbook, the usual choice: a first sheet, Start here, that says for every column what it means, whether a new row must have it, its format and an example; then Goals, Plan, Check-ins, People, Results (each goal’s result and its quarters, for year-end reporting), Asks, Notes and Metrics. Worked-out columns are in grey. A goal stopped this year is in it, with Stopped as its status.
-- The template: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported.
-- CSV files: the same sheets as CSVs, one each with the same headers, in a zip. Or pick one table and save it as a single CSV.
+- Other formats: CSV files, zipped (the same sheets, one CSV each with the same headers); one sheet as CSV, chosen in its row; JSON; and the brief for an AI chat.
+- The template is on the Import page and in Every column, and what it needs: Start here, then Goals, Plan, Check-ins and People with only the columns you fill in. The headers a new row must have are in bold, and the example rows say Example in Action, so they are never imported. It is saved as faro-template.xlsx.
 - One format: whatever you export can be edited and loaded back on Data’s Import, or used to set up a new workspace. Loaded back unedited, it changes nothing. Each person is written with their name and email.
 - JSON: everything, with each goal’s plan and check-ins inside it, in a stated format.
 - Brief for an AI chat: Markdown that leads with decisions waiting on people, then each goal’s story, then results. Copy it or save it.
-- Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date, such as platform-goals-year-2026-2026-11-05.xlsx.
+- Every file the app saves, here and elsewhere, is named the same way: the workspace, what it holds, which goals, and the date. Which goals is all, the view’s name, or as-shown for a table from Data: platform-goals-all-2026-11-05.xlsx, platform-goals-off-track-2026-11-05.xlsx, platform-check-ins-as-shown-2026-11-05.csv.
+- Exports hold names and the owners’ reasons. Share them as you would the app.
 
 ### Every column, and what it needs
 
@@ -838,7 +841,7 @@ Routes: `/data/imports`. Screens: `PastImports`. Requirements: `IMPORT-UNDO`, `C
 
 #### The list
 
-- On Data, open Spreadsheets and choose Past imports. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.
+- On Data, choose Import, then All past imports at the foot of the page. Each line is one import: the file’s name (or Bulk edit on Data, Bulk edit on Goals, Changes through MCP), who made it, when, how, and what it changed.
 - Find one by its file, by who made it or by what it changed. Open one to see what it saved.
 - In Activity an import is one entry too, with its rows folded under it: Show the changes lists them. Search still finds each row, and each goal’s history still shows its own.
 
@@ -1147,7 +1150,7 @@ Routes: `/workspace/features`. Requirements: `MODULES`.
 - Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.
 - Nothing a feature saved is deleted. Switch it back on and everything is as it was.
 - Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.
-- Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
+- Spreadsheets is the first feature: Export and Import on Data, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.
 
 #### Who can
 
