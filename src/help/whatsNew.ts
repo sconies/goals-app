@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'undo-import-sticks',
+    date: '2026-11-12',
+    title: 'Undoing an import now lasts',
+    points: [
+      'Undo this import put back goals it had deleted or stopped and people it had marked as left, but they went again the next time the page loaded. They now stay back.',
+      'An Undo message now goes when you switch workspace, since it could only undo something in the one you left.',
+    ],
+    articles: ['removing'],
+  },
+  {
     id: 'metrics-place',
     date: '2026-11-12',
     title: 'Metrics has its own place',

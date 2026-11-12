@@ -8,7 +8,7 @@
    The store must keep that module's rows whole, save them with the rest of a commit, and remove and restore them
    with the goal they point to, without knowing what they are. */
 import { createToken, revokeToken, type ActionContext } from '../../domain/actions';
-import { deleteGoal, markPersonLeft, undoRemoval } from '../../domain/removal';
+import { deleteGoal, markPersonLeft, undoImport, undoRemoval } from '../../domain/removal';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from '../../domain/importer';
 import type { Snapshot } from '../../domain/types';
 import { moduleRows, type DbRow, type ModuleRecords, type RecordDef } from '../../domain/records';
@@ -166,6 +166,28 @@ export function storeContract(name: string, make: () => Promise<Store>) {
       await store.commit(ws, { modules: { contract: { marks: [m] } }, changes: [] });
       const markBack = await undone((x) => ({ modules: { contract: { marks: [{ ...m, removedAt: x.now, removedBy: x.actor.id }] } }, changes: note(x.snapshot, 'Removed a mark').changes }));
       expect(marksOf(markBack).find((x) => x.id === m.id)?.removedAt ?? null).toBeNull();
+    });
+
+    it('puts back what an import deleted, stopped or marked as left when the import is undone, and it stays back', async () => {
+      // An import's log entry keeps each row as it was, and a live row has no removal fields at all (build review of #175).
+      const live = await store.load(ws);
+      const free = live.goals.filter((x) => !x.removedAt && !x.stoppedAt && !live.goals.some((c) => c.parentId === x.id));
+      const [a, b] = [free.at(-1)!, free.at(-2)!];
+      const p = [...live.people].reverse().find((x) => !x.admin && !x.leftAt && !x.removedAt)!;
+      const admin = live.people.find((x) => x.admin)!.id, at = NOW.toISOString(), importId = ids('imp');
+      await store.commit(ws, {
+        goals: [{ ...a, removedAt: at, removedBy: admin }, { ...b, stoppedAt: at, stoppedBy: admin, stopReason: 'Stopped by a row’s Action' }],
+        people: [{ ...p, leftAt: at, leftBy: admin, email: p.email ?? 'left@example.org' }],
+        changes: [{ id: ids('chg'), at, actorId: admin, goalId: null, entity: 'workspace', entityId: importId, action: 'imported', summary: 'Imported a spreadsheet: 3 rows', diffs: [], importId,
+          undo: { goals: [{ id: a.id, before: a }, { id: b.id, before: b }], checkIns: [], people: [{ id: p.id, before: p }], requests: [] } }],
+      });
+      await store.commit(ws, undoImport(ctx(await store.load(ws)), importId).commit);
+      const back = await store.load(ws);
+      expect(back.goals.find((x) => x.id === a.id)?.removedAt ?? null).toBeNull();
+      const stopped = back.goals.find((x) => x.id === b.id)!;
+      expect([stopped.stoppedAt ?? null, stopped.stopReason ?? null]).toEqual([null, null]);
+      const person = back.people.find((x) => x.id === p.id)!;
+      expect([person.leftAt ?? null, person.email ?? null]).toEqual([null, p.email ?? null]);
     });
 
     it('issues an AI assistant token once, never keeps its secret, and revokes it', async () => {

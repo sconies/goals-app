@@ -1811,6 +1811,18 @@ function restorableModuleRow(full, records, kind, id) {
 	return null;
 }
 /**
+* A row as it was before a removal or an import, to save back on Undo. Every such field set since that the row before
+* didn't have is null, not missing: a store writes only the columns a row carries, so a missing one kept the removal's time and
+* the record was removed again on the next load (build review: Undo on the database stores).
+*/
+function asBefore(removed, before) {
+	const cleared = Object.entries(removed).filter(([k, v]) => REMOVAL_FIELD.test(k) && v != null && before[k] == null);
+	return cleared.length ? {
+		...before,
+		...Object.fromEntries(cleared.map(([k]) => [k, null]))
+	} : before;
+}
+/**
 * What comes with goals copied into the next cycle, from every module that says (`follow`): the new rows, and their
 * ids for Undo. Rows of a record that doesn't follow stay with the old goal.
 */
@@ -1860,10 +1872,11 @@ function rowsUndone(all, added, gone) {
 	}
 	return modules;
 }
-var hasModuleRows, recordOf, moduleSheetRows;
+var hasModuleRows, recordOf, REMOVAL_FIELD, moduleSheetRows;
 var init_records = __esmMin((() => {
 	hasModuleRows = (m) => !!m && Object.values(m).some((k) => Object.values(k).some((v) => v.length));
 	recordOf = (records, module, key) => records.find((m) => m.module === module)?.records.find((r) => r.key === key);
+	REMOVAL_FIELD = /^(?:(?:removed|left|stopped|ended|deleted)(?:At|By)|stopReason|email)$/;
 	moduleSheetRows = (sheet, x, c, goalIds) => [sheet.spec.columns.map((col) => col.header), ...sheet.rows(x, c, goalIds).map((it) => sheet.spec.columns.map((col) => col.write(it)))];
 }));
 // src/mcp/token.ts
@@ -7345,7 +7358,7 @@ function undoImport(x, importId) {
 			continue;
 		}
 		goals.push(before ? {
-			...before,
+			...asBefore(cur, before),
 			...cur.key ? { key: cur.key } : {}
 		} : {
 			...cur,
@@ -7369,7 +7382,7 @@ function undoImport(x, importId) {
 			skipped.push(`${goal?.title ?? "A goal"}, week ${cur.week}: changed since`);
 			continue;
 		}
-		checkIns.push(before ?? {
+		checkIns.push(before ? asBefore(cur, before) : {
 			...cur,
 			removedAt: x.now,
 			removedBy: x.actor.id
@@ -7395,7 +7408,7 @@ function undoImport(x, importId) {
 			skipped.push(`${cur.name}: has history since`);
 			continue;
 		}
-		people.push(before ?? {
+		people.push(before ? asBefore(cur, before) : {
 			...cur,
 			removedAt: x.now,
 			removedBy: x.actor.id
@@ -7417,7 +7430,7 @@ function undoImport(x, importId) {
 			continue;
 		}
 		reviews.push({
-			...before,
+			...asBefore(cur, before),
 			version: cur.version
 		});
 	}
@@ -14573,6 +14586,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "undo-import-sticks",
+		date: "2026-11-12",
+		title: "Undoing an import now lasts",
+		points: ["Undo this import put back goals it had deleted or stopped and people it had marked as left, but they went again the next time the page loaded. They now stay back.", "An Undo message now goes when you switch workspace, since it could only undo something in the one you left."],
+		articles: ["removing"]
+	},
 	{
 		id: "metrics-place",
 		date: "2026-11-12",

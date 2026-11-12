@@ -2,7 +2,7 @@
 /* An action made in one workspace never saves into another (build review of #141, high): a toast's Undo pressed after
    switching workspace is refused, says so, and changes nothing in either. */
 import { act, render, waitFor } from '@testing-library/react';
-import { AppProvider, ELSEWHERE, useApp, type AppState } from './state';
+import { AppProvider, ELSEWHERE, useApp, useToasts, type AppState } from './state';
 import { BrowserStore } from '../data/store';
 import { contractWorkspace } from '../ports/contracts/store';
 
@@ -20,7 +20,8 @@ describe('an action made in one workspace', () => {
     await store.createWorkspace({ id: 'ws_b', name: 'B', kind: 'own', createdAt: today().toISOString() }, b);
     const admin = (s: typeof a) => s.people.find((p) => p.admin)!.id;
     let app: AppState | null = null;
-    const Peek = () => { app = useApp(); return null; };
+    let toasts: ReturnType<typeof useToasts> = [];
+    const Peek = () => { app = useApp(); toasts = useToasts(); return null; };
     render(<AppProvider store={store} mode="demo" today={today}><Peek /></AppProvider>);
     await waitFor(() => expect(app?.ws.id).toBeTruthy());
     act(() => app!.switchWorkspace('ws_a'));
@@ -31,8 +32,12 @@ describe('an action made in one workspace', () => {
     await waitFor(() => expect(app?.ws.modulesOff).toEqual(['spreadsheets']));
     // The toast's Undo holds this render's app.
     const undo = app!;
+    act(() => app!.toast('Switched off Spreadsheets', 'success', { label: 'Undo', run: () => undefined }));
+    await waitFor(() => expect(toasts.some((t) => t.action)).toBe(true));
     act(() => app!.switchWorkspace('ws_b'));
     await waitFor(() => expect(app?.ws.id).toBe('ws_b'));
+    // Its message goes with the workspace: an Undo there could only be refused.
+    expect(toasts.some((t) => t.action)).toBe(false);
     const before = (await store.load('ws_b')).changes.length;
     await act(async () => { await expect(undo.setModule('spreadsheets', true)).rejects.toThrow(ELSEWHERE); });
     expect((await store.load('ws_b')).changes.length).toBe(before);
