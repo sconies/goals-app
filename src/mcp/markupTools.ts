@@ -143,7 +143,7 @@ export const MARKUP_TOOLS: ToolDef[] = [
   {
     name: 'update_markup',
     title: 'Change a markup',
-    description: 'Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
+    description: 'Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['id'], properties: {
       id: str('The markup’s id (mk_…).'),
       status: str('Its new status.', { enum: STATUSES }),

@@ -87,6 +87,8 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
 | Revoke an MCP token | An admin, or the token’s person | [`revokeToken`](../../../src/domain/actions.ts) |
 | Send feedback about the app | Anyone | [`sendFeedback`](../../../src/domain/actions.ts) |
+| Start over: reset the shared example in this browser, or remove a workspace of your own | Anyone in the example; admins in a workspace of their own | [`mayStartOver`](../../../src/domain/actions.ts) |
+| Change the status of a markup or of feedback (In hand, Fixed, Won’t fix, New again) | Admins (Lane, 12 Nov); anyone reads the inbox and sends feedback | [`mayTriage`](../../../src/markup/model.ts), [`statusPatch`](../../../src/markup/model.ts) |
 
 ### Metrics
 

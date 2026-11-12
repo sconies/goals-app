@@ -66,7 +66,7 @@ export const FEEDBACK_TOOLS: ToolDef[] = [
   {
     name: 'update_feedback',
     title: 'Change a piece of feedback',
-    description: 'Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).',
+    description: 'Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['id', 'status'], properties: {
       id: str('The feedback’s id.'),
       status: str('Its new status.', { enum: STATUSES }),

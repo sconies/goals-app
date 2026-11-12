@@ -511,7 +511,9 @@ function FeedbackDetail({ f, busy, form, setForm, onChange }: { f: InboxFeedback
 function Actions({ status, busy, form, setForm, onChange, onIssue, n }: { status: MarkupStatus; busy: boolean; form: string | null; setForm: (f: 'fixed' | 'wont-fix' | null) => void; onChange: (c: Change) => void; onIssue?: () => void; n: number }) {
   const app = useApp();
   // Only an admin changes the status (mayTriage, the rule statusPatch keeps); everyone else reads.
-  if (form || !mayTriage(app.viewer)) return null;
+  if (form) return null;
+  // Members see why there are no buttons, where the buttons would be (on a phone the list's line is out of sight).
+  if (!mayTriage(app.viewer)) return <p className="tiny muted mk-readonly">{ADMINS_TRIAGE}</p>;
   const open = status === 'new' || status === 'in-hand';
   const all = n > 1 ? ` (all ${n})` : '';
   return (

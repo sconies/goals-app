@@ -21531,7 +21531,7 @@ var MARKUP_TOOLS = [
 	{
 		name: "update_markup",
 		title: "Change a markup",
-		description: "Set a markup’s status (new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
+		description: "Set a markup’s status (admins only: new, in-hand, fixed with the What’s new entry id that has the fix, or wont-fix with a reason), and keep its GitHub issue’s address.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -21682,7 +21682,7 @@ var FEEDBACK_TOOLS = [
 	{
 		name: "update_feedback",
 		title: "Change a piece of feedback",
-		description: "Set a piece of feedback’s status, with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
+		description: "Set a piece of feedback’s status (admins only), with the inbox’s rules: new, in-hand, fixed (with fixed_in, the What’s new entry id that has the fix; its sender then sees “You raised this” there) or wont-fix (with a reason).",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
