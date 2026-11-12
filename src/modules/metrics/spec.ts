@@ -5,6 +5,8 @@ import { exampleKit, type Rule } from '../../spec/rules';
 import * as MET from './rules';
 import * as LIB from './rulesLibrary';
 import * as MEAS from './rulesMeasure';
+import * as DEF from './rulesDefine';
+import { checkReads, lineOf } from './reads';
 import { goalsOfMetric, libraryReads } from './reads';
 import { CHECK_IN_MOMENT } from '../../spec/conformance';
 import { currentWeek } from '../../domain/plan';
@@ -145,6 +147,49 @@ rules.push({
     })),
     { given: 'Rhea’s metrics when she is marked as left: how many About counts.', then: '4', run: () => String(MET.ownerlessMetrics({ metrics: MET.metricsOf(demo()), people: demo().people.map((p) => (p.id === 'rhea' ? { ...p, leftAt: CHECK_IN_MOMENT } : p)) }).length) },
   ],
+});
+
+rules.push({
+  id: 'metric-defined',
+  title: 'Defining a metric well',
+  summary: 'What a metric still needs to say, in words and never as a score (rule 6), and the three questions adding or changing one may ask before it is saved: a close name, a unit spelt another way, a percentage that doesn’t say out of what.',
+  code: [{ file: 'src/modules/metrics/rulesDefine.ts', names: ['stillToSay', 'nameChecks', 'editsBetween', 'formerNames', 'unitChecks', 'meaningChecks', 'metricChecks', 'unansweredChecks', 'countLine'] }, { file: 'src/modules/metrics/reads.ts', names: ['checkReads', 'lineOf'] }],
+  tests: ['src/modules/metrics/rulesDefine.test.ts', 'src/modules/metrics/tools.test.ts'],
+  reqs: ['METRIC-DEFINED'],
+  body: `
+A metric is **usable** with three things: a name, a unit and which way is better. The rest can be said later, and what is still missing is said in words.
+
+**Rule 6. What a metric still needs** (\`stillToSay\`). In this order: “what it means” (no meaning), “where the number comes from” (no source), “who owns that source” (not said) and “how often it refreshes” (not said). The line is “${DEF.FULLY_DEFINED}” when nothing is missing and its owner is someone here who hasn't left; “${DEF.OWNER_LEFT}” alone when only that; otherwise “Still to say: {what is missing, with commas}.”, followed by “ ${DEF.OWNER_LEFT}” when so. It is words, never a number, a percentage or a bar, and nothing sorts by it. It shows under a metric's title (for its owner and admins each item opens the form at its field), at the foot of the form, in \`get_metric\` (\`stillToSay\`) and after \`save_metric\` saves.
+
+**The questions (Checks).** A Check is a question answered once, never a refusal: the metric can be saved once it is answered. Adding a metric asks all three; changing one asks only about a field that changed.
+- **A close name** (\`nameChecks\`), up to two, closest first. *Former*: the name is one a metric in use used to have (a rename in the change log): ““{typed}” is now called “{other}”.”, answered “Use {other}” or “Add “{typed}” as a new metric”. *Letters*: lower case, without accents and punctuation, the names differ by one edit when the longer is up to 12 characters and two when longer, and aren't equal; names of 4 characters or fewer never are (“MTTR” and “MTTD”): “This is one letter from “{other}” ({unit}, {direction}, owned by {owner}, {n} goals).” *Words*: the library's rule 4: “This looks like “{other}” (…).” Both answered “Use that one” (which opens it; the draft is kept) or “Mine is different: keep it”. The same name in any case is a Must fix, not this.
+- **A unit spelt another way** (\`unitChecks\`): lower case and without a trailing “s” or “.”, it equals a unit in use, or it is a known spelling of one in use (percent, pct, per cent → %; mins, minutes, minute → min; hrs, hr, hour → hours; secs, seconds, sec → s; dollars, $ → USD), and isn't already identical: “Other metrics here use “{u}”. Use “{u}”, or keep “{typed}”?”
+- **A share that doesn't say out of what** (\`meaningChecks\`): the unit is %, or the name has “rate”, “share” or “ratio” and the unit is neither a time nor a count per time; the meaning is said; and it has none of “out of”, “share of”, “of all”, “of every”, “divided by”, “per ”, “÷”, “/”, “percentage of”, “proportion of”, “fraction of”. Answered “It’s right as written”. An empty meaning is never this: it is still to say.
+
+**On the form** a Must fix shows under its field, outlined on every side and washed, with the warning mark and “Must fix”; a Check under its field, in a quiet outlined block with the warning mark, “Check” and its answers as plain buttons. Neither uses a status shape. Both show once the field is left, or on the first try to save. The foot says “{a} to fix, {b} to check.” (\`countLine\`; a part at zero is left out) and the completeness line. Saving is refused while a Must fix stands; with a Check unanswered, the first try scrolls to it and says “Answer the question above first.” under the button. An answered Check closes to one line with Change (“You said: mine is different.”); changing the field asks again.
+
+**Through the AI tools**, \`save_metric\` returns \`checks\` (each with its question and answers) and saves nothing while one is unanswered; it takes \`answers\`: \`name\` “keep” or “use:<id>” (nothing is saved; the result names the metric to use), \`unit\` “keep” or “use”, \`meaning\` “as-written”.`,
+  examples: [
+    { given: 'Lead time for changes: everything said, Rhea is here.', then: 'Fully defined', run: () => lineOf(demo(), LIB_METRIC('metric_lead-time')).line },
+    { given: 'A metric added in a goal form: a name, a unit and a direction only.', then: 'Still to say: what it means, where the number comes from, who owns that source, how often it refreshes.', run: () => DEF.stillToSay({ meaning: '', source: '', sourceOwner: '', refresh: null }, true).line },
+    { given: 'Its meaning and source said; who owns the source and its refresh not.', then: 'Still to say: who owns that source, how often it refreshes.', run: () => DEF.stillToSay({ ...LIB_METRIC('metric_lead-time'), sourceOwner: '', refresh: null }, true).line },
+    { given: 'Lead time for changes when Rhea, its owner, is marked as left.', then: 'Its owner has left.', run: () => lineOf({ people: demo().people.map((p) => (p.id === 'rhea' ? { ...p, leftAt: CHECK_IN_MOMENT } : p)) }, LIB_METRIC('metric_lead-time')).line },
+    { given: 'CI compute cost per pipeline run: complete, measuring no goal.', then: 'Fully defined', run: () => lineOf(demo(), LIB_METRIC('metric_ci-cost')).line },
+    ...([['Flaky tests rate', 'letters: Flaky test rate'], ['Remote build cache hit rates', 'letters: Remote build cache hit rate'], ['CI cost per pipeline run', 'words: CI compute cost per pipeline run'], ['MTTR', 'nothing'], ['Change failure rate', 'nothing (the same name is a Must fix)']] as const).map(([typed, then]) => ({
+      given: `Adding “${typed}” to the demo library.`, then,
+      run: () => { const c = DEF.nameChecks(typed, checkReads(demo()).metrics)[0]; return c ? `${c.kind}: ${c.other.name}` : typed === 'Change failure rate' ? 'nothing (the same name is a Must fix)' : 'nothing'; },
+    })),
+    { given: '“Deploy frequency” typed, when Production deploys per day was once called that.', then: 'former: Production deploys per day', run: () => { const c = DEF.nameChecks('Deploy frequency', checkReads(demo()).metrics, [{ id: 'metric_deploys', name: 'Deploy frequency' }])[0]!; return `${c.kind}: ${c.other.name}`; } },
+    ...([['mins', 'Use “min”'], ['percent', 'Use “%”'], ['min', 'nothing'], ['deploys', 'nothing'], ['ms', 'nothing']] as const).map(([typed, then]) => ({
+      given: `A unit typed as “${typed}”, with the demo’s units in use (hours, min, %, deploys, USD, pts).`, then,
+      run: () => { const u = DEF.unitChecks(typed, checkReads(demo()).metrics.map((m) => m.unit)); return u ? `Use “${u.use}”` : 'nothing'; },
+    })),
+    { given: 'Change failure rate, in %: “Share of production deploys that led to an incident…”.', then: 'nothing', run: () => DEF.meaningChecks({ name: 'Change failure rate', unit: '%', meaning: 'Share of production deploys that led to an incident.' }) ?? 'nothing' },
+    { given: '“Deploy success rate”, in %: “Deploys that worked.”', then: 'out-of-what', run: () => DEF.meaningChecks({ name: 'Deploy success rate', unit: '%', meaning: 'Deploys that worked.' }) ?? 'nothing' },
+    { given: 'Any metric in % with no meaning.', then: 'nothing', run: () => DEF.meaningChecks({ name: 'Anything', unit: '%', meaning: '' }) ?? 'nothing' },
+    { given: 'Rhea adds “Flaky tests rate”, %, no direction, meaning “Flakes seen.”: the foot of the form.', then: '1 to fix, 2 to check.', run: () => { const next = { id: '', name: 'Flaky tests rate', unit: '%', meaning: 'Flakes seen.' }; return DEF.countLine(1, DEF.metricChecks(next, null, checkReads(demo())).length); } },
+  ],
+  unclear: ['Two close names are both found, but the form and save_metric ask about the closest one only.', 'The weekly rhythm is assumed for the form’s refresh hint until a workspace can choose its rhythm (FT1).'],
 });
 
 const LIB_METRIC = (id: string) => MET.metricsOf(demo()).find((m) => m.id === id)!;

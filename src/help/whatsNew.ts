@@ -33,6 +33,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'metric-defined',
+    date: '2026-11-12',
+    title: 'Metrics say what’s still to say',
+    points: [
+      'Adding a metric asks for three things first: a name, a unit and which way is better. The rest can be said later.',
+      'A name one letter from another’s, a unit spelt differently from one in use, or a percentage that doesn’t say out of what, is questioned before it’s saved. Answer once and carry on.',
+      'Each metric says “Fully defined” or what it still lacks, under its title. It is never a score.',
+    ],
+    articles: ['metric-define', 'metrics'],
+  },
+  {
     id: 'welcome-page',
     date: '2026-11-12',
     title: 'A proper front door',
@@ -490,7 +501,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'Adding one with a name close to another asks first; removing one says which goals it leaves.',
       'Put it back brings a removed metric back with the goals it measured.',
     ],
-    articles: ['metric-add', 'metrics'],
+    articles: ['metric-define', 'metrics'],
   },
   {
     id: 'measured-by-find',
@@ -601,7 +612,7 @@ export const WHATS_NEW: NewsEntry[] = [
       'A goal’s summary says which metric measures it, and a person’s and a team’s page list their metrics.',
       'Old links still work.',
     ],
-    articles: ['metrics', 'metric-add'],
+    articles: ['metrics', 'metric-define'],
   },
   {
     id: 'undo-removal-sticks',

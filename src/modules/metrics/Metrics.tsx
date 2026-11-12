@@ -24,8 +24,10 @@ import { MenuButton } from '../../ui/MenuButton';
 import { PickOne } from '../../ui/Pick';
 import { useWidth } from '../../ui/useWidth';
 import { canEditMetric, DIRECTION_LABEL, metricChangeQuestion, linksOf, METRIC_LIMITS, metricFrom, metricProblems, metricsOf, REFRESH_LABEL, REFRESHES, type Metric, type MetricDirection, type MetricInput, type MetricRefresh } from './rules';
-import { closeNames, closeNameWords, decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
-import { goalsOfMetric, libraryReads } from './reads';
+import { decimalsWords, directionWords, findMetrics, goalsByStatus, LIBRARY_PAGE, LIBRARY_SORTS, metricAt, metricNeeds, metricPath, movedMetrics, needsLine, ownerName, summaryLine, unitsInUse, type LibraryAsk, type LibrarySort, type MetricGoalRow } from './rulesLibrary';
+import { checkReads, goalsOfMetric, libraryReads, lineOf } from './reads';
+import { countLine, metricChecks, STILL_FIELD, stillToSay, unitChecks, type CheckField, type MetricCheck } from './rulesDefine';
+import { CheckSaid, FixLine } from '../../ui/Levels';
 import './metrics.css';
 
 const METRICS = { thing: 'metric', things: 'metrics' };
@@ -225,7 +227,7 @@ export function MetricPage() {
       <div className="page-head row between metric-head">
         <div className="stack" style={{ gap: 4, minWidth: 0 }}>
           <h1 className="title-xl">{m.name}</h1>
-          <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'}</span>
+          <span className="hint">{m.unit}, {decimalsWords(m.decimals)} · {directionWords(m.direction)} · {ownerLive && owner ? <>owned by <Link to={`/people/${encodeURIComponent(owner.id)}`}>{owner.name}</Link></> : 'no owner'} · <StillLine metric={m} links={edit} /></span>
         </div>
         {/* Goals, filtered to this metric (the module's Goals filter, ?metric=): the same goals as the table below (N16). */}
         {rows.length > 0 && <Link className="btn primary" to={`/goals?scope=all&metric=${encodeURIComponent(m.id)}`}>{one ? 'See its goal' : `See its ${rows.length} goals`}</Link>}
@@ -264,6 +266,21 @@ export function MetricPage() {
       ) : <p className="hint">{ownerLive && owner ? `${owner.name} or an admin can change this.` : 'An admin can change this.'}</p>}
       {removing && <RemoveMetricSheet metric={m} rows={rows} onClose={() => setRemoving(false)} onRemoved={() => void nav('/metrics')} />}
     </div>
+  );
+}
+
+/** Rule 1's line under a metric's title: “Fully defined”, or what it still needs to say. For its owner and admins each item
+    opens the form at its field. Words only: never a number or a bar. */
+function StillLine({ metric: m, links }: { metric: Metric; links: boolean }) {
+  const app = useApp();
+  const s = lineOf(app.snapshot, m);
+  if (!links || s.full) return <span className="metric-still">{s.line}</span>;
+  const to = (f: string) => `${metricPath(m)}/edit?field=${f}`;
+  return (
+    <span className="metric-still">
+      {s.missing.length > 0 && <>Still to say: {s.missing.map((w, i) => <span key={w}>{i ? ', ' : ''}<Link to={to(STILL_FIELD[w])}>{w}</Link></span>)}.</>}
+      {s.ownerLeft && <>{s.missing.length ? ' ' : ''}<Link to={to('owner')}>Its owner has left.</Link></>}
+    </span>
   );
 }
 
@@ -364,10 +381,16 @@ export function MetricForm() {
   const [tried, setTried] = useState(false);
   // Fields left once: their errors show from then on, not while the first thing is being typed.
   const [left, setLeft] = useState<Set<string>>(() => new Set());
-  const leave = (k: string) => () => setLeft((x) => (x.has(k) ? x : new Set(x).add(k)));
+  // Shown a moment after the field is left, so what appears above the button never moves it under a click already on
+  // its way (leaving the meaning by pressing Add the metric).
+  const leave = (k: string) => () => { window.setTimeout(() => setLeft((x) => (x.has(k) ? x : new Set(x).add(k))), 250); };
   const [busy, setBusy] = useState(false);
   // Changing the unit or direction goals use is asked first (spec 2.3).
   const [asking, setAsking] = useState(false);
+  // Rule 1's Checks answered, each with the field's value it was answered for: a new value asks again.
+  const [answered, setAnswered] = useState<Partial<Record<CheckField, { choice: string; at: string }>>>({});
+  // Saving was tried with a Check unanswered: the Check is outlined and the button says so.
+  const [waiting, setWaiting] = useState(false);
   const field = params.get('field');
   const top = useRef<HTMLDivElement>(null);
   // Opened at a field ("Say what it means", "Choose an owner"): that field is in view and focused.
@@ -393,14 +416,43 @@ export function MetricForm() {
     );
   }
   const input: MetricInput = { name: d.name, meaning: d.meaning, unit: d.unit, decimals: d.decimals, direction: (d.direction || undefined) as MetricDirection, source: d.source, sourceOwner: d.sourceOwner, refresh: d.refresh || null, ownerId: d.ownerId, caveats: d.caveats };
-  const problems = metricProblems(metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId }), app.snapshot);
-  const about = (re: RegExp, k?: string) => (tried || (k && left.has(k)) ? problems.filter((p) => re.test(p)) : []);
-  const err = (re: RegExp, k?: string) => about(re, k).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>);
-  // Rule 4: while adding, a name of 4 characters or more that is close to a metric in use is asked about, never refused.
-  const close = !live && d.name.trim().length >= 4 ? closeNames(d.name, metricsOf(app.snapshot)) : [];
+  const next = metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId });
+  const problems = metricProblems(next, app.snapshot);
+  const shows = (k?: string) => tried || (!!k && left.has(k));
+  const about = (re: RegExp, k?: string) => (shows(k) ? problems.filter((p) => re.test(p)) : []);
+  // A Must fix under its field (spec 2.1): outlined on every side and washed, the warning mark and “Must fix”.
+  const err = (re: RegExp, k?: string) => about(re, k).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>);
+  // Rule 1's questions (rulesDefine.ts): a close name, a unit spelt another way, a share that doesn't say out of what.
+  const checks = metricChecks({ id: live?.id ?? '', name: d.name, unit: d.unit, meaning: d.meaning }, live, checkReads(app.snapshot));
+  const valueOf = (f: CheckField) => d[f].trim();
+  const open = checks.filter((c) => !(answered[c.field] && answered[c.field]!.at === valueOf(c.field)));
+  const shownChecks = open.filter((c) => shows(c.field));
+  const shownFixes = problems.filter((p) => tried || FIELD_ORDER.some(([k, re]) => left.has(k) && re.test(p)));
+  const count = countLine(shownFixes.length, shownChecks.length);
+  const still = stillToSay(next, true);
   // The goals the metric measures now, and how many of them a new unit or direction would set apart (linkProblems).
-  const question = live ? metricChangeQuestion(live, metricFrom(input, live, { actor: app.viewer, now: app.stamp(), newId }), app.snapshot.goals, linksOf(app.snapshot)) : null;
+  const question = live ? metricChangeQuestion(live, next, app.snapshot.goals, linksOf(app.snapshot)) : null;
   const back = () => void nav(live ? metricPath(live) : '/metrics');
+  const answer = (c: MetricCheck, choice: string) => {
+    if (choice.startsWith('use:')) { const m = metricsOf(app.snapshot).find((x) => x.id === choice.slice(4)); if (m) void nav(metricPath(m)); return; }
+    if (c.field === 'unit' && choice === 'use') { const u = unitChecks(d.unit, unitsInUse(metricsOf(app.snapshot).filter((m) => m.id !== live?.id))); if (u) set({ unit: u.use }); return; }
+    setAnswered((a) => ({ ...a, [c.field]: { choice, at: valueOf(c.field) } }));
+  };
+  const said = (f: CheckField) => (f === 'name' ? 'You said: mine is different.' : f === 'unit' ? `You said: keep “${d.unit.trim()}”.` : 'You said: it’s right as written.');
+  const checkFor = (f: CheckField) => {
+    const c = checks.find((x) => x.field === f);
+    if (!c) return null;
+    const a = answered[f];
+    if (a && a.at === valueOf(f)) return <CheckSaid onChange={() => setAnswered((x) => { const y = { ...x }; delete y[f]; return y; })}>{said(f)}</CheckSaid>;
+    if (!shows(f)) return null;
+    return (
+      <div className={'level-block level-check metric-check' + (waiting ? ' level-alert' : '')} role="group" aria-labelledby={`metric-check-${f}`} tabIndex={-1} data-check={f}>
+        <span className="level-head"><WarnMark /><span className="level-word">Check</span></span>
+        <strong id={`metric-check-${f}`} className="level-q">{c.words}</strong>
+        <span className="level-actions">{c.answers.map((x) => <button key={x.choice} type="button" className="btn" onClick={() => answer(c, x.choice)}>{x.label}</button>)}</span>
+      </div>
+    );
+  };
   const save = async (confirmed = false) => {
     setTried(true);
     if (problems.length || busy) {
@@ -410,6 +462,13 @@ export function MetricForm() {
       if (el) { el.scrollIntoView({ block: 'center' }); el.querySelector<HTMLElement>('input, textarea, select, button')?.focus(); } else top.current?.scrollIntoView({ block: 'start' });
       return;
     }
+    if (open.length) {
+      // An unanswered Check: scrolled to, and named under the button.
+      setWaiting(true);
+      window.setTimeout(() => { const el = document.querySelector<HTMLElement>(`[data-check="${open[0]!.field}"]`); el?.scrollIntoView({ block: 'center' }); el?.focus(); }, 0);
+      return;
+    }
+    setWaiting(false);
     if (question && !confirmed) { setAsking(true); return; }
     setAsking(false);
     setBusy(true);
@@ -420,20 +479,18 @@ export function MetricForm() {
       void nav(metricPath(out.metric), { replace: true });
     } catch { setBusy(false); }
   };
-  const text = (k: 'name' | 'unit' | 'source' | 'sourceOwner', label: ReactNode, max: number, hint?: string, re?: RegExp) => (
+  const text = (k: 'name' | 'unit' | 'source' | 'sourceOwner', label: ReactNode, max: number, hint?: string, re?: RegExp, placeholder?: string) => (
     <div className="field" id={`metric-${k}`}>
       <label className="field"><span className="field-label">{label}</span>
-        <input className={'input' + (re && about(re, k).length ? ' invalid' : '')} aria-invalid={re && about(re, k).length ? true : undefined} maxLength={max} value={d[k]} onChange={(e) => set({ [k]: e.target.value })} onBlur={leave(k)} autoFocus={k === 'name' && !field} />
+        <input className={'input' + (re && about(re, k).length ? ' invalid' : '')} aria-invalid={re && about(re, k).length ? true : undefined} maxLength={max} value={d[k]} placeholder={placeholder} onChange={(e) => set({ [k]: e.target.value })} onBlur={leave(k)} autoFocus={k === 'name' && !field} />
       </label>
       {hint && <span className="hint">{hint}</span>}
       {re && err(re, k)}
-      {k === 'name' && close.length > 0 && (
-        <p className="hint metric-close" role="status">
-          This looks like {close.map((m, i) => <span key={m.id}>{i ? ' or ' : ''}<Link to={metricPath(m)}>{closeNameWords(m, app.snapshot.people)}</Link></span>)}. {close.length === 1 ? <Link to={metricPath(close[0]!)}>Use that one</Link> : 'Use one of those'}, or carry on if yours is different.
-        </p>
-      )}
+      {(k === 'name' || k === 'unit') && checkFor(k)}
     </div>
   );
+  const owner = app.person(d.ownerId);
+  const slow = d.refresh === 'monthly' || d.refresh === 'quarterly';
   return (
     <div className="focus metric-form">
       <div className="focus-top">
@@ -445,34 +502,46 @@ export function MetricForm() {
         <div ref={top}><h1 className="qtitle big">{live ? `Change ${live.name}` : 'Add a metric'}</h1></div>
         {restored && <div className="restored small" role="status">Picked up what you hadn’t saved. <button type="button" className="linkish" onClick={() => { clearDraft(); window.location.reload(); }}>Start again</button></div>}
         {text('name', 'Name', METRIC_LIMITS.name, undefined, /metric a name|already a metric|keep the name/i)}
-        <div className="field" id="metric-meaning">
-          <label className="field"><span className="field-label">What it means and how it’s calculated <span className="hint">optional</span></span>
-            <textarea className="input" rows={3} maxLength={METRIC_LIMITS.text} value={d.meaning} onChange={(e) => set({ meaning: e.target.value })} />
-          </label>
-          <span className="hint">What is counted, from when to when, and what is left out.</span>
+        <div className="metric-unit-row">
+          {text('unit', 'Unit', METRIC_LIMITS.unit, 'As it follows a number: hours, %, USD, deploys', /unit/i)}
+          <div className="field" id="metric-decimals">
+            <label className="field"><span className="field-label">Decimal places <span className="hint">optional, 0 if left</span></span>
+              <select className="input" value={d.decimals} onChange={(e) => set({ decimals: Number(e.target.value) })}>
+                {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
-        {text('unit', 'Unit', METRIC_LIMITS.unit, 'As it follows a number: hours, %, USD, deploys', /unit/i)}
-        <label className="field" id="metric-decimals"><span className="field-label">Decimal places</span>
-          <select className="input" value={d.decimals} onChange={(e) => set({ decimals: Number(e.target.value) })}>
-            {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
         <div className="field" id="metric-direction"><span className="field-label" id="metric-direction-l">Which way is better</span>
-          <div className={'seg' + (about(/which way/i).length ? ' invalid' : '')} role="group" aria-labelledby="metric-direction-l">
-            {(['lower', 'higher'] as const).map((k) => <button key={k} type="button" aria-pressed={d.direction === k} onClick={() => set({ direction: k })}>{DIRECTION_LABEL[k]}</button>)}
+          <div className={'seg' + (about(/which way/i, 'direction').length ? ' invalid' : '')} role="group" aria-labelledby="metric-direction-l" aria-invalid={about(/which way/i, 'direction').length ? true : undefined}>
+            {(['lower', 'higher'] as const).map((k) => <button key={k} type="button" aria-pressed={d.direction === k} onClick={() => { set({ direction: k }); leave('direction')(); }}>{DIRECTION_LABEL[k]}</button>)}
           </div>
           {err(/which way/i, 'direction')}
         </div>
-        {text('source', <>Where the number comes from <span className="hint">optional</span></>, METRIC_LIMITS.text, 'A dashboard, a query, a report')}
-        {text('sourceOwner', <>Who owns that source <span className="hint">optional</span></>, METRIC_LIMITS.text)}
-        <label className="field" id="metric-refresh"><span className="field-label">How often it refreshes</span>
-          <select className="input" value={d.refresh} onChange={(e) => set({ refresh: e.target.value as MetricRefresh | '' })}>
-            <option value="">Not said</option>
-            {REFRESHES.map((r) => <option key={r} value={r}>{REFRESH_LABEL[r]}</option>)}
-          </select>
-        </label>
+        <div className="field" id="metric-meaning">
+          <label className="field"><span className="field-label">What it means and how it’s calculated <span className="hint">optional</span></span>
+            <textarea className="input" rows={3} maxLength={METRIC_LIMITS.text} value={d.meaning} onChange={(e) => set({ meaning: e.target.value })} onBlur={leave('meaning')} />
+          </label>
+          <span className="hint">What is counted, out of what or over what period, and what is left out.</span>
+          {checkFor('meaning')}
+        </div>
+        <fieldset className="metric-later stack" style={{ gap: 'var(--s3)' }}>
+          <legend className="label">Where the number comes from · can be said later</legend>
+          {text('source', 'Source', METRIC_LIMITS.text, undefined, undefined, 'A dashboard, a query, a report')}
+          {text('sourceOwner', 'Who owns that source', METRIC_LIMITS.text, undefined, undefined, 'A team or a person')}
+          <div className="field" id="metric-refresh">
+            <label className="field"><span className="field-label">How often it refreshes</span>
+              <select className="input" value={d.refresh} onChange={(e) => set({ refresh: e.target.value as MetricRefresh | '' })}>
+                <option value="">Not said</option>
+                {REFRESHES.map((r) => <option key={r} value={r}>{REFRESH_LABEL[r]}</option>)}
+              </select>
+            </label>
+            {slow && <span className="hint">Check-ins here are weekly. Most weeks a goal measured by this will have no new number, and that is fine.</span>}
+          </div>
+        </fieldset>
         <div className="field" id="metric-owner">
           <PickOne kind="person" label="Owner" value={d.ownerId || null} onChange={(id) => set({ ownerId: id ?? '' })} invalid={about(/owner isn’t/i).length > 0} />
+          <span className="hint">{owner && owner.id === app.viewer.id ? `${owner.name} (you). ` : ''}Answers for what it means. Can change it and remove it.</span>
           {err(/owner isn’t/i)}
         </div>
         <div className="field" id="metric-caveats">
@@ -481,14 +550,19 @@ export function MetricForm() {
           </label>
         </div>
         {/* Anything else the rule says (a length, decimals), together above the button. */}
-        {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <span key={p} className="hint tone-off" role="alert">{p}</span>)}</div>}
+        {tried && <div className="stack">{problems.filter((p) => !FIELD_PROBLEM.test(p)).map((p) => <div key={p} className="level-block level-fix" role="alert"><span className="level-head"><WarnMark /><span className="level-word">Must fix</span></span><span>{p}</span></div>)}</div>}
         {asking && question && (
           <div className="restored small stack" role="alertdialog" aria-labelledby="metric-confirm" style={{ gap: 'var(--s2)' }}>
             <span id="metric-confirm">{question.text}</span>
             <span className="row"><button type="button" className="btn sm" onClick={() => void save(true)}>Change it</button><button type="button" className="btn ghost sm" onClick={() => { setAsking(false); set({ unit: live!.unit, direction: live!.direction }); }}>Keep it as it was</button></span>
           </div>
         )}
+        <div className="stack metric-foot" style={{ gap: 'var(--s1)' }}>
+          {count && <p className="small metric-count" role="status">{count}</p>}
+          <p className="small metric-still">{still.line}</p>
+        </div>
         <div className="foot-row"><button className="btn ghost big-btn" type="button" onClick={back}>Cancel</button><button className="btn primary big-btn" type="submit" disabled={busy}>{busy ? 'Saving…' : live ? 'Save changes' : 'Add the metric'}</button></div>
+        {waiting && open.length > 0 && <FixLine>Answer the question above first.</FixLine>}
       </form>
     </div>
   );
