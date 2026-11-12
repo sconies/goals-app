@@ -12,6 +12,10 @@ import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { planChanges } from '../domain/changeset';
+import { blankGoal, type GoalDraft } from '../domain/goal';
+import { goalChecks } from '../domain/goalEntry';
+import { startLevel } from '../domain/newGoal';
+import { readBack, reviewsJoining } from '../domain/readBack';
 import type { ModuleRows } from '../domain/records';
 import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
@@ -30,7 +34,8 @@ export interface ConformanceWorkspace {
   checkIns: CheckIn[];
   decisions: Decision[];
   requests: Ask[];
-  reviews: Pick<Review, 'id' | 'name'>[];
+  /** Each review's picks (`scope`) too, for the reviews a new goal joins (readback.csv). */
+  reviews: Pick<Review, 'id' | 'name' | 'scope'>[];
   /** Feature modules' own records (domain/records), by module and record, for the rows a module adds (ModuleConformance). */
   modules?: ModuleRows;
 }
@@ -66,7 +71,7 @@ export function conformanceWorkspace(s: Snapshot): ConformanceWorkspace {
     checkIns: live(s.checkIns),
     decisions: live(s.decisions),
     requests: s.requests ?? [],
-    reviews: live(s.reviews).map((r) => ({ id: r.id, name: r.name })),
+    reviews: live(s.reviews).filter((r) => !r.endedAt).map((r) => ({ id: r.id, name: r.name, scope: r.scope })),
     ...(MODULE_FILES.length && s.modules ? { modules: Object.fromEntries(Object.entries(s.modules).filter(([id]) => MODULE_FILES.some((f) => f.module === id))) } : {}),
   };
 }
@@ -334,6 +339,42 @@ export function importRowsOf(w: ConformanceWorkspace): string[][] {
   });
 }
 
+/* ---------- the read-back (goal entry, rule 5; GE3) ---------- */
+
+/** The drafts readback.csv reads back: New goal's last step, by `viewer`, at `builtFor`. */
+export const READBACK_CASES: { case: string; viewer: string; draft: Partial<GoalDraft> }[] = [
+  { case: 'number-own', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', parentId: 'ns-mttr', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
+  { case: 'number-for-someone-else', viewer: 'tunde', draft: { ownerId: 'amara', teamId: 'build', title: 'Signed artifacts in staging', unit: '%', start: '40', target: '90' } },
+  { case: 'number-answered', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', title: 'Runbook coverage', unit: '%', start: '50', target: '150', decimals: '0', fromWeek: '40', endWeek: '66', shape: 'back' } },
+  { case: 'range', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', kind: 'range', title: 'Change failure rate', unit: '%', limit: '12' } },
+  { case: 'stages', viewer: 'tunde', draft: { ownerId: 'tunde', teamId: 'build', kind: 'milestone', title: 'Signing rolled out', stages: [{ id: 's1', name: 'Pilot', dueWeek: '50' }] } },
+  { case: 'north-star', viewer: 'amara', draft: { ownerId: 'amara', teamId: 'office', level: 'north-star', title: 'Developer happiness', unit: 'pts', start: '30', target: '40', guardrail: true, alsoHelps: ['ns-mttr'] } },
+];
+export const READBACK_HEADER = ['case', 'viewer', 'draft', 'rows', 'after'];
+
+/**
+ * What New goal's last step says for each case: its rows (`label: sentence`, separated by ` | `) and its "After you
+ * publish" lines (separated by ` | `), with the weekly rhythm and Reviews on. Every question asked is taken as answered.
+ */
+export function readBackRowsOf(w: ConformanceWorkspace): string[][] {
+  const at = new Date(w.builtFor);
+  const s = asOf(w, at);
+  const week = currentWeek(w.cycle, at);
+  return READBACK_CASES.map((x) => {
+    const d: GoalDraft = { ...blankGoal('', '', ''), ...x.draft };
+    const parent = s.goals.find((g) => g.id === d.parentId) ?? null;
+    const owner = s.people.find((p) => p.id === d.ownerId) ?? null;
+    const level = x.draft.level ?? startLevel(w.cycle, d.ownerId, s.teams, s.goals, parent);
+    const answers = goalChecks({ ...d, level: level ?? d.level }, { week, cycleWeeks: w.cycle.weeks, existing: null, door: 'form', startDate: w.cycle.startDate }).filter((c) => c.id !== 'stage-past' && c.readBack).map((c) => c.readBack);
+    const rb = readBack(d, {
+      cycle: w.cycle, week, today: at, level, owner: owner ? { name: owner.name, isViewer: owner.id === x.viewer } : null, teamName: s.teams.find((t) => t.id === d.teamId)?.name ?? '',
+      parent: parent ? { title: parent.title, key: parent.key } : null, alsoHelps: d.alsoHelps.map((id) => s.goals.find((g) => g.id === id)?.title ?? id), metric: null, answers, rhythm: 'weekly', reviewsOn: true,
+      reviewsJoined: level ? reviewsJoining({ id: 'new-goal', level, parentId: d.parentId || null, title: d.title }, w.reviews as Review[], s.goals, w.cycle) : [], wsName: 'Platform Engineering',
+    });
+    return [x.case, x.viewer, JSON.stringify(x.draft), rb.rows.map((r) => `${r.label}: ${r.text}`).join(' | '), rb.after.join(' | ')];
+  });
+}
+
 /* ---------- CSV ---------- */
 
 const field = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -343,7 +384,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }

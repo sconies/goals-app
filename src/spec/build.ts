@@ -16,7 +16,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
-import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, type ConformanceWorkspace } from './conformance';
+import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, HEADERS, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
 import { databaseFiles } from './schema';
@@ -364,6 +364,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[find.csv](find.csv) (not stage 1)', String(rows('find.csv')), 'search', FIND_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[navigation.csv](navigation.csv) (not stage 1)', String(rows('navigation.csv')), 'viewer and address', NAV_HEADER.map((x) => `\`${x}\``).join(', ')],
       ['[import.csv](import.csv) (not stage 1)', String(rows('import.csv')), 'case of the change engine', IMPORT_HEADER.map((x) => `\`${x}\``).join(', ')],
+      ['[readback.csv](readback.csv) (not stage 1)', String(rows('readback.csv')), 'draft New goal reads back', READBACK_HEADER.map((x) => `\`${x}\``).join(', ')],
       ...MODULE_FILES.map((f) => [`[${f.file}.csv](${f.file}.csv) (the ${f.module} module, not stage 1)`, String(rows(`${f.file}.csv`)), 'rule and what it is asked', f.header.map((x) => `\`${x}\``).join(', ')]),
     ]),
     '',
@@ -381,6 +382,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '- **navigation.csv** ([navigation](../core/rules/navigation.md)): not part of stage 1, scored like find.csv when asked (`"also": ["navigation"]`). For two viewers (`rhea`, who owns goals; `oskar`, who owns none: `owns_goals`) at each address: `menu` the sidebar’s items in order, its groups (your work, look up, make, this workspace and you) separated by ` | `, and `tabs` the phone’s four (More holds the rest), as ids separated by spaces; `owns_goals` is whether they have a goal to check in on (one of theirs, not stopped or done); `lit` the menu item lit there, or empty; `page` the page’s name in the top bar and the browser’s title (rule 2: a goal, review, person or team by its own name from the workspace; Help’s articles aren’t in the workspace, so an article’s page is named “Help”). The addresses with `example` are a module’s item and pages (named “Example”); everywhere else no module adds an item.',
     '',
     '- **import.csv** ([kinds, levels and near misses](../core/rules/import-levels.md)): not part of stage 1, scored like find.csv when asked (`"also": ["import"]`; it is the spreadsheets stage’s). One row per case: a set of rows loaded through the change engine on the workspace as it stood at `builtFor` (week 45), by `actor` (amara is an admin; tunde is not), into `sheet` (`goals`, `checkIns` or `people`). `rows` is the rows as JSON, column name to cell, numbered from row 2 in order; `answers` the answers given, as JSON, group id to choice (empty for none). People in workspace.json have no email, so their email is empty and rows name them by name or ID. Then what the engine says: `kind`, `level` (`must` or `check`), `group` (its group id) and `message` (its sentence) of the first problem or question in the file’s order (sheet, then row; a note is neither), empty when there is none; `must` and `questions` how many Must-fix groups and Check groups; `saves` `yes` when it would save.',
+    '',
+    '- **readback.csv** ([the read-back](../core/rules/read-back.md)): not part of stage 1, scored like find.csv when asked (`"also": ["readback"]`; it is stage 3’s). One row per case: a draft goal (`draft`, the fields set over a blank goal, as JSON) on New goal’s last step, seen by `viewer`, on the workspace as it stood at `builtFor` (Thursday 5 Nov 2026, week 45, the review day), with the weekly rhythm and Reviews on, each question it raises taken as answered, the level as New goal starts it when the draft doesn’t say (rule 1 of [New goal](../core/rules/new-goal.md)), no metric, and the workspace called “Platform Engineering”. The reviews a goal joins read each review’s `scope` in workspace.json. `rows` is each row as `label: sentence`, separated by ` | `; `after` the “After you publish” lines, separated by ` | `.',
     '',
     ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',

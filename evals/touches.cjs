@@ -38,9 +38,9 @@ const RULES = [
   [/^evals\/notes\/10-talk-polish\.cjs$/, ['N10']],
   [/^src\/screens\/Watching\.tsx/, ['U8', 'U9', 'F1']],
   [/^src\/screens\/(CheckInFlow|CheckInQueue|QuickCheckIn)\.tsx|^src\/ui\/Levels\.tsx|^src\/domain\/checkin\.ts/, ['U71', 'U1', 'U54', 'U15', 'U21', 'U25', 'U30', 'U31', 'U37', 'U39', 'U40', 'U45', 'U57', 'U85', 'U111', 'F2', 'F9', 'N8']],
-  [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/ui\/GoalFields\.tsx|^src\/domain\/(templates|newGoal|goalEntry|goalRights)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'U93', 'U109', 'U136', 'U31', 'U24', 'U91', 'F3', 'F9', 'F16']],
+  [/^src\/screens\/(GoalWizard|GoalEdit)\.tsx|^src\/ui\/GoalFields\.tsx|^src\/styles\/finish\/wizard\.css|^src\/domain\/(templates|newGoal|goalEntry|goalRights|readBack)\.ts/, ['U4', 'U54', 'U18', 'U25', 'U30', 'U33', 'U84', 'U85', 'U93', 'U137', 'U109', 'U136', 'U31', 'U24', 'U91', 'F3', 'F9', 'F16']],
   // Years and weeks (goal entry, rule 13; GE9): the week picker and the rule it shows.
-  [/^src\/ui\/WeekPick\.tsx|^src\/domain\/week(s|Choices)\.ts/, ['U109', 'U93', 'U18', 'U85', 'U136', 'U5', 'F3', 'F16']],
+  [/^src\/ui\/WeekPick\.tsx|^src\/domain\/week(s|Choices)\.ts/, ['U109', 'U93', 'U137', 'U18', 'U85', 'U136', 'U5', 'F3', 'F16']],
   [/^src\/screens\/(GoalScreen|Inspect|Respond)\.tsx|^src\/domain\/(goalPage|scorecard|story|chartStory|summary|summaryFacts|progress|trend)\.ts/, ['U6', 'U7', 'U36', 'U37', 'U38', 'U39', 'U57', 'U77', 'U78', 'U79', 'U80', 'F4', 'F14', 'N2', 'N9', 'N6', 'N15']],
   [/^src\/ui\/(NextStepSheet|PersonPick|goalRows)\.tsx|^evals\/(finish\/10-goal-order|notes\/11-said-once)\.cjs$/, ['U3', 'U9', 'U77', 'U78', 'U80', 'F14', 'N15']],
   [/^src\/screens\/(GoalsScreen|GoalViews|GoalTable|GoalBoard|GoalFilters|GoalHistory)\.tsx|^src\/ui\/HealthLine\.tsx|^src\/domain\/(query|tableFilter|tableLayout|columns|order)\.ts/, ['U19', 'U23', 'U32', 'U34', 'F5', 'N5', 'N6', 'N10']],
