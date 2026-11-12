@@ -19686,7 +19686,7 @@ var _virtual_faro_modules_default = [{
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
 			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
-		"gaps": ["The field table is in the kit (the core rule page, the field table); the rest of the format (how each column is read) is in docs/export-format.md, which is not in the kit yet.", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
+		"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
 }];
 // src/core/module.ts
@@ -19883,6 +19883,8 @@ function systemOverview() {
 		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
+		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
+		"- [Every issue a spreadsheet can raise](spec/core/import-issues.md): each kind’s level, trigger, sentence and answers, and every column’s other spellings",
 		"",
 		"## Conformance data",
 		"",
