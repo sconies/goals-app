@@ -7,9 +7,19 @@ import { reducedMotion } from './motion';
 /** Room kept above and below, in px, so the question isn't flush with the edge or the sticky foot. */
 const ROOM = 16;
 
-/** The bottom of what can be seen: the screen, or the top of a sticky foot (the form's button) or a fixed tab bar. */
+/** Room kept above the field being typed in: at least the page's scroll-padding-top, which is where the browser itself
+    keeps a focused field when the caret moves. Keeping it any higher makes the two fight, and the page see-saws on every
+    keystroke (#241's review, medium 1). */
+function topRoom(): number {
+  const pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+  return Math.max(ROOM, Number.isFinite(pad) ? pad : 0);
+}
+
+/** The bottom of what can be seen: the visible viewport (above an on-screen keyboard where the browser says so), or the
+    top of a sticky foot (the form's button) or a fixed tab bar. */
 function foldOf(el: HTMLElement): number {
-  let fold = window.innerHeight;
+  const vv = window.visualViewport;
+  let fold = vv ? Math.min(window.innerHeight, vv.offsetTop + vv.height) : window.innerHeight;
   const covers = [el.closest('form')?.querySelector<HTMLElement>('.focus-foot'), ...document.querySelectorAll<HTMLElement>('.tabbar')];
   for (const c of covers) {
     if (!c || !c.getClientRects().length) continue;
@@ -31,7 +41,7 @@ export function bringIntoView(el: HTMLElement, keep?: Element | null): void {
   let by = r.bottom - (fold - ROOM);
   if (by <= 0) return;
   by = Math.min(by, r.top - ROOM);
-  if (keep) by = Math.min(by, keep.getBoundingClientRect().top - ROOM);
+  if (keep) by = Math.min(by, keep.getBoundingClientRect().top - topRoom());
   if (by <= 0) return;
   window.scrollBy({ top: by, behavior: reducedMotion() ? 'auto' : 'smooth' });
 }

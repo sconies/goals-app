@@ -12,6 +12,7 @@ import { describe, type ChangeSet } from '../../domain/changeset';
 import { workbook } from '../../domain/export';
 import { leaveOut } from '../../domain/leaveOut';
 import { questionsLine, type Answer, type Choice, type IssueGroup, type Sheet } from '../../domain/problemLevels';
+import { CHANGES_SAVE_MAX, PAGE, tooLarge } from '../../domain/importLimits';
 import { parseDelimited, readLine, readTables, type ReadTables, type Tables } from '../../domain/sheets';
 import { workedOutEdits } from '../../domain/workedOut';
 import { useMark } from '../../telemetry/react';
@@ -19,7 +20,9 @@ import { Sheet as SheetBox, WarnMark } from '../../ui/bits';
 import { PickOne } from '../../ui/Pick';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
+import { stopCheck } from './checkRun';
 import { importStore } from './importStore';
+import { Reading, TooManyChanges, useReadingDue } from './Large';
 import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
 import './import.css';
 
@@ -30,9 +33,6 @@ const blank = (r: Record<string, string>) => Object.entries(r).every(([k, v]) =>
 const rowKey = (x: { sheet: string; row: number }) => `${x.sheet}:${x.row}`;
 const uniqueRows = <T extends { sheet: Sheet; row: number }>(list: readonly T[]) => [...new Map(list.map((x) => [rowKey(x), x])).values()];
 
-/** The most rows Faro reads from one file, and the largest file (spec 2.1). */
-export const MAX_ROWS = 30_000;
-const MAX_BYTES = 20 * 1024 * 1024;
 
 /** Reads tables into the import, or says why not: nothing that looks like a Faro sheet, or too many rows. */
 function take(got: ReadTables, name: string, onProblem: (text: string, template?: boolean) => void): boolean {
@@ -41,7 +41,8 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
     onProblem(`Nothing in ${name} looks like a Faro sheet.${heads} Faro looks for Goal and Owner (goals), Goal key and Week (check-ins), or Name and Email (people). The template has the right headers.`, true);
     return false;
   }
-  if (got.rowCount > MAX_ROWS) { onProblem(`${name} has ${got.rowCount.toLocaleString('en-GB')} rows. Faro reads up to ${MAX_ROWS.toLocaleString('en-GB')} in one file. Split it and import each part.`); return false; }
+  const big = tooLarge(name, { rows: got.rowCount });
+  if (big) { onProblem(big); return false; }
   importStore.chose(got, name);
   return true;
 }
@@ -49,7 +50,8 @@ function take(got: ReadTables, name: string, onProblem: (text: string, template?
 /** Reads a chosen file into the import, staying on the preview. Shared by Import and the preview's own "Choose…". */
 export async function chooseFile(f: File | undefined, onProblem: (text: string, template?: boolean) => void): Promise<boolean> {
   if (!f) return false;
-  if (f.size > MAX_BYTES) { onProblem(`${f.name} is larger than 20 MB. Faro reads up to ${MAX_ROWS.toLocaleString('en-GB')} rows in one file. Split it and import each part.`); return false; }
+  const big = tooLarge(f.name, { bytes: f.size });
+  if (big) { onProblem(big); return false; }
   let got: ReadTables;
   try { got = await readChanges(f); } catch {
     onProblem(`Faro can’t read ${f.name}. Save it as .xlsx or .csv and try again.`);
@@ -68,7 +70,8 @@ export function choosePaste(text: string, onProblem: (text: string) => void): bo
 export function Check() {
   const app = useApp();
   const nav = useNavigate();
-  const { st, base, left, cs, otherWorkspace, toSave } = useImportPlan();
+  const { st, base, left, cs, otherWorkspace, toSave, run, tables } = useImportPlan();
+  const due = useReadingDue(run?.started ?? 0, !!run?.running && !run.cs);
   const file = useRef<HTMLInputElement>(null);
   const why = useRef<HTMLTextAreaElement>(null);
   const [problem, setProblem] = useState('');
@@ -101,13 +104,31 @@ export function Check() {
       </div>
     );
   }
-  if (!cs) return null;
+  if (!cs) {
+    // A large file, still being checked in the worker (spec 2.2), or a check that failed.
+    const stopIt = () => { stopCheck(); importStore.reset(false, true); };
+    if (run?.error) {
+      return (
+        <div className="page narrow import-check">
+          {picker}
+          <div className="page-head"><h1 className="title-xl">Check this import</h1><span className="hint">Nothing has been saved.</span></div>
+          <p className="hint tone-off" role="alert">Faro couldn’t check {st.name}: {run.error}. Split it and import each part.</p>
+          <div className="foot-row import-foot"><button type="button" className="btn primary big-btn" onClick={choose}>Choose another file</button></div>
+        </div>
+      );
+    }
+    return due ? <Reading name={st.name} read={read} progress={run?.progress ?? null} onStop={stopIt} /> : null;
+  }
+  const rechecking = !!run?.running;
 
-  const must = cs.groups.filter((g) => g.level === 'must');
-  const checks = cs.groups.filter((g) => g.level === 'check');
+  // While a large file is checked again after an answer, the change set on screen is the one before it: a group just
+  // answered closes at once, as it does for a small file.
+  const waiting = (id: string) => rechecking && !!st.answers[id];
+  const must = cs.groups.filter((g) => g.level === 'must' && !waiting(g.id));
+  const checks = cs.groups.filter((g) => g.level === 'check' && !waiting(g.id));
   const mustIssues = cs.issues.filter((i) => i.level === 'must');
   const mustRows = uniqueRows(mustIssues);
-  const answered = Object.keys(st.answers).filter((id) => st.said[id] && !cs.groups.some((g) => g.id === id));
+  const answered = Object.keys(st.answers).filter((id) => st.said[id] && (waiting(id) || !cs.groups.some((g) => g.id === id)));
   const answeredChecks = answered.filter((id) => st.said[id]!.level === 'check');
   const answeredMust = answered.filter((id) => st.said[id]!.level === 'must');
   const total = cs.items.length;
@@ -196,7 +217,10 @@ export function Check() {
         </label>
       )}
 
-      <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!!cs.commit || (onlyReason && !!st.reason.trim())} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />
+      {rechecking && <p className="hint preview-hint" role="status">Checking your answers…</p>}
+      {total > CHANGES_SAVE_MAX && tables
+        ? <TooManyChanges changes={total} name={st.name} read={read} tables={tables} workspace={app.ws.name} today={app.today} toast={app.toast} onChoose={choose} />
+        : <Foot mustRows={mustRows.length} questions={checks.length} total={total} nothing={nothing} ready={!rechecking && (!!cs.commit || (onlyReason && !!st.reason.trim()))} onlyReason={onlyReason && !st.reason.trim()} tried={tried} busy={busy} onSave={() => void save()} onChoose={choose} />}
 
       <LeaveSheet open={leaving} onClose={() => setLeaving(false)} rows={mustRows.map((i) => ({ sheet: i.sheet, row: i.row, name: i.name, problem: i.message }))} onDownload={() => void download(toFix, 'left-out', 'Rows left out saved')}
         dependants={leaving ? leaveOut(base, [...st.leftOut, ...mustRows.map((i) => ({ sheet: i.sheet, row: i.row }))], isNewIn(app.snapshot)).also.filter((x) => !left.some((y) => rowKey(y) === rowKey(x))) : []}
@@ -324,14 +348,14 @@ function GroupBlock({ g, cs, prior }: { g: IssueGroup; cs: ChangeSet; prior?: An
         </fieldset>
       )}
       {rows.length > 0 && (shown === 0 ? (
-        <button type="button" className="linkish tap import-show" onClick={() => setShown(50)}>Show the {n(rows.length, 'row')}</button>
+        <button type="button" className="linkish tap import-show" onClick={() => setShown(PAGE)}>Show the {n(rows.length, 'row')}</button>
       ) : (
         <div className="import-rows">
           <table className="import-rows-table">
             <thead><tr><th scope="col" className="num">Row</th><th scope="col">Name</th><th scope="col">{g.column ?? 'Cell'}</th></tr></thead>
             <tbody>{rows.slice(0, shown).map((i) => <tr key={rowKey(i)}><td className="num">{i.row}</td><td>{i.name || '—'}</td><td>{i.value ?? i.found ?? '—'}</td></tr>)}</tbody>
           </table>
-          {rows.length > shown && <button type="button" className="linkish tap" onClick={() => setShown(shown + 50)}>Show 50 more</button>}
+          {rows.length > shown && <button type="button" className="linkish tap" onClick={() => setShown(shown + PAGE)}>Show {PAGE} more</button>}
         </div>
       ))}
     </div>

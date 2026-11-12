@@ -2,6 +2,143 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+## Track 1, Thursday 12 November, 21:40 UTC (session past half, handing over; supersedes the 20:15 entry)
+
+Session: session_012kbr92tVe7c6Re4gj42nCe. Nothing merged yet this session. Auto-merge works again (planning, 20:58): once a PR's gate passes and it is current with main, `enable_pr_auto_merge` (MERGE); if it says the PR is already clean, merge by hand.
+
+| Branch | State | PR |
+|---|---|---|
+| `gl2-gated` | F5 fixed (the Goals page's phone block in `list-board.css` now breaks at 699px, as `goals-phone.css` does). Main merged in twice (the second resolved `GoalFilterSheet.tsx`: main's State fieldset kept, Sort hidden on the Map). First `evals:changed`: every F, N and P check passed; journeys below 9 were main's. Second run (after the second merge, pushed at 21:50): **F6 fails, MAP 2: at 390 emptying the Map's search leaves it narrowed** (`?q=merge+queue` stays). F6 passes on `713b746` (before that merge), so something main brought in breaks it; `GoalFilters.tsx` and `GoalMap.tsx` are unchanged by it, so look at what came with it (`GoalFilterSheet.tsx`'s State fieldset, warm-rendered, reads `useSearchParams`; `GoalsScreen.tsx`'s proposed goals; `state.tsx`). Every other check passed | #274 (draft; CI should now run) |
+| `nv2-gated` | Main merged in (QuickCheckIn import conflict). Gate fixes: F3 reads New goal's worded `.form-close`, which keeps 16px from the step bar (`.focus-top.wiz-top .form-close` in `shell-settings.css`); U70 opens a goal of the saved view, not New goal, and its step budget is 9. Pushed | #282 (draft): needs CI, then a test-merge |
+| `hm1-review-fixes` | Main merged in locally (clean), typecheck and unit tests pass; **not pushed, not evaluated**. Redo from `origin/hm1-review-fixes` if the container is gone | none |
+| `hm2-gated`, `fs1-mediums`, `rv7-gated` | Untouched since the 20:15 entry | none |
+| `ck-correct-fixes` | #225's review, built on main of 21:00 and pushed for safety; typecheck and unit tests pass (except the timing tests while evals ran); **`npm run spec` must run again** (CheckInFlow changed after the last run) **and no evals yet** (U142 has a new check; run `evals:changed`). Will conflict with `nv2-gated` in `CheckInFlow.tsx` (FormClose there) | none |
+
+**What `ck-correct-fixes` does** (the build reviewer's #225 findings; medium 1 was fixed by #247):
+- Medium 2: History's row skips a correction whose import was undone (`GoalScreen.tsx`, `importUndone`); U142 checks `.ci-corrected` goes after Undo.
+- Medium 3: the queue's Correct it links `?correct=1`.
+- Medium 4: `correctedSummary` (`changeset.ts`): "Corrected week 46: still 37 hours, with a new note" when the number stays.
+- Medium 5: the reason is kept as its own draft (`useDraft` key `…:correct:reason`); reopened at the second step without it, the form goes back to the first step.
+- Medium 6: Data's tables and MCP replacing a week's check-in are corrections (`CORRECTS_VIA`): the change's reason is required (`needsReason` on the item), kept as "Why corrected", the summary is the correction's, and the week's time and lateness are kept. Preview asks "Why are you correcting this check-in?"; MCP's refusal says so. Tests: `data.test.ts`, `postCheckIn.test.ts`.
+- The design's rule: no correction once the cycle has ended (`cycleState` ended or closed): the engine refuses it and the form says so.
+- Lows done: the form starts from what it corrects (`draftFrom`), no "No new number" while correcting, its own step key, cleared on post; "Correct a check-in" heads the form only when the week has one; "latest" when the week has two; Past imports names the goal, week and numbers; Undo says "Undid a correction"; a reason is 10 to 500 characters with letters (`correctReasonOk`, `correctReasonAsk` in `checkin.ts`, said once). Not done: `?week=`.
+- What's new `correct-means-one-thing`; guide (check-in) and the rule's words (`rules.ts`, one way to save a check-in) updated.
+
+**Next, in order:** finish the six gated merges (gate each, test-merge with main, merge); then `ck-correct-fixes`; then **#234's mediums** (planning, 20:53: a goal key search on Check-ins and Asks finds nothing because `applyTable` passes only a "Key" column; a decimal like 12.5 matches unrelated rows because words break at "." and ","; hiding a column changes what search finds and the screen never says only shown columns are searched; add an eval or journey for Data search); then the habit moment, N12's Find timing, #110's lows, HM1's lows.
+
+**The lows batch** (added by planning): #261 (a link with an unknown scope or a `#…` tail is refused where the screen falls back, `src/mcp/tools.ts` ~270; a saved view replaces the whole link, scope included, unsaid in its description; `mine: true` answers without the `why` that `scope: "mine"` gives); #234 (words after a quote, bracket, @, # or £ can't be found); #255 (two number questions build the unit by hand, "1 incidents", `checkin.ts` ~113 and ~117; a "Yes" answer in the table is lost on refresh).
+
+**The habit moment** is as the 20:15 entry reads it (below).
+
+**Habits:** the merge helpers live in the scratchpad and go with the container: `wn.cjs` rebuilds What's new as main's file with the branch's own entries on top; the merge then takes main's `api/mcp.js`, `spec/` and `llms.txt`, runs `npm run build:mcp` (check `grep -c home/user api/mcp.js` is 0) and `npm run spec`, and commits "Merge main [no news]". In a worktree test for a merge with `git rev-parse -q --verify MERGE_HEAD`, not `.git/MERGE_HEAD`. Only one eval run at a time (ports); unit tests run beside an eval run make F3 and F6 time out, so re-run those alone before reading them as failures. A PR that conflicts with main gets no CI run at all: check `mergeable_state` when CI stays quiet.
+
+## Track 1, Thursday 12 November, 20:15 UTC (session past half, handing over; supersedes the 18:10 entry)
+
+Session: session_012kbr8xcmyaqqmD5V1TbMeP. **Merged:** #234 (FS2's review: search words on Data and Feedback). #255 (CK2's review: the table keeps its answers). #261 (find_goals keeps a pasted link's tab).
+
+**Pushed, each built on main of 19:30 to 20:10 UTC, with typecheck and its unit tests passing; in this order:**
+
+| Branch | What | Local evals | PR |
+|---|---|---|---|
+| `gl2-gated` | GL2's map fixes (the Map fresh on return, no sort offered there, phone layout under 700px) | full suite 176/177: **F5 fails on GL2's own new check**: at 650 px Goals shows neither a computer's menus nor the phone's View button ("under 700px is the phone's bar" isn't fully built; the scores below 9 are main's) | none yet |
+| `nv2-gated` | NV2: forms close in words, Back finds your list | not run | none yet |
+| `hm1-review-fixes` | the build reviewer's HM1 mediums (below) | not run | none yet |
+| `hm2-gated` | HM2, stacked on `hm1-review-fixes` | not run | none yet |
+| `fs1-mediums` | FS1's mediums 1, 2 and 4 (below) | not run | none yet |
+| `rv7-gated` | RV7 (below) | not run | none yet |
+
+For each in turn: merge `origin/main` (script below), `npm run evals:changed` if not yet run, a draft PR, green CI, merge. Then the next.
+
+**Stacked:** `hm2-gated` is built on `hm1-review-fixes` (both change `home.ts`, `reads.ts`, `Home.tsx`); merge hm1's first, then merge main into hm2.
+
+**What the new branches do:**
+- `hm1-review-fixes` (the build reviewer's five HM1 mediums): the quiet line says "N asks wait for your response." while asks wait (`quietLine`); the lead's line and quiet line wrap on a phone (the old one-line rule in `home-watching.css` removed); no session after the year ends (`homeFacts`: `ended ? []`); `Dashboard.upcoming` (`nextReviews`) so two reviews on one day both reach Home (the cell takes the one the lead doesn't, "· 2 reviews" when two are left); the admin's year-end card (`AdminCard`) is back in Home's side column until HM7. Tests: src/app/reads.test.ts, `home.test.ts`. HM1's lows are not done (worst-first in `useMineAsk`, unused `useGoalCounts`, restated rules, "Example: Platform Engineering").
+- `hm2-gated`: HM2's intended files from `hm2-asks-wait` (`waiting`, `waitingOrder`, `askLead` at rank 60, `homeAsks` in `reads.ts`, `HomeFacts.asks` now `Waiting[]`), merged with the HM1 fixes and `AdminCard`.
+- `fs1-mediums`: the open picker on a computer is `position: fixed` where `Pick.tsx` measures its field (`.pick-panel.placed`, flips above when there's no room; phones keep the full screen); `personRows` adds the cycle archive's people, so Find finds "(left)" again (src/app/searchLeft.test.ts); set-up keeps the picked owner's email (`GoalRow.ownerEmail`), so of two people of one name the one picked gets the goal. U91 now checks Data's picker option is reachable where it's drawn. FS1 medium 3 (`suggest` takes no context for "Feeds into") and medium 5 (tests for `searchOver`, `searchNames`, Data's "No team") are not done.
+- `rv7-gated`: RV7's intended files from `rv7-who-may-speak`; requirement `REVIEW-SPEAK` (added to the reviews guide article's `reqs`), check N25 (evals/notes/13-review-speak.cjs).
+
+**Next, after those:** the habit moment, then N12's Find timing and #110's lows (build review log, docs/reviews/2026-11-11-build-reviews.md on `build-reviews`, "#110": findings 2 to 5; finding 1, the status shape in a picker row, is fixed on main).
+
+**The habit moment, as read so far** (evaluation `docs/reviews/2026-11-12-muse-product-evaluation.md` item 12 and decision 4; backlog L (1) and (3); `docs/design/workspace-settings/spec.md` 2.5 for CF4):
+- A restrained moment when a goal reaches its target or comes back on track, on the check-in's receipt and in History, with the existing share image; no confetti, no emoji, status as shape plus word.
+- CF4's forgiven week in `onTimeStreak` (`progress.ts`): a late week is forgiven when the four weeks before it with something due were on time. `cycle.streak` ('on' | 'grace' | 'off') comes with CF2's migration; if that isn't on main, build the rule with grace as the behaviour and say so in the PR.
+- The measure Lane chose: % of goals checked in before the review **without a nudge** (not after an ask for an update, Faro's only nudge). Put it in the spec (a rule with worked examples) and where a leader reads it (the review page or HM7's cell).
+
+**Habits:**
+- `/tmp/.../mm.sh` merged main into a branch: on conflicts it took main's `api/mcp.js` and generated `spec/`, rebuilt What's new as main's file with the branch's own entries (ids not on main) on top, then `npm run build:mcp`, `npm run spec`, commit. It is gone with this container; the steps are as listed.
+- Main moves every few minutes. Before merging, test the merge locally (`git merge origin/main` on the PR head, `npm run build:mcp`, `git diff --stat api/mcp.js`): if there's no conflict and no diff, merging is safe without another CI run.
+- Auto-merge is still off for the repository (`enable_pr_auto_merge` says so): merge by hand on green.
+- Seven journeys score below 9 on main when run alone (U12 8.8, U59 8.9, U61 7.8, U65 8.9, U117 8.9, U141 7, U31 9): a full local run reports them; they aren't any branch's.
+- vitest's fence and scale tests fail while an eval run is going; they pass alone.
+## Track 3 (import), 12 Nov, 21:20 UTC: handover after IM6 part 2
+
+The track 3 session that built IM6 part 2 is at half its context. A fresh track 3 session picks up here; the 19:40 section below still holds the open review findings word for word.
+
+**Done in that session**
+- **#277, IM6 part 2** (merges on green; check it did). A file of more than `CHUNK` (500, `src/domain/importLimits.ts`) rows is checked in `src/modules/spreadsheets/worker.ts`; `planChangesInChunks` (the engine as a generator, progress every 500 rows) feeds the Reading panel (`Large.tsx`: after 400 ms, progress, "So far: …", Stop). The run is kept in `importStore.run` and started by `checkRun.ts` `startCheck`; `useImportPlan` checks small files at once as before, so small-file journeys are unchanged. The input comes from `app.changeInput`; the worker gets plain data (`workerInput.ts`) and replies in slices of 2,000 rows. Over `CHANGES_SAVE_MAX`: 2.8's block, and `splitTables` (`src/domain/splitFile.ts`) makes the parts. The new journey is **U98** (U92 and U97 were taken); **N18** is `evals/finish/19-import-large.cjs`; there is a new internal requirement page, **R11** (R-L1 to R-L6); `IMPORT-LARGE`; What's new `import-large`.
+
+**Next, in this order**
+0. **The build reviewer's findings on #257 and #248**: item 0 of the 19:40 section below, as one PR, before anything else. The four mediums are a speed test whose copied goals repeat keys and titles; a new goal row with Action Stop or Delete crashing the check; a filtered All tab exported as "all"; and Export's Everything counts differing from the workbook. IM6 part 2 went ahead of it because it was already under way.
+1. **IM8** (spec 2.3 create mode; `docs/design/setup/spec.md` U99 and `SETUP-UPLOAD`): set-up's upload (`src/screens/Onboarding.tsx`, which uses `domain/importer.ts` in create mode) shows the import preview's groups: "Add {person}" for an owner the People sheet lacks, and the stage question defaulting to "Count them from this week". It needs U92's second half as its own journey (take the next free number: 99 to 108 are free) and `SETUP-UPLOAD` in `evals/requirements.json`. Onboarding is the set-up track's area too, so check no build is open on it first.
+2. **The IM3 findings and the IM4/IM5 lows**, and the lows under item 0, as listed in the 19:40 section below.
+
+**Gotchas (new)**
+- `npm test` run while an eval run is going times out on six slow files (5 s limits); re-run them alone.
+- Long tasks in evals: start the `PerformanceObserver` after `setInputFiles`, because Playwright's own injection of a big file is a 200 ms+ task.
+- `git add -A` during a merge commits conflict markers: resolve `src/help/whatsNew.ts` (keep both entries, and check each one's closing `},`) before adding.
+
+## Track 3 (import), 12 Nov, 19:40 UTC: handover after IM7 and IM6 part 1
+
+The track 3 build session that took over from #236's handover is past half its context. A fresh track 3 session picks up here.
+
+**Done in that session**
+- **#248, IM7 (export):** Export is one sheet, one primary (**Export .xlsx**), the other formats behind **Other formats**, the file's name in the foot note, toast "Exported {name}". Data's Spreadsheets menu became **Export** (table as shown .xlsx / .csv, Everything…) and an **Import** link. File scopes `all` / view name / `as-shown`; template `faro-template.xlsx`. R-E1 is rule 8 of R1 (`src/spec/internal.ts`). U19, U20, U46, U48, U90, `notes/5-data-ids`, `finish/7-data-workspace`, `finish/8-sheets` and the brief and import walkthroughs (`src/app/tours.ts`) moved to the new words. Merged once its CI was green (see the PR if not).
+- **IM6 part 1** (this PR): **rule 10**. `planChanges` no longer scans lists per row. A `GoalSet` (end of `src/domain/changeset.ts`) indexes the working goals by id, key and folded title, in their first-set order, and memoises a name one letter out until a goal changes. Saved goals, people, teams and check-ins are maps; issues are indexed by sheet and row; left-out rows are a set; the "Keep decimal places" answer no longer rescans every check-in row per goal (the reviewer's 7.3 s answer on 3,000 rows); the parent-first ordering and the asks' latest-week test are linear. `groupIssues` pushes instead of copying. 2,000 new rows: 8 s to 0.2 s; an unedited 33,000-row workbook: 9 s to 1.3 s. `src/domain/importSpeed.test.ts` holds N18's limits (1,000 / 5,000 / ~30,000 rows within 3 / 8 / 20 s), a growth ratio and "14 rows with one typo are one group". The limits live in `src/domain/importLimits.ts` (`ROWS_COMFORT`, `ROWS_READ_MAX`, `BYTES_READ_MAX`, `CHANGES_SAVE_MAX`, `PAGE`, `limitLine`, `tooLarge`); Check, Import and Changes read them (fixes the IM5 low "the limits live in Check.tsx"; the header-row sentence is still there).
+
+**Next, in this order**
+0. **The build reviewer's findings on #257 and #248** (20:57 UTC; no high; full text in the build reviews log on branch build-reviews, PR #134). Fix the mediums first, as one PR:
+   - **#257:** `importSpeed.test.ts`'s ~30,000-row test doesn't test what it says. `scaleWorkspace(s0, 5)` repeats keys and titles, so the check returns 21,880 Must fix and an empty items list. Give the copies unique keys and titles, and assert no issue and that unchanged equals the row count.
+   - **On main, older than #257:** a new Goals row (no key) whose Action is Stop or Delete makes `planChanges` throw ("Cannot read properties of null (reading 'id')": the removal is pushed with no existing goal). On screen it shows "Something went wrong on this page". Make it a Must fix on the row.
+   - **#248:** a filtered All tab saves as `…-goals-all-<date>.xlsx`, the same name as everything. Never write `all` for a partial view.
+   - **#248:** "Everything in {cycle}" counts live goals only, but the workbook adds stopped goals (the archive), so the counts and the file differ. Count what the file holds.
+   - Lows on #257:
+     - with two goals sharing a key, `GoalSet` can resolve the key to a different goal than the old scan did;
+     - the size limits are checked only in `Check.tsx`: MCP and set-up are uncapped, and nothing reads `CHANGES_SAVE_MAX` yet;
+     - Import says "Up to 5,000 rows" beside a workbook download of 5,665 rows;
+     - the growth-ratio test rests on one wall-clock sample.
+   - Lows on #248:
+     - focus goes to the page body when the sheet opened from Data's Export closes;
+     - an empty view exports an empty workbook;
+     - Import's "Download the workbook" keeps the old name and toast (`Import.tsx`);
+     - the "{n} goals, as of week {w}" footnote is gone;
+     - the zipped CSVs are three clicks away;
+     - no journey covers Data's "Everything…" or a filtered All tab;
+     - the file name no longer carries the year.
+1. **IM6 part 2** (spec 2.2, 2.8, section 7):
+   - **The worker**, a new `worker.ts` in the spreadsheets module (spec section 7), running `planChanges`. Its input must be cloneable: `records` holds functions, but the engine only uses them for `goalMeasureOf` on existing goals, so pass a plain `{ goalId: GoalMeasure }` table made on the main thread and rebuild a one-module `records` in the worker. `newId` there: the same shape as `src/data/store.ts` `newId` (don't import the store). `app.applyChanges(cs)` saves `cs.commit` as is, so a worker's change set saves normally.
+   - **Progress and Stop**: `planChangesInChunks(input, onProgress)` per rule 10. The row loops are top-level `for` statements in `planChanges`, so it can become a generator that yields every 500 rows; `planChanges` runs it to the end. Then 2.2's "Reading {name}" panel (after 400 ms) with "So far: …" and **Stop** ("Stopped. Nothing was saved."). Move the plan from `useImportPlan`'s `useMemo` into `importStore` (cs, the inputs it was made for, progress), so answers re-check in the worker too.
+   - **Over the limit**: a file changing more than `CHANGES_SAVE_MAX` rows gets 2.8's block instead of Save, and **Download as {k} files of 5,000 rows** (a goal's plan and check-ins stay with it, parents before children; parts named `{original}-part-{i}-of-{k}.csv`).
+   - **Paging**: the changes list already pages at 50; check a group's "Show the {n} rows" does too, and N18's "fewer than 3,000 elements" on the preview.
+   - `IMPORT-LARGE` in `evals/requirements.json`; R-L1 to R-L6 as an internal requirement page (`src/spec/internal.ts`, beside R4); N18 (b) and U92's first half as evals; What's new `import-large`.
+2. **IM8**: set-up's upload uses the new preview (spec 2.3 create mode, "Add {person}", the stage question defaulting to "Count them from this week"; U92's second half; `SETUP-UPLOAD`).
+3. **Still open from the reviews** (unchanged from #236's handover): IM3's two engine findings (#145: a near-miss goal name on Check-ins slipping past `twice()`; two rows answered "They're the same" dropping the earlier one silently), per-sheet counts that count a Must-fix row as Added, the Added/Changed/Stopped grouping written twice (`Check.tsx`, `Changes.tsx`); the IM4 lows (undoing two imports newest first leaves the older one stuck; "Saved n changes" and "n rows go back" count different things; Check flashes "Nothing has been saved" after Save; an empty search on Past imports is blank; Activity's Undo is 32 px at 390; "undid loaded a spreadsheet"; Imported shows the Undo hint to someone who can't undo); the IM5 lows (`gridOf` drops blank lines so row numbers are off; `separatorOf` reads line 1 only; the file input isn't cleared after an error; a `<details>` inside `<p role="alert">`; "All 1 past imports"; the drop area unnamed and a 1×1 tab stop; two links 20 and 17 px at 390; `help.ts` line 16; the header-row sentence lives in `Check.tsx`).
+
+**Gotchas**
+- Main moves every few minutes, and each merge of it conflicts in `src/help/whatsNew.ts` (keep both entries) and `api/mcp.js` (take main's, then `npm run build:mcp`). A conflicted PR gets no CI at all: check `mergeable_state` first. Merging by hand failed twice on #248 for this; resolve in a second worktree (`git worktree add`, then `cp -al` the `node_modules`) while an eval run holds the first.
+- Auto-merge is **not** on for the repo yet: `enable_pr_auto_merge` says so. Merge by hand once green.
+- `evals:changed` runs the whole suite for `changeset.ts`, `sheets.ts`, `journeys.cjs` and the like (about 15 minutes); read the scorecard, not the exit code.
+- vitest swallows `console.log` here; to time something in a throwaway test, write to a file. `node:inspector/promises`' `Session` gives a CPU profile from inside a test (`--cpu-prof` doesn't reach the forked workers).
+## Track 7 (register load: bugs, then backlog rows), Thursday 12 November, 20:00 UTC (session at half, handing over)
+
+- **Done and merged:** #239 (quarters that ended before a goal was set up are never judged; `bornWeek` in `src/domain/year.ts`), #242 (MCP writes return `data.created`: each new goal's id and key), #249 (every MCP list tool answers through `listed()` in `src/mcp/listed.ts`: the same JSON as structured content and as text; a test holds every `list_` tool to it), #244 (backlog rows GB, BL, MS, BT, MI, GR, MQ, TG, MC, WM after SM; GD was renamed GB and MT renamed MQ, as both IDs were taken).
+- **In flight:** #259, **BT** (a Goals row's `Ref`, `Feeds into ref`, a check-in's `Goal ref`). Gate passed locally (drill 100%); merge it once CI is green and it is up to date with main.
+- **Lane's order (planning, 12 Nov 19:35):** BT, then **MT1, MT2, MT3** (round 2's designs, `docs/design/round-2/`), then **MS, MI, GR, MQ**. **BL** and **GB** once track 2 has merged GE10's code (ask track 2, session_012kbr8zF82vbVLvoqfYaQad); **TG** after them. **WM**: write the token rules first (who may hold a workspace-creating token, what it reaches, its lifetime, how it's revoked; made only in the app, never by another token) and send them to planning for Lane before building. One PR each.
+- **Notes for the next session:**
+  - MI is round 2's MT6 ("The Metrics sheet in and out"); MC needs FT1 (track 4) and FT4. FT1/FT4 are cycle-wide rhythms only, so MC is per goal on top of them.
+  - main moves every few minutes and every PR's What's new conflicts: merge main, keep both entries, rebuild `api/mcp.js` from a real node_modules (`cp -al`, never `ln -s`: a symlinked build differs), then merge as soon as CI is green.
+  - "Allow auto-merge" is still off in the repo (GitHub refuses it), so merge by hand.
+  - `npm run evals:changed` must be read by its own exit code; a trailing `echo` hides a failure.
+
 ## Planning state, Thursday 12 November, 18:30 UTC (planning moved to session_012kbr939zneZWtAo7UQEHRP)
 
 - **How we work now:** no freeze. Lane (11 Nov): "Do all the recommended work." Each track merges its own green PRs after the gate and reports to the planning session **once, when done or blocked**, never with progress updates. A new planning session tells every track its new session ID.
@@ -30,9 +167,15 @@ Faro is an internal goals (OKR) app for a 15,000-person company, built to be eas
   - NR's four questions, all as recommended: pre-fill only; readings per team slice where the source has them, otherwise no pre-fill; a reading older than 7 days is ignored; an override is recorded only. NR is not yet picked to build.
   - Track 7 builds all its rows in order: GD, BL, MS, BT, MI, GR, MT, TG, MC, WM (after its bugs and SM).
   - The Candy shop register is made up: it stays.
+- **Decided by Lane, 12 Nov, 19:35–20:45:**
+  - Track 7 builds round 2's MT1–MT3 (after BT), then MS, MI, GR, MQ.
+  - WM is built in Faro with track 7b's set-up token rules, all as recommended: anyone makes one for themselves in Settings; it lives 24 hours or 3 workspaces; the admin token it issues is revoked with it by default; set-up through it stops when the new workspace's first week starts. R1 rule 5b.
+  - Auto-merge: Lane switched it on at 20:45, but GitHub still refused it on #272 at 20:47 ("not enabled for this repository"). Settings → General → Pull Requests → Allow auto-merge on sconies/goals-app; a branch rule requiring the smoke check, up to date, would make it wait for CI.
 - **Waiting for Lane:**
-  1. Turn on "Allow auto-merge" (GitHub → Settings → General → Pull Requests).
-  2. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+  1. Optional: build api/mcp.js in CI instead of committing it. Recommended: leave it as it is.
+  2. A Fable 5.2 design session: Lane asked for one; what it should design is still to come.
+- **Running at 20:45 UTC:** track 1 session_012kbr92tVe7c6Re4gj42nCe; track 2 session_012kbr8zF82vbVLvoqfYaQad (also owns U4 failing on main); track 3 session_012kbr937S18WZrjrr2frmGt; track 4 session_012kbr8xdoEbLiMQaBAxLeuJ; track 5b session_012kbr911Du8PPXJLDueSVE5 (done; AD in the backlog waits for Lane); track 6 session_012kbr91sUqGSh61W6Ua3T2T (gap 4); track 7b session_012kbr92c7taPQJmK4jDJU9E; journey triage (Sonnet) session_012kbr8zmHFGvAAd7i5cGmWi (U12, U59, U61, U65, U117, U31); reviewer session_012kbr8y4Bh3MudNC1bdo3RN.
+- **Learned 12 Nov evening:** two merges of generated-spec inputs a minute apart left main red (#266 fixed it). When a merge touches the spec's inputs, run `npm run spec` on main afterwards.
 - **Started 12 Nov, 18:33:** track 5b at session_012kbr911Du8PPXJLDueSVE5 (the handover below); track 3 fresh at session_012kbr8zZqujTFrEwfJVWKrS (IM7, IM6, IM8 from #236's handover comment). The old track 3 session (session_012kbr921FQTvNkQhGBnLtxb) has finished.
 - **Habits learned:**
   - Rebuild api/mcp.js after every merge of main, from a real node_modules (`cp -al`, never `ln -s`).
@@ -121,6 +264,19 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Fence check (#125):** Supabase's own tables in extensions, cron and net, open to every role by default, are a warning; a direct grant to `faro_owner` still fails. 0038 is live.
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
+
+## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~20:30 UTC (session past half full, handing over)
+
+Session: session_012kbr8zF82vbVLvoqfYaQad. It ran each item through one subagent at a time in the main checkout from a common brief, merged main into its PRs in worktrees, and merged with **merge commits**. Planning is now session_012kbr939zneZWtAo7UQEHRP: report there once, finished results and blockers only.
+
+- **Merged:** GE10's migration 0041 (#221: `proposed_at`, `proposed_by`, column grants to anon; applied by CI); GE9's review mediums (#220: `pair` with a blank Due week, a bare number under From asked about, `WeekPick` on mousemove, `defaultTo`, short cycles by ISO week, three lows); GE3's review mediums (#228: `goal-read-back` class and F3's row width, the metric worked out from the draft through `goal.measure`'s new `quiet` prop, the slice follows the team, the delete wording, U145); U93's phone fix (#241: `src/ui/questionInView.ts`); U4's check (#251: it waits for the page's lasting "… is published." line).
+- **Open:**
+  - GE10's follow-up (F), from #270's body: Home's two proposal rows (`proposalAsks` exists, no seen/put-off state stored yet), "Make it proposed again" (`backToProposed` built, no action), Map/Board with the filter, the metric page's "Proposed · n", reviews' "Propose a new goal" and "Last time", type change while proposed, "Stopped" in the State filter, `for-someone-else` for files and tools, What feeds it, the start-year count, the `stoppedAt` lint (about 25 reads).
+  - `u93-review` (this PR): #241's build-review mediums (no see-saw: the field kept at least scroll-padding-top from the top, a question scrolled into view once per showing; the fold from `visualViewport`) and one low (set-up's Continue focuses a goal card's question). Its evals (U93, U5) run before merge.
+  - #285, ST1 (`/welcome`, `/join/<id>`, `inviteLink` now `/join/`, the arrival logged once, U97): green locally after merging main (1452 tests; U97, U11, U54, U134, U5 at 10; U46 at 9 as on main). Bundle 264.67 of 265 KB: almost nothing left, so the range work must lazy-load. Left for ST3, ST7, ST8.
+  - GE10's code merged as #270.
+- **Next:** the two-sided range (Lane, 12 Nov: build it). Today a range is one bound and one limit everywhere (`RangePlan {bound, limit, margin}`; columns `range_bound` with check `in ('atMost','atLeast')`, `range_limit`, `range_margin`; a table check needs all three for kind `range`). A two-sided range needs a migration first, on its own PR one merge ahead: e.g. widen the `range_bound` check to allow `'between'` and add `range_lower numeric` (nullable; required when `between`, below `range_limit`), safe to run twice, faro only, full SQL in the PR. Then the rule and status in `src/domain` (near or over either bound; a one-sided range exactly as today), goal entry and the goal page, `columns.ts` (the import now refuses "99.5–99.95"), the MCP tools, and the rule's words and worked examples in `src/spec/rules.ts`.
+- **Habits:** main moves every few minutes: merge main right before merging (`merge-main` steps: whatsNew both entries, ours on top; `api/mcp.js`, `llms.txt` and `spec/` taken from main then rebuilt; then `sed` the module paths to `// node_modules/` — in a worktree also `// ../goals-app/node_modules/`, or CI fails "api/mcp.js is out of date"). The repo's auto-merge setting is still off (enable_pr_auto_merge refuses), so merge by hand. vitest's fence and spec tests time out under an eval run's load; rerun them alone.
 
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~15:00 UTC (session past half full, handing over)
 

@@ -621,12 +621,28 @@ svg.chart { display: block; overflow: visible; }
 
 /* ---------- first run, onboarding, demo ---------- */
 .welcome { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--s6) var(--s4); background: var(--bg); }
-.welcome-body { width: min(520px, 100%); display: flex; flex-direction: column; gap: var(--s5); }
+.welcome-body { width: min(620px, 100%); display: flex; flex-direction: column; gap: var(--s5); }
 .welcome-logo { align-self: flex-start; margin-bottom: var(--s2); }
-.welcome-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); font-size: var(--t-lg); line-height: 1.625rem; color: var(--fg-2); }
-.welcome-points li { padding-left: var(--s5); position: relative; }
-.welcome-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
+.welcome-lines p { margin: 0; font-size: var(--t-lg); line-height: 1.625rem; color: var(--fg-2); }
 .welcome .btn { align-self: flex-start; }
+/* Welcome's doors and what this device remembers: hairline-divided rows (design rules), each one tap. */
+.welcome-doors { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.welcome-door, .welcome-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s1); min-height: 44px; border-bottom: 1px solid var(--line); color: var(--fg); text-decoration: none; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; font: inherit; width: 100%; }
+.welcome-door { cursor: pointer; }
+.welcome-door:hover { background: var(--surface-3); }
+.welcome-door > svg { flex: none; color: var(--muted); }
+.welcome-door-text { flex: 1; min-width: 0; gap: 2px; }
+.welcome-row .btn, .welcome-row-actions { flex: none; align-self: center; }
+.welcome-row-actions { gap: var(--s3); align-items: center; }
+.welcome-join { padding: var(--s3) var(--s1); border-bottom: 1px solid var(--line); }
+.welcome-join .btn { align-self: flex-start; }
+/* The arrival (set-up spec 2.8): the people by team, each a row to choose. */
+.arrival-team { margin: var(--s3) 0 0; padding: var(--s2) var(--s1); }
+.arrival-person { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 44px; padding: var(--s2) var(--s1); border: 0; border-bottom: 1px solid var(--line); background: none; font: inherit; color: var(--fg); text-align: left; cursor: pointer; }
+.arrival-person:hover { background: var(--surface-3); }
+.arrival-person > svg { flex: none; color: var(--muted); margin-left: auto; }
+.arrival-people { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.arrival-lead { margin: 0; font-size: var(--t-lg); line-height: 1.625rem; color: var(--fg-2); }
 .welcome-foot { margin: var(--s4) 0 0; }
 .goalcard { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .goalcard > .linkish { align-self: flex-start; color: var(--muted); }

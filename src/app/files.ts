@@ -113,12 +113,12 @@ export const saveFailed = (e: unknown) => 'Couldn’t save the file: ' + (e inst
 
 /**
  * Saves a file and says so: `done` once it's saved, or what went wrong. Returns whether it saved.
- * `toast` is the app's (or the set-up screen's) message line.
+ * `toast` is the app's (or the set-up screen's) message line. `done` may be made from the file's name ("Exported {name}").
  */
-export async function saveAndSay(toast: (text: string, tone?: 'error') => void, name: FileName, content: FileContent, done: string): Promise<boolean> {
+export async function saveAndSay(toast: (text: string, tone?: 'error') => void, name: FileName, content: FileContent, done: string | ((file: string) => string)): Promise<boolean> {
   try {
-    await saveFile(name, content);
-    toast(done);
+    const file = await saveFile(name, content);
+    toast(typeof done === 'string' ? done : done(file));
     return true;
   } catch (e) {
     toast(saveFailed(e), 'error');
