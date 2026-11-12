@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second and third, each at half context. The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second to sixth. The next session starts from here.
 
 ## The brief
 
@@ -39,6 +39,41 @@ The ground rules:
   - **Tests:** `src/spec/contracts.test.ts`.
   - **To add the goals and store contracts:** write `cases/<port>.ts`, add it to `CONTRACTS`, give `contractPorts.ts` a start for it, and make `<port>Contract` call `contractSuite`. Keep the goals contract's four structural check names (`ports-at-scale.md` cites them).
 
+- **KT4, gap 2 (#253, merged).** The spreadsheet format and every issue kind are now in the kit:
+  - **Triggers as data:** `src/domain/issueKinds.ts` (`ISSUE_KINDS: Record<IssueKind, { when, raisedBy? }>`). `raisedBy` marks the four kinds the engine never raises (`new-team`, `other-workspace`, `folded`, `example`) and says what handles them instead. If one of them gets raised later, drop its `raisedBy` and add a case.
+  - **Pages:** `npm run spec` writes them from `src/spec/importIssues.ts`, and both are linked from the spec README and `llms.txt`:
+    - `spec/core/import-issues.md`: each kind's level, trigger, the sentence its group says in its case, its answers and its case, then every column's and word's other spellings.
+    - `spec/core/export-format.md`: the same text as `docs/export-format.md`.
+  - **import.csv:** six more cases, and two new columns:
+    - `given`: `mode: "create"`, `stopped` goal keys moved to the archive, and other `sheets` in the same file. `runCase` reads it; changes.csv's row 0 has it too.
+    - `kinds`: every kind a case raised.
+  - **Tests:** in `src/spec/conformance.test.ts`, "import.csv covers every issue kind".
+  - **Rebuild api/mcp.js:** a change to a `module.json` or to `src/spec/overview.ts` changes it, so run `npm run build:mcp` (CI failed once on this).
+
+- **KT5, gap 3, the screens (#263 merged; part 2 is the pictures' PR).**
+  - **Fields, states and buttons:** `spec/core/screens.md` gives each screen three tables, read from its markup's syntax by `src/spec/screenFacts.ts`. The tables are fields, states (whole screen, loading, empty, error, refused) and buttons with the conditions they show under. `whoWords` turns the shared conditions (an admin, the goal's owner) into words.
+  - **Screens with no route:** `OTHER_VIEWS` in `src/spec/screens.ts` gives them entries. A test fails if a file in `src/screens` is neither a route's screen nor one of these.
+  - **New pages:** `spec/core/design-rules.md` (`docs/design-rules.md`, word for word) and `spec/core/help-guide.md` (every article in full).
+  - **Pictures:** `npm run spec:shots` (`scripts/screen-shots.mjs`) builds the app and takes each screen in `SHOTS` at 390 and 1440 wide, as JPEG, into `spec/core/screens/`.
+    - `npm run spec` keeps the pictures.
+    - The spec test fails if a core screen has no picture.
+    - Retake them (`-- --no-build Home`, say) when a screen's look changes a lot. Nothing forces it.
+
+- **KT6, gap 4 (#275).** The actions and AI tools as contracts:
+  - **Pages:** `spec/core/actions.md` (every action: input, result, who may, refusals, its tools, and an appendix of every non-record type the inputs and results name) and `spec/core/tools.md` (every MCP tool: input schema as a table and JSON, hints, the type of its `data`, its own refusals, the actions it does the same as). Both are linked from the spec README and `llms.txt`.
+  - **Generator:** `src/spec/calls.ts`, which uses the TypeScript checker (a `ts.Program` over `src/app/actions.ts`, the modules' `actions.ts` and the tool files; about 1 s).
+    - Who may comes from `ACCESS` in `src/spec/internal.ts`, matched by the rule function each action calls (`ruleCalled`). A new action needs an `ACCESS` line, or `calls.test.ts` fails.
+    - Refusals are the `no(…)` and `new NotAllowed(…)` sentences in the rule and in the functions it calls under `src/domain` and `src/modules`. Template parts show as "…".
+    - A tool's own refusals are read the same way under `src/mcp` and `src/modules`, plus `new Error` and `{ isError: true, text }`.
+    - A new tool file must be added to `toolFiles`, or the generator throws.
+  - **Tests:** `src/spec/calls.test.ts`.
+  - **Not done:** the command port still has no contract *test* (nothing runs the actions against a server). `MetricInput` is missing from the types appendix because the checker loses its alias inside an intersection; its fields are listed on the action.
+
+- **KT7, gap 5 (this PR).** Five more requirements for the internal app, in `src/spec/platform.ts` (the same `InternalRequirement` shape as R1 to R4, spliced into `INTERNAL` in `src/spec/internal.ts`, listed in `INTERNAL_PAGES`):
+  - **R5** notifications and the weekly habit: channels, what is sent and when, the digest's words, check-in from a notification, never shame, streaks that forgive, the habit measure ("before the review, without a nudge"), one sign-in with a role per workspace, feedback per workspace. One example runs `onTimeStreak` to show today's streak doesn't forgive.
+  - **R7** retention, privacy and erasure; **R8** audit; **R9** observability and service levels (replaces the "Observability, as an idea" note, now gone); **R10** accessibility (WCAG 2.2 AA).
+  - Decisions taken with the 12 Nov evaluation's recommended answers (habit measure 2a, digests 3a); every figure is marked a proposal.
+
 ## Next, in order
 
 1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
@@ -48,26 +83,18 @@ The ground rules:
      - (recommended) Give the contract JSON its own `given` seed, a small workspace written in the case file, so the contract doesn't depend on the conformance workspace's shape.
      - Add `title` to people in workspace.json, which changes every conformance file's input.
    - **Matchers the cases need:** `equals`, `has` (a subset), `throws`, a `select` path (`rows[].id`), worst-first order by rank (stale and risk tie, so an exact status list won't do), and paging chained by the last `next`, with a distinct count across steps. The near miss is optional: either form is accepted.
-   - **Not yet:**
+   - **Not yet** (still so after #253 merged: `src/ports/contracts/goals.ts` says `among`, and AX5 part 2 is open):
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
      - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
-2. **Gap 2 (next to build: it doesn't wait on track 4):** generate `docs/export-format.md` into `spec/`, add a page with every issue kind (trigger, level, sentence) and every column's other spellings, and grow `import.csv` until every kind has a row. Where things are, found by the third session:
-   - **Kinds and levels:** `src/domain/problemLevels.ts` (`MUST_KINDS` 20, `CHECK_KINDS` 20, `NOTE_KINDS` 9, `levelOf`; the group sentence for each kind is `groupSentence`'s switch near line 250).
-   - **Triggers, sentences and answers:** these are written only in `docs/design/import/spec.md` section 4 (a table per level), which is not in the kit.
-   - **Suggested shape:** "rules live once", so move those triggers into code as data (say `ISSUE_KINDS: Record<IssueKind, { trigger, example }>` next to the kinds). Generate the page from it, and add a test that every kind has an entry and a row in `import.csv`.
-   - **The export format:** `scripts/export-format.mjs` already writes `docs/export-format.md` from `exportFormatMarkdown(MODULE_SHEETS)` (`src/domain/formatDoc.ts`). Have `buildSpec` write the same text into `spec/` (beside or instead of the docs copy), and fix the two pages that say it isn't in the kit (`stage-2-core-data.md`, `stage-5-module-spreadsheets.md`).
-   - **import.csv cases:** `changeCases` in `src/spec/conformance.ts` (63 today).
-3. **Gap 3:** the screens. Put `docs/design-rules.md` and the Help guide in the kit, generate a fields-and-states table per screen, and add screenshots at 390 and 1440 wide. Give the missing screens entries.
-4. **Gap 4:** schemas for the AI tools and actions, generated into `spec/core/tools.md` and `spec/core/actions.md`.
-5. **Gap 5:** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
+2. **Gap 5: done (KT7).** Requirements R5, R7, R8, R9 and R10 (accessibility).
    - **R5 (from the planning session, 12 Nov):** spec only, written as `docs/reviews/2026-11-12-muse-product-evaluation.md` describes. It covers digests (with their wording as worked examples), never shaming, streaks that forgive, the habit measure ("% of goals checked in before the review, without a nudge"), one sign-in with a role per workspace, Feedback scoped per workspace, and Slack and Teams as a platform requirement. Faro itself sends nothing.
-6. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
+3. **Gaps 6 to 9:** the rest, in the review's order. Gap 6's disagreements are done (KT1). Still open from gap 6: a spec lint for two different numbers given for one named threshold, and generating `llms.txt`'s summary lines from the rule pages.
 
 ## Things to know
 
 - **Merge races.** Five tracks merge into main all day, and auto-merge is off. Every PR conflicts in `src/help/whatsNew.ts` and `api/mcp.js`, and sometimes in `src/spec/build.ts`'s imports.
   - Resolve: keep both What's new entries. Take main's `api/mcp.js` (`git checkout --theirs`), then run `npm run build:mcp` and `npm run spec`.
   - Merge as soon as CI on the new head is green. KT1 took five rounds.
-- **U4 on main.** Journey U4 scores 8.9 ("publishing is not confirmed"), which fails `evals:changed` for every PR. It comes from #208 (track 2) and was reported. Check whether it's fixed before trusting an `evals:changed` exit code.
+- **U4 on main.** #251 fixed U4's "publishing is not confirmed". `evals:changed` passed with exit 0 for #253. A change to `src/domain` or `src/spec` runs the full suite, which takes about 15 minutes in four shards.
 - **Running a spec module from a script.** Put the script under `scripts/` (vite resolves from the repository) and load it with `server.ssrLoadModule`, as `scripts/spec.mjs` does.

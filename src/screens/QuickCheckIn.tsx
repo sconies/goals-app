@@ -7,15 +7,15 @@ import { checkInDraftKey, checkInStepKey, clearDraft, peekDraft, writeDraft } fr
 import type { FromTable } from './CheckInFlow';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
-import type { Rec } from '../domain/changeset';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, unanswered, type Answers, type Draft, type Missing } from '../domain/checkin';
+import type { CheckInPost } from '../domain/changeset';
+import { CAUSES_AHEAD, CAUSES_BEHIND, checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, unanswered, type Answers, type Draft, type Missing } from '../domain/checkin';
 import { fmt } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
 import type { Cause, Goal, MetricGoal, RangeGoal } from '../domain/types';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
-import { CheckBlock } from '../ui/Levels';
+import { CheckBlock, MustFixBlock } from '../ui/Levels';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
 function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
@@ -75,12 +75,12 @@ export function QuickCheckIn() {
   const judged = useMemo(() => goals.map((g) => {
     const r = rows[g.id] ?? blank;
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
-    if (!r.value.trim()) return { g, r, posted, e: null, problem: null, open: [] };
+    if (!r.value.trim()) return { g, r, posted, d: null, e: null, problem: null, open: [] };
     // The number itself comes first: until it's a possible value there's no status to show or reason to ask for.
     const problem = numberCheck(g, r.value, app.snapshot.checkIns, app.week);
     const d: Draft = { ...emptyDraft(g, null), value: r.value, cause: r.cause, why: r.why, ptgWhat: r.path, ptgBy: r.by, ptgState: 'plan' };
     const open = problem?.block ? [] : unanswered(checkInLevels(g, app.week, d, checkInsFor(g, app.snapshot.checkIns)).checks, answers[g.id]);
-    return { g, r, posted, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem, open };
+    return { g, r, posted, d, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem, open };
   }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week, answers]);
 
   const filled = judged.filter((x) => x.e);
@@ -95,10 +95,9 @@ export function QuickCheckIn() {
     if (inFlight.current) return;
     setTried(true);
     if (!ready.length) return;
-    const recs: Rec[] = ready.map(({ g, r }, i) => ({
-      __row: String(i + 2), 'goal id': g.id, week: String(app.week), value: r.value, cause: r.cause ? causeLabel(r.cause) : '', why: r.why, 'path to green': r.path, 'back on plan by week': r.by == null ? '' : String(r.by),
-    }));
-    const cs = app.previewChanges({ checkIns: recs }, 'bulk');
+    // Each row posts as the form does (rule 13), with what it answered, so History keeps the answer (build review of #160).
+    const posts: CheckInPost[] = ready.map(({ g, d, posted }) => ({ goalId: g.id, week: app.week, draft: { ...d!, answers: answers[g.id] }, mode: posted ? 'again' : 'new' }));
+    const cs = app.previewChanges({}, 'bulk', undefined, undefined, undefined, undefined, posts);
     if (!cs.commit) { app.toast(cs.issues[0]?.message ?? 'Nothing to save', 'error'); return; }
     inFlight.current = true;
     setBusy(true);
@@ -162,9 +161,14 @@ export function QuickCheckIn() {
                       <input data-q={g.id} inputMode="decimal" autoComplete="off" value={r.value} onChange={(ev) => set(g.id, { value: ev.target.value })} aria-invalid={invalidNumber || undefined} aria-describedby={problem ? `q-${g.id}-problem` : undefined} />
                       {g.unit && <span className="qunit" aria-hidden="true">{g.unit}</span>}
                     </label>
-                    {problem?.block && <span id={`q-${g.id}-problem`} className="qproblem hint tone-off" role="alert">{problem.text}</span>}
                     <span className={'qstatus' + (e ? '' : ' empty')}>{e ? <Chip k={e.status} /> : <span className="hint">—</span>}</span>
                   </div>
+                  {/* A number that can't be posted is a Must fix block under the row, as on the form (rule 2). */}
+                  {problem?.block && (
+                    <div className="qrow-more">
+                      <MustFixBlock id={`q-${g.id}-problem`} read={`“${r.value.trim()}”`} fix={problem.text} />
+                    </div>
+                  )}
                   {open[0] && (
                     <div className="qrow-more">
                       <CheckBlock key={open[0].id + open[0].key} id={`q-${g.id}-check`} question={open[0].question} yes={open[0].yes} no={open[0].no} alert={tried}

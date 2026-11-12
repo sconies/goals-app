@@ -11,6 +11,7 @@ import { yearName } from './yearName';
 import { checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
 import { carryModules, type ModuleRecords } from './records';
+import { isProposed, judged } from './proposed';
 
 const DAY = 86_400_000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
@@ -42,9 +43,13 @@ export const laterCycle = (cycles: Cycle[], c: Cycle) => cycles.filter((v) => !v
  */
 export function scopeToCycle(s: Snapshot, cycle: Cycle, records: readonly ModuleRecords[] = []): Snapshot {
   const inCycle = s.goals.filter((g) => g.cycleId === cycle.id && !g.removedAt);
-  const goals = inCycle.filter((g) => !g.stoppedAt);
+  // Judged goals only (domain/proposed judged): stopped goals go to the archive, proposed ones sit beside the list.
+  const goals = judged(inCycle);
   const stopped = inCycle.filter((g) => g.stoppedAt);
+  const proposed = inCycle.filter(isProposed);
   const ids = new Set(goals.map((g) => g.id));
+  // What belongs to a proposed goal (its comments, asks, watches, a metric's link) stays with it.
+  const withIds = new Set([...ids, ...proposed.map((g) => g.id)]);
   const stoppedIds = new Set(stopped.map((g) => g.id));
   const checkIns = s.checkIns.filter((c) => !c.removedAt);
   const decisions = s.decisions.filter((d) => !d.removedAt);
@@ -56,18 +61,19 @@ export function scopeToCycle(s: Snapshot, cycle: Cycle, records: readonly Module
     people,
     cycles: s.cycles.filter((c) => !c.removedAt),
     goals,
+    proposed,
     keysIssued: lastKey(s.goals, s.keysIssued),
     checkIns: checkIns.filter((c) => ids.has(c.goalId)),
-    decisions: decisions.filter((d) => ids.has(d.goalId)),
+    decisions: decisions.filter((d) => withIds.has(d.goalId)),
     reviews: reviews.filter((r) => !r.endedAt),
     watches: (s.watches ?? []).filter((w) => !w.removedAt && here.has(w.personId)),
     views: (s.views ?? []).filter((v) => !v.deletedAt),
     // Each feature module's records, as it says a cycle carries them (domain/records): removed rows leave, and so do
     // rows that point to goals outside this cycle. A module this build doesn't have keeps its rows as they are.
-    ...(s.modules ? { modules: carryModules(s.modules, ids, records) } : {}),
+    ...(s.modules ? { modules: carryModules(s.modules, withIds, records) } : {}),
     retros: (s.retros ?? []).filter((r) => r.cycleId === cycle.id),
     // Data from before requests existed: each goal's open request is read from its latest check-in.
-    requests: (s.requests ?? requestsFromCheckIns({ ...s, goals }, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => ids.has(id))),
+    requests: (s.requests ?? requestsFromCheckIns({ ...s, goals }, (g) => checkInsFor(g, s.checkIns).at(-1) ?? null)).filter((r) => r.goalIds.some((id) => withIds.has(id))),
     archive: {
       goals: stopped,
       checkIns: checkIns.filter((c) => stoppedIds.has(c.goalId)),

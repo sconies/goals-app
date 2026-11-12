@@ -16,7 +16,7 @@ import { sessionDate } from '../domain/review';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
-import { INTERNAL_PAGES } from './overview';
+import { R10, R5, R7, R8, R9 } from './platform';
 
 export interface InternalExample {
   given: string;
@@ -58,9 +58,10 @@ const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domai
 
 export const ACCESS: Access[] = [
   { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in (at the check-in screens, the one-table check-in or through the AI)', who: 'The goal’s owner only (Lane, 12 Nov), with exactly two exceptions, both for an admin: bringing check-ins in from a workbook (an import, or setting up from an export), and correcting one in Data’s tables. Each records the admin as author, with the route as its Via', code: ['src/domain/changeset.ts#postCheckIn', 'src/domain/goalRights.ts#mayPostCheckIn'] },
-  { area: 'Goals, plans and check-ins', what: 'Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, G, 'src/domain/goalRights.ts#mayChangeGoal'] },
+  { area: 'Goals, plans and check-ins', what: 'Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin; while a goal is proposed, also whoever proposed it', code: [C, G, 'src/domain/goalRights.ts#mayChangeGoal'] },
   { area: 'Goals, plans and check-ins', what: 'Add a goal, at any level, owned by anyone', who: 'Anyone, for anyone (Lane, 11 Nov)', code: [C, G, 'src/domain/goalRights.ts#mayAddGoal'] },
-  { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
+  { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none (withdraw it, while it is proposed)', who: 'The goal’s owner, or an admin; a proposal also whoever proposed it', code: [`${R}stopGoal`, `${R}deleteGoal`] },
+  { area: 'Goals, plans and check-ins', what: 'Make a proposed goal active (GE10)', who: 'The goal’s owner, or an admin (not whoever proposed it, unless they are one)', code: ['src/domain/proposedActions.ts#activate', 'src/domain/proposedActions.ts#mayActivate'] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov)', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
   { area: 'Goals, plans and check-ins', what: 'Wrap up a goal at the end of the cycle', who: 'The goal’s owner, or an admin', code: [`${A}saveRetro`] },
   { area: 'Goals, plans and check-ins', what: 'Say which stages were already done when a goal was set up (before its first check-in)', who: 'The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception)', code: [`${A}recordStagesDone`] },
@@ -138,6 +139,7 @@ export const INTERNAL: InternalRequirement[] = [
       '5. **MCP tokens are made on the server.** An admin makes one for a person; the secret is made by the server, shown once, and only its SHA-256 hash is kept. A token belongs to one person in one workspace and acts with exactly that person’s rights (the same access table); every change it makes is logged as that person, marked via MCP. The token’s person or an admin revokes it; it stops working when its person leaves. A token can’t create, switch or reset a workspace or choose who it acts as.',
       '6. **Builder tokens and the builder inbox.** Builders are the people who look after the app itself (in the internal app, a group in the company directory). Only builders read the builder inbox: the markups and feedback people send about the app, from every workspace. A builder makes a builder token for themselves; it reaches the inbox as well as their workspace, and stops counting as one the moment they leave the builders. Someone who sent a markup or feedback sees its status (New, In hand, Fixed, Won’t fix), not other people’s. **Faro differs on purpose:** it never holds real data, so its inbox is open to anyone (Lane, 8 Nov, backlog O); the internal app must not copy that. Faro keeps one Feedback inbox across workspaces, which anyone reads and only an admin triages: a status change from anyone else is refused by the rule (`statusPatch`, `mayTriage`; Lane, 12 Nov). **The rebuild scopes Feedback per workspace:** a workspace’s feedback is read and triaged by that workspace’s admins, and only the builder inbox crosses workspaces.',
       '7. **Who may read a sent markup** (a markup about a goal sent to someone, backlog 3a). Its sender, the people it was sent to, and, when it was sent into a review, the people in that review. An admin of the workspace may remove one. Nobody else, watchers included. A markup is a picture of the sender’s screen, so it is only sent to people who can read everything on it: in the internal app, members of the same workspace. Its picture is kept private and read through a short-lived address the server makes for someone allowed to read it ([R4](r4-scale-and-safety.md), the master key).',
+      '8. **Exports are logged** (R-E1). An export (the workbook, the zipped CSVs, one sheet, JSON, the brief for an AI chat, a table from Data as shown, or the same through the AI assistant) follows the read rules of rule 3 and is written to the audit log with who, when and what: the file’s name, which goals (everything in the cycle, or a view and its filter) and which sheets. Exporting needs no right beyond reading, so nothing is refused; the log is so an admin can see what left the app and when.',
     ].join('\n'),
     today: [
       'The app asks “Who are you?” and remembers the answer on the device (Help, “Saying who you are”; `src/screens/Start.tsx`).',
@@ -147,6 +149,7 @@ export const INTERNAL: InternalRequirement[] = [
       'Every workspace in the shared database is listed to anyone who opens the app (`SupabaseStore.workspaces` in `src/adapters/supabase/goalsStore.ts`).',
       'Faro’s inbox is open on purpose (backlog O, migration 0031): anyone, with no sign-in, reads every markup and piece of feedback and their pictures (a public-read bucket nobody can list), and changes a status through the one status rule, recorded as the person using the app and undoable; any token reaches it through MCP. There is no builder sign-in and no builder token in the app any more (the builders list and builder tokens from migrations 0024 and 0029 are left in the database, unused). The internal app keeps rule 6 as written.',
       'Markups today are reports about the app; sending one about a goal (3a) is not built yet.',
+      'Export is open to everyone in a workspace and isn’t logged: the file is made in the browser (`src/modules/spreadsheets/Export.tsx`, `src/domain/export.ts`) and the MCP server’s `export` and `export_table` (`src/modules/spreadsheets/tools.ts`), and nothing is written to the change log (import spec 2.9, decision 7).',
     ],
     examples: [
       { given: 'Maya, not an admin, makes an MCP token for herself.', then: 'refused: “Only admins can make tokens.”', run: () => says(() => createToken(ctx(MAYA), MAYA.id, 'Claude on my laptop')) },
@@ -160,6 +163,7 @@ export const INTERNAL: InternalRequirement[] = [
       { given: 'Oskar is marked as left in Platform, and still has a token.', then: 'He can’t open Platform, and his token is refused at once.' },
       { given: 'Maya sends a markup of her goal’s chart to Oskar.', then: 'Maya and Oskar can read it; Priya, an admin, can remove it but it isn’t in her list; someone watching the goal can’t see it.' },
       { given: 'A script with the browser’s public key writes a check-in to Maya’s goal.', then: 'The server refuses it: the public key can’t write.' },
+      { given: 'Oskar, not an admin, exports everything in the cycle as a workbook.', then: 'It downloads, and the audit log gains one entry: Oskar, the time, the file’s name, “everything in Year 2026”, and its sheets. Priya, an admin, sees it.' },
     ],
     checks: [
       'For every line of the access table, someone outside its “who” is refused by the server, called directly with their own sign-in (not through the app), with the words the app shows. Someone inside it is allowed.',
@@ -170,6 +174,7 @@ export const INTERNAL: InternalRequirement[] = [
       'Every change in the change log names the signed-in person (or the token’s person, marked via MCP); no change names someone else.',
       'In the internal app: a builder token reads the builder inbox; an ordinary token, an admin’s included, is told it isn’t a builder token. Removing a builder from the builders stops their token reaching the inbox at once. (Faro’s open inbox fails this check on purpose.)',
       'A sent markup is readable by its sender, its recipients and (sent into a review) the review’s people, and by nobody else; its picture’s address stops working after it expires.',
+      'Every export, from the app or through the AI assistant, writes one audit entry with who, when, the file’s name, which goals and which sheets; an export by someone outside the workspace returns nothing and writes nothing.',
     ],
     stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'access is enforced where the records are stored and changed. The rules themselves are the shared actions and the change engine; stage 3’s screens only explain them.' },
     decided: [
@@ -318,6 +323,7 @@ export const INTERNAL: InternalRequirement[] = [
       'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 265 KB compressed: 262 KB today plus a 3 KB margin, under R4’s 300: every page but Home loads when it is opened, as do the guide, What’s new, the spreadsheet tools and the change engine, and the first download carries only Help’s index of article titles and routes and the newest release, so a release never grows it. AX4 first measured the entry alone, 241 KB; the check now counts every file the page preloads with it, which is what a first visit really waits for), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 324 KB (321 today plus the same margin), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). Each limit is the size on the day it was set plus a 3 KB margin (`MARGIN_KB`): lowered as the size comes down, never raised past that.',
     ],
   },
+  R5,
   {
     id: 'R6a', file: 'r6a-organisation', title: 'R6a. The organisation',
     summary: 'Teams form a tree fed from the company directory, people have managers, goal levels are set per workspace, and every list, count, Home and review can be scoped to a part of the company.',
@@ -452,30 +458,15 @@ export const INTERNAL: InternalRequirement[] = [
       'Faro’s “carry on” wrap-up becomes the round’s starting drafts.',
     ],
   },
+  R7,
+  R8,
+  R9,
+  R10,
 ];
-
-/** The note on observability: an idea, not a requirement (backlog 8r; release 5 was dropped on 8 Nov). */
-export const OBSERVABILITY = {
-  title: 'Observability, as an idea',
-  summary: 'Not a requirement. What Faro records about how it is used today, and what the internal app might take from it; the company’s own tooling does the rest.',
-  today: [
-    'Each MCP tool call is recorded as a span, with the database reads and saves inside it, in `okr_telemetry_spans` (migration 0022); a W3C `traceparent` header joins a caller’s trace. Spans carry the tool’s name, the person’s and workspace’s ids and the class of any failure, never a tool’s arguments or answers (docs/mcp.md, “Telemetry”).',
-    'An admin can turn recording off for a workspace (`setRecording`); then nothing is recorded or sent for it, from the app or the server.',
-    'After every deploy, `GET /api/mcp?check` says whether the server reaches the database and can read pictures, and CI fails when something is missing (`.github/workflows/deploy-check.yml`).',
-    'A markup carries the steps before it and the visit’s errors, so a builder sees what happened (the builder inbox).',
-  ],
-  idea: [
-    'Send traces, logs and errors to the company’s own tools (OpenTelemetry), not a page inside the app.',
-    'Keep Faro’s privacy rule: record what happened and how long it took, never what people wrote; recording off means nothing is sent.',
-    'Keep the check after each deploy, and alert on the page-load budgets of [R4](r4-scale-and-safety.md) and on failed saves.',
-    'Dropped on 8 Nov, for the company’s tooling to cover if wanted: an overlay in the app, an Observability page, a weekly review of the traces by Claude, and alerts of Faro’s own.',
-  ],
-};
 
 /* ---------- the pages ---------- */
 
-const GENERATED = '<!-- Generated by npm run spec from src/spec/internal.ts. Edit the code, not this file. -->\n\n';
-const titleOf = (file: string) => INTERNAL_PAGES.find(([f]) => f === file)?.[1] ?? file;
+const GENERATED = '<!-- Generated by npm run spec from src/spec/internal.ts and src/spec/platform.ts. Edit the code, not this file. -->\n\n';
 
 /** `src/domain/actions.ts#savePerson` as a link to the file, with the function named. */
 const codeLink = (ref: string) => { const [file, fn] = ref.split('#'); return `${link(3, file!, fn ? `\`${fn}\`` : `\`${file}\``)}`; };
@@ -529,35 +520,15 @@ function page(q: InternalRequirement): string {
   ].join('\n');
 }
 
-function observability(): string {
-  const o = OBSERVABILITY;
-  return GENERATED + [
-    `# ${o.title}`,
-    '',
-    o.summary,
-    '',
-    '## What Faro records today',
-    '',
-    ...o.today.map((t) => `- ${t}`),
-    '',
-    '## The idea',
-    '',
-    ...o.idea.map((t) => `- ${t}`),
-    '',
-  ].join('\n');
-}
-
 function index(): string {
   return GENERATED + [
     '# Requirements for the internal app',
     '',
-    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
+    'Faro is a model for the company’s internal goals app, plus a demo; it never holds real data. The internal team copies its code and plugs in their own platform. Some things that app must do, Faro doesn’t build: because that platform provides the machinery (sign-in, single sign-on, time zones done properly, the scale and safety of real data, telling people things, keeping and erasing data, audit, monitoring), or because they only matter in a company the size of the real one (its organisation, delegates, a planning round). Each is written here instead, so the rebuild has the rule even though Faro has no code for it.',
     '',
     'Each page says why, the rule, what Faro does today (and where it falls short), worked examples (those marked **Faro today** are run against Faro’s code), acceptance checks, and the nearest stage of [the rebuild kit](../../rebuild/README.md).',
     '',
     table(['Requirement', 'What it says', 'Nearest stage'], INTERNAL.map((q) => [`[${q.title}](${q.file}.md)`, cell(q.summary), `[${q.stage.title}](../../rebuild/${q.stage.file})`])),
-    '',
-    `And a short note, not a requirement: [${titleOf('observability')}](observability.md), what Faro records about how it is used today and what the internal app might take from it.`,
     '',
     '## How they fit the rest of the spec',
     '',
@@ -581,7 +552,7 @@ export function wrongInternalExamples(): string[] {
 
 /** Every file under spec/requirements/internal/, by path from the repository root. */
 export function internalFiles(): Record<string, string> {
-  const out: Record<string, string> = { 'spec/requirements/internal/README.md': index(), 'spec/requirements/internal/observability.md': observability() };
+  const out: Record<string, string> = { 'spec/requirements/internal/README.md': index() };
   for (const q of INTERNAL) out[`spec/requirements/internal/${q.file}.md`] = page(q);
   return out;
 }

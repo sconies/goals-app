@@ -93,7 +93,7 @@ module.exports = {
     await p.goto(p.url().replace(/\/goals.*$/, '/data?t=goals&f=' + encodeURIComponent('Owner~is~Mateo Fernández') + '&s=' + encodeURIComponent('Key~desc') + '&today=2026-11-05')); await p.waitForTimeout(400);
     const shown = await heads(p);
     await p.locator('.data-export > summary').click();
-    let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: 'CSV, as shown' }).click()]);
+    let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: /^This table, as shown \(\.csv\)/ }).click()]);
     const csv = fs.readFileSync(await dl.path(), 'utf8').replace(/^﻿/, '').trim().split(/\r?\n/);
     // As shown, then the columns that say which record each row is, when the layout leaves them out (release 3: so it loads back).
     const keyCols = ['Key', 'ID'].filter((k) => !shown.includes(k));
@@ -101,9 +101,9 @@ module.exports = {
     const ki = shown.indexOf('Key');
     const csvKeys = csv.slice(1).map((l) => l.split(',')[ki]);
     if (csvKeys.join(' ') !== 'G-49 G-41') fails.push(`[TABLE-LAYOUTS] CSV rows are ${csvKeys.join(' ')} (want Mateo's goals, G-49 G-41)`);
-    if (!/\.csv$/.test(dl.suggestedFilename())) fails.push(`[TABLE-LAYOUTS] CSV saved as ${dl.suggestedFilename()}`);
+    if (!/-as-shown-\d{4}-\d\d-\d\d\.csv$/.test(dl.suggestedFilename())) fails.push(`[TABLE-LAYOUTS] CSV saved as ${dl.suggestedFilename()} (want …-as-shown-{date}.csv)`);
     await p.locator('.data-export > summary').click();
-    [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: 'Excel (.xlsx), as shown' }).click()]);
+    [dl] = await Promise.all([p.waitForEvent('download', { timeout: 8000 }), p.getByRole('button', { name: /^This table, as shown \(\.xlsx\)/ }).click()]);
     const size = fs.statSync(await dl.path()).size;
     if (!/\.xlsx$/.test(dl.suggestedFilename()) || size < 2000) fails.push(`[TABLE-LAYOUTS] .xlsx export: ${dl.suggestedFilename()}, ${size} bytes`);
     if (await pageScroll(p) > 0) fails.push(`[TABLE-LAYOUTS] 1280 Data scrolls sideways by ${await pageScroll(p)}px`);
@@ -130,6 +130,8 @@ module.exports = {
     }
     const tb = await p.locator('.data-tools .data-export > summary').boundingBox();
     if (tb.height < 44) fails.push(`[TABLE-LAYOUTS] 390 Export is ${Math.round(tb.height)}px tall`);
+    const ib = await p.locator('.data-tools .data-import').boundingBox();
+    if (!ib || ib.height < 44) fails.push(`[TABLE-LAYOUTS] 390 Import is ${ib ? Math.round(ib.height) + 'px tall' : 'missing'} beside Export`);
     if (await pageScroll(p) > 0) fails.push(`[TABLE-LAYOUTS] 390 Data scrolls sideways by ${await pageScroll(p)}px`);
     // The goal's key, and its link: /goals/G-1.
     await p.goto(p.url().replace(/\/data.*$/, '/goals/G-1?today=2026-11-05')); await p.waitForTimeout(500);

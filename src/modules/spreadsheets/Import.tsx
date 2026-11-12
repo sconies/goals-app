@@ -13,6 +13,7 @@ import { BackLink } from '../../ui/BackLink';
 import { MenuButton } from '../../ui/MenuButton';
 import { whenText } from '../../ui/ChangeItem';
 import { saveTemplate } from './template';
+import { limitLine } from '../../domain/importLimits';
 import { MODULE_SHEETS } from '../../core/records';
 import { chooseFile, choosePaste } from './Check';
 import { importStore } from './importStore';
@@ -84,7 +85,7 @@ export function Import() {
           onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); void pick(e.dataTransfer.files?.[0]); }}>
           <span className="strong">Drop a file here</span>
-          <span className="hint">An Excel workbook (.xlsx), a .csv, or a .zip of CSVs. Up to 5,000 rows a file.</span>
+          <span className="hint">An Excel workbook (.xlsx), a .csv, or a .zip of CSVs. {limitLine()}</span>
           <button type="button" className="btn primary big-btn" onClick={() => file.current?.click()}>Choose a file</button>
           <button type="button" className="linkish tap" onClick={() => { setParams({ paste: '1' }, { replace: true }); setProblem(null); }}>or paste rows from a spreadsheet</button>
         </div>
