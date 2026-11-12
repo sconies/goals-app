@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'map-comes-back-fresh',
+    date: '2026-11-12',
+    title: 'The Map behaves when you come back to it',
+    points: [
+      'Coming back to the Map from another layout no longer jumps to the last goal you found.',
+      'Emptying the Map’s search shows every goal again at once, without pressing Enter.',
+      'On the Map, Filters no longer offers a sort: the Map always shows the trees.',
+      'Goals takes its phone layout on any screen under 700 pixels wide, not only under 600.',
+    ],
+    articles: ['goal-map', 'goals'],
+  },
+  {
     id: 'import-large',
     date: '2026-11-12',
     title: 'Large files show progress',
