@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'question-in-view-steadier',
+    date: '2026-11-12',
+    title: 'A question about a number stays put while you type',
+    points: [
+      'The question is brought into view once, when it first shows; typing more digits no longer moves the page up and down.',
+      'With an on-screen keyboard open, the question is brought above the keyboard.',
+      'In set-up, Continue with a goal card’s question open goes to the question, as New goal does.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
     id: 'check-ins-owners-words',
     date: '2026-11-12',
     title: 'Check-ins are the owner’s, said everywhere',
