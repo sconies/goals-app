@@ -158,4 +158,20 @@ describe('the levels in a check-in (rules 2 and 3)', () => {
     const out = postCheckIn(x(fresh), post({ draft: { ...draft, answers: { [asked.id]: asked.key } } }));
     expect(out.commit.changes[0]!.diffs).toContainEqual({ field: 'Asked', from: asked.question, to: asked.yes });
   });
+
+  it('keeps an answer given in the table check-in in History, as the form does (build review of #160)', () => {
+    const last = checkInsFor(goal, fresh.checkIns).filter((c) => c.week < week && c.value != null).at(-1)!;
+    const draft = { ...emptyDraft(goal, null), value: String(Math.round(last.value! / 4)), cause: 'slower' as const, why: 'The tracker export lost half the incidents', ptgWhat: 'Re-run the export by hand', ptgBy: week + 2 };
+    const asked = checkInLevels(goal, week, draft, checkInsFor(goal, fresh.checkIns)).checks[0]!;
+    const table = (answers?: Answers) => planChanges({ tables: {}, posts: [post({ draft: { ...draft, answers } })], ...x(fresh), via: 'bulk' });
+    expect(table().commit).toBeNull();
+    const cs = table({ [asked.id]: asked.key });
+    expect(cs.commit!.changes[0]!.diffs).toContainEqual({ field: 'Asked', from: asked.question, to: asked.yes });
+  });
+
+  it('writes a number in a question with the app’s formatter: 1 hour, not 1 hours (build review of #160)', () => {
+    const hours = { ...goal, unit: 'hours', decimals: 0 } as Goal;
+    const q = checkInLevels(hours, week, { ...emptyDraft(hours, null), value: '1' }, [{ ...checkInsFor(goal, fresh.checkIns).at(-1)!, goalId: hours.id, week: week - 1, value: 10 }]).checks[0];
+    expect(q?.question).toMatch(/Is 1 hour right\?/);
+  });
 });
