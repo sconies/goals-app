@@ -30,5 +30,11 @@ export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: V
   if (goal.ownerId === actor.id) return true;
   return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
 }
+/**
+ * The set-up check-in (stages already done when a goal is created, OB2's rule 3) is a check-in like any other: when
+ * the person creating the goal may not check in on it, the goal is published without it, and the stage question says
+ * so in these words (Lane, 12 Nov; #227's build review).
+ */
+export const MARKS_STAGES = (ownerName: string) => `${ownerName} marks done stages at the first check-in.`;
 /** The only two exceptions to owner-only check-ins (Lane, 12 Nov): where an admin may bring in or correct someone else's. */
 export const ADMIN_CHECK_IN_DOORS: readonly Via[] = ['spreadsheet', 'setup', 'table'];

@@ -34,10 +34,10 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayChangeGoal`](../../../src/domain/goalRights.ts) |
 | Add a goal, at any level, owned by anyone | Anyone, for anyone (Lane, 11 Nov) | [`planChanges`](../../../src/domain/changeset.ts), [`planGoal`](../../../src/domain/goalEntry.ts), [`mayAddGoal`](../../../src/domain/goalRights.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
-| Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
+| Delete a goal’s latest check-in (after a newer one it can only be corrected) | The goal’s owner only, whoever posted it (check-ins are the owner’s, Lane, 12 Nov) | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
 | Wrap up a goal at the end of the cycle | The goal’s owner, or an admin | [`saveRetro`](../../../src/domain/actions.ts) |
-| Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner, or an admin | [`recordStagesDone`](../../../src/domain/actions.ts) |
-| Undo an import or bulk edit | Whoever made it, or an admin | [`undoImport`](../../../src/domain/removal.ts), [`canUndoImport`](../../../src/domain/removal.ts) |
+| Say which stages were already done when a goal was set up (before its first check-in) | The goal’s owner only: someone setting it up for them publishes it without, and the owner marks them at the first check-in (an admin loading a workbook is the exception) | [`recordStagesDone`](../../../src/domain/actions.ts) |
+| Undo an import or bulk edit | Whoever made it, or an admin; a check-in it wrote goes back only for someone who may check in on that goal by the same door (an owner’s own correction, only the owner) | [`undoImport`](../../../src/domain/removal.ts), [`canUndoImport`](../../../src/domain/removal.ts) |
 
 ### Comments and asks
 
