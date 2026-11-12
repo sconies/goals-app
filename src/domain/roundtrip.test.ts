@@ -15,6 +15,7 @@ import { currentCycle, scopeToCycle } from './cycle';
 import { csvFiles, workbook, type Table } from './export';
 import { buildWorkspace, GOALS_TEMPLATE, PEOPLE_TEMPLATE } from './importer';
 import { currentWeek } from './plan';
+import { sameAsWritten } from './numbers';
 import { parseDelimited, readTables, type NamedGrid } from './sheets';
 import type { Cycle, MetricGoal, Snapshot } from './types';
 import { MODULE_SHEETS } from '../core/records';
@@ -55,7 +56,7 @@ describe('one format: export, load back, no change', () => {
     it(`${d.name}: the workbook loads back as no change at all`, async () => {
       const read = readTables(await asXlsx(bookOf(d)));
       expect(read.read.map((x) => x.kind).sort()).toEqual(['checkIns', 'goals', 'people', 'plan']);
-      expect(read.skipped.map((x) => x.name)).toEqual(['Results', 'Asks', 'Notes', 'Metrics', 'README']);
+      expect(read.skipped.map((x) => x.name)).toEqual(['Start here', 'Results', 'Asks', 'Notes', 'Metrics']);
       const cs = load(d, read.tables);
       expect(errors(cs)).toEqual([]);
       expect(cs.items).toEqual([]);
@@ -69,6 +70,47 @@ describe('one format: export, load back, no change', () => {
       expect(cs.items).toEqual([]);
     }, 30_000);
   }
+});
+
+/* IM0 (import spec rule 9, N18 a): the round trip is exact on any day. The demo is rebuilt for the day it is opened, so
+   its plans fall on different numbers each week: on 11 Nov a plan week of 0.405 USD was written 0.41 and read back as a
+   change ("1 plan changed"), and in September a stage moved later read back as a new order of stages. */
+describe('the round trip is exact, whatever the day and the decimals', () => {
+  const at = (day: string) => {
+    const t = new Date(`${day}T12:00:00Z`);
+    const full = buildPlatformOrg(t);
+    const cycle = currentCycle(full.cycles, t)!;
+    return { name: day, full, cycle, week: currentWeek(cycle, t), today: t };
+  };
+  const roundTrip = (d: ReturnType<typeof at>, full = d.full) => {
+    const s = scopeToCycle(full, d.cycle);
+    const book = workbook({ ws: { id: 'ws', name: d.name }, snapshot: s, cycle: d.cycle, week: d.week, today: d.today });
+    const read = readTables(csvFiles(book).map((f) => ({ name: f.name, rows: parseDelimited(f.text) })));
+    return planChanges({ tables: read.tables, snapshot: s, cycle: d.cycle, week: d.week, actor: s.people.find((p) => p.admin)!, now: d.today.toISOString(), newId, via: 'spreadsheet', full });
+  };
+
+  for (const day of ['2026-09-01', '2026-11-09', '2026-11-11', '2026-12-01']) {
+    it(`the demo as opened on ${day} loads back with no change`, () => {
+      const cs = roundTrip(at(day));
+      expect(errors(cs)).toEqual([]);
+      expect(cs.items.map((x) => `${x.goal}: ${x.diffs.map((v) => v.field).join(', ')}`)).toEqual([]);
+    }, 30_000);
+  }
+
+  it('goals at 0, 1, 2 and 3 decimal places, in every plan shape, load back with no change', () => {
+    const d = at('2026-11-11');
+    const base = d.full.goals.find((g): g is MetricGoal => g.kind === 'metric' && g.cycleId === d.cycle.id)!;
+    // Plans whose weekly numbers fall between decimal places, half-way included (0.125 at 2 places is written 0.13).
+    const made: MetricGoal[] = [0, 1, 2, 3].flatMap((decimals) => (['straight', 'back', 'stepped'] as const).map((shape, k) => ({
+      ...base, id: `gen-${decimals}-${shape}`, key: `G-${900 + decimals * 10 + k}`, title: `Generated ${decimals} ${shape}`, decimals,
+      plan: { start: Number((1 + 1 / 3).toFixed(decimals)), target: Number((5.125 + k / 7).toFixed(decimals)), shape, fromWeek: 3 + k },
+      originalPlan: null, rebaselinedWeek: null, planHistory: undefined,
+    })));
+    const full: Snapshot = { ...d.full, goals: [...d.full.goals, ...made] };
+    const cs = roundTrip(d, full);
+    expect(errors(cs)).toEqual([]);
+    expect(cs.items).toEqual([]);
+  }, 30_000);
 });
 
 describe('one format: an edited copy applies exactly its edits', () => {
@@ -126,6 +168,19 @@ describe('one format: an edited copy applies exactly its edits', () => {
     const after = expectEdits(load(d, readTables(await asZip(edit(bookOf(d)))).tables));
     expect(load({ ...d, full: after }, readTables(await asZip(bookOf(d, after))).tables).items).toEqual([]);
   }, 30_000);
+});
+
+describe('a typed cell is the same as what was written', () => {
+  it('compares numbers at the column’s written precision, never with a tolerance', () => {
+    // 0.125 at 2 places is written 0.13: 0.005 away, which a tolerance of half a unit read as a change.
+    expect(sameAsWritten('0.13', 0.125, 2)).toBe(true);
+    expect(sameAsWritten(0.13, 0.125, 2)).toBe(true);
+    expect(sameAsWritten('0.41', 0.405, 2)).toBe(true);
+    expect(sameAsWritten(' 6 ', 6, 0)).toBe(true);
+    expect(sameAsWritten('0.12', 0.125, 2)).toBe(false);
+    expect(sameAsWritten('7', 6, 0)).toBe(false);
+    expect(sameAsWritten('6', null, 0)).toBe(false);
+  });
 });
 
 describe('one reader', () => {

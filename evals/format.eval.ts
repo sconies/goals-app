@@ -72,7 +72,7 @@ const ctxOf = (full: Snapshot, actor: string, save: (c: import('../src/data/stor
 describe('one format', () => {
   it(F('ONE-FORMAT', 'every sheet and column is defined once, and the workbook, the zipped CSVs, the set-up template and the Data tables are made from it'), () => {
     const book = bookOf(full0);
-    expect(book.map((t) => t.name)).toEqual([...SHEETS.map((x) => x.name), 'README']);
+    expect(book.map((t) => t.name)).toEqual(['Start here', ...SHEETS.map((x) => x.name)]);
     for (const sheet of SHEETS) {
       const head = sheetNamed(book, sheet.name).rows[0]!.map(String);
       // The Plan sheet adds a column per week after its own.
@@ -85,15 +85,20 @@ describe('one format', () => {
     for (const t of templateSheets()) for (const h of t.rows[0]!) expect(headersOf(t.name === 'People' ? 'people' : 'goals')).toContain(h);
     // The Data tables show the workbook's sheets.
     for (const t of Object.values(TABLES)) expect(book.some((b) => b.name === t.sheet)).toBe(true);
-    // The README explains every column, with its kind and what loading it back does.
-    const readme = sheetNamed(book, 'README').rows;
-    for (const sheet of SHEETS) for (const c of sheet.columns) expect(readme.some((r) => r[0] === sheet.name && r[1] === c.header && r[3] === c.means), `${sheet.name} ${c.header}`).toBe(true);
+    // Start here explains every column: what it means and, on a sheet that loads back, what a new row needs (the field table).
+    const readme = sheetNamed(book, 'Start here').rows;
+    for (const sheet of SHEETS) {
+      const at = readme.findIndex((r) => r[0] === `The ${sheet.name} sheet`);
+      const block = readme.slice(at + 1, readme.findIndex((r, i) => i > at && !r.length));
+      for (const c of sheet.columns) expect(block.some((r) => r[0] === c.header && r[5] === c.means), `${sheet.name} ${c.header}`).toBe(true);
+    }
     expect(readme.flat().join(' ')).not.toMatch(/\bRequests\b/);
   });
 
   it(F('ONE-FORMAT', 'docs/export-format.md is made from the same definitions, and is current'), () => {
     const doc = fs.readFileSync(path.join(root, 'docs/export-format.md'), 'utf8');
-    expect(doc).toBe(exportFormatMarkdown(MODULE_SHEETS));
+    // The committed page describes every module's sheets; a build that leaves a module out (FARO_WITHOUT) can't make it whole.
+    if (!process.env.FARO_WITHOUT) expect(doc).toBe(exportFormatMarkdown(MODULE_SHEETS));
     for (const sheet of SHEETS) for (const c of sheet.columns) expect(doc).toContain(`| ${c.header.replace(/\|/g, '\\|')} |`);
     expect(doc).toMatch(/"ownerEmail"/);
     expect(doc).toMatch(/## Activity/);
@@ -126,7 +131,7 @@ describe('one format', () => {
     expect(bad({ level: 'vp' })).toMatch(/Level “vp” isn’t one of: north star, svp or team/);
     expect(bad({ 'must stay': 'sometimes' })).toMatch(/Must stay “sometimes” isn’t one of: at most or at least/);
     expect(bad({ type: 'pie' })).toMatch(/Type “pie”/);
-    expect(bad({ action: 'Archive' })).toMatch(/Action “Archive” isn’t one of: Stop or Delete/);
+    expect(bad({ action: 'Archive' })).toMatch(/Action “Archive” isn’t one of: Stop, Delete or Example/);
     const m = scoped(full0).goals.find((x) => x.kind === 'metric')!;
     expect(errors(load(full0, { goals: [{ __row: '2', key: m.key!, plan: 'zigzag' }] }))[0]).toMatch(/Plan “zigzag”/);
     const ci = checkInsFor(m, scoped(full0).checkIns).at(-1)!;

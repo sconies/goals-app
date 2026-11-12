@@ -20,7 +20,7 @@ const VIA = VIA_MCP;
 /** The kinds restore_removed takes: the core's, and each feature module's removable records (domain/records). */
 const KINDS = R.removedKinds(MODULE_RECORDS);
 
-const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}) });
+const ax = (ctx: McpContext): ActionContext => ({ snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, actor: ctx.actor, now: ctx.now, newId: ctx.newId, ...(ctx.allGoals ? { allGoals: ctx.allGoals } : {}), ...(ctx.full ? { full: ctx.full } : {}), records: MODULE_RECORDS });
 async function save(ctx: McpContext, c: Commit, done: string): Promise<ToolResult> {
   await ctx.save({ ...c, changes: c.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
   return { text: `${done} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
@@ -193,6 +193,17 @@ export const REMOVE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
       return save(ctx, R.deleteCycle(ax(ctx), String(a.cycle_id ?? '')), `Deleted the cycle ${c?.name ?? ''}`);
+    },
+  },
+  {
+    name: 'undo_start_cycle',
+    title: 'Undo starting the next cycle',
+    description: 'Admins: undo start_next_cycle while nobody has used the new cycle (no check-in in it, no goal in it changed). The cycle is removed (listed in Recently removed) and the cycle before is as it was. Ask the person first.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['cycle_id'], properties: { cycle_id: str('The started cycle’s ID, from get_workspace.') } },
+    annotations: REMOVE,
+    async run(a, ctx) {
+      const c = (ctx.full ?? ctx.snapshot).cycles.find((x) => x.id === a.cycle_id);
+      return save(ctx, R.undoStart(ax(ctx), String(a.cycle_id ?? '')), `${c?.name ?? 'The cycle'} was undone`);
     },
   },
   {

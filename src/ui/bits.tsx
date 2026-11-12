@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
 import type { DisplayStatus, Goal, Level, Person } from '../domain/types';
-import { LEVEL_LABEL } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { Icon } from './Icon';
 import { useMaybeApp, useToasts } from '../app/state';
 
@@ -26,7 +26,7 @@ export function StatusShape({ k }: { k: DisplayStatus }) {
 
 /** A small warning mark: the app's own shape, not an emoji. */
 export function WarnMark() {
-  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 15 14H1z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8 6.2v3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="11.8" r="1" fill="currentColor" /></svg>;
+  return <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true"><path d="M8 1.8 15 14H1z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8 6.2v3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><circle cx="8" cy="11.8" r="1" fill="currentColor" /></svg>;
 }
 
 const chipClass = (k: DisplayStatus) => (k === 'none' ? 'planned' : k);
@@ -75,10 +75,11 @@ export function TitleTell({ goal }: { goal: Goal }) {
   return t ? <span className="gkey title-tell" title="Another goal has this title">{t}</span> : null;
 }
 
-/** A goal's level, for reporting at major reviews. Team goals show nothing; north star and SVP stand out a little. */
+/** A goal's level, for reporting at major reviews: plain small capitals, one style for every level. The everyday level shows nothing. */
 export function LevelTag({ level, always }: { level: Level; always?: boolean }) {
-  if (level === 'team' && !always) return null;
-  return <span className={'level level-' + level}>{LEVEL_LABEL[level]}</span>;
+  const cycle = useMaybeApp()?.cycle;
+  if (isEveryday(cycle, level) && !always) return null;
+  return <span className="level">{levelName(cycle, level)}</span>;
 }
 
 export function Header({ eyebrow, title, sub, actions }: { eyebrow?: ReactNode; title: string; sub?: ReactNode; actions?: ReactNode }) {

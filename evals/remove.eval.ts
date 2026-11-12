@@ -134,7 +134,7 @@ describe('Remove, archive and undo', () => {
     const card = goalScorecard(stopped, w.cycle, s.archive!.checkIns, w.week, false);
     expect(card.cells.some((c) => c.key === 'hit' || c.likelihood)).toBe(false);
     expect(card.marks?.end ?? null).toBeNull();
-    const goals = workbook({ ws: { id: 'w', name: 'W' }, snapshot: s, cycle: w.cycle, week: w.week, today })[0]!.rows;
+    const goals = workbook({ ws: { id: 'w', name: 'W' }, snapshot: s, cycle: w.cycle, week: w.week, today })[1]!.rows;
     const status = goals[0]!.indexOf('Status');
     expect(goals.find((r) => r[1] === g.id)?.[status]).toBe(STOPPED);
     // Loaded back, its rows are left as they are.

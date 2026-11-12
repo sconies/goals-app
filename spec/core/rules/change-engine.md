@@ -9,9 +9,13 @@ The one way many changes come in at once: a spreadsheet, set-up, the bulk check-
 
 `planChanges(input)` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
 
-**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from `src/domain/columns.ts`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
+**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from `src/domain/columns.ts`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't `sameAsWritten`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
+
+**One way to save a check-in** (`postCheckIn`): the check-in screens post through the same judgement, with the draft the form holds and a mode that says how it meets the week's own. `new` is refused when the week has a check-in ("Week 45 already has a check-in. Check in again, or correct it."); `again` adds a second beside it ("Checked in again for week 45: …"); `correct` replaces the week's newest, or adds a week that has none, and needs a reason of at least 10 characters, kept as the entry's first difference ("Why corrected") and summed up as "Corrected week 44: 60% is now 61%" or "Added week 44 later: 61%". A week that has passed takes only `correct`. A correction keeps when the record it replaces was posted, so it never turns a late week into an on-time one, nor the reverse; a correction that changes nothing is refused ("Nothing is different from what week 44 already says."). A post that isn't a correction is no import: no Via mark and no import to undo (Delete this check-in takes it back). A correction is an import of one, undone with the import.
+
+**A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.
 
@@ -21,8 +25,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 | Given | The rule gives |
 |---|---|
+| A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12. | `no change / a change` |
 | In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason. | `needs a reason; nothing to save` |
 | The same change by Mateo, who neither owns it nor is an admin. | `error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.` |
+| Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops". | `Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence, so anyone reading week 44 later knows.` |
 | Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins. | `the first problem says: Week 4 needs a Cause and a Why` |
 
 ## Not self-explanatory
@@ -31,8 +37,9 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`, `records`, `describe`
+- [src/domain/changeset.ts](../../../src/domain/changeset.ts): `planChanges`, `postCheckIn`, `records`, `describe`
 - [src/domain/columns.ts](../../../src/domain/columns.ts): `sheetKindOf`
+- [src/domain/numbers.ts](../../../src/domain/numbers.ts): `sameAsWritten`
 - [src/domain/commit.ts](../../../src/domain/commit.ts): `Commit`
 
 ## Requirements
@@ -40,10 +47,11 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - `BULK-IMPORT`: A workbook, a zip of CSVs or one CSV can add or change people, goals, plan numbers and check-ins, including past weeks. Every row is checked with the app’s own rules and previewed before saving; nothing saves while a row needs fixing. Owners change their own goals, admins any, and admins add and change people. Past weeks are marked as loaded later and dated in their own week. Each change is logged on its goal as coming from a spreadsheet.
 - `BULK-EDIT`: An owner can type the week’s numbers for all their number goals in one table; each row is judged as they type and asks why only when it is off plan. In the table view, several goals can be selected to change their owner or level, watch or export them, through the same checks and change log.
 - `ONE-FORMAT`: One spreadsheet format: every sheet and column is defined once (src/domain/columns.ts), with its header, its meaning, whether it matches the row, can be changed or is worked out, and how it is written and read. The workbook, the zipped CSVs, one CSV, the set-up template, set-up from a spreadsheet, Import, the Data tables, the AI assistant’s tools and docs/export-format.md (checked to be current) are all made from it. Sheets are known by their header rows, never their names; CSV is read in one RFC 4180 pass (quotes, line breaks in a cell, a byte-order mark) and the formula guard’s apostrophe is taken off; worked-out columns use the vocabulary’s words and are never read; a word a column doesn’t know is a problem, never a default.
-- `ROUND-TRIP`: Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says.
+- `ROUND-TRIP`: Whatever is exported loads straight back as no change: every demo workspace as a workbook and as zipped CSVs, on any day and at any number of decimal places (a number counts as typed only when it differs from what the export wrote), a Data table saved with columns hidden (its key columns are always written, greyed, at the end), and the AI assistant’s export_table into bulk_change. An edited copy applies exactly its edits, a line break or a leading “-” included. Goals are matched by key, then ID, so last cycle’s file still finds its goals; people by email, then a name only one person has, noted in the preview; every column that can be changed counts, and one a table leaves out keeps what the record says.
 - `IMPORT-ACTIONS`: A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams.
 - `IMPORT-UNDO`: Every change an import or bulk edit makes (a spreadsheet, the bulk grid, the data tables or the AI assistant's bulk_change) carries the import's id, and its summary keeps what each record was before. “Undo this import” on its Activity entry, for whoever imported or an admin, puts every row back as it was; rows changed since are skipped and listed.
 - `DATA-TABLES`: Every person, goal, check-in and plan is in a table anyone can read, search, sort and filter by any column: a value from its list, a number condition, words, or empty; the filters and sort are in the link. Admins type into cells across many rows and tables, review the before and after with any problems, and save them together. Saving goes through the same rules, rights and change log as Import and the AI assistant: a person keeps a unique name and there is always an admin; a past check-in can be corrected, judged by the same rules, and the old and new values are logged. Every record shows its own ID, which never changes.
+- `ONE-PER-WEEK`: Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools.
 
 ## Tests that check it
 
@@ -66,12 +74,33 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - changing a goal’s owner › still takes a name only one person has, or an ID typed in Owner
 - changing a goal’s owner › says so when an Owner ID matches no one
 
+### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
+
+- one way to save a check-in (rule 13) › posts a new check-in through the engine, with no import to undo and no Via mark
+- one way to save a check-in (rule 13) › refuses a new check-in for a week that has one, and says what to do instead
+- one way to save a check-in (rule 13) › adds a second check-in beside the first with “again”, and keeps both
+- one way to save a check-in (rule 13) › corrects a week with a reason, as an import that can be undone, keeping when it was posted
+- one way to save a check-in (rule 13) › refuses “new” or “again” for a week that has passed: that is a correction
+- one way to save a check-in (rule 13) › lets only the owner or an admin post, in the engine’s words
+- a correction keeps the week it gives (K6) › a row that gives a week keeps the week, though the old record was still investigating
+- what a new number is compared with (rule 5) › is last week’s, never a check-in of the same week
+- what a new number is compared with (rule 5) › takes the newest number among earlier weeks when last week had none
+- what a new number is compared with (rule 5) › says “vs last week” against week 45 after a second check-in in week 46
+- the levels in a check-in (rules 2 and 3) › asks about a number far from last week’s, naming the week, and asks again once the number changes
+- the levels in a check-in (rules 2 and 3) › never asks a range goal whether the same number was measured again; asks a number still to move
+- the levels in a check-in (rules 2 and 3) › makes an impossible number a Must fix, not a question
+- the levels in a check-in (rules 2 and 3) › says why the button does nothing
+- the levels in a check-in (rules 2 and 3) › posts nothing from a screen until the question is answered, then keeps the answer in History
+
 ### [src/domain/roundtrip.test.ts](../../../src/domain/roundtrip.test.ts)
 
 - one format: export, load back, no change › ${d.name}: the workbook loads back as no change at all
 - one format: export, load back, no change › ${d.name}: the zipped CSVs load back as no change at all
+- the round trip is exact, whatever the day and the decimals › the demo as opened on ${day} loads back with no change
+- the round trip is exact, whatever the day and the decimals › goals at 0, 1, 2 and 3 decimal places, in every plan shape, load back with no change
 - one format: an edited copy applies exactly its edits › through the workbook
 - one format: an edited copy applies exactly its edits › through the zipped CSVs, with the formula guard taken off again
+- a typed cell is the same as what was written › compares numbers at the column’s written precision, never with a tolerance
 - one reader › reads RFC 4180 CSV in one pass: quotes, doubled quotes, line breaks in a cell, a byte-order mark, CRLF
 - one reader › knows each sheet by its header, whatever the file is called
 

@@ -1,12 +1,11 @@
 /* Settings: one person's own choices (review notes, 5 Nov). How the app looks (light, dark or the system's, and an
    accent colour), the sidebar, who you are, what the app records, and your MCP access. The look and the sidebar are
    kept in this browser. */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useApp } from '../app/state';
 import { ACCENTS, LANDINGS, SIDEBARS, THEMES, impactWords, openMotionLab, paceWords, setAppearance, useAppearance } from '../app/appearance';
 import { Avatar } from '../ui/bits';
-import { BackLink } from '../ui/BackLink';
 import { ProfileSheet } from '../ui/ProfileSheet';
 import { MyTokens } from '../ui/AiAssistants';
 import { LeaveWorkspaceSheet } from '../ui/RemoveSheets';
@@ -20,11 +19,11 @@ export function Settings() {
   const ws = workspaceName(app.ws, app.mode).name;
   return (
     <div className="page narrow settings-page">
-      <BackLink to="/" label="Home" />
       <div className="page-head">
         <h1 className="title-xl">Settings</h1>
         <span className="hint">Your own choices. Nobody else sees them.</span>
       </div>
+      <SectionLinks />
 
       <section className="block settings-block" aria-labelledby="set-you">
         <h2 className="block-title" id="set-you">You</h2>
@@ -91,6 +90,51 @@ export function Settings() {
       </section>
       <LeaveWorkspace />
     </div>
+  );
+}
+
+/** Settings' sections, as links to them (navigation spec 2.5): under the title, sticking to the top as you scroll,
+    with the one in view lit. On a phone the row scrolls sideways inside itself, keeping the lit one in view. */
+const SECTIONS: [string, string][] = [['set-you', 'You'], ['set-look', 'Appearance'], ['set-nav', 'Navigation'], ['ai-mine', 'Your MCP tokens'], ['set-leave', 'Leave']];
+function SectionLinks() {
+  const [lit, setLit] = useState(SECTIONS[0]![0]);
+  // A link just chosen stays lit while the page scrolls to it (near the foot, its heading can't reach the top).
+  const chosen = useRef(0);
+  useEffect(() => {
+    // The lit section is the last whose heading has passed under the row; at the foot of the page, the last one.
+    const work = document.querySelector('main.work');
+    const pick = () => {
+      if (Date.now() - chosen.current < 800) return;
+      const row = document.querySelector('.section-links');
+      const top = (row?.getBoundingClientRect().bottom ?? 0) + 8;
+      let at = SECTIONS[0]![0];
+      for (const [id] of SECTIONS) { const h = document.getElementById(id); if (h && h.getBoundingClientRect().top <= top) at = id; }
+      const end = work && work.scrollHeight > work.clientHeight ? work.scrollTop + work.clientHeight >= work.scrollHeight - 24 : window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 24;
+      if (end && document.getElementById(SECTIONS[SECTIONS.length - 1]![0])) at = SECTIONS[SECTIONS.length - 1]![0];
+      setLit(at);
+    };
+    pick();
+    window.addEventListener('scroll', pick, { passive: true });
+    work?.addEventListener('scroll', pick, { passive: true });
+    return () => { window.removeEventListener('scroll', pick); work?.removeEventListener('scroll', pick); };
+  }, []);
+  // Keep the lit link in view by moving the row sideways only, when it overflows. Never scrollIntoView: the row is sticky,
+  // and the page's scroll-padding would pull the whole window back up on every change (build review of #113).
+  useEffect(() => {
+    const row = document.querySelector<HTMLElement>('.section-links');
+    const a = row?.querySelector<HTMLElement>(`a[href="#${lit}"]`);
+    if (!row || !a || row.scrollWidth <= row.clientWidth) return;
+    const left = a.offsetLeft - row.offsetLeft, right = left + a.offsetWidth;
+    if (left < row.scrollLeft) row.scrollTo?.({ left });
+    else if (right > row.scrollLeft + row.clientWidth) row.scrollTo?.({ left: right - row.clientWidth });
+  }, [lit]);
+  return (
+    <nav className="section-links" aria-label="On this page">
+      {SECTIONS.map(([id, label]) => (
+        <a key={id} href={`#${id}`} aria-current={lit === id ? 'true' : undefined}
+          onClick={(e) => { e.preventDefault(); chosen.current = Date.now(); setLit(id); document.getElementById(id)?.scrollIntoView({ block: 'start' }); }}>{label}</a>
+      ))}
+    </nav>
   );
 }
 

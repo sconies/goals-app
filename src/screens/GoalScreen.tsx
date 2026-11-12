@@ -13,7 +13,8 @@ import { useSeen } from '../app/goalSeen';
 import { useDraft } from '../app/drafts';
 import { saveFile } from '../app/files';
 import { causeLabel } from '../domain/checkin';
-import { directionLabel, fmt, LEVEL_LABEL } from '../domain/format';
+import { directionLabel, fmt } from '../domain/format';
+import { isEveryday, levelName } from '../domain/levels';
 import { planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';
 import { goalScorecard, projects, type ScoreCell, type Scorecard } from '../domain/scorecard';
@@ -236,16 +237,14 @@ function GoalView({ goal }: { goal: Goal }) {
   const feeding = !review && (children.length > 0 || !!parent) && <FeedsSection key="feeds" feeding={children} feeds={feeds} parent={parent} />;
   const quarters = !review && isYear(cycle) && <QuarterStrip key="quarters" goal={goal} />;
   const activity = !review && <HistorySection key="history" goal={goal} focusComposer={tabComments && !alias} />;
-  // Modules' sections (the goal.sections place), before Activity.
-  const modules = !review && <Place key="modules" name="goal.sections" goal={goal} />;
   const about = !review && <AboutSection key="about" goal={goal} detailsRef={aboutRef} open={aboutOpen ?? firstVisit} onToggle={setAboutOpen} />;
   const evidence = review && (
     <section key="evidence" className="block review-evidence" aria-labelledby="g-chart" data-part="Chart and recent check-ins"><h2 className="block-title" id="g-chart">Chart and recent check-ins</h2>{chart}<CheckInRows goal={goal} limit={4} /></section>
   );
 
-  const main = review ? [evidence] : [whySection, chart, feeding, quarters, modules, activity, about];
+  const main = review ? [evidence] : [whySection, chart, feeding, quarters, activity, about];
   const side = review ? [talked] : [contextLine, nextSteps, talked];
-  const phone = review ? [evidence, talked] : [contextLine, nextSteps, whySection, chart, talked, feeding, quarters, modules, activity, about];
+  const phone = review ? [evidence, talked] : [contextLine, nextSteps, whySection, chart, talked, feeding, quarters, activity, about];
 
   return (
     <div className={'page goal-page' + (review ? ' in-review' : '')} ref={page} data-part="Goal page">
@@ -426,7 +425,7 @@ function useShare(goal: Goal, now: string, against: string[], why: string, statu
       const a = assessPosted(goal, app.cycle, app.snapshot.checkIns, app.week);
       const card: ShareCard = {
         workspace: app.ws.name.replace(/^Example:\s*/, ''), title: goal.title, owner: owner?.name ?? '',
-        meta: [goal.level !== 'team' ? LEVEL_LABEL[goal.level] : '', goal.key ?? ''].filter(Boolean).join(' · '),
+        meta: [!isEveryday(app.cycle, goal.level) ? levelName(app.cycle, goal.level) : '', goal.key ?? ''].filter(Boolean).join(' · '),
         status, statusWord: LABEL[status], now, against: against.join(' · '), why,
         when: `Week ${app.week} · ${app.today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
         link: link(),
@@ -1050,7 +1049,7 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         {goal.kind === 'metric' && <><dt>Measure</dt><dd>{fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)} by week {goal.plan.endWeek ?? cycle.weeks} ({weekDates(cycle, goal.plan.endWeek ?? cycle.weeks)}){(goal.plan.endWeek ?? 0) > cycle.weeks ? ', past this cycle' : ''}, {directionLabel(goal)}</dd></>}
         {goal.kind === 'range' && <><dt>Measure</dt><dd>{directionLabel(goal)}, warning margin {fmt(goal.range.margin, goal)}{goal.source ? '' : ''}</dd></>}
         {goal.kind === 'milestone' && <><dt>Stages</dt><dd>{goal.stages.map((s) => `${s.name} (week ${s.dueWeek})`).join(', ')}{goal.source ? <span className="muted">. Source: {goal.source}.</span> : null}</dd></>}
-        <dt>Level</dt><dd>{LEVEL_LABEL[goal.level]}{goal.level !== 'team' ? ', reported at major reviews' : ''}</dd>
+        <dt>Level</dt><dd>{levelName(app.cycle, goal.level)}{!isEveryday(app.cycle, goal.level) ? ', reported at major reviews' : ''}</dd>
         <dt>Team</dt><dd>{team?.name ?? '—'}</dd>
         <dt>Feeds into</dt><dd>{parent ? <><Link className="linkish" to={'/goals/' + parent.id}>{parent.title}</Link>{goal.whyHelps ? <span className="muted">. {goal.whyHelps}</span> : null}</> : fed ? 'Nothing: it sits at the top of its tree' : 'Nothing yet (not linked)'}</dd>
         {fed > 0 && <><dt>Fed by</dt><dd><Link className="linkish" to={`/goals?feeds=${goal.id}`}>{fed === 1 ? '1 goal' : `${fed} goals`}</Link></dd></>}
@@ -1058,6 +1057,8 @@ function AboutSection({ goal, open, onToggle, detailsRef }: { goal: Goal; open: 
         {goal.key && <><dt>Key</dt><dd><span className="gkey-plain">{goal.key}</span> <span className="muted">· it never changes, and /goals/{goal.key} opens it</span></dd></>}
         {history.length > 0 && goal.kind === 'metric' && <><dt>Plan changes</dt><dd><ul className="plan-history">{history.map((v, i) => <li key={i}>Until week {v.untilWeek}: {fmt(v.plan.start, goal)} → {fmt(v.plan.target, goal)}</li>)}<li>Since: {fmt(goal.plan.start, goal)} → {fmt(goal.plan.target, goal)}</li></ul></dd></>}
       </dl>
+      {/* Modules' sections (the goal.sections place: what measures it, say) are part of About, after its facts (goal spec, 5). */}
+      <Place name="goal.sections" goal={goal} />
       {goal.kind === 'metric' && <PlanTable plan={goal.plan} unit={goal} actuals={own} label="Plan and actual by week" />}
       <p className="small">How the status is worked out: <Link className="linkish" to="/help/status">{WORD_OF.on}, {lower(STATUS.risk)} and {lower(STATUS.off)}, explained</Link>.</p>
       {canEdit && !goal.stoppedAt && <p className="about-change" id="change-goal"><Link className="linkish" to={`/goals/${goal.id}/edit`}>Change this goal</Link></p>}

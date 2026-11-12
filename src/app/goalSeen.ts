@@ -1,22 +1,22 @@
-/* When each person last looked at each goal, and what its status was then (the flagship goal page, 5 Nov): kept in this
-   browser only, for "Since you looked on Tuesday: …" and for opening "About this goal" on a first visit. Storage can be
-   blocked or cleared; then every visit reads as a first look, and nothing breaks. */
+/* When each person last looked at each goal, and what its status was then (the flagship goal page, 5 Nov): a
+   preference per person and workspace, through the Prefs port (src/ports/prefs.ts). Faro keeps it in this browser under
+   `goals-seen:<workspace>:<person>:<goal>`; the internal app keeps it on its server, so it follows the person between
+   devices. Storage can be blocked or cleared; then every visit reads as a first look, and nothing breaks. */
 import { useEffect, useState } from 'react';
+import { browserPrefs } from '../adapters/local';
 import type { Seen } from '../domain/goalPage';
 import type { DisplayStatus } from '../domain/types';
+import type { Prefs } from '../ports/prefs';
 
-const key = (ws: string, person: string, goal: string) => `goals-seen:${ws}:${person}:${goal}`;
+const kept: Prefs = browserPrefs('goals-seen:');
 
-export function readSeen(ws: string, person: string, goal: string): Seen | null {
-  try {
-    const v = localStorage.getItem(key(ws, person, goal));
-    const s = v ? (JSON.parse(v) as Seen) : null;
-    return s && typeof s.at === 'string' && typeof s.status === 'string' ? s : null;
-  } catch { return null; }
+export function readSeen(ws: string, person: string, goal: string, prefs: Prefs = kept): Seen | null {
+  const s = prefs.get<Seen>(ws, person, goal);
+  return s && typeof s.at === 'string' && typeof s.status === 'string' ? s : null;
 }
 
-export function writeSeen(ws: string, person: string, goal: string, seen: Seen) {
-  try { localStorage.setItem(key(ws, person, goal), JSON.stringify(seen)); } catch { /* storage blocked: this visit only */ }
+export function writeSeen(ws: string, person: string, goal: string, seen: Seen, prefs: Prefs = kept) {
+  prefs.set(ws, person, goal, seen);
 }
 
 /**

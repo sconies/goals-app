@@ -10,6 +10,7 @@ import type { Person } from '../domain/types';
 import { Avatar, Sheet } from './bits';
 import { PROTOTYPE_LINE } from '../help/about';
 import { useSwitchWorkspace } from './WorkspaceSwitch';
+import { PickOne } from './Pick';
 
 /** What someone does, by role: the thing to pick in a demo, with the name second. */
 export function personaOf(p: Person, app: ReturnType<typeof useApp>): { role: string; does: string } {
@@ -57,7 +58,6 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
   const cast = demoCast(app);
   const others = app.snapshot.people.filter((p) => !cast.includes(p));
   const [showAll, setShowAll] = useState(false);
-  const [find, setFind] = useState('');
   const pick = (id: string) => { app.setViewer(id); onClose(); nav('/'); };
   const own = !isExample(app.ws.id);
   const startTour = (id: string) => {
@@ -86,11 +86,6 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
       </button>
     );
   };
-  // Everyone else, by team, narrowed by a name, job title or team as it's typed.
-  const q = find.trim().toLowerCase();
-  const teamName = (p: Person) => app.team(p.teamId ?? '')?.name ?? 'No team';
-  const matching = others.filter((p) => !q || `${p.name} ${p.role} ${teamName(p)}`.toLowerCase().includes(q));
-  const byTeam = [...new Set(matching.map(teamName))].sort((a, b) => a.localeCompare(b)).map((t) => [t, matching.filter((p) => teamName(p) === t).sort((a, b) => a.name.localeCompare(b.name))] as const);
   // A module's walkthrough only while the module is on here.
   const tours = TOURS.filter((t) => (own || app.person(t.personId)) && (!t.module || modules.on.has(t.module)));
   return (
@@ -104,19 +99,10 @@ export function DemoPanel({ onClose, onPresent, title = 'Demo', children }: { on
           <span className="field-label">See it as</span>
           {cast.map(row)}
           {others.length > 0 && (showAll ? (
-            <div className="stack demo-everyone" style={{ gap: 4 }}>
-              <label className="field demo-find"><span className="field-label">Everyone else ({others.length})</span>
-                <input className="input" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find someone by name, job title or team" autoFocus />
-              </label>
-              {byTeam.map(([t, list]) => (
-                <div key={t} className="stack" style={{ gap: 4 }} role="group" aria-label={t}>
-                  <span className="tiny muted demo-team">{t}</span>
-                  {list.map(row)}
-                </div>
-              ))}
-              {!matching.length && <span className="hint">No one matches “{find.trim()}”.</span>}
+            <div className="demo-everyone">
+              <PickOne kind="person" label={`Everyone else (${others.length})`} value={null} onChange={(id) => id && pick(id)} hide={cast.map((p) => p.id)} />
             </div>
-          ) : <button type="button" className="linkish small" onClick={() => setShowAll(true)}>Everyone else, by team ({others.length})</button>)}
+          ) : <button type="button" className="linkish small" onClick={() => setShowAll(true)}>Everyone else, by name or team ({others.length})</button>)}
         </section>
         {tours.length > 0 && (
           <section className="stack demo-tours" style={{ gap: 4 }} aria-label="Show me how">

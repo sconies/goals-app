@@ -5,6 +5,8 @@
    request changing the app touches this file (scripts/check-whats-new.mjs); src/help/guide.test.ts checks the order,
    the ids, the dates and the links. */
 
+import { entriesAfter } from './match';
+
 export interface NewsEntry {
   /** Stable: never change or reuse one. */
   id: string;
@@ -32,6 +34,198 @@ export const WHATS_NEW: NewsEntry[] = [
       'Old links still work.',
     ],
     articles: ['metrics', 'metric-add'],
+  },
+  {
+    id: 'cant-open-why',
+    date: '2026-11-11',
+    title: 'When you can’t open a workspace, it says why',
+    points: [
+      'If a workspace can’t open you, the page now says which it is: you aren’t signed in, no one there has your email, more than one person has it, or you’re marked as having left.',
+      'Copy a message for them writes the note to send whoever set it up, and Try again looks once more once they’ve fixed it.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'last-year-wrap-up',
+    date: '2026-11-11',
+    title: 'Last year’s wrap-up stays open',
+    points: [
+      'Once the next year has begun, last year’s wrap-up can still be finished until it closes, four weeks after the year’s last day. Home, Wrap up and Cycles show it.',
+      'An admin can undo starting the next year from its row on Cycles, for as long as nobody has used it.',
+    ],
+    articles: ['wrap-up', 'start-next-year'],
+  },
+  {
+    id: 'carry-right',
+    date: '2026-11-11',
+    title: 'Goals carry on with their history',
+    points: [
+      'A carried goal keeps its metric, its watchers, its open next steps and asks, and its place in reviews.',
+      'Its plan starts in week 1 from its final number, with the same target due at the end of the new year. Stages not done are spread over the new year, never after its last week.',
+      'A final number or a wrap-up given after next year was set up still counts, until someone uses the carried goal.',
+    ],
+    articles: ['start-next-year', 'wrap-up'],
+  },
+  {
+    id: 'levels-one-style',
+    date: '2026-11-11',
+    title: 'Levels look the same',
+    points: [
+      'A goal’s level (North star, SVP) is shown in one plain style everywhere: North star no longer has a coloured tag of its own.',
+      'Team goals still carry no tag. Nothing else about levels has changed.',
+    ],
+    articles: ['goals'],
+  },
+  {
+    id: 'check-in-asks',
+    date: '2026-11-11',
+    title: 'Faro asks about a number that looks wrong',
+    points: [
+      'Faro asks before it posts a number that looks wrong, such as ten times last week’s, and keeps your answer in the goal’s History.',
+      'The same number as last week asks whether you measured it again.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'cant-open-yet',
+    date: '2026-11-11',
+    title: 'Plainer words when you can’t open a workspace',
+    points: [
+      'If you aren’t signed in, or no one in a workspace has the email you signed in with, the page now says you can’t open it yet, and to ask whoever set it up to add you.',
+      'Nothing of the workspace shows until you can open it; ask an admin there to add you.',
+    ],
+    articles: ['set-up'],
+  },
+  {
+    id: 'found-rows-show-status',
+    date: '2026-11-11',
+    title: 'Two fixes: status shapes in Find, and Settings scrolls to the end',
+    points: [
+      'A goal found in Find, or in a list where you pick a goal, shows its status as a shape beside the word, as everywhere else.',
+      'On a computer, Settings no longer jumps back up as you scroll, so its last sections can be reached.',
+    ],
+    articles: ['finding', 'settings'],
+  },
+  {
+    id: 'check-in-one-way',
+    date: '2026-11-11',
+    title: 'Checking in again, or correcting',
+    points: [
+      'A second check-in in the same week is now compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+      'Checking in again adds a check-in beside the first; correcting one replaces it and keeps your reason with it.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'start-prepares',
+    date: '2026-11-11',
+    title: 'Starting next year doesn’t move anyone early',
+    points: [
+      'An admin can set next year up as soon as the wrap-up opens. Everyone stays in this year until its last day; next year opens on its first Monday.',
+      'Before starting, you see what will carry on, finish and stop, in counts that add up to every goal. Afterwards Cycles offers Undo, until someone uses the new year.',
+      'A goal that met its target finishes instead of carrying on.',
+      'Before a year’s first week, Home says when it starts and that nothing is due until then.',
+    ],
+    articles: ['start-next-year', 'workspace-cycles'],
+  },
+  {
+    id: 'mcp-goal-scopes',
+    date: '2026-11-11',
+    title: 'Your AI assistant finds goals the way your Goals tabs do',
+    points: [
+      'Ask Claude (or another AI tool on MCP) for your goals, your team’s or the ones you watch, and it finds the same goals as Mine, My team and Watching on Goals.',
+      'If you have no team or own no goals, it says so instead of guessing.',
+    ],
+    articles: ['ai-assistants', 'goals'],
+  },
+  {
+    id: 'feature-undo',
+    date: '2026-11-11',
+    title: 'Undo brings a feature back',
+    points: [
+      'Switching a feature off and pressing Undo straight away now switches it back on, everywhere it was. Before, the message said it was back on while it stayed off.',
+      'Undo after turning recording on or off works the same way.',
+    ],
+    articles: ['features'],
+  },
+  {
+    id: 'one-list-bar-data-feedback',
+    date: '2026-11-11',
+    title: 'Data and Feedback search and filter like every other list',
+    points: [
+      'Data and Feedback now have the same bar as Goals, Activity and People: the line under it counts what matches, filters read as words with Remove, and a search that finds nothing says so with Clear the search.',
+      'Their search, filters and sort are in the address, so Back steps through them and a shared link shows the same list. Old Data links still open sorted as they were.',
+      'People and Teams find through the same search as every picker, so a name you type comes first everywhere.',
+    ],
+    articles: ['finding', 'data', 'inbox', 'people'],
+  },
+  {
+    id: 'find-and-pick-everywhere',
+    date: '2026-11-11',
+    title: 'Every owner, team and goal is found by typing',
+    points: [
+      'Setting up or editing a goal, its owner, team, what it feeds and what it also helps are now a search, with you and your team suggested first, your team’s lead straight after you.',
+      'The same goes for an owner or a team in Data, who takes over when someone leaves, the owners in set-up, the person filter on Feedback, “Who are you?” (and Not you?), and anyone beyond the demo’s role cards.',
+      'A goal already under the one you’re editing is listed, greyed, with why it can’t feed it.',
+      'On a phone the list of matches opens as a full screen, not half of one.',
+    ],
+    articles: ['finding', 'new-goal', 'edit-goal', 'data', 'inbox', 'demo'],
+  },
+  {
+    id: 'check-in-queue',
+    date: '2026-11-11',
+    title: 'See your check-ins before you start',
+    points: [
+      'Check-in opens on the week’s list. Start with the first, or pick any.',
+      'Each goal says its status and what it last said; one you started and closed says Draft kept.',
+      'Start check-in on Home still goes straight into the first one.',
+    ],
+    articles: ['check-in'],
+  },
+  {
+    id: 'pages-name-themselves',
+    date: '2026-11-11',
+    title: 'Each page has its own name',
+    points: [
+      'A goal’s browser tab says the goal’s name. Goals is called Goals on every tab.',
+      'One back link on each page, which agrees with your browser’s Back button. A place’s first page, such as Settings, has none.',
+      'A form has one way out, in words: “Close and keep the draft”, or “Close without saving”, which asks first if you typed something.',
+      'Settings has links to its parts under the title, with the one you’re in lit.',
+    ],
+    articles: ['getting-around', 'settings'],
+  },
+  {
+    id: 'goals-view-menus',
+    date: '2026-11-11',
+    title: 'Layouts have names',
+    points: [
+      'Layout and Views are menus, the same on a computer and a phone. Views holds your saved views, Save this view, Copy link and Export these goals.',
+      'On the Map, the search at the top finds a goal and takes you to it.',
+      'On a phone, View opens one sheet with the layout, the grouping and your saved views.',
+      'Filters finds the goal whose tree you want by typing its name or key, instead of a list of every goal.',
+    ],
+    articles: ['goals', 'goal-map', 'goals-filters'],
+  },
+  {
+    id: 'field-table',
+    date: '2026-11-11',
+    title: 'What every column needs, in one place',
+    points: [
+      'Help has a table of every column: required or not, its format, an example.',
+      'The template’s first sheet is the same table, and its example rows are never imported.',
+      'Import says what a new goal, check-in and person must have before you choose a file.',
+    ],
+    articles: ['columns', 'import', 'export'],
+  },
+  {
+    id: 'round-trip-exact',
+    date: '2026-11-11',
+    title: 'An export loaded straight back changes nothing',
+    points: [
+      'A plan with decimal places could read as changed. It doesn’t now.',
+      'Nor does a goal whose stages were moved into a new order.',
+    ],
+    articles: ['import', 'export'],
   },
   {
     id: 'year-ends',
@@ -1050,10 +1244,7 @@ export const latestNews = (): NewsEntry | undefined => WHATS_NEW[0];
 export const newsSince = (date?: string): NewsEntry[] => (date ? WHATS_NEW.filter((e) => e.date >= date) : WHATS_NEW);
 
 /** Entries newer than the one with this id (all of them when the id is unknown or missing). */
-export function newsAfter(seenId: string | null): NewsEntry[] {
-  const i = seenId ? WHATS_NEW.findIndex((e) => e.id === seenId) : -1;
-  return i < 0 ? WHATS_NEW : WHATS_NEW.slice(0, i);
-}
+export const newsAfter = (seenId: string | null): NewsEntry[] => entriesAfter(WHATS_NEW, seenId);
 
 /** "5 Nov 2026", the way the app writes a date. */
 export function newsDate(date: string): string {

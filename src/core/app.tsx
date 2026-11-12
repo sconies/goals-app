@@ -20,11 +20,11 @@ export interface PlaceProps {
   'home.blocks': Record<never, never>;
   /** A goal's summary, one line under its owner and level: a fact about the goal, such as what measures it (goal spec, section 5). */
   'goal.facts': { goal: Goal };
-  /** A goal's page, after its own sections. */
+  /** A goal's page, inside About this goal, after its facts (goal spec, 5: a module's block is about the goal, not a section of the page). */
   'goal.sections': { goal: Goal };
   /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
   'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
-  /** Goals' view bar, after the layouts: the goals shown now. On a phone it's in the Views menu instead (`inMenu`). */
+  /** Goals' Views menu (the View sheet on a phone), after Copy link: the goals shown now. Always drawn as an item there (`inMenu` is always true since GL2). */
   'goals.tools': { goals: Goal[]; viewName: string; inMenu?: boolean };
   /**
    * New goal and goal edit, with the goal's own fields: what measures the goal (backlog 0b). Given the goal as saved

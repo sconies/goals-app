@@ -9,6 +9,7 @@
      virtual:faro-modules/actions each module's actions.ts (its actions, run by app.run like the core's: app/actions)
      virtual:faro-modules/spec   each module's spec.ts (its rules in plain words, with worked examples: src/spec/rules)
      virtual:faro-modules/conformance each module's conformance.ts (its rules' rows in the conformance data: src/spec/conformance)
+     virtual:faro-modules/demo   each module's demo.ts (its rows in the demo workspace: only the demo builder loads it)
 
    FARO_WITHOUT=spreadsheets[,other] builds Faro with those modules left out, and anything that needs them: CI builds
    it that way for each module and runs the core journeys (.github/workflows/ci.yml). */
@@ -16,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
-const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx', '/records': 'records.ts', '/actions': 'actions.ts', '/spec': 'spec.ts', '/conformance': 'conformance.ts' } as const;
+const PARTS = { '': 'module.json', '/help': 'help.ts', '/tools': 'tools.ts', '/app': 'app.tsx', '/records': 'records.ts', '/actions': 'actions.ts', '/spec': 'spec.ts', '/conformance': 'conformance.ts', '/demo': 'demo.ts' } as const;
 const PREFIX = 'virtual:faro-modules';
 
 interface Found { id: string; needs: string[]; dir: string }

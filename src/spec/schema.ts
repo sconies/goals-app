@@ -16,6 +16,8 @@ interface Constraint { tbl: string; name: string; def: string }
 interface Fn { name: string; args: string; def: string; definer: boolean; runners: string[] | null }
 interface Policy { schemaname: string; tablename: string; policyname: string; permissive: string; roles: string[]; cmd: string; qual: string | null; with_check: string | null }
 interface Grant { tbl: string; grantee: string; privs: string[] }
+/** A grant on some of a table's columns only (`grant insert (a, b) on t to anon`). */
+interface ColumnGrant { tbl: string; grantee: string; priv: string; cols: string[] }
 
 /** What the database holds, read once. */
 export interface Catalog {
@@ -29,6 +31,7 @@ export interface Catalog {
   functions: Fn[];
   policies: Policy[];
   grants: Grant[];
+  columnGrants: ColumnGrant[];
   schemaUsage: string[];
   redirects: { views: string[]; functions: string[] };
 }
@@ -60,13 +63,17 @@ async function read(db: Db, migrations: string[]): Promise<Catalog> {
   const grants = await q<Grant>(`select c.relname as tbl, coalesce(r.rolname, 'public') as grantee, array_agg(a.privilege_type::text) as privs
     from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a left join pg_roles r on r.oid = a.grantee
     where ${ns} and c.relkind in ('r', 'p', 'v') and a.grantee <> c.relowner group by 1, 2 order by 1, 2`);
+  // Grants on single columns (0026's feedback, 0031's markups): a table can be closed as a whole and open column by column.
+  const columnGrants = await q<ColumnGrant>(`select c.relname as tbl, coalesce(r.rolname, 'public') as grantee, a.privilege_type as priv, array_agg(t.attname::text order by t.attnum) as cols
+    from pg_attribute t join pg_class c on c.oid = t.attrelid join pg_namespace n on n.oid = c.relnamespace, aclexplode(t.attacl) a left join pg_roles r on r.oid = a.grantee
+    where ${ns} and t.attacl is not null and t.attnum > 0 and not t.attisdropped and a.grantee <> c.relowner group by 1, 2, 3 order by 1, 2, 3`);
   const schemaUsage = (await q<{ who: string }>(`select coalesce(r.rolname, 'public') as who from pg_namespace n, aclexplode(n.nspacl) a left join pg_roles r on r.oid = a.grantee
     where ${ns} and a.privilege_type = 'USAGE' and a.grantee <> n.nspowner order by 1`)).map((r) => r.who);
   const redirects = {
     views: (await q<{ name: string }>(`select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'v' order by 1`)).map((r) => r.name),
     functions: (await q<{ name: string }>(`select distinct p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'okr\\_%' order by 1`)).map((r) => r.name),
   };
-  return { migrations, tables, columns, constraints, indexes, triggers, views, functions, policies, grants, schemaUsage, redirects };
+  return { migrations, tables, columns, constraints, indexes, triggers, views, functions, policies, grants, columnGrants, schemaUsage, redirects };
 }
 
 /** Faro's database after every migration, read from PGlite. */
@@ -126,6 +133,7 @@ export function schemaSql(c: Catalog): string {
   for (const p of c.policies) out.push(policySql(p));
   out.push('');
   for (const g of c.grants) out.push(`grant ${privs(g.privs).join(', ')} on ${g.tbl} to ${g.grantee};`);
+  for (const g of c.columnGrants) out.push(`grant ${PRIVS[g.priv] ?? g.priv.toLowerCase()} (${g.cols.join(', ')}) on ${g.tbl} to ${g.grantee};`);
   out.push('');
   for (const f of c.functions) {
     if (!f.runners?.includes('public')) out.push(`revoke execute on function ${fnName(f)} from public;`);
@@ -158,17 +166,19 @@ export function accessPage(c: Catalog): string {
     '',
     '## Tables',
     '',
-    `The schema \`${SCHEMA}\` may be used by ${who(c.schemaUsage)}. A table with no grant can be reached only through the functions below.`,
+    `The schema \`${SCHEMA}\` may be used by ${who(c.schemaUsage)}. A grant on some columns only is shown as “insert (7 columns)”; [schema.sql](../core/schema.sql) names them. A table with no grant can be reached only through the functions below.`,
     '',
     table(['Table', 'Row rules', 'Granted to', 'Rules', 'Today'], c.tables.map((t) => {
       const g = c.grants.filter((x) => x.tbl === t.name);
+      const cg = c.columnGrants.filter((x) => x.tbl === t.name && !g.some((y) => y.grantee === x.grantee && privs(y.privs).includes(PRIVS[x.priv] ?? '')));
+      const granted = [...g.map((x) => `${x.grantee}: ${privs(x.privs).join(', ')}`), ...cg.map((x) => `${x.grantee}: ${PRIVS[x.priv] ?? x.priv.toLowerCase()} (${x.cols.length} ${x.cols.length === 1 ? 'column' : 'columns'})`)];
       const p = c.policies.filter((x) => x.schemaname === SCHEMA && x.tablename === t.name);
       return [
         `\`${t.name}\``,
         t.rls ? 'on' : '**off**',
-        g.length ? g.map((x) => `${x.grantee}: ${privs(x.privs).join(', ')}`).join('; ') : 'nobody',
+        granted.length ? granted.join('; ') : 'nobody',
         p.length ? p.map((x) => `“${cell(x.policyname)}”: ${x.cmd.toLowerCase()} for ${x.roles.join(', ')}${x.qual ? ` where \`${cell(short(x.qual))}\`` : ''}${x.with_check ? ` checking \`${cell(short(x.with_check))}\`` : ''}`).join('<br>') : 'none',
-        g.length || p.length ? 'Demo access: replace' : 'Functions only',
+        granted.length || p.length ? 'Demo access: replace' : 'Functions only',
       ];
     })),
     '',

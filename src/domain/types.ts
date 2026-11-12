@@ -26,7 +26,17 @@ export interface Person {
 }
 
 /** How important a goal is to the organisation, for reporting at major reviews. Separate from what it feeds. */
-export type Level = 'north-star' | 'svp' | 'team';
+/** A goal's level: an id from its cycle's levels (domain/levels.ts). Faro's three are 'north-star', 'svp' and 'team'. */
+export type Level = string;
+
+/** A level a workspace has: its id (stored on goals), its name, and the hint the goal form shows (domain/levels.ts). */
+export interface LevelDef {
+  id: Level;
+  name: string;
+  hint: string;
+  /** Removed: goals moved off it; its name is kept for History. */
+  removedAt?: string | null;
+}
 
 export interface Team {
   id: Id;
@@ -44,6 +54,8 @@ export interface Cycle {
   weeks: number;
   /** Day of the weekly review, 0 = Monday. Check-ins are due before it. */
   reviewDay: number;
+  /** The levels its goals can have, top first; none means Faro's three (domain/levels.ts DEFAULT_LEVELS). Set by a workspace from CF2. */
+  levels?: LevelDef[] | null;
   /** Deleted (only a cycle with no check-ins): kept, hidden, restorable. */
   removedAt?: string | null;
   removedBy?: Id | null;
@@ -241,6 +253,10 @@ export interface ImportUndo {
   /** Reviews and teams a row's Action changed (someone marked as left leaves their reviews and hands over their teams). */
   reviews?: { id: Id; before: Review | null }[];
   teams?: { id: Id; before: Team | null }[];
+  /** Starting a year (domain/carry carryExtras): the watches, and the modules' rows (a metric link), it added for the
+      carried goals. */
+  watches?: Id[];
+  modules?: { module: string; key: string; ids: Id[] }[];
 }
 
 /**

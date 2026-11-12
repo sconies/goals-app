@@ -8,7 +8,7 @@ Each new table in the migrations copied the block before it, so the pattern seen
 
 ## Tables
 
-The schema `faro` may be used by the public key (`anon`), anyone signed in (`authenticated`). A table with no grant can be reached only through the functions below.
+The schema `faro` may be used by the public key (`anon`), anyone signed in (`authenticated`). A grant on some columns only is shown as “insert (7 columns)”; [schema.sql](../core/schema.sql) names them. A table with no grant can be reached only through the functions below.
 
 | Table | Row rules | Granted to | Rules | Today |
 |---|---|---|---|---|
@@ -19,12 +19,12 @@ The schema `faro` may be used by the public key (`anon`), anyone signed in (`aut
 | `okr_check_ins` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_cycles` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_decisions` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
-| `okr_feedback` | on | nobody | “demo: add”: insert for anon checking `true` | Demo access: replace |
+| `okr_feedback` | on | anon: insert (7 columns) | “demo: add”: insert for anon checking `true` | Demo access: replace |
 | `okr_goal_keys` | on | nobody | none | Functions only |
 | `okr_goal_metrics` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `okr_goals` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_markup_ids` | on | nobody | none | Functions only |
-| `okr_markups` | on | anon: select, insert; authenticated: select | “markups: add”: insert for anon checking `(okr_markup_allowed(id, workspace_id, demo) AND (status = 'new'::text) AND (issue_url IS NULL) AND (fixed_in IS NULL) AND (wont_fix_reason IS NULL) AND (status_by IS NULL) AND (status_at IS NULL))`<br>“markups: anyone reads”: select for anon where `true`<br>“markups: anyone triages”: update for anon where `true` checking `true`<br>“markups: builders read”: select for authenticated where `okr_is_builder()`<br>“markups: builders triage”: update for authenticated where `okr_is_builder()` checking `okr_is_builder()` | Demo access: replace |
+| `okr_markups` | on | anon: select, insert; authenticated: select; anon: update (6 columns); authenticated: update (6 columns) | “markups: add”: insert for anon checking `(okr_markup_allowed(id, workspace_id, demo) AND (status = 'new'::text) AND (issue_url IS NULL) AND (fixed_in IS NULL) AND (wont_fix_reason IS NULL) AND (status_by IS NULL) AND (status_at IS NULL))`<br>“markups: anyone reads”: select for anon where `true`<br>“markups: anyone triages”: update for anon where `true` checking `true`<br>“markups: builders read”: select for authenticated where `okr_is_builder()`<br>“markups: builders triage”: update for authenticated where `okr_is_builder()` checking `okr_is_builder()` | Demo access: replace |
 | `okr_metrics` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |
 | `okr_people` | on | anon: select, insert, update, delete | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true`<br>“demo: remove”: delete for anon where `true` | Demo access: replace |
 | `okr_requests` | on | anon: select, insert, update | “demo: add”: insert for anon checking `true`<br>“demo: change”: update for anon where `true` checking `true`<br>“demo: read”: select for anon where `true` | Demo access: replace |

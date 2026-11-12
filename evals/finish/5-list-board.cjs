@@ -13,24 +13,26 @@ module.exports = {
     const r0 = (n) => Math.round(n);
 
     // L&T 4, 31, 23 and backlog G (Lane's markup, 9 Nov): a 360px phone, goals first. The week is one small line under
-    // the title, beside New goal, so the header is one 44px row; which goals and how to see them are one row of two menus, the Views button saying the open
-    // view and its count; search and Filters one row with a short placeholder; and the first goal within 240px.
+    // the title, beside New goal, so the header is one 44px row; the tabs one row; search and Filter and sort one row with
+    // a short placeholder; the switch and View one row (GL2: View opens the sheet with Layout, Group and Saved views).
     {
       const [c, p] = await open(360, 740, 'amara', '/goals?scope=all', true);
       const m = await p.evaluate((src) => {
         const ban = (0, eval)('(' + src + ')')();
         const rect = (s) => document.querySelector(s)?.getBoundingClientRect();
-        const bar = rect('.goals-phonebar'), row = rect('.filterbar-row');
+        const bar = rect('.goals-phone-switch'), row = rect('.filterbar-row'), tabs = rect('.goals-tabs > .seg.tabs');
         const shown = (s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length;
         const period = rect('.goals-period'), h1 = rect('.goals-head h1'), head = rect('.goals-head');
-        return { period: period && [period.top, period.height], h1Bottom: h1?.bottom, head: head?.height, bar: bar?.height, hidden: shown('.goals-toolbar') + shown('.layout-about'),
-          views: document.querySelector('.show-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(), layout: document.querySelector('.layout-menu > summary')?.innerText.replace(/\s+/g, ' ').trim(),
+        return { period: period && [period.top, period.height], h1Bottom: h1?.bottom, head: head?.height, bar: bar?.height, tabs: tabs?.height, hidden: shown('.views-menu') + shown('.layout-menu') + shown('.group-menu') + shown('.layout-about'),
+          view: document.querySelector('.goals-phone-switch .view-open')?.innerText.replace(/\s+/g, ' ').trim(), cut: [...document.querySelectorAll('.goals-phone-switch .btn')].filter((e) => e.scrollWidth > e.clientWidth + 1).length,
           row: row?.height, first: rect('.outcome')?.top - ban, placeholder: document.querySelector('.filter-search input')?.placeholder, side: document.documentElement.scrollWidth - innerWidth };
       }, bannerPx.toString());
       // Goals spec 2.4: no title on a phone's page; the top bar names it and says the week.
       chk((m.head ?? 0) <= 1, `G: 360px Goals still draws its own ${r0(m.head)}px header under the top bar`);
-      chk(m.bar <= 48 && m.hidden === 0, `G: 360px views and layout take ${r0(m.bar)}px (one 44px row expected), ${m.hidden} of the wide toolbar's rows still shown`);
-      chk(/^Views: All ?, ?\d+ goals$/.test(m.views ?? '') && /^Layout: List$/.test(m.layout ?? ''), `G: 360px menus say “${m.views}” and “${m.layout}”`);
+      // Goals spec 2.4 (GL2): the tabs one row; the switch and View one 44px row, neither cut short; the menus of a
+      // computer's bar (Views, Group, Layout) are the View sheet here.
+      chk(m.bar <= 48 && m.tabs <= 56 && m.hidden === 0, `G: 360px the switch and View take ${r0(m.bar)}px, the tabs ${r0(m.tabs)}px (one row each expected), ${m.hidden} of a computer's menus still shown`);
+      chk(m.view === 'View: List, as trees' && m.cut === 0, `G: 360px View button says “${m.view}”${m.cut ? `, ${m.cut} button cut short` : ''}`);
       chk(m.row <= 48, `L&T 4: 360px search and Filters take ${r0(m.row)}px (one row expected)`);
       // Backlog G (9 Nov) brought the first goal up from about 427px (backlog N's wrapped tabs and layout line) to about 235px.
       // Goals spec 2.4 (GL1) dropped the page's title and added the switch's row and the count line: about 285px.
@@ -55,15 +57,16 @@ module.exports = {
     {
       const [c, p] = await open(390, 844, 'amara', '/goals?show=teams', true);
       const m = await p.evaluate(() => {
-        // On a phone the open view is what the Views button says (backlog G), not a tab to scroll to.
-        const name = document.querySelector('.show-menu > summary .show-name');
+        // On a phone the tabs are one row that scrolls (goals spec, 2.4): the lit one is scrolled into view, in full.
+        const lit = document.querySelector('.goals-tabs [role="tab"][aria-selected="true"]'), track = document.querySelector('.goals-tabs > .seg.tabs');
+        const lr = lit?.getBoundingClientRect(), tr = track?.getBoundingClientRect();
         const stale = [...document.querySelectorAll('.trow')].find((r) => r.querySelector('.trow-icon.tone-stale'));
         const now = stale?.querySelector('.trow-now > span:last-child');
         const row = document.querySelector('.trow'), title = row.querySelector('.trow-title').getBoundingClientRect(), value = row.querySelector('.trow-now').getBoundingClientRect();
-        return { inView: name?.textContent === 'All' && name.scrollWidth <= name.clientWidth + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
+        return { inView: !!lr && /^All/.test(lit.textContent) && lr.left >= tr.left - 1 && lr.right <= tr.right + 1, glines: document.querySelectorAll('.page .gline').length, trows: document.querySelectorAll('.page .trow').length,
           staleColour: now && getComputedStyle(now).color, titleW: title.width, valueLeft: value.left, titleLeft: title.left, valueBelow: value.top >= title.bottom - 1, valueSize: parseFloat(getComputedStyle(row.querySelector('.trow-now')).fontSize) };
       });
-      chk(m.inView, 'L&T 2: the Views button does not say All in full');
+      chk(m.inView, 'L&T 2: the lit tab, All, is not in view in full');
       chk(m.glines === 0 && m.trows > 5, `L&T 21: By team draws ${m.glines} rows of another kind`);
       chk(m.staleColour === 'rgb(70, 87, 89)', `L&T 19: “no recent update” is ${m.staleColour}`);
       chk(m.titleW >= 300 && m.valueBelow && Math.abs(m.valueLeft - m.titleLeft) <= 1 && m.valueSize === 14, `L&T 22: phone row title ${r0(m.titleW)}px, value ${m.valueBelow ? 'below' : 'beside'} it at x ${r0(m.valueLeft)} vs ${r0(m.titleLeft)}, ${m.valueSize}px`);
@@ -81,7 +84,7 @@ module.exports = {
     // legends have no padding and checkboxes don't shrink.
     {
       const [c, p] = await open(390, 844, 'amara', '/goals?scope=all', true);
-      await p.getByRole('button', { name: /^Filters/ }).click();
+      await p.getByRole('button', { name: /^Filter(s| and sort)/ }).click();
       await p.waitForTimeout(400);
       const m = await p.evaluate(() => {
         const sheet = document.querySelector('.sheet').getBoundingClientRect();
@@ -195,13 +198,13 @@ module.exports = {
       await c.close();
     }
 
-    // L&T 14, 16, 25: a tablet. Tabs and layout buttons 44px; a 44px target round each 16px checkbox; the tab track only
+    // L&T 14, 16, 25: a tablet. Tabs and the Layout menu 44px; a 44px target round each 16px checkbox; the tab track only
     // as wide as its tabs; the decision toggle pressed is a light fill with a 2px outline, and not also a chip.
     {
       const [c, p] = await open(1024, 768, 'amara', '/goals?scope=all&view=table&needs=decision', true);
       const m = await p.evaluate(() => {
         const tab = document.querySelector('.goals-tabs [role="tab"]').getBoundingClientRect().height;
-        const lay = Math.min(...[...document.querySelectorAll('.layout-switch button')].map((b) => b.getBoundingClientRect().height));
+        const lay = document.querySelector('.layout-menu > summary').getBoundingClientRect().height;
         const hit = document.querySelector('.gtable tbody .selhit').getBoundingClientRect();
         const box = document.querySelector('.gtable tbody .selhit input').getBoundingClientRect();
         const track = document.querySelector('.goals-tabs > .seg.tabs');
@@ -209,7 +212,7 @@ module.exports = {
         const q = getComputedStyle([...document.querySelectorAll('.attention-switch')].find((e) => e.getClientRects().length));
         return { tab, lay, hit: [hit.width, hit.height], box: box.width, track: track.getBoundingClientRect().width, sum, qBg: q.backgroundColor, qBorder: q.borderTopWidth };
       });
-      chk(m.tab >= 44 && m.lay >= 44, `L&T 14: tabs ${r0(m.tab)}px, layout buttons ${r0(m.lay)}px`);
+      chk(m.tab >= 44 && m.lay >= 44, `L&T 14: tabs ${r0(m.tab)}px, the Layout menu ${r0(m.lay)}px`);
       chk(m.hit[0] >= 44 && m.hit[1] >= 44 && r0(m.box) === 16, `L&T 14: checkbox ${r0(m.box)}px in a ${m.hit.map(r0).join('×')} target`);
       chk(m.track <= m.sum + 40, `L&T 16: the tab track is ${r0(m.track)}px for ${r0(m.sum)}px of tabs`);
       chk(m.qBg === 'rgb(250, 249, 246)' && m.qBorder === '2px', `L&T 25: the pressed Needs attention switch ${m.qBg}, border ${m.qBorder}`);
@@ -277,7 +280,7 @@ module.exports = {
       const [c, p] = await open(1280, 800, 'amara', '/goals?scope=all&view=cards');
       await p.locator('.tree').first().waitFor();
       const m = await p.evaluate(() => ({
-        layouts: document.querySelectorAll('.layout-switch button').length,
+        layouts: document.querySelectorAll('.layout-menu .menuitem').length,
         note: document.querySelector('.link-note')?.textContent ?? '',
         view: new URL(location.href).searchParams.get('view'),
         health: (document.querySelector('.goals-line')?.textContent ?? '').split(' · '),

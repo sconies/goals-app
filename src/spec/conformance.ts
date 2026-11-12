@@ -10,7 +10,7 @@ import { assessPosted, checkInsFor, daysWithoutUpdate, goalStatus } from '../dom
 import type { Ask, CheckIn, Cycle, Decision, Goal, Person, Review, Snapshot, Team } from '../domain/types';
 import { search } from '../domain/find';
 import { goalRows, personRows, teamRows } from '../app/reads';
-import { litItem, menuGroups, pageName, phoneTabs, type NavId } from '../domain/navigation';
+import { litItem, menuGroups, pageName, phoneTabs, type NavId, type PlaceNames } from '../domain/navigation';
 import type { ModuleRows } from '../domain/records';
 import MODULE_CONFORMANCE from 'virtual:faro-modules/conformance';
 
@@ -200,7 +200,7 @@ export function findRowsOf(w: ConformanceWorkspace): string[][] {
 /* ---------- navigation ---------- */
 
 /** The addresses navigation.csv answers for each viewer (the navigation rules, AR2). */
-export const NAV_ADDRESSES = ['/', '/check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/reviews/weekly', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro/x', '/research'];
+export const NAV_ADDRESSES = ['/', '/check-in', '/check-in/lead-mq', '/quick-check-in', '/goals', '/goals?scope=mine', '/watching', '/goals/new', '/goals/lead-mq', '/goals/lead-mq/edit', '/goals/lead-mq?review=weekly', '/goals/nowhere', '/reviews/weekly', '/people/rhea', '/teams/cicd', '/activity', '/data', '/workspace/people', '/settings', '/help/check-in', '/whats-new', '/retro', '/retro/x', '/research', '/nowhere'];
 /** A module's menu item, as a module's app.tsx gives it, for the rows that show where one goes. */
 export const NAV_MODULE = { id: 'example', to: '/example', label: 'Example', group: 'lookup' as const };
 /** Two viewers: one who owns goals, one who owns none. */
@@ -218,17 +218,17 @@ export function navigationRowsOf(w: ConformanceWorkspace): string[][] {
     const g = menuGroups(owns, []);
     const side = [...g.work, ...g.lookup, ...g.make, ...g.you];
     const tabs = phoneTabs(owns);
+    // A page's name reads goals' titles and reviews' names from the workspace; Help's articles aren't in it.
+    const names: PlaceNames = { goal: (id) => s.goals.find((x) => x.id === id)?.title ?? null, review: (id) => s.reviews.find((x) => x.id === id)?.name ?? null, view: () => null, article: () => null, person: (id) => s.people.find((x) => x.id === id)?.name ?? null, team: (id) => s.teams.find((x) => x.id === id)?.name ?? null };
     for (const address of NAV_ADDRESSES) {
       const [path = '/', q = ''] = address.split('?');
-      const show = new URLSearchParams(q).get('scope') ?? new URLSearchParams(q).get('show');
-      const at = path === '/watching' ? 'watching' : path === '/goals' ? (show === 'mine' ? 'mine' : 'all') : null;
-      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), tabs.join(' '), litItem(path, side) ?? '', pageName(path, at, [...side, ...tabs] as NavId[])]);
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => g[k].join(' ')).join(' | '), tabs.join(' '), litItem(path, q, side) ?? '', pageName(path, q, names)]);
     }
     // A module's item (AR2): placed in its group by the same rule, and lit on its own pages; it names its own page.
     const mg = menuGroups(owns, [NAV_MODULE]);
     const mside = [...mg.work, ...mg.lookup, ...mg.make, ...mg.you];
     for (const address of [NAV_MODULE.to, NAV_MODULE.to + '/one']) {
-      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, mside, [NAV_MODULE]) ?? '', pageName(address, null, [...side, ...tabs] as NavId[], NAV_MODULE.label)]);
+      rows.push([viewer, yes(owns), address, (['work', 'lookup', 'make', 'you'] as const).map((k) => mg[k].join(' ')).join(' | '), tabs.join(' '), litItem(address, '', mside, [NAV_MODULE]) ?? '', pageName(address, '', { ...names, module: (p) => (p === NAV_MODULE.to || p.startsWith(NAV_MODULE.to + '/') ? NAV_MODULE.label : null) })]);
     }
   }
   return rows;

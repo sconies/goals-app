@@ -6,8 +6,9 @@ import { requestsFromCheckIns } from './asks';
 import { isYear, periodLabel, quarterOf, yearWeeks } from './year';
 import { currentWeek, hasEnded } from './plan';
 import { RULES } from './thresholds';
+import { carries, carryCopy, carryKind } from './carry';
 import { yearName } from './yearName';
-import { assessMilestone, checkInsFor, goalStatus } from './status';
+import { checkInsFor, goalStatus } from './status';
 import type { CheckIn, Cycle, Goal, Retro, Snapshot } from './types';
 import { carryModules, type ModuleRecords } from './records';
 
@@ -15,16 +16,21 @@ const DAY = 86_400_000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
 
 /**
- * The cycle the app shows: the latest one that has started, or starts within the week
- * (so a cycle set up at the end of the last one opens straight away, in its baseline week).
+ * The cycle the app shows (cycle-end rule 3): of the cycles not removed, the latest whose week 1 has begun; if none has,
+ * the earliest. So a next year set up during the wrap-up opens for everyone on its week 1's Monday, never earlier, and
+ * a year nobody follows with another stays current after it ends. A new workspace's only cycle is current from day one,
+ * in its week 0.
  */
 export function currentCycle(cycles: Cycle[], today: Date): Cycle | undefined {
-  const soon = new Date(today.getTime() + 7 * DAY).toISOString().slice(0, 10);
+  const day = today.toISOString().slice(0, 10);
   // A deleted cycle is never current (domain/removal); one that's all there is still opens, rather than nothing.
   const kept = cycles.filter((c) => !c.removedAt);
   const sorted = [...(kept.length ? kept : cycles)].sort((a, b) => a.startDate.localeCompare(b.startDate));
-  return [...sorted].reverse().find((c) => c.startDate <= soon) ?? sorted[0];
+  return [...sorted].reverse().find((c) => addDays(c.startDate, 7) <= day) ?? sorted[0];
 }
+
+/** The cycle after this one, if one has been started (not removed). */
+export const laterCycle = (cycles: Cycle[], c: Cycle) => cycles.filter((v) => !v.removedAt && v.startDate > c.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 
 /**
  * Only what belongs to one cycle, and only what's live: the one place removed and archived records leave the lists,
@@ -133,6 +139,12 @@ export function cycleState(c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date): 
 /** The wrap-up is open from the day it opens until the day it closes, four weeks after the cycle ends. */
 export const wrapUpOpenOn = (c: Pick<Cycle, 'startDate' | 'weeks'>, today: Date) => ['ending', 'ended'].includes(cycleState(c, today));
 
+/** Whether the next year can be started today (cycle-end rule 6): from the day this one's wrap-up opens, for as long as
+    no later year exists, even once the wrap-up has closed. */
+export const canStartNext = (cycles: Cycle[], c: Cycle, today: Date): boolean => !['before', 'running'].includes(cycleState(c, today)) && !laterCycle(cycles, c);
+/** Why not yet: "2027 can be started from Mon 21 Dec 2026, when 2026’s wrap-up opens." */
+export const startFromLine = (c: Cycle): string => `${nextCycleShape(c).name} can be started from ${dayWithYear(cycleDates(c).wrapUpOpens)}, when ${c.name}’s wrap-up opens.`;
+
 /** The cycle whose wrap-up is open today (the later, if two), or nothing. */
 export function wrapUpCycle(cycles: Cycle[], today: Date): Cycle | undefined {
   return cycles.filter((c) => !c.removedAt && wrapUpOpenOn(c, today)).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
@@ -155,6 +167,8 @@ export function dayWithYear(iso: string): string {
 
 /** The long place line (Goals, the wrap-up, Print): "Week 45 of 53 · Q4 (Oct–Dec) · 2026", or "2026 ended on Sun 3 Jan 2027" once its last day is past. */
 export function periodNow(c: Cycle, today: Date): string {
+  // Before its week 1 a cycle has no week to name: never "Week 0 of 52" (cycle-end 2.10).
+  if (cycleState(c, today) === 'before') return `${c.name} starts ${dayWithYear(cycleDates(c).firstDay)}`;
   return hasEnded(c, today) ? `${c.name} ended on ${dayWithYear(cycleDates(c).lastDay)}` : periodLabel(c, currentWeek(c, today));
 }
 
@@ -170,6 +184,27 @@ export function placeLine(c: Cycle, today: Date): string {
   const w = Math.max(1, Math.min(c.weeks, Math.floor((Date.parse(isoDay(today) + 'T00:00:00Z') - Date.parse(c.startDate + 'T00:00:00Z')) / (7 * DAY))));
   if (w === c.weeks) return `${c.name} · week ${w}, the last week`;
   return isYear(c) ? `${c.name} · week ${w} · ${quarterOf(c, w).label}` : `${c.name} · week ${w} of ${c.weeks}`;
+}
+
+/**
+ * Before a cycle's first week (cycle-end rule 4): its first day, how many days until it, and the first check-in's due
+ * date (week 1's review day). Nothing otherwise. While it gives something, nothing is due and the screens say when the
+ * cycle starts.
+ */
+export function beforeStart(c: Pick<Cycle, 'startDate' | 'weeks' | 'reviewDay'>, today: Date): { firstDay: string; days: number; firstDue: string } | null {
+  const { firstDay } = cycleDates(c);
+  const t = isoDay(today);
+  if (t >= firstDay) return null;
+  const days = Math.round((Date.parse(firstDay + 'T00:00:00Z') - Date.parse(t + 'T00:00:00Z')) / DAY);
+  return { firstDay, days, firstDue: addDays(firstDay, c.reviewDay) };
+}
+
+/** "2027 starts on Mon 4 Jan 2027, in 2 weeks. Nothing is due until then." (cycle-end 2.10), with the first check-ins' date when asked. */
+export function beforeStartLine(c: Cycle, today: Date, withDue = false): string | null {
+  const b = beforeStart(c, today);
+  if (!b) return null;
+  const when = b.days < 7 ? 'on Monday' : b.days < 14 ? 'next week' : `in ${Math.floor(b.days / 7)} weeks`;
+  return `${c.name} starts on ${dayWithYear(b.firstDay)}, ${when}. Nothing is due until then.${withDue ? ` Your first check-ins are due ${dayWithYear(b.firstDue)}.` : ''}`;
 }
 
 /** A first guess at how a goal landed, from its status at the end. The owner confirms or changes it. */
@@ -192,41 +227,25 @@ export function cycleName(startDate: string, weeks: number): string {
   return y(a) === y(b) ? `${m(a)}–${m(b)} ${y(b)}` : `${m(a)} ${y(a)}–${m(b)} ${y(b)}`;
 }
 
+/** The next cycle's start, length and name: its week 0 is this one's last week; a goal year's length (52 or 53 weeks) follows the calendar. */
+export function nextCycleShape(old: Pick<Cycle, 'startDate' | 'weeks'>): { startDate: string; weeks: number; name: string } {
+  const startDate = addDays(old.startDate, old.weeks * 7);
+  const weeks = isYear(old as Cycle) ? yearWeeks(startDate) : old.weeks;
+  return { startDate, weeks, name: isYear(old as Cycle) ? yearName(startDate, weeks) : cycleName(startDate, weeks) };
+}
+
 /**
- * The next cycle, straight after this one, and copies of the goals that carry on. A carried metric
- * starts from its last number; a carried milestone keeps the stages not yet done, spread over the
- * new cycle. Links between carried goals are kept; a link to a goal that stops is dropped.
+ * The next cycle, straight after this one, and copies of the goals that carry on (domain/carry carryCopy: a number goal
+ * starts from its final number in week 1 with the same target, due at the end of the new year; stages not done are
+ * spread over it; a plan that runs past the year keeps its dates). Links between carried goals are kept; a link to a
+ * goal that finishes or stops is dropped.
  */
 export function nextCycle(old: Cycle, goals: Goal[], checkIns: CheckIn[], retros: Retro[], ids: { cycle: string; goal: (old: Goal) => string }, now: string): { cycle: Cycle; goals: Goal[] } {
-  // The next goal year's week 0 is this year's last week; its own length (52 or 53 weeks) follows the calendar.
-  const startDate = addDays(old.startDate, old.weeks * 7);
-  const weeks = isYear(old) ? yearWeeks(startDate) : old.weeks;
-  const cycle: Cycle = { ...old, id: ids.cycle, startDate, weeks, name: isYear(old) ? yearName(startDate, weeks) : cycleName(startDate, weeks) };
-  const carried = goals.filter((g) => g.cycleId === old.id && (retros.find((r) => r.goalId === g.id)?.next ?? 'carry') === 'carry');
+  const cycle: Cycle = { ...old, id: ids.cycle, ...nextCycleShape(old) };
+  // Which goals go on is one rule (domain/carry carryKind): carry on or keep their plan; a goal that met its target
+  // finishes, and one its owner stopped at the wrap-up stops. The read-back before starting counts the same.
+  const carried = goals.filter((g) => g.cycleId === old.id && carries(carryKind(g, { cycle: old, checkIns, retro: retros.find((r) => r.goalId === g.id && r.cycleId === old.id) ?? null }).kind));
   const map = new Map(carried.map((g) => [g.id, ids.goal(g)]));
-  const out = carried.map((g): Goal => {
-    const base = { ...g, id: map.get(g.id)!, cycleId: cycle.id, parentId: g.parentId ? map.get(g.parentId) ?? null : null, createdAt: now, pending: null };
-    if (!base.parentId) base.effect = null;
-    if (g.kind === 'metric' && (g.plan.endWeek ?? 0) > old.weeks) {
-      // A goal that runs past this cycle keeps its plan; its weeks are now counted from the new cycle's start.
-      const shift = (w: number) => w - old.weeks;
-      const plan = { ...g.plan, fromWeek: shift(g.plan.fromWeek ?? 0), endWeek: shift(g.plan.endWeek!), ...(g.plan.points ? { points: g.plan.points.map((p) => ({ ...p, week: shift(p.week) })) } : {}) };
-      return { ...base, kind: 'metric', plan, originalPlan: null, rebaselinedWeek: null } as Goal;
-    }
-    if (g.kind === 'metric') {
-      const own = checkInsFor(g, checkIns).filter((c) => c.value != null);
-      const last = own[own.length - 1]?.value ?? g.plan.start;
-      return { ...base, kind: 'metric', plan: { ...g.plan, start: last }, originalPlan: null, rebaselinedWeek: null } as Goal;
-    }
-    if (g.kind === 'milestone') {
-      const own = checkInsFor(g, checkIns).filter((c) => c.stages);
-      const last = own[own.length - 1];
-      const a = assessMilestone(g, old.weeks, last?.stages ?? null);
-      const left = g.stages.filter((_, i) => a.stages[i]?.kind !== 'done');
-      const stages = (left.length ? left : g.stages).map((st, i, arr) => ({ ...st, id: st.id + '-' + cycle.id, dueWeek: Math.max(1, Math.round(((i + 1) * old.weeks) / arr.length)) }));
-      return { ...base, kind: 'milestone', stages } as Goal;
-    }
-    return base as Goal;
-  });
+  const out = carried.map((g) => carryCopy(g, { old, next: cycle, checkIns, id: map.get(g.id)!, parentId: g.parentId ? map.get(g.parentId) ?? null : null, now }));
   return { cycle, goals: out };
 }

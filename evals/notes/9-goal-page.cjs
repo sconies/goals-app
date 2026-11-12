@@ -243,6 +243,9 @@ module.exports = {
         const before = await p.locator('.goal-bar .bar-status').innerText();
         await p.locator('.goal-bar').getByRole('link', { name: /^Check in for week \d+$/ }).click();
         await p.getByLabel('This week’s value').fill('10');
+        // 10 may be far from last week's number, which the check-in asks about (CK2): it is meant.
+        const meant = p.locator('.level-check .level-actions button').first();
+        if (await meant.isVisible().catch(() => false)) await meant.click();
         const cont = p.getByRole('button', { name: 'Continue' });
         if (await cont.isVisible().catch(() => false)) await cont.click();
         const still = p.getByRole('button', { name: /^Still true/ });
@@ -285,7 +288,7 @@ module.exports = {
         await pinned.locator('a').first().click();
         await p.locator('.goal-bar .bar-title').filter({ hasText: child }).waitFor();
         const back = p.locator('.goal-page > .backlink');
-        chk((await back.innerText()).trim() === 'Back to Lead time for changes', `${at6}: back from ${child} says “${(await back.innerText()).trim()}”`);
+        chk(((await back.getAttribute('aria-label')) ?? '').trim() === 'Back to Lead time for changes', `${at6}: back from ${child} says “${await back.getAttribute('aria-label')}”`);
         await back.click();
         // Back lands where you were, down the page: on a phone the one-line bar there has no title, so it's on the page, not in view.
         await p.locator('.goal-bar .bar-title').filter({ hasText: 'Lead time for changes' }).waitFor({ state: 'attached', timeout: 3000 }).catch(() => fails.push(`${at6}: Back did not return to the north star`));

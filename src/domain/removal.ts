@@ -8,13 +8,14 @@
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
 import type { Commit } from './commit';
+import { byRecarry } from './recarry';
 import { NotAllowed, type ActionContext } from './actions';
 import { asksOf, liveNotes, openAsksFor, withdrawAsk, writtenNotes } from './asks';
 import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
-import type { Ask, Change, CheckIn, Comment, Decision, Goal, Person, Review, Snapshot } from './types';
-import { moduleRowsBefore, removedModuleRows, restorableModuleRow, type ModuleRecords } from './records';
+import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
+import { hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsUndone, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -389,8 +390,57 @@ export function deleteCycle(x: ActionContext, id: string): Commit {
   const c = full.cycles.find((v) => v.id === id && !v.removedAt);
   if (!c) no('There’s no cycle with that ID.');
   if (!full.cycles.some((v) => v.id !== id && !v.removedAt)) no('It’s the only cycle, so it stays.');
+  if (startOf(full, id)) no('Use Undo on Cycles: it also puts back what moved with the goals.');
   if (!cycleDeletable(full, id)) no('Check-ins have been posted in it, so it stays.');
   return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'removed', summary: `Deleted the cycle ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
+}
+
+/** The change that started a cycle from the wrap-up (it keeps what it added), if this cycle was made that way and not undone. */
+export function startOf(s: { changes: Change[] }, cycleId: string): Change | undefined {
+  if (s.changes.some((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'undone')) return undefined;
+  return s.changes.find((c) => c.entity === 'cycle' && c.entityId === cycleId && c.action === 'created' && !!c.undo);
+}
+
+/**
+ * Whether starting a cycle can still be undone (cycle-end rule 9): it was started from the wrap-up, and nobody has used
+ * it yet: no check-in in it, no goal in it changed or added by a person, and no later cycle.
+ */
+export function canUndoStart(full: { cycles: Pick<Cycle, 'id' | 'startDate' | 'removedAt'>[]; goals: Pick<Goal, 'id' | 'cycleId' | 'removedAt'>[]; checkIns: Pick<CheckIn, 'goalId' | 'removedAt'>[]; changes: Change[] }, cycleId: string): { ok: true } | { ok: false; why: string } {
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  const start = startOf(full, cycleId);
+  if (!c || !start) return { ok: false, why: 'it wasn’t started from the wrap-up' };
+  const ids = new Set(full.goals.filter((g) => g.cycleId === cycleId && !g.removedAt).map((g) => g.id));
+  const checkIns = full.checkIns.filter((ci) => ids.has(ci.goalId) && !ci.removedAt).length;
+  if (checkIns) return { ok: false, why: `${plural(checkIns, 'check-in is', 'check-ins are')} in it` };
+  const made = new Set((start.undo?.goals ?? []).map((g) => g.id));
+  const changed = new Set([...ids].filter((id) => !made.has(id)));
+  for (const ch of full.changes) if (ch.at >= start.at && ch.id !== start.id && ch.goalId && ids.has(ch.goalId) && !byRecarry(ch.summary)) changed.add(ch.goalId);
+  if (changed.size) return { ok: false, why: `${plural(changed.size, 'goal in it has', 'goals in it have')} been changed` };
+  if (full.cycles.some((v) => !v.removedAt && v.startDate > c.startDate)) return { ok: false, why: 'a later cycle has been started' };
+  return { ok: true };
+}
+
+/**
+ * Admins: undo starting a cycle (cycle-end rule 9). The cycle is removed as a deleted one is (listed in Recently
+ * removed for 30 days); the year before is as it was. Starting again makes a new cycle, and then the removed one
+ * can never come back (restore refuses a second cycle with the same start).
+ */
+export function undoStart(x: ActionContext, cycleId: string): Commit {
+  if (!x.actor.admin) no('Only admins can undo the start of a cycle.');
+  const full = fullOf(x);
+  const c = full.cycles.find((v) => v.id === cycleId && !v.removedAt);
+  if (!c) no('There’s no cycle with that ID.');
+  const can = canUndoStart(full, cycleId);
+  if (!can.ok) no(`${c!.name} can’t be undone now: ${can.why}.`);
+  // What came with the goals goes back as it was: added watches and modules' rows (a metric link) are removed, asks and
+  // reviews restored.
+  const u = startOf(full, cycleId)!.undo!;
+  const gone = { removedAt: x.now, removedBy: x.actor.id };
+  const watches = (full.watches ?? []).filter((w) => (u.watches ?? []).includes(w.id) && !w.removedAt).map((w) => ({ ...w, ...gone }));
+  const modules = rowsUndone(full.modules, u.modules ?? [], gone);
+  const requests = u.requests.map((r) => r.before).filter((r): r is Ask => !!r).map((r) => { const now = (full.requests ?? []).find((v) => v.id === r.id); return now ? { ...now, goalIds: now.goalIds.filter((id) => !(u.goals ?? []).some((g) => g.id === id)) } : r; });
+  const reviews = (u.reviews ?? []).map((r) => r.before).filter((r): r is Review => !!r).map((r) => { const now = (full.reviews ?? []).find((v) => v.id === r.id) ?? r; const added = new Set(u.goals.map((g) => g.id)); return { ...now, scope: { ...now.scope, goals: now.scope.goals.filter((id) => !added.has(id)), trees: now.scope.trees.filter((id) => !added.has(id)) } }; });
+  return { cycles: [{ ...c!, removedAt: x.now, removedBy: x.actor.id }], watches, ...(hasModuleRows(modules) ? { modules } : {}), requests, reviews, changes: [log(x, { entity: 'cycle', entityId: c!.id, action: 'undone', summary: `Undid the start of ${c!.name}`, diffs: [{ field: 'Cycle', from: c!.name, to: '—' }] })] };
 }
 
 /* ---------- imports and bulk edits ---------- */

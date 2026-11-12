@@ -24,6 +24,10 @@ declare module 'virtual:faro-modules/actions' {
   const actions: { id: string; part: import('../app/actions').ModuleActions }[];
   export default actions;
 }
+declare module 'virtual:faro-modules/demo' {
+  const demo: { id: string; part: (b: import('../domain/records').DemoBuild) => void }[];
+  export default demo;
+}
 declare module 'virtual:faro-modules/spec' {
   const spec: { id: string; part: import('../spec/rules').Rule[] }[];
   export default spec;
@@ -31,4 +35,10 @@ declare module 'virtual:faro-modules/spec' {
 declare module 'virtual:faro-modules/conformance' {
   const conformance: { id: string; part: import('../spec/conformance').ModuleConformance[] }[];
   export default conformance;
+}
+/* The Help index the build makes (vite.helpIndex.ts): the guide's and What's new's ids, titles and routes, without
+   their text. Read it through src/help/lookup.ts. */
+declare module 'virtual:faro-help-index' {
+  const index: import('../../vite.helpIndex.ts').HelpIndex;
+  export default index;
 }

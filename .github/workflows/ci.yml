@@ -32,10 +32,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - run: npm run typecheck
       - name: "Layers: src/domain has no database, screen or network code, and the core imports no module"
         run: npm run lint:layers
+      - name: "Settings: a level is read from src/domain/levels.ts only"
+        run: npm run lint:settings
       - run: npm test
       - name: "The spec matches the code (spec/ and llms.txt: npm run spec)"
         run: npm run spec -- --check
@@ -48,7 +51,7 @@ jobs:
           npm run build:mcp
           git diff --exit-code --stat api/mcp.js || { echo "api/mcp.js is out of date. Run npm run build:mcp and commit it."; exit 1; }
       - name: "The bundle budget: the first download stays small (scripts/check-bundle.mjs)"
-        run: npx vite build --logLevel warn && node scripts/check-bundle.mjs
+        run: npx vite build --logLevel warn --manifest && node scripts/check-bundle.mjs
       - name: Spec scenarios, core journeys, design rules and console errors
         run: npm run evals:smoke
       - name: Smoke summary
@@ -94,7 +97,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       # The build leaves the module out (and whatever needs it); the smoke gate leaves out its journeys and checks.
       - name: Build without ${{ matrix.module }}, and run the spec scenarios, core journeys and design rules
         run: npm run evals:smoke
@@ -124,7 +128,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - name: Build this branch and the base branch
         run: |
           npx vite build --logLevel warn
@@ -162,7 +167,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Falls back to the browser alone when apt can't reach Ubuntu's mirror (11 Nov): the runner image has its libraries.
+      - run: npx playwright install --with-deps chromium || { echo "::warning::apt failed; installing Chromium without system packages"; npx playwright install chromium; }
       - name: Shard ${{ matrix.shard }} of 4
         run: node evals/run.mjs --shard ${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4

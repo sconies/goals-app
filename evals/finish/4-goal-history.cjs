@@ -80,7 +80,7 @@ module.exports = {
         // The projection's words under the chart are an explanation, in the muted colour, not an alert.
         fc: (() => { const f = document.querySelector('.goal-chart .chart-say'); return f ? getComputedStyle(f).color : null; })(),
         crumbs: document.querySelectorAll('.crumbs').length,
-        back: document.querySelector('.goal-page > .backlink')?.innerText.trim() ?? '',
+        back: document.querySelector('.goal-page > .backlink')?.getAttribute('aria-label')?.trim() ?? '',
       };
     });
     if (head.narrowTitle) fails.push(`head 1280: ${head.narrowTitle} goal rows give the title under 60%`);

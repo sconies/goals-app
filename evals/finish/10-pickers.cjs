@@ -1,6 +1,7 @@
 /* F11 (with P17): find-and-pick on a phone and a computer (docs/design/find/spec.md, section 7). On a 390 px phone an
    open picker's first result is near the top, its rows are at least 44 px high and nothing scrolls sideways; on both,
-   a chosen person is plain words with a button, never a capsule (no rounded, filled box behind it). */
+   a chosen person is plain words with a button, never a capsule (no rounded, filled box behind it). A picker inside a sheet
+   is a full sheet of its own on a phone. */
 module.exports = {
   id: 'F11',
   area: 'pickers',
@@ -37,6 +38,17 @@ module.exports = {
         if (caps.length) fails.push(`${w}: a chosen value is drawn as a capsule (${caps.join(', ')})`);
       } finally { await c.close(); }
     }
+    // On a phone a picker inside a sheet (who takes over, when leaving) is a full sheet of its own, not the lower half.
+    const [c, r] = await open(390, 844, 'tunde', '/settings');
+    try {
+      await r.getByRole('button', { name: 'Leave this workspace…' }).click();
+      await r.getByRole('button', { name: /^Who takes over your/ }).first().click();
+      const panel = r.locator('.pick-panel');
+      await panel.waitFor();
+      await r.waitForTimeout(300);
+      const b = await panel.boundingBox();
+      if (!b || b.y > 1 || b.y + b.height < 843) fails.push(`390: a picker in a sheet covers ${b ? `${Math.round(b.y)} to ${Math.round(b.y + b.height)} px` : 'nothing'}, not the whole screen`);
+    } finally { await c.close(); }
     return fails;
   },
 };

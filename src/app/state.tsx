@@ -1,23 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { viewerPicker } from '../adapters/local';
-import type { Identity } from '../ports';
+import { systemClock, viewerPicker } from '../adapters/local';
+import type { Clock, Identity, NoEntry } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
-import { checkInChange, goalChange, type Lookup } from '../domain/changes';
-import { toCheckIn, type Draft } from '../domain/checkin';
+import { goalChange, type Lookup } from '../domain/changes';
+import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
 import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
 import { findGoal, nextKey, withKeys } from '../domain/goalKey';
-import { requestsAfterCheckIn } from '../domain/asks';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import type { ChangeSet, Tables, Via } from '../domain/changeset';
+import type { ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, MODULE_ACTIONS, perform, performAny, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
@@ -55,6 +54,8 @@ export interface AppState {
   viewerChosen: boolean;
   /** Whether the Identity is the picker, so the person may say who they are; a sign-in can't be chosen. */
   canChooseViewer: boolean;
+  /** Why the sign-in opens no one in this workspace, when it can tell (Identity.why); null otherwise. */
+  noEntry: NoEntry | null;
   ws: Workspace;
   workspaces: Workspace[];
   /** The workspace being opened while it loads (switching), else null: the screen says so rather than mixing the two (backlog WS). */
@@ -106,7 +107,8 @@ export interface AppState {
   /** A feature module's action, by the name its actions.ts registers (app/actions MODULE_ACTIONS): run the same way. */
   run(name: string, input: unknown, opts?: { said?: string }): Promise<unknown>;
   /** Posts (or replaces) this week's check-in and logs it. */
-  postCheckIn(goal: Goal, draft: Draft, existing: CheckIn | null): Promise<CheckIn>;
+  /** Post a check-in through the engine (rule 13): `new` for this week, or `again` beside this week's own. */
+  postCheckIn(goal: Goal, draft: Draft, mode: PostMode): Promise<CheckIn>;
   /** Answer an ask (a decision or help, an update, a question): one answer for every goal it applies to. */
   answerRequest(r: Ask, answer: string): Promise<void>;
   /** Mark an action done, with an optional note. */
@@ -187,6 +189,8 @@ export interface AppState {
   deleteNote(id: string): Promise<void>;
   /** Admins: delete a cycle no one has checked in to. */
   deleteCycle(id: string): Promise<void>;
+  /** Admins: undo starting the next cycle while nobody has used it (domain/removal undoStart). */
+  undoStart(cycleId: string): Promise<void>;
   /** Whoever imported, or an admin: put every row an import or bulk edit wrote back as it was. */
   undoImport(importId: string): Promise<{ restored: number; skipped: string[] }>;
   /** Admins, or whoever removed it: bring back something removed in the last 30 days. */
@@ -262,10 +266,26 @@ export function ArchivedGoalScope({ goalId, children }: { goalId: string; childr
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 /** Now, as the person's own wall-clock time: weeks turn over at their midnight on Sunday, wherever they are. */
-const realNow = () => {
-  const n = new Date();
+const wallClock = (clock: Clock) => () => {
+  const n = clock();
   return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes(), n.getSeconds()));
 };
+
+/**
+ * Whole days to move a record's stamp so it falls on the app's today: only when today is pinned (the demo and the evals,
+ * `?today=`). Unpinned, today is the clock's own wall-clock time, whose gap from the clock is the time zone's offset,
+ * not a day: rounded, UTC+13 and UTC+14 would stamp every record a day ahead (build review of #154).
+ */
+export const stampSkewDays = (pinnedToday: Date | null, now: Date): number =>
+  pinnedToday ? Math.round((pinnedToday.getTime() - now.getTime()) / 86_400_000) || 0 : 0;
+
+/**
+ * When the open workspace was last loaded or saved, for the reload on coming back to the tab (no sooner than 30 seconds
+ * after) and its "saved since the reload started?" check: the page's own running time, rising on every call. Not the
+ * Clock, which the demo and the evals stop: with it, the reload on focus never fired and a save looked like no save.
+ */
+let lastMark = 0;
+export const loadMark = (): number => (lastMark = Math.max(performance.now(), lastMark + 0.001));
 
 /** Said when a save is tried with nobody signed in (outside the demo). */
 export const NOBODY = 'Nobody is signed in here, so nothing can be saved.';
@@ -274,7 +294,11 @@ const ToastCtx = createContext<Toast[]>([]);
 /** The messages on screen. Kept apart from the app state so a message coming and going doesn't recompute every screen. */
 export const useToasts = () => useContext(ToastCtx);
 
-export function AppProvider({ store, identity: given, mode = 'demo', today = realNow, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+/** `clock` is the real time (the Clock port): every record's stamp reads it, never the browser's own clock (the reload
+    timer reads the page's own running time, loadMark, so a stopped clock doesn't stop it). `today` is the app's day,
+    which the demo and the evals pin (`?today=`); by default the clock's, as wall-clock time. */
+export function AppProvider({ store, identity: given, mode = 'demo', clock = systemClock, today: pinned, empty: renderEmpty, children }: { store: Store; identity?: Identity; mode?: Mode; clock?: Clock; today?: () => Date; empty?: () => ReactNode; children: ReactNode }) {
+  const today = useMemo(() => pinned ?? wallClock(clock), [pinned, clock]);
   // The demo and the real app remember their own workspace and person, so one never opens the other's.
   const K = mode === 'demo' ? { ws: 'goals-app-workspace' } : { ws: 'goals-live-workspace' };
   // Who is viewing (src/ports Identity), passed in beside the store: the "Who are you?" picker unless a sign-in is given.
@@ -282,6 +306,12 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   // Outside the demo, a save needs someone signed in (or chosen): set as the snapshot is worked out below.
   const signedIn = useRef(mode === 'demo');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  // The workspaces as they are now, for an action run later from an older render (a toast's Undo): switching a feature
+  // off and pressing Undo must see it off, or the switch back reads as nothing to change.
+  const workspacesNow = useRef(workspaces);
+  workspacesNow.current = workspaces;
+  /** The feature switch saving now, if any: the next waits for it (setModule). */
+  const moduleSwitches = useRef<Promise<void>>(Promise.resolve());
   // An invitation names its workspace (/?workspace=…, the link /ready copies: deep review U2), so a colleague opens the
   // workspace they were invited to, not whichever one this browser or the site would open first.
   const [invited] = useState(() => { try { return new URLSearchParams(location.search).get('workspace'); } catch { return null; } });
@@ -298,6 +328,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [noEntry, setNoEntry] = useState<NoEntry | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
 
@@ -336,9 +367,11 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         try { const u = new URL(location.href); u.searchParams.delete('workspace'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch { /* no history */ }
       }
       const [snap, me] = await Promise.all([store.load(id), identity.current(id)]);
+      const why = !me && identity.why ? await identity.why(id).catch(() => null) : null;
       if (!live) return;
-      setLoaded({ ws: id, snap, at: Date.now() });
+      setLoaded({ ws: id, snap, at: loadMark() });
       setViewerId(me);
+      setNoEntry(why);
     })().catch((e: unknown) => {
       if (!live) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -352,7 +385,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   useEffect(() => { if (empty) telemetry.setContext({ workspaceId: null, userId: null, store: store.kind, recording: true }); }, [empty, store]);
 
   const createWorkspace = useCallback((name: string, data: Snapshot, meId?: string, recording = false) => telemetry.action('createWorkspace', async () => {
-    const at = new Date().toISOString();
+    const at = clock().toISOString();
     const w: Workspace = { id: newId('ws'), name, kind: 'own', createdAt: at, ...(recording ? {} : { recording: false }) };
     const actor = (meId && data.people.find((p) => p.id === meId)) || data.people.find((p) => p.admin) || data.people[0];
     const logged: Snapshot = {
@@ -372,13 +405,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     setWsId(w.id);
     return w.id;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [store]);
+  }), [store, clock]);
 
   /** Reloads the open workspace from the store, unless a save has happened since the reload started. */
   const reload = useCallback(async (ws: string) => {
     const started = loadedRef.current?.at;
     const snap = await store.load(ws);
-    setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: Date.now() } : l));
+    setLoaded((l) => (l && l.ws === ws && l.at === started ? { ws, snap, at: loadMark() } : l));
     return snap;
   }, [store]);
 
@@ -396,14 +429,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         const first = c.changes[0];
         if (!isStale(e) && first && e instanceof Error && /did not answer in time|abort/i.test(e.message)) {
           const fresh = await store.load(cur.ws).catch(() => null);
-          if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: Date.now() } : l)); return; }
+          if (fresh?.changes.some((x) => x.id === first.id)) { setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: fresh, at: loadMark() } : l)); return; }
         }
         throw e;
       }
-      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: loadMark() } : l));
     } catch (e) {
       if (isStale(e) && cur) {
-        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: Date.now() } : l))).catch(() => undefined);
+        await store.load(cur.ws).then((snap) => setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap, at: loadMark() } : l))).catch(() => undefined);
         toast('Someone else changed this a moment ago, so yours wasn’t saved. You’re now looking at the latest: check it and try again.', 'error');
       } else {
         toast('Couldn’t save: ' + (e instanceof Error ? e.message : String(e)) + '. Your changes are still here; try again.', 'error');
@@ -422,7 +455,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     saving.current++;
     try {
       const secret = await store.issueToken(cur.ws, c);
-      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: Date.now() } : l));
+      setLoaded((l) => (l && l.ws === cur.ws ? { ws: cur.ws, snap: applyCommit(l.snap, c), at: loadMark() } : l));
       return secret;
     } finally {
       saving.current--;
@@ -433,7 +466,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
   useEffect(() => {
     const refresh = () => {
       const cur = loadedRef.current;
-      if (!cur || saving.current > 0 || document.visibilityState !== 'visible' || Date.now() - cur.at < 30_000) return;
+      if (!cur || saving.current > 0 || document.visibilityState !== 'visible' || loadMark() - cur.at < 30_000) return;
       void reload(cur.ws).catch(() => undefined);
     };
     document.addEventListener('visibilitychange', refresh);
@@ -462,6 +495,16 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
     // Worked out once per snapshot, when first asked for.
     let dups: Set<string> | null = null, hueMap: Map<string, number> | null = null;
     const dupTitles = () => (dups ??= duplicateTitles(sc.goals));
+    // Names someone else here also has, made once (N12): only those people need what tells them apart, so a name is
+    // looked up, not found by scanning everyone each time it is drawn.
+    let shared: { ids: Set<string>; twins: Set<string> } | undefined;
+    const sharedNames = () => {
+      if (shared) return shared;
+      const count = new Map<string, number>();
+      for (const x of sc.people) { const k = x.name.trim().toLowerCase(); count.set(k, (count.get(k) ?? 0) + 1); }
+      shared = { ids: new Set(sc.people.map((x) => x.id)), twins: new Set([...count].filter(([, n]) => n > 1).map(([k]) => k)) };
+      return shared;
+    };
     const hues = () => (hueMap ??= avatarHues([...people.values()]));
     const ws = workspaces.find((w) => w.id === wsId) ?? (store.hasExample ? EXAMPLE : { id: wsId ?? '', name: 'Workspace', kind: 'own' as const, createdAt: '' });
     // The demo shows someone until a person is picked; outside it, nobody signed in can see the workspace (the picker
@@ -477,13 +520,13 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       goal: (id) => sc.goals.find((g) => g.id === id) ?? archived(id),
       teamName: (id) => sc.teams.find((t) => t.id === id)?.name ?? id,
     };
-    // Records are stamped with the real time of day, moved to the app's today (the demo and the evals pin today to a date).
-    const skewDays = Math.round((now.getTime() - Date.now()) / 86_400_000);
-    const stamp = () => new Date(Date.now() + skewDays * 86_400_000).toISOString();
+    // Records are stamped with the real time of day, moved to the app's today when the demo or the evals pin it.
+    const skewDays = stampSkewDays(pinned ? now : null, clock());
+    const stamp = () => new Date(clock().getTime() + skewDays * 86_400_000).toISOString();
 
     // The shared actions (domain/actions.ts): who may do what, and what it saves. A rule that says no is shown, not saved.
-    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot });
-    const rx = (): RunContext => ({ ...ax(), workspace: ws, modules: MODULES });
+    const ax = (): A.ActionContext => ({ snapshot: sc, cycle, week, actor: viewer, now: stamp(), newId, allGoals: snapshot.goals, full: snapshot, records: MODULE_RECORDS });
+    const rx = (): RunContext => ({ ...ax(), workspace: workspacesNow.current.find((w) => w.id === ws.id) ?? ws, modules: MODULES });
     async function act<T extends Commit | { commit: Commit | null } | null>(run: () => T): Promise<T> {
       let out: T;
       try { out = run(); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
@@ -538,7 +581,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
 
     return traced({
       run: ((name: ActionName, input: ActionInput<ActionName>, opts?: { said?: string }) => telemetry.action(name, () => run(name, input, opts))) as AppState['run'],
-      mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose,
+      mode, viewerChosen: mode === 'demo' || chosen, canChooseViewer: !!identity.choose, noEntry,
       ws, workspaces, opening: wanted && wanted !== wsId ? workspaces.find((w) => w.id === wanted) ?? null : null, snapshot: sc, allGoals: snapshot.goals, full: snapshot, cycle, week, today: now, viewer, lookup, stamp, toast, storeKind: store.kind, saveNote,
       switchWorkspace: (id) => { write(K.ws, id); setWsId(id); },
       createWorkspace,
@@ -546,7 +589,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         const s = await store.resetExample(ws.kind === 'example' ? ws.id : EXAMPLE.id);
         // Everything else the demo keeps in this browser goes too: drafts, what's been seen, walkthroughs, layouts.
         forgetDemoBrowser();
-        if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: Date.now() });
+        if (ws.kind === 'example') setLoaded({ ws: ws.id, snap: s, at: loadMark() });
         toast('The example is back to its starting point, drafts and all');
       },
       deleteWorkspace: async () => {
@@ -574,15 +617,24 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         telemetry.setContext({ recording: on });
         setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, recording: on } : w)));
       },
-      setModule: async (id, on) => {
-        const out = await run('setModule', { moduleId: id, on });
-        if (!out?.modulesOff) return;
-        const off = out.modulesOff;
-        setWorkspaces((l) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w)));
+      // A switch saves the workspace's whole list of features switched off, so switches run one at a time, each from the
+      // list the one before saved: an Undo pressed while another switch saves can't save a list without it (build
+      // review of #141).
+      setModule: (id, on) => {
+        const step = moduleSwitches.current.then(async () => {
+          const out = await run('setModule', { moduleId: id, on });
+          if (!out?.modulesOff) return;
+          const off = out.modulesOff;
+          const next = (l: Workspace[]) => l.map((w) => (w.id === wsId ? { ...w, modulesOff: off } : w));
+          workspacesNow.current = next(workspacesNow.current);
+          setWorkspaces(next);
+        });
+        moduleSwitches.current = step.catch(() => undefined);
+        return step;
       },
       setViewer: (id) => { if (!identity.choose || !wsId) return; identity.choose(wsId, id); setViewerId(id); },
       person: (id) => people.get(id),
-      personName: (id) => { const p = people.get(id); return !p ? id : sc.people.some((x) => x.id === id) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
+      personName: (id) => { const p = people.get(id); if (!p) return id; const sh = sharedNames(); return sh.ids.has(id) && sh.twins.has(p.name.trim().toLowerCase()) ? nameWithTell(p, sc.people, lookup.teamName) : p.name; },
       goalTell: (g) => goalTell(g, dupTitles(), lookup.teamName),
       avatarHue: (id) => hues().get(id),
       team: (id) => sc.teams.find((t) => t.id === id),
@@ -599,22 +651,14 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
         return a;
       },
       checkInsOf: (g) => checkInsFor(g, g.stoppedAt ? sc.archive?.checkIns ?? [] : sc.checkIns),
-      postCheckIn: (goal, draft, existing) => {
+      postCheckIn: (goal, draft, mode) => {
         const inFlight = posting.current.get(goal.id);
         if (inFlight) return inFlight;
-        const run = (async () => {
-        const c = toCheckIn(goal, cycle, week, draft, sc.checkIns, viewer.id, new Date(stamp()), existing?.id ?? newId('ci'));
-        const change = checkInChange(existing, c, goal, viewer.id, newId('chg'));
-        // Another check-in in the same week is kept alongside the first; the latest is the week's status.
-        if (change && !existing && sc.checkIns.some((x) => x.goalId === goal.id && x.week === week)) change.summary = change.summary.replace('Checked in for week', 'Checked in again for week');
-        // The ask in a check-in raises, continues or withdraws a request (domain/asks).
-        const req = requestsAfterCheckIn(goal, c, sc, viewer.id, c.postedAt, newId);
-        await commit({ checkIns: [c], requests: req.requests, changes: [...(change ? [change] : []), ...req.changes] });
-        return c;
-        })();
-        posting.current.set(goal.id, run);
-        void run.catch(() => undefined).finally(() => posting.current.delete(goal.id));
-        return run;
+        // One way to save (check-in spec, rule 13): the engine the table, the import and the AI tools use; its ask too.
+        const posted = run('postCheckIn', { goalId: goal.id, draft, mode }).then((out) => out.checkIn);
+        posting.current.set(goal.id, posted);
+        void posted.catch(() => undefined).finally(() => posting.current.delete(goal.id));
+        return posted;
       },
       answerRequest: async (r, answer) => { await run('answerRequest', { askId: r.id, answer }); },
       markActionDone: async (r, note) => { await run('markActionDone', { askId: r.id, note }); },
@@ -682,6 +726,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       deleteComment: async (id) => { await run('deleteComment', { commentId: id }); },
       deleteNote: async (id) => { await run('deleteNote', { noteId: id }); },
       deleteCycle: async (id) => { await run('deleteCycle', { cycleId: id }); },
+      undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
       recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, MODULE_RECORDS),
@@ -690,7 +735,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', today = rea
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },
       startNextCycle: async () => (await run('startNextCycle', {})).name,
     });
-  }, [loaded, wanted, viewerId, store, today, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
+  }, [loaded, wanted, viewerId, noEntry, store, today, pinned, clock, workspaces, commit, issueToken, toast, createWorkspace, mode, saveNote]);
 
   const setup = useMemo<SetupState>(() => ({ mode, today: today(), hasWorkspaces: workspaces.length > 0, createWorkspace, toasts, toast }), [mode, today, workspaces, createWorkspace, toasts, toast]);
 

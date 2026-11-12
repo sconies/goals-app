@@ -5,16 +5,18 @@ import { movedGoals } from '../domain/goalsPage';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import {
-  EMPTY_QUERY, filters, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, queryParts, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
+  EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, queryParts, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
   type GoalQuery, type SortKey,
 } from '../domain/query';
-import type { Level, SavedView } from '../domain/types';
+import type { Goal, Level, SavedView } from '../domain/types';
+import { findOnMap } from '../domain/map';
+import { PickOne } from '../ui/Pick';
 import { Sheet } from '../ui/bits';
 import { ATTENTION, QUARTER } from '../domain/vocabulary';
 import { Icon } from '../ui/Icon';
-import { MenuButton, type MenuItem } from '../ui/MenuButton';
+import type { MenuItem } from '../ui/MenuButton';
 import { FilterLine } from '../ui/ListBar';
 
 /** The params a view is made of: which goals and how they're grouped (show), the layout (view), and the query. */
@@ -61,22 +63,21 @@ export function useViews(): SavedView[] {
 }
 
 /** Search, filters and sort, with the active filters as words you can remove one by one. */
-export function FilterBar({ lead, trail, after }: {
-  /** Under the bar, before the filter line: the switch's phone row and the count line. */
+export function FilterBar({ lead, trail, after, find, sortOff }: {
+  /** Under the bar, before the filter line: the phone's row (the switch and View) and the count line. */
   after?: ReactNode;
   /** After the search: the Needs attention switch (goals spec, 2.1). */
   lead?: ReactNode;
-  /** After Sort: the Group menu. */
+  /** After Sort: the Group and Layout menus. */
   trail?: ReactNode;
+  /** On the Map, the search finds a goal and goes to it instead of narrowing as you type (goals spec, 2.3). */
+  find?: { goals: Goal[]; onFind: (g: Goal) => void };
+  /** Why Sort can't be used just now (the Map is always the trees); it is then drawn but disabled. */
+  sortOff?: string;
 }) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [params] = useSearchParams();
-  const views = useViews();
-  const current = viewParams(params);
-  const active = views.find((v) => v.params === current);
   const names = {
     team: (id: string) => app.team(id)?.name ?? 'a team',
     person: (id: string) => app.person(id)?.name ?? 'someone',
@@ -84,21 +85,15 @@ export function FilterBar({ lead, trail, after }: {
   };
   // The filters in words (find rule 3). The Needs attention switch isn't a filter, and a search never is.
   const parts = queryParts(q, names);
-  const narrowed = filters({ ...q, attention: false });
-  const copyLink = async () => {
-    const url = `${window.location.origin}${window.location.pathname}?${current}`;
-    try { await navigator.clipboard.writeText(url); app.toast('Link copied. Anyone in the workspace who opens it sees these goals the same way.'); }
-    catch { app.toast('Couldn’t copy the link. Copy it from the address bar.', 'error'); }
-  };
-  const viewMenu = useViewMenu(active);
   return (
     <div className="filterbar">
       <div className="filterbar-row">
-        <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} />
+        <SearchBox value={q.q} onSearch={(text) => setQ((cur) => ({ ...cur, q: text }))} find={find} />
         {lead}
-        <button type="button" className="btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>Filters{parts.length ? ` · ${parts.length}` : ''}</button>
-        <label className="filter-sort inline-sort"><span className="sr">Sort</span>
-          <select className="input" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
+        {/* On a phone Sort is in the same sheet as the filters, so the button says both (goals spec, 2.4). */}
+        <button type="button" className="btn filters-open" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="filters-wide">Filters</span><span className="filters-phone">Filter and sort</span>{parts.length ? ` · ${parts.length}` : ''}</button>
+        <label className="filter-sort inline-sort" title={sortOff}><span className="sr">Sort</span>
+          <select className="input" disabled={!!sortOff} aria-description={sortOff} value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">Sort: as grouped</option>
             {SORT_OPTIONS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>Sort: {l}, reversed</option>)}
@@ -108,25 +103,46 @@ export function FilterBar({ lead, trail, after }: {
       </div>
       {after}
       {/* Rule 3's filter line (the find spec): each filter in words with Remove; the search and the switch aren't
-          filters. The count is the page's one count line (goals spec, rule 4), not said again here. */}
+          filters. The count is the page's one count line (goals spec, rule 4), not said again here. Saving and sharing
+          are in the Views menu (or the phone's View sheet), the same on every width (GL2). */}
       <FilterLine parts={parts} onRemove={(k) => setQ((cur) => without(cur, k))} onClear={() => setQ((cur) => ({ ...EMPTY_QUERY, q: cur.q, attention: cur.attention, sort: cur.sort, dir: cur.dir }))} />
-      {/* Saving and sharing only appear once there's something to save or share. On a phone, one View menu. */}
-      {(narrowed || q.sort || active) && (
-        <div className="filter-chips view-actions" aria-label="This view">
-          {active && <span className="small strong filter-view-name">{active.name}{active.pinned ? ' · pinned for everyone' : ''}</span>}
-          <span className="filter-chip-actions">
-            {!active && <button type="button" className="btn sm" onClick={() => setSaving(true)}>Save view</button>}
-            <button type="button" className="btn ghost sm" onClick={() => void copyLink()}>Copy link</button>
-            {active && viewMenu.items.length > 0 && <MenuButton label="Manage view" items={viewMenu.items} />}
-          </span>
-          <MenuButton className="filter-view-menu" label="View" items={[...(!active ? [{ label: 'Save view', onClick: () => setSaving(true) }] : []), { label: 'Copy link', onClick: () => void copyLink() }, ...viewMenu.items]} />
-        </div>
-      )}
-      {viewMenu.sheet}
       {open && <FilterSheet onClose={() => setOpen(false)} />}
-      {saving && <SaveViewSheet params={current} onClose={() => setSaving(false)} />}
     </div>
   );
+}
+
+/**
+ * What can be done with the view on screen, for the Views menu and the phone's View sheet (goals spec, 2.1): save it,
+ * copy its link, and, when a saved view is open, rename, pin or delete it. The sheets it opens are drawn by `sheets`.
+ */
+export function useViewActions() {
+  const app = useApp();
+  const [params, setParams] = useSearchParams();
+  const [saving, setSaving] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const views = useViews();
+  const current = viewParams(params);
+  const active = views.find((v) => v.params === current);
+  // Something to save: more than a bare scope, and not already a saved view.
+  const canSave = !active && [...new URLSearchParams(current).keys()].some((k) => k !== 'scope');
+  const copyLink = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?${current}`;
+    try { await navigator.clipboard.writeText(url); app.toast('Link copied. Anyone in the workspace who opens it sees these goals the same way.'); }
+    catch { app.toast('Couldn’t copy the link. Copy it from the address bar.', 'error'); }
+  };
+  const manage: MenuItem[] = [];
+  if (active) {
+    const mine = active.personId === app.viewer.id;
+    // An admin can rename or delete anyone's view; deleting shows Undo for 10 seconds (domain/removal).
+    if (mine || app.viewer.admin) manage.push({ label: 'Rename…', onClick: () => setRenaming(true) });
+    if (app.viewer.admin) manage.push({ label: active.pinned ? 'Stop pinning' : 'Pin for everyone', onClick: () => void app.pinView(active.id, !active.pinned).then(() => app.toast(active.pinned ? 'Unpinned' : 'Pinned for everyone')) });
+    if (mine || app.viewer.admin) manage.push({ label: 'Delete this view…', onClick: () => void app.deleteView(active.id).then(() => setParams({}, { replace: true })) });
+  }
+  const sheets = <>
+    {saving && <SaveViewSheet params={current} onClose={() => setSaving(false)} />}
+    {renaming && active && <SaveViewSheet params={active.params} view={active} onClose={() => setRenaming(false)} />}
+  </>;
+  return { views, active, canSave, save: () => setSaving(true), copyLink, manage, sheets };
 }
 
 /**
@@ -136,7 +152,7 @@ export function FilterBar({ lead, trail, after }: {
  * the address that isn't one of the box's own writes (Back, a removed filter, Clear) puts its words in the box.
  */
 export const SEARCH_SETTLE_MS = 150;
-function SearchBox({ value, onSearch }: { value: string; onSearch: (text: string) => void }) {
+function SearchBox({ value, onSearch, find }: { value: string; onSearch: (text: string) => void; find?: { goals: Goal[]; onFind: (g: Goal) => void } }) {
   const [text, setText] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The words the box has written that the address hasn't shown yet, oldest first. */
@@ -168,36 +184,51 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (text: string
     sent.current.push(words);
     write.current(words);
   };
+  // On the Map (goals spec, 2.3): typing lists the goals it finds under the field, as a combobox; choosing one goes to it
+  // on the Map without narrowing it. Enter with nothing chosen narrows, as on every other layout, so a link with ?q=
+  // means the same goals everywhere.
+  const [listOpen, setListOpen] = useState(false);
+  const [at, setAt] = useState(-1);
+  const hits = useMemo(() => (find && listOpen ? findOnMap(find.goals, text, 8) : []), [find, listOpen, text]);
+  const mapMode = !!find;
+  // Moving to or from the Map, the field says the address's words again: nothing half-typed is left in it.
+  useEffect(() => { setListOpen(false); setAt(-1); setText(latest.current); }, [mapMode]);
+  const choose = (g: Goal | undefined) => { if (!g || !find) return; find.onFind(g); setListOpen(false); setAt(-1); setText(latest.current); };
+  const listId = 'bar-find-list';
+  const showList = mapMode && listOpen && text.trim() !== '';
   return (
-    <label className="filter-search"><span className="sr">Find a goal</span>
-      <input className="input" type="search" placeholder="Find by name, owner, team or key" title="Find goals by the words on them: name, key, owner, team, status or reason" maxLength={200} value={text}
+    <label className="filter-search" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setListOpen(false); }}><span className="sr">Find a goal</span>
+      <input className="input" type="search" maxLength={200} value={text}
+        placeholder={mapMode ? 'Find a goal or key, and go to it' : 'Find by name, owner, team or key'}
+        title={mapMode ? 'Find a goal by its name or key, and go to it on the Map. Enter shows only the goals that match.' : 'Find goals by the words on them: name, key, owner, team, status or reason'}
+        role={mapMode ? 'combobox' : undefined} aria-expanded={mapMode ? showList && hits.length > 0 : undefined} aria-controls={mapMode ? listId : undefined} aria-autocomplete={mapMode ? 'list' : undefined}
+        aria-activedescendant={showList && at >= 0 && hits[at] ? `bar-find-${hits[at]!.id}` : undefined}
         onChange={(e) => {
           const t = e.target.value;
           setText(t);
           if (timer.current) clearTimeout(timer.current);
+          if (mapMode) { setListOpen(true); setAt(-1); return; }
           timer.current = setTimeout(() => flush(t), SEARCH_SETTLE_MS);
         }}
-        onKeyDown={(e) => { if (e.key === 'Enter') flush(e.currentTarget.value); }} />
+        onKeyDown={(e) => {
+          if (mapMode && showList && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && hits.length) { e.preventDefault(); setAt((i) => (e.key === 'ArrowDown' ? Math.min(hits.length - 1, i + 1) : Math.max(-1, i - 1))); return; }
+          if (mapMode && e.key === 'Escape' && listOpen) { e.preventDefault(); setListOpen(false); return; }
+          if (e.key !== 'Enter') return;
+          if (mapMode && showList && at >= 0) { e.preventDefault(); choose(hits[at]); return; }
+          setListOpen(false);
+          flush(e.currentTarget.value);
+        }} />
+      {showList && (
+        <ul className="bar-find-list" id={listId} role="listbox" aria-label="Goals found">
+          {hits.length ? hits.map((g, i) => (
+            <li key={g.id} id={`bar-find-${g.id}`} role="option" aria-selected={i === at} tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setAt(i)} onClick={() => choose(g)}>
+              {g.key && <span className="bar-find-key">{g.key}</span>}<span className="bar-find-title">{g.title}</span>
+            </li>
+          )) : <li className="bar-find-none" role="option" aria-selected={false} aria-disabled>No goal by that name or key. Enter shows any that mention it.</li>}
+        </ul>
+      )}
     </label>
   );
-}
-
-/** On a saved view: rename, pin (admins), delete, kept in one small menu so they don't sit beside the filters. */
-function useViewMenu(view: SavedView | undefined): { items: MenuItem[]; sheet: React.ReactNode } {
-  const app = useApp();
-  const [, setParams] = useSearchParams();
-  const [renaming, setRenaming] = useState(false);
-  if (!view) return { items: [], sheet: null };
-  const mine = view.personId === app.viewer.id;
-  const canRename = mine || app.viewer.admin;
-  // An admin can delete anyone's view; deleting shows Undo for 10 seconds (domain/removal).
-  const canDelete = mine || app.viewer.admin;
-  const items: MenuItem[] = [
-    ...(canRename ? [{ label: 'Rename', onClick: () => setRenaming(true) }] : []),
-    ...(app.viewer.admin ? [{ label: view.pinned ? 'Unpin' : 'Pin for everyone', onClick: () => void app.pinView(view.id, !view.pinned).then(() => app.toast(view.pinned ? 'Unpinned' : 'Pinned for everyone')) }] : []),
-    ...(canDelete ? [{ label: 'Delete', onClick: () => void app.deleteView(view.id).then(() => setParams({}, { replace: true })) }] : []),
-  ];
-  return { items, sheet: renaming ? <SaveViewSheet params={view.params} view={view} onClose={() => setRenaming(false)} /> : null };
 }
 
 function SaveViewSheet({ params, view, onClose }: { params: string; view?: SavedView; onClose: () => void }) {
@@ -244,10 +275,9 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
       <span className="filter-options">{opts.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={(q[key] as string[]).includes(k)} onChange={() => setQ((cur) => ({ ...cur, [key]: toggle(cur[key] as string[], k) }))} /> {l}</label>)}</span>
     </fieldset>
   );
-  const levels: [Level, string][] = (['north-star', 'svp', 'team'] as Level[]).map((l) => [l, LEVEL_LABEL[l]]);
+  const levels: [Level, string][] = levelIds(app.cycle).map((l) => [l, levelName(app.cycle, l)]);
   const people = app.snapshot.people.filter((p) => app.snapshot.goals.some((g) => g.ownerId === p.id));
   const match = people.filter((p) => owner.trim() && p.name.toLowerCase().includes(owner.trim().toLowerCase()) && !q.owner.includes(p.id)).slice(0, 6);
-  const tops = app.snapshot.goals.filter((g) => app.snapshot.goals.some((c) => c.parentId === g.id));
   return (
     <Sheet open onClose={onClose} title="Filter goals" wide>
       <div className="filter-sheet">
@@ -300,10 +330,8 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
         </fieldset>
         {checks('Result', RESULT_OPTIONS, 'result')}
         <fieldset className="filter-group"><legend className="field-label">Links</legend>
-          <select className="input" aria-label="In the tree of" value={q.feeds ?? ''} onChange={(e) => setQ((cur) => ({ ...cur, feeds: e.target.value || null }))}>
-            <option value="">Any tree</option>
-            {tops.map((g) => <option key={g.id} value={g.id}>In the tree of {g.title}</option>)}
-          </select>
+          {/* Any goal: its tree is the goal and everything that feeds it (find-and-pick, never a list of every goal). */}
+          <PickOne kind="goal" label="In the tree of" none="Any tree" value={q.feeds} onChange={(id) => setQ((cur) => ({ ...cur, feeds: id }))} />
           <label className="check"><input type="checkbox" checked={q.helps} onChange={(e) => setQ((cur) => ({ ...cur, helps: e.target.checked }))} /> With “also helps” links</label>
         </fieldset>
       </div>

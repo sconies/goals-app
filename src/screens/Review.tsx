@@ -5,12 +5,12 @@ import { useMemo, useState } from 'react';
 import { useDraft } from '../app/drafts';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import { weekDates } from '../domain/plan';
 import { WEEKDAY } from '../domain/progress';
 import { answerOf, dayText, daysPast, goalsIn, lastHeld, nextSessionDate, nextWhen, openActions, pastText, reviewedLabel, reviewedText, reviewSession, sessionPlan, sessionState, sessionStateText, sessionWhen, walkOrder, type ReviewSession, type SessionState } from '../domain/review';
 import { outcomeTrees } from '../domain/tree';
-import type { Goal, Level, Review as ReviewT } from '../domain/types';
+import type { Goal, Review as ReviewT } from '../domain/types';
 import { newId } from '../data/store';
 import { Avatar, Empty, ProgressRing, Sheet, WarnMark } from '../ui/bits';
 import { byDay, CarriedState, saveReviewOrder } from './Inspect';
@@ -19,6 +19,8 @@ import { canMarkDone } from '../domain/asks';
 import { GoalRow } from '../ui/goalRows';
 import { worstFirst } from '../domain/order';
 import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
+import { BackLink } from '../ui/BackLink';
 import { Pick } from '../ui/Pick';
 import { EndedReview, EndReview } from '../ui/RemoveControls';
 import { ASK_STATUS, DECIDED, lower } from '../domain/vocabulary';
@@ -231,7 +233,7 @@ export function ReviewHome() {
 
   return (
     <div className="page narrow review-home" data-part="Review">
-      <nav aria-label="Breadcrumb" className="crumbs"><Link to="/reviews">Reviews</Link></nav>
+      <BackLink />
       <section className="hero">
         <ProgressRing done={s.done} total={Math.max(1, s.total)} size={64} counts="reviewed" label={reviewedLabel(s)} />
         <div className="hero-body">
@@ -329,7 +331,6 @@ export function ReviewSummary() {
 }
 
 const WEEKS = [1, 2, 4] as const;
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
 
 /** Set up or change a review, on one screen: name, when, which goals, who. */
 export function ReviewEdit() {
@@ -341,6 +342,9 @@ export function ReviewEdit() {
   const [r, setDraft, clearDraft, restored] = useDraft<ReviewT>(`${app.ws.id}:review:${reviewId ?? 'new'}`, () => existing ?? { id: newId('rev'), name: '', everyWeeks: 1, weekday: app.cycle.reviewDay, scope: { goals: [], trees: [], levels: [] }, people: [app.viewer.id], createdBy: app.viewer.id, createdAt: app.stamp() });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Something typed (now, or kept from before): closing asks first (navigation spec 2.5).
+  const [start] = useState(() => JSON.stringify(r));
+  const dirty = restored || JSON.stringify(r) !== start;
   const set = (p: Partial<ReviewT>) => setDraft(p);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const covered = useMemo(() => goalsIn(r.scope, app.snapshot.goals), [r.scope, app.snapshot.goals]);
@@ -362,7 +366,7 @@ export function ReviewEdit() {
     <div className="focus review-edit">
       <div className="focus-top">
         <h1 className="focus-title">{existing ? 'Change review' : 'Set up a review'}</h1>
-        <button className="iconbtn" onClick={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} aria-label="Close without saving"><Icon name="close" /></button>
+        <FormClose keeps={false} dirty={dirty} onClose={() => { clearDraft(); nav(existing ? `/reviews/${existing.id}` : '/reviews'); }} />
       </div>
       <form className="focus-body" onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
         {restored && <p className="hint">Picked up where you left off. Close to throw these changes away.</p>}
@@ -386,7 +390,7 @@ export function ReviewEdit() {
             <span className="hint">{goalsN(covered.length)} so far. Mix levels, whole trees and single goals.</span>
           </div>
           <div className="field"><span className="field-label" id="lv-l">Every goal at a level</span>
-            <div className="row" role="group" aria-labelledby="lv-l">{LEVELS.map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{r.scope.levels.includes(l) && <Icon name="check" />}{LEVEL_LABEL[l]}</button>)}</div>
+            <div className="row" role="group" aria-labelledby="lv-l">{levelIds(app.cycle).map((l) => <button key={l} type="button" className="pill" aria-pressed={r.scope.levels.includes(l)} onClick={() => set({ scope: { ...r.scope, levels: toggle(r.scope.levels, l) } })}>{r.scope.levels.includes(l) && <Icon name="check" />}{levelName(app.cycle, l)}</button>)}</div>
           </div>
           {tops.length > 0 && (
             <div className="field"><span className="field-label" id="tr-l">A goal and everything feeding it</span>

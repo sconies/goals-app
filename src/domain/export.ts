@@ -4,7 +4,7 @@
    once, so whatever is exported can be edited and loaded back, and loads back unedited as no change at all. */
 import { planHistoryOf } from './goal';
 import { asksOf, isOverdue } from './asks';
-import { LEVEL_LABEL } from './format';
+import { isEveryday, levelName } from './levels';
 import { planAsOf, planAt, planCheckpoints, planEnd, weekDate, weekDates } from './plan';
 import { isYear, periodLabel, quarterOf, quarters } from './year';
 import { answerOf, saidIn } from './review';
@@ -14,16 +14,18 @@ import {
   ASK_STATUS, ATTENTION, FLAG, GROUPS, LABEL, lower, MEANING, QUARTER, RESULT_MEANING, RESULT_TEXT, STATUS, STOPPED, withCode, type GroupKey, type Term,
 } from './vocabulary';
 import {
-  ASKS, asksFor, CHECK_INS, contextOf, GOALS, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN, planWeekValue, RESULTS, roleLoaded, ROLE_WORD, rowsOf, SHEETS, WEEK_COLUMN,
-  type Cell, type Ctx, type ExportInput, type SheetKind,
+  ASKS, asksFor, CHECK_INS, contextOf, emptyText, EXAMPLE_ROWS, fieldTable, FILL_SHEETS, GOALS, isFillIn, isRequiredHeader, isWorkedOut, NOTES, notesFor, PEOPLE, PLAN,
+  planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, specOf, START_HERE, WEEK_COLUMN,
+  type Cell, type Ctx, type ExportInput, type FillKind, type SheetKind,
 } from './columns';
 import type { Goal, Snapshot } from './types';
 import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
 
 export type { Cell, ExportInput } from './columns';
-/** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading. */
-export interface Table { name: string; rows: Cell[][]; muted?: string[] }
+/** A sheet: its name, its rows (the header first), and the columns set apart in grey: worked out, or only for reading.
+    `bold`, when given, is the only headers set in bold (the template's required columns); else every header is. */
+export interface Table { name: string; rows: Cell[][]; muted?: string[]; bold?: string[] }
 
 export const EXPORT_FORMAT = 'goals-app.export';
 export const EXPORT_VERSION = 1;
@@ -57,18 +59,34 @@ export function definitions(): Cell[][] {
   return DEFINED.flatMap((k) => Object.values(GROUPS[k].terms as Record<string, Term>).filter((t) => t.where.includes('exports') && !t.same?.startsWith('status.')).map((t) => ['Words', t.label, t.long, GROUPS[k].title]));
 }
 
-/** The README: every sheet and every column, what it means and what loading it back does, made from domain/columns. */
-export function readme(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>): Cell[][] {
+/** The headers of the field table, on the Start here sheet. */
+export const FIELD_TABLE_HEAD = ['Column', 'A new row', 'Format', 'Example', 'If it’s left empty', 'What it means'];
+
+/**
+ * The Start here sheet (backlog IM1; it replaces the README, a name still recognised and skipped): what the file is
+ * and where it came from, then, for every sheet that loads back, the field table (domain/columns): whether a new row
+ * must have each column, its format, an example, what an empty cell does and what it means. The workbook adds the
+ * sheets that are only for reading (the core's, then each module's), and the words its worked-out columns use. The template lists only the columns it has.
+ */
+export function startHere(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today' | 'sheets'>, opts: { template?: boolean } = {}): Cell[][] {
   const rows: Cell[][] = [
-    [`${x.ws.name}, ${x.cycle.name}. Exported ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
-    ['Change any column marked “You can change it”, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are.'],
-    [],
-    ['Sheet', 'Column', 'Kind', 'What it means', 'When loaded back'],
+    [`${x.ws.name}, ${x.cycle.name}. ${opts.template ? 'Template made' : 'Exported'} ${x.today.toISOString().slice(0, 10)}, week ${x.week} of ${x.cycle.weeks}. Week 0 starts ${x.cycle.startDate}.`],
+    ['File of', x.ws.id, x.cycle.id],
+    [opts.template
+      ? 'Fill in a row for each goal, check-in and person, then load the file on Import: you see every change before anything is saved. Headers in bold are required on a new row. Rows whose Action says Example are never imported. Each sheet is recognised by its header row, so keep the headers as they are.'
+      : 'Change any column a person fills in, add rows, and load the file back on Import: you see every change before anything is saved. Worked-out columns are set in grey and ignored. Each sheet is recognised by its header row, so keep the headers as they are.'],
   ];
-  for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)]) {
-    rows.push([sheet.name, null, null, `One row per ${sheet.rowIs}. ${sheet.about}`, sheet.loaded ? 'Loaded back' : 'Not loaded back']);
-    for (const col of sheet.columns) rows.push([sheet.name, col.header, ROLE_WORD[col.role], col.means, sheet.loaded ? roleLoaded(col) : 'Not loaded back']);
-    if (sheet.kind === 'plan') rows.push([sheet.name, WEEK_COLUMN.header, ROLE_WORD[WEEK_COLUMN.role], WEEK_COLUMN.means, WEEK_COLUMN.loaded]);
+  for (const kind of FILL_SHEETS) {
+    const sheet = specOf(kind);
+    const table = fieldTable(kind);
+    const line = kind === 'plan' ? null : requiredLine(kind);
+    rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about}${line ? ` A new row needs: ${line}` : ''}`], FIELD_TABLE_HEAD);
+    for (const c of table.filter((v) => !opts.template || isFillIn(v))) rows.push([c.header, requiredText(c, table), c.format || null, c.example || null, emptyText(c), c.means]);
+  }
+  if (opts.template) return rows;
+  for (const sheet of [...SHEETS, ...(x.sheets ?? []).map((m) => m.spec)].filter((v) => !v.loaded)) {
+    rows.push([], [`The ${sheet.name} sheet`, `One row per ${sheet.rowIs}. ${sheet.about} For reading only: not loaded back.`], ['Column', 'Kind', null, null, null, 'What it means']);
+    for (const c of sheet.columns) rows.push([c.header, ROLE_WORD[c.role], null, null, null, c.means]);
   }
   return [...rows, [], ['Words', 'Word', 'What it means', 'Kind'], ...definitions()];
 }
@@ -84,8 +102,8 @@ function planRows(x: ExportInput, sums: GoalSummary[], c: Ctx): Cell[][] {
   return [[...head!, ...weeks.map((w) => `Week ${w}`)], ...body.map((r, i) => [...r, ...weeks.map((w) => planWeekValue({ c, g: metric[i]! }, w))])];
 }
 
-/** Every sheet of the one format, in order: Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
-    metric library's Metrics) and the README. */
+/** Every sheet of the one format, in order: Start here, Goals, Plan, Check-ins, People, Results, Asks, Notes, each module's (the
+    metric library’s Metrics). */
 export function workbook(x: ExportInput): Table[] {
   const { goals, sums, s, c } = prepare(x, true);
   const ids = new Set(goals.map((g) => g.id));
@@ -103,20 +121,26 @@ export function workbook(x: ExportInput): Table[] {
     ['notes', rowsOf(NOTES, notesFor(s, ids).map((d) => ({ c, d })))],
   ];
   return [
+    { name: START_HERE, rows: startHere(x) },
     ...book.map(([kind, rows]) => ({ name: SHEETS.find((v) => v.kind === kind)!.name, rows, muted: muted(kind, rows[0] ?? []) })),
     // Each feature module's sheets (domain/records), for reading: their worked-out and shown columns in grey.
     ...(x.sheets ?? []).map((m) => ({ name: m.spec.name, rows: moduleSheetRows(m, x, c, ids), muted: m.spec.columns.filter((col) => col.role === 'worked' || col.role === 'shown').map((col) => col.header) })),
-    { name: 'README', rows: readme(x) },
   ];
 }
 
 /**
- * The blank template: the same workbook with every sheet's headers, its worked-out columns greyed and the README, and
- * no rows. Filled in and loaded back, it adds what it says, as any workbook would.
+ * The template (`faro-template.xlsx`, backlog IM1): Start here, then Goals, Plan, Check-ins and People with only the
+ * columns a person fills in, the headers a new row must have in bold, and example rows whose Action says Example, which
+ * are never imported. Filled in and loaded back, it adds what it says, as any workbook would.
  */
-export function blankWorkbook(x: ExportInput): Table[] {
-  const none = { ...x.snapshot, people: [], goals: [], checkIns: [], decisions: [], changes: [], requests: [], retros: [], reviews: [], watches: [], modules: {} };
-  return workbook({ ...x, snapshot: none, goals: undefined });
+export function templateWorkbook(x: Pick<ExportInput, 'ws' | 'cycle' | 'week' | 'today'>): Table[] {
+  const sheet = (kind: FillKind): Table => {
+    const head = fieldTable(kind).filter(isFillIn).map((c) => c.header)
+      .flatMap((h) => (h === WEEK_COLUMN.header ? Array.from({ length: x.cycle.weeks }, (_, i) => `Week ${i + 1}`) : [h]));
+    const examples = (EXAMPLE_ROWS[kind] ?? []).map((r) => head.map((h) => r[h] ?? null));
+    return { name: specOf(kind).name, rows: [head, ...examples], bold: head.filter((h) => isRequiredHeader(kind, h)) };
+  };
+  return [{ name: START_HERE, rows: startHere(x, { template: true }) }, ...FILL_SHEETS.map(sheet)];
 }
 
 /** One sheet of a workbook, by name (Goals, Plan, Check-ins…). */
@@ -325,7 +349,7 @@ export function aiBrief(x: ExportInput): string {
 
   out.push('## Every goal, by what it feeds');
   const line = (s: GoalSummary, depth: number) => {
-    const lvl = s.goal.level !== 'team' ? ` [${LEVEL_LABEL[s.goal.level]}]` : '';
+    const lvl = !isEveryday(null, s.goal.level) ? ` [${levelName(null, s.goal.level)}]` : '';
     out.push(`${'  '.repeat(depth)}- **${s.goal.title}**${s.goal.key ? ` (${s.goal.key})` : ''}${lvl}: ${s.story.label}. Now ${s.now}, target ${s.target}${s.dueWeek !== x.cycle.weeks && !/by week \d+$/.test(s.target) ? ` by week ${s.dueWeek}` : ''}; ${s.gap}. Owner ${s.owner}.${s.forecast ? ' ' + s.forecast : ''}`);
   };
   const seen = new Set<string>();

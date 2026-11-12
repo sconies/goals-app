@@ -10,9 +10,8 @@
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
 import { createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
-import { LEVEL_LABEL } from '../domain/format';
 import { currentWeek, daysSince } from '../domain/plan';
-import { LEVELS } from '../domain/query';
+import { levelIds, levelName } from '../domain/levels';
 import { sessionDate } from '../domain/review';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
@@ -58,7 +57,7 @@ export interface Access {
 const A = 'src/domain/actions.ts#', R = 'src/domain/removal.ts#', C = 'src/domain/changeset.ts#planChanges', MX = 'src/modules/metrics/rules.ts#';
 
 export const ACCESS: Access[] = [
-  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C] },
+  { area: 'Goals, plans and check-ins', what: 'Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI)', who: 'The goal’s owner, or an admin', code: [C, 'src/domain/changeset.ts#postCheckIn'] },
   { area: 'Goals, plans and check-ins', what: 'Add a goal', who: 'Anyone, for a goal they own; an admin, for anyone', code: [C] },
   { area: 'Goals, plans and check-ins', what: 'Stop a goal that has check-ins (with a reason); delete one that has none', who: 'The goal’s owner, or an admin', code: [`${R}stopGoal`, `${R}deleteGoal`] },
   { area: 'Goals, plans and check-ins', what: 'Delete a goal’s latest check-in (after a newer one it can only be corrected)', who: 'Whoever posted it, or an admin', code: [`${R}deleteCheckIn`, `${R}canDeleteCheckIn`] },
@@ -89,7 +88,7 @@ export const ACCESS: Access[] = [
   { area: 'People, teams and the workspace', what: 'Mark someone as left (handing over their goals and asks); delete someone with no history', who: 'Admins; not themselves, and never the only admin', code: [`${R}markPersonLeft`, `${R}deletePerson`, `${R}leaving`] },
   { area: 'People, teams and the workspace', what: 'Leave the workspace yourself (handing over your goals and asks)', who: 'Anyone; never the only admin', code: [`${R}leaveWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Add, rename, lead or remove a team', who: 'Admins', code: [`${A}saveTeam`, `${A}removeTeam`] },
-  { area: 'People, teams and the workspace', what: 'Start the next cycle; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}deleteCycle`] },
+  { area: 'People, teams and the workspace', what: 'Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to', who: 'Admins', code: [`${A}startNextCycle`, `${R}undoStart`, `${R}deleteCycle`] },
   { area: 'People, teams and the workspace', what: 'Rename the workspace; turn recording on or off; switch features on or off; delete the workspace', who: 'Admins', code: [`${A}renameWorkspace`, `${A}setRecording`, `${A}setModule`, `${A}canDeleteWorkspace`] },
   { area: 'People, teams and the workspace', what: 'Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed', who: 'An admin (everything), or whoever removed it (their own)', code: [`${R}restoreRemoved`, `${R}canRestore`] },
   { area: 'People, teams and the workspace', what: 'Make an MCP token for someone', who: 'Admins', code: [`${A}createToken`] },
@@ -313,7 +312,7 @@ export const INTERNAL: InternalRequirement[] = [
     decided: [
       'The working figures (30,000 goals a cycle, 2,000 people in the busiest hour) and the budgets (2 s, 1 s, 500 ms, 300 KB; 5 minutes and 4 hours for a restore) are proposals for the internal team to confirm, not measurements.',
       'Pages of 50 rows, with keyset paging, as Faro already pages its loads.',
-      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download passes a stated size (`scripts/check-bundle.mjs`, 250 KB compressed), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
+      'Faro shows the pattern at its own size (backlog AX4): CI fails a change when the first download (the entry script and every file the page preloads with it) passes a stated size (`scripts/check-bundle.mjs`, 370 KB compressed; 369 KB today, over R4’s 300, so it only goes down; the guide and What’s new load when Help is opened, and the first download carries only their index of titles, routes and release ids), or when the real app’s, which also waits for the Supabase store and client before it draws, passes 430 KB (428 today), or when the demo workspace made ten times bigger passes a stated weight or time to summarise every goal (`src/spec/scale.test.ts`). The limits start at today’s figures and only go down.',
     ],
   },
   {
@@ -334,12 +333,12 @@ export const INTERNAL: InternalRequirement[] = [
     ].join('\n'),
     today: [
       'A `Team` is a name, a lead and an objective, with no parent; a `Person` has one team and an `admin` flag, with no manager (`src/domain/types.ts`).',
-      'Goal levels are a fixed three, `\'north-star\' | \'svp\' | \'team\'` (`Level` in `src/domain/types.ts`, `LEVELS` in `src/domain/query.ts`), used across the rules, screens and spreadsheets.',
+      'Goal levels are a fixed three, North star, SVP and Team (`DEFAULT_LEVELS` in `src/domain/levels.ts`), read from that one place by the rules, screens, spreadsheets and tools; a cycle can hold its own (`Cycle.levels`) but nothing sets them yet.',
       'One workspace is the whole company. Goals’ “By team” groups goals by team in a flat list. “In the tree of” scopes by the goal tree (what a goal feeds), not by the organisation.',
       'Teams and who is in them are typed in by admins, in Workspace or the People sheet; nothing reads a directory.',
     ],
     examples: [
-      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => LEVELS.map((l) => LEVEL_LABEL[l]).join(', ') },
+      { given: 'Faro today: the levels a goal may have.', then: 'North star, SVP, Team', run: () => levelIds(null).map((l) => levelName(null, l)).join(', ') },
       { given: 'Required: Platform and Developer Experience sit under Engineering, which sits under the company. Amara leads Engineering; Rhea leads Platform. Each opens Home.', then: 'Amara’s counts cover Engineering, Platform and Developer Experience; Rhea’s cover Platform. Either can widen or narrow the scope.' },
       { given: 'Required: Oskar’s manager is Maya, and Maya’s is Priya. Priya scopes Goals to her whole chain.', then: 'Oskar’s goals are in it, as are Maya’s and those of everyone else under Priya.' },
       { given: 'Required: a workspace’s levels are Company, Division, Team. An admin renames Division to Group.', then: 'Every goal at Division is now at Group; no goal is changed or logged as changed, and the rename is logged once.' },
@@ -423,13 +422,13 @@ export const INTERNAL: InternalRequirement[] = [
       '6. **Every step is logged**: drafted, proposed, agreed, sent back (with its reason), and who did it. Reading stays open ([R1](r1-sign-in-and-access.md), rule 3): every member can see the round.',
     ].join('\n'),
     today: [
-      'An admin starts the next cycle in the last two weeks of the current one (`startNextCycle` in `src/domain/actions.ts`); every goal wrapped up as “carry on” is copied into it, live at once (`nextCycle` in `src/domain/cycle.ts`).',
+      'An admin sets up the next cycle from the day the current one’s wrap-up opens (`startNextCycle` in `src/domain/actions.ts`), after a read-back of what carries on, finishes and stops (`startReadBack` in `src/domain/carry.ts`); the goals that carry on are copied into it (`nextCycle` in `src/domain/cycle.ts`). Nobody moves into it until its week 1’s Monday (`currentCycle`), and an admin can undo it until someone uses it (`undoStart` in `src/domain/removal.ts`).',
       'A goal is live the moment it is saved: there is no draft, propose or agree step, and no one but its owner (or an admin) is asked.',
       'Set-up asks for an outcome and goals for the first cycle only.',
     ],
     examples: [
       { given: 'Faro today: Maya, not an admin, starts the next cycle.', then: 'refused: “Only admins can start the next cycle.”', run: () => says(() => startNextCycle(ctx(MAYA))) },
-      { given: 'Faro today: Priya, an admin, starts the next cycle in week 3 of 13.', then: 'refused: “The next cycle can start in the last two weeks of this one (from week 12).”', run: () => says(() => startNextCycle(ctx(PRIYA))) },
+      { given: 'Faro today: Priya, an admin, starts the next cycle in week 3 of 13.', then: 'refused: “Dec 2026–Mar 2027 can be started from Mon 30 Nov 2026, when Q4’s wrap-up opens.”', run: () => says(() => startNextCycle(ctx(PRIYA))) },
       { given: 'Required: a round opens 23 November, agree by 11 December, Q1 starts 4 January. Maya drafts “p95 build time under 8 minutes”, feeding Priya’s goal, and proposes it; Priya agrees it on 2 December.', then: 'It is Agreed. It appears on the planning screen and nowhere in Q4’s counts.' },
       { given: 'Required: Priya sends Maya’s proposal back: “too easy, we were at 9 in October”.', then: 'It is Sent back, with the reason, and is at the top of Maya’s planning list.' },
       { given: 'Required: after it is agreed, Maya changes the target from 8 to 10 minutes.', then: 'It goes back to Proposed and Priya is asked again.' },

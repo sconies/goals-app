@@ -10,6 +10,7 @@ import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
+import { closestRoute, routePaths, routeScore } from './match';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -147,7 +148,7 @@ const CORE_ARTICLES: Article[] = [
         'A goal from your spreadsheet with a stage due before the week you join, and no check-ins in the file, has its stages counted from this week, as a template’s are, so it isn’t late on day one. Check says which goals moved; Keep the weeks as typed puts them back.',
         'Name the outcome and add two to four goals that feed it (Add a goal stops at four; add more from New goal afterwards, and Undo brings back a goal you removed). Each can say how it’s measured, in one line: optional, but the goal page asks for it until it’s there.',
         'The outcome starts as yours; each goal feeding it starts with No owner yet. Give a teammate one, so they have something to check in on, or leave it: a goal with no owner is made yours, and Home asks you to give it an owner afterwards.',
-        'Check each goal’s owner (or “No owner yet”), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.',
+        'Check each goal’s owner (or “No owner yet”: type a name to find one of the people you added), where it starts and its target before you create the workspace. The step counter counts the path you chose: with goals set up later or from a spreadsheet, Check is Step 5 of 5.',
         'Set-up makes the weekly review it describes: everyone, every goal, on the day you chose. It also pins three views for everyone: everything at a glance, off track or at risk, and no update for 2 weeks or more.',
         'Nothing is late on the first day. Set up after this week’s review day (on a Sunday, say), the first check-ins and the review’s first session are next week; before it, they are this week.',
         'Weeks follow the calendar: week 1 is the week with the first Thursday of the starting month, so in a January year week n is ISO week n.',
@@ -157,7 +158,7 @@ const CORE_ARTICLES: Article[] = [
         'Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.',
         'In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.',
       ] },
-      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device and remembers the answer. Choose Not you? in the person menu to change it.'] },
+      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.'] },
     ],
     routes: ['/workspace/new', '/ready'],
     screens: ['Onboarding', 'Start'],
@@ -173,7 +174,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: [PROTOTYPE_LINE, 'Try everything without touching real data. The demo lives under /demo; the real app never shows the example or the demo controls.', 'The example is one division of about 100 people in 14 teams, with 12 north stars and a year of check-ins, reviews and asks: Amara Nwosu is its VP, Rhea Kapoor runs CI/CD and owns the lead time north star, Grace Achterberg is the admin.'] },
       { heading: 'How to use it', list: [
-        'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Everyone else is listed by team, with a search.',
+        'Open Demo (in the sidebar, or the header on a phone) to see the app as someone else: the VP, a director, goal owners, the admin or someone who only watches. Anyone else is found by typing a name, a job title or a team under Everyone else.',
         'Walkthroughs take you through the main journeys as the right person. A card says what to do and points at it; do the step and it moves on, or press Next to move on without doing it, and Back to go back. From a workspace you set up in the demo, they open the example, whose people and goals they follow.',
         'Start over resets the example: every change, drafts you didn’t post, what you’ve marked as seen in What’s new and on goal pages, a walkthrough you were in, and moved map cards and table layouts. Who you’re viewing as and your appearance settings stay. You can also present without the controls, or leave.',
         'In a workspace you set up in the demo, Start over removes it from this browser, drafts and all, and goes back to the example.',
@@ -197,7 +198,10 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'What it’s for', text: ['Check-ins are how everyone knows where a goal stands. Reviews, Home, charts, quarter results and exports all read from them.'] },
       { heading: 'How to use it', list: [
-        'Start check-in on Home walks through every goal due this week. From a goal’s page, Check in does just that goal.',
+        'Check-in in the menu opens on the week’s list: the goals to do this week, in the order the check-in takes them, each with its status and what it last said (“Last week: 36 hours · 8 behind plan”, or “No check-in yet”); then what you’ve done this week, each with Correct it; then a line to type all your numbers in one table.',
+        'Start with walks through every goal due this week, one after another, as Start check-in on Home does. Or pick any goal on the list: Check in does just that one, and so does Check in on a goal’s page.',
+        'Close a check-in you opened from the list and you’re back on it; what you typed is kept, and that goal’s row says Draft kept, with Carry on.',
+        'With nothing left to do it says you’re all set for the week. Before the first check-ins are due it says when they are; if you own no goal it says so, with the goals you watch one click away.',
         'The top of the check-in says which week it is for and where you are in the week’s goals (“Week 46 check-in · 1 of 2”). A reload keeps your place.',
         'Type the number. The app shows it against this week’s plan, the gap and the status the numbers suggest, as you type. The plan written to the goal’s decimals is always on plan, even when the exact plan has more decimals than you can type.',
         `On plan, that’s it: post. Behind (under ${pct(RULES.onTrack)} of the planned progress) it asks for a cause and a sentence; well ahead (${pct(RULES.wellAhead)} or more) it asks why, and whether the target should change.`,
@@ -212,9 +216,11 @@ const CORE_ARTICLES: Article[] = [
         'A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.',
         'Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.',
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
+        'A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.',
       ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
-        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.',
+        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+        'Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.',
         'Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.',
         'Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.',
         'Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.',
@@ -223,9 +229,9 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'Who can', text: ['Only a goal’s owner checks in on it. Anyone can ask the owner for an update from the goal’s page.'] },
     ],
     routes: ['/check-in', '/check-in/:goalId'],
-    screens: ['CheckInFlow'],
-    reqs: ['NO-SILENT-ROUNDING', 'CARRY-OVER', 'GREENER', 'REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'CHECKIN-STATUS-VS-PLAN', 'ONE-PER-WEEK', 'UPDATE-ANYTIME', 'OWNER-ONLY', 'ONE-ACCOUNT', 'OTHER-CAUSE', 'NO-DOUBLE-POST', 'DRAFTS', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
-    keywords: ['update', 'weekly', 'number', 'post', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
+    screens: ['CheckInFlow', 'CheckInQueue'],
+    reqs: ['CHECK-IN-QUEUE', 'NO-SILENT-ROUNDING', 'CARRY-OVER', 'GREENER', 'REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'CHECKIN-STATUS-VS-PLAN', 'ONE-PER-WEEK', 'UPDATE-ANYTIME', 'OWNER-ONLY', 'ONE-ACCOUNT', 'OTHER-CAUSE', 'NO-DOUBLE-POST', 'DRAFTS', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
+    keywords: ['update', 'weekly', 'number', 'post', 'list', 'queue', 'start with', 'draft kept', 'cause', 'reason', 'path to green', 'recovery', 'still true', 'correct', 'ad hoc', 'stages', 'milestone', 'behind', 'ahead'],
     related: ['check-in-table', 'requests', 'status', 'goal-page'],
   },
   {
@@ -313,26 +319,28 @@ const CORE_ARTICLES: Article[] = [
         'Group arranges them: As trees (each top goal with what feeds it; All’s own), By team, By level, or None (one list, worst first; every other tab’s own). Needs attention · {n} is a switch beside it: on, any tab lists the goals that need attention first and those being handled below, and the line under it says why.',
         'One line counts what’s shown and their statuses, worst first (“17 goals, worst first. 2 off track · 4 at risk …”); with Needs attention on it says how many need attention and why.',
         'By team lists the teams worst first: the most goals off track, then the most at risk, then no recent update and no check-in yet. Each team says how many of its goals have each status, with its shape and word.',
-        'Layouts: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. On a computer each button has its name and a line under the buttons says what the open layout shows; on a phone they are in the Layout menu. Your last layout is remembered and is in the link.',
-        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole; if the tabs and the layouts don’t fit on one line, the layouts move to the next.',
+        'Layout chooses how they are drawn: List, Table (sortable, with the headings kept in view), Board (lanes by status), History (quarter results and weekly status, each goal’s number now at the end of its row) and Map. Layout is a menu at the end of the bar that says the open layout (“Layout: List”) and what each one shows. Your last layout is remembered and is in the link.',
+        'Views, at the right of the tabs, holds your saved views (pinned ones first, the open one marked Current), then Save this view…, Copy link and Export these goals; with a saved view open, also Rename…, Pin for everyone (admins) and Delete this view…. It means the same on every screen.',
+        'The title, the tabs and the bar stay exactly where they are whichever layout you choose; only the goals under the count line widen for Table, Board, History and the Map. On the Map, Group and Sort can’t be changed: the Map is always the trees.',
+        'On a phone the active filters wrap onto more lines rather than running off the edge, and a saved view’s name is always shown in full. On a wider screen every tab is shown whole.',
         'Old links still work: Trees, By level, By team and Needs attention open All with that group or the switch, /watching opens Watching, and a saved view made before keeps working.',
         'The Board shows up to eight goals in the On track and Done lanes before Show all, and each card says which goal it feeds into. Every card starts with its own status, a shape and its word, so a card still says where it stands on a phone, where the lanes stack and its lane’s heading has scrolled away.',
         'Decision or help needed means the same goals everywhere: the Goals filter and the saved views built on it, the Table’s story line and the Board’s order all ask the one rule, an open ask for a decision or help on a goal that isn’t done.',
         'Cards has gone: List shows everything it did. A link or saved view that opens Cards opens List, and says so once.',
         'Each tab and layout you choose is a step: Back takes you to the one before, with its search as it was.',
         'A link with a tab this workspace doesn’t have opens the one you’d open first, and a short line says so.',
-        'On a phone the goals come first. Views and Layout are two buttons on one line: Views says whose goals are open and how many, and opens the tabs, Group, your saved views and Export these goals; Layout says the open layout and lists each one with what it shows. The week is a small line under the title, and the note about first check-ins is one line, with Why? for the rest.',
+        'On a phone the goals come first. The tabs are one row that scrolls sideways, the open one kept in view; then the search and Filter and sort (Sort is in its sheet); then Needs attention at the left and View at the right, which says the layout and the group (“View: List, as trees”). View opens one sheet: Layout, Group (not on the Map), your saved views, then Save this view…, Copy link and Export these goals. Each choice applies at once; Done closes it. The note about first check-ins is one line, with Why? for the rest.',
         'When two goals have the same title, each shows its key beside it, here and on the Board, History, the map and the check-in.',
         'Every goal that is off track, at risk or quiet tells its story where it is listed: why, what the owner will do, by when, and what they need from whom.',
         'In the Table, select goals to change their owner or level, watch them or export them.',
-        'In the sidebar, Goals has Mine, Watching, All and your saved views under it.',
+        'In the sidebar, Goals has your saved views under it.',
         'The status key sits under the goals. New goal is a quiet link at the top right; the sidebar’s New goal opens it from anywhere.',
       ] },
       { heading: 'Who can', text: ['Everyone sees every goal. Owners change their own goals from the Table; admins can change any.'] },
     ],
     routes: ['/goals', '/goals?view=list', '/goals?view=table', '/goals?view=board'],
     screens: ['GoalsScreen', 'GoalViews', 'GoalTable', 'GoalBoard', 'BulkEdit'],
-    reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS', 'VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
+    reqs: ['GOALS-SCOPE', 'GOALS-ATTENTION', 'GOALS-ADDRESS', 'GOALS-MENUS', 'VIEWS', 'OUTCOME-TREE', 'HIERARCHY', 'STICKY-HEAD', 'NAV-GOALS', 'STORY', 'LEVELS', 'BULK-EDIT'],
     keywords: ['list', 'table', 'board', 'cards', 'health', 'trees', 'layout', 'by team', 'by level', 'mine', 'portfolio', 'outcomes', 'story', 'phone', 'views'],
     related: ['goals-filters', 'history', 'goal-map', 'needs-attention'],
   },
@@ -349,7 +357,7 @@ const CORE_ARTICLES: Article[] = [
         `Filters cover status, level, team, owner and type; ${lower(ATTENTION.needs)} (the same goals Home and Watching list, with those ${lower(ATTENTION.handled)} listed below them), narrowed if you like to why: ${ATTENTION_FLAGS.map((k) => lower(FLAG[k])).join(', ')}; due date; no update for some weeks (counted the way ${lower(STATUS.stale)} is); last quarter ${lower(QUARTER.met)} or ${lower(QUARTER.missed)}; result; a goal’s tree; and also-helps links.`,
         'Under the bar, one line counts the goals that match; under it, the filters in words (“Filtered by: Status Off track · Owner Rhea Kapoor”), each with Remove. A search is never listed as a filter.',
         'Sort by worst first, name, owner, team, level, furthest from plan, longest since a check-in or due soonest. Sorted, the Trees tab is one list across every tree, so worst first means the worst anywhere; clear the sort to see the trees again. By level and By team keep their groups.',
-        'Everything is in the link: Copy link shares exactly what you see. Save view keeps it as a tab of your own; rename or delete it from Views.',
+        'Everything is in the link: Copy link, in Views, shares exactly what you see. Save this view…, also in Views (in View on a phone), keeps it under a name: it shows as a tab while it’s open, and Views lists it the rest of the time. Rename or delete it from Views while it’s open.',
       ] },
       { heading: 'Who can', text: ['Anyone saves their own views. Admins can pin a view for everyone.'] },
     ],
@@ -374,7 +382,7 @@ const CORE_ARTICLES: Article[] = [
         'Nothing is hidden: wherever the goals that need attention are listed, those being handled are listed below them. Filter Goals to your team and Needs attention shows every goal of theirs that is behind, in hand or not.',
         'Being handled takes a plan: an action with an owner and a due week agreed after the latest check-in, or, for a goal at risk, an answer to its request. An off-track goal stays counted until it has an action. A goal someone only marked reviewed or noted still needs attention; pointing at its reason says who looked at it (“Looked at by Amara in Platform leadership weekly, week 45”).',
         'On Goals, the Needs attention tab’s count counts the goals that need attention, not those being handled, and says so if you point at it. One line above the goals says the same for the goals shown (a team filter counts that team); Why? says what the count is made of: how many are off track, at risk or without a recent update, and how many are on track but flagged for something else (getting worse, a missed date, an ask waiting). The health line there counts the same goals. On the Board, a goal being handled says so on its card.',
-        'Home, Watching, Goals (the Needs attention tab and filter), the map’s “Only what needs attention”, the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
+        'Home, Watching, Goals (the Needs attention switch and filter, on the Map too), the review agenda and MCP all pick the same goals, and list the two apart, saying what is in hand: for example, “Action: Farah, due week 46”.',
       ] },
     ],
     routes: ['/goals?show=attention'],
@@ -413,12 +421,13 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'How to use it', list: [
-        'Choose Map among the Goals layouts. North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
+        'Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
         'It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.',
         'Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.',
-        'Find a goal, at the top left of the map, finds a goal by its name or its key (G-48). Choose one: its tree opens, the goal is outlined and the map moves to it. Press Enter to read its story.',
+        'On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.',
+        'Group and Sort can’t be changed on the Map, which is always the trees.',
         'Fit all shows every goal on the map at once, the trees wrapped into rows; Readable shows the top goals and the critical path at a size you can read. The map fits itself again whenever what it shows changes: a search, a filter or the trees in trouble.',
-        'Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. Only what needs attention narrows the map to those goals and what they feed, every branch unfolded.',
+        'Troubled trees only keeps the trees whose top goal or anything under it is off track, at risk or without a recent update. The Needs attention switch in the bar above narrows the map to those goals and what they feed, every branch unfolded.',
         'Pan, zoom and drag goals about. The map never removes a goal: Delete and Backspace do nothing on it. Goals are removed from their own page, with Undo. Tidy up puts dragged goals back.',
         'Select a goal to read its story beside the map, then Open the goal. On a phone the map is a list, one goal per row.',
         'The map’s walkthrough ends beside the story: on a desktop its card sits over the map, left of the story and level with its foot; on a phone, above the story.',
@@ -517,10 +526,11 @@ const CORE_ARTICLES: Article[] = [
     group: 'goals',
     sections: [
       { heading: 'Choosing someone or something', list: [
-        'Wherever you choose a person, a team or a goal (who takes part in a review, a next step’s owner, the new owner of goals, who can decide or help), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal).',
+        'Wherever you choose a person, a team or a goal (a goal’s owner, team, what it feeds and what it also helps; who takes part in a review; a next step’s owner; who takes over when someone leaves; an owner in Data or in set-up; who sent feedback), the field says your choice in words, with Change. With nothing chosen it says “Choose a person” (or a team, or a goal), or what nothing means there, such as “Nothing: top of its own tree”.',
         'Open it and a few are suggested before you type: you first, then your team, then those you chose lately. Type to find others: a name, a job title, a team, or a goal’s words or its key (G-48, g48 or 48). It says how many match and shows up to 50; keep typing to narrow the rest.',
         'Down and Up move through the rows, Enter chooses, Escape closes and keeps what you had. Where you can choose several, each one chosen is listed with Remove, and Done closes the list.',
-        'Someone marked as left is never offered.',
+        'Someone marked as left is never offered. A goal that can’t be chosen is still listed, greyed, with the reason: a goal already under this one can’t be what it feeds (“Feeds this goal already”).',
+        'On a phone the list opens as a full screen of its own, with Close at the top.',
       ] },
       { heading: 'What a search matches', list: [
         'Every word you type must start a word of the row: “roll” finds “Rollback”, “back” doesn’t. Case and accents don’t matter (“lucia” finds Lucía), and “CI/CD” is two words.',
@@ -538,9 +548,9 @@ const CORE_ARTICLES: Article[] = [
         'Ctrl+Shift+M (Cmd+Shift+M on a Mac): mark up this screen.',
       ] },
       { heading: 'Searching a list', list: [
-        'Goals, Activity and Help search the same way. Under the search a line says how many match (“17 goals match.”).',
+        'Goals, Activity, Data, People, Teams, Help and Feedback search the same way. Under the search a line says how many match (“17 goals match.”). People and Teams find through the same search as every person and team picker, so they list people in the same order: those whose name starts with what you typed first, then A to Z.',
         'When nothing matches, it says so (“No goal matches “zzzz”.”) with Clear the search. If one letter is off, it tries the nearest word and says what it shows instead: “No goal matches “rolback”. Showing goals that match “rollback”.”',
-        'On Activity, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.',
+        'On Activity, Data and Feedback, the filters that are on read as words under the search, each with Remove (“Filtered by: Kind Check-ins”), and Clear filters when there are two or more.',
         'The address keeps the search and the filters, so a link you share shows the same list, and Back undoes the last choice.',
       ] },
     ],
@@ -560,7 +570,7 @@ const CORE_ARTICLES: Article[] = [
         'Choose New goal. Name it the way your team would say it.',
         'Pick a type. Move a number: from where it is to where it should be. Keep a number in range: a limit it mustn’t cross, with a margin that warns you. Hit dated stages: work that is done or not, by a week.',
         'For a number, say how progress will come: the same every week, a slow start (back-loaded), or jumps as each release ships. That sets the weekly plan the status is judged against. Any week can be typed over. Say how it’s measured too, in the field under the numbers, so everyone reads it the same way.',
-        'Say what it feeds into and, optionally, why it is expected to help. Set its level: Team, SVP or North star, for goals reported at major reviews.',
+        'Say what it feeds into by typing a few of its words or its key (or choose Nothing: top of its own tree) and, optionally, why it is expected to help. Type a name to find its team and its owner. Set its level: Team, SVP or North star, for goals reported at major reviews.',
         'Check and publish. The owner is then offered the first check-in.',
         'A stage due before this week asks whether it’s already done: “Yes, done in week 3” records it done in its own week, so the goal isn’t late on day one; “No, it’s overdue” leaves it late, and Check says so. One of the two must be chosen.',
         'A goal is due at the end of the year or at the end of a quarter still to come. An unfinished goal is kept as a draft.',
@@ -584,7 +594,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Open the goal and choose Edit.',
-        'Change the title, definition, data source, owner, level, what it feeds and what it also helps.',
+        'Change the title, definition, data source, owner, level, what it feeds and what it also helps. The owner, the team and the goals are found by typing a name or a key; a goal already under this one is listed but can’t be chosen to feed it.',
         'Plan by week shows the numbers week by week; type over any week.',
         'After check-ins have started, a change to the plan or target asks why, in a sentence: the box appears as soon as the plan differs. Watchers see it flagged, and it is in the goal’s activity. A change made from one part of Change this goal always asks why.',
         'Numbers follow the same rule as a new goal: never rounded quietly, and odd ones asked about.',
@@ -665,10 +675,10 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
-        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
-        'An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged.',
+        'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',
       ] },
       { heading: 'Who can', list: ['A goal’s owner, or an admin, wraps it up.', 'Only admins start the next year.'] },
     ],
@@ -676,7 +686,32 @@ const CORE_ARTICLES: Article[] = [
     screens: ['Retro'],
     reqs: ['RETRO', 'YEAR', 'RESULTS'],
     keywords: ['retro', 'retrospective', 'end of year', 'year end', 'year ended', 'last day', 'cycle', 'next year', 'carry on', 'stop', 'learned', 'close'],
-    related: ['history', 'workspace'],
+    related: ['history', 'workspace', 'start-next-year'],
+  },
+
+  {
+    id: 'start-next-year',
+    title: 'Starting the next year',
+    summary: 'An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it.',
+    group: 'leading',
+    sections: [
+      { heading: 'How to use it', list: [
+        'From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.',
+        'Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).',
+        'Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.',
+        'A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.',
+        'A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.',
+        'Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.',
+        'Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.',
+        'Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from.',
+      ] },
+      { heading: 'Who can', list: ['Everyone can read the page.', 'Only admins start the next year, or undo it.'] },
+    ],
+    routes: ['/workspace/cycles/next'],
+    screens: ['StartNext'],
+    reqs: ['CARRY-GOALS', 'RESULTS'],
+    keywords: ['next year', 'new year', 'start next year', 'carry on', 'finish', 'undo', 'read-back', 'cycle'],
+    related: ['wrap-up', 'workspace-cycles'],
   },
 
   /* ---------- Data in and out ---------- */
@@ -687,14 +722,14 @@ const CORE_ARTICLES: Article[] = [
     group: 'data',
     sections: [
       { heading: 'How to use it', list: [
-        'Pick a table. Search it, sort by any heading, and filter by any column: a value from its list, a number condition, words, or empty. The filters and sort are in the link.',
+        'Pick a table. Search it, sort by any heading, and filter by any column under Filters: a value from its list, a number condition, words, or empty. The line under the search counts the rows and says the sort (Remove the sort undoes it), and the filters read as words, each with Remove. The search, the filters and the sort are in the link, so Back and a shared link show the same table.',
         'Goals are listed in key order (G-1, G-2 … G-124) until you sort. A cell that doesn’t apply to that kind of goal says so: a range goal shows its limit under Target, and a dash with the reason elsewhere.',
         'Columns chooses what shows. Drag a heading to move a column, or drag its edge to set a width; the keyboard works too. Columns start compact, so more fit on the screen: a long value is cut short, and shows whole in its field and when you point at it.',
         'Save this layout keeps the columns, widths, search, filters and sort under a name you reopen from Saved layouts. Back to the usual columns resets it.',
-        'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the blank template; and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
+        'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
         'IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.',
       ] },
-      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses.'] },
+      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
       { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a saved layout for everyone.'] },
     ],
     routes: ['/data'],
@@ -804,7 +839,7 @@ const CORE_ARTICLES: Article[] = [
       { heading: 'How to use it', list: [
         'Type in the search to find someone: each word you type starts a word of their name, job title or team, so “eng man” finds the Engineering Managers. Capitals and accents don’t matter: “lucia” finds Lucía.',
         'Filter by a team (its lead counts as one of its people), or tick Admins only. On a phone both are under Filter.',
-        'The list is A to Z, 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.',
+        'The list is A to Z (with a search, those whose name starts with it first), 50 at a time; the line under the search says how many, and Next and Previous turn the pages. The search and filters are in the address, so Back and a shared link bring the same list back.',
         'Each row says the person’s job title and team, and beside it whether they are an admin, which team they lead and how many goals they own this year.',
         'Open someone to see their page: their team (and any other team they lead), their email, whether they are an admin, their goals counted by status (each count opens those goals) and the reviews they run or are in. See their goals opens Goals for just them.',
       ] },
@@ -890,6 +925,36 @@ const CORE_ARTICLES: Article[] = [
     related: ['workspace', 'ai-assistants', 'people'],
   },
   {
+    id: 'getting-around',
+    title: 'Getting around',
+    summary: 'Every page names itself and lights its place in the menu; one back link above the title agrees with your browser’s Back; and a form has one way out.',
+    group: 'start',
+    sections: [
+      { heading: 'Where you are', list: [
+        'The browser’s tab says the page’s own name: a goal’s title, a review’s or a person’s name, “Change {goal}” while you edit it. So two goals open in two tabs are easy to tell apart.',
+        'One place in the menu is lit: Goals for a goal and its pages, Reviews for a goal you reach while walking a review, People for a person or a team. On a phone, the tab that holds it is lit, or More.',
+        'Goals is called Goals whichever tab (Mine, My team, Watching, All) you’re on.',
+      ] },
+      { heading: 'Going back', list: [
+        'Pages below a place’s first page have one back link above the title, “‹ Goals” or “‹ Lead time for changes”, naming where it goes. A place’s first page (Home, Check-in, Goals, Reviews, People, Activity, Data, Workspace, Settings, Help, Feedback) has none, and nor does a form: it has its closing control instead.',
+        'It goes back to the page you came from, the same as your browser’s Back, so Forward still works. Forms you passed through (an edit you saved, a check-in) are stepped over, by the link and by the browser’s Back alike.',
+        'Opened from a link or a new tab, it goes up instead: to the goal this one feeds, or Goals; to the review for a goal in its walk; to People, Teams or Help.',
+      ] },
+      { heading: 'Leaving a form', list: [
+        'A form has one way out, at the top right, in words. “Close and keep the draft” (check-in, New goal, changing a goal, setting up a workspace) keeps what you typed for later.',
+        '“Close without saving” (setting up or changing a review, wrapping up a goal) keeps nothing, so if you typed something it asks first. Keep editing takes you back to it.',
+      ] },
+      { heading: 'An address that leads nowhere', list: [
+        'An old or mistyped link says “Page not found”, with Go to Home and Help. A goal, review or person that isn’t there says so in its own words.',
+      ] },
+    ],
+    routes: [],
+    screens: [],
+    reqs: ['NAV-WHERE', 'NAV-BACK', 'NAV-FORMS'],
+    keywords: ['back', 'back link', 'title', 'tab', 'where am i', 'lit', 'close', 'draft', 'not found', 'navigation'],
+    related: ['settings', 'finding'],
+  },
+  {
     id: 'settings',
     title: 'Settings',
     summary: 'About you: who you are here and your page, your own choices (light or dark, an accent colour, the sidebar, how a goal’s page moves), your MCP tokens, whether recording is on, and leaving the workspace.',
@@ -903,7 +968,8 @@ const CORE_ARTICLES: Article[] = [
         'You, first: your name, job title, team and whether you’re an admin or a member here, with Your page (your page in People). An admin changes your name, job title or team; Settings names the admins.',
         'Recording: one line, whether it’s on here, leading to Workspace, Privacy for what is and isn’t recorded.',
         'Your MCP tokens: the tokens that act as you, which you can revoke. An admin makes them, on Workspace, Access or from your page.',
-        'Detail pages have a Back link to where you came from.',
+        'Under the title, links to each part of Settings (You, Appearance, Navigation, Your MCP tokens, Leave) stay at the top as you scroll, with the part you’re in lit.',
+        'Settings is a place of its own, so it has no back link: the menu takes you anywhere from here.',
         'Leave, at the very end: leave the workspace that’s open. Someone takes over your goals and open asks first, and your history stays; an admin can bring you back for 30 days. The only admin can’t leave until someone else is an admin, and is told so.',
       ] },
       { heading: 'Good to know', text: ['How the app looks is kept in this browser only. On another device, choose again. Everyday motion is quick and subtle; a goal’s page moves at the pace you choose. All of it switches off when your device asks for reduced motion.'] },
@@ -926,7 +992,7 @@ const CORE_ARTICLES: Article[] = [
         'Switched off, a feature leaves every screen: its pages, its menus and buttons, its Help and its MCP tools. Anything that needs it goes off with it, and Features says so.',
         'Nothing a feature saved is deleted. Switch it back on and everything is as it was.',
         'Each switch says what it did, with Undo for 10 seconds, and is logged in Activity, with who did it.',
-        'Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the blank template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
+        'Spreadsheets is the first feature: the Spreadsheets menu on Data, Import, the template and Export these goals on Goals. Set-up keeps its own upload whatever the switch says.',
       ] },
       { heading: 'Who can', text: ['Admins switch features. Everyone sees what is on.'] },
       { heading: 'For the people building Faro', list: [
@@ -990,6 +1056,7 @@ const CORE_ARTICLES: Article[] = [
         'Look after the metric library: list and read the metrics goals are measured by, add one or change one you own, and say which metric measures one of your goals, for a team or the whole company.',
         'It meets the same rules as you, with exactly your rights, and every change is logged as you, marked “via MCP”.',
         'Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.',
+        'Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.',
       ] },
       { heading: 'How to connect', list: [
         'An admin makes a personal MCP token for you under Workspace, Access, MCP access. The database makes it, keeps only a hash of it, and shows it once; nobody can read tokens back, not even through the app.',
@@ -1050,7 +1117,7 @@ const CORE_ARTICLES: Article[] = [
         'Three tabs: New, In hand and Closed (fixed or won’t fix), each with how many it holds. When New is empty, it says Nothing new.',
         'Each row starts with its status as a shape and a word, then what was said, the part of the page it’s about (or, for feedback, its mood and page), who sent it, from where and when.',
         'Markups about the same part of the same page are folded into one row that says how many (“6 on this part”). Open it to see each one; whatever you do to the row happens to all of them.',
-        'Find things with the search (what was said, the part, the page or who sent it) and the filters for kind (markups or feedback), page and person. On a phone the filters are under Filters.',
+        'Find things with the search (what was said, the part, the page or who sent it). Kind (markups or feedback) sits beside it on a computer; Filters holds the page and who sent it (type a name to find them), and on a phone the kind too. The line under the search counts what matches and says the filters in words, each with Remove; the address keeps the search and the filters, so Back and a shared link show the same list.',
         'On a computer the list and the open item sit side by side. Keys: J and K move down and up the list, I marks the open item in hand, F opens Mark fixed, W opens Won’t fix.',
         'On a phone you see one item at a time: Next goes on to the next, and Back to the list returns.',
         'Once you handle an item and it leaves the tab, the next one opens. Undo, at the top, puts back what you just changed.',
@@ -1176,52 +1243,18 @@ export function searchGuide(query: string): Article[] {
   return scored.sort((x, y) => y.score - x.score || ARTICLES.indexOf(x.a) - ARTICLES.indexOf(y.a)).map((x) => x.a);
 }
 
-/** A route pattern's path and the query values it needs. */
-function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
-  const [path = '/', q = ''] = r.split('?');
-  return { segs: path.split('/').filter(Boolean), query: [...new URLSearchParams(q).entries()] };
-}
-
-/**
- * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
- * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
- * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
- */
-export function routeScore(route: string, pathname: string, search = ''): number | null {
-  const segs = pathname.split('/').filter(Boolean);
-  const p = parseRoute(route);
-  if (p.segs.length !== segs.length) return null;
-  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
-  const q = new URLSearchParams(search);
-  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
-  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-}
+/** How closely a route matches an address (src/help/match.ts, shared with the light index in src/help/lookup.ts). */
+export { routeScore };
 
 /** The article for a page: the one whose route matches the address most closely. */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
-  let best: { a: Article; score: number } | undefined;
-  for (const a of ARTICLES) {
-    for (const r of a.routes) {
-      const score = routeScore(r, pathname, search);
-      if (score !== null && (!best || score > best.score)) best = { a, score };
-    }
-  }
-  return best?.a;
-}
+export const articleForPath = (pathname: string, search = ''): Article | undefined => closestRoute(ARTICLES, (a) => a.routes, pathname, search)?.item;
 
 /** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
 let appRoutes: string[] | null = null;
-export function appRouteFor(pathname: string): string | undefined {
-  let best: { r: string; score: number } | undefined;
-  for (const r of (appRoutes ??= guideRoutes())) {
-    const score = routeScore(r, pathname);
-    if (score !== null && (!best || score > best.score)) best = { r, score };
-  }
-  return best?.r;
-}
+export const appRouteFor = (pathname: string): string | undefined => closestRoute(appRoutes ??= guideRoutes(), (r) => [r], pathname)?.route;
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */
-export const guideRoutes = (): string[] => [...new Set(ARTICLES.flatMap((a) => a.routes.map((r) => r.split('?')[0]!)))];
+export const guideRoutes = (): string[] => routePaths(ARTICLES);
 
 /** An article as plain text: for the AI assistant. */
 export function articleText(a: Article): string {

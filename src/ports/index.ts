@@ -29,6 +29,16 @@ export interface Identity {
   current(workspaceId: string): Promise<string | null>;
   /** Only on the demo's picker: says who is using it. A real sign-in has none, since who you are is not a choice. */
   choose?(workspaceId: string, personId: string): void;
+  /** Why `current` said nobody, when it can tell (a sign-in can): the page that turns someone away says so, and how to
+      get in. Null when `current` names someone. */
+  why?(workspaceId: string): Promise<NoEntry | null>;
+}
+
+/** Why a sign-in opens no one in a workspace: not signed in; no one there has the email; more than one person has it;
+    or the only ones who have it are marked as left or removed. With the email signed in with, where there is one. */
+export interface NoEntry {
+  reason: 'signed-out' | 'no-one' | 'shared' | 'left';
+  email?: string;
 }
 
 /** The demo's picker: an Identity that can be told who is using it. */

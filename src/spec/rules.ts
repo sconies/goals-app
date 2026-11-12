@@ -4,14 +4,15 @@
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
-import { findPeople } from '../domain/people';
-import { DIRECTORY_PAGE, findInDirectory, findTeams, movedTo, personLine, teamSummary } from '../domain/directory';
-import { cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
+import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
+import { beforeStartLine, currentCycle, cycleDates, cycleState, placeLine, scopeToCycle, wrapUpOpenOn } from '../domain/cycle';
+import { carryCopy, carryKind } from '../domain/carry';
+import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, levelRank, levelsOf } from '../domain/levels';
 import { dayOneRows } from '../app/reads';
 import { DAY_ONE_DAYS, gettingStarted, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
-import { planChanges, type ChangeInput, type Rec } from '../domain/changeset';
+import { MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
 import { planQuestion } from '../domain/goal';
-import { emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, valueProblem, type Draft } from '../domain/checkin';
+import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
@@ -20,8 +21,9 @@ import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPA
 import { cycleStanding, leaveWorkspace } from '../domain/removal';
 import { acceptRisk, teamPeople } from '../domain/actions';
 import { adminsLine, cycleLine, LEAD_FROM, NEEDS_SHOWN, ONLY_ADMIN_FROM, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
-import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, setupProblem, typedDecimals } from '../domain/numbers';
+import { FAR_OUTSIDE, FAR_RATIO, farOutside, groupDigits, placesToKeep, precisionProblem, sameAsWritten, setupProblem, typedDecimals } from '../domain/numbers';
 import { stagesFromJoining } from '../domain/templates';
+import { emptyText, fieldTable, FILL_SHEETS, requiredLine, requiredText, requiredWord, specOf } from '../domain/columns';
 import { AVATAR_HUES, mergePeople } from '../domain/people';
 import { gapTrend, goalTrend } from '../domain/trend';
 import { flagsFor, needsAttention, attentionFor, attentionGroup } from '../domain/attention';
@@ -33,7 +35,7 @@ import { pastStage, stagesDoneAtSetUp } from '../domain/goal';
 import { commentReach, goalHistory, primaryAction, standingAction, stepsAndAsks, whyPointer } from '../domain/goalPage';
 import type { ActionContext } from '../domain/actions';
 import MODULE_SPEC from 'virtual:faro-modules/spec';
-import { litItem, menuGroups, menuRows, pageName, phoneTabs } from '../domain/navigation';
+import { backTo, litItem, menuGroups, menuRows, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
 import { movedGoals, ownGroup, scopesFor } from '../domain/goalsPage';
 import { watchedGoals } from '../domain/review';
 import { countLine, filterLine, findAll, keyOf, nearMiss, noneFound, search, suggest, textMatches } from '../domain/find';
@@ -73,6 +75,20 @@ export interface Rule {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** The field table of every sheet that loads back, as the rule page shows it. */
+function fieldTableMarkdown(): string {
+  const cellOf = (v: string) => v.replace(/\|/g, '\\|');
+  return FILL_SHEETS.map((k) => {
+    const t = fieldTable(k);
+    const line = k === 'plan' ? '' : `. A new row needs: ${requiredLine(k)}`;
+    return [
+      `**${specOf(k).name}**${line}`, '',
+      '| Column | A new row | Format | Example | If it’s left empty |', '|---|---|---|---|---|',
+      ...t.filter((c) => c.required != null).map((c) => `| ${c.header} | ${cellOf(requiredText(c, t))} | ${cellOf(c.format)} | ${cellOf(c.example)} | ${cellOf(emptyText(c))} |`),
+      '', `Worked out: ${t.filter((c) => c.required == null).map((c) => c.header).join(', ') || 'none'}.`,
+    ].join('\n');
+  }).join('\n\n');
+}
 const g3075 = metric(30, 75);
 const ci = checkIn;
 const D = (d: Partial<Draft>): Draft => ({ ...emptyDraft(g3075, null), ...d });
@@ -103,7 +119,15 @@ const dayOneWs = (owners: string[]): Pick<Snapshot, 'people' | 'goals' | 'checkI
 const DIR_NOW = new Date('2026-11-11T12:00:00Z');
 let dir: Snapshot | null = null;
 const dirWs = (): Snapshot => dir!;
-const dirAsk = (a: Parameters<typeof findInDirectory>[2]) => findInDirectory(dirWs().people, dirWs().teams, a);
+/** People's ask, as its address has it, through the one search (finding things, rule 7): a page of 50, a page past the end the last. */
+const dirAsk = (a: { q?: string; teamId?: string; admins?: boolean; page?: number }) => {
+  const filters = { ...(a.teamId ? { team: a.teamId } : {}), ...(a.admins ? { admins: '1' } : {}) };
+  const rows = personRows(dirWs());
+  const pages = Math.max(1, Math.ceil(search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE }).total / DIRECTORY_PAGE));
+  const page = Math.min(Math.max(1, a.page ?? 1), pages);
+  const r = search(rows, { q: a.q ?? '', filters, size: DIRECTORY_PAGE, after: String((page - 1) * DIRECTORY_PAGE) });
+  return { total: r.total, page, pages, from: r.rows.length ? (page - 1) * DIRECTORY_PAGE + 1 : 0, to: (page - 1) * DIRECTORY_PAGE + r.rows.length, rows: r.rows };
+};
 
 /* ---------- the demo workspace, for the change engine's examples ---------- */
 let demo: Snapshot | null = null;
@@ -324,8 +348,8 @@ The projection fits a least-squares line through the recent numbers, not a slope
     id: 'check-in',
     title: 'What a check-in must say',
     summary: 'What a check-in needs before it can be posted, and the record it becomes.',
-    code: [{ file: 'src/domain/checkin.ts', names: ['emptyDraft', 'parseNumber', 'valueProblem', 'lastValueOf', 'numberCheck', 'unchangedStory', 'evaluate', 'toCheckIn', 'MISSING_TEXT', 'CAUSES_BEHIND', 'CAUSES_AHEAD'] }],
-    tests: ['src/domain/rules.test.ts#check-in rules', 'src/domain/rules.test.ts#typed numbers', 'src/domain/rules.test.ts#what a check-in still needs, as stable codes', 'evals/scenarios.eval.ts'],
+    code: [{ file: 'src/domain/checkin.ts', names: ['emptyDraft', 'parseNumber', 'valueProblem', 'previousFor', 'earlierThisWeek', 'lastValueOf', 'numberCheck', 'checkInLevels', 'unanswered', 'stepState', 'answeredDiffs', 'unchangedStory', 'evaluate', 'toCheckIn', 'MISSING_TEXT', 'CAUSES_BEHIND', 'CAUSES_AHEAD'] }],
+    tests: ['src/domain/rules.test.ts#check-in rules', 'src/domain/rules.test.ts#typed numbers', 'src/domain/postCheckIn.test.ts#what a new number is compared with (rule 5)', 'src/domain/postCheckIn.test.ts#the levels in a check-in (rules 2 and 3)', 'src/domain/rules.test.ts#what a check-in still needs, as stable codes', 'evals/scenarios.eval.ts'],
     reqs: ['REASON-BEHIND', 'REASON-AHEAD', 'PATH-TO-GREEN', 'GREENER', 'OWNER-CALL', 'CHECKIN-STATUS-VS-PLAN', 'OTHER-CAUSE', 'FIRST-CHECKIN', 'HONEST-CHECKIN'],
     body: `
 A check-in is one week's report on one goal, by its owner (or an admin): the number (or each stage's state), the owner's call, and the words the numbers ask for. Every way in (the check-in screen, the bulk grid, a spreadsheet, the AI assistant) uses these rules.
@@ -334,7 +358,11 @@ A check-in is one week's report on one goal, by its owner (or an admin): the num
 
 **Impossible and surprising numbers** (\`valueProblem\`): letters are refused with the one message of [numbers and names](numbers-and-names.md); a number with more decimal places than the goal keeps is refused (never rounded, the same rule); below zero is refused for a percentage or a time or money unit, and for a count (see [the projection](projection.md)); over 100% is refused for a share (see [the projection](projection.md)) and only questioned otherwise; a number goal's value more than ${FAR_OUTSIDE} times the plan's width beyond either end of its plan is questioned ("That's far outside this goal's plan (30 to 75%). Is 400 right?"); a count's value past its target (beyond it in the better direction) is questioned ("That's past the target of 40 pairs. Is 41 right?"); a number more than 3 times or less than a third of last week's is questioned ("Last week was 29.4. Is 294 right?"). Questions never refuse.
 
-**One number check** (\`numberCheck\`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks \`valueProblem\` with the goal's latest number (\`lastValueOf\`: the newest of its check-ins that has a value), and a spreadsheet's error for an unusable number is \`valueProblem\`'s own words.
+**What a new number is compared with** (\`previousFor\`, for the goal's check-ins and the week): the newest check-in of the latest week before it, and the newest number among the weeks before it. A check-in of the same week is never "last week": a second check-in in week 46 is compared with week 45, as is the goal page's "vs last week" after it. \`earlierThisWeek\` is the newest of the week's own, for a second check-in to name.
+
+**One number check** (\`numberCheck\`): every way a number is typed (the check-in, the bulk grid, a spreadsheet) asks \`valueProblem\` with the goal's latest number before the week (\`lastValueOf\`: \`previousFor\`'s number), and a spreadsheet's error for an unusable number is \`valueProblem\`'s own words.
+
+**The levels: Must fix and Check** (\`checkInLevels\`, \`unanswered\`, \`stepState\`). A number that can't be used is a *Must fix*: the check-in can't go on until it is fixed. A usable number that looks wrong is a *Check*: a question that must be answered before the check-in posts. Only the first that applies is asked, in \`valueProblem\`'s order: over 100% where the goal isn't a share, far outside its plan, past a count's target, then more than 3 times or under a third of the last number before this week ("Week 45 was 1.8%. Is 18.0% right?", with "Yes, 18.0% is right" and "Change the number"). Failing those, a number goal not yet at its target whose number is the same as last week's asks "The same as week 45: 80%. Did you measure it again this week?" ("Yes, measured again" or "No new number this week"); a number kept in a range never asks it. A Check is answered for the value it is about (its *key*): change the number and it asks again. With something to fix, the button says "1 thing to fix above: This week's number."; with a question open, "Answer the question above first.". A check-in posted from a screen is refused until its questions are answered, and each answer is kept in History as an *Asked* difference (the question, then the answer). The table asks the same questions under its rows; a spreadsheet and the AI tools keep today's hint.
 
 **Judging the draft** (\`evaluate\`, for the goal, the week, the draft and the goal's check-ins): the check-in is judged as in [the status](status.md), with the goal's earlier check-ins (weeks before this one). The calculated call is the calculation, with \`planned\` and \`none\` counting as \`on\`. The owner's call defaults to it.
 
@@ -364,6 +392,9 @@ It can be posted when nothing is missing.
       { given: '58 in week 4 (well ahead): nothing else; with a reason and a proposed target of 70; with 95.', then: 'reason-ahead; target; can post', run: () => { const why = { value: '58', cause: 'early' as const, why: 'The bot shipped two weeks early' }; return [D({ value: '58' }), D({ ...why, proposeTarget: '70' }), D({ ...why, proposeTarget: '95' })].map((d) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', '); }).join('; '); } },
       { given: '40 in week 4, with last week’s cause, why, path and week copied in untouched; then said to be still true; then with the why rewritten.', then: 'story-unchanged; can post; story-unchanged (the path)', run: () => { const carried = { cause: 'slower' as const, why: 'Rollout paused for a week', what: 'Restart the rollout', by: 7 }; const same = { value: '40', cause: 'slower' as const, why: carried.why, ptgWhat: carried.what, ptgBy: 7, carried }; return [D(same), D({ ...same, stillTrue: true }), D({ ...same, why: 'The fix is waiting on review' })].map((d, i) => { const e = evaluate(g3075, CYCLE, 4, d, []); return e.canPost ? 'can post' : e.codes.join(', ') + (i === 2 ? ` (the ${e.unchanged.join(', ')})` : ''); }).join('; '); } },
       { given: 'A count, 4 → 40 pairs: -5; 41.', then: 'refused; questioned: That’s past the target of 40 pairs. Is 41 right?', run: () => { const pairs = { ...g3075, unit: 'pairs', decimals: 0, plan: { ...g3075.plan, start: 4, target: 40 } }; const a = valueProblem('-5', 10, 'pairs', pairs), b = valueProblem('41', 38, 'pairs', pairs); return `${a?.block ? 'refused' : 'fine'}; ${b && !b.block ? 'questioned' : 'fine'}: ${b?.text}`; } },
+      { given: 'Check-ins of 1.9 in week 44, 1.8 in week 45, then 18 and 1.9 in week 46: what week 46 is compared with; then the same with week 45 posting no number.', then: 'week 45, 1.8 / week 44, 1.9', run: () => { const own = [ci('m', 44, 1.9), ci('m', 45, 1.8), ci('m', 46, 18), ci('m', 46, 1.9)]; const quiet = [ci('m', 44, 1.9), { ...ci('m', 45, 0), value: null }]; return [own, quiet].map((o) => { const p = previousFor(o, 46).number; return `week ${p?.week}, ${p?.value}`; }).join(' / '); } },
+      { given: 'A range goal at most 2.0% (1 decimal), 1.8% in week 45: 18 typed in week 46; then 18 with that question answered; then 19.', then: 'Week 45 was 1.8%. Is 18.0% right? / no question / Week 45 was 1.8%. Is 19.0% right?', run: () => { const flaky = { ...g3075, kind: 'range', unit: '%', decimals: 1, range: { bound: 'atMost', limit: 2, warn: 0.4 } } as unknown as Goal; const own = [{ ...ci('m', 45, 1.8) }]; const ask = (v: string, a?: Answers) => unanswered(checkInLevels(flaky, 46, D({ value: v }), own).checks, a)[0]?.question ?? 'no question'; return [ask('18'), ask('18', { 'far-from-last': '18' }), ask('19', { 'far-from-last': '18' })].join(' / '); } },
+      { given: 'The 30→75 goal, 40 in week 3: 40 typed in week 4; and the button with that question open.', then: 'The same as week 3: 40%. Did you measure it again this week? / Answer the question above first.', run: () => { const l = checkInLevels(g3075, 4, D({ value: '40' }), [ci('m', 3, 40)]); return `${l.checks[0]?.question} / ${stepState(l.mustFix, l.checks).says}`; } },
       { given: '40 in week 4, called on track, with a reason for being behind but none for the greener call.', then: 'greener-why', run: () => evaluate(g3075, CYCLE, 4, D({ value: '40', status: 'on', cause: 'slower', why: 'Rollout paused for a week' }), []).codes.join(', ') },
     ],
   },
@@ -466,7 +497,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 ### The Needs attention list
 
-\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the map's "Only what needs attention", Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
+\`attentionGroup(a)\`: \`needs\` when the goal needs attention; else \`handled\` when it is being handled; else none. (A goal being handled is always behind, so always flagged: the list is every goal with a flag other than \`due\`.) Wherever goals that need attention are listed (the Needs attention tab and filter on Goals in every layout, the list bar's switch on the Map, Home, Watching, and the AI assistant's \`find_goals\` with \`needs_attention\`), the \`needs\` group comes first and the \`handled\` group below it, each saying what is in hand. Nothing is hidden: a filter on the list (a team, an owner) keeps both groups. A **count** of goals that need attention (the Needs attention tab's count, Home's) counts the \`needs\` group only, and says so where both are listed. Under the words *${ATTENTION.handled.label}*, wherever a group of them is shown, one line says what it means: “${HANDLED_LINE}”`,
     examples: [
       { given: 'Gaps oldest first: −1, −2, −3; 1, 2, 3; −1, −2, −1; −3, −2, −1; only −1, −2; with "short of plan" required: 3, 2, 1.', then: 'worse, better, flat, better, flat, flat', run: () => [gapTrend([-1, -2, -3]), gapTrend([1, 2, 3]), gapTrend([-1, -2, -1]), gapTrend([-3, -2, -1]), gapTrend([-1, -2]), gapTrend([3, 2, 1], true)].join(', ') },
       { given: 'The 30→75 goal held at 33 in weeks 1, 2 and 3 while the plan moves on.', then: 'worse', run: () => goalTrend(g3075, CYCLE, [1, 2, 3].map((w) => ci('m', w, 33))).word },
@@ -589,23 +620,51 @@ For a range, better means further from the limit on its safe side.
     id: 'change-engine',
     title: 'The change engine',
     summary: 'The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.',
-    code: [{ file: 'src/domain/changeset.ts', names: ['planChanges', 'records', 'describe'] }, { file: 'src/domain/columns.ts', names: ['sheetKindOf'] }, { file: 'src/domain/commit.ts', names: ['Commit'] }],
-    tests: ['src/domain/changeset.test.ts', 'src/domain/roundtrip.test.ts', 'src/domain/removal.test.ts'],
-    reqs: ['BULK-IMPORT', 'BULK-EDIT', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'IMPORT-UNDO', 'DATA-TABLES'],
+    code: [{ file: 'src/domain/changeset.ts', names: ['planChanges', 'postCheckIn', 'records', 'describe'] }, { file: 'src/domain/columns.ts', names: ['sheetKindOf'] }, { file: 'src/domain/numbers.ts', names: ['sameAsWritten'] }, { file: 'src/domain/commit.ts', names: ['Commit'] }],
+    tests: ['src/domain/changeset.test.ts', 'src/domain/postCheckIn.test.ts', 'src/domain/roundtrip.test.ts', 'src/domain/removal.test.ts'],
+    reqs: ['BULK-IMPORT', 'BULK-EDIT', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'IMPORT-UNDO', 'DATA-TABLES', 'ONE-PER-WEEK'],
     body: `
 \`planChanges(input)\` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
 
-**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from \`src/domain/columns.ts\`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
+**The rows.** Each sheet (Goals, Plan, Check-ins, People, Asks) is known by its header row alone; its columns are the one format's, listed in [docs/export-format.md](../../../docs/export-format.md) (generated from \`src/domain/columns.ts\`). A row finds its record by a goal's key (G-12), then its ID; a person by email, then by name when only one person has it; a team by name. A column a row leaves out keeps what the record says, and worked-out columns (status, gap, forecast) are never read. A number counts as changed only when it isn't \`sameAsWritten\`: the same text, or the same number at the decimal places the export writes it with (a plan week of 0.125 at 2 places is written 0.13, and 0.13 read back is no change), so an export loaded straight back is never a change, on any day. A change to any column that can be changed is applied, or said to be a problem, never quietly dropped.
 
 **Checked by the app's own rules.** A goal row is checked as the goal form checks it; a check-in row is judged by [what a check-in must say](check-in.md) in its own week (a week behind plan needs a cause and a why, and a path to green when the call is behind); a person by the people rules; a row's Action (stop a goal, delete one, mark someone as left) by the removal rules. Only a goal's owner or an admin may change it. A plan change after check-ins started needs a reason (one for the whole set, or the row's own), and keeps the old plan. A check-in for a past week is *backfilled*: dated in its own week, so loading history doesn't make a goal look freshly checked in. One for a week that hasn't happened is refused. One for a week already posted replaces it, with a warning naming whose it was.
 
+**One way to save a check-in** (\`postCheckIn\`): the check-in screens post through the same judgement, with the draft the form holds and a mode that says how it meets the week's own. \`new\` is refused when the week has a check-in ("Week 45 already has a check-in. Check in again, or correct it."); \`again\` adds a second beside it ("Checked in again for week 45: …"); \`correct\` replaces the week's newest, or adds a week that has none, and needs a reason of at least ${MIN_CORRECT_REASON} characters, kept as the entry's first difference ("Why corrected") and summed up as "Corrected week 44: 60% is now 61%" or "Added week 44 later: 61%". A week that has passed takes only \`correct\`. A correction keeps when the record it replaces was posted, so it never turns a late week into an on-time one, nor the reverse; a correction that changes nothing is refused ("Nothing is different from what week 44 already says."). A post that isn't a correction is no import: no Via mark and no import to undo (Delete this check-in takes it back). A correction is an import of one, undone with the import.
+
+**A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
+
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.`,
     examples: [
+      { given: 'A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12.', then: 'no change / a change', run: () => `${sameAsWritten('0.13', 0.125, 2) ? 'no change' : 'a change'} / ${sameAsWritten('0.12', 0.125, 2) ? 'no change' : 'a change'}` },
       { given: 'In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason.', then: 'needs a reason; nothing to save', run: () => { const cs = change('tariq', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }); return `${cs.needsReason ? 'needs a reason' : 'no reason needed'}; ${cs.commit ? 'ready to save' : 'nothing to save'}`; } },
       { given: 'The same change by Mateo, who neither owns it nor is an admin.', then: 'error: Only Tariq Haddad (its owner) or an admin can change “Pull requests with AI-assisted review”.', run: () => issues(change('mateo', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }, { reason: 'x' })) },
+      { given: 'Mateo posts mttr-pir on plan for week 45 from the check-in screen; then again with `new`; then with `again`; then corrects week 44 with the reason "oops".', then: 'Checked in for week 45 / Week 45 already has a check-in. Check in again, or correct it. / Checked in again for week 45 / Say why, in a sentence, so anyone reading week 44 later knows.', run: () => { const s = demo!; const today = new Date(CHECK_IN_MOMENT); const cycle = s.cycles[0]!; const week = currentWeek(cycle, today); const g = s.goals.find((x) => x.id === 'mttr-pir') as MetricGoal; let k = 0; const ctx = (snap: Snapshot) => ({ snapshot: snap, cycle, week, actor: s.people.find((p) => p.id === 'mateo')!, now: today.toISOString(), newId: (p: string) => `${p}_s${++k}` }); const d = { ...emptyDraft(g, null), value: String(Math.round(planAt(g.plan, week, cycle.weeks))) }; const fresh = { ...s, checkIns: s.checkIns.filter((c) => !(c.goalId === g.id && c.week === week)) }; const first = postCheckIn(ctx(fresh), { goalId: g.id, week, draft: d, mode: 'new' }); const after = { ...fresh, checkIns: [...fresh.checkIns, first.checkIn] }; const said = (f: () => string) => { try { return f(); } catch (e) { return (e as Error).message; } }; return [first.commit.changes[0]!.summary.replace(/:.*/, ''), said(() => postCheckIn(ctx(after), { goalId: g.id, week, draft: d, mode: 'new' }).commit.changes[0]!.summary), postCheckIn(ctx(after), { goalId: g.id, week, draft: d, mode: 'again' }).commit.changes[0]!.summary.replace(/:.*/, ''), said(() => postCheckIn(ctx(after), { goalId: g.id, week: week - 1, draft: d, mode: 'correct', reason: 'oops' }).commit.changes[0]!.summary)].join(' / '); } },
       { given: 'Mateo loads a week 4 number of 21 for his goal mttr-pir with no cause or why, into a copy with none of its check-ins.', then: 'the first problem says: Week 4 needs a Cause and a Why', run: () => { const s = demo!; const fresh = { ...s, checkIns: s.checkIns.filter((c) => c.goalId !== 'mttr-pir') }; const m = change('mateo', { checkIns: [rec({ 'Goal ID': 'mttr-pir', Week: '4', Value: '21' })] }, { snapshot: fresh }).issues[0]?.message ?? ''; return `the first problem says: ${/Week 4 needs a Cause and a Why/.exec(m)?.[0] ?? m}`; } },
     ],
     unclear: ['The engine is large (`src/domain/changeset.ts`): this section says what it does; its every message and column rule is in the code and its tests (listed below). A rebuild of the core status rules does not need it; a rebuild of import and bulk edit does.'],
+  },
+  /* ---------- the field table (backlog IM1) ---------- */
+  {
+    id: 'field-table',
+    title: 'The field table',
+    summary: 'For every column a person fills in: whether a new row must have it, its format, an example and what an empty cell does, said once for the template, the workbook’s Start here sheet, Help and the import.',
+    code: [{ file: 'src/domain/columns.ts', names: ['fieldTable', 'requiredWord', 'requiredText', 'requiredLine', 'emptyText', 'EXAMPLE_ROWS'] }, { file: 'src/domain/export.ts', names: ['startHere', 'templateWorkbook'] }],
+    tests: ['src/domain/fieldTable.test.ts'],
+    reqs: ['FIELD-TABLE', 'ONE-FORMAT'],
+    body: `
+\`fieldTable(sheet)\` gives, for every column of a sheet that loads back (Goals, Plan, Check-ins, People), whether a **new row** must have it, its **format**, an **example**, what an **empty cell** does, and what it means. A column is one of: **Required**; **Required for** a type of goal (Target for a number goal), or **Required when** something holds (Cause when a check-in is behind); **Optional**, with what an empty cell gives; **Leave empty** (Faro fills it in, such as a new goal's Key); **For reading**; or **Worked out** (never read). Columns of which one is enough share a group (Owner or Owner email). On a row already here nothing is required: an empty cell keeps what the record says, except where a column says empty clears it.
+
+The workbook's first sheet, **Start here**, is this table (with a "File of" row giving the workspace's and cycle's ids); the **template** is Start here and the four sheets with only the columns a person fills in, the required headers in bold, and example rows whose Action says **Example**, which the change engine leaves out and counts. A sheet named README (the old first sheet) or Start here is skipped on the way back in.
+
+${fieldTableMarkdown()}`,
+    examples: [
+      { given: 'The Goals columns a new row must have, alone or as one of a pair.', then: 'Goal, Owner, Owner email', run: () => fieldTable('goals').filter((c) => c.required === 'required').map((c) => c.header).join(', ') },
+      { given: 'The words for “required for a number goal” and for an optional column.', then: 'Required for a number goal / Optional', run: () => `${requiredWord({ for: ['metric'] })} / ${requiredWord({ optional: 'team' })}` },
+      { given: 'What a new goal, check-in and person must have.', then: 'Goal, and Owner or Owner email. A number goal also needs Start and Target; a range goal, Limit; a stages goal, Stages. | Goal key (or Goal), Week, and Value or Stages. | Name and Email.', run: () => (['goals', 'checkIns', 'people'] as const).map((k) => requiredLine(k)).join(' | ') },
+      { given: 'A Goals row whose Action says Example, with an owner nobody here has.', then: '0 changes, 1 example row left out, 0 problems', run: () => { const cs = change('amara', { goals: [rec({ Goal: 'X', Action: 'Example', Owner: 'Nobody here' })] }); return `${cs.items.length} changes, ${cs.examples} example row left out, ${cs.issues.length} problems`; } },
+    ],
+    unclear: ['It says what Faro does today. The import design (docs/design/import/spec.md, section 3) changes a few defaults in later items (a Type read from which columns are filled; no unit and no margin by default; a Check for many of today’s refusals): those rows change with the rule that changes.'],
   },
   /* ---------- deciding in a review (deep review P2, 10 Nov) ---------- */
   {
@@ -616,7 +675,6 @@ For a range, better means further from the limit on its safe side.
       { file: 'src/domain/decide.ts', names: ['needsDecision', 'decisionFor', 'acceptNote', 'acceptedReason', 'lastTime', 'sessionDecisions'] },
       { file: 'src/domain/actions.ts', names: ['acceptRisk', 'addAction', 'markReviewed'] },
       { file: 'src/domain/review.ts', names: ['sessionToDo'] },
-      { file: 'src/domain/people.ts', names: ['findPeople'] },
     ],
     tests: ['src/domain/decide.test.ts', 'src/domain/review.test.ts'],
     reqs: ['REVIEW-DECIDE', 'REVIEW-RUN'],
@@ -628,7 +686,7 @@ For a range, better means further from the limit on its safe side.
 - the review **accepting the risk**: a note said in the session whose words are "${DECIDED['accept-risk'].label}: " and then the reason, at least ${MIN_ACCEPT_REASON} characters (\`acceptRisk\`; \`acceptedReason\` reads it back). It is a look, not a plan: the goal still needs attention;
 - or, wherever it was agreed (the goal's page, say), an open action on the goal with a person and a week, agreed since the goal's latest check-in and not yet overdue. This is the record [needs attention](flags.md) reads for "being handled".
 
-**The people search** (\`findPeople\`): nothing is listed until something is typed; then the people whose name or team contains it, those whose name starts with it first, at most 8, never someone marked as left.
+**Choosing who does it** is find-and-pick ([finding things](finding.md)): you and your team are suggested before anything is typed; then the people whose name, job title or team has a word starting with each word typed, those whose name it starts first, never someone marked as left. It is the one person search, the same as People's.
 
 **Last time** (\`lastTime\`): the session before this one is the latest earlier week anything was said in the review. Its actions are listed with how each stands now: open, overdue (open past its week) or done; open ones first, then by due week.
 
@@ -639,7 +697,7 @@ For a range, better means further from the limit on its safe side.
       { given: 'Which statuses need a decision: off, risk, on, stale, done.', then: 'yes, yes, no, no, no', run: () => ['off', 'risk', 'on', 'stale', 'done'].map((k) => (needsDecision(k) ? 'yes' : 'no')).join(', ') },
       { given: 'The words saved for accepting the risk because "the vendor fix lands next release", and what is read back from them and from "Talked it through".', then: 'We accept the risk: the vendor fix lands next release / the vendor fix lands next release / not a decision', run: () => { const w = acceptNote('the vendor fix lands next release'); return `${w} / ${acceptedReason(w)} / ${acceptedReason('Talked it through') ?? 'not a decision'}`; } },
       { given: 'In the demo workspace, Daniel accepts the risk on the merge queue in the Developer Productivity fortnightly with the reason "ok".', then: 'refused: Say why the review accepts the risk.', run: () => summaryOf(asPerson('daniel', (x) => acceptRisk(x, goalIn('lead-mq'), demo!.reviews.find((r) => r.id === 'devprod')!, 'ok', 46))) },
-      { given: 'Searching the demo workspace’s people for "", then for "kap".', then: 'nobody / Rhea Kapoor', run: () => { const team = (id: string) => demo!.teams.find((t) => t.id === id)?.name ?? ''; return `${findPeople(demo!.people, '', team).map((p) => p.name).join(', ') || 'nobody'} / ${findPeople(demo!.people, 'kap', team).map((p) => p.name).join(', ')}`; } },
+      { given: 'Searching the demo workspace’s people for "kap", then "rhea tunde".', then: 'Rhea Kapoor / nobody', run: () => [search(personRows(demo!), { q: 'kap' }), search(personRows(demo!), { q: 'rhea tunde' })].map((a) => a.rows.map((p) => p.name).join(', ') || 'nobody').join(' / ') },
     ],
     unclear: ['Accepting the risk is stored as a note whose words start with a fixed phrase, so no new kind of record was needed before the talk. A rebuild should give it a kind of its own (a decision with a reason), and keep the phrase only for what people read.'],
   },
@@ -675,6 +733,90 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same goal with its last check-in in week 46 (posted 11 November 2026): its status, and whether its check-in is due, on Sunday 3 January 2027 and on Monday 11 January.', then: 'No recent update, due / On track, not due', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const g = metric(4, 40, 'straight', { id: 'g37', ownerId: 'p', unit: 'pairs' }); const cis = [checkIn('g37', 46, 30, { postedAt: '2026-11-11T10:00:00Z' })]; return ['2027-01-03', '2027-01-11'].map((d) => { const t = at(d + 'T12:00:00Z'); return `${LABEL[goalStatus(g, y, cis, t).status]}, ${weekProgress('p', { goals: [g], checkIns: cis } as unknown as Snapshot, y, currentWeek(y, t), t).due.length ? 'due' : 'not due'}`; }).join(' / '); } },
     ],
     unclear: ['How long the wrap-up stays open after the year ends (four weeks) and how early it opens (two weeks) are choices, kept in RULES; the rebuild may tune them.'],
+  },
+
+  /* ---------- starting the next year (round 3, cycle end CY2) ---------- */
+  {
+    id: 'start-next-year',
+    title: 'Starting the next year',
+    summary: 'Which cycle everyone is in, what an admin’s start prepares and reads back first, and when it can be undone.',
+    code: [
+      { file: 'src/domain/cycle.ts', names: ['currentCycle', 'laterCycle', 'nextCycleShape', 'beforeStart', 'beforeStartLine', 'nextCycle'] },
+      { file: 'src/domain/carry.ts', names: ['carryKind', 'carries', 'finalNumber', 'startReadBack'] },
+      { file: 'src/domain/startYear.ts', names: ['startPage', 'startPageText'] },
+      { file: 'src/domain/actions.ts', names: ['startNextCycle'] },
+      { file: 'src/domain/removal.ts', names: ['startOf', 'canUndoStart', 'undoStart', 'deleteCycle'] },
+    ],
+    tests: ['src/domain/startYear.test.ts', 'src/domain/journeys.test.ts'],
+    reqs: ['CARRY-GOALS', 'RESULTS'],
+    body: `
+**Which cycle everyone is in** (\`currentCycle\`): of the cycles not removed, the latest whose week 1 has begun (its start + 7 days, on or before today); if none has, the earliest. So the next year, set up during the wrap-up, opens for everyone on its week 1's Monday and never earlier, and a year nobody follows stays current after it ends (it has ended: rule “A year’s end”). A new workspace's only cycle is current from day one, in its week 0.
+
+**Before a cycle's week 1** (\`beforeStart\`) nothing is due, and the screens say when it starts: "2027 starts on Mon 4 Jan 2027, in 2 weeks. Nothing is due until then." ("next week" from 7 days before, "on Monday" in the last week before), with the first check-ins' date (week 1's review day).
+
+**What happens to each goal** (\`carryKind\`), in this order: it **stops** when its owner said so at the wrap-up, unless it finished anyway; a number goal whose plan runs past the year **keeps** its plan; it **finishes** when its result is Met or Met late, its last number has reached the target, every stage is done, or its owner called it done; otherwise it **carries** on. A goal with a limit never finishes: a limit is kept every year. Goals that carry on or keep their plan go into the next year; the rest stay in this one.
+
+**The read-back** (\`startReadBack\`) counts every live goal once, from \`carryKind\`, so what it says is what the start makes: wrapped up and carrying on (of them, keeping their plan), finishing, stopping; and not wrapped up yet (of them, carrying on as they are, and finishing). The four add up to the year's live goals.
+
+**Starting** (\`startNextCycle\`): admins only; from the day the wrap-up opens (or once the year has ended); once (a second start says who started it and when). The next cycle's week 0 is this one's last week, its length follows the calendar, and its name is the year's. The change that starts it keeps the goals it added, so it can be undone.
+
+**Undo** (\`canUndoStart\`, \`undoStart\`): admins, while nobody has used the new cycle: no check-in in it, no goal in it changed or added by a person, and no later cycle. Undo removes it as a deleted cycle is (in Recently removed for 30 days); starting again makes a new one, and the removed one can then never come back. Delete refuses a started cycle and points to Undo.`,
+    examples: [
+      { given: '2026 (week 0 from 22 December 2025, 53 weeks) and 2027 (week 0 from 28 December 2026): the current cycle on Monday 21 December 2026, Sunday 3 January 2027 and Monday 4 January 2027; and with 2026 alone on Monday 11 January 2027.', then: '2026, 2026, 2027; 2026', run: () => { const a = { id: 'a', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }, b = { id: 'b', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }; return `${['2026-12-21', '2027-01-03', '2027-01-04'].map((d) => currentCycle([a, b], at(d + 'T12:00:00Z'))!.name).join(', ')}; ${currentCycle([a], at('2027-01-11T12:00:00Z'))!.name}`; } },
+      { given: '2027 seen on Monday 21 December 2026.', then: '2027 starts on Mon 4 Jan 2027, in 2 weeks. Nothing is due until then. Your first check-ins are due Thu 7 Jan 2027.', run: () => beforeStartLine({ id: 'b', name: '2027', startDate: '2026-12-28', weeks: 52, reviewDay: 3 }, at('2026-12-21T12:00:00Z'), true) ?? 'nothing' },
+      { given: 'Four 2026 goals: 4 → 40 pairs ending on 33; 0 → 70% whose last number is 72%; one called done; and 4 → 40 pairs its owner stopped at the wrap-up.', then: 'carry, finish, finish, stop', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; const k = (g: Goal, cis: ReturnType<typeof checkIn>[], stop = false) => carryKind(g, { cycle: y, checkIns: cis, retro: stop ? { id: 'r', goalId: g.id, cycleId: 'y', result: 'missed', learned: 'x', next: 'stop', byId: 'p', at: '' } : null }).kind; return [k(metric(4, 40, 'straight', { id: 'a' }), [checkIn('a', 53, 33)]), k(metric(0, 70, 'straight', { id: 'b' }), [checkIn('b', 46, 72)]), k(metric(0, 95, 'straight', { id: 'c' }), [checkIn('c', 38, 95, { status: 'done' })]), k(metric(4, 40, 'straight', { id: 'd' }), [checkIn('d', 53, 33)], true)].join(', '); } },
+      { given: 'A goal kept at most 12.0% that ended inside its limit, and a number goal whose plan runs to week 66 of a 53-week year.', then: 'carry, keep', run: () => { const y = { id: 'y', name: '2026', startDate: '2025-12-22', weeks: 53, reviewDay: 3 }; return [carryKind(RANGE, { cycle: y, checkIns: [checkIn('r', 53, 11)], retro: null }).kind, carryKind(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { cycle: y, checkIns: [], retro: null }).kind].join(', '); } },
+    ],
+    unclear: ['A goal nobody wrapped up follows the rule (it carries on unless it met its target): the owner can still stop it during the wrap-up. Removing the copy of a goal stopped after the start is round 3’s CY4 (recarry).'],
+  },
+
+  /* ---------- levels (round 3, workspace settings CF1) ---------- */
+  {
+    id: 'levels',
+    title: 'Levels',
+    summary: 'Which levels a goal can have, what each is called, which is the everyday one, and how they sort: read from one place.',
+    code: [{ file: 'src/domain/levels.ts', names: ['DEFAULT_LEVELS', 'levelsOf', 'levelIds', 'levelDef', 'isLevel', 'levelName', 'everydayLevel', 'isEveryday', 'isTop', 'levelRank', 'hasLevels', 'LEVEL_WORDS'] }],
+    tests: ['src/domain/levels.test.ts', 'src/core/layers.test.ts'],
+    reqs: ['LEVELS'],
+    body: `
+**A goal's level** is an id from its cycle's levels, top first. A cycle that sets none has Faro's three: North star (\`north-star\`), SVP (\`svp\`) and Team (\`team\`), each with the hint the goal form shows. Every rule, screen, export and tool asks \`src/domain/levels.ts\`; nothing else names a level (\`scripts/check-settings.mjs\` fails one that does).
+
+- **The everyday level** is the last: goals at it carry no tag. Every other level is tagged, in one plain style.
+- **The top level** is the first, when there are two or more: the map's roots sort it first. With one level nothing is tagged and there is no top.
+- **Sorting by level** goes top first; a removed or unknown level sorts after every live one.
+- **A removed level** keeps its name for History, and leaves the lists.`,
+    examples: [
+      { given: 'A cycle with no levels of its own.', then: 'North star, SVP, Team; everyday team; top north-star', run: () => `${levelsOf(null).map((l) => l.name).join(', ')}; everyday ${everydayLevel(null)}; top ${levelIds(null).find((l) => isTop(null, l))}` },
+      { given: 'Levels Company (north-star), Group, Division (svp) and Team: a goal at svp, and one at team.', then: 'Division, rank 2, tagged; Team, not tagged', run: () => { const c = { levels: [{ id: 'north-star', name: 'Company', hint: '' }, { id: 'lv-1', name: 'Group', hint: '' }, { id: 'svp', name: 'Division', hint: '' }, { id: 'team', name: 'Team', hint: '' }] }; return `${levelName(c, 'svp')}, rank ${levelRank(c, 'svp')}, ${isEveryday(c, 'svp') ? 'not tagged' : 'tagged'}; ${levelName(c, 'team')}, ${isEveryday(c, 'team') ? 'not tagged' : 'tagged'}`; } },
+      { given: 'One level, Team.', then: 'no levels to tell apart; nothing tagged; no top', run: () => { const c = { levels: [{ id: 'team', name: 'Team', hint: '' }] }; return `${hasLevels(c) ? 'levels' : 'no levels to tell apart'}; ${isEveryday(c, 'team') ? 'nothing tagged' : 'tagged'}; ${isTop(c, 'team') ? 'top' : 'no top'}`; } },
+    ],
+    unclear: ['Setting a workspace’s own levels (names, number, order) is CF2; until then every cycle has the three.'],
+  },
+
+  /* ---------- the carry rule (round 3, cycle end CY4) ---------- */
+  {
+    id: 'carry',
+    title: 'The carry rule, and what comes with a goal',
+    summary: 'How a goal that carries on is set up in the next year, what comes with it, and how its copy stays true until someone uses it.',
+    code: [
+      { file: 'src/domain/carry.ts', names: ['carryCopy', 'carryExtras', 'finalNumber'] },
+      { file: 'src/domain/recarry.ts', names: ['recarry', 'copyUntouched', 'byRecarry'] },
+      { file: 'src/domain/actions.ts', names: ['saveRetro', 'mergeCommits'] },
+    ],
+    tests: ['src/domain/startYear.test.ts'],
+    reqs: ['CARRY-GOALS'],
+    body: `
+**The copy** (\`carryCopy\`) has a new id, the new cycle, today's date, its key and everything else as it was. A number goal that **carries** starts from its **final number** (its last value at or before the year's last week; its starting number when it has none) in **week 1** (\`fromWeek\` 0), with the same target and shape, **due at the end of the new year**: no end week, no hand-set numbers, no earlier plans. So no carried plan turns round, starts late or is already met. One that **keeps** its plan keeps its dates, counted from the new year's start (week 45 of a 53-week year is week −8). The stages not done are spread evenly over the new year: stage *i* of *n* is due in week \`round((i + 1) × weeks / n)\`, never after its last week. A limit is unchanged. A goal whose parent carries feeds the parent's copy; otherwise it has no "Feeds into" (and no effect).
+
+**What comes with it** (\`carryExtras\`): its metric link (same metric and team, linked by the same person); each watch of it or of its tree (same person); each open ask or next step on it, with the copy added, so it shows in both years; and each review that names it or its tree, with the copy added. The start keeps all of it, so Undo removes the watches and links it added and takes the copies back out of the asks and reviews.
+
+**Keeping a copy true** (\`recarry\`): a check-in or a wrap-up on a goal of a year that has a later cycle works its kind out again and, only while its copy is untouched (no check-in in it, no change to it by a person), replaces the copy's plan or stages, removes the copy and what came with it, or adds one. A wrap-up's "stop" for a goal whose copy has been used is refused: "It already has check-ins in 2027. Stop it there instead."`,
+    examples: [
+      { given: 'A 2026 goal from 0.42 to 0.30 USD planned from week 45, with a number set by hand, whose final number is 0.37: its plan in 2027.', then: 'start 0.37, target 0.3, from week 0, no end week, no hand-set numbers', run: () => { const g = metric(0.42, 0.3, 'straight', { id: 'u', plan: { start: 0.42, target: 0.3, shape: 'straight', fromWeek: 45, points: [{ week: 50, value: 0.35 }] } }); const c = carryCopy(g, { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [checkIn('u', 53, 0.37)], id: 'u2', parentId: null, now: '2026-12-21T10:00:00Z' }) as MetricGoal; return `start ${c.plan.start}, target ${c.plan.target}, from week ${c.plan.fromWeek}, ${c.plan.endWeek == null ? 'no end week' : 'end week ' + c.plan.endWeek}, ${c.plan.points ? 'hand-set numbers' : 'no hand-set numbers'}`; } },
+      { given: 'A goal with stages due in weeks 3 and 7, neither done, into a 52-week year; and with the first done.', then: 'due weeks 26, 52; due weeks 52', run: () => { const due = (cis: ReturnType<typeof checkIn>[]) => `due weeks ${(carryCopy(MILESTONE, { old: { weeks: 13 }, next: { id: 'n', weeks: 52 }, checkIns: cis, id: 's2', parentId: null, now: '' }) as typeof MILESTONE).stages.map((x) => x.dueWeek).join(', ')}`; return `${due([])}; ${due([checkIn(MILESTONE.id, 4, null, { stages: [{ stageId: 'a', doneWeek: 3 }] as never })])}`; } },
+      { given: 'A goal planned from week 45 to week 66 of a 53-week year.', then: 'from week -8 to week 13', run: () => { const c = carryCopy(metric(0, 60, 'straight', { id: 'k', plan: { start: 0, target: 60, shape: 'straight', fromWeek: 45, endWeek: 66 } }), { old: { weeks: 53 }, next: { id: 'n', weeks: 52 }, checkIns: [], id: 'k2', parentId: null, now: '' }) as MetricGoal; return `from week ${c.plan.fromWeek} to week ${c.plan.endWeek}`; } },
+    ],
+    unclear: ['Recarry runs on every check-in that goes through the change engine (the check-in screens, the data tables and a spreadsheet) and on a wrap-up; the AI tools’ bulk changes after the start don’t move the copy yet, and undoing an import leaves a copy it moved where it is.'],
   },
 
   /* ---------- the workspace (backlog WS) ---------- */
@@ -731,11 +873,11 @@ For a range, better means further from the limit on its safe side.
     id: 'directory',
     title: 'The directory: who People lists, what a search finds, and where old addresses lead',
     summary: 'People’s order and search, a page at a time; the line beside a person; a team’s people and goals by status; and where People’s and Teams’ old Workspace addresses now lead.',
-    code: [{ file: 'src/domain/directory.ts', names: ['findInDirectory', 'matchesWords', 'byName', 'findTeams', 'personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }],
+    code: [{ file: 'src/domain/directory.ts', names: ['personLine', 'teamSummary', 'movedTo', 'DIRECTORY_PAGE'] }, { file: 'src/domain/find.ts', names: ['searchPeople', 'searchTeams', 'byName'] }],
     tests: ['src/domain/directory.test.ts'],
     reqs: ['PEOPLE-DIRECTORY', 'OLD-ADDRESSES'],
     body: `
-**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
+**Who is listed.** Everyone in the workspace except people marked as left (or deleted), by name A to Z, ignoring case and accents; two people with one name are ordered by email, then ID. With a search, those whose name it starts come first, then the rest A to Z: People, every person picker and Find share this one search (finding things, rule 7, through the Search port). ${DIRECTORY_PAGE} at a time; a page past the end is the last page.
 
 **What a search finds.** A person matches when every word typed starts a word of their name, their job title or their team’s name, ignoring case and accents (so “eng man” finds “Engineering Manager”, and “lucia” finds “Lucía”). Words are split at spaces and at the punctuation inside names (“Build & Release”, “Cloud Cost (FinOps)”). A team filter keeps the team’s people as \`teamPeople\` gives them: its lead counts, wherever their own team is; “no team” keeps people with no team or a team that is gone. Teams match on the team’s name or its lead’s, and are listed A to Z.
 
@@ -749,7 +891,7 @@ For a range, better means further from the limit on its safe side.
       { given: 'The same, page 9.', then: 'page 2: 51 to 97', run: () => { const r = dirAsk({ page: 9 }); return `page ${r.page}: ${r.from} to ${r.to}`; } },
       { given: 'Searching for “rhea”, “lucia” and “Romero”.', then: 'Rhea Kapoor / Lucía Romero / Lucía Romero', run: () => ['rhea', 'lucia', 'Romero'].map((q) => dirAsk({ q }).rows.map((p) => p.name).join(', ')).join(' / ') },
       { given: 'The CI/CD team’s people, and the admins.', then: '7 people / Amara Nwosu, Grace Achterberg, Hamid Rezaei', run: () => `${dirAsk({ teamId: 'cicd' }).total} people / ${dirAsk({ admins: true }).rows.map((p) => p.name).join(', ')}` },
-      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => findTeams(dirWs().teams, dirWs().people, 'rhea').map((t) => t.name).join(', ') },
+      { given: 'Teams whose name or lead starts with “rhea”.', then: 'CI/CD', run: () => search(teamRows(dirWs()), { q: 'rhea' }).rows.map((t) => t.name).join(', ') },
       { given: 'The lines beside Amara, Rhea and Oskar.', then: 'Admin · leads the team · no goals / Leads the team · 8 goals / No goals', run: () => ['amara', 'rhea', 'oskar'].map((id) => personLine({ snapshot: dirWs() }, id)).join(' / ') },
       { given: 'CI/CD’s summary.', then: 'led by Rhea Kapoor; 7 people; 17 goals', run: () => { const t = teamSummary({ snapshot: dirWs(), statusOf: (g) => goalStatus(g, dirWs().cycles[0]!, dirWs().checkIns, DIR_NOW).status }, 'cicd'); return `led by ${t.lead?.name}; ${t.people.length} people; ${t.goals.length} goals`; } },
       { given: 'Old addresses: /workspace/people?team=cicd, /workspace/people?team=-, /workspace/teams, /workspace#people.', then: '/teams/cicd, /people?team=-, /teams, /people', run: () => [movedTo('/workspace/people', '?team=cicd'), movedTo('/workspace/people', '?team=-'), movedTo('/workspace/teams'), movedTo('/workspace', '', '#people')].join(', ') },
@@ -951,7 +1093,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
     id: 'finding',
     title: 'Finding things',
     summary: 'What a search matches, the near miss offered when nothing does, and the one search per kind of thing (goals, people, teams) that every list, picker and Find calls.',
-    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
+    code: [{ file: 'src/domain/find.ts', names: ['textMatches', 'wordsOf', 'fold', 'oneEditApart', 'nearMiss', 'search', 'searchGoals', 'searchPeople', 'searchTeams', 'goalWords', 'goalRow', 'personRow', 'teamRow', 'rowsByIds', 'page', 'suggest', 'withRecent', 'countLine', 'filterLine', 'filterText', 'noneFound', 'historyStep', 'findAll', 'findAllAsync', 'keyOf', 'FIND_KINDS', 'FIND_SIZE'] }, { file: 'src/domain/query.ts', names: ['searchKey'] }],
     tests: ['src/domain/find.test.ts', 'src/adapters/parts.test.ts', 'src/adapters/findAll.test.ts'],
     reqs: ['FIND-ANYWHERE'],
     body: `
@@ -965,7 +1107,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
 
 **One search per kind.** \`search(rows, ask)\` with \`ask = { q, filters, sort, after, size }\` gives \`{ total, rows, next, near? }\`: every match in the kind's order, a page at a time (50 unless asked, at most 200), and where the next page starts. Goals take a Goals link's filters and sort (\`src/domain/query.ts\`) and come worst first unless sorted; people come with those whose name starts with the search first, then A to Z; teams A to Z. Each row is the same two lines everywhere: a goal's status and title, then "{key} · {owner} · {team}"; a person's name, then "{job title} · {team}"; a team's name, then "Led by {name} · {n} people" or "No lead · …".
 
-**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
+**Suggestions before typing.** Up to 6 rows, no repeats, in order. A person: you; the people of your team, its lead first, then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals, worst first; the goals they feed; goals chosen lately. When your own would fill the list, up to two places are kept for those chosen lately. Nobody marked as left. "Lately" is the last 12 things a person chose or opened in a workspace, newest first, kept per person behind the \`Prefs\` port.
 
 **The words under a list** (the list bar). The count line: not narrowed, "{n} {things}, {order}." ("126 goals, worst first."), with "Showing {a} to {b}." when paged, and "1 goal." for one; narrowed, "{n} {things} match." or "1 goal matches."; nothing, no line. The filter line: "Filtered by: " then each filter as its label and its values joined with " or " ("Team CI/CD · Status Off track or At risk"). A search is never a filter. When nothing is found: "No {thing} matches “{q}”." (with these filters: "… with these filters."; filters alone: "No {things} match these filters."); a near miss: "No {thing} matches “{q}”. Showing {things} that match “{near}”." **History:** choosing a filter, a sort or a page adds an entry; a search's first key adds one and later keys replace it, so Back returns to the list before the search; Enter or leaving the field writes nothing more when the address already says what was typed; clearing adds one.
 
@@ -987,6 +1129,7 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
         { given: '“Lucía Romero Staff Engineer CI/CD” searched for “lucia ci”; anything searched for “”.', then: 'yes; yes', run: () => `${textMatches('Lucía Romero Staff Engineer CI/CD', 'lucia ci') ? 'yes' : 'no'}; ${textMatches('Anything', '') ? 'yes' : 'no'}` },
         { given: 'Near misses: “rolback”, “kafak”, “piplin”, “rolbak” (list has rollback, kafka, pipeline); “qeue wait” (queue, wait); “cost” (costs); “G-480”.', then: 'rollback; kafka; none; none; queue wait; none; none', run: () => ([['rolback', ['rollback']], ['kafak', ['kafka']], ['piplin', ['pipeline']], ['rolbak', ['rollback']], ['qeue wait', ['queue', 'wait']], ['cost', ['costs']], ['G-480', ['G-48']]] as [string, string[]][]).map(([q, v]) => nearMiss(q, v) ?? 'none').join('; ') },
         { given: 'In the demo workspace: goals for “G-48”, “tunde”, “rolback” and “zzzz”.', then: '1: On-call engineers across all twelve rotations who had fewer than two out-of-hours pages in the week, not counting planned maintenance windows / 2: Contract tests between the top 40 service pairs, One-click rollback for every deployable service / 2 (near: rollback): Change failure rate, One-click rollback for every deployable service / 0: ', run: () => ['G-48', 'tunde', 'rolback', 'zzzz'].map((q) => find('goal', q)).join(' / ') },
+        { given: 'In the demo workspace, Tunde’s people before typing (Build & Release, led by Pavel Novák).', then: 'Tunde Bakare, Pavel Novák, then Build & Release A to Z', run: () => { const r = suggest(personRows(demo!), 'tunde', []).map((x) => x.name); return r[0] === 'Tunde Bakare' && r[1] === 'Pavel Novák' && r.slice(2).every((n, i, a) => i === 0 || a[i - 1]!.localeCompare(n) <= 0) ? 'Tunde Bakare, Pavel Novák, then Build & Release A to Z' : r.join(', '); } },
         { given: 'In the demo workspace, Rhea’s suggestions before typing: people with nothing chosen lately; then after choosing Daniel Okafor.', then: 'Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Marcus Bell / Rhea Kapoor, Aiko Suzuki, Diego Ramírez, Femi Adebayo, Johanna Virtanen, Daniel Okafor', run: () => [[], [{ kind: 'person', id: 'daniel' }]].map((r) => suggest(personRows(demo!), 'rhea', r).map((x) => x.name).join(', ')).join(' / ') },
         { given: 'Count lines: 126 goals worst first; 97 people A to Z, first page of 50; 17 goals narrowed; 1 person narrowed.', then: '126 goals, worst first. / 97 people, A to Z. Showing 1 to 50. / 17 goals match. / 1 person matches.', run: () => [countLine({ thing: 'goal', things: 'goals' }, 126, false, 'worst first'), countLine({ thing: 'person', things: 'people' }, 97, false, 'A to Z', { from: 1, to: 50 }), countLine({ thing: 'goal', things: 'goals' }, 17, true), countLine({ thing: 'person', things: 'people' }, 1, true)].join(' / ') },
         { given: 'The filter line for Team CI/CD and Status Off track or At risk; nothing found for “rolback” with the near miss “rollback”.', then: 'Filtered by: Team CI/CD · Status Off track or At risk / No goal matches “rolback”. Showing goals that match “rollback”.', run: () => `${filterLine([{ key: 'team', label: 'Team', values: ['CI/CD'] }, { key: 'status', label: 'Status', values: ['Off track', 'At risk'] }])} / ${noneFound({ thing: 'goal', things: 'goals' }, 'rolback', false, 'rollback')}` },
@@ -1003,26 +1146,36 @@ Each row says its kind and its words ("Decision or help: …", "Question: …", 
   },
 ];
 
+/** The names the navigation examples read: a few of the demo's, as the rules look them up. */
+const NAV_GOALS: Record<string, { title: string; parent?: string }> = { 'G-1': { title: 'Lead time for changes' }, 'G-7': { title: 'Merge-to-deploy time', parent: 'G-1' } };
+const NAV_NAMES: PlaceNames = {
+  goal: (id) => NAV_GOALS[id]?.title ?? null, parent: (id) => NAV_GOALS[id]?.parent ?? null,
+  review: (id) => (id === 'weekly' ? 'Platform leadership weekly' : null), view: () => null, article: () => null,
+  person: (id) => (id === 'rhea' ? 'Rhea Kapoor' : null), team: () => null, section: (id) => (id === 'access' ? 'Access' : null),
+  module: (p) => (p === '/metrics/lead-time' ? 'Lead time for changes (metric)' : null),
+};
+
 RULE_LIST.push({
   id: 'navigation',
   title: 'Navigation: the menu, the lit item and a page’s name',
   summary: 'Which places the menu lists for a viewer, where a module’s items go, which one is lit at an address, what a page is called, and what a Back link says.',
-  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'pageName', 'placeName'] }],
+  code: [{ file: 'src/domain/navigation.ts', names: ['CORE_NAV', 'GROUP_NAMES', 'menuGroups', 'menuRows', 'phoneTabs', 'moreFor', 'menuViews', 'isLit', 'litItem', 'litTab', 'pageName', 'placeName', 'backTo', 'FIRST_PAGES', 'FORM'] }],
   tests: ['src/domain/navigation.test.ts'],
-  reqs: [],
+  reqs: ['NAV-WHERE', 'NAV-BACK'],
   body: `
 **The menu** is four groups, with a hairline between them and a name each for screen readers: *your work* (Home; Check-in, only for someone with a goal to check in on: one of theirs, not stopped or done; Goals, with up to four saved views under it: those pinned for everyone A to Z, then their own, the latest opened first; Reviews), *look up* (People, the modules' items in the order they register, Activity, Data), *make* (New goal), and *this workspace and you* (Workspace, Settings, Help, Feedback). Then you: your name and "Admin · {team}" or your team. A module's item says its group (your work, after Reviews, or to look up, the default); with the module off it isn't there. **The phone's tabs** are Home, Check-in, Goals and Reviews for someone with a goal to check in on, and Home, Goals, Reviews and People for anyone else; **More** holds every other row, in the same groups.
 
-**The lit item** is the one whose address the page is at or under: Home only at \`/\`; Goals for every address under \`/goals\` except New goal; People for People and Teams; on a phone without a Watching tab, Watching lights Goals. One item at most is lit; Settings and Help light none in the menu.
+**The lit item** (one at most): a goal opened in a review's walk (\`?review=\`) lights Reviews; Goals at a saved view's exact address lights that view instead of Goals; otherwise the item whose place the address is in: Home only at \`/\`; Check-in for a check-in and the table; Goals for every goal, its edit and print pages, and the wrap-up (\`/retro\`); New goal for New goal and its steps; People for People and Teams; Workspace for its sections but not set-up (\`/workspace/new\`); Help for Help and What's new; a module's item for its pages. \`/ready\`, \`/research\`, set-up and a page not found light nothing. **On a phone** the tab that holds the lit row is lit; a row in More lights More.
 
-**A page's name** (the phone's top bar and the browser's title, then "· {workspace} · Faro"): a module's page names itself (from its thing, or its fixed title); Watching and Mine under Goals; Settings, Feedback, What's new and Help by name; else the lit item's label; else a focused task's (Wrap up, Check-in, Research); else Goals.
+**A page's name** (the browser's title, then "· {workspace} · Faro"; the phone's top bar shows the part before the first " · "): a module's page names itself; the fixed places by name, and Goals is "Goals" on every tab; a goal by its title ("Change {title}" to edit, "{title}, to print", "Check in: {title}", "Wrap up: {title}", "{title} · {review}" in a review's walk); a review, a person, a team and a Help article by their own name; a Workspace section as "{section} · Workspace"; the wrap-up as "Wrap up {year}"; something not there as "Goal not found" (or review, person, team); any other address "Page not found". So six goals opened in turn give six titles.
 
-**A Back link** names where it leads the way the menu does: Home, Goals (or "your goals", or a saved view's name), a goal's title, a review's name (also from a goal opened in a review), a person's or a team's name, a Help article's title, a menu place by its label, else "the last page".`,
+**The back link** ("‹ {where}", above the title) is never on a place's first page (Home, Check-in, Goals, Reviews, People, Teams, Activity, Data, Workspace, Settings, Help, Feedback, and a module's own), nor on a form, whose one way out is its closing control. Elsewhere it goes back to the last earlier page in the tab that isn't a form (check-in, the table, New goal, an edit, set-up, a wrap-up) and isn't this page (in a review's walk, the walk's other goals count as this page), named in the navigation's words: Home, Goals, "your goals" on Mine, a saved view's name, a goal's title, a review's name. Pressing it goes back that many entries, so the browser's Forward still works, and the browser's Back onto a form you left steps over it the same way. Arriving from outside, it goes to the page's parent: the goal a goal feeds (or Goals), the goal for its print page, the review for a goal in its walk and for its summary, Reviews, People, Teams, Help (for an article and What's new), Workspace for a section, a module's first page for its other pages; otherwise Home.`,
   examples: [
     { given: 'The menu for someone with a goal to check in on, with a module item to look things up (Metrics), group by group; then for someone without.', then: 'home checkin goals reviews | people module:metrics activity data | new | workspace settings help feedback / home goals reviews | people module:metrics activity data | new | workspace settings help feedback', run: () => [true, false].map((o) => { const g = menuGroups(o, [{ id: 'metrics', to: '/metrics', label: 'Metrics' }]); return [g.work, g.lookup, g.make, g.you].map((x) => x.join(' ')).join(' | '); }).join(' / ') },
     { given: 'The phone’s tabs for someone with a goal to check in on, and for someone without.', then: 'home checkin goals reviews / home goals reviews people', run: () => [phoneTabs(true), phoneTabs(false)].map((x) => x.join(' ')).join(' / ') },
-    { given: 'The lit item at /goals/lead-mq, /goals/new, /teams/cicd, /whats-new and /research.', then: 'goals, new, people, help, none', run: () => ['/goals/lead-mq', '/goals/new', '/teams/cicd', '/whats-new', '/research'].map((p) => litItem(p, menuRows(menuGroups(true))) ?? 'none').join(', ') },
-    { given: 'The page’s name at /goals?show=watching, /reviews/weekly, /retro/x, and a module’s page for the metric “Lead time for changes”.', then: 'Watching, Reviews, Wrap up, Lead time for changes', run: () => { const rows = menuRows(menuGroups(true)).filter((x) => !x.startsWith('module:')) as Parameters<typeof pageName>[2]; return [pageName('/goals', 'watching', rows), pageName('/reviews/weekly', null, rows), pageName('/retro/x', null, rows), pageName('/metrics/m1', null, rows, 'Lead time for changes')].join(', '); } },
+    { given: 'The lit item at /goals/lead-mq, /goals/lead-mq?review=weekly, /goals/new, /retro, /teams/cicd, /whats-new and /research.', then: 'goals, reviews, new, goals, people, help, none', run: () => ['/goals/lead-mq', '/goals/lead-mq?review=weekly', '/goals/new', '/retro', '/teams/cicd', '/whats-new', '/research'].map((a) => { const [p = '/', q = ''] = a.split('?'); return litItem(p, q, menuRows(menuGroups(true))) ?? 'none'; }).join(', ') },
+    { given: 'The page’s name at /goals?scope=watching, /goals/G-1, its edit page, /goals/G-1?review=weekly, /check-in/G-1, /workspace/access, a module’s page for the metric “Lead time for changes”, and an unknown goal.', then: 'Goals / Lead time for changes / Change Lead time for changes / Lead time for changes · Platform leadership weekly / Check in: Lead time for changes / Access · Workspace / Lead time for changes (metric) / Goal not found', run: () => ['/goals?scope=watching', '/goals/G-1', '/goals/G-1/edit', '/goals/G-1?review=weekly', '/check-in/G-1', '/workspace/access', '/metrics/lead-time', '/goals/G-99'].map((a) => { const [p = '/', q = ''] = a.split('?'); return pageName(p, q, NAV_NAMES); }).join(' / ') },
+    { given: 'The back link: Goals on Mine → Lead time for changes; Goals → a goal → Edit → Save → the goal; a new tab on Merge-to-deploy time (which feeds Lead time for changes); a new tab on Lead time for changes; Settings from a goal; Home → Rhea’s page; a new tab on Rhea’s page.', then: '‹ your goals (1 back) / ‹ Goals (3 back) / ‹ Lead time for changes (/goals/G-1) / ‹ Goals (/goals) / none / ‹ Home (1 back) / ‹ People (/people)', run: () => ([['/goals/G-1', ['/goals?scope=mine']], ['/goals/G-1', ['/goals?scope=all', '/goals/G-1', '/goals/G-1/edit']], ['/goals/G-7', []], ['/goals/G-1', []], ['/settings', ['/goals/G-1']], ['/people/rhea', ['/']], ['/people/rhea', []]] as [string, string[]][]).map(([a, t]) => { const b = backTo(a, '', [...t, a].map((path) => ({ path })), NAV_NAMES); return b ? `‹ ${b.label} (${b.steps ? `${b.steps} back` : b.to})` : 'none'; }).join(' / ') },
   ],
 });
 

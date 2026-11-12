@@ -1,9 +1,11 @@
 /* The MCP tools: what an AI assistant can read and change, acting as one person through their personal token.
    Every write goes through the bulk-change engine, so it meets the same rules as the app (owners change their own
    goals, admins any; reasons when behind; a reason for plan changes) and is logged as that person, via MCP. */
+import { LEVEL_WORDS, levelIds } from '../domain/levels';
 import { addNote, NotAllowed } from '../domain/actions';
 import { EMPTY_QUERY, parseQuery, queryEntries, type GoalQuery } from '../domain/query';
-import { searchRows } from '../app/reads';
+import { scopeFacts, searchRows } from '../app/reads';
+import { scopesFor, SCOPES, type Scope } from '../domain/goalsPage';
 import { localSearch } from '../adapters/localSearch';
 import type { FoundRow, Search, SearchAsk } from '../ports/search';
 import type { Commit } from '../data/store';
@@ -84,7 +86,7 @@ function statusIn(v: unknown, only: readonly DisplayStatus[] = STATUSES): Displa
   if (!k || !only.includes(k)) throw new Error(`“${String(v)}” isn’t a status here. Use one of: ${choices(STATUS, only)}.`);
   return k;
 }
-const LEVELS: Level[] = ['north-star', 'svp', 'team'];
+const LEVELS: Level[] = levelIds(null);
 const DRY = bool('Check the change without saving it. Use it to see what would change, or what is missing.');
 
 /** Tool arguments → a spreadsheet-style row (the same column names as the export). */
@@ -159,7 +161,7 @@ const GOAL_FIELDS = {
   owner: str('The owner’s full name, as in the workspace (when only one person has it; owner_email is exact).'),
   owner_email: str('The owner’s email: exact, even where two people share a name.'),
   team: str('The team’s name.'),
-  level: str('How important it is for reporting.', { enum: ['north star', 'svp', 'team'] }),
+  level: str('How important it is for reporting.', { enum: LEVELS.map((l) => LEVEL_WORDS.word[l] ?? l) }),
   unit: str('Number goals: the unit, e.g. "%", "days", "USD".'),
   decimals: int('Number goals: decimal places, 0 to 3.'),
   start: num('Move-a-number goals: where it starts.'),
@@ -193,14 +195,15 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'find_goals',
     title: 'Find goals',
-    description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by words in the name or a key, owner, status or level, just your own, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
+    description: `List goals in the current cycle with their key (G-12), ID, status (the words people see, with the code: “${statusWords('off')}”), latest number, this week’s plan, target and gap. Filter by whose goals they are (scope: mine, team, watching or all, as the Goals screen’s tabs), words in the name or a key, owner, status or level, or only the goals on the ${ATTENTION.needs.label} list (${ATTENTION.needs.meaning.replace(/\.$/, '').toLowerCase()}, then those ${ATTENTION.handled.label.toLowerCase()} below them, marked: the same rule as Home, Watching and reviews); or pass the query of a shared Goals link, or the name of a saved view, for every filter and sort the Goals screen has. A goal’s key and its ID both work wherever a tool asks for a goal.`,
     inputSchema: { type: 'object', additionalProperties: false, properties: {
       text: str('Words on the goal’s row (its name, key, owner, team, level, status, reason or definition), each the start of a word; or its key (G-12).'),
       owner: str('Part of the owner’s name.'),
       status: str(`Only goals with this status: the words or the code, any of ${choices(STATUS, STATUSES)}.`),
       needs_attention: bool(`Only the goals on the ${ATTENTION.needs.label} list: those that need attention first, then those ${ATTENTION.handled.label.toLowerCase()} (beingHandled says how), as the Goals screen lists them. ${ATTENTION.needs.long}`),
       level: str('Only goals at this level.', { enum: LEVELS }),
-      mine: bool('Only goals you own.'),
+      mine: bool('Only goals you own (the same as scope "mine").'),
+      scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
       query: str(`A Goals link’s query string, e.g. "status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
     } },
@@ -228,11 +231,17 @@ const CORE_TOOLS: ToolDef[] = [
       };
       // An argument narrows the link: where the two don't overlap, no goal can match (an empty list would mean "any").
       if ((status && !asked.status.length) || (a.level && !asked.level.length)) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: 'No goals match.' };
+      // Whose goals (goals spec, rule 1): the scope's goals, from the same rule as the Goals screen's tabs.
+      const scope = a.scope ? String(a.scope) as Scope : null;
+      if (scope && !SCOPES.includes(scope)) throw new Error(`There’s no scope “${scope}”: use mine, team, watching or all.`);
+      const scoped = scope && scope !== 'all' ? scopesFor(scopeFacts(ctx.snapshot, ctx.actor), null).tabs.find((t) => t.id === scope) : null;
+      if (scope && scope !== 'all' && !scoped) return { data: { week: ctx.week, weeks: ctx.cycle.weeks, goals: [] }, text: scope === 'team' ? 'No goals match: you’re in no team and lead none.' : 'No goals match: you own no goals this year.' };
+      const inScope = scoped ? new Set(scoped.ids) : null;
       const words = [String(a.text ?? ''), query.q].filter((x) => x.trim()).join(' ');
       const rows = searchRows(ctx.snapshot, ctx.cycle, ctx.today, ctx.week);
       const found = await allPages(localSearch(rows), 'goal', { q: words, filters: Object.fromEntries(queryEntries({ ...asked, sort: null })), sort: asked.sort ? asked.sort + (asked.dir === -1 ? '.desc' : '') : null });
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
-      let list = found.map((r) => byId.get(r.id)!).filter(Boolean);
+      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
       const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));

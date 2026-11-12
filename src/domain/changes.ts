@@ -1,6 +1,7 @@
 /* The change log: what changed, field by field, in words a reader understands. */
 import { causeLabel } from './checkin';
-import { fmt, kindLabel, LEVEL_LABEL } from './format';
+import { fmt, kindLabel } from './format';
+import { levelName } from './levels';
 import { LABEL, assessMilestone } from './status';
 import type { Change, CheckIn, Diff, Goal, Person } from './types';
 
@@ -21,7 +22,7 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     'Feeds into': g.parentId ? l.goal(g.parentId)?.title ?? '—' : 'Nothing',
     'Why it helps': g.parentId ? g.whyHelps || '—' : '—',
     'Also helps': g.alsoHelps?.length ? g.alsoHelps.map((id) => l.goal(id)?.title ?? id).join(', ') : '—',
-    Level: LEVEL_LABEL[g.level],
+    Level: levelName(null, g.level),
     Role: g.io === 'input' ? 'Input' : 'Output',
     Guardrail: g.guardrail ? 'Yes' : 'No',
     'Estimated effect': g.effect == null ? '—' : String(g.effect),
@@ -45,7 +46,8 @@ function goalFields(g: Goal, l: Lookup): Record<string, string> {
     f.Limit = (g.range.bound === 'atMost' ? 'At most ' : 'At least ') + fmt(g.range.limit, g);
     f['Warning margin'] = fmt(g.range.margin, g);
   }
-  if (g.kind === 'milestone') f.Stages = g.stages.map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ') || '—';
+  // By due week, the order a saved goal keeps them in (goal.buildGoal), so a stage moved later isn't read as a change of order.
+  if (g.kind === 'milestone') f.Stages = [...g.stages].sort((a, b) => a.dueWeek - b.dueWeek).map((s) => `${s.name} (wk ${s.dueWeek})`).join(', ') || '—';
   return f;
 }
 

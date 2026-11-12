@@ -2,7 +2,7 @@
    kind. Every list bar, picker and Find reaches these through the Search port (src/ports/search.ts), whose browser
    adapter calls them over the loaded workspace; the internal app's adapter asks its server instead. Pure: each rule takes
    only the rows it reads (src/app/reads.ts makes them), never the whole workspace, and no clock. */
-import { LEVEL_LABEL } from './format';
+import { levelName } from './levels';
 import { formatKey, normalKey } from './goalKey';
 import { applyQuery, parseQuery, type QueryContext } from './query';
 import type { GoalSummary } from './summary';
@@ -116,7 +116,7 @@ export interface SearchAnswer {
 
 /** What each kind's search reads: rows, not the workspace (AR4). src/app/reads.ts makes them. */
 export interface GoalRows { kind: 'goal'; summaries: GoalSummary[]; ctx: QueryContext }
-export interface PersonRows { kind: 'person'; people: Person[]; teamName: (id: string) => string }
+export interface PersonRows { kind: 'person'; people: Person[]; teamName: (id: string) => string; /** A team's lead's id, for rule 6's "its lead first". */ teamLead?: (id: string) => string | null }
 export interface TeamRows { kind: 'team'; teams: Team[]; people: Pick<Person, 'id' | 'name' | 'teamId' | 'leftAt'>[] }
 export interface WorkspaceRows { kind: 'workspace'; workspaces: { id: string; name: string; detail: string }[] }
 
@@ -132,7 +132,7 @@ export function page(all: FoundRow[], ask: SearchAsk): Pick<SearchAnswer, 'rows'
 }
 
 /** The words a goal's row is found by (find spec, 2.1): title, key, owner, team, level, status word, this week's reason and path to green, definition, source. */
-export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, LEVEL_LABEL[s.goal.level], LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source].join(' ');
+export const goalWords = (s: GoalSummary) => [s.goal.title, s.goal.key ?? '', s.owner, s.team, levelName(null, s.goal.level), LABEL[s.status], s.story.why ?? '', s.story.doing ?? '', s.story.needs ?? '', s.goal.definition, s.goal.source].join(' ');
 export const goalRow = (s: GoalSummary): FoundRow => ({ kind: 'goal', id: s.goal.id, name: s.goal.title, detail: [s.goal.key, s.owner, s.team].filter(Boolean).join(' · '), status: s.status, key: s.goal.key ?? null });
 
 /** Goals: the Goals link's filters and sort (query.ts), with rule 1 for the words; worst first unless sorted. */
@@ -142,29 +142,49 @@ export function searchGoals(r: GoalRows, ask: SearchAsk): FoundRow[] {
   return listed.filter((s) => textMatches(goalWords(s), ask.q, s.goal.key)).map(goalRow);
 }
 
+/** A person's row: "{job title} · {team}" under the name. */
+export const personRow = (r: PersonRows, p: Person): FoundRow => ({ kind: 'person', id: p.id, name: p.name, detail: [p.role, p.teamId ? r.teamName(p.teamId) : ''].filter(Boolean).join(' · ') });
+
+const collator = new Intl.Collator('en-GB', { sensitivity: 'base' });
+/** By name A to Z, ignoring case and accents; two people with one name by email, then ID, so they keep their places. */
+export const byName = (a: Pick<Person, 'name' | 'email' | 'id'>, b: Pick<Person, 'name' | 'email' | 'id'>) =>
+  collator.compare(a.name, b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id);
+
 /**
  * People: name, job title and team; nobody marked as left (Find asks for them too with the filter `left: 'too'`, and
- * names them "{name} (left)", after everyone here); those whose name starts with the search first, then A to Z.
+ * names them "{name} (left)", after everyone here); those whose name the search starts first, then by name A to
+ * Z (`byName`). Filters, as People's address has them: `team` keeps a team's people (its lead counts, wherever their own
+ * team is) or, as `-`, people in no team (or a team that is gone); `admins` (`1`) keeps the admins.
  */
 export function searchPeople(r: PersonRows, ask: SearchAsk): FoundRow[] {
   const team = (p: Person) => (p.teamId ? r.teamName(p.teamId) : '');
   const named = (p: Person) => !!wordsOf(ask.q).length && textMatches(p.name, ask.q);
-  const left = ask.filters?.left === 'too';
+  const f = ask.filters ?? {};
+  const left = f.left === 'too';
+  const lead = f.team && f.team !== '-' ? r.teamLead?.(f.team) ?? null : null;
+  const inTeam = (p: Person) => !f.team || (f.team === '-' ? !p.teamId || !r.teamName(p.teamId) : p.teamId === f.team || p.id === lead);
   return r.people
-    .filter((p) => (left || !p.leftAt) && !p.removedAt && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
-    .sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || a.name.localeCompare(b.name))
-    .map((p) => ({ kind: 'person', id: p.id, name: p.leftAt ? `${p.name} (left)` : p.name, detail: [p.role, team(p)].filter(Boolean).join(' · ') }));
+    .filter((p) => (left || !p.leftAt) && !p.removedAt && inTeam(p) && (f.admins !== '1' || p.admin) && textMatches(`${p.name} ${p.role} ${team(p)}`, ask.q))
+    .sort((a, b) => Number(!!a.leftAt) - Number(!!b.leftAt) || Number(named(b)) - Number(named(a)) || byName(a, b))
+    .map((p) => (p.leftAt ? { ...personRow(r, p), name: `${p.name} (left)` } : personRow(r, p)));
 }
 
-/** Teams: the name and its lead's name; A to Z. Line 2: "Led by {name} · {n} people", or "No lead". */
+/** A team's row: "Led by {name} · {n} people", or "No lead · {n} people". */
+export function teamRow(r: TeamRows, t: Team): FoundRow {
+  const here = r.people.filter((p) => !p.leftAt);
+  const lead = here.find((p) => p.id === t.leadId)?.name ?? null;
+  const n = here.filter((p) => p.teamId === t.id).length;
+  return { kind: 'team', id: t.id, name: t.name, detail: `${lead ? `Led by ${lead}` : 'No lead'} · ${n} ${n === 1 ? 'person' : 'people'}` };
+}
+
+/** Teams: the name and its lead's name; A to Z, ignoring case and accents. */
 export function searchTeams(r: TeamRows, ask: SearchAsk): FoundRow[] {
   const here = r.people.filter((p) => !p.leftAt);
-  const lead = (t: Team) => here.find((p) => p.id === t.leadId)?.name ?? null;
-  const people = (t: Team) => { const n = here.filter((p) => p.teamId === t.id).length; return `${n} ${n === 1 ? 'person' : 'people'}`; };
+  const lead = (t: Team) => here.find((p) => p.id === t.leadId)?.name ?? '';
   return r.teams
-    .filter((t) => textMatches(`${t.name} ${lead(t) ?? ''}`, ask.q))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((t) => ({ kind: 'team', id: t.id, name: t.name, detail: `${lead(t) ? `Led by ${lead(t)}` : 'No lead'} · ${people(t)}` }));
+    .filter((t) => textMatches(`${t.name} ${lead(t)}`, ask.q))
+    .sort((a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id))
+    .map((t) => teamRow(r, t));
 }
 
 export function searchWorkspaces(r: WorkspaceRows, ask: SearchAsk): FoundRow[] {
@@ -199,6 +219,23 @@ export function search(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, a
   const near = nearMiss(ask.q, vocabulary(rows));
   const again = near ? run({ ...ask, q: near }) : [];
   return near && again.length ? { ...page(again, ask), near } : page([], ask);
+}
+
+/**
+ * The rows for things already chosen, by id, in the same words a search gives them and in the order asked: what a closed
+ * picker shows. Unlike a search it finds someone marked as left (they may still own a goal); an id it can't find is
+ * left out.
+ */
+export function rowsByIds(rows: GoalRows | PersonRows | TeamRows | WorkspaceRows, ids: string[]): FoundRow[] {
+  const found = (id: string): FoundRow | null => {
+    switch (rows.kind) {
+      case 'goal': { const s = rows.summaries.find((x) => x.goal.id === id); return s ? goalRow(s) : null; }
+      case 'person': { const p = rows.people.find((x) => x.id === id && !x.removedAt); return p ? personRow(rows, p) : null; }
+      case 'team': { const t = rows.teams.find((x) => x.id === id); return t ? teamRow(rows, t) : null; }
+      case 'workspace': { const w = rows.workspaces.find((x) => x.id === id); return w ? { kind: 'workspace', id: w.id, name: w.name, detail: w.detail } : null; }
+    }
+  };
+  return ids.map(found).filter((r): r is FoundRow => !!r);
 }
 
 /* ---------- Rule 8: Find, across kinds ---------- */
@@ -267,7 +304,7 @@ export const withRecent = (recents: Recent[], r: Recent): Recent[] => [r, ...rec
 
 /**
  * Rule 6. Up to 6 rows before anything is typed, no repeats, in order. A person: you; your team's people, its lead first
- * then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
+ * (when the rows say who leads it) then A to Z; then people chosen lately. A team: your team; teams you lead; teams chosen lately. A goal: your goals,
  * worst first; the goals they feed; goals opened or chosen lately. Up to two places are kept for those chosen lately
  * when the rest would fill the list. Nobody marked as left; nothing it can't find.
  */
@@ -291,7 +328,8 @@ export function suggest(rows: GoalRows | PersonRows | TeamRows, viewerId: string
       const all = searchPeople(rows, { q: '' });
       const by = new Map(all.map((r) => [r.id, r]));
       const me = rows.people.find((p) => p.id === viewerId);
-      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.id) : [];
+      const lead = me?.teamId ? rows.teamLead?.(me.teamId) ?? null : null;
+      const mates = me?.teamId ? rows.people.filter((p) => p.teamId === me.teamId && !p.leftAt).sort((a, b) => Number(b.id === lead) - Number(a.id === lead) || a.name.localeCompare(b.name)).map((p) => p.id) : [];
       return pick([viewerId, ...mates], (id) => by.get(id) ?? null);
     }
     case 'team': {
