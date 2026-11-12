@@ -1,0 +1,97 @@
+case,row,actor,sheet,line,rows,answers,target,name,kind,diffs,counts,unchanged,needs_reason,saves
+required-empty,0,amara,goals,,"[{""Goal"":""No owner"",""Unit"":""%"",""Start"":""1"",""Target"":""2""}]",,,,,,,0,no,no
+required-empty-start,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":"""",""Target"":""50""}]",,,,,,,0,no,no
+not-a-number,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""45"",""Value"":""six""}]",,,,,,,0,no,no
+formula,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""=20+2""}]",,,,,,,0,no,no
+precision,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""45"",""Value"":""6.25""}]",,,,,,,0,no,no
+impossible-number,0,amara,checkIns,,"[{""Goal key"":""G-31"",""Week"":""45"",""Value"":""-4""}]",,,,,,,0,no,no
+unknown-word,0,amara,goals,,"[{""Key"":""G-1"",""Level"":""vp""}]",,,,,,,0,no,no
+unknown-ref,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Team"":""Infra Guild""}]",,,,,,,0,no,no
+conflicting-refs,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Owner ID"":""tunde""}]",,,,,,,0,no,no
+bad-key,0,amara,goals,,"[{""Key"":""12"",""Goal"":""x""}]",,,,,,,0,no,no
+bad-key-none,0,amara,goals,,"[{""Key"":""G-999"",""Goal"":""x""}]",,,,,,,0,no,no
+duplicate,0,amara,goals,,"[{""Key"":""G-1"",""Target"":""24""},{""Key"":""G-1"",""Target"":""24""}]",,,,,,,0,no,no
+type-unclear,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Stages"":""Design@50""}]",,,,,,,0,no,no
+plan-order,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Due week"":""10""}]",,,,,,,0,no,no
+stage-format,0,amara,goals,,"[{""Goal"":""Stages goal"",""Owner"":""Rhea Kapoor"",""Type"":""milestone"",""Stages"":""Design; Pilot@50""}]",,,,,,,0,no,no
+week-wrong,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""49"",""Value"":""6""}]",,,,,,,0,no,no
+checkin-incomplete,0,amara,checkIns,,"[{""Goal key"":""G-14"",""Week"":""45"",""Call"":""Off track"",""Path to green"":""""}]",,,,,,,0,no,no
+cant-change,0,amara,goals,,"[{""Key"":""G-1"",""Type"":""milestone""}]",,,,,,,0,no,no
+not-allowed,0,tunde,goals,,"[{""Key"":""G-1"",""Target"":""23"",""Reason"":""Agreed at the review""}]",,,,,,,0,no,no
+has-words,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""12 days"",""Target"":""50""}]",,,,,,,0,no,no
+same-as-start,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""10""}]",,,,,,,0,no,no
+stage-twice,0,amara,goals,,"[{""Goal"":""Stages goal"",""Owner"":""Rhea Kapoor"",""Type"":""milestone"",""Stages"":""Design@50; design@51""}]",,,,,,,0,no,no
+effect-not-number,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Feeds into key"":""G-14"",""Effect"":""lots""}]",,,,,,,0,no,no
+for-someone-else,0,tunde,goals,,"[{""Goal"":""A north star for Rhea"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Level"":""north star""}]",,,,,,newGoals=1,0,no,yes
+for-someone-else,1,,Goals,2,,,goal_c1,A north star for Rhea,new goal,Name: — → A north star for Rhea | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → North star | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+over-100-and-hundredfold,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""1500""}]",,,,,,newGoals=1,0,no,no
+over-100-and-hundredfold,1,,Goals,2,,,goal_c1,A new goal,new goal,"Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 1,500% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet",,,no,
+over-100-answered,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""50"",""Target"":""150""}]","{""odd-number:goals:target:over-100"":""right""}",,,,,newGoals=1,0,no,yes
+over-100-answered,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 50% | Target: — → 150% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+margin-wide,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":"""",""Target"":"""",""Type"":""range"",""Limit"":""12"",""Margin"":""20""}]",,,,,,newGoals=1,0,no,no
+margin-wide,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Keep a number in range | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Limit: — → At most 12% | Warning margin: — → 20% | Via: — → Spreadsheet,,,no,
+no-unit-cleared,0,amara,goals,,"[{""Key"":""G-1"",""Unit"":""""}]",,,,,,goals=1,0,no,no
+no-unit-cleared,1,,Goals,2,,,ns-lead,Lead time for changes,goal,Unit: hours → — | Start: 52 hours → 52 | Target: 24 hours → 24 | Via: — → Spreadsheet,,,no,
+feeds-lower,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Level"":""north star"",""Feeds into key"":""G-14""}]",,,,,,newGoals=1,0,no,no
+feeds-lower,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Pipeline queue wait (p90) | Level: — → North star | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+to-before-from,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""From"":""2026-W46"",""To"":""2026-W40""}]",,,,,,,0,no,no
+week-unknown,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""To"":""2027-W53""}]",,,,,,,0,no,no
+from-pair-disagrees,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""From"":""2026-W46"",""Plan from week"":""40""}]",,,,,,,0,no,no
+to-next-year,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""From"":""2026-W46"",""To"":""2027-W13""}]",,,,,,newGoals=1,0,no,yes
+to-next-year,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 46 | Target due: — → Week 66 | Via: — → Spreadsheet,,,no,
+removal-refused,0,amara,goals,,"[{""Key"":""G-14"",""Action"":""Stop""}]",,,,,,,0,no,no
+loop,0,amara,goals,,"[{""Key"":""G-1"",""Feeds into key"":""G-1""}]",,,,,,,1,no,no
+near-ref,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Team"":""CI/DC""}]",,,,,,,0,no,no
+near-ref-answered,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Team"":""CI/DC""}]","{""near-ref:goals:team:ci-dc"":""use""}",,,,,newGoals=1,0,no,yes
+near-ref-answered,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+near-ref-person,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapor"",""Unit"":""%"",""Start"":""10"",""Target"":""50""}]",,,,,,,0,no,no
+near-word,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Type"":""numbr""}]",,,,,,,0,no,no
+same-person,0,amara,people,,"[{""Name"":""Rhea Kapor"",""Email"":""rhea.k@example.com"",""Team"":""CI/CD""}]",,,,,,newPeople=1,0,no,no
+same-person,1,,People,2,,,,Rhea Kapor,new person,Person: — → Rhea Kapor | Email: — → rhea.k@example.com | Via: — → Spreadsheet,,,no,
+same-goal,0,amara,goals,,"[{""Goal"":""Pipeline queue wait (p90)"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Team"":""CI/CD""}]",,,,,,newGoals=1,0,no,no
+same-goal,1,,Goals,2,,,goal_c1,Pipeline queue wait (p90),new goal,Name: — → Pipeline queue wait (p90) | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+other-goal,0,amara,goals,,"[{""Key"":""G-1"",""Goal"":""Net revenue retention"",""Target"":""110""}]",,,,,,,0,no,no
+past-stage,0,amara,goals,,"[{""Goal"":""P1 stages in the past"",""Owner"":""Rhea Kapoor"",""Type"":""milestone"",""Stages"":""Design@2; Pilot@6; All services@10""}]",,,,,,newGoals=1,0,no,no
+past-stage,1,,Goals,2,,,goal_c4,P1 stages in the past,new goal,"Name: — → P1 stages in the past | Type: — → Hit dated stages | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Stages: — → Design (wk 2), Pilot (wk 6), All services (wk 10) | Via: — → Spreadsheet",,,no,
+past-plan,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""10"",""Target"":""50"",""Plan from week"":""1"",""Due week"":""10""}]",,,,,,newGoals=1,0,no,no
+past-plan,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 10% | Target: — → 50% | Plan shape: — → Straight line | Plan from week: — → Week 1 | Target due: — → Week 10 | Via: — → Spreadsheet,,,no,
+odd-number,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""ms"",""Start"":""3"",""Target"":""3000""}]",,,,,,newGoals=1,0,no,no
+odd-number,1,,Goals,2,,,goal_c1,A new goal,new goal,"Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → ms | Decimals: — → 0 | Start: — → 3 ms | Target: — → 3,000 ms | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet",,,no,
+plan-question,0,amara,goals,,"[{""Key"":""G-1"",""Target"":""80"",""Reason"":""Measured the other way round""}]",,,,,,plans=1,0,no,no
+plan-question,1,,Goals,2,,,ns-lead,Lead time for changes,plan,Target: 24 hours → 80 hours | Why: — → Measured the other way round | Via: — → Spreadsheet,,,yes,
+no-unit,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":"""",""Start"":""10"",""Target"":""50""}]",,,,,,newGoals=1,0,no,no
+no-unit,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Decimals: — → 0 | Start: — → 10 | Target: — → 50 | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+decimal-comma,0,amara,goals,,"[{""Goal"":""A new goal"",""Owner"":""Rhea Kapoor"",""Unit"":""%"",""Start"":""1,5"",""Target"":""50""}]",,,,,,newGoals=1,0,no,no
+decimal-comma,1,,Goals,2,,,goal_c1,A new goal,new goal,Name: — → A new goal | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 1 | Start: — → 1.5% | Target: — → 50.0% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+replaces-others,0,amara,checkIns,,"[{""ID"":""ci_lead-ci-time_41"",""Goal ID"":""lead-ci-time"",""Week"":""41"",""Next step"":""Next step number 0""},{""ID"":""ci_ci-shard_41"",""Goal ID"":""ci-shard"",""Week"":""41"",""Next step"":""Next step number 1""},{""ID"":""ci_ci-docker_41"",""Goal ID"":""ci-docker"",""Week"":""41"",""Next step"":""Next step number 2""},{""ID"":""ci_dep-gates_41"",""Goal ID"":""dep-gates"",""Week"":""41"",""Next step"":""Next step number 3""},{""ID"":""ci_ns-lead_42"",""Goal ID"":""ns-lead"",""Week"":""42"",""Next step"":""Next step number 4""},{""ID"":""ci_lead-flaky_42"",""Goal ID"":""lead-flaky"",""Week"":""42"",""Next step"":""Next step number 5""},{""ID"":""ci_lead-ci-time_42"",""Goal ID"":""lead-ci-time"",""Week"":""42"",""Next step"":""Next step number 6""},{""ID"":""ci_ci-shard_42"",""Goal ID"":""ci-shard"",""Week"":""42"",""Next step"":""Next step number 7""},{""ID"":""ci_ci-docker_42"",""Goal ID"":""ci-docker"",""Week"":""42"",""Next step"":""Next step number 8""},{""ID"":""ci_dep-gates_42"",""Goal ID"":""dep-gates"",""Week"":""42"",""Next step"":""Next step number 9""}]",,,,,,checkIns=10 backfilled=10 replaced=10,0,no,no
+replaces-others,1,,Check-ins,4,,,ci-docker,Base image build time,replaces check-in,Next step: — → Next step number 2 | Via: — → Spreadsheet,,,no,
+replaces-others,2,,Check-ins,10,,,ci-docker,Base image build time,replaces check-in,Next step: — → Next step number 8 | Via: — → Spreadsheet,,,no,
+replaces-others,3,,Check-ins,3,,,ci-shard,Test suites split into parallel shards,replaces check-in,Next step: — → Next step number 1 | Via: — → Spreadsheet,,,no,
+replaces-others,4,,Check-ins,9,,,ci-shard,Test suites split into parallel shards,replaces check-in,Next step: — → Next step number 7 | Via: — → Spreadsheet,,,no,
+replaces-others,5,,Check-ins,5,,,dep-gates,Manual release sign-offs replaced by automated quality gates,replaces check-in,Next step: — → Next step number 3 | Via: — → Spreadsheet,,,no,
+replaces-others,6,,Check-ins,11,,,dep-gates,Manual release sign-offs replaced by automated quality gates,replaces check-in,Next step: — → Next step number 9 | Via: — → Spreadsheet,,,no,
+replaces-others,7,,Check-ins,2,,,lead-ci-time,Pipeline queue wait (p90),replaces check-in,Next step: — → Next step number 0 | Via: — → Spreadsheet,,,no,
+replaces-others,8,,Check-ins,8,,,lead-ci-time,Pipeline queue wait (p90),replaces check-in,Next step: — → Next step number 6 | Via: — → Spreadsheet,,,no,
+replaces-others,9,,Check-ins,7,,,lead-flaky,Flaky test rate in the main pipelines,replaces check-in,Next step: — → Next step number 5 | Via: — → Spreadsheet,,,no,
+replaces-others,10,,Check-ins,6,,,ns-lead,Lead time for changes,replaces check-in,Next step: — → Next step number 4 | Via: — → Spreadsheet,,,no,
+many-admins,0,amara,people,,"[{""ID"":""rhea"",""Admin"":""yes""},{""ID"":""tunde"",""Admin"":""yes""},{""ID"":""samir"",""Admin"":""yes""}]",,,,,,people=3,0,no,no
+many-admins,1,,People,2,,,,Rhea Kapoor,person,Admin: No → Yes | Via: — → Spreadsheet,,,no,
+many-admins,2,,People,3,,,,Tunde Bakare,person,Admin: No → Yes | Via: — → Spreadsheet,,,no,
+many-admins,3,,People,4,,,,Samir Khalil,person,Admin: No → Yes | Via: — → Spreadsheet,,,no,
+totals-row,0,amara,goals,,"[{""Goal"":""TOTAL"",""Start"":""10"",""Target"":""550""}]",,,,,,,0,no,no
+big-removal,0,amara,goals,,"[{""ID"":""ns-lead"",""Action"":""Stop"",""Reason"":""No longer needed this year.""},{""ID"":""lead-flaky"",""Action"":""Stop"",""Reason"":""No longer needed this year.""},{""ID"":""lead-ci-time"",""Action"":""Stop"",""Reason"":""No longer needed this year.""},{""ID"":""ci-shard"",""Action"":""Stop"",""Reason"":""No longer needed this year.""},{""ID"":""ci-dedupe"",""Action"":""Stop"",""Reason"":""No longer needed this year.""}]",,,,,,stopped=5,0,no,no
+big-removal,1,,Goals,2,,,ns-lead,Lead time for changes,stop goal,Status: — → Stopped | Why: — → No longer needed this year. | Via: — → Spreadsheet,,,no,
+big-removal,2,,Goals,3,,,lead-flaky,Flaky test rate in the main pipelines,stop goal,Status: — → Stopped | Why: — → No longer needed this year. | Via: — → Spreadsheet,,,no,
+big-removal,3,,Goals,4,,,lead-ci-time,Pipeline queue wait (p90),stop goal,Status: — → Stopped | Why: — → No longer needed this year. | Via: — → Spreadsheet,,,no,
+big-removal,4,,Goals,5,,,ci-shard,Test suites split into parallel shards,stop goal,Status: — → Stopped | Why: — → No longer needed this year. | Via: — → Spreadsheet,,,no,
+big-removal,5,,Goals,6,,,ci-dedupe,Superseded pipeline runs cancelled automatically,stop goal,Status: — → Stopped | Why: — → No longer needed this year. | Via: — → Spreadsheet,,,no,
+saves-check-in,0,amara,checkIns,,"[{""Goal key"":""G-22"",""Week"":""45"",""Value"":""85"",""Next step"":""Roll the runner image out to the last two teams""}]",,,,,,checkIns=1,0,no,yes
+saves-check-in,1,,Check-ins,2,,,ci-dedupe,Superseded pipeline runs cancelled automatically,check-in,Status call: — → On track | Value: — → 85% | Next step: — → Roll the runner image out to the last two teams | Via: — → Spreadsheet,,,no,
+saves-plan-with-reason,0,amara,goals,,"[{""Key"":""G-1"",""Target"":""23"",""Reason"":""Agreed at the quarterly review""}]",,,,,,plans=1,0,no,yes
+saves-plan-with-reason,1,,Goals,2,,,ns-lead,Lead time for changes,plan,Target: 24 hours → 23 hours | Why: — → Agreed at the quarterly review | Via: — → Spreadsheet,,,yes,
+saves-new-goal,0,amara,goals,,"[{""Goal"":""Runbooks for every paging service"",""Owner"":""Rhea Kapoor"",""Team"":""CI/CD"",""Unit"":""%"",""Start"":""40"",""Target"":""90""}]",,,,,,newGoals=1,0,no,yes
+saves-new-goal,1,,Goals,2,,,goal_c1,Runbooks for every paging service,new goal,Name: — → Runbooks for every paging service | Type: — → Move a number | Team: — → CI/CD | Owner: — → Rhea Kapoor | Feeds into: — → Nothing | Level: — → Team | Role: — → Input | Guardrail: — → No | Unit: — → % | Decimals: — → 0 | Start: — → 40% | Target: — → 90% | Plan shape: — → Straight line | Plan from week: — → Week 45 | Via: — → Spreadsheet,,,no,
+saves-person,0,amara,people,,"[{""ID"":""rhea"",""Team"":""Build & Release""}]",,,,,,people=1,0,no,yes
+saves-person,1,,People,2,,,,Rhea Kapoor,person,Team: CI/CD → Build & Release | Via: — → Spreadsheet,,,no,
+saves-stop,0,amara,goals,,"[{""Key"":""G-14"",""Action"":""Stop"",""Reason"":""Folded into the platform goal this quarter.""}]",,,,,,stopped=1,0,no,yes
+saves-stop,1,,Goals,2,,,lead-ci-time,Pipeline queue wait (p90),stop goal,Status: — → Stopped | Why: — → Folded into the platform goal this quarter. | Via: — → Spreadsheet,,,no,
