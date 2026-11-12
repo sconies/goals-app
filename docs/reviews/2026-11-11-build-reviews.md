@@ -76,6 +76,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #197 Goal entry review fixes | 2 | 0 | 0 | 0 |
 | #195 IM4: past imports | 3 | 0 | 4 | 7 |
 | #192 New goal: #129's review, mediums 1 to 3 and 6 | 2 | 0 | 0 | 0 |
+| #199 IM5: the way in | 3 | 1 | 4 | 6 |
 
 **High findings, and where each stands**
 
@@ -93,6 +94,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Fixed** by #179 (read, with a unit test for each; single-goal paths re-run) |
 | #179: on the database stores, a save that moves a parent's copy and its child's copy together is refused whole | Track 5, 03:15 UTC, 12 Nov | **Fixed** by #180; the reproduction re-run in both orders: no record twice, and the child's copy returns under its parent |
 | #145: set-up from a spreadsheet drops a goal whose owner or word is one letter out, and says nothing | Track 3, 03:35 UTC, 12 Nov | **Fixed** by #181; the reproduction re-run: a near-miss owner or Type now blocks set-up with its question |
+| #199: a column whose header differs from Faro's only by punctuation, an accent or spacing is neither read nor named | Track 3, 15:35 UTC, 12 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -838,3 +840,31 @@ Read first by a separate reviewing session, on screen at 1440, 390 and 360 and w
 ### #192 New goal: Continue after a Change on Check, focus mode, Check's values in full (track 2, merged 14:24 UTC, 12 Nov)
 
 Takes the last two of #129's mediums still open after #197. Continue now goes to the later step that no longer holds, with its faults shown (`src/screens/GoalWizard.tsx`, `go`), and Check's values wrap in full (`src/styles/finish/wizard.css`, `.rr-value`). F16 also fails if the tab bar or sidebar shows on any step. Read, not re-run on screen. No finding.
+
+### #199 IM5: the way in (track 3, merged 14:35 UTC, 12 Nov)
+
+Read first by a separate reviewing session, with throwaway tests and on screen as Grace and Rhea; finding 1 was then re-run by this reviewer on main.
+
+**1. High (re-run by this reviewer). A column whose header differs from a Faro column only by punctuation, an accent or inner spacing is neither read nor named.** `headerMatch` (`src/domain/sheets.ts:152`) calls anything equal after folding "exact"; `namedHeaders` (`src/domain/changeset.ts:229`) skips "exact", so the row's key stays `target.` and the engine never looks it up; and only "unknown" headers are listed as not read (`sheets.ts:223`).
+- Re-run on main: `ID,Goal,Target.,Reason` with `ns-lead,Lead time for changes,31,probe`. The file line is "Read upd.csv.", no column is named as unread, and nothing would change. With `Target` the same row is "Changed target". The same silence for `Tárget` and `Due_week`.
+- The first reader saw it on screen ("Nothing would change. All 1 row says what Faro already says.") and for `Owner_email`, `Owner-email`, a double space and a non-breaking space. Before this PR the column was named: "Not read: the column Target.".
+- A person who loads targets under such a heading is told the file was read and that it matches what Faro has.
+- Fix: rename every key whose lower-case form is not the column's own name, "exact" included, and add fold-equal headers to the unit tests.
+
+**2. Medium. A People sheet with a "Title" or "Objective" column is refused as "not a Faro sheet".** The kind is judged after renaming with Goals' other names first (`sheets.ts:159-165`, `:178`; `src/domain/columns.ts:491`), so `Name, Email, Title, Team` becomes `Name, Email, Goal, Team`. Before this PR it was read as People. Fix: judge each kind with its own names.
+
+**3. Medium. When two columns map to the same Faro column, one is dropped without a word, and which one wins varies** (`changeset.ts:231`): `Goal` beats `Goal name`, but of `Goal name` and `Title` the later wins. Before this PR the extra column was named.
+
+**4. Medium. "Download the rows to fix" blanks a near-header column**: `src/modules/spreadsheets/rowsFile.ts:23` looks up the lower-case key, but a near header keeps its key as written.
+
+**5. Medium. With a near-header question unanswered, the preview also raises Must fix for the same column** ("1 new goal has no Target" beside "Read it as Target?"), with "Leave these rows out" offered (`changeset.ts:259-266`).
+
+**Lows.**
+- The header-row sentence and row numbers ignore blank lines ("Row 2 … is the header row" for file row 4; `sheets.ts:46`).
+- A title row is not skipped in a semicolon or tab-separated file: the separator is read from the first line only (`sheets.ts:19-29`).
+- On Import, choosing the same file again after an error probably does nothing: the input is not cleared (`Import.tsx:88`; partly run).
+- A paste with no header row puts a `<details>` inside a `<p role="alert">`, and React logs nesting errors (`Import.tsx:93-96`).
+- Wording and small points: "All 1 past imports"; an image renamed .csv is described by its bytes; the drop area has no name and the hidden file input is a 1 by 1 tab stop; two links are 20 and 17 px high on a phone; a garbled sentence in `help.ts:16` (read).
+- The row and size limits and the header-row sentence live in `Check.tsx`, not the domain; no unit test covers the paste choice, the limits, or two columns for one field (read).
+
+**Checked and fine.** A CSV with a byte-order mark, Windows line endings and quoted commas, a semicolon CSV, a zip, drag and drop and a pasted table all read the same rows. The downloaded workbook loads back unchanged, each unread sheet named. Images, PDFs and oversized or empty files get a calm refusal. A second file keeps answers and resets left-out rows and the reason. Focus lands on the preview's heading; errors are announced. No stripes, pills or emoji; one primary button per mode.
