@@ -21,7 +21,7 @@ import {
   planWeekValue, requiredLine, requiredText, RESULTS, ROLE_WORD, rowsOf, SHEETS, specOf, START_HERE, WEEK_COLUMN,
   type Cell, type Ctx, type ExportInput, type FillKind, type SheetKind,
 } from './columns';
-import type { Goal, Snapshot } from './types';
+import type { Archive, CheckIn, Decision, Goal, Person } from './types';
 import { moduleSheetRows } from './records';
 import { NO_REASON } from './checkin';
 
@@ -42,11 +42,26 @@ export const CHECKIN_EXPORT_COLUMNS = CHECK_INS.columns.map((c) => c.header);
  * The goals an export carries and their summaries. A whole-cycle export (the workbook, CSV, JSON) keeps stopped goals,
  * with their check-ins, marked Stopped (domain/removal); the brief, like every list, leaves them out.
  */
+/** The lists a whole-cycle workbook reads (no more of the workspace than that). */
+interface Lists { goals: Goal[]; checkIns: CheckIn[]; decisions: Decision[]; people: Person[]; proposed?: Goal[]; archive?: Archive }
+
+/** What a whole-cycle workbook holds: the live goals, the proposed ones (State proposed, no worked-out numbers; GE10)
+    and the stopped ones from the archive, with their check-ins. Export's "Everything" counts read this too. */
+export function everything<S extends Lists>(lists: S): S {
+  const a = lists.archive;
+  const base = lists.proposed?.length ? { ...lists, goals: [...lists.goals, ...lists.proposed] } : lists;
+  return a?.goals.length ? { ...base, goals: [...base.goals, ...a.goals], checkIns: [...base.checkIns, ...a.checkIns], decisions: [...base.decisions, ...a.decisions] } : base;
+}
+
+/** Export's "Everything in {cycle}" line: what the workbook's Goals, Check-ins and People sheets hold, row for row. */
+export function everythingCounts(lists: Lists): { goals: number; checkIns: number; people: number } {
+  const all = everything(lists);
+  const ids = new Set(all.goals.map((g) => g.id));
+  return { goals: ids.size, checkIns: all.checkIns.filter((c) => ids.has(c.goalId)).length, people: lists.people.length };
+}
+
 function prepare(x: ExportInput, withStopped = false) {
-  const a = withStopped && !x.goals ? x.snapshot.archive : undefined;
-  // A whole-cycle export carries proposed goals too, with State proposed and no worked-out numbers (GE10).
-  const base: typeof x.snapshot = withStopped && !x.goals && x.snapshot.proposed?.length ? { ...x.snapshot, goals: [...x.snapshot.goals, ...x.snapshot.proposed] } : x.snapshot;
-  const s: Snapshot = a?.goals.length ? { ...base, goals: [...base.goals, ...a.goals], checkIns: [...base.checkIns, ...a.checkIns], decisions: [...base.decisions, ...a.decisions] } : base;
+  const s = withStopped && !x.goals ? everything(x.snapshot) : x.snapshot;
   const goals = x.goals ?? s.goals;
   // A proposed goal's summary never runs the status rules (domain/proposedSummary).
   const sums = goals.map((g) => (isProposed(g) ? proposedSummary(g, s, x.cycle, x.week) : summarise(g, s, x.cycle, x.today, x.week)));

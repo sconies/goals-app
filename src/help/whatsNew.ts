@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'import-export-fixes',
+    date: '2026-11-12',
+    title: 'Import and Export, three fixes',
+    points: [
+      'A Goals row with no key that says Stop or Delete is now a Must fix on that row, asking for the goal’s Key, instead of stopping the page.',
+      'A filtered All tab exports as as-shown, never as all: all is only ever everything.',
+      'Export’s Everything line counts what the workbook holds, stopped and proposed goals and their check-ins too.',
+    ],
+    articles: ['import', 'export'],
+  },
+  {
     id: 'mcp-keys-pages',
     date: '2026-11-12',
     title: 'AI assistants get the right key and a page of goals at a time',

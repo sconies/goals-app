@@ -1839,6 +1839,12 @@ journey('U19', ['VIEWS', 'EXPORT', 'STORY'], 'See the same goals as a table, boa
   const s = await h.snapshot();
   h.set('finish', /-goals-all-\d{4}-\d\d-\d\d\.xlsx$/.test(xlsx.suggestedFilename()) && fs.statSync(await xlsx.path()).size > 4000, `the workbook was not saved as …-goals-all-{date}.xlsx: ${xlsx.suggestedFilename()}`);
   h.set('logged', data.format === 'goals-app.export' && data.goals.length === s.goals.length && data.goals.some((g) => g.checkIns.length) && brief.includes('## How to read the status') && brief.includes('**Recovery plan:**'), 'the JSON or brief is incomplete');
+  // A filtered All tab exports what's shown, and its file never says `all`, which means everything (IM7 review).
+  await p.goto(url('/goals?scope=all&attention=1'));
+  await p.locator('main h1').first().waitFor();
+  await h.click(await exportButton(h, p));
+  const [part] = await Promise.all([p.waitForEvent('download'), h.click(p.getByRole('button', { name: 'Export .xlsx' }))]);
+  h.set('finish', /-goals-as-shown-\d{4}-\d\d-\d\d\.xlsx$/.test(part.suggestedFilename()), `a filtered All tab was not saved as …-goals-as-shown-{date}.xlsx: ${part.suggestedFilename()}`);
   await p.context().close();
 }, ['errors']);
 

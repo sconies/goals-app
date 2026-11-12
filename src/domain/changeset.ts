@@ -785,6 +785,8 @@ export function* planChangesInChunks(input: ChangeInput): Generator<PlanProgress
       existing = found.g ?? null;
       if (keyRef && !existing) return raise('bad-key', 'Goals', row, title || keyRef, `There’s no goal with key ${normalKey(keyRef)} in ${cycle.name}. Leave Key and ID empty to add a new goal.`, { column: 'Key', found: normalKey(keyRef) ?? keyRef });
       if (id && !existing) return raise('bad-key', 'Goals', row, title || id, `There’s no goal with ID ${id} in ${cycle.name}. Leave ID empty to add a new goal.`, { column: 'ID', found: id });
+      // Stop and Delete name a goal already here; a row with no key or ID has none to stop (it would be a new goal).
+      if (action && !existing) return raise('removal-refused', 'Goals', row, title, `${GOAL_ACTION_WORDS.word[action]} needs the goal’s Key, to say which goal. To add “${title}” instead, leave Action empty.`, { column: 'Action' });
       if (existing && touched.has(existing.id)) return raise('duplicate', 'Goals', row, existing.title, `“${existing.title}” has another row in this file. Give each goal one row.`, { column: 'Key', answers: ANSWERS.duplicate });
       // A key that names a goal that looks like another (C5): its name, and the owner and team it gives, all differ.
       if (existing && !action && title && unrelated(title, existing.title)) {
