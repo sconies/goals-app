@@ -160,7 +160,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['duplicate', 'amara', { goals: [rec({ Key: 'G-1', Target: '20' }), rec({ Key: 'G-1', Target: '22' }, 3)] }, /is on rows 2 and 3\. Give each goal one row\./],
     ['type-unclear', 'amara', { goals: [newGoal({ Stages: 'Design@50' })] }, /Type is empty and the row has Start and Target, and Stages\. Say metric, range or milestone\./],
     ['type-unclear', 'amara', { goals: [rec({ Goal: 'Nothing to measure', Owner: 'Rhea Kapoor' })] }, /Type is empty and the row has no Start and Target, Limit or Stages\./],
-    ['plan-order', 'amara', { goals: [newGoal({ 'Due week': '10' })] }, /Due week \(10\) has to come after the plan starts \(week 46\)\./],
+    ['plan-order', 'amara', { goals: [newGoal({ 'Due week': '10' })] }, /To \(week 10, 2–8 Mar 2026\) isn’t after From \(week 46, 9–15 Nov 2026\)\. The plan has to run forwards\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' })] }, /“Design” has no week\. Write it as Name@week, like Pilot@52\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /^Two stages are called “Pilot”\. Give each its own name, such as “pilot review”\.$/],
     ['week-wrong', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: '50', Value: '6' })] }, /Week 50 hasn’t happened yet; it’s week 46\./],

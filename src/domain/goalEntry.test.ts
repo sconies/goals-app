@@ -84,8 +84,8 @@ describe('what can’t be saved (rule 2)', () => {
 describe('whether a step goes on (rule 4)', () => {
   it('counts each field with a Must fix, in the form’s order, and names the first to focus', () => {
     const fix = goalMustFix(draft({ start: '', target: '30 mins' }), ctx());
-    expect(stepState(2, fix)).toEqual({ go: false, focus: 'start', check: null, says: '2 things to fix above: Today and Target.' });
-    expect(stepState(2, [{ field: 'start', id: 'start-empty', text: '' }, { field: 'target', id: 'target-empty', text: '' }, { field: 'limit', id: 'limit-empty', text: '' }, { field: 'margin', id: 'margin-negative', text: '' }]).says).toBe('4 things to fix above: Today, Target and 2 more.');
+    expect(stepState(2, fix)).toEqual({ go: false, focus: 'start', check: null, says: '2 things to fix above: Baseline and Target.' });
+    expect(stepState(2, [{ field: 'start', id: 'start-empty', text: '' }, { field: 'target', id: 'target-empty', text: '' }, { field: 'limit', id: 'limit-empty', text: '' }, { field: 'margin', id: 'margin-negative', text: '' }]).says).toBe('4 things to fix above: Baseline, Target and 2 more.');
     expect(stepState(2, [])).toEqual({ go: true, focus: null, check: null, says: '' });
     // A fault on another step doesn't hold this one.
     expect(stepState(0, fix).go).toBe(true);
@@ -207,5 +207,36 @@ describe('saving (rule 7)', () => {
     const { draftFor } = await import('./goal');
     const g = snapshot.goals.find((x) => x.ownerId === 'tunde' && x.kind === 'metric')!;
     expect(planGoal(as('tunde'), { draft: draftFor(g), goalId: g.id }).commit).toBeNull();
+  });
+});
+
+describe('a number goal’s From and To (rules 2, 3 and 13; GE9)', () => {
+  const at46 = { week: 46, cycleWeeks: 53, existing: null, door: 'form' as const, startDate: '2025-12-22' };
+  const min = (o: Partial<GoalDraft>) => draft({ unit: 'min', start: '42', target: '30', ...o });
+  it('asks whether a plan from week 40 has been running since, and “No” starts it this week', () => {
+    const c = goalChecks(min({ fromWeek: '40', endWeek: '66' }), at46).find((x) => x.id === 'from-past')!;
+    expect(c.question).toBe('Week 40 was 6 weeks ago. Has this been running since then? The plan would expect 39 min by this week.');
+    expect(c.yes).toBe('Yes, it was 42 min in week 40');
+    expect(c.noDoes).toEqual({ fromWeek: '46' });
+    expect(c.readBack).toBe('You said it has been running since week 40 (28 Sep–4 Oct 2026).');
+  });
+  it('says the year of a From in last year', () => {
+    expect(goalChecks(min({ fromWeek: '-12', endWeek: '53' }), at46).find((x) => x.id === 'from-past')?.question).toMatch(/^Week 40 of 2025 was 58 weeks ago\./);
+  });
+  it('asks about a To already past, and a plan longer than a year', () => {
+    expect(goalChecks(min({ fromWeek: '30', endWeek: '44' }), at46).find((x) => x.id === 'to-past')?.question).toBe('Week 44 has already passed. Was the target due then?');
+    expect(goalChecks(min({ fromWeek: '30', endWeek: '93' }), at46).find((x) => x.id === 'long-plan')?.question).toBe('This plan runs 63 weeks, to week 40 of 2027. Is that right?');
+  });
+  it('asks nothing of the defaults: this week to the end of the year', () => {
+    expect(goalChecks(min({}), at46).map((x) => x.id)).toEqual([]);
+  });
+  it('refuses To before From, and a week that isn’t one', () => {
+    expect(goalMustFix(min({ fromWeek: '46', endWeek: '40' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['to-before-from']);
+    expect(goalMustFix(min({ endWeek: 'soon' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['week-unknown']);
+    expect(goalMustFix(min({ endWeek: '106' }), ctx({ week: 46, startDate: '2025-12-22' })).map((f) => f.id)).toEqual(['week-beyond']);
+  });
+  it('doesn’t ask again of a goal whose From and To didn’t change', () => {
+    const existing = { ...({} as MetricGoal), id: 'g', kind: 'metric', title: 'Signed artifacts', teamId: 'cicd', ownerId: 'tunde', unit: 'min', decimals: 0, level: 'team', plan: { start: 42, target: 30, shape: 'straight', fromWeek: 40, endWeek: 66 } } as MetricGoal;
+    expect(goalChecks(min({ fromWeek: '40', endWeek: '66' }), { ...at46, existing }).filter((x) => x.id === 'from-past')).toEqual([]);
   });
 });

@@ -66,6 +66,13 @@ export function shapeProgress(shape: PlanShape, week: number, weeks: number): nu
   return w / weeks;
 }
 
+/**
+ * Goal entry, rule 13: a number goal whose plan starts after this week (its From, `fromWeek`, is still to come). Until
+ * then it is not due for a check-in and not late, and its summary line says "· starts week {n}". No new status: it reads
+ * "No check-in yet".
+ */
+export const notStarted = (goal: Goal, week: number): boolean => goal.kind === 'metric' && (goal.plan.fromWeek ?? 0) > week;
+
 /** The week a plan's target is due: its own end week, or the cycle's end. */
 export const planEnd = (plan: MetricPlan, weeks: number) => plan.endWeek ?? weeks;
 

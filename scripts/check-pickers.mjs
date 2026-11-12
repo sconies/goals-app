@@ -3,6 +3,8 @@
    people, teams, goals, metrics or workspaces, or from any list that isn't a fixed one (weeks, levels, sort orders), except in the files scripts/pickers-left.json lists, no more times than
    it says: those are the places still to move, and the list may only shrink.
 
+   A week is picked too (goal entry, N12): no <input> labelled with a week outside the week picker.
+
    npm run lint:pickers runs it; so does npm test (src/core/layers.test.ts). */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,6 +48,21 @@ export function selectsOfEverything(src) {
   return out;
 }
 
+/**
+ * Goal entry's N12 (GE9): a week is picked (src/ui/WeekPick.tsx), never typed as a number. Each <input> in a file whose
+ * label or placeholder names a week, by line; a tick box is not one.
+ */
+export function typedWeeks(src) {
+  const out = [];
+  for (const m of src.matchAll(/<input\b[\s\S]*?\/>/g)) {
+    if (/type="checkbox"|type="radio"/.test(m[0])) continue;
+    const said = [...m[0].matchAll(/(?:aria-label|placeholder)=(?:"([^"]*)"|\{([\s\S]*?)\}(?=\s+[\w-]+=|\s*\/>))/g)].map((a) => (a[1] ?? a[2] ?? '').replace(/[)]+$/, '')).join('  ');
+    // A field for the week itself ("Due week", "Stage 1: due week", "Plan from week", "Week"), not one about a week ("Plan for week 12").
+    if (said.split(/\s{2,}/).some((x) => /(^|:\s*)((due|from|plan from|start)\s+)?week(\s+number)?$/i.test(x.replace(/['"`]/g, '').trim()))) out.push(src.slice(0, m.index).split('\n').length);
+  }
+  return out;
+}
+
 export function checkPickers(root) {
   const allowedFile = path.join(root, 'scripts/pickers-left.json');
   const allowed = fs.existsSync(allowedFile) ? JSON.parse(fs.readFileSync(allowedFile, 'utf8')).files : {};
@@ -53,6 +70,9 @@ export function checkPickers(root) {
   for (const file of files(root, 'src')) {
     const lines = selectsOfEverything(fs.readFileSync(path.join(root, file), 'utf8'));
     const may = allowed[file] ?? 0;
+    if ((file.startsWith('src/screens/') || file.startsWith('src/ui/')) && file !== 'src/ui/WeekPick.tsx') {
+      for (const line of typedWeeks(fs.readFileSync(path.join(root, file), 'utf8'))) problems.push(`${file}:${line}: a week typed as a number; pick it with the week picker (src/ui/WeekPick.tsx)`);
+    }
     if (lines.length > may) problems.push(`${file}:${lines[may] ?? lines[0]}: a <select> of everything (people, teams, goals, metrics or workspaces); use find-and-pick (src/ui/Pick.tsx)${may ? ` (scripts/pickers-left.json allows ${may} here)` : ''}`);
   }
   return problems;

@@ -46,7 +46,7 @@ module.exports = {
       const differs = p.getByRole('button', { name: 'Yes, it’s a different goal' });
       if (await differs.isVisible().catch(() => false)) await differs.click();
       await p.getByRole('button', { name: 'Continue' }).click();
-      const start = p.getByLabel(/^Today/);
+      const start = p.getByLabel(/^Baseline/);
       await start.waitFor({ timeout: 3000 }).catch(() => {});
       if (!(await start.isVisible().catch(() => false))) fail('New goal: a duplicate name stopped the wizard at its first step');
       else {
