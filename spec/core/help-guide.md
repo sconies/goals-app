@@ -1213,6 +1213,7 @@ Requirements: `MCP-TOKENS`, `MCP-PARITY`, `TOKENS-SERVER-ONLY`.
 - Lists (goals it finds, asks, reviews, people, activity, views, metrics and the rest) always come back in one shape, filtered or not, so it reads them the same way every time.
 - Ask it to describe the system and it gets Faro’s own overview: what the app is, how its rules work, and where its spec says the rest.
 - Ask for “my goals”, “my team’s goals” or “what I’m watching” and it finds exactly what the Goals tabs Mine, My team and Watching show you.
+- Paste a Goals link and it finds the same goals the link shows, its tab (Mine, My team, Watching) included.
 
 #### How to connect
 
