@@ -24,7 +24,7 @@ export interface NewsEntry {
 export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'map-comes-back-fresh',
-    date: '2026-11-11',
+    date: '2026-11-12',
     title: 'The Map behaves when you come back to it',
     points: [
       'Coming back to the Map from another layout no longer jumps to the last goal you found.',
