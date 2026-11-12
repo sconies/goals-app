@@ -195,6 +195,11 @@
 .find-input::-webkit-search-cancel-button { display: none; }
 .find-close { flex: none; min-height: 44px; }
 .find-body { padding: var(--s2) var(--s3) var(--s4); }
+/* Page not found's Find (navigation spec 2.6): the same field and rows, drawn in the page with a plain outline. */
+.find-inline { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.find-inline .find-head { position: static; }
+.not-found-find { gap: var(--s2); margin: 0; }
+.not-found-find > h2 { margin: 0; }
 .find-hint { margin: var(--s3) var(--s2); }
 .find-list, .find-group-list { list-style: none; margin: 0; padding: 0; }
 .find-group + .find-group { margin-top: var(--s3); }

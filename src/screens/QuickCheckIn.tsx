@@ -14,6 +14,7 @@ import type { Cause, Goal, MetricGoal, RangeGoal } from '../domain/types';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { CheckBlock } from '../ui/Levels';
+import { FormClose } from '../ui/FormClose';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
 function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
@@ -121,6 +122,11 @@ export function QuickCheckIn() {
 
   return (
     <div className="page narrow quick">
+      {/* A form: one way out, top right, in words (navigation spec 2.5). The numbers typed are kept as a draft. */}
+      <div className="focus-top quick-top">
+        <span className="small strong">Week {app.week} check-in</span>
+        <FormClose keeps onClose={() => nav('/check-in')} />
+      </div>
       <div className="page-head">
         <h1 className="title-xl">Type all your numbers in one table</h1>
         <span className="hint">Week {app.week}, {weekDates(app.cycle, app.week)}. Leave a row empty to skip it. A row that’s off plan asks why.</span>

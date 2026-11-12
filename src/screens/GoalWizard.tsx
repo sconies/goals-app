@@ -26,7 +26,7 @@ import { DecimalsLine, FieldError, LevelField, Questions, StageFields, stageErro
 import { WeekPick } from '../ui/WeekPick';
 import { datesOf, lastWeekOffered, weekSays } from '../domain/weeks';
 import { rangeSays, spanSays } from '../domain/weekChoices';
-import { Icon } from '../ui/Icon';
+import { FormClose } from '../ui/FormClose';
 import type { Mark } from '../help/flows';
 import { useMark } from '../telemetry/react';
 import { Place, useFilled, type MeasurePick } from '../core/app';
@@ -274,7 +274,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       <div className="focus-top wiz-top">
         <span className="small strong">New goal</span>
         <Steps at={step + 1} of={4} label={NEW_GOAL_STEPS[step]!.name} />
-        <button className="iconbtn" onClick={() => nav('/goals')} aria-label="Close and keep the draft"><Icon name="close" /></button>
+        <FormClose keeps onClose={() => nav('/goals')} />
       </div>
       {firstBad != null && <Navigate replace to={atStep(firstBad)} />}
       <form className="focus-body" onPointerDownCapture={(e) => { pressing.current = !!(e.target as Element).closest('button'); }} onPointerUpCapture={() => { setTimeout(() => { pressing.current = false; }, 0); }} onSubmit={(e) => { e.preventDefault(); if (step < 3) go(fromCheck ? 3 : step + 1); else void publish(); }} noValidate>
