@@ -94,6 +94,7 @@ export const SCREENS: Record<string, Entry> = {
   Check: ['bulk_change'],
   Changes: ['bulk_change'],
   Export: ['export'],
+  ExportButton: ['export'],
   DataMenu: ['export', 'export_table', 'bulk_change'],
   ColumnsHelp: ['get_help', 'export'],
   Retro: ['get_wrap_up', 'wrap_up_goal', 'start_next_cycle'],

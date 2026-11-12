@@ -19,9 +19,11 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 
 **Decimals, worked out (`decimalsFor`).** The places chosen; or, when none were, the most typed in Today, Target or Limit, at most 3, said in one line (“Kept to 1 decimal place, as you typed them.”) with Change. A number with more places than chosen is refused, offering to keep them.
 
-**Whether a step goes on (rule 4, `stepState`).** The button is never disabled. Pressed with a Must fix on its step, every field of the step shows its own, focus goes to the first, and one line above the button counts them: “2 things to fix above: Unit and Target.” (more than three: the first two “and {k} more”), the same line the check-in uses. A Must fix shows under a field once it has been changed and left, never while typing.
+**What is asked (rule 3, `goalChecks`).** What is possible but unlikely is a question, never a refusal: a Check, in the same block as the check-in's, under the field it is about, with two answers, the first keeping what was typed. In this order, each that applies, and only once the fields it is about have no Must fix: a stage already past (“Week 43 was 2 weeks ago. Is this stage already done?”, either answer an answer); no unit (“This number has no unit. Is it a plain count?”, asked once); a number below zero for a percentage, time or money; over 100% (“The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right?”); a target 100 times its start or more, or a 100th; a billion or more; a target on the worse side of the start for the metric chosen to measure it (““Pipeline queue wait” is better lower, but the target (9 min) is above today (7 min). Is that the plan?”, from the goal.measure place); the same name in the same team; an owner in another team (“Amara is in Office of the VP, not Build & Release. Which team is this goal for?”, whose second answer moves it); a link to a goal at a lower level (whose second answer removes the link); a warning margin as wide as the limit; weeks set by hand that leave more than 60% of the change to the last quarter of the plan's weeks (`lateShare`); and, for a goal being changed, a target that flips which way is better or a number far outside the old plan (`planQuestion`). An answer is kept in the draft as the values it was about (`answers[slot] = key`), so changing them asks again (`unanswered`, shared with the check-in); answered, the block collapses to “You said 150% is right.” with Change. A goal already saved isn't asked again about what it already says. The import asks the same questions in the same words (an unlikely number, a link to a lower level), keeping its own forms of no unit, the same name and stages already past; a file's Team column says the team in so many words, so an owner in another team is asked only in the form. The AI tools list every question goal by goal (“Not saved. Check with the person first: …”) and take `confirm: true` as yes to each. The question about a metric's latest number (`far-from-metric`) waits for the metrics module to keep one for a slice, and those about dates for GE9; a file is asked `wrong-side` once the import reads Measured by.
 
-**Saving (rule 7, `planGoal`).** Refused, in these words, unless the actor may, nothing must be fixed, the plan's question (domain/goal `planQuestion`) has its yes, and a plan change after check-ins have started has a reason (“Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.”). Then one commit: the goal (a new one with the workspace's next key), its History entry with Why, and a new goal's stages already done.
+**Whether a step goes on (rule 4, `stepState`).** The button is never disabled. Pressed with a Must fix on its step, every field of the step shows its own, focus goes to the first, and one line above the button counts them: “2 things to fix above: Unit and Target.” (more than three: the first two “and {k} more”), the same line the check-in uses. A Must fix shows under a field once it has been changed and left, never while typing. With none, an unanswered question holds the step: focus goes to it and the line reads “Answer the question above, under Target.” (several: “Answer the 2 questions above.”).
+
+**Saving (rule 7, `planGoal`).** Refused, in these words, unless the actor may, nothing must be fixed, every question is answered (“Not saved. Check with the person first: …”, with the questions' words), and a plan change after check-ins have started has a reason (“Say why, in a sentence. It goes in the goal’s History, and anyone watching it sees the change flagged.”). Then one commit: the goal (a new one with the workspace's next key), its History entry with Why and each answer as *Checked* (the question, then the answer given), and a new goal's stages already done.
 
 ## Worked examples
 
@@ -43,11 +45,20 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | An owner in no team, the team empty. | `team-empty: Amara Nwosu isn’t in a team. Choose the team this goal is for.` |
 | A range with a warning margin of −1. | `margin-negative: Enter a warning margin of zero or more, or leave it empty.` |
 | Step 3 with Unit empty but no Today, and Target “30 mins” in a % goal; four Must fix on one step. | `2 things to fix above: Today and Target. / 4 things to fix above: Today, Target and 2 more.` |
+| The questions, in order: −5 → 5%; 10 → 1,500%; 5 → 2 days; no unit, 1 → 5. | `below-zero; over-100, hundredfold; nothing; no-unit` |
+| 50 → 150%, answered yes; then the target changed to 160. | `The target is over 100%. That’s fine for growth, but a share of something (coverage, adoption) can’t pass 100%. Is 150% right? / answered / asked again` |
+| A range at most 12% warning within 20; then within 1. | `With a limit of 12% and a warning 20% away, it would almost always read at risk. Is 20 right? / nothing` |
+| A north star feeding a Team goal; an SVP goal feeding an SVP goal; Amara (Office of the VP) as owner in Build & Release. | `A north star usually feeds nothing, and “Flaky test rate” is a Team goal. Is this link right? / nothing / Amara is in Office of the VP, not Build & Release. Which team is this goal for?` |
+| Weeks set by hand from 10 to 5 over 7 weeks: 10, 10, 10, 10, 9, 8; then a back-loaded shape with none set by hand. | `This plan leaves 80% of the change to the last 2 of 7 weeks. Is that the plan? / nothing` |
+| Step 3 with 50 → 150% unanswered; then with −5 → 5% too. | `Answer the question above, under Target. / Answer the 2 questions above.` |
+| The questions goal entry asks, in their order. | `stage-past, no-unit, below-zero, over-100, hundredfold, billion, wrong-side, same-name, owner-other-team, feeds-lower, margin-wide, late-plan, direction, far-from-plan` |
 | Tunde (not an admin) saves a new north star owned by Amara through the saveGoal action; then a spreadsheet row of the same; then Tunde changes a goal Amara owns. | `saved, G-127 owned by amara / no problems / refused: Only Rhea Kapoor (its owner) or an admin can change` |
 
 ## Where it lives
 
-- [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `fieldNeed`, `formNeed`, `stepSays`, `goalMustFix`, `decimalsFor`, `stepState`, `planGoal`, `REASON_EMPTY`
+- [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `fieldNeed`, `formNeed`, `stepSays`, `goalMustFix`, `decimalsFor`, `goalChecks`, `CHECK_IDS`, `checksContext`, `sameNamedIn`, `checkedDiffs`, `stepState`, `planGoal`, `REASON_EMPTY`
+- [src/domain/checkin.ts](../../../src/domain/checkin.ts): `unanswered`, `answeredDiffs`
+- [src/domain/plan.ts](../../../src/domain/plan.ts): `lateShare`
 - [src/domain/goalRights.ts](../../../src/domain/goalRights.ts): `mayAddGoal`, `mayChangeGoal`
 - [src/domain/numbers.ts](../../../src/domain/numbers.ts): `numberAsTyped`, `parseNumber`
 - [src/domain/goal.ts](../../../src/domain/goal.ts): `decimalsFor`, `draftFor`
@@ -72,7 +83,18 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - what can’t be saved (rule 2) › refuses fewer decimal places than check-ins already have
 - what can’t be saved (rule 2) › treats an empty margin as none, and a negative one as a Must fix
 - whether a step goes on (rule 4) › counts each field with a Must fix, in the form’s order, and names the first to focus
+- what is asked (rule 3) › asks about unlikely numbers, each that applies, in section 4’s order
+- what is asked (rule 3) › keys an answer on the values it was about: changing them asks again
+- what is asked (rule 3) › asks about no unit once, and not of a goal already saved without one
+- what is asked (rule 3) › asks about a target on the worse side of the start for the metric that measures it
+- what is asked (rule 3) › asks about a warning margin as wide as the limit
+- what is asked (rule 3) › asks about a link to a lower level, an owner in another team and the same name in the same team
+- what is asked (rule 3) › asks about a hand-set plan that leaves most of the change to the end; a chosen shape never
+- what is asked (rule 3) › asks whether a stage already past is done; either answer is an answer
+- what is asked (rule 3) › asks nothing about a field with a Must fix
+- what is asked (rule 3) › holds a step until its questions are answered, after its Must fix (rule 4)
 - saving (rule 7) › saves a north star Tunde adds for Amara, with the next key and its History entry
+- saving (rule 7) › refuses a question not yet answered, in its words; confirm answers them all
 - saving (rule 7) › refuses what must be fixed, in its words
 - saving (rule 7) › lets only the owner or an admin change a goal
 - saving (rule 7) › asks for a reason when the plan changes after check-ins have started, and keeps it as Why

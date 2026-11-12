@@ -243,6 +243,10 @@ select.input { padding-right: 28px; }
 /* A field with a Must fix has a full outline, not only a red border. */
 .input[aria-invalid="true"] { outline: 1px solid var(--off-mark); outline-offset: 0; }
 .level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+/* Goal entry's questions (2.1, item 3): each answer at least 44px high; on a phone, a full-width row each. Answered, one line. */
+.goal-form .level-check .level-actions .btn { min-height: 44px; }
+@media (max-width: 560px) { .goal-form .level-check .level-actions { flex-direction: column; } .goal-form .level-check .level-actions .btn { width: 100%; } }
+.check-said { margin: 0; color: var(--fg-2); }
 .level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
 .foot-says { margin: var(--s2) 0 0; }
 /* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */
@@ -881,6 +885,9 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.8125
 .map-body { display: flex; gap: var(--s3); }
 .map-canvas { position: relative; flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
 .map-loading { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; color: var(--muted); font-size: 0.875rem; background: var(--surface-2); }
+.page-wait { min-height: 100vh; }
+/* While a page is on its way, its Help footer waits too: shown, then moved or hidden as the page arrives, it would jump. */
+main:has(> .page-wait) > .page-help { display: none; }
 .map-wait { display: grid; place-items: center; min-height: 50vh; color: var(--muted); font-size: 0.875rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
 .map-panel { flex: 0 0 320px; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: min(72vh, 760px); overflow: auto; }
 .map-node { position: relative; width: 240px; min-height: 96px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 2px rgba(16, 24, 40, .08); font-family: inherit; cursor: pointer; }

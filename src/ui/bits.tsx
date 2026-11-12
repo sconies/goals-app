@@ -105,12 +105,13 @@ export function Stat({ label, value, note, tone }: { label: string; value: strin
   );
 }
 
-/** While a page that loads when opened is on its way (Help, What's new, Settings…): nothing for a moment, so a fast
-    connection sees no flash, then a quiet line, so a slow one doesn't look stuck (#167's review). */
+/** While a page that loads when opened is on its way (every page but Home): nothing for a moment, so a fast connection
+    sees no flash, then a quiet line, so a slow one doesn't look stuck (#167's review). It holds a screen's height
+    meanwhile, so the page's footer waits below the fold and nothing on screen jumps when the page arrives. */
 export function PageWait({ after = 300 }: { after?: number }) {
   const [shown, setShown] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShown(true), after); return () => clearTimeout(t); }, [after]);
-  return shown ? <div className="page narrow"><p className="hint" role="status" data-page-wait>Opening…</p></div> : null;
+  return <div className="page narrow page-wait" data-page-wait>{shown && <p className="hint" role="status">Opening…</p>}</div>;
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {

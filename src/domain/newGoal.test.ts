@@ -1,7 +1,7 @@
 // @vitest-environment node
 /* New goal's own rules (onboarding spec, rules 1, 2 and 5; OB1), with the spec's worked examples on the demo. */
 import { buildPlatformOrg } from '../data/platformOrg';
-import { feedRefusal, NEW_GOAL_STEPS, parentSuggestions, planNote, startLevel, stepIndex } from './newGoal';
+import { NEW_GOAL_STEPS, parentSuggestions, planNote, startLevel, stepIndex } from './newGoal';
 import type { Goal } from './types';
 
 const s = buildPlatformOrg(new Date('2026-11-11T12:00:00Z'));
@@ -52,10 +52,6 @@ describe('rule 2: suggestions for “Feeds into”', () => {
   });
   it('a north star: none', () => {
     expect(parentSuggestions(cycle, 'north-star', 'cicd', 'rhea', s.goals, byTitle)).toEqual([]);
-  });
-  it('a goal at the same or a lower level is said, not offered', () => {
-    expect(feedRefusal(cycle, 'team', goal('lead-flaky'))).toBeNull();
-    expect(feedRefusal(cycle, 'svp', goal('lead-flaky'))).toBe('An SVP goal can’t feed an SVP goal.');
   });
 });
 

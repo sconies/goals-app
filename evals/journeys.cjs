@@ -1963,7 +1963,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
   await h.fill(p.getByLabel('Unit'), '%');
   await h.fill(p.getByLabel(/^Today \(week/), '0');
   await h.fill(p.getByLabel(/^Target \(week/), '150');
-  h.set('logged', await p.getByRole('status').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
+  h.set('logged', await p.locator('.level-check').filter({ hasText: 'can’t pass 100%' }).isVisible(), 'a 150% target is not questioned');
   await p.context().close();
 });
 
@@ -4722,10 +4722,10 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
   await p.context().close();
 }, ['logged']);
 
-/* Goal entry, GE1 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs. The Must fix half of U93;
-   the questions (over 100%, asked and remembered) come with GE2. The file and AI tools' side is N19
-   (evals/goalEntry.eval.ts): the same faults there return the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Today empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Today and Target.” above the button, focus on Today; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. Dated stages: two called “Design” and one with no week each get their own line', 24, async (h, device) => {
+/* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
+   is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
+   the same words. */
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Today empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Today and Target.” above the button, focus on Today; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4763,6 +4763,42 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
   await p.waitForURL(/\/goals\/[^/]+\?published=1/);
   h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
+
+  // The Check half (GE2): 50 → 150% is asked about under Target; Continue waits; the answer holds until the number changes.
+  await p.goto(url('/goals/new'));
+  await p.waitForURL(/\/goals\/new\/what(\?|$)/);
+  await h.fill(p.getByLabel(/Name it the way/), 'Runbook coverage this year');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/who(\?|$)/);
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await h.fill(p.getByLabel(/^Unit/), '%');
+  await h.fill(p.getByLabel(/^Today \(week/), '50');
+  await h.fill(p.getByLabel(/^Target \(week/), '150');
+  const q = p.locator('.level-check').filter({ hasText: 'The target is over 100%.' });
+  await h.inView(q, 'attention', 'the over-100 question');
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  const waits = (await p.locator('.fix-line').innerText({ timeout: 3000 }).catch(() => '(none)')).trim();
+  const onQ = await p.evaluate(() => document.activeElement?.getAttribute('data-check'));
+  h.set('errors', waits === 'Answer the question above, under Target.' && onQ === 'over-100' && /\/goals\/new\/measure(\?|$)/.test(p.url()), `Continue with the question open says “${waits}” with focus on ${onQ}`);
+  await h.checkpoint('asked');
+  await h.click(q.getByRole('button', { name: 'Yes, 150% is right' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.locator('.focus-foot').getByRole('button', { name: 'Back', exact: true }));
+  await p.waitForURL(/\/goals\/new\/measure(\?|$)/);
+  await see(p, 'You said 150% is right.', 'going back doesn’t say what was answered');
+  await h.fill(p.getByLabel(/^Target \(week/), '160');
+  h.set('attention', await p.locator('.level-check').filter({ hasText: 'Is 160% right?' }).isVisible(), 'changing 150 to 160 doesn’t ask again');
+  await h.click(p.getByRole('button', { name: 'Yes, 160% is right' }));
+  await h.click(p.getByRole('button', { name: /Continue/ }));
+  await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  await p.waitForURL(/\/goals\/[^/]+\?published=1/);
+  const snap = await h.snapshot();
+  const made = snap.goals.find((g) => g.title === 'Runbook coverage this year');
+  const checked = made && snap.changes.find((c) => c.goalId === made.id)?.diffs.find((x) => x.field === 'Checked');
+  h.set('logged', !!checked && /Is 160% right\?/.test(checked.from) && checked.to === 'Yes, 160% is right', 'History doesn’t keep the answer as Checked');
 
   // Dated stages: each row's own fault under it.
   await p.goto(url('/goals/new'));
@@ -5002,8 +5038,9 @@ journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already pa
   await h.fill(p.getByLabel('Stage 1', { exact: true }), 'Design agreed');
   await h.fill(p.getByLabel('Stage 1: due week'), '1');
   await h.inView(p.getByText(/^Week 1 was \d+ weeks ago\. Is this stage already done\?$/), 'entry', 'the question about a stage already past');
+  // The question is goal entry's shared Check block (GE2): Continue waits for it, and says where.
   await h.click(p.getByRole('button', { name: /Continue/ }));
-  h.set('errors', await p.getByRole('alert').filter({ hasText: 'Say whether this stage is done.' }).isVisible(), 'an unanswered past stage is not explained');
+  h.set('errors', (await p.locator('.fix-line').innerText().catch(() => '')).trim() === 'Answer the question above, under Stages.', 'an unanswered past stage is not explained');
   await h.click(p.getByRole('button', { name: 'Yes, done in week 1' }));
   await see(p, 'Done in week 1.');
   await h.checkpoint('stages');
@@ -5214,7 +5251,7 @@ journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tun
 const settled = (r) => r.waitForFunction(() => {
   if (document.querySelector('.preboot, .boot')) return false;
   const main = document.querySelector('main');
-  return !main || [...main.children].some((e) => !e.matches('.page-help'));
+  return !main || [...main.children].some((e) => !e.matches('.page-help, [data-page-wait]'));
 }, null, { timeout: 15000 }).catch(() => {});
 /** A page whose goto and reload wait until it has settled, for the checks that go from page to page and then measure. */
 function steady(r) {
@@ -5414,6 +5451,8 @@ async function platformChecks() {
       await r.goto(url(route));
       await r.evaluate((v) => localStorage.setItem('goals-app-viewer:platform-org', v), who);
       await r.reload();
+      // Every page but Home loads when it is opened: wait for it, not a fixed time.
+      await settled(r);
       await r.waitForTimeout(400);
       // The map draws its 126 goals after the page is up.
       if (kind === 'map') await r.locator('.react-flow__node').first().waitFor().then(() => r.waitForTimeout(600)).catch(() => {});

@@ -65,7 +65,7 @@ const help: Article[] = [
       ] },
     ],
     routes: [],
-    screens: ['Export', 'DataMenu'],
+    screens: ['Export', 'ExportButton', 'DataMenu'],
     reqs: ['EXPORT', 'SHARED-DOWNLOADS', 'ONE-FORMAT'],
     keywords: ['export', 'download', 'excel', 'xlsx', 'csv', 'zip', 'json', 'markdown', 'brief', 'ai chat', 'results', 'year end', 'format', 'template', 'blank'],
     related: ['import', 'columns', 'print', 'data'],

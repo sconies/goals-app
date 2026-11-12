@@ -8,21 +8,21 @@ import { useApp } from '../app/state';
 import { dueOptions, isYear } from '../domain/year';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
-import { blankGoal, planHint, withPoints, type GoalDraft } from '../domain/goal';
-import { decimalsFor, formNeed, goalMustFix, STEP_SAYS, stepFields, stepSays, stepState, type GoalField, type MustFix } from '../domain/goalEntry';
+import { blankGoal, withPoints, type GoalDraft } from '../domain/goal';
+import { checksContext, decimalsFor, formNeed, goalChecks, goalMustFix, sameNamedIn, STEP_SAYS, stepFields, stepSays, stepState, unanswered, type GoalAnswers, type GoalCheck, type GoalField, type MustFix } from '../domain/goalEntry';
 import { FixLine } from '../ui/Levels';
 import { fmt } from '../domain/format';
 import { placesText } from '../domain/numbers';
 import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
-import { feedRefusal, NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
+import { NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
 import { worstFirst } from '../domain/order';
 import type { GoalKind, Level, MetricGoal, PlanShape } from '../domain/types';
 import { newId } from '../data/store';
 import { Steps } from '../ui/bits';
 import { MetricChart } from '../ui/charts';
 import { PlanTable } from '../ui/PlanTable';
-import { DateRange, DecimalsLine, DueField, FieldError, LevelField, StageFields, stageErrors } from '../ui/GoalFields';
+import { DateRange, DecimalsLine, DueField, FieldError, LevelField, Questions, StageFields, stageErrors } from '../ui/GoalFields';
 import { weekDates, yearEndWeek } from '../domain/plan';
 import { Icon } from '../ui/Icon';
 import type { Mark } from '../help/flows';
@@ -45,7 +45,7 @@ const SHAPES: [PlanShape, string, string][] = [
 const STEP_MARKS: (Mark | null)[] = [null, 'newGoal.step-2', 'newGoal.step-3', 'newGoal.step-4'];
 
 /** What New goal keeps in its draft beyond the goal: where it stopped, and what was chosen by hand rather than followed. */
-type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean };
+type WizardDraft = GoalDraft & { step: number; teamByHand?: boolean; levelByHand?: boolean; answers?: GoalAnswers };
 
 /** /goals/new (and /goals/new/<step>): a draft's step, or the first. */
 export function GoalWizard() {
@@ -104,11 +104,15 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   // What can't be saved (goal entry, rule 2): the same rule and words as the edit page, set-up, a file and the AI tools.
   const ownerP = app.person(d.ownerId);
   const fix: MustFix[] = goalMustFix({ ...goal, level: (level ?? '') as Level }, { cycleWeeks: cycle.weeks, week, existing: null, door: 'form', owner: ownerP ? { name: ownerP.name, teamId: ownerP.teamId ?? null } : null, parent: parent ? { title: parent.title } : null });
-  // OB1's rule on what a level can feed, until goal entry asks it as a question (GE2).
-  if (d.parentId && parent && level && feedRefusal(cycle, level, parent)) fix.push({ field: 'level', id: 'level-empty', text: feedRefusal(cycle, level, parent)! });
+  // What is asked (goal entry, rule 3): possible but unlikely, each under its field, answered once for the values it is about.
+  const answers: GoalAnswers = d.answers ?? {};
+  const checks: GoalCheck[] = goalChecks({ ...goal, level: (level ?? '') as Level }, checksContext(goal, {
+    person: (id) => app.person(id), team: (id) => app.team(id), goal: (id) => app.goal(id), sameNamed: sameNamedIn(app.snapshot.goals),
+  }, { week, cycleWeeks: cycle.weeks, existing: null, door: 'form', levels: cycle, mustFix: fix, metric: d.kind === 'metric' ? measure?.metric ?? null : null }));
   // What measures it can stop step 3 too (a metric in another unit): the module says why, under its own field.
   const measureBlock = d.kind !== 'milestone' ? measure?.blocks : undefined;
   const stepErrors = (i: number) => [...fix.filter((f) => stepFields(i, d.kind).includes(f.field)), ...(i === 2 && measureBlock ? [{ field: 'measure', id: 'measure', text: measureBlock } as unknown as MustFix] : [])];
+  const stepOpen = (i: number) => unanswered(checks.filter((c) => stepFields(i, d.kind).includes(c.field)), answers);
   const shown = tried.includes(step);
   // A Must fix shows under its field once the field has been changed and left, and for every field on Continue; never while typing.
   const [left, setLeft] = useState<GoalField[]>([]);
@@ -121,7 +125,22 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const showErr = (f: GoalField) => { const e = errorOf(f); return e ? <FieldError id={`${f}-fix`}>{e.text}</FieldError> : null; };
   const invalid = (f: GoalField) => !!errorOf(f);
   const optional = (f: GoalField) => (formNeed(f, d.kind) === 'optional' ? <span className="muted" style={{ fontWeight: 400 }}> · optional</span> : null);
-  const gate = stepState(step, stepErrors(step));
+  const gate = stepState(step, stepErrors(step), checks, answers);
+  // Answering: yes keeps what was typed; no changes it, at once where the answer says how, or is an answer too (a stage
+  // overdue), or leaves it to the person, at the field. Change asks an answered question again.
+  const answer = (c: GoalCheck, extra: Partial<WizardDraft> = {}) => set({ ...extra, answers: { ...answers, [c.slot]: c.key } });
+  const stageDone = (c: GoalCheck, done: '' | 'yes' | 'no') => ({ stages: d.stages.map((st, i) => (i === c.row ? { ...st, done } : st)) });
+  const onYes = (c: GoalCheck) => answer(c, c.id === 'stage-past' ? stageDone(c, 'yes') : {});
+  const onNo = (c: GoalCheck) => {
+    if (c.opens) { nav('/goals/' + c.opens); return; }
+    if (c.noAnswers) { answer(c, c.id === 'stage-past' ? stageDone(c, 'no') : {}); return; }
+    if (c.noDoes) { set({ ...c.noDoes, ...(c.noDoes.teamId != null ? { teamByHand: true } : {}) }); return; }
+    focusField(c.field);
+  };
+  const ask = (c: GoalCheck) => { const { [c.slot]: _gone, ...rest } = answers; set({ answers: rest, ...(c.id === 'stage-past' ? stageDone(c, '') : {}) }); };
+  const questions = (f: GoalField, row?: number) => (
+    <Questions checks={checks.filter((c) => c.field === f && (row == null || c.row === row))} answers={answers} onAnswer={onYes} onNo={onNo} onChange={ask} alertSlot={shown ? gate.check : null} />
+  );
   // The decimal places kept: chosen, or worked out from what is typed (rule 2's decimalsFor).
   const places = decimalsFor(d) ?? 0;
   // A target the same as today offers the way out: a number to keep in range, at that value (section 4, same-as-start).
@@ -149,9 +168,14 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     if (!f) return;
     setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-field="${f}"] input, [data-field="${f}"] button, input[data-field="${f}"], textarea[data-field="${f}"]`)?.focus(), 0);
   };
+  const focusCheck = (slot: string | null) => { if (slot) setTimeout(() => top.current?.querySelector<HTMLElement>(`[data-check="${slot}"]`)?.focus(), 0); };
   const go = (to: number) => {
-    // "Continue" is never disabled: pressed with a Must fix, every field on the step says its own, and focus goes to the first.
-    if (to > step) for (let i = step; i < to; i++) if (stepErrors(i).length) { setTried((t) => [...t, i]); if (i === step) focusField(stepState(i, stepErrors(i)).focus); return; }
+    // "Continue" is never disabled: pressed with a Must fix, every field on the step says its own, and focus goes to the
+    // first; with none but a question open, focus goes to the first question (rule 4).
+    if (to > step) for (let i = step; i < to; i++) {
+      const at = stepState(i, stepErrors(i), checks, answers);
+      if (!at.go) { setTried((t) => [...t, i]); if (i === step) { if (at.check) focusCheck(at.check); else focusField(at.focus); } return; }
+    }
     // Each Continue is one history entry, so the browser's Back steps back a step.
     nav(at(to), { state: { from: step } });
   };
@@ -164,16 +188,16 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const [fromCheck, setFromCheck] = useState(false);
 
   const publish = async () => {
-    const bad = [0, 1, 2].find((i) => stepErrors(i).length);
+    const bad = [0, 1, 2].find((i) => stepErrors(i).length || stepOpen(i).length);
     if (bad != null) { setTried([0, 1, 2]); nav(at(bad)); return; }
     setSaving(true);
     try {
-      // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
-      const done = d.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
-      // Saved through the saveGoal action (goal entry, rule 7): the same rights and Must fix as every other door.
-      const { step: _step, teamByHand: _t, levelByHand: _l, ...draft } = goal;
-      // What measures it (the goal.measure place) is saved in the same commit, so the link sees the new goal.
-      const g = await app.saveGoal(draft, null, { ...(done.length ? { stagesDone: done } : {}), ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
+      // Saved through the saveGoal action (goal entry, rule 7): the same rights, Must fix and questions as every other door.
+      // The answers ride with it, kept in History as "Checked"; stages said to be already done are recorded done in their
+      // own weeks, in the same save, so the goal isn't born late (OB2's rule 3). What measures it (the goal.measure place)
+      // is saved in the same commit, so the link sees the new goal.
+      const { step: _step, teamByHand: _t, levelByHand: _l, answers: _a, ...draft } = goal;
+      const g = await app.saveGoal(draft, null, { answers, ...(measure && d.kind !== 'milestone' ? { also: measure } : {}) });
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });
@@ -297,13 +321,14 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 {showErr('teamId')}
               </div>
             </div>
+            {questions('teamId')}
             <LevelField level={level ?? (null as unknown as Level)} onChange={(l) => set({ level: l, levelByHand: true })} labelClass="small strong" />
             {showErr('level')}
             <PickOne kind="goal" label="Feeds into · optional" none="Nothing: top of its own tree" value={d.parentId || null}
               first={suggestions.map((g) => ({ id: g.id, note: levelName(cycle, g.level) }))}
-              refuse={(row) => { const g = app.goal(row.id); return g && level ? feedRefusal(cycle, level, g) : null; }}
               hint={level && isTop(cycle, level) ? `${levelName(cycle, level)} goals are the top of their tree.` : !d.parentId ? 'Goals that feed nothing and have nothing feeding them show as not linked.' : undefined}
               onChange={(id) => set({ parentId: id ?? '', alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })} />
+            {questions('parentId')}
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">How much will it move “{parent?.title}”? <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
                 <input className="input" inputMode="decimal" data-field="effect" value={d.effect} onChange={(e) => set({ effect: e.target.value })} onBlur={leave('effect')} aria-invalid={invalid('effect')} placeholder={parent && parent.kind !== 'milestone' ? `In ${parent.unit || 'its unit'}, e.g. 3` : 'e.g. 3'} />{showErr('effect')}
@@ -332,13 +357,17 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 <input className="input" data-field="unit" value={d.unit} onChange={(e) => set({ unit: e.target.value })} onBlur={leave('unit')} placeholder="%, days, hours, incidents" aria-invalid={invalid('unit')} />{showErr('unit')}
               </label>
             )}
+            {/* No unit is asked once there is a number to count, or on Continue: not before anything is typed. */}
+            {number && (anyNumber || shown) && questions('unit')}
             {d.kind === 'metric' && (
               <>
                 <div className="num-pair with-arrow">
                   <label className="field"><span className="small strong">Today (week {Math.max(0, week)})</span><input className="input big-input" inputMode="decimal" data-field="start" value={d.start} onChange={(e) => set({ start: e.target.value })} onBlur={leave('start')} aria-invalid={invalid('start')} aria-describedby={invalid('start') ? 'start-fix' : undefined} />{showErr('start')}{keepOffer('start')}</label>
                   <span className="arrow"><Icon name="arrow-right" /></span>
-                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} />{showErr('target')}{keepOffer('target')}{holdOffer}{!errorOf('target') && planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
+                  <label className="field"><span className="small strong">Target (week {endChoice})</span><input className="input big-input" inputMode="decimal" data-field="target" value={d.target} onChange={(e) => set({ target: e.target.value })} onBlur={leave('target')} aria-invalid={invalid('target')} aria-describedby={invalid('target') ? 'target-fix' : undefined} />{showErr('target')}{keepOffer('target')}{holdOffer}</label>
                 </div>
+                {questions('start')}
+                {questions('target')}
                 {decimalsLine}
                 <DueField label="By when?" labelClass="small strong" options={endOptions} choice={endChoice} onChoose={(w) => set({ endWeek: w === cycle.weeks ? '' : String(w), points: {} })} dates={weekDates(cycle, endChoice)}
                   after={endChoice > cycle.weeks ? `It carries into next ${isYear(cycle) ? 'year' : 'cycle'} with this plan.` : undefined} />
@@ -362,6 +391,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                   </details>
                 )}
                 {showErr('points')}
+                {questions('points')}
               </>
             )}
             {d.kind === 'range' && (
@@ -372,14 +402,15 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                     <button type="button" aria-pressed={d.bound === 'atLeast'} onClick={() => set({ bound: 'atLeast' })}>At least</button>
                   </div>
                 </div>
-                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} onBlur={leave('limit')} aria-invalid={invalid('limit')} />{showErr('limit')}{keepOffer('limit')}{!errorOf('limit') && planHint(d) && <span className="hint tone-risk" role="status">{planHint(d)}</span>}</label>
+                <label className="field"><span className="small strong">Limit</span><input className="input" inputMode="decimal" data-field="limit" value={d.limit} onChange={(e) => set({ limit: e.target.value })} onBlur={leave('limit')} aria-invalid={invalid('limit')} />{showErr('limit')}{keepOffer('limit')}</label>
                 <label className="field"><span className="small strong">Warn this close{optional('margin')}</span><input className="input" inputMode="decimal" data-field="margin" value={d.margin} onChange={(e) => set({ margin: e.target.value })} onBlur={leave('margin')} aria-invalid={invalid('margin')} />{showErr('margin')}{keepOffer('margin')}
                   {!errorOf('margin') && <span className="hint">How near the limit counts as at risk{d.unit.trim() ? `, in ${d.unit.trim()}` : ''}. Left empty, it warns only once the limit is crossed.</span>}</label>
               </div>
             )}
+            {d.kind === 'range' && <>{questions('limit')}{questions('margin')}</>}
             {d.kind === 'range' && decimalsLine}
             {d.kind === 'milestone' && (
-              <StageFields stages={d.stages} weeks={cycle.weeks} week={week} labelClass="small strong" error={null} rowErrors={showsFor('stages') ? stageErrors(fix) : []} onLeave={leave('stages')}
+              <StageFields stages={d.stages} weeks={cycle.weeks} labelClass="small strong" error={null} rowErrors={showsFor('stages') ? stageErrors(fix) : []} onLeave={leave('stages')} below={(i) => questions('stages', i)}
                 onChange={(stages) => set({ stages })} onAdd={() => set({ stages: [...d.stages, { id: newId('st'), name: '', dueWeek: '' }] })} />
             )}
             {/* With no metric chosen: said in words, so the goal's page doesn't open on "not described yet". */}
@@ -417,7 +448,8 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
                 </li>
               ))}
             </ul>
-            {[0, 1, 2].some((i) => stepErrors(i).length) && <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>}
+            {[0, 1, 2].some((i) => stepErrors(i).length) ? <div className="note-bad small">Something still needs fixing; publishing takes you to it.</div>
+              : [0, 1, 2].some((i) => stepOpen(i).length) ? <div className="note-bad small">A question is still to answer; publishing takes you to it.</div> : null}
           </>
         )}
 
