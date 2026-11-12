@@ -2,6 +2,30 @@
 
 Faro is an internal goals (OKR) app for a 15,000-person company, built to be easy for another AI to understand and rebuild. This page is the starting point for a new session. Read it, then `CLAUDE.md`, `docs/architecture.md` and `docs/backlog.md`.
 
+
+## Planning state, Thursday 12 November, 21:55 UTC (planning session handing over)
+
+The planning session session_012kbr939zneZWtAo7UQEHRP is about half full and hands over. Everything below this section still holds; this is what changed since 18:30.
+
+- **Open sessions** (each reports once, when done or blocked):
+  - **Track 1** session_012kbr91yMK3mzwj4mayoAJr: #274 (fix F6 MAP 2 at 390), #282, then hm1-review-fixes, hm2-gated, fs1-mediums, rv7-gated, ck-correct-fixes (#225's review), #234's mediums, then the habit moment. The last three track 1 sessions filled up before merging much; this one is told to merge each branch before the next.
+  - **Track 2** session_012kbr8yX1yx6BkMYiJ6F5Dr (fresh 22:05): GE10's four review mediums, U31's extra step, the two-sided range (migration first), GE10's follow-up. U4 was fixed in #251; GE10 (#270) and ST1 (#285) merged. First download 264.7 of 265 KB.
+  - **Track 3** session_012kbr937S18WZrjrr2frmGt: the reviewer's four mediums on #257/#248 (handover item 0, #276), then IM6 part 2, IM8, lows.
+  - **Track 4** session_012kbr8xdoEbLiMQaBAxLeuJ: #193's mediums, AX5 part 2, FT2, FT1, SW1, SW2, AX2, AX6. Not heard from since. Track 6's goals and store contracts wait on its AX5 part 2.
+  - **Track 6** session_012kbr8xPz321Wt3jtU1oocA (fresh 22:05): gap 7, then 8 and 9 (gap 5 merged as #283, #284), or gap 1(b) first if track 4's store change has merged.
+  - **Track 7b** session_012kbr92c7taPQJmK4jDJU9E: the reviewer's #242 and #249 mediums, MT1, MT2, MT3, MS, MI, GR, MQ, then BL and GB after GE10, TG, then WM.
+  - **Journey triage** (Sonnet): done (#279: U59, U61, U65, U117 at 10/10). U12 and P9 (shell) sent to track 4, U31 to track 2; U29 at 8.3 in the full suite is unlooked-at.
+  - **Track 5b** session_012kbr911Du8PPXJLDueSVE5: done (#247, #252, #258). **Reviewer** session_012kbr8y4Bh3MudNC1bdo3RN.
+- **Merged since 18:30:** #237, #240, #272 (handovers); #239, #242, #249, #244, #259, #271 (track 7); #247, #252, #258 (track 5b); #248, #257 (track 3); #235, #245, #253, #263, #268, #275 (track 6); #169, #225, #171, #234, #255, #261 (track 1); #266 (main fix).
+- **Main went red once** (20:22): #263 and #257 merged 30 s apart and left `spec/core/help-guide.md` stale. #266 regenerated it. After a burst of merges, `npm run spec` on main should say "already current".
+- **Decided by Lane tonight** (also in the 18:30 section): MARGIN_KB kept; NR's questions as recommended (NR not picked); track 7 builds all its rows plus MT1–MT3; WM built with the set-up token rules (anyone, 24 h or 3 workspaces, issued token revoked with it, set-up ends at week one); Candy shop data is made up.
+- **Waiting for Lane:**
+  1. **Branch protection on main.** "Allow auto-merge" is on, but GitHub refuses it with "Protected branch rules not configured for this branch". Settings → Branches → Add rule for `main`: require "Smoke: typecheck, tests and core journeys" and up-to-date branches. Until then, tracks merge by hand on green.
+  2. **A Fable design session:** Lane asked for one; what it should design is still to come.
+  3. Backlog AD (#227 medium 3, admin import doors keyed on `via`) waits for a pick.
+  4. Optional: build api/mcp.js in CI. Recommended: leave it.
+- **Prompt for the next planning session:** "You are Faro's planning session. Check out main, read CLAUDE.md, the top section of docs/handover.md ('Planning state, Thursday 12 November, 21:55 UTC') and docs/backlog.md. Get your session ID with get_session and send_message every open session listed there: 'Planning has moved to session <ID>. Report there from now on, and send only finished results and blockers.' Then read reports with ReadNotifications; when a track hands over, start a fresh session from its handover prompt; relay the reviewer's findings to the owning track; fix anything that breaks main at once; put Lane's ideas in the backlog; ask Lane the 'Waiting for Lane' items still open, in one batch of multiple-choice questions, recommended answer first. Stay quiet otherwise. Hand over at about half full."
+
 ## Track 1, Thursday 12 November, 21:40 UTC (session past half, handing over; supersedes the 20:15 entry)
 
 Session: session_012kbr92tVe7c6Re4gj42nCe. Nothing merged yet this session. Auto-merge works again (planning, 20:58): once a PR's gate passes and it is current with main, `enable_pr_auto_merge` (MERGE); if it says the PR is already clean, merge by hand.
