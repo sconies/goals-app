@@ -15,7 +15,7 @@ import { checkInsFor } from './status';
 import { isTableView } from './tableLayout';
 import { COMMENT_REMOVED, ENDED, LEFT, MIN_STOP_REASON, RESTORE_DAYS, STOPPED } from './vocabulary';
 import type { Ask, Change, CheckIn, Comment, Cycle, Decision, Goal, Person, Review, Snapshot } from './types';
-import { hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsUndone, type ModuleRecords } from './records';
+import { asBefore, hasModuleRows, moduleRowsBefore, removedModuleRows, restorableModuleRow, rowsUndone, type ModuleRecords } from './records';
 
 const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
@@ -640,7 +640,7 @@ export function restoreRemoved(x: ActionContext, kind: RemovedKind, id: string, 
  * as restored. `before` is the whole workspace as it was just before the removal was saved.
  */
 export function undoRemoval(x: ActionContext, removal: Commit, before: Snapshot): Commit {
-  const back = <T extends { id: string }>(list: T[] | undefined, from: T[] | undefined): T[] => (list ?? []).flatMap((r) => { const b = (from ?? []).find((v) => v.id === r.id); return b ? [b] : []; });
+  const back = <T extends { id: string }>(list: T[] | undefined, from: T[] | undefined): T[] => (list ?? []).flatMap((r) => { const b = (from ?? []).find((v) => v.id === r.id); return b ? [asBefore(r, b)] : []; });
   const out: Commit = {
     people: back(removal.people, before.people),
     goals: back(removal.goals, before.goals),
