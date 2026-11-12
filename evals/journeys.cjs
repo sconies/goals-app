@@ -3007,7 +3007,13 @@ journey('U91', ['FIND-AND-PICK'], 'Picking everywhere else: editing a goal, its 
   await cell.waitFor();
   await h.click(cell);
   await h.fill(p.locator('.pick.open').getByRole('combobox'), 'mei');
-  await h.click(p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first());
+  // FS1's review: the open panel isn't cut off by the table it sits in. Its first option is on screen and is what a
+  // click at its middle reaches, without scrolling.
+  const meiOpt = p.locator('.pick.open').getByRole('option', { name: /Mei/ }).first();
+  await meiOpt.waitFor();
+  const reached = await meiOpt.evaluate((o) => { const b = o.getBoundingClientRect(); const x = b.left + b.width / 2, y = b.top + b.height / 2; return y > 0 && y < innerHeight && x > 0 && x < innerWidth && o.contains(document.elementFromPoint(x, y)); });
+  h.set('finish', reached, 'Data’s owner picker is cut off by the table: its first option can’t be reached where it is drawn');
+  await h.click(meiOpt);
   await see(p, /1 change in 1 row, not saved yet/, 'picking an owner in Data did not make a change to review');
   h.set('attention', (await p.locator('.dcell.edited').count()) === 1, 'the changed owner cell is not marked as changed');
   const dataBig = await big();

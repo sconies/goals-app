@@ -27,7 +27,10 @@ export function goalRows(s: Snapshot, cycle: Cycle, today: Date, week: number, c
 
 export function personRows(s: Snapshot): PersonRows {
   const teams = new Map(s.teams.map((t) => [t.id, t]));
-  return { kind: 'person', people: live(s.people), teamName: (id) => teams.get(id)?.name ?? '', teamLead: (id) => teams.get(id)?.leadId ?? null };
+  // People who have left are in the cycle's archive (scopeToCycle): the search keeps them, for Find's "(left)" (FS1 review).
+  const here = new Set(s.people.map((p) => p.id));
+  const people = live([...s.people, ...(s.archive?.people ?? []).filter((p) => !here.has(p.id))]);
+  return { kind: 'person', people, teamName: (id) => teams.get(id)?.name ?? '', teamLead: (id) => teams.get(id)?.leadId ?? null };
 }
 
 export function teamRows(s: Snapshot): TeamRows {
