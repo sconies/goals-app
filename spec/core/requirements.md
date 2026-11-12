@@ -1164,7 +1164,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8

@@ -61,6 +61,9 @@ export const VIA_MCP_BEFORE = 'AI assistant (MCP)';
 export const VIA_MCP = { field: 'Via', from: '—', to: VIA_LABEL.mcp } as const;
 /** The doors where a check-in's unlikely number is asked about here (C6). The bulk check-in grid asks it beside the cell. */
 const ASKS_NUMBERS: Via[] = ['spreadsheet', 'mcp', 'table'];
+/** Screens where someone types a check-in's number in their own locale: "3,9" there is 3.9, as on the check-in form,
+    never a question. The decimal-comma Check is a file's (import spec, section 4). */
+const TYPED_ON_SCREEN: Via[] = ['bulk', 'form'];
 
 export type ItemKind = 'new goal' | 'goal' | 'plan' | 'check-in' | 'replaces check-in' | 'person' | 'new person' | 'team' | 'stop goal' | 'delete goal' | 'person left';
 export interface Item {
@@ -1042,7 +1045,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
     const open = unanswered(asked, draft.answers);
     if (open.length) { raise('checkin-incomplete', 'Check-ins', row, g.title, `${open[0]!.question} Answer it first.`); return; }
-    if (!post && g.kind !== 'milestone' && commaDecimal(draft.value) && ask('decimal-comma', 'Check-ins', row, g.title, `“${draft.value}” was read as ${parseNumber(draft.value)}: a comma as the decimal mark.`, { answers: ANSWERS.sure, suggest: String(parseNumber(draft.value)), found: '' }) === 'leave') return;
+    if (!post && !TYPED_ON_SCREEN.includes(via) && g.kind !== 'milestone' && commaDecimal(draft.value) && ask('decimal-comma', 'Check-ins', row, g.title, `“${draft.value}” was read as ${parseNumber(draft.value)}: a comma as the decimal mark.`, { answers: ANSWERS.sure, suggest: String(parseNumber(draft.value)), found: '' }) === 'leave') return;
     // A week before the plan was changed is judged against the plan that applied then.
     const asOf: Goal = goalAsOf(g, w);
     const e = evaluate(asOf, cycle, w, draft, ctx);

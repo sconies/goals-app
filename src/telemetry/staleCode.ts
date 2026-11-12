@@ -4,7 +4,11 @@
    the person carries on. Drafts are saved as they type (src/app/drafts.ts), so nothing typed is lost.
 
    Once means once in a short while: if the reload didn't help (the network is down, the file really is broken), the
-   next failure shows the error page as before rather than reloading forever. */
+   next failure shows the error page as before rather than reloading forever.
+
+   Offline is not stale code (#167's review): a part that can't be fetched because the network is down fails with the
+   same words, and a reload then has nothing to load, so the browser's own error page replaced Faro. When the browser
+   says it is offline, nothing reloads; the page says so plainly instead (`isOffline`, the error page in react.tsx). */
 
 /** What browsers and Vite say when a file of the build can't be fetched or run any more. */
 const STALE = [
@@ -28,12 +32,17 @@ const KEY = 'faro-stale-reload';
 /** A second failure within this long of the reload is a real failure, not stale code: show it. */
 export const RELOAD_WINDOW_MS = 60_000;
 
-type Env = { storage?: Pick<Storage, 'getItem' | 'setItem'> | null; reload: () => void; now: () => number };
+type Env = { storage?: Pick<Storage, 'getItem' | 'setItem'> | null; reload: () => void; now: () => number; online?: () => boolean };
+
+/** Whether the browser says it has no network. Only a definite "offline" counts: unknown is online. */
+export function isOffline(): boolean {
+  try { return typeof navigator !== 'undefined' && navigator.onLine === false; } catch { return false; }
+}
 
 function browserEnv(): Env {
   let storage: Env['storage'] = null;
   try { storage = window.sessionStorage; } catch { /* blocked */ }
-  return { storage, reload: () => window.location.reload(), now: () => Date.now() };
+  return { storage, reload: () => window.location.reload(), now: () => Date.now(), online: () => !isOffline() };
 }
 
 let reloading = false;
@@ -42,8 +51,10 @@ let reloading = false;
 export function reloadOnce(env: Env = browserEnv()): boolean {
   // Vite's event and the error page can both ask, for the same failure: one reload.
   if (reloading) return true;
-  const { storage, reload, now } = env;
+  const { storage, reload, now, online } = env;
   if (!storage) return false;
+  // Offline: a reload would load nothing at all. Don't use up the once either; the next failure online still reloads.
+  if (online && !online()) return false;
   try {
     const last = Number(storage.getItem(KEY) ?? 0);
     if (last && now() - last < RELOAD_WINDOW_MS) return false;
