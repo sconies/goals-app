@@ -78,6 +78,10 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - changing a goal’s owner › says so when an Owner ID matches no one
 - People columns do what the field table says (review of #130) › an empty Admin cell keeps what is there; yes and no change it
 - People columns do what the field table says (review of #130) › Takes over accepts an email, or a name only one person has, and asks about one one letter out
+- From and To in a file (rule 13; GE9 review) › reads a new goal’s To when Due week is left blank, as every export has both
+- From and To in a file (rule 13; GE9 review) › says a To before From in its own words, with Due week blank
+- From and To in a file (rule 13; GE9 review) › still refuses To and Due week that disagree
+- From and To in a file (rule 13; GE9 review) › asks which a bare number under From is, in a file with no Start column
 
 ### [src/domain/postCheckIn.test.ts](../../../src/domain/postCheckIn.test.ts)
 

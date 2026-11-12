@@ -22,7 +22,7 @@ import { fold } from './find';
 import { FAR_RATIO, groupDigits, notNumberText, numberAsTyped, parseNumber, placesText, typedDecimals, usuallyPositive } from './numbers';
 import { isTop, levelIds, levelName, levelRank, type LevelsOf } from './levels';
 import { lateShare, planAt, planEnd } from './plan';
-import { weekSays, weeksProblem, yearWeek } from './weeks';
+import { defaultTo, weekSays, weeksProblem, weekUnknownText, yearWeek } from './weeks';
 import { sameTitleGoals } from './people';
 
 export { decimalsFor, unanswered };
@@ -120,13 +120,15 @@ const withUnit = (v: string, unit: string) => (unit.trim() === '%' ? v + '%' : u
  * A number draft's From and To as cycle weeks (rule 13): what it says, else what the goal has, else this week and the
  * cycle's end. `bad`: the field whose week isn't a whole number (a file or a tool).
  */
-export function planSpanOf(d: Pick<GoalDraft, 'fromWeek' | 'endWeek'>, ctx: { week: number; cycleWeeks: number; existing: Goal | null }): { from: number; to: number; bad?: 'fromWeek' | 'endWeek' } {
+export function planSpanOf(d: Pick<GoalDraft, 'fromWeek' | 'endWeek'>, ctx: { week: number; cycleWeeks: number; existing: Goal | null; startDate?: string }): { from: number; to: number; bad?: 'fromWeek' | 'endWeek' } {
   const was = ctx.existing?.kind === 'metric' ? ctx.existing.plan : null;
   const whole = (v: string | undefined) => { const n = v != null && v.trim() !== '' ? parseNumber(v) : null; return n != null && Number.isInteger(n) ? n : null; };
   const fromSet = d.fromWeek != null && d.fromWeek.trim() !== '', toSet = d.endWeek.trim() !== '';
   const from = fromSet ? whole(d.fromWeek) : was ? was.fromWeek ?? 0 : Math.max(0, ctx.week);
-  const to = toSet ? whole(d.endWeek) : ctx.cycleWeeks;
-  return { from: from ?? 0, to: to ?? ctx.cycleWeeks, ...(from == null ? { bad: 'fromWeek' as const } : to == null ? { bad: 'endWeek' as const } : {}) };
+  // No To: the cycle's end, or the end of next year for a From at or past it (the year's last week; GE9 review).
+  const end = ctx.startDate && from != null ? defaultTo({ startDate: ctx.startDate, weeks: ctx.cycleWeeks }, from) : ctx.cycleWeeks;
+  const to = toSet ? whole(d.endWeek) : end;
+  return { from: from ?? 0, to: to ?? end, ...(from == null ? { bad: 'fromWeek' as const } : to == null ? { bad: 'endWeek' as const } : {}) };
 }
 
 /** The words for a number that has more places than its goal keeps (section 4, `too-precise`). */
@@ -181,7 +183,8 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       for (const [w, v] of typed) { const before = out.length; number('points', v, null, `Week ${w}: `); if (out.length > before) { out[out.length - 1]!.id = 'plan-point'; break; } }
       // From and To (rule 13): a week a file or a tool gives that isn't one, runs backwards, or is past next year.
       const span = planSpanOf(d, ctx);
-      if (span.bad) add(span.bad, 'week-unknown', `${span.bad === 'fromWeek' ? 'From' : 'To'} says “${(span.bad === 'fromWeek' ? d.fromWeek : d.endWeek) ?? ''}”. Write a year and a week, like 2026-W46, or the week’s number.`);
+      if (span.bad) add(span.bad, 'week-unknown', ctx.startDate ? weekUnknownText({ startDate: ctx.startDate, weeks: ctx.cycleWeeks }, span.bad === 'fromWeek' ? 'From' : 'To', (span.bad === 'fromWeek' ? d.fromWeek : d.endWeek) ?? '', ctx.week)
+        : `${span.bad === 'fromWeek' ? 'From' : 'To'} says “${((span.bad === 'fromWeek' ? d.fromWeek : d.endWeek) ?? '').trim()}”. Write a year and a week, or the week’s number.`);
       else if (ctx.startDate) {
         const p = weeksProblem({ startDate: ctx.startDate, weeks: ctx.cycleWeeks }, span.from, span.to);
         if (p) add(p.field === 'from' ? 'fromWeek' : 'endWeek', p.id, p.text);
