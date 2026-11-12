@@ -217,7 +217,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
       const kept = (k: R.KeptRow) => ({ row: k.name, reason: k.reason, at: k.at });
       if (a.dry_run === true) {
         const p = R.undoPreview(ax(ctx), String(a.import_id ?? ''));
-        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
+        return { data: { restores: p.restores, skipped: p.skipped.map(kept), saved: false }, text: !p.restores ? `Nothing saved. ${R.nothingToUndo(p.skipped.length)}${p.skipped.length ? ` ${p.skipped.map(R.keptText).join('; ')}.` : ''}` : `Nothing saved. Undo would put back ${p.restores} ${p.restores === 1 ? 'row' : 'rows'}.${p.skipped.length ? ` ${p.skipped.length} would stay as they are, because they changed after the import: ${p.skipped.map(R.keptText).join('; ')}.` : ''}` };
       }
       const out = R.undoImport(ax(ctx), String(a.import_id ?? ''));
       await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA] })) });
