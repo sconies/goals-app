@@ -1,6 +1,6 @@
 # Track 6 handover: the handoff kit (KT)
 
-Written 12 Nov 2026 by the first track 6 session and updated by the second, each at half context. The next session starts from here.
+Written 12 Nov 2026 by the first track 6 session and updated by the second and third, each at half context. The next session starts from here.
 
 ## The brief
 
@@ -11,7 +11,8 @@ The ground rules:
 - Merge your own PRs once CI is green and the gate has passed: `npm run typecheck`, `npm test`, `npm run evals:changed`, `npm run spec` committed, and `npm run drill -- scripts/drill-faro` at 100%.
 - Commits say `[no news]` unless something people see changes.
 - Keep the first-download budget untouched.
-- Report to the planning session (`session_012kbr91PHhQvhHZRqaiFs6n`) once, when done or blocked.
+- Report to the planning session (`session_012kbr939zneZWtAo7UQEHRP` since 12 Nov evening) once, when done or blocked.
+- Auto-merge: the planning session said on 12 Nov it is on, but on #245 GitHub still answered "Auto-merge is not enabled for this repository". Try `enable_pr_auto_merge` (method MERGE) on a ready PR; if it refuses, merge by hand once CI is green.
 
 ## Done
 
@@ -30,9 +31,17 @@ The ground rules:
   - Stages 2 and 3 are `drill` now, each with a "The drill" section (`drillSection`), saying what is still checked by hand.
   - Tests: `src/spec/conformance.test.ts` (the save cases) and `src/spec/rebuild.test.ts` (a stage 2 rebuild).
 
+- **KT3, gap 1 part (b), search and prefs (#245, merged).** The port contracts as data:
+  - **Format:** `src/ports/contracts/cases/format.ts` (`Contract`, `Case`, `Step`, `Then`). Cases are in `cases/search.ts` and `cases/prefs.ts`. `npm run spec` writes them, with a README, to `spec/conformance/contracts/` (`src/spec/contracts.ts`, `CONTRACTS`).
+  - **One set of checks:** the matchers, `runContract` and `openShim` live in `scripts/drill.mjs` (typed by `scripts/drill.d.mts`). Vitest uses them through `src/ports/contracts/cases/run.ts` (`contractSuite`, `caller`, `methods`).
+  - **The shim:** `drill.json` takes `"shim"` (and optionally `"contracts"`, or `--contracts`). A case first sends `{ port, op: "given", args: [given] }`. Faro's shim, `scripts/drill-faro/shim.mjs`, answers with `src/adapters/contractPorts.ts`, which `parts.test.ts` also uses. The drill-faro run now also reports 13 of 13 cases.
+  - **Search seed:** written in `cases/search.ts` (`SEARCH_SEED`: 3 teams, 8 people, 6 goals, one in each ranked status). `searchContractWorkspace` is gone.
+  - **Tests:** `src/spec/contracts.test.ts`.
+  - **To add the goals and store contracts:** write `cases/<port>.ts`, add it to `CONTRACTS`, give `contractPorts.ts` a start for it, and make `<port>Contract` call `contractSuite`. Keep the goals contract's four structural check names (`ports-at-scale.md` cites them).
+
 ## Next, in order
 
-1. **Gap 1, part (b): port contracts as data.** Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
+1. **Gap 1, part (b), the rest: the goals and store contracts as data** (search and prefs are done: KT3). Agreed with track 4 (`session_012kbr8yGf2m8ghRQungzjo3`; also `session_012kbr8xdoEbLiMQaBAxLeuJ` for #193's follow-ups):
    - **The format:** cases in `src/ports/contracts/cases/<port>.ts`, each `{ given, when: { op, args }, then }`, with several steps where a case needs them. The vitest contracts run the list, and `npm run spec` writes `spec/conformance/contracts/<port>.json`. The drill runs a build's shim: one JSON request per line on stdin, one answer per line on stdout.
    - **Order:** search and prefs first, then store, then goals.
    - **A decision for search first:** today's search contract (`src/ports/contracts/search.ts`) seeds the full demo (`buildExample`), and checks job titles and team sizes (`detail: 'Engineering Manager, CI/CD · CI/CD'`). `spec/conformance/workspace.json` has neither: people carry only `id`, `name`, `teamId` and `admin`. Pick one of these:
@@ -43,7 +52,12 @@ The ground rules:
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
      - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
-2. **Gap 2:** generate `docs/export-format.md` into `spec/`, add a page with every issue kind (trigger, level, sentence) and every column's other spellings, and grow `import.csv` until every kind has a row.
+2. **Gap 2 (next to build: it doesn't wait on track 4):** generate `docs/export-format.md` into `spec/`, add a page with every issue kind (trigger, level, sentence) and every column's other spellings, and grow `import.csv` until every kind has a row. Where things are, found by the third session:
+   - **Kinds and levels:** `src/domain/problemLevels.ts` (`MUST_KINDS` 20, `CHECK_KINDS` 20, `NOTE_KINDS` 9, `levelOf`; the group sentence for each kind is `groupSentence`'s switch near line 250).
+   - **Triggers, sentences and answers:** these are written only in `docs/design/import/spec.md` section 4 (a table per level), which is not in the kit.
+   - **Suggested shape:** "rules live once", so move those triggers into code as data (say `ISSUE_KINDS: Record<IssueKind, { trigger, example }>` next to the kinds). Generate the page from it, and add a test that every kind has an entry and a row in `import.csv`.
+   - **The export format:** `scripts/export-format.mjs` already writes `docs/export-format.md` from `exportFormatMarkdown(MODULE_SHEETS)` (`src/domain/formatDoc.ts`). Have `buildSpec` write the same text into `spec/` (beside or instead of the docs copy), and fix the two pages that say it isn't in the kit (`stage-2-core-data.md`, `stage-5-module-spreadsheets.md`).
+   - **import.csv cases:** `changeCases` in `src/spec/conformance.ts` (63 today).
 3. **Gap 3:** the screens. Put `docs/design-rules.md` and the Help guide in the kit, generate a fields-and-states table per screen, and add screenshots at 390 and 1440 wide. Give the missing screens entries.
 4. **Gap 4:** schemas for the AI tools and actions, generated into `spec/core/tools.md` and `spec/core/actions.md`.
 5. **Gap 5:** requirements R5, R7, R8 and R9 with acceptance checks, and an accessibility standard.
