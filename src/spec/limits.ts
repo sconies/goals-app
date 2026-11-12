@@ -65,11 +65,14 @@ export const LIMITS: Limit[] = [
   { constraint: 'okr_metrics_source_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_source_owner_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
   { constraint: 'okr_metrics_caveats_check', holds: ['<= 2000'], rule: 'metric-defined', words: '', code: 'src/modules/metrics/rules.ts#METRIC_LIMITS' },
+  { constraint: 'okr_goal_metrics_part_len', holds: ['<= 60'], rule: 'metric-measured-by', words: 'The part of a metric a goal is measured by (“Which part”) has at most 60 characters; empty means all of it.' },
+  { constraint: 'okr_metrics_retired_why_len', holds: ['<= 300'], rule: 'metric-care', words: 'Why a metric was retired has at most 300 characters.' },
 ];
 
 /** Check constraints that aren't a rule for the rebuild, and why. A table name stands for every constraint on it. */
 export const NOT_LIMITS: Record<string, string> = {
   okr_changes_undo_check: 'How Faro stores an undo; the change log’s shape is in the data model.',
+  okr_metrics_marks_array: 'How Faro stores a metric’s marks (a list); the data model gives `marks` as a list of changes.',
   okr_goal_metrics_check: 'How Faro stores a goal’s metric beside the goal (one row per goal); the data model has `metricId` on the goal.',
   okr_markups: 'Markups go to the builders’ inbox, which R1 replaces (MARKUP-INBOX is tagged replace).',
   okr_feedback: 'Feedback is kept per workspace by R5 (FEEDBACK-INBOX is tagged replace).',
