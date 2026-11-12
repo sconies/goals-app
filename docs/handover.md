@@ -289,6 +289,43 @@ Brief: the planning session's of 12 Nov (items 1 to 6 below). Done in this sessi
 - **Open with Lane:** the demo-script corrections offered after the motion video (step 6 reads 40 after a review decision; where "Being handled" shows) were never answered; with no talk they may not matter. Parked: should only a review's members mark its goals reviewed; Home's count links on phones. 0c2 (drop the public redirects) about 18 Nov.
 - **For the next planning session:** read reports with `ReadNotifications`; start a fresh session for any track that hands over (its handover is in its last PR); keep U9, U23, U73 (scoring 8.6–8.9 locally) and U20's load timeout in view.
 
+## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~23:10 UTC (session past half full, handing over)
+
+Session: session_012kbr8yX1yx6BkMYiJ6F5Dr. Each build ran in a subagent in its own worktree (`git worktree add`, then `cp -al node_modules`), and each eval run went to a subagent that returned only the scorecard. Merges used **merge commits**. Planning is session_012kbr939zneZWtAo7UQEHRP.
+
+- **Merged:**
+  - #293, GE10's four review mediums:
+    - no set-up check-in, and no stage question, when proposing (`ChecksContext.proposing`);
+    - `leaving()` reads `withProposed`;
+    - the Home line was dropped from `afterProposing`;
+    - `activate` asks `from-past` itself (`make_goal_active` takes `confirm`) and refuses a From outside week 0 to the plan's To.
+  - #292, migration 0042: `range_bound` may be `between`, with `range_lower` below `range_limit`; applied by CI. Its limits row was added by #295 from another session.
+- **Open:** #300, the two-sided range code. Its gate is in the PR body; CI was running at hand-over. Merge it on green after merging main, using the habits below. If main moves, its usual conflicts are `whatsNew.ts`, `api/mcp.js` and `src/mcp/mcp.test.ts`.
+- **U31 (20 steps against a budget of 19):** not changed; it needs Lane. It was 18 before OB1 (#129, 12 Nov 03:26). OB1 added the "who and where" step, and rule 1's level choice for a lead whose team owns a north star (Mateo leads SRE): "Level: Team" plus Continue. Both are the onboarding spec's design (2.1–2.5, `startLevel`), so taking them out would undo an approved design. Options:
+  - (a) U31's 150% check runs as someone who isn't asked the level, so it measures the share question alone (recommended);
+  - (b) raise U31's budget to 20;
+  - (c) default a lead to Team and let Check change it.
+- **Next:** GE10's follow-up (F), from #270's body:
+  - Home's two proposal rows (`proposalAsks`; needs seen and put-off state). Once built, restore the read-back line "{Owner} sees it on their Home as a proposal for them".
+  - "Make it proposed again" (`backToProposed` is built; it has no action).
+  - Map and Board with the filter.
+  - The metric page's "Proposed · n".
+  - Reviews' "Propose a new goal" and "Last time".
+  - Changing the type while proposed.
+  - "Stopped" in the State filter.
+  - `for-someone-else` for files and tools.
+  - What feeds it.
+  - The start-year count.
+  - The `stoppedAt` lint (about 25 reads).
+  - New from #293: "Make it active" could ask which past stages are done and save them as the first check-in; today they are marked at the first check-in.
+  - The review's lows: `ask_for_update` on a proposed goal; two primary buttons with "Make it active" open; 22 px buttons; "Rhea see"; the scope rule written twice; no MCP test of `make_goal_active` beyond #293's.
+- **Habits:**
+  - The first download is 259.4 of 265 KB on #300's branch (main was 264.7 before #300 moved `RangeChart` out): keep new code lazy.
+  - `evals/touches.cjs` has no rule for `src/domain/proposedActions.ts` or `src/domain/range.ts`, so `evals:changed` runs the full suite (about 17 minutes).
+  - A finish check runs alone with `FINISH=N12`, not `ONLY=`.
+  - `enable_pr_auto_merge` still refuses (no branch protection), so merge by hand.
+  - CI's vitest sometimes fails one timing test under load (`importSpeed`, `undoElsewhere`); they pass alone. One re-run each.
+
 ## Track 2 (one goal, goal entry, set-up), Thursday 12 November, ~20:30 UTC (session past half full, handing over)
 
 Session: session_012kbr8zF82vbVLvoqfYaQad. It ran each item through one subagent at a time in the main checkout from a common brief, merged main into its PRs in worktrees, and merged with **merge commits**. Planning is now session_012kbr939zneZWtAo7UQEHRP: report there once, finished results and blockers only.
