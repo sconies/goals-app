@@ -1622,7 +1622,7 @@ journey('U20', ['BULK-IMPORT', 'SPREADSHEETS-ON-DATA'], 'Load a spreadsheet from
   await h.click(menu);
   await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
   await p.waitForURL(/\/data\/import/);
-  await see(p, 'Import from a spreadsheet');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await h.checkpoint('import');
   const csv = (name, text) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
   const input = p.getByLabel('Choose a spreadsheet');
@@ -4181,7 +4181,7 @@ journey('U46', ['ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'PERSON-EMAIL', 'I
   await p.goto(url('/data'));
   await h.click(p.locator('.data-export > summary'));
   await h.click(p.locator('.data-export').getByRole('button', { name: 'Import a spreadsheet…' }));
-  await see(p, 'Import from a spreadsheet');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.');
   await p.getByLabel('Choose a spreadsheet').setInputFiles(edited);
   await see(p, '1 goal changed, 1 goal stopped', 'the preview does not say exactly the two changes');
   await see(p, 'Read Goals, Plan, Check-ins and People', 'the preview does not say which sheets it read');
@@ -4267,7 +4267,7 @@ journey('U48', ['MODULES', 'SPREADSHEETS-ON-DATA'], 'An admin switches Spreadshe
   await p.locator('.data-export > summary').waitFor();
   await p.goto(url('/import'));
   await p.waitForURL(/\/data\/import/);
-  await see(p, 'Import from a spreadsheet', 'Import did not come back');
+  await see(p, 'Add or change goals, plans, check-ins and people from a spreadsheet.', 'Import did not come back');
   // Off again, then Undo straight away, without leaving the page: it comes back (Lane, 11 Nov: the Undo said "back on"
   // and left it off). Checked, not scored: the steps above are the journey.
   await p.goto(url('/workspace/features'));
@@ -5210,6 +5210,38 @@ journey('U89', ['IMPORT-PREVIEW', 'ROUND-TRIP'], 'Out and back in: the workbook 
   h.set('progress', true);
   await p.context().close();
 }, ['parity', 'entry', 'logged', 'errors']);
+
+journey('U95', ['BULK-IMPORT', 'IMPORT-LEVELS'], 'The way in: as Amara, rows pasted from a spreadsheet with “Goal name” and “Targett” as headers are read, Targett asked about once and read as Target, and saved; a CSV with a title row says its header is on row 2; a file with no Faro sheet says what headers it found and offers the template', 12, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/data/import'));
+  await see(p, 'Up to 5,000 rows a file', 'Import does not say how many rows a file may have');
+  await h.click(p.getByRole('button', { name: 'or paste rows from a spreadsheet' }));
+  const box = p.getByLabel('Paste rows from a spreadsheet');
+  await box.waitFor();
+  await h.fill(box, 'Goal name\tOwner\tTeam\tUnit\tStart\tTargett\nPasted cache hit rate\tRhea Kapoor\tCI/CD\t%\t20\t90\n');
+  await h.click(p.getByRole('button', { name: 'Check these rows' }));
+  await p.waitForURL(/\/data\/import\/check$/);
+  await see(p, 'A column on Goals is called “Targett”. Read it as Target?', 'a header one letter out is not asked about');
+  await h.checkpoint('near header');
+  await h.click(p.getByRole('radio', { name: 'Read it as Target' }));
+  await h.click(p.getByRole('button', { name: 'Save 1 change' }));
+  await p.waitForURL(/\/data\/import\/done\/imp_/);
+  const s = await h.snapshot();
+  const g = s.goals.find((x) => x.title === 'Pasted cache hit rate');
+  h.set('finish', !!g && g.plan && g.plan.target === 90 && g.ownerId === 'rhea', `the pasted goal: ${JSON.stringify(g && { target: g.plan && g.plan.target, owner: g.ownerId })}`);
+  // A title row above the headers.
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('titled.csv', 'Platform goals FY27,,\nGoal,Owner,Team,Unit,Start,Target\nTitled cache size,Rhea Kapoor,CI/CD,GB,20,10\n'));
+  await see(p, 'Row 2 of titled.csv is the header row; 1 row above it was skipped.', 'a title row above the headers is not said');
+  h.set('attention', true);
+  // No Faro sheet: what was found, and the template.
+  await p.goto(url('/data/import'));
+  await p.getByLabel('Choose a spreadsheet').setInputFiles(csvFile('staff.csv', 'Name,Department,Salary band\nAna,Ops,B\n'));
+  await see(p, 'Its first sheet’s headers are Name, Department, Salary band…', 'a file with no Faro sheet does not say what it found');
+  h.set('errors', await p.getByRole('alert').getByRole('button', { name: 'Download the template' }).isVisible(), 'the template is not offered beside the problem');
+  h.set('progress', true);
+  await p.context().close();
+}, ['parity', 'logged']);
 
 journey('U94', ['IMPORT-LEVELS', 'IMPORT-PREVIEW'], 'Who may import what: as Tunde, a workbook with his own target changed and Rhea’s changed gives one group “1 row changes a goal you don’t own” with “Leave these rows out”, and a People row changed gives the admins-only group; both left out, his change saves and Rhea’s goal is as it was', 12, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));

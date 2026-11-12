@@ -399,7 +399,8 @@ export function sheetKindOf(header: readonly string[]): SheetKind | null {
   if (h.has('ask') && any('asked by', 'asked of')) return 'asks';
   if (h.has('said by') || (h.has('text') && h.has('kind') && any('goal', 'goal id'))) return 'notes';
   if (any('goal', 'key') && !h.has('name')) return any('goal', 'type', 'owner', 'owner email', 'target', 'level', 'action', 'status') ? 'goals' : null;
-  if (any('name', 'email') && !h.has('goal')) return 'people';
+  // A People sheet (C17): Email, or Name with another People column (a Name and a Salary band are no Faro sheet).
+  if (any('name', 'email') && !h.has('goal')) return h.has('email') || any('team', 'job title', 'admin', 'id') ? 'people' : null;
   return null;
 }
 
