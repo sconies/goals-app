@@ -46,6 +46,9 @@ export interface PlaceProps {
         draft" find it again. Undefined: nothing kept yet (the goal's own link, if any, stands). */
     kept?: string;
     onKeep?: (kept: string) => void;
+    /** Draws nothing: only says (onChange) what the choice kept in the draft means for the goal as typed now, its team
+        included. New goal's Check reads it this way, so a reload there, or a team changed since, saves what is said. */
+    quiet?: boolean;
   };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
