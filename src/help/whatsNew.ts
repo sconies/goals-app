@@ -33,6 +33,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['data', 'feedback'],
   },
   {
+    id: 'check-ins-owners-words',
+    date: '2026-11-12',
+    title: 'Check-ins are the owner’s, said everywhere',
+    points: [
+      'Answering an update ask, only the goal’s owner is offered Check in for the week; anyone else answers in a sentence.',
+      'A check-in an admin loaded is headed with the admin’s name, not as what the owner said.',
+      'One change can’t take a goal and check in on it at once: a check-in is judged against the owner before the change.',
+      'An AI assistant is told only the owner can check in, and changing feedback’s GitHub issue is for admins, saving nothing when refused.',
+    ],
+    articles: ['requests', 'goal-page', 'inbox'],
+  },
+  {
     id: 'mcp-lists-one-shape',
     date: '2026-11-12',
     title: 'AI tools get every list in one shape',

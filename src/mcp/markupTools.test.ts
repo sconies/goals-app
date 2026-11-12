@@ -74,7 +74,17 @@ describe('the MCP server’s markup tools', () => {
     const refused = await b.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'in-hand' });
     expect(refused.isError).toBe(true);
     expect(b.list[0]!.status).toBe('new');
+    // A refused call saves nothing: not the issue's address either, alone or with a status (#222's build review).
+    for (const args of [{ issue_url: 'https://github.com/sconies/goals-app/issues/7' }, { status: 'in-hand', issue_url: 'https://github.com/sconies/goals-app/issues/7' }]) {
+      const half = await b.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', ...args });
+      expect(half.isError).toBe(true);
+      expect(b.list[0]).toMatchObject({ status: 'new' });
+      expect(b.list[0]!.issueUrl ?? null).toBeNull();
+    }
     const a = await setup({ person: 'grace' });
+    // An admin's fix with no entry is refused before the address is kept.
+    expect((await a.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'fixed', issue_url: 'https://github.com/sconies/goals-app/issues/8' })).isError).toBe(true);
+    expect(a.list[0]!.issueUrl ?? null).toBeNull();
     const fixed = await a.call('update_markup', { id: 'mk_aaaaaaaaaaaaaaaa', status: 'fixed', fixed_in: WHATS_NEW[0]!.id, issue_url: 'https://github.com/sconies/goals-app/issues/9' });
     expect(fixed.isError).toBe(false);
     expect(a.list[0]).toMatchObject({ status: 'fixed', fixedIn: WHATS_NEW[0]!.id, issueUrl: 'https://github.com/sconies/goals-app/issues/9' });
