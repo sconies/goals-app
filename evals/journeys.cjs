@@ -4764,7 +4764,7 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 /* Goal entry, GE1 and GE2 (docs/design/goal-entry/spec.md, 2.1 and 2.4): a goal says what it needs, and asks about what
    is unlikely. The file and AI tools' side is N19 (evals/goalEntry.eval.ts): the same faults and questions there return
    the same words. */
-journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
+journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, New goal; choosing Amara as owner says she will own it and only she or an admin can change it after; the measure step says “Everything here is needed unless it says optional.” and Unit starts empty and optional; Continue with Baseline empty and Target “30 mins” puts each Must fix under its field and “2 things to fix above: Baseline and Target.” above the button, focus on Baseline; fixed, the decimals line reads “Kept as whole numbers, as you typed them.” and the goal publishes for Amara: with the app’s files slow to arrive, nothing between Publish and the goal’s page says a question is open or something needs fixing, and the button never says “Saving…” beside the “Published” toast. 50 → 150% asks the over-100 question and Continue waits (“Answer the question above, under Target.”); answered, it goes on, and going back shows “You said 150% is right.”; 160 asks again; published, History lists the answer as Checked. Dated stages: two called “Design” and one with no week each get their own line', 36, async (h, device) => {
   const p = h.use(await newPage(device, 'tunde'));
   await p.goto(url('/goals/new'));
   await p.waitForURL(/\/goals\/new\/what(\?|$)/);
@@ -4799,7 +4799,26 @@ journey('U93', ['GOAL-ENTRY-REQUIRED'], 'A goal says what it needs: as Tunde, Ne
   await h.checkpoint('measure');
   await h.click(p.getByRole('button', { name: /Continue/ }));
   await p.waitForURL(/\/goals\/new\/check(\?|$)/);
+  // Publish shows one outcome (bug, 12 Nov): with the app's files slow to arrive, as from a far server, nothing between
+  // Publish and the goal's page says a question is open or something needs fixing, and the button never says “Saving…”
+  // beside the “Published” toast.
+  await p.route('**/assets/**', async (r) => { await new Promise((res) => setTimeout(res, 1200)); await r.continue().catch(() => {}); });
   await h.click(p.getByRole('button', { name: 'Publish goal' }));
+  const mixed = new Set();
+  for (const t0 = Date.now(); Date.now() - t0 < 15000;) {
+    const s = await p.evaluate(() => ({
+      page: !!document.querySelector('.first-checkin'),
+      note: [...document.querySelectorAll('.note-bad')].map((e) => e.textContent).join(' | '),
+      saving: [...document.querySelectorAll('.focus-foot .btn.primary')].some((e) => /Saving/.test(e.textContent || '')),
+      toast: [...document.querySelectorAll('.toast')].some((e) => /Published/.test(e.textContent || '')),
+    })).catch(() => null);
+    if (s?.note) mixed.add(`the Check step says “${s.note}”`);
+    if (s?.saving && s.toast) mixed.add('the button says “Saving…” beside the “Published” toast');
+    if (s?.page) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  await p.unroute('**/assets/**');
+  h.set('finish', mixed.size === 0, `after Publish ${[...mixed].join(', and ')}`);
   await p.waitForURL(/\/goals\/[^/]+\?published=1/);
   h.set('finish', /Amara/.test(await p.locator('main').innerText()), 'the goal published for Amara doesn’t name her');
 

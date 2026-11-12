@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'publish-one-outcome',
+    date: '2026-11-12',
+    title: 'Publishing a goal says one thing',
+    points: [
+      'Pressing Publish goal no longer shows a question still to answer, a stuck “Saving…” and “Published” all at once.',
+      'Once it is published, the goal’s page opens with the “Published” note, and it opens sooner.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'goal-read-back',
     date: '2026-11-12',
     title: 'Read your goal back before it’s published',
