@@ -267,7 +267,7 @@ New goal asks what, who and where, how it's measured, then reads it back in sent
 
 - **Rule:** [New goal](rules/new-goal.md), [The read-back](rules/read-back.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
-- **Journeys and checks:** F16, U84, U137, U145
+- **Journeys and checks:** F16, U84, U134, U137, U145
 
 ### GOAL-ENTRY-REQUIRED
 
@@ -284,6 +284,14 @@ A goal's weeks are chosen, not typed, and are always shown with their dates and 
 - **Rule:** [Years and weeks](rules/years-and-weeks.md)
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`; “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
 - **Journeys and checks:** U109
+
+### GOAL-PROPOSED
+
+A goal can be proposed before anyone is held to it: it is visible and can be discussed, has no status and nothing due, is counted apart from active goals, and becomes active only by a deliberate act of its owner or an admin.
+
+- **Rule:** [Proposed goals](rules/proposed.md)
+- **Help:** “Proposed goals” (`goal-proposed`), screens `ProposedGoal`, `ProposedList`
+- **Journeys and checks:** U134
 
 ### NEW-GOAL-TRUTH
 

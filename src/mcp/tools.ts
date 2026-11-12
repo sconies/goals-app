@@ -15,7 +15,7 @@ import { GOAL_ACTION_WORDS, PERSON_ACTION_WORDS } from '../domain/columns';
 import { goalScorecard } from '../domain/scorecard';
 import { goalStatus } from '../domain/status';
 import { attentionGroup, needsAttention } from '../domain/attention';
-import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, LABEL, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
+import { ATTENTION, choices, codeFrom, COMMENT_REMOVED, FLAG, QUARTER, RESULT, STATUS, withCode } from '../domain/vocabulary';
 import { NEED_OPTIONS } from '../domain/query';
 import { WORK_TOOLS } from './workTools';
 import { listed } from './listed';
@@ -30,8 +30,13 @@ import { MODULE_GOAL_COLUMNS, recordsOn } from '../core/records';
 import { addColumnParams } from '../domain/query';
 import { commentsOf } from '../domain/removal';
 import { findGoal, isKey } from '../domain/goalKey';
+import { isProposed, withProposed } from '../domain/proposed';
+import { activate } from '../domain/proposedActions';
+import { proposedSummary } from '../domain/proposedSummary';
+import { activeReadBack } from '../domain/readBack';
+import { readWeekCode } from '../domain/weeks';
 import { isTableView } from '../domain/tableLayout';
-import type { Cycle, DisplayStatus, Level, Person, Snapshot } from '../domain/types';
+import type { Cycle, DisplayStatus, Goal, Level, Person, Snapshot } from '../domain/types';
 
 export interface McpContext {
   /** The workspace; `recording` is its recording switch (on unless false); `modulesOff`, the feature modules an admin
@@ -173,7 +178,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
 
 /** A goal by its ID or its key (G-12). */
 const goalRef = (ctx: McpContext, id: unknown) => {
-  const g = findGoal(ctx.snapshot.goals, String(id ?? ''));
+  const g = findGoal(withProposed(ctx.snapshot), String(id ?? ''));
   if (!g) throw new Error(`There's no goal with ${isKey(String(id ?? '')) ? 'key' : 'ID'} ${String(id)} in ${ctx.cycle.name}. Use find_goals to get IDs and keys.`);
   return g;
 };
@@ -208,8 +213,9 @@ const GOAL_FIELDS = {
   why_it_helps: str('Why we expect it to help the goal it feeds.'),
   source: str('Where the number comes from.'),
   definition: str('Exactly what is counted.'),
+  state: str('active (the default for a new goal) or proposed: a proposed goal is visible to everyone, has no status and nothing due, and needs no plan yet; its owner or an admin makes it active (make_goal_active). A goal with check-ins can’t go back to proposed.', { enum: ['active', 'proposed'] }),
 };
-const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition' };
+const GOAL_COLS: Record<string, string> = { title: 'goal', owner: 'owner', owner_email: 'owner email', team: 'team', level: 'level', unit: 'unit', decimals: 'decimals', start: 'start', target: 'target', plan_shape: 'plan', from: 'from', to: 'to', due_week: 'due week', limit: 'limit', must_stay: 'must stay', margin: 'margin', stages: 'stages', feeds_into_id: 'feeds into id', why_it_helps: 'why it helps', source: 'source', definition: 'definition', state: 'state' };
 
 
 const CORE_TOOLS: ToolDef[] = [
@@ -238,6 +244,7 @@ const CORE_TOOLS: ToolDef[] = [
       scope: str('Whose goals, as the Goals screen’s tabs have them: mine (goals you own), team (your team’s and the teams you lead), watching (goals you watch, directly or through a tree or a level) or all (the default). A scope you don’t have (team when you’re in no team and lead none, mine when you own none) finds no goals and says why.', { enum: SCOPES }),
       query: str(`A Goals link’s query string, e.g. "scope=mine&status=off,risk&attention=1&needs=decision&due=quarter&sort=gap". Keys: scope (as the scope argument, which wins if both are given), q, status (${choices(STATUS, STATUSES)}), level (north-star, svp, team), team and owner (IDs), kind (metric, range, milestone), attention (1: the ${ATTENTION.needs.label} list, those ${ATTENTION.handled.label.toLowerCase()} below the rest), needs (because: ${NEED_OPTIONS.map(([k, l]) => `${l} (${k})`).join(', ')}), due (quarter or a week), quiet (no update for this many weeks), qtr (${choices(QUARTER, ['met', 'missed'])}), result (${choices(RESULT)}), feeds (a goal ID: its tree), helps (1), sort (worst, title, owner, team, level, gap, last, due; add .desc to reverse).`),
       view: str('The name of a saved view: one of yours, or one pinned for everyone.'),
+      state: str('active (the default) or proposed: proposed goals have no status and are listed only when asked for.', { enum: ['active', 'proposed'] }),
     } },
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
@@ -280,10 +287,17 @@ const CORE_TOOLS: ToolDef[] = [
       const byId = new Map(rows.goal!().summaries.map((s) => [s.goal.id, s]));
       // A module's column in the link (?metric=, Measured by): matched as Goals matches it (core/records goalColumns).
       const cols = Object.entries(asked.cols ?? {}).flatMap(([k, v]) => { const c = MODULE_GOAL_COLUMNS.find((x) => x.param === k); return c && v ? [{ fill: c.fill(ctx.full ?? ctx.snapshot), v }] : []; });
-      let list = found.map((r) => byId.get(r.id)!).filter((x) => x && (!inScope || inScope.has(x.goal.id)) && cols.every((c) => c.fill(x.goal) === c.v));
+      // Proposed goals (GE10) are left out unless asked for, and then only they are listed; their scope is worked out as the
+      // Goals screen's count line does, by owner or team.
+      const proposedOnly = a.state === 'proposed';
+      const inScopeOf = (g: Goal) => (!inScope ? true : !isProposed(g) ? inScope.has(g.id) : scope === 'mine' ? g.ownerId === ctx.actor.id : scope === 'team' ? scopeFacts(ctx.snapshot, ctx.actor).teams.some((t) => t.id === g.teamId) : false);
+      const wordsOf = (g: Goal) => `${g.title} ${g.key ?? ''}`.toLowerCase();
+      let list = proposedOnly
+        ? (ctx.snapshot.proposed ?? []).filter((g) => inScopeOf(g) && (!words.trim() || words.toLowerCase().split(/\s+/).every((w) => wordsOf(g).includes(w)))).map((g) => proposedSummary(g, ctx.snapshot, ctx.cycle, ctx.week))
+        : found.map((r) => byId.get(r.id)!).filter((x) => x && !isProposed(x.goal) && inScopeOf(x.goal) && cols.every((c) => c.fill(x.goal) === c.v));
       // The list, as the screen has it (Lane, 9 Nov): those that need attention, then those being handled.
       if (asked.attention || asked.needs.length) list = [...list.filter((s) => attentionGroup(s.attention) !== 'handled'), ...list.filter((s) => attentionGroup(s.attention) === 'handled')];
-      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.status, statusLabel: LABEL[s.status], needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
+      const data = list.map((s) => ({ key: s.goal.key ?? null, id: s.goal.id, title: s.goal.title, type: s.goal.kind, level: s.goal.level, owner: s.owner, team: s.team, status: s.state === 'proposed' ? null : s.status, statusLabel: s.statusLabel, state: s.state ?? 'active', needsAttention: needsAttention(s.attention), beingHandled: s.attention.handled?.text ?? null, lookedAt: s.attention.lookedAt?.text ?? null, because: s.attention.flags.filter((f) => f.kind !== 'due').map((f) => withCode({ label: f.label, code: f.kind })), now: s.now, planThisWeek: s.planNow != null ? s.planNowText : null, target: s.target, gap: s.gap, lastCheckInWeek: s.lastWeek, feedsInto: s.feedsInto, youCanChange: ctx.actor.admin || s.goal.ownerId === ctx.actor.id }));
       // The same shape every time, filtered or not (MCP load, 12 Nov): the list as JSON, as structured content and as text.
       return listed({ week: ctx.week, weeks: ctx.cycle.weeks, goals: data });
     },
@@ -296,7 +310,9 @@ const CORE_TOOLS: ToolDef[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
-      const j = toJson({ ws: ctx.ws, snapshot: ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g] });
+      const j = toJson({ ws: ctx.ws, snapshot: isProposed(g) ? { ...ctx.snapshot, goals: [...ctx.snapshot.goals, g] } : ctx.snapshot, cycle: ctx.cycle, week: ctx.week, today: ctx.today, goals: [g] });
+      // A proposed goal is never judged (GE10): no scorecard, no status.
+      if (isProposed(g)) { const data = { cycle: j.cycle, goal: j.goals[0], state: 'proposed', notes: j.notes }; return { data, text: JSON.stringify(data, null, 2) }; }
       // The goal page's scorecard, in its words: vs plan, vs last week, to target and will it hit (domain/scorecard).
       const stale = goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status === 'stale';
       const scorecard = goalScorecard(g, ctx.cycle, ctx.snapshot.checkIns, ctx.week, stale).cells.map((c) => ({ label: c.label, value: c.value, detail: c.sub }));
@@ -343,6 +359,24 @@ const CORE_TOOLS: ToolDef[] = [
     async run(a, ctx) {
       const g = goalRef(ctx, a.goal_id);
       return change(ctx, { goals: [row({ ...a, goal_id: g.id }, { goal_id: 'id', ...GOAL_COLS })] }, { dry: !!a.dry_run, reason: a.reason as string | undefined, confirm: a.confirm === true, answers: a.answers });
+    },
+  },
+  {
+    name: 'make_goal_active',
+    title: 'Make a proposed goal active',
+    description: 'Its owner or an admin: make a proposed goal active. A number goal’s plan runs from this week, or from the week given. From then it is judged against its plan and check-ins are due. Use dry_run first to read back the dates and when the first check-in is due, and say it to the person.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['goal_id'], properties: { goal_id: str('The goal’s ID or its key, e.g. G-12.'), from: str('Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week.'), dry_run: DRY } },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    async run(a, ctx) {
+      const g = goalRef(ctx, a.goal_id);
+      let fromWeek: number | undefined;
+      if (a.from != null && a.from !== '') { const r = readWeekCode(ctx.cycle, String(a.from)); if (!('n' in r)) throw new Error(r.text ?? `From says “${String(a.from)}”. Write a year and a week, like 2026-W48.`); fromWeek = r.n; }
+      let out;
+      try { out = activate(ctx, { goalId: g.id, fromWeek }); } catch (e) { if (e instanceof NotAllowed) return { isError: true, text: e.message }; throw e; }
+      const says = activeReadBack(g, { cycle: ctx.cycle, week: ctx.week, today: ctx.today, rhythm: 'weekly', fromWeek: fromWeek ?? Math.max(0, ctx.week) });
+      if (a.dry_run) return { data: { saved: false, readBack: says }, text: `Checked, not saved (dry run). ${says}` };
+      await ctx.save({ ...out.commit, changes: out.commit.changes.map((x) => ({ ...x, diffs: [...x.diffs, VIA_MCP] })) });
+      return { data: { saved: true, readBack: says }, text: `“${g.title}” is active (as ${ctx.actor.name}). ${says}` };
     },
   },
   {

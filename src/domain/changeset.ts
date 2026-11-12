@@ -27,6 +27,11 @@ import { goalChecks, type GoalCheckId, type GoalField, goalMustFix, type MustFix
 import { MARKS_STAGES, mayAddGoal, mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { notNumberText, precisionProblem, sameAsWritten, typedDecimals } from './numbers';
 import { findGoal, formatKey, isKey, lastKey, normalKey } from './goalKey';
+import { isProposed, measureEmpty, withProposed } from './proposed';
+import { mayActivate, NOTHING_TO_CHECK_IN } from './proposedActions';
+import { proposedMustFix, unsaidDraft } from './goalEntry';
+// Making a proposed goal active, or proposed again, loads with the engine (app/actions NEEDS_ENGINE).
+export { activate } from './proposedActions';
 import { fmt } from './format';
 import { isEmail, normalEmail, personChange, personProblems, sameNameNote, sameTitleNote } from './people';
 import { planAt, planEnd, weekDate } from './plan';
@@ -595,7 +600,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
   /* ---------- goals ---------- */
   // The working set: goals as they will be after this change, by id. Wherever a goal's ID is asked for, its key will do.
-  const work = new GoalSet(s.goals);
+  // Proposed goals (GE10) are goals here too: a file names them, changes them and makes them active.
+  const work = new GoalSet(withProposed(s));
   // Set-up from another workspace's export: its IDs are that workspace's, so they're mapped to the new goals' IDs.
   const fileIds = new Map<string, string>();
   const goalByRef = (r: string) => (r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : undefined);
@@ -938,14 +944,29 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (has(r, 'effect')) d.effect = val(r, 'effect');
     if (has(r, 'source')) d.source = val(r, 'source');
     if (has(r, 'definition')) d.definition = val(r, 'definition');
+    // State (GE10, rule 14): active or proposed. Empty keeps what the goal is (a new goal: active). A goal with check-ins
+    // can't go back to proposed; one made active through a file must have everything an active goal needs.
+    const wasProposed = !!existing && isProposed(existing);
+    let proposing = wasProposed;
+    if (has(r, 'state') && val(r, 'state')) {
+      const w = fold(val(r, 'state'));
+      if (['active', 'live'].includes(w)) proposing = false;
+      else if (['proposed', 'draft', 'proposal'].includes(w)) proposing = true;
+      else if (!(w === 'stopped' && existing?.stoppedAt)) return raise('unknown-word', 'Goals', row, label, `State says “${val(r, 'state')}”. Use active or proposed.`, { column: 'State', found: val(r, 'state') });
+    }
+    if (existing && proposing && !wasProposed && started(existing.id)) return raise('cant-change', 'Goals', row, existing.title, `“${existing.title}” has check-ins, so it can’t go back to proposed. Stop it instead.`, { column: 'State', found: 'state-has-check-ins' });
+    if (existing && proposing && !wasProposed && !canChange(existing)) return raise('not-allowed', 'Goals', row, existing.title, notYours(existing), { answers: ANSWERS.leaveOnly });
+    if (wasProposed && !proposing && !mayActivate({ id: actor.id, admin: admin() }, existing!)) return raise('not-allowed', 'Goals', row, existing!.title, `${people.get(existing!.ownerId)?.name ?? 'Its owner'} or an admin can make this active.`, { column: 'State', answers: ANSWERS.leaveOnly });
     // What can't be saved: goal entry's rule 2, the same rule and words as New goal, the edit page and set-up's cards.
     const ownerNow = people.get(d.ownerId);
     // What it feeds is read once every goal in the file exists (below), but whether it feeds one is known now: a row that
     // names a goal in a Feeds into column, else what the goal feeds already. The Effect is judged with it, as the form does.
     const feedsCols = (['feeds into ref', 'feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(r, c) && (c !== 'feeds into ref' || !!ref(r, c)));
     const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
-    const fix = goalMustFix({ ...d, parentId: feeds ? d.parentId || '(read below)' : '' }, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
+    const fix = (proposing ? proposedMustFix : goalMustFix)({ ...d, parentId: feeds ? d.parentId || '(read below)' : '' }, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
     if (fix.length) {
+      // Made active through a file, but not ready: said once, with what is missing (rule 14).
+      if (wasProposed && !proposing) return raise(MUST_KIND[fix[0]!.id], 'Goals', row, d.title, `“${d.title}” can’t be made active yet: ${fix.map((f) => f.text).join(' ')}`, { column: 'State' });
       for (const f of fix) raise(MUST_KIND[f.id], 'Goals', row, d.title, f.text, { column: FIELD_COLUMN[f.field] ?? 'Goal' });
       return;
     }
@@ -974,9 +995,12 @@ export function planChanges(input: ChangeInput): ChangeSet {
     if (val(r, 'ref')) refGoal.set(fold(val(r, 'ref')), gid);
     const key = existing ? existing.key : (create && normalKey(keyRef)) || formatKey(++lastKeyGiven);
     parentLinks.push({ id: gid, row, r });
-    let built = buildGoal({ ...d, parentId: existing?.parentId ?? '' }, cycle, { id: gid, createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString() }, existing, started(gid), week);
+    let built = buildGoal({ ...(proposing && measureEmpty(d) ? unsaidDraft(d) : d), parentId: existing?.parentId ?? '' }, cycle, { id: gid, createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString() }, existing, started(gid), week);
     if (existing) built = { ...existing, ...built } as Goal;
     if (key) built = { ...built, key };
+    // Proposed: kept as proposed, proposed now by whoever sends the row, or made active (its proposal cleared).
+    if (proposing && !wasProposed) built = { ...built, proposedAt: now, proposedBy: actor.id };
+    if (wasProposed && !proposing) built = { ...built, proposedAt: null, proposedBy: null };
     if (existing && d.whyHelps === '' && 'whyHelps' in built) delete (built as { whyHelps?: string }).whyHelps;
     // A row that stops or deletes a goal says only that: its other columns must say what the goal says now.
     if (action) {
@@ -1330,6 +1354,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
       g = goalNamed('Check-ins', row, name, 'Goal', val(r, 'goal'), '', `There’s no goal called “${val(r, 'goal')}”. Add the Goal key column to be exact.`, `There’s no goal called “${val(r, 'goal')}” that only one goal has. Add the Goal key column to be exact.`);
       if (!g) continue;
     }
+    // A proposed goal has nothing due (GE10): a check-in on one is a Must fix, in the check-in's words.
+    if (isProposed(g)) { raise('cant-change', 'Check-ins', row, g.title, NOTHING_TO_CHECK_IN, { column: 'Goal key' }); continue; }
     const weekRaw = val(r, 'week');
     const read = weekRaw ? weekCell(weekRaw, 'Check-ins', row, g.title) : { n: null };
     if (read.problem) { raise('week-wrong', 'Check-ins', row, g.title, read.problem, { column: 'Week' }); continue; }
@@ -1403,6 +1429,8 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const row = i + 1;
     const g = work.get(p.goalId) ?? savedGoal.get(p.goalId);
     if (!g) { raise('bad-key', 'Check-ins', row, p.goalId, 'That goal no longer exists. Reload to see the latest.'); continue; }
+    // A proposed goal has nothing due (GE10): refused in the check-in's words, from its screen and the tools alike.
+    if (isProposed(g)) { raise('cant-change', 'Check-ins', row, g.title, NOTHING_TO_CHECK_IN); continue; }
     const w = p.week;
     if (!Number.isInteger(w) || w < 1) { raise('week-wrong', 'Check-ins', row, g.title, 'Check-ins start in week 1; week 0 is the start of the year.'); continue; }
     if (w > week) { raise('week-wrong', 'Check-ins', row, g.title, `Week ${w} hasn’t happened yet; it’s week ${week}.`); continue; }
