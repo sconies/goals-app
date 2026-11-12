@@ -20907,6 +20907,7 @@ function systemOverview() {
 		"- [Stage 1: the core rules](spec/rebuild/stage-1-core-rules.md): the contract a rebuild meets, scored by `spec/rebuild/drill.mjs` against the conformance data",
 		"- [Swap the outside parts](spec/rebuild/adapters.md): copy the code and write an adapter per outside part until its contract passes",
 		"- [The ports at company scale](spec/rebuild/ports-at-scale.md): why the goals store is the demo-scale port, and the query and command ports that replace it (the rules stay the same)",
+		"- [Accepting scale](spec/rebuild/scale.md): a generator for a company-size workspace, the week’s turn with its budget and what people see while it runs, and being handled from one goal’s records",
 		"",
 		"## Requirements for the internal app (spec only)",
 		"",
