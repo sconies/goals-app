@@ -91,6 +91,14 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #216 KT1: the handoff kit's small errors | planning | 0 | 0 | 0 |
 | #222 The workspace boundary: admins-only triage and Start over, the switcher | polish | 0 | 3 | 4 |
 | #227 Check-ins are the owner's (R1) | polish | 1 | 4 | 4 |
+| #171 U9, U111 and U23: three stale checks | 1 | 0 | 0 | 0 |
+| #220 GE9 review fixes | 2 | 0 | 0 | 0 |
+| #232 R1: the two exceptions named | polish | 0 | 0 | 0 |
+| #228 GE3 review fixes | 2 | 0 | 0 | 0 |
+| #231 IM4 review fixes | 3 | 0 | 0 | 0 |
+| #236 IM5 review fixes | 3 | 0 | 0 | 0 |
+| #235 KT2: changes.csv and drills for stages 2 and 3 | planning | 0 | 0 | 0 |
+| #238, #237, #240 Handovers | planning, 5 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -1026,3 +1034,16 @@ Read first by a separate reviewing session, with a rule probe over all 97 demo p
 - The line under the greeting says "Example: Platform Engineering" where the spec wants the workspace's name alone.
 
 **Checked and fine.** All 97 people on 9 to 15 Nov, weeks 2, 3, 47, 52 and 53, after the year ends, after the wrap-up closes and with 2027 started. Each lead's button opens a page with something to do. For all 86 owners the counts add up and every status link lists that many. `home.ts` is pure and the screen only draws it. No stripes, emoji or pills; at most one primary button and none when quiet; no sideways scroll; no layout shift on load.
+
+### Review fixes and handovers merged 17:59 to 18:41 UTC, 12 Nov
+
+Each was read from its diff and message; none was re-run on screen. No finding in any.
+
+- **#171 (track 1).** Three journeys that failed on main for stale reasons (U9's step budget, U111's log check, U23 on a phone). Evals only.
+- **#220 (track 2).** Takes #194's five mediums and three lows: a blank Due week beside a To says nothing; a bare number under From with no Start column is a Must fix asking which is meant; a cycle under 48 weeks names its weeks by the ISO week date; in the year's last week To defaults to the end of next year; the picker highlights on `mousemove`, and Escape and Tab close it.
+- **#232 (polish).** Words only: the two admin doors for check-ins are now named as exceptions Lane kept on 12 Nov, each recording the admin as author. So #227's medium 3 is a decision, as far as the two doors go; a pasted row counting as a workbook is still worth a look. #227's high is still open on main: `mayPostCheckIn` is still asked only by the engine's check-in rows (`src/domain/changeset.ts:1196`).
+- **#228 (track 2).** Takes #202's mediums 1 to 4 and two lows: the read-back has its own class and F3 checks each row is as wide as the list; Check works the metric out from the draft, so a reload keeps it and a new team re-slices it; the read-back says a goal with stages done can be stopped, not deleted. New journey U145.
+- **#231 (track 3).** Takes #195's four mediums: Undo counts teams, reviews and asks; a goal it deletes leaves the tree as a delete does; a person who now leads a team, sits in a review or has an ask stays; a corrected check-in and a People bulk edit are named as such.
+- **#236 (track 3).** Takes #199's mediums 2 to 5. Re-run on main for medium 2: `Name, Email, Title, Team` is read as People, with "Not read: the column Title".
+- **#235.** The change engine's cases as a conformance file and drills for rebuild stages 2 and 3: the spec's generator and the drill script only.
+- **#238, #237, #240.** Handovers. Not reviewed.
