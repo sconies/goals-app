@@ -669,7 +669,7 @@
     {
       "id": "STALE-RELOAD",
       "area": "Observability",
-      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop."
+      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back."
     },
     {
       "id": "TELEMETRY-PRIVACY",

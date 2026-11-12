@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'offline-page-needs-connection',
+    date: '2026-11-12',
+    title: 'Offline, a page that hasn’t loaded says so',
+    points: [
+      'Opening Help, or another page Faro loads when you open it, while offline no longer swaps Faro for the browser’s error page.',
+      'It says the page needs a connection, with Try again and Go back.',
+      'On a slow connection, such a page says “Opening…” while it loads.',
+    ],
+    articles: ['any-device'],
+  },
+  {
     id: 'new-goal-order',
     date: '2026-11-12',
     title: 'New goal asks in a better order',
