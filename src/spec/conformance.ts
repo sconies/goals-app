@@ -16,7 +16,7 @@ import { allGoalsNow } from '../ports/goals';
 import { parseQuery } from '../domain/query';
 import { STATUS_ORDER } from '../domain/vocabulary';
 import { litItem, menuGroups, pageName, phoneTabs, type PlaceNames } from '../domain/navigation';
-import { planChanges } from '../domain/changeset';
+import { planChanges, type ChangeSet } from '../domain/changeset';
 import { blankGoal, type GoalDraft } from '../domain/goal';
 import { goalChecks } from '../domain/goalEntry';
 import { startLevel } from '../domain/newGoal';
@@ -374,18 +374,65 @@ export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'kind
  * note isn't one), how many Must-fix groups and Check groups there are, and whether it would save.
  */
 export function importRowsOf(w: ConformanceWorkspace): string[][] {
-  const at = new Date(w.builtFor);
-  const base = asOf(w, at);
-  const snapshot: Snapshot = { ...base, people: base.people.map((p) => ({ ...p, email: p.email ?? '' })) };
-  const week = currentWeek(w.cycle, at);
   return importCases(w).map((c) => {
-    let k = 0;
-    const tables = { [c.sheet]: c.rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) })) };
-    const cs = planChanges({ tables, snapshot, cycle: w.cycle, week, actor: snapshot.people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+    const cs = runCase(w, c);
     const first = cs.issues.find((i) => i.level !== 'note');
     return [c.case, c.actor, c.sheet, JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', first?.kind ?? '', first?.level ?? '', first?.group ?? '', first?.message ?? '',
       String(cs.groups.filter((x) => x.level === 'must').length), String(cs.groups.filter((x) => x.level === 'check').length), yes(!!cs.commit)];
   });
+}
+
+/**
+ * Runs one case through the change engine at `builtFor`, as a spreadsheet load by `actor`: rows are read as a sheet's
+ * (headings in any case), numbered from line 2, and new IDs are `<prefix>_c1`, `<prefix>_c2`… in the order asked for.
+ */
+export function runCase(w: ConformanceWorkspace, c: ImportCase): ChangeSet {
+  const at = new Date(w.builtFor);
+  const base = asOf(w, at);
+  const snapshot: Snapshot = { ...base, people: base.people.map((p) => ({ ...p, email: p.email ?? '' })) };
+  const week = currentWeek(w.cycle, at);
+  let k = 0;
+  const tables = { [c.sheet]: c.rows.map((r, i) => ({ __row: String(i + 2), ...Object.fromEntries(Object.entries(r).map(([h, v]) => [h.toLowerCase(), v])) })) };
+  return planChanges({ tables, snapshot, cycle: w.cycle, week, actor: snapshot.people.find((p) => p.id === c.actor)!, now: w.builtFor, newId: (p) => `${p}_c${++k}`, via: 'spreadsheet', answers: Object.fromEntries(Object.entries(c.answers ?? {}).map(([id, choice]) => [id, { choice }])) });
+}
+
+/* ---------- what a change set saves (stage 2; KT gap 1) ---------- */
+
+/**
+ * The cases changes.csv runs: every import case, and five that save: a check-in, a plan change with its reason, a new
+ * goal, a change to a person, and a goal stopped.
+ */
+export function changeCases(w: ConformanceWorkspace): ImportCase[] {
+  const s = asOf(w, new Date(w.builtFor));
+  const week = currentWeek(w.cycle, new Date(w.builtFor));
+  const g1 = s.goals.find((x) => x.key === 'G-1') as Extract<Goal, { kind: 'metric' }>;
+  return [
+    ...importCases(w),
+    { case: 'saves-check-in', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-22', Week: String(week), Value: '85', 'Next step': 'Roll the runner image out to the last two teams' }] },
+    { case: 'saves-plan-with-reason', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target + (g1.plan.target >= g1.plan.start ? 1 : -1)), Reason: 'Agreed at the quarterly review' }] },
+    { case: 'saves-new-goal', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Runbooks for every paging service', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '40', Target: '90' }] },
+    { case: 'saves-person', actor: 'amara', sheet: 'people', rows: [{ ID: 'rhea', Team: 'Build & Release' }] },
+    { case: 'saves-stop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop', Reason: 'Folded into the platform goal this quarter.' }] },
+  ];
+}
+export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves'];
+
+/**
+ * What the change engine would save for each case. Row 0 is the case: its input, the counts (`key=n`, space-separated,
+ * every count that isn't 0, in the engine's order), the unchanged rows, whether a reason is missing and whether it saves.
+ * Rows 1… are its items in the engine's order: the sheet and line they came from, the goal changed (`target`, its ID;
+ * empty for a person or team), the name of what changed, the kind of change,
+ * and every field changed as `field: from → to`, joined by ` | `.
+ */
+export function changeRowsOf(w: ConformanceWorkspace): string[][] {
+  const rows: string[][] = [];
+  for (const c of changeCases(w)) {
+    const cs = runCase(w, c);
+    const counts = Object.entries(cs.counts).filter(([, n]) => n).map(([key, n]) => `${key}=${n}`).join(' ');
+    rows.push([c.case, '0', c.actor, c.sheet, '', JSON.stringify(c.rows), c.answers ? JSON.stringify(c.answers) : '', '', '', '', '', counts, String(cs.unchanged), yes(cs.needsReason), yes(!!cs.commit)]);
+    cs.items.forEach((it, i) => rows.push([c.case, String(i + 1), '', it.sheet, String(it.row), '', '', it.goalId, it.goal, it.kind, it.diffs.map((d) => `${d.field}: ${d.from} → ${d.to}`).join(' | '), '', '', yes(!!it.needsReason), '']));
+  }
+  return rows;
 }
 
 /* ---------- the read-back (goal entry, rule 5; GE3) ---------- */
@@ -433,7 +480,7 @@ export const toCsv = (head: string[], rows: string[][]) => [head, ...rows].map((
 export function conformanceFiles(w: ConformanceWorkspace): Record<string, string> {
   const t = conformanceTables(w);
   return {
-    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)),
+    ...Object.fromEntries((Object.keys(HEADERS) as (keyof ConformanceTables)[]).map((k) => [`${k}.csv`, toCsv(HEADERS[k], t[k])])), 'find.csv': toCsv(FIND_HEADER, findRowsOf(w)), 'goals.csv': toCsv(GOALS_HEADER, goalsQueryRowsOf(w)), 'navigation.csv': toCsv(NAV_HEADER, navigationRowsOf(w)), 'import.csv': toCsv(IMPORT_HEADER, importRowsOf(w)), 'changes.csv': toCsv(CHANGES_HEADER, changeRowsOf(w)), 'readback.csv': toCsv(READBACK_HEADER, readBackRowsOf(w)), 'home.csv': toCsv(HOME_HEADER, homeRowsOf(w)),
     ...Object.fromEntries(MODULE_FILES.map((f) => [`${f.file}.csv`, toCsv(f.header, f.rows(w, { asOf }))])),
   };
 }
