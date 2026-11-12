@@ -48,6 +48,8 @@ const RULES = [
   // People and Teams (app redesign WR1).
   [/^src\/screens\/People\.tsx|^src\/domain\/directory\.ts|^src\/styles\/notes\/people\.css/, ['U58', 'U60', 'U14', 'U43', 'U46', 'U51', 'U53', 'F7', 'F9', 'F10', 'N4', 'P6']],
   [/^evals\/finish\/10-people\.cjs$/, ['F10']],
+  // The metric library (ML1): its two checks.
+  [/^evals\/(finish\/15-metrics|notes\/16-metrics)\.cjs$/, ['F15', 'N16']],
   [/^src\/screens\/Print\.tsx|^src\/domain\/onePager\.ts/, ['N6']],
   [/^src\/screens\/Research\.tsx|^src\/app\/research\.ts/, ['U28', 'U40']],
   [/^src\/screens\/Help\.tsx/, ['N7']],
