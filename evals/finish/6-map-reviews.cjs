@@ -264,6 +264,32 @@ module.exports = {
       await p.waitForTimeout(800);
       const mq = await inMap(p, '.react-flow__node[data-id="lead-mq"] .map-node.found');
       fail(!!mq && mq.in, `MAP 2: ${at} finding "merge queue live" does not outline and show it`);
+      // GL2 review: coming back to the Map doesn't go to the last goal found again; it is a new Map, with nothing outlined.
+      const layoutTo = async (name) => {
+        if (touch) { await p.locator('.goals-phone-switch .view-open').click(); const d = p.getByRole('dialog', { name: 'View' }); await d.getByRole('radio', { name: new RegExp('^' + name) }).click(); await d.getByRole('button', { name: 'Done' }).click(); }
+        else { await p.locator('.layout-menu > summary').click(); await p.getByRole('group', { name: 'Layout' }).getByRole('button', { name: new RegExp('^' + name) }).click(); }
+      };
+      await layoutTo('List');
+      await p.locator('.goalmap').waitFor({ state: 'detached' });
+      await layoutTo('Map');
+      await p.locator('.goalmap .react-flow__node').first().waitFor();
+      await p.waitForTimeout(800);
+      fail(!(await p.locator('.map-node.found').count()), `MAP 2: ${at} coming back to the Map outlines the goal found before`);
+      // Enter narrows the Map to the goals that match; emptying the search un-narrows it at once, with no Enter.
+      const box2 = p.getByRole('combobox', { name: /Find a goal/ });
+      await box2.fill('merge queue');
+      await box2.press('Enter');
+      await p.waitForURL(/[?&]q=/);
+      await box2.fill('');
+      await p.waitForURL((u) => !/[?&]q=/.test(String(u)), { timeout: 3000 }).catch(() => {});
+      fail(!/[?&]q=/.test(p.url()), `MAP 2: ${at} emptying the Map's search leaves it narrowed (${p.url()})`);
+      // The Map has no sort, so neither the bar nor the Filters sheet offers one (goals spec, 2.3).
+      await p.locator('.filters-open').click();
+      const fsheet = p.getByRole('dialog', { name: 'Filter goals' });
+      await fsheet.waitFor();
+      fail(!(await fsheet.getByRole('combobox', { name: 'Sort' }).count()), `MAP 2: ${at} the Filters sheet offers Sort on the Map`);
+      await p.keyboard.press('Escape');
+      await fsheet.waitFor({ state: 'detached' });
       // MAP 5: Troubled trees only: fewer trees, each of them in trouble (its top goal or something under it behind).
       await p.getByLabel(/Troubled trees/).check();
       await p.waitForTimeout(600);
