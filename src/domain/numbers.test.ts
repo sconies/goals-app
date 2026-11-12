@@ -6,10 +6,16 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { emptyDraft, evaluate, valueProblem } from './checkin';
 import { planChanges, type ChangeInput, type Rec } from './changeset';
 import { fmt, fmtDiff, rangeText } from './format';
-import { blankGoal, draftOf, planHint, validateGoal } from './goal';
+import { blankGoal, draftOf, planHint, type GoalDraft } from './goal';
+import { goalMustFix } from './goalEntry';
 import { farOutside, fixed, groupDigits, notNumberText, precisionProblem, setupProblem, typedDecimals } from './numbers';
 import { currentWeek } from './plan';
-import type { MetricGoal } from './types';
+import type { Goal, MetricGoal } from './types';
+
+/** Goal entry's rule 2 as one line per field (the first for each), for the checks below. */
+const fixes = (d: GoalDraft, cycleWeeks: number, x: { existing?: Goal | null; week?: number; door?: 'form' | 'table' } = {}): Partial<Record<string, string>> =>
+  Object.fromEntries(goalMustFix(d, { cycleWeeks, week: x.week ?? 0, existing: x.existing ?? null, door: x.door ?? 'table' }).reverse().map((f) => [f.field, f.text]));
+
 
 const today = new Date('2026-11-05T12:00:00Z');
 const s = buildPlatformOrg(today);
@@ -40,17 +46,19 @@ describe('no silent rounding', () => {
   });
 
   it('refuses it in New goal and goal edit, for start, target, limit, margin and plan numbers typed by hand', () => {
-    const d = { ...blankGoal('t', 'p', ''), title: 'Reduce latency', start: '12.5', target: '20' };
-    expect(validateGoal(d, cycle).start).toMatch(/would show as 13/);
-    expect(validateGoal({ ...d, decimals: '1' }, cycle).start).toBeUndefined();
-    expect(validateGoal({ ...d, start: '12', points: { '4': '13.25' } }, cycle).points).toMatch(/13.25 has 2 decimal places/);
+    const d = { ...blankGoal('t', 'p', ''), title: 'Reduce latency', start: '12.5', target: '20', decimals: '0' };
+    expect(fixes(d, cycle.weeks).start).toMatch(/would show as 13/);
+    expect(fixes({ ...d, decimals: '1' }, cycle.weeks).start).toBeUndefined();
+    // Decimals not chosen: what is typed is what is kept (goal entry, rule 2's decimalsFor).
+    expect(fixes({ ...d, decimals: '' }, cycle.weeks).start).toBeUndefined();
+    expect(fixes({ ...d, start: '12', points: { '4': '13.25' } }, cycle.weeks).points).toMatch(/13.25 has 2 decimal places/);
     const r = { ...d, kind: 'range' as const, limit: '4.5', margin: '0.5' };
-    expect(validateGoal(r, cycle)).toMatchObject({ limit: expect.stringMatching(/would show as 5/), margin: expect.stringMatching(/would show as 1/) });
+    expect(fixes(r, cycle.weeks)).toMatchObject({ limit: expect.stringMatching(/would show as 5/), margin: expect.stringMatching(/would show as 1/) });
   });
 
   it('leaves a stored plan alone when editing: only numbers changed are judged', () => {
     const withPoints = s.goals.find((g): g is MetricGoal => g.kind === 'metric' && (g.plan.points?.length ?? 0) > 0);
-    if (withPoints) expect(validateGoal(draftOf(withPoints), cycle, withPoints).points).toBeUndefined();
+    if (withPoints) expect(fixes(draftOf(withPoints), cycle.weeks, { existing: withPoints }).points).toBeUndefined();
   });
 
   it('refuses it in the spreadsheet import and the AI tools, which share the bulk-change engine', () => {
@@ -87,7 +95,8 @@ describe('one message for letters in a number', () => {
     expect(msg).toBe('“a12” isn’t a number. Type digits only, like 29.4.');
     expect(valueProblem('a12', null, '%')?.text).toBe(msg);
     const d = { ...blankGoal('t', 'p', ''), title: 'Reduce latency', start: 'a12', target: 'b12', effect: 'x1' };
-    expect(validateGoal(d, cycle)).toMatchObject({ start: msg, target: notNumberText('b12'), effect: notNumberText('x1') });
+    // New goal gives the example at the goal's own decimal places (goal entry, section 4: not-number).
+    expect(fixes({ ...d, parentId: 'p1' }, cycle.weeks)).toMatchObject({ start: notNumberText('a12', 0), target: notNumberText('b12', 0), effect: notNumberText('x1') });
     const cs = planChanges(base({ checkIns: [rec({ 'Goal ID': whole.id, Week: String(week), Value: 'a12' })] }));
     // The import names the goal's own decimal places in its example, as the check-in does (deep review U10).
     expect(cs.issues.find((i) => i.severity === 'error')?.message).toBe(`Week ${week}: ${notNumberText('a12', whole.decimals)}`);

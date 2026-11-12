@@ -7,6 +7,7 @@
    One convention: nothing is deleted from the database. A removed record keeps its row and says when and by whom
    (removedAt/removedBy; leftAt for a person who left, stoppedAt and a reason for a stopped goal, endedAt for an ended
    review, deletedAt for a saved view). domain/cycle's scopeToCycle is the one place they leave every list. */
+import { mayChangeGoal } from './goalRights';
 import type { Commit } from './commit';
 import { byRecarry } from './copies';
 import { NotAllowed, type ActionContext } from './actions';
@@ -21,7 +22,8 @@ const no = (msg: string): never => { throw new NotAllowed(msg); };
 /** The whole workspace, every cycle and every removed record: what restoring reads. */
 const fullOf = (x: ActionContext): Snapshot => x.full ?? x.snapshot;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const ownsOrAdmin = (x: ActionContext, g: Goal) => x.actor.admin || g.ownerId === x.actor.id;
+/** R1's row for changing a goal, stated once (domain/goalRights). */
+const ownsOrAdmin = (x: ActionContext, g: Goal) => mayChangeGoal(x.actor, g);
 type LogEntry = Pick<Change, 'entity' | 'entityId' | 'action' | 'summary'> & Partial<Change>;
 const log = (x: ActionContext, v: LogEntry): Change => ({ id: x.newId('chg'), at: x.now, actorId: x.actor.id, goalId: null, diffs: [], ...v });
 const nameIn = (s: Snapshot, id: string | null | undefined) => s.people.find((p) => p.id === id)?.name ?? '—';

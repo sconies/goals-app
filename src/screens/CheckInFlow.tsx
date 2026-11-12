@@ -19,6 +19,7 @@ import { MetricChart, RangeChart } from '../ui/charts';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
 import { CheckBlock, MustFixBlock } from '../ui/Levels';
+import { draftFor } from '../domain/goal';
 import { useMark } from '../telemetry/react';
 import { NO_REASON } from '../domain/checkin';
 import { LABEL as STATUS_WORD, STAGE } from '../domain/vocabulary';
@@ -293,12 +294,12 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
   const startFrom = async () => {
     if (!offer || goal.kind !== 'metric') return;
     const from = fmt(offer.start, goal), to = fmt(offer.value, goal);
-    try { await app.saveGoal(rebase(goal, offer.value, week), goal, rebaseWhy(to, from)); setBeforeRebase(goal); setRebased('start'); setRebasedFrom(to); } catch { /* the save already said what went wrong */ }
+    try { await app.saveGoal(draftFor(rebase(goal, offer.value, week)), goal, { reason: rebaseWhy(to, from), confirm: true }); setBeforeRebase(goal); setRebased('start'); setRebasedFrom(to); } catch { /* the save already said what went wrong */ }
   };
   // Undo puts the plan back as it was, and asks again.
   const undoRebase = async () => {
     if (!beforeRebase || beforeRebase.kind !== 'metric' || goal.kind !== 'metric') return;
-    try { await app.saveGoal({ ...goal, plan: beforeRebase.plan }, goal, `Put the plan back to start at ${fmt(beforeRebase.plan.start, goal)}`); setRebased(null); setRebasedFrom(null); setBeforeRebase(null); } catch { /* the save already said what went wrong */ }
+    try { await app.saveGoal(draftFor({ ...goal, plan: beforeRebase.plan }), goal, { reason: `Put the plan back to start at ${fmt(beforeRebase.plan.start, goal)}`, confirm: true }); setRebased(null); setRebasedFrom(null); setBeforeRebase(null); } catch { /* the save already said what went wrong */ }
   };
   const needsWhy = valueOk && !!e.reason;
   const needsWay = valueOk && e.needsPath;
@@ -467,7 +468,7 @@ function GoalCheckIn({ goal, onPosted, onSkip, onDiscarded, onDrafting, discardR
               {shown?.block && (() => {
                 const keep = placesToKeep(draft.value, parseNumber(draft.value), goal.decimals);
                 return keep == null ? null : (
-                  <button type="button" className="linkish tap small keep-places" style={{ alignSelf: 'flex-start' }} onClick={() => void app.saveGoal({ ...goal, decimals: keep }, goal, `So check-ins can say ${draft.value.trim()}`).then(() => app.toast(`${goal.title} now keeps ${placesText(keep)}.`)).catch(() => undefined)}>
+                  <button type="button" className="linkish tap small keep-places" style={{ alignSelf: 'flex-start' }} onClick={() => void app.saveGoal({ ...draftFor(goal), decimals: String(keep) }, goal, { reason: `So check-ins can say ${draft.value.trim()}` }).then(() => app.toast(`${goal.title} now keeps ${placesText(keep)}.`)).catch(() => undefined)}>
                     Keep {placesText(keep)} for this goal
                   </button>
                 );

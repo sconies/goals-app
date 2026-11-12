@@ -141,7 +141,7 @@ async function change(ctx: McpContext, tables: Tables, opts: { dry?: boolean; re
     needsConfirm: cs.needsConfirm,
   };
   const lines = (l: { goal: string; message: string }[]) => l.map((x) => `- ${x.goal ? x.goal + ': ' : ''}${x.message}`).join('\n');
-  if (errors.length) return { isError: true, data, text: `Not saved. Fix these and try again:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
+  if (errors.length) return { isError: true, data, text: `Not saved. Must fix:\n${lines(errors.map((x) => ({ goal: x.name, message: x.message })))}` };
   if (cs.needsReason) return { isError: true, data, text: 'Not saved: check-ins have started on this goal, so a plan change needs a reason. Ask the person why, then call again with "reason".' };
   if (cs.needsConfirm) return { isError: true, data, text: `Not saved: check this with the person first.\n${lines(data.questions.map((x) => ({ goal: x.goal, message: x.question })))}\nIf they say it's right, call again with "confirm": true.` };
   if (checks.length) return { isError: true, data, text: `Not saved: answer ${checks.length === 1 ? 'this question' : `these ${checks.length} questions`} with the person first, then call again with "answers" ({"<id>": "<choice>"}). One answer covers every row it names.\n${checks.map((g) => `- ${g.title} (${g.where}) [id ${g.id}]: ${g.answers.map((a) => `"${a.choice}"${a.needsValue ? ' with a value' : ''} = ${a.label}`).join('; ')}`).join('\n')}` };
@@ -321,7 +321,7 @@ const CORE_TOOLS: ToolDef[] = [
   {
     name: 'create_goal',
     title: 'Add a goal',
-    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. You can add goals you own; admins can add goals for anyone. Give a unit for a number (none is asked about, as is a name another goal in its team has).',
+    description: 'Add a goal to the current cycle. Type "metric" moves a number from start to target; "range" keeps a number inside a limit; "milestone" hits dated stages. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it afterwards. Give a unit for a number (none is asked about, as is a name another goal in its team has).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['title', 'type'], properties: { type: str('What kind of goal.', { enum: ['metric', 'range', 'milestone'] }), ...GOAL_FIELDS, answers: ANSWERS_ARG, dry_run: DRY } },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async run(a, ctx) {

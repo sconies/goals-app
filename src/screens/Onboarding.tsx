@@ -20,12 +20,11 @@ import { currentWeek } from '../domain/plan';
 import { firstReview, WEEKDAY } from '../domain/progress';
 import { dayText } from '../domain/review';
 import { nameLength, nameProblem } from '../domain/thresholds';
-import { parseNumber } from '../domain/checkin';
-import { notNumberText } from '../domain/numbers';
 import { fmt } from '../domain/format';
 import { closeTeam } from '../domain/people';
 import { Steps } from '../ui/bits';
-import { overHundredHint } from '../domain/goal';
+import { blankGoal as blankDraft, overHundredHint } from '../domain/goal';
+import { goalMustFix } from '../domain/goalEntry';
 import { targetText } from '../domain/format';
 import { Icon } from '../ui/Icon';
 import { FormClose } from '../ui/FormClose';
@@ -215,12 +214,13 @@ export function Onboarding({ onClose }: { onClose?: () => void }) {
   const teamOf = (r: PersonRow) => r.team.trim() || d.me.team.trim();
   const typed = [d.me.team.trim(), d.me.team.trim(), ...rowsOf.filter((r) => r.name.trim() || r.email.trim() || r.team.trim()).map(teamOf)].filter(Boolean);
   const teamTypo = (r: PersonRow) => (r.team.trim() && !(d.newTeams ?? []).includes(r.team.trim()) ? closeTeam(r.team, typed) : null);
-  const goalErr = (g: GoalRow, headline = false) => ({
-    title: nameProblem(g.title, headline ? 'outcome' : 'goal'),
-    start: g.kind === 'metric' && parseNumber(g.start) == null ? (g.start.trim() ? notNumberText(g.start) : 'Add today’s number.') : null,
-    target: g.kind === 'metric' && parseNumber(g.target) == null ? (g.target.trim() ? notNumberText(g.target) : 'Add the target.') : null,
-    limit: g.kind === 'range' && parseNumber(g.limit ?? '') == null ? ((g.limit ?? '').trim() ? notNumberText(g.limit ?? '') : 'Add the limit.') : null,
-  });
+  // A card's Must fix is goal entry's rule 2 (door 'setup'), in the same words as New goal, a file and the AI tools. The
+  // owner, team and level are the step's to fix (2.10), so only the card's own fields are said here.
+  const goalErr = (g: GoalRow, headline = false) => {
+    const fix = goalMustFix({ ...blankDraft('set-up', 'set-up', ''), title: g.title, kind: g.kind, unit: g.unit, start: g.start, target: g.target, limit: g.limit ?? '', ...(g.kind === 'milestone' ? { stages: [{ id: 's', name: 'x', dueWeek: '1' }] } : {}) }, { cycleWeeks: 53, week: 0, existing: null, door: 'setup', noun: headline ? 'outcome' : 'goal' });
+    const said = (f: 'title' | 'start' | 'target' | 'limit') => fix.find((x) => x.field === f)?.text ?? null;
+    return { title: said('title'), start: said('start'), target: said('target'), limit: said('limit') };
+  };
   const clean = (e: ReturnType<typeof goalErr>) => !e.title && !e.start && !e.target && !e.limit;
   const ok = [
     !nameIssue && /^\d{4}-\d{2}-\d{2}$/.test(d.startDate),

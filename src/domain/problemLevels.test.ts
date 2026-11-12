@@ -146,7 +146,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
   const others = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
   const cases: [kind: string, actor: string, tables: ChangeInput['tables'], sentence: RegExp, extra?: Partial<ChangeInput>][] = [
     ['required-empty', 'amara', { goals: [rec({ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' })] }, /A new goal needs an owner: Owner email, or Owner\./],
-    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /Start is empty\. A number goal needs where it starts\./],
+    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /^Enter where it starts today\.$/],
     ['not-a-number', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: 'six' })] }, /“six” isn’t a number/],
     ['formula', 'amara', { goals: [newGoal({ Target: '=20+2' })] }, /Target holds a formula \(“=20\+2”\), not a number\. In Excel, copy the column and paste it as values\./],
     ['precision', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: '6.25' })] }, /has 2 decimal places, but this goal keeps whole numbers/],
@@ -162,7 +162,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['type-unclear', 'amara', { goals: [rec({ Goal: 'Nothing to measure', Owner: 'Rhea Kapoor' })] }, /Type is empty and the row has no Start and Target, Limit or Stages\./],
     ['plan-order', 'amara', { goals: [newGoal({ 'Due week': '10' })] }, /Due week \(10\) has to come after the plan starts \(week 46\)\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' })] }, /“Design” has no week\. Write it as Name@week, like Pilot@52\./],
-    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /Two stages are called “pilot”/],
+    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /^Two stages are called “Pilot”\. Give each its own name, such as “pilot review”\.$/],
     ['week-wrong', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: '50', Value: '6' })] }, /Week 50 hasn’t happened yet; it’s week 46\./],
     ['checkin-incomplete', 'amara', { checkIns: [rec({ 'Goal key': 'G-126', Week: String(week), Value: '4.1' })] }, /needs a Cause and a Why of 10 characters or more/],
     ['cant-change', 'amara', { goals: [rec({ Key: 'G-1', Type: 'milestone' })] }, /A goal’s type can’t change\. Add a new goal instead\./],

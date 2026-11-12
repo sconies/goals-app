@@ -4,7 +4,8 @@
 import { CYCLE, metric, MILESTONE } from '../spec/examples';
 import { recordStagesDone, NotAllowed, type ActionContext } from './actions';
 import { rebase, rebaseOffer } from './checkin';
-import { blankGoal, pastStage, stagesDoneAtSetUp, validateGoal } from './goal';
+import { blankGoal, pastStage, stagesDoneAtSetUp, type GoalDraft } from './goal';
+import { goalMustFix } from './goalEntry';
 import { assessMilestone } from './status';
 import type { CheckIn, Goal, Person, Snapshot } from './types';
 
@@ -21,9 +22,11 @@ describe('a stage already past (rule 3)', () => {
 
   it('won’t let a new goal go on until each past stage is answered; an existing goal is never asked', () => {
     const d = { ...blankGoal('t', 'p', ''), title: 'Launch', kind: 'milestone' as const, stages: [{ id: 'a', name: 'A', dueWeek: '3' }] };
-    expect(validateGoal(d, CYCLE, null, 10).stages).toBe('Say whether this stage is done.');
-    expect(validateGoal({ ...d, stages: [{ ...d.stages[0]!, done: 'no' as const }] }, CYCLE, null, 10).stages).toBeUndefined();
-    expect(validateGoal(d, CYCLE, null).stages).toBeUndefined();
+    const said = (x: GoalDraft, door: 'form' | 'table') => goalMustFix(x, { cycleWeeks: CYCLE.weeks, week: 10, existing: null, door }).find((f) => f.field === 'stages')?.text;
+    expect(said(d, 'form')).toBe('Say whether this stage is done.');
+    expect(said({ ...d, stages: [{ ...d.stages[0]!, done: 'no' as const }] }, 'form')).toBeUndefined();
+    // A file asks its own question about past stages (planChanges' past-stage), not this one.
+    expect(said(d, 'table')).toBeUndefined();
   });
 
   it('a stage said to be done is recorded done in its own week, so nothing is late', () => {

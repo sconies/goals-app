@@ -61,7 +61,7 @@ Other assistants:
 | Tool | What it does |
 |---|---|
 | `post_check_in` | Post a week's number or stages, this week or an earlier week. Posting again for a week corrects it |
-| `create_goal` / `update_goal` | Add or change a goal |
+| `create_goal` / `update_goal` | Add or change a goal. Anyone may add a goal for anyone, at any level; only its owner or an admin can change it. A goal that can't be saved comes back as "Not saved. Must fix:" with each problem in the words New goal uses (goal entry, rule 2) |
 | `set_plan_numbers` | Set planned values for particular weeks |
 | `bulk_change` | Many goals, plan numbers and check-ins at once, using the export's columns. It checks first and saves only with `apply: true` |
 | `add_comment` | Comment on a goal |

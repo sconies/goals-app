@@ -77,14 +77,15 @@ describe('bulk changes', () => {
     expect(cs.commit!.changes.at(-1)!.entity).toBe('workspace');
   });
 
-  it('only lets owners change their own goals; admins can change any', () => {
+  it('only lets owners change their own goals; admins can change any; anyone may add a goal for anyone', () => {
     const row = [rec({ ID: 'ns-ai', Target: '90' })];
     const tariq = planChanges(base('tariq', { goals: row }, { reason: 'Faster than expected' }));
     expect(tariq.issues).toEqual([]);
     const mateo = planChanges(base('mateo', { goals: row }));
     expect(mateo.issues[0]!.message).toMatch(/Only Tariq Haddad \(its owner\) or an admin/);
     expect(mateo.commit).toBeNull();
-    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Start: '1', Target: '2' })] })))[0]!.message).toMatch(/goals you own/);
+    // Lane, 11 Nov: anyone may add a goal for anyone, at any level, at every door (domain/goalRights mayAddGoal).
+    expect(real(planChanges(base('mateo', { goals: [rec({ Goal: 'Something new', Owner: 'Tariq Haddad', Unit: 'days', Start: '1', Target: '2' })] })))).toEqual([]);
   });
 
   it('asks for a reason when a plan changes after check-ins started', () => {
