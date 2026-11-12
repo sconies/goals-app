@@ -13,8 +13,9 @@ import { Sheet, WarnMark } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { PersonPick } from '../ui/PersonPick';
 import { ASK_STATUS, DECIDED, EDITED, LABEL } from '../domain/vocabulary';
-
 import { loadReviewOrder, saveReviewOrder } from './reviewOrder';
+
+/* ---------- review order: fixed when a session starts (reviewOrder.ts) ---------- */
 export { saveReviewOrder };
 
 /** Where this goal sits in the review being walked (from `?review=<id>`), and how to move on. */

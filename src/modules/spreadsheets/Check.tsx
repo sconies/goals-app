@@ -20,7 +20,7 @@ import { PickOne } from '../../ui/Pick';
 import type { Snapshot } from '../../domain/types';
 import { isNewIn, useImportPlan } from './importPlan';
 import { importStore } from './importStore';
-import { baseName, rowsSheets, type RowProblem } from './rowsFile';
+import { baseName, leftRowsOf, rowsSheets, type RowProblem } from './rowsFile';
 import './import.css';
 
 const SHEETS: Sheet[] = ['Goals', 'Plan', 'Check-ins', 'People'];
@@ -99,16 +99,20 @@ export function Check() {
     if (!cs.commit) return;
     setBusy(true);
     try {
+      const importId = cs.commit.changes.find((c) => c.action === 'imported')?.entityId;
       await app.applyChanges(cs);
-      app.toast(`Saved: ${describe(cs).toLowerCase()}`);
       // The file is forgotten when Import next opens: emptied here, the open preview would send the person back to Import.
-      nav('/goals');
+      // Imported reads the import from the change log; the rows left out stay in memory for its download.
+      if (importId) importStore.set({ done: { importId, tables: base, rows: leftRows } });
+      else app.toast(`Saved: ${describe(cs).toLowerCase()}`);
+      nav(importId ? `/data/import/done/${importId}` : '/goals');
     } catch (e) {
       setProblem(`Nothing was saved: ${e instanceof Error ? e.message : String(e)}. Try again.`);
       setBusy(false);
     }
   };
   const download = (rows: RowProblem[], what: string, done: string) => saveAndSay(app.toast, { workspace: app.ws.name, what, date: app.today, as: `${baseName(st.name)}-${what}` }, { kind: 'xlsx', sheets: rowsSheets(read, base, rows) }, done);
+  const leftRows = leftRowsOf(left);
   const toFix: RowProblem[] = mustIssues.map((i) => ({ sheet: i.sheet, row: i.row, problem: i.message }));
 
   return (
@@ -157,7 +161,7 @@ export function Check() {
           <p>{total ? describe(cs) : 'Nothing yet'}.{cs.unchanged ? ` ${n(cs.unchanged, 'row is', 'rows are')} unchanged.` : ''}{leftCount ? ` ${n(leftCount, 'row is', 'rows are')} left out.` : ''}</p>
           {total > 0 && <Link to="/data/import/check/changes">Show the {n(total, 'change')}</Link>}
           {left.length > 0 && (
-            <p className="small">{n(left.length, 'row was', 'rows were')} left out at your choice. <button type="button" className="linkish tap" onClick={() => void download(left.map((x) => ({ ...x, problem: 'because' in x && x.because ? `Left out: ${x.because}.` : 'Left out at your choice.' })), 'left-out', 'Rows left out saved')}>Download them</button> · <button type="button" className="linkish tap" onClick={() => importStore.set({ leftOut: [] })}>Put them back</button></p>
+            <p className="small">{n(left.length, 'row was', 'rows were')} left out at your choice. <button type="button" className="linkish tap" onClick={() => void download(leftRows, 'left-out', 'Rows left out saved')}>Download them</button> · <button type="button" className="linkish tap" onClick={() => importStore.set({ leftOut: [] })}>Put them back</button></p>
           )}
         </section>
       )}

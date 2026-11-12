@@ -93,6 +93,8 @@ export const SCREENS: Record<string, Entry> = {
   Import: ['bulk_change'],
   Check: ['bulk_change'],
   Changes: ['bulk_change'],
+  Imported: ['get_activity', 'undo_import'],
+  PastImports: ['get_activity', 'undo_import'],
   Export: ['export'],
   ExportButton: ['export'],
   DataMenu: ['export', 'export_table', 'bulk_change'],
