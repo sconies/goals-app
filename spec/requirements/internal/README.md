@@ -20,6 +20,7 @@ Each page says why, the rule, what Faro does today (and where it falls short), w
 | [R8. Audit](r8-audit.md) | A record of who did what that no one can change, with admins’ exports and every AI token’s use in it, kept 7 years, and exported by those allowed to. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
 | [R9. Observability and service levels](r9-observability.md) | The signals the internal app must send to the company’s tools, the service levels it promises, and what wakes someone up. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
 | [R10. Accessibility](r10-accessibility.md) | WCAG 2.2 at level AA on every screen, checked by machine and by hand: status as a shape and a word, the keyboard, screen readers, zoom and reflow. | [Stage 3: the core screens and journeys](../../rebuild/stage-3-core-screens.md) |
+| [R11. Large imports, a server-side job](r11-large-imports.md) | An import of tens of thousands of rows is a job on the server (R-L1 to R-L6): checked there by the same rules, saved in one transaction or in batches that end in one state, with Undo kept per import, and the browser’s preview only advice. | [Stage 2: the core data and the change engine](../../rebuild/stage-2-core-data.md) |
 
 ## How they fit the rest of the spec
 

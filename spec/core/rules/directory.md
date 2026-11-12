@@ -17,6 +17,12 @@ People’s order and search, a page at a time; the line beside a person; a team�
 
 **Old addresses.** /workspace/people leads to /people, keeping its query; with ?team=<id> it leads to that team’s page; /workspace/teams leads to /teams; /workspace#people and #teams to People and Teams. Each is a replace, not a new history entry.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A person’s email, when they have one, is lower case with no spaces at either end, 3 to 254 characters, of the form name@place.domain. (`okr_people_email_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

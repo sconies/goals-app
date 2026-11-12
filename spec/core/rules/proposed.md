@@ -29,6 +29,12 @@ A goal can be proposed before anyone is held to it: visible to everyone, never j
 
 **The carry.** A proposed goal carries into the next year as proposed.
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A proposed goal isn’t stopped, and only a proposed goal names who proposed it. (`okr_goals_proposed_ok`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.

@@ -1448,7 +1448,7 @@ None.
 
 | Button | Kind | Shown when |
 |---|---|---|
-| “Filters Filter and sort · …” | button | always |
+| “Filters Filters / Filter and sort · …” | button | always |
 | “Rename / Save view” | primary | always |
 | “Cancel” | button | always |
 
@@ -1464,7 +1464,7 @@ None.
 
 | Field | Kind | Shown when |
 |---|---|---|
-| “Sort” | select | always |
+| “Sort” | select | `!sortOff` |
 | “Only goals that need attention, with those … below them” | checkbox | always |
 | “Find an owner” | search | always |
 | “Due” | select | always |

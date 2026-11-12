@@ -819,7 +819,7 @@ Anyone reads the tables. Admins change them; admins can also pin a saved layout 
 
 `import`, from the spreadsheets module. Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 
-Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`.
+Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Large`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-LARGE`.
 
 #### How to use it
 
@@ -853,6 +853,12 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.
 - An answered question closes to what was asked and your answer, with Change.
 - An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal.
+
+#### Large files
+
+- A large file is checked without stopping the page: after a moment, Reading {file} says how far the check has got and what it has found so far. You can keep using Faro in another tab; nothing is saved until you say so. Stop ends the check, and nothing is saved.
+- The changes, and a question’s rows, are shown 50 at a time, with Show 50 more.
+- Faro saves up to 5,000 changes in one import. A file that would change more is checked, not saved: Download as {k} files of 5,000 rows splits it, keeping each goal with its plan and check-ins and a goal before the goals that feed into it. Import the parts in order; each has its own Undo.
 
 #### Who can
 
@@ -1074,26 +1080,32 @@ A metric says exactly what a number means (what is counted, over what, its unit 
 - Anyone reads the library and every metric, and anyone adds a metric.
 - A metric’s owner and admins change or remove it. They also see what it still needs (an owner, a meaning, a source, a goal that uses it) on its page, under To sort out, and as a warning on its row in the library. Everyone else sees who can change it.
 
-### Adding or changing a metric
+### Defining a metric well
 
-`metric-add`, from the metrics module. Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.
+`metric-define`, from the metrics module. A metric needs three things to be used: a name, a unit and which way is better. The rest can be said later, and its page says what is still to say, in words, never as a score.
 
-Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRICS-CARE`.
+Routes: `/metrics/new`, `/metrics/:metricId/edit`. Requirements: `METRIC-DEFINED`, `METRICS-CARE`.
 
-#### How to use it
+#### What it needs
 
-- In Metrics, choose Add a metric. Name, Unit and Which way is better are needed; the rest is optional and can be added later.
-- Name: what people call it, 3 to 120 characters. No two metrics share a name, whatever the case.
-- What it means and how it’s calculated: what is counted, from when to when, and what is left out. This is what makes two goals about the same number agree.
-- Unit: as it follows a number (hours, %, USD, deploys). A goal measured by it must use the same unit. Decimal places: 0 to 4.
-- Where the number comes from and who owns that source: a dashboard, a query or a report, and the team or person who looks after it. How often it refreshes, if known.
-- Owner: who answers for the definition, you to start with. Caveats: anything to watch out for when reading it.
-- Opened from a metric’s To sort out, the form opens at the field that needs filling.
-- While you add one, a name close to a metric already in the library is asked about (“This looks like …”), with Use that one to open it. Carry on if yours is different: it never stops the save.
-- What you type is kept as a draft: Close, Back or a reload doesn’t lose it. A field’s problem shows under it once you leave it.
+- In Metrics, choose Add a metric. Three things are needed: the Name (3 to 120 characters, used by one metric whatever the case), the Unit as it follows a number (hours, %, USD, deploys), and Which way is better. Decimal places is optional: 0 if left.
+- Five more make it fully defined, and can be said later: what it means and how it’s calculated (what is counted, out of what or over what period, and what is left out); where the number comes from; who owns that source; how often it refreshes; and an owner here who answers for what it means.
+- A metric’s page says “Fully defined” under its title, or what is still to say: “Still to say: where the number comes from, how often it refreshes.” Its owner and admins can open the form at each item from there. It is never a score, a percentage or a bar, and nothing is sorted by it.
+
+#### Must fix and Check
+
+- A Must fix stops the save until it is fixed: a name missing, too short or already used, no unit, or no direction. It shows under its field, outlined, once you leave the field or try to save.
+- A Check is a question to answer once. There are three: a name one letter or one word from another metric’s, or one a metric used to have (“This is one letter from “Deploy success rate” …”, with Use that one or Mine is different: keep it); a unit spelt differently from one in use (“Other metrics here use “min”.”); and a percentage whose meaning doesn’t say out of what (with It’s right as written).
+- The foot of the form counts them (“1 to fix, 2 to check.”) above the completeness line. Saving with a Check unanswered takes you to it. An answered Check closes to one line with Change; changing the field asks again.
+- Use that one opens the metric already in the library; what you typed is kept as a draft.
+
+#### Changing or removing one
+
+- What you type is kept as a draft: Close, Back or a reload doesn’t lose it. Opened from a metric’s To sort out or its completeness line, the form opens at the field that needs filling.
 - Changing the unit or which way is better of a metric goals use asks first, here and through the AI assistant: their numbers and plans don’t change, and the goals that now differ say so under “Measured by” on their page.
 - Workspace → About tells admins how many metrics have no owner (someone who left owned them), with See them.
 - On a metric’s page, its owner and admins choose Change this metric, or Remove this metric. Removing one stops its goals being measured by it (they keep their numbers and plans); Undo, or Recently removed for 30 days, puts it back.
+- An AI assistant asks the same questions: save_metric returns them and saves nothing until it calls again with your answers.
 
 ### Measured by: choosing a goal’s metric
 
