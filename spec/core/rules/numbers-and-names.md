@@ -25,6 +25,13 @@ The app asks under the target, in the Check block, as goal entry's rule 3 (`dire
 
 **Names.** A workspace's, a goal's or an outcome's name has at least 3 characters (`nameProblem`). Two goals may have the same title (compared without case or outer spaces): making one warns (`sameTitleNote`), and wherever both could be on screen each shows its key, or else its team, beside the title (`duplicateTitles`, `goalTell`). An import row with no key whose title another goal has is that goal again unless it names another team; then it's a new goal, noted. Two people may have the same name: the email is who someone is. Adding or renaming one says so (`sameNameNote`); beside the name goes their team, else their job title, else their email, whichever tells them apart (`personTell`). Each avatar's colour comes from the person's ID, and people with the same initials each get a colour none of the others has while there are colours to go round (`avatarHues`, 6 colours).
 
+## Limits the records hold
+
+Faro’s database holds these as well as the rule; a rebuild holds them wherever it stores the records. The constraint names are in `spec/core/schema.sql`, which is for reading, not copying.
+
+- A goal’s key is “G-” and a whole number from 1, with no leading zero (G-1, G-27). (`okr_goals_key_check`; the code holds it too, in `src/domain/goalKey.ts`)
+- Keys are given from one counter per workspace that only goes up, starting after 0, so a key is never given twice, even after its goal is removed. Give them in one place, the server. (`okr_goal_keys_last_check`)
+
 ## Worked examples
 
 Each is run against the real rule by `src/spec/spec.test.ts`: the result is what the code gives.
