@@ -9818,6 +9818,8 @@ var init_sheets = __esmMin((() => {
 	NAMES = new Map(ALL_KINDS.map((k) => [k, namesOf(k)]));
 	alsoOf = (kind, header) => NAMES.get(kind).has(fold$1(header)) && fold$1(NAMES.get(kind).get(fold$1(header))) !== fold$1(header);
 }));
+// src/domain/importLimits.ts
+var init_importLimits = __esmMin((() => {}));
 // src/domain/changeset.ts
 /** "4 new goals, 2 goals changed, 38 check-ins (36 for past weeks), 1 goal stopped" */
 function describe(cs) {
@@ -9887,7 +9889,19 @@ function namedHeaders(t, nearOk, whichOf) {
 	}
 	return out;
 }
+/** The engine, in one go: `planChangesInChunks` run to the end. Results are the same either way. */
 function planChanges(input) {
+	const run = planChangesInChunks(input);
+	for (;;) {
+		const step = run.next();
+		if (step.done) return step.value;
+	}
+}
+/**
+* The engine, a chunk at a time (rule 10): it yields its progress every `CHUNK` rows, so a worker can report it and stop
+* between chunks, and returns the change set. `planChanges` is this run to the end.
+*/
+function* planChangesInChunks(input) {
 	const { snapshot: s, cycle, week, now, newId, via } = input;
 	const create = input.mode === "create";
 	const answers = input.answers ?? {};
@@ -9925,6 +9939,29 @@ function planChanges(input) {
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
 	/** The answer given to a group, if any (rule 7). */
 	const answerOf = (kind, sheet, column, found) => answers[groupId(kind, sheet, column, found)];
+	const total = (input.tables.goals?.length ?? 0) + (input.tables.plan?.length ?? 0) + (input.tables.checkIns?.length ?? 0) + (input.tables.people?.length ?? 0);
+	let done = 0, seenItems = 0, seenIssues = 0;
+	const so = {
+		added: 0,
+		changed: 0,
+		mustFix: 0
+	};
+	const tick = () => ++done % 500 === 0;
+	/** Goals read but not yet made into changes (they are, once every row is read): added, and changed. */
+	let goalsSoFar = () => [0, 0];
+	const progress = () => {
+		for (; seenItems < items.length; seenItems++) if (ADDS.has(items[seenItems].kind)) so.added++;
+		else so.changed++;
+		for (; seenIssues < issues.length; seenIssues++) if (issues[seenIssues].level === "must") so.mustFix++;
+		const [a, c] = goalsSoFar();
+		return {
+			done,
+			total,
+			added: so.added + a,
+			changed: so.changed + c,
+			mustFix: so.mustFix
+		};
+	};
 	const leftSet = /* @__PURE__ */ new Set();
 	const leave = (sheet, row) => {
 		if (!leftSet.has(`${sheet}|${row}`)) {
@@ -10247,7 +10284,7 @@ function planChanges(input) {
 	})());
 	const adminsAnswer = newAdminRows.length >= 3 ? answerOf("many-admins", "People", "Admin") : void 0;
 	const leaving = [];
-	personRows.forEach(({ r, row }) => {
+	const personRow = ({ r, row }) => {
 		if (skipPeople.has(row)) return;
 		const name = val(r, "name");
 		const email = normalEmail(val(r, "email"));
@@ -10394,7 +10431,11 @@ function planChanges(input) {
 			before,
 			row
 		});
-	});
+	};
+	for (const x of personRows) {
+		personRow(x);
+		if (tick()) yield progress();
+	}
 	/** A Team objective cell: the team's objective, said on its lead's row (where empty clears it); any other row may set it. */
 	function objective(r, row, p) {
 		if (!has(r, "team objective") || !p.teamId) return;
@@ -10530,6 +10571,12 @@ function planChanges(input) {
 	const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, "key"))).filter((k) => !!k) : [];
 	let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ""))), 0);
 	const touched = /* @__PURE__ */ new Map();
+	goalsSoFar = () => {
+		let a = 0, c = 0;
+		for (const t of touched.values()) if (t.before) c++;
+		else a++;
+		return [a, c];
+	};
 	const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
 	const started = (id) => withCheckIns.has(id);
 	const canChange = (g) => mayChangeGoal({
@@ -10613,7 +10660,7 @@ function planChanges(input) {
 		sheet: "People",
 		row
 	}))];
-	goalRows.forEach(({ r, row, i }) => {
+	const goalRow = ({ r, row, i }) => {
 		if (skipGoals.has(row)) return;
 		if ((refRows.get(fold$1(val(r, "ref"))) ?? []).length > 1) return;
 		const id = val(r, "id");
@@ -11054,7 +11101,11 @@ function planChanges(input) {
 			reason: val(r, "reason") || val(r, "reason for change"),
 			plan: !!existing && planChanged(existing, built)
 		});
-	});
+	};
+	for (const x of goalRows) {
+		goalRow(x);
+		if (tick()) yield progress();
+	}
 	function lookupNow() {
 		return {
 			person: (pid) => people.get(pid),
@@ -11189,7 +11240,7 @@ function planChanges(input) {
 		}
 		work.set(l.id, next);
 	}
-	(input.tables.plan ?? []).forEach((r, i) => {
+	const planRow = (r, i) => {
 		const row = rowOf(r, i);
 		if (blankRow(r)) return;
 		const keyRef = val(r, "key"), idRef = val(r, "id");
@@ -11284,7 +11335,12 @@ function planChanges(input) {
 			reason: t?.reason || val(r, "reason"),
 			plan: !!before
 		});
-	});
+	};
+	const planList = input.tables.plan ?? [];
+	for (let i = 0; i < planList.length; i++) {
+		planRow(planList[i], i);
+		if (tick()) yield progress();
+	}
 	const ciRows = (input.tables.checkIns ?? []).map((r, i) => ({
 		r,
 		row: rowOf(r, i)
@@ -11325,6 +11381,7 @@ function planChanges(input) {
 	const lookup = lookupNow();
 	const goalOut = /* @__PURE__ */ new Map();
 	let needsReason = false;
+	goalsSoFar = () => [0, 0];
 	for (const [id, t] of touched) {
 		const after = work.get(id);
 		const ch = goalChange(t.before, after, lookup, actor.id, now, newId("chg"));
@@ -11556,6 +11613,7 @@ function planChanges(input) {
 		});
 	};
 	for (const { r, row } of rows) {
+		if (tick()) yield progress();
 		if (skipCheckIns.has(row)) continue;
 		const refText = val(r, "goal key") || val(r, "goal id");
 		const clash = refText ? goalOfRow(val(r, "goal key"), val(r, "goal id")).problem : void 0;
@@ -12144,7 +12202,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf, GoalSet;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$2, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, ADDS, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -12168,6 +12226,7 @@ var init_changeset = __esmMin((() => {
 	init_templates();
 	init_sheets();
 	init_records();
+	init_importLimits();
 	init_problemLevels();
 	init_vocabulary();
 	init_via();
@@ -12278,6 +12337,11 @@ var init_changeset = __esmMin((() => {
 			"People"
 		]
 	];
+	ADDS = /* @__PURE__ */ new Set([
+		"new goal",
+		"new person",
+		"check-in"
+	]);
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
 	GoalSet = class extends Map {
@@ -15269,6 +15333,14 @@ var help$2 = [
 				]
 			},
 			{
+				heading: "Large files",
+				list: [
+					"A large file is checked without stopping the page: after a moment, Reading {file} says how far the check has got and what it has found so far. You can keep using Faro in another tab; nothing is saved until you say so. Stop ends the check, and nothing is saved.",
+					"The changes, and a question’s rows, are shown 50 at a time, with Show 50 more.",
+					"Faro saves up to 5,000 changes in one import. A file that would change more is checked, not saved: Download as {k} files of 5,000 rows splits it, keeping each goal with its plan and check-ins and a goal before the goals that feed into it. Import the parts in order; each has its own Undo."
+				]
+			},
+			{
 				heading: "Who can",
 				text: ["Owners change their own goals; admins can change any, and add and change people. Rows for other people’s goals are fine if you leave them as they are."]
 			}
@@ -15283,6 +15355,7 @@ var help$2 = [
 		screens: [
 			"Import",
 			"Check",
+			"Large",
 			"Changes",
 			"Imported"
 		],
@@ -15295,7 +15368,8 @@ var help$2 = [
 			"IMPORT-ACTIONS",
 			"SPREADSHEETS-ON-DATA",
 			"IMPORT-LEVELS",
-			"IMPORT-PREVIEW"
+			"IMPORT-PREVIEW",
+			"IMPORT-LARGE"
 		],
 		keywords: [
 			"import",
@@ -15323,7 +15397,11 @@ var help$2 = [
 			"preview",
 			"rows to fix",
 			"leave out",
-			"changes"
+			"changes",
+			"large",
+			"progress",
+			"split",
+			"parts"
 		],
 		related: [
 			"columns",
@@ -18151,6 +18229,13 @@ var WHATS_NEW = [
 		articles: ["goal-proposed"]
 	},
 	{
+		id: "import-large",
+		date: "2026-11-12",
+		title: "Large files show progress",
+		points: ["Faro checks a big file without freezing and shows how far it has got, with Stop. Changes are shown 50 at a time.", "It says up front how much it can save at once: a file that would change more than 5,000 rows is checked, then offered in parts to import one after the other."],
+		articles: ["import"]
+	},
+	{
 		id: "metric-defined",
 		date: "2026-11-12",
 		title: "Metrics say what’s still to say",
@@ -20419,7 +20504,8 @@ var _virtual_faro_modules_default = [{
 		"FIELD-TABLE",
 		"IMPORT-LEVELS",
 		"IMPORT-PREVIEW",
-		"IMPORT-UNDO"
+		"IMPORT-UNDO",
+		"IMPORT-LARGE"
 	],
 	journeys: [
 		"U19",
@@ -20441,7 +20527,7 @@ var _virtual_faro_modules_default = [{
 	elsewhere: [],
 	rebuild: {
 		"status": "outline",
-		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import).",
+		"builds": "Download every goal, plan number, check-in, person and ask as one Excel workbook or a zip of CSV files in the one spreadsheet format, with a first sheet, Start here, made from the field table (what a new row needs in each column, its format, an example, what an empty cell does); a template with only the columns a person fills in and example rows; and load a workbook, a zip or one CSV back: every row goes through the change engine (stage 2), is shown before it is saved, and saves all at once or not at all. Every problem the engine finds is data with a kind and a level (core rule: kinds, levels and near misses): Must fix blocks saving, a Check is a question answered once for every row with it, and a name or word one letter out is asked about, never guessed. Before anything is saved, a preview says which sheets and columns were read and which were not (a column nothing reads is named, never dropped), counts by sheet, then what must be fixed, then the questions, then every change on request with before and after and every default used; the rows to fix download with a Problem column, or are left out with the rows that depend on them while the rest saves. Export is one sheet with one button, Export .xlsx (the other formats behind Other formats), the file’s name shown before it saves and said after; on Data, Export saves the table as shown and Import sits beside it. Every file is named workspace, what, scope (all, the view’s name, or as-shown) and date; the template is faro-template.xlsx. Help’s table of every column. Saving ends on Imported (what was saved from which file, and Undo); every import, bulk edit and change through MCP is one line in Past imports and one entry in Activity (its rows folded under it), and can be undone as a whole by whoever made it or an admin, saying first which rows changed since and stay, and why (core rule: undoing an import). A large file (more than 500 rows) is checked off the page’s thread: after 400 ms, Reading {file} says how far the check has got and what it has found so far, with Stop (“Stopped. Nothing was saved.”); the changes and a question’s rows are drawn 50 at a time; a file that would change more than 5,000 rows is checked, not saved, and offered as {k} files of 5,000 rows, each goal with its plan and check-ins and a goal before the goals that feed into it (core rule: the change engine, Speed). Saving tens of thousands of rows is the platform’s server-side job (internal requirement R11, R-L1 to R-L6); the browser’s preview is advice.",
 		"entry": ["The change engine (stage 2) reads every sheet of the spreadsheet format: Goals, Plan, Check-ins, People and Asks.", "The change engine reports every problem with its kind and level, groups them, and takes answers by group id (core rule: kinds, levels and near misses), so the preview only shows and answers them."],
 		"exit": [
 			"Export from Goals saves one workbook with one press, named {workspace}-goals-all-{date}.xlsx (or the view’s name when filtered); Data’s table as shown is named …-as-shown-{date}, and says first how many rows and columns it holds and which key columns it adds.",
@@ -20454,7 +20540,8 @@ var _virtual_faro_modules_default = [{
 			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
 			"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
-			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
+			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone.",
+			"A file of 6,000 new goals shows Reading with progress and Stop; Stop saves nothing; checked, it offers Download as 2 files of 5,000 rows instead of Save, and the parts load one after the other; while it is checked, the page never stops for more than 200 ms and the preview has fewer than 3,000 elements."
 		],
 		"gaps": ["The format is in the kit: the field table (a core rule page), how each column is read (spec/core/export-format.md), and every kind of issue with its trigger, sentence and answers and every column’s other spellings (spec/core/import-issues.md).", "The conformance file import.csv scores the change engine’s kinds, levels and sentences, a row per case; the preview’s screens (IM3) are scored by Faro’s own eval scripts (U88, U89, U90, U94); what was read and leaving rows out are rules in the kit, with their worked examples."]
 	}
@@ -20647,6 +20734,11 @@ var INTERNAL_PAGES = [
 		"r10-accessibility",
 		"R10. Accessibility",
 		"WCAG 2.2 AA on every screen: shape and word, the keyboard, screen readers, zoom and reflow"
+	],
+	[
+		"r11-large-imports",
+		"R11. Large imports, a server-side job",
+		"an import of tens of thousands of rows as a job on the server: the rules run there, one state at the end, Undo kept per import (R-L1 to R-L6)"
 	]
 ];
 function systemOverview() {

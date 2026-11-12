@@ -818,7 +818,7 @@ Anyone reads the tables. Admins change them; admins can also pin a saved layout 
 
 `import`, from the spreadsheets module. Load a workbook, a zip of CSVs or one CSV to add or change people, goals, plan numbers and check-ins, past weeks included, or to stop a goal.
 
-Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`.
+Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/changes`, `/data/import/done/:importId`. Screens: `Import`, `Check`, `Large`, `Changes`, `Imported`. Requirements: `BULK-IMPORT`, `WORKSPACES`, `HONEST-NUMBERS`, `ONE-FORMAT`, `ROUND-TRIP`, `IMPORT-ACTIONS`, `SPREADSHEETS-ON-DATA`, `IMPORT-LEVELS`, `IMPORT-PREVIEW`, `IMPORT-LARGE`.
 
 #### How to use it
 
@@ -852,6 +852,12 @@ Routes: `/data/import`, `/import`, `/data/import/check`, `/data/import/check/cha
 - Or leave them out and save the rest: the sheet says which rows go, and the rows that go with them (a new goal’s check-ins, goals that feed into it). Put them back changes your mind.
 - An answered question closes to what was asked and your answer, with Change.
 - An admin answering a team that isn’t here may add it as a new team. A new goal with no Type is read from the columns it fills in: Start and Target a number goal, Limit a range, Stages a stages goal.
+
+#### Large files
+
+- A large file is checked without stopping the page: after a moment, Reading {file} says how far the check has got and what it has found so far. You can keep using Faro in another tab; nothing is saved until you say so. Stop ends the check, and nothing is saved.
+- The changes, and a question’s rows, are shown 50 at a time, with Show 50 more.
+- Faro saves up to 5,000 changes in one import. A file that would change more is checked, not saved: Download as {k} files of 5,000 rows splits it, keeping each goal with its plan and check-ins and a goal before the goals that feed into it. Import the parts in order; each has its own Undo.
 
 #### Who can
 

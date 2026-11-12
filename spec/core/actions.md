@@ -1470,9 +1470,9 @@ From the [metrics](../modules/metrics/README.md) module.
 | Field | Type | Needed | What it is |
 |---|---|---|---|
 | `name` | `string` | no |  |
-| `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
 | `unit` | `string` | no |  |
 | `decimals` | `number` | no | Places after the decimal point it's shown with. |
+| `ownerId` | `string` | no | The person who answers for the definition: whoever added it, unless they hand it on. |
 | `source` | `string` | no | Where the number comes from (a dashboard, a tool, a query) and who owns that source (a team or a person, as text). |
 | `direction` | `MetricDirection` | no |  |
 | `meaning` | `string` | no | What it means and how it's calculated, in words: what's counted, over what, and what's left out. |
