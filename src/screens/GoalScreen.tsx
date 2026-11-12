@@ -16,7 +16,8 @@ import { causeLabel } from '../domain/checkin';
 import { directionLabel, fmt } from '../domain/format';
 import { isEveryday, levelName } from '../domain/levels';
 import { notStarted, planHistoryOf, resultWeek, valueSeries, weekDates } from '../domain/plan';
-import { planSays, weekSays } from '../domain/weeks';
+import { weekSays } from '../domain/weeks';
+import { planSays } from '../domain/weekChoices';
 
 const capitalFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 import { assessMilestone, assessPosted, LABEL } from '../domain/status';

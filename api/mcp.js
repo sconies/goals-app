@@ -4415,7 +4415,7 @@ function readWeekCode(c, raw) {
 		});
 		return n == null ? {
 			problem: "week-unknown",
-			text: noSuchWeek(year, weeksIn(c, year))
+			text: noSuchWeek(year, spanOfYear(c, year).weeks)
 		} : { n };
 	}
 	const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
@@ -4474,7 +4474,7 @@ function weeksProblem(c, from, to) {
 	};
 	return null;
 }
-var DAY$1, MONTHS, mondayOf, cycleYear, weeksIn, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered;
+var DAY$1, MONTHS, mondayOf, cycleYear, noSuchWeek, weekUnknownText, lastWeekOffered, firstWeekOffered;
 var init_weeks = __esmMin((() => {
 	init_year();
 	DAY$1 = 864e5;
@@ -4494,7 +4494,6 @@ var init_weeks = __esmMin((() => {
 	];
 	mondayOf = (c, n) => Date.parse(c.startDate + "T00:00:00Z") + n * 7 * DAY$1;
 	cycleYear = (c) => new Date(Date.parse(c.startDate + "T00:00:00Z") + 10 * DAY$1).getUTCFullYear();
-	weeksIn = (c, year) => spanOfYear(c, year).weeks;
 	noSuchWeek = (year, weeks) => `${year} has ${weeks} weeks. Use ${year}-W${weeks}, or ${year + 1}-W01.`;
 	weekUnknownText = (c, field, raw) => `${field} says “${raw.trim()}”. Write a year and a week, like ${weekCode(c, 46)}, or the week’s number.`;
 	lastWeekOffered = (c) => c.weeks + spanOf(c, c.weeks + 1).weeks;
@@ -4820,18 +4819,18 @@ var init_columns = __esmMin((() => {
 				const g = metricOf$1(r.g);
 				return g ? SHAPE_WORDS.word[g.plan.shape] : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e("From", "Number goals: the week the baseline (Start) was true and the plan starts, as a year and a week (2026-W46).", (r) => {
+			e("From", "Number goals: the week the plan starts from (2026-W46).", (r) => {
 				const g = metricOf$1(r.g);
 				return g ? weekCode(r.c.x.cycle, g.plan.fromWeek ?? 0) : null;
-			}, "Changes the plan; needs a reason once check-ins have started. When From and Plan from week disagree, the one you changed counts"),
+			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Plan from week", "Number goals: the week the plan starts from (0 for the cycle’s start, later for a goal set up mid-cycle).", (r) => {
 				const g = metricOf$1(r.g);
 				return g ? g.plan.fromWeek ?? 0 : null;
 			}, "Changes the plan; needs a reason once check-ins have started"),
-			e("To", "Number goals: the week the target is due, as a year and a week (2027-W13).", (r) => {
+			e("To", "Number goals: the week the target is due (2027-W13).", (r) => {
 				const g = metricOf$1(r.g);
 				return g ? weekCode(r.c.x.cycle, planEnd(g.plan, r.c.x.cycle.weeks)) : null;
-			}, "Changes the plan; needs a reason once check-ins have started. When To and Due week disagree, the one you changed counts"),
+			}, "Changes the plan; needs a reason once check-ins have started"),
 			e("Due week", "Number goals: the week the target is due, counted from the cycle’s start.", (r) => {
 				const g = metricOf$1(r.g);
 				return g ? planEnd(g.plan, r.c.x.cycle.weeks) : null;
@@ -5171,27 +5170,27 @@ var init_columns = __esmMin((() => {
 			},
 			From: {
 				required: { optional: "this week" },
-				format: "A year and a week, from week 1 of last year to the last week of next year",
+				format: "A year and a week",
 				example: "2026-W46",
-				empty: "This week; Plan from week, when it says otherwise",
-				also: ["from week", "baseline week"]
+				empty: "This week",
+				also: ["from week"]
 			},
 			"Plan from week": {
 				required: { optional: "this week" },
-				format: "A whole number of weeks from the cycle’s start (0 is the week before week 1)",
+				format: "A whole number of weeks from the cycle’s start",
 				example: "46",
 				empty: "This week (0 when setting up a workspace)"
 			},
 			To: {
 				required: { optional: "the cycle’s last week" },
-				format: "A year and a week after From, up to the last week of next year",
+				format: "A year and a week, after From",
 				example: "2026-W53",
-				empty: "The cycle’s last week; Due week, when it says otherwise",
-				also: ["to week", "due by"]
+				empty: "The cycle’s last week",
+				also: ["to week"]
 			},
 			"Due week": {
 				required: { optional: "the cycle’s last week" },
-				format: "A whole number of weeks from the cycle’s start, after Plan from week, up to the last week of next year; a date in the cycle is read as its week",
+				format: "A whole number, after Plan from week; a date in the cycle is read as its week",
 				example: "53",
 				empty: "The cycle’s last week",
 				clears: true,
@@ -7402,7 +7401,7 @@ function goalMustFix(d, ctx) {
 					weeks: ctx.cycleWeeks
 				}, span.from, span.to);
 				if (p) add(p.field === "from" ? "fromWeek" : "endWeek", p.id, p.text);
-			} else if (span.to <= span.from) add("endWeek", "to-before-from", `To (week ${span.to}) isn’t after From (week ${span.from}). The plan has to run forwards.`);
+			}
 		}
 		if (d.kind === "range") {
 			number("limit", d.limit, ["limit-empty", "Enter the limit."]);
@@ -10115,56 +10114,49 @@ function planChanges(input) {
 		}
 		let dueChanged = false;
 		if (d.kind === "metric") {
-			const C = {
-				startDate: cycle.startDate,
-				weeks: cycle.weeks
-			};
 			const was = existing?.kind === "metric" ? existing.plan : null;
-			const coded = (col, head) => {
-				const raw = has(r, col) ? val(r, col) : "";
-				if (!raw) return null;
-				const read = readWeekCode(C, raw);
-				if ("problem" in read) {
-					raise("week-wrong", "Goals", row, d.title, read.text ?? weekUnknownText(C, head, raw), { column: head });
+			const pair = (col, old, head, oldHead, cur) => {
+				const said = [];
+				for (const [c, h] of [[col, head], [old, oldHead]]) {
+					const raw = has(r, c) ? val(r, c) : "";
+					if (!raw && !(c === "due week" && has(r, c))) continue;
+					let n, msg;
+					if (c === col) {
+						const x = readWeekCode(cycle, raw);
+						n = "n" in x ? x.n : null;
+						msg = "text" in x ? x.text : void 0;
+					} else if (c === "due week" && raw) {
+						const x = weekCell(raw, "Goals", row, d.title);
+						n = x.n;
+						msg = x.problem;
+					} else n = raw ? parseNumber(raw) : cycle.weeks;
+					if (n == null || !Number.isInteger(n)) {
+						raise("week-wrong", "Goals", row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h });
+						return false;
+					}
+					if (n !== cur) said.push([
+						h,
+						raw,
+						n
+					]);
+				}
+				if (said.length === 2 && said[0][2] !== said[1][2]) {
+					raise("week-wrong", "Goals", row, d.title, `${head} says ${said[0][1]} and ${oldHead} says ${said[1][1]}. Change just one of them.`, { column: head });
 					return false;
 				}
-				return read.n;
+				return said[0]?.[2] ?? null;
 			};
-			const pick = (a, b, cur, head, oldHead, rawA, rawB) => {
-				const differ = [a, b].filter((v) => v != null && v !== cur);
-				if (differ.length === 2 && differ[0] !== differ[1]) {
-					raise("week-wrong", "Goals", row, d.title, `${head} says ${rawA} and ${oldHead} says ${rawB}. Change just one of them.`, { column: head });
-					return false;
-				}
-				return differ[0] ?? null;
-			};
-			const fromCode = coded("from", "From");
-			if (fromCode === false) return;
-			let fromOld = null;
-			if (has(r, "plan from week") && val(r, "plan from week")) {
-				const n = parseNumber(val(r, "plan from week"));
-				if (n == null || !Number.isInteger(n)) return raise("week-wrong", "Goals", row, d.title, weekUnknownText(C, "Plan from week", val(r, "plan from week")), { column: "Plan from week" });
-				fromOld = n;
-			}
-			const from = pick(fromCode, fromOld, was ? was.fromWeek ?? 0 : null, "From", "Plan from week", val(r, "from"), val(r, "plan from week"));
+			const from = pair("from", "plan from week", "From", "Plan from week", was ? was.fromWeek ?? 0 : null);
 			if (from === false) return;
 			if (from != null) d.fromWeek = String(from);
-			const toCode = coded("to", "To");
-			if (toCode === false) return;
-			let toOld = null;
-			if (has(r, "due week")) {
-				const w = val(r, "due week");
-				const read = w ? weekCell(w, "Goals", row, d.title) : { n: cycle.weeks };
-				if (read.problem) return raise("week-wrong", "Goals", row, d.title, read.problem, { column: "Due week" });
-				if (read.n == null || !Number.isInteger(read.n)) return raise("week-wrong", "Goals", row, d.title, weekUnknownText(C, "Due week", w), { column: "Due week" });
-				toOld = read.n;
-			}
-			const to = pick(toCode, toOld, was ? planEnd(was, cycle.weeks) : null, "To", "Due week", val(r, "to"), val(r, "due week"));
-			if (to === false) return;
-			if (to != null) {
-				const next = to !== cycle.weeks ? String(to) : "";
-				dueChanged = next !== d.endWeek;
-				d.endWeek = next;
+			if (has(r, "to") || has(r, "due week")) {
+				const to = pair("to", "due week", "To", "Due week", was ? planEnd(was, cycle.weeks) : null);
+				if (to === false) return;
+				if (to != null) {
+					const next = to !== cycle.weeks ? String(to) : "";
+					dueChanged = next !== d.endWeek;
+					d.endWeek = next;
+				}
 			}
 		}
 		if (d.kind === "metric" && (!existing || d.fromWeek != null || dueChanged)) {

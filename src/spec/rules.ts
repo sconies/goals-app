@@ -17,8 +17,8 @@ import { leaveOut } from '../domain/leaveOut';
 import { planQuestion } from '../domain/goal';
 import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, parseNumber, previousFor, stepState, unanswered, valueProblem, type Answers, type Draft } from '../domain/checkin';
 import { notStarted } from '../domain/plan';
-import { cycleWeek, planSays, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
-import { readWeek, spanSays, weekChoices } from '../domain/weekChoices';
+import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
+import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
 import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
@@ -1239,8 +1239,8 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
     title: 'Years and weeks',
     summary: 'A goal’s weeks are counted from its cycle’s start and shown as a goal year’s week with its dates and their year; one rule converts each way, for the picker, the sheet and the AI tools.',
     code: [
-      { file: 'src/domain/weeks.ts', names: ['yearWeek', 'cycleWeek', 'weekCode', 'readWeekCode', 'weekSays', 'planSays', 'weeksProblem', 'lastWeekOffered', 'firstWeekOffered', 'startsSays'] },
-      { file: 'src/domain/weekChoices.ts', names: ['readWeek', 'weekIs', 'weekChoices', 'spanSays', 'rangeSays'] },
+      { file: 'src/domain/weeks.ts', names: ['yearWeek', 'cycleWeek', 'weekCode', 'readWeekCode', 'weekSays', 'weeksProblem', 'lastWeekOffered', 'firstWeekOffered', 'startsSays'] },
+      { file: 'src/domain/weekChoices.ts', names: ['planSays', 'readWeek', 'weekIs', 'weekChoices', 'spanSays', 'rangeSays'] },
       { file: 'src/domain/plan.ts', names: ['notStarted'] },
       { file: 'src/domain/progress.ts', names: ['firstDueWeek'] },
       { file: 'src/domain/status.ts', names: ['daysWithoutUpdate'] },

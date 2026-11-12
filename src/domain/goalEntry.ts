@@ -184,7 +184,7 @@ export function goalMustFix(d: GoalDraft, ctx: MustFixContext): MustFix[] {
       else if (ctx.startDate) {
         const p = weeksProblem({ startDate: ctx.startDate, weeks: ctx.cycleWeeks }, span.from, span.to);
         if (p) add(p.field === 'from' ? 'fromWeek' : 'endWeek', p.id, p.text);
-      } else if (span.to <= span.from) add('endWeek', 'to-before-from', `To (week ${span.to}) isn’t after From (week ${span.from}). The plan has to run forwards.`);
+      }
     }
     if (d.kind === 'range') {
       number('limit', d.limit, ['limit-empty', 'Enter the limit.']);

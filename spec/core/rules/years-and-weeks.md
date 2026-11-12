@@ -38,8 +38,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/weeks.ts](../../../src/domain/weeks.ts): `yearWeek`, `cycleWeek`, `weekCode`, `readWeekCode`, `weekSays`, `planSays`, `weeksProblem`, `lastWeekOffered`, `firstWeekOffered`, `startsSays`
-- [src/domain/weekChoices.ts](../../../src/domain/weekChoices.ts): `readWeek`, `weekIs`, `weekChoices`, `spanSays`, `rangeSays`
+- [src/domain/weeks.ts](../../../src/domain/weeks.ts): `yearWeek`, `cycleWeek`, `weekCode`, `readWeekCode`, `weekSays`, `weeksProblem`, `lastWeekOffered`, `firstWeekOffered`, `startsSays`
+- [src/domain/weekChoices.ts](../../../src/domain/weekChoices.ts): `planSays`, `readWeek`, `weekIs`, `weekChoices`, `spanSays`, `rangeSays`
 - [src/domain/plan.ts](../../../src/domain/plan.ts): `notStarted`
 - [src/domain/progress.ts](../../../src/domain/progress.ts): `firstDueWeek`
 - [src/domain/status.ts](../../../src/domain/status.ts): `daysWithoutUpdate`

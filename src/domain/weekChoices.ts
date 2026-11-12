@@ -134,3 +134,10 @@ export function spanSays(c: C, from: number, to: number, week: number): string {
 
 /** A range's dates, said not chosen (decision 12): "It applies from the week it is published (week 46, 9–15 Nov 2026) to the end of 2026." */
 export const rangeSays = (c: C, week: number) => `It applies from the week it is published (${weekSays(c, Math.max(0, week), 'short')}, ${datesOf(c, Math.max(0, week))}) to the end of ${cycleYear(c)}.`;
+
+/**
+ * A number goal's plan in one sentence, the same on the read-back, the goal page and the AI tools (rule 13): "from 42 min
+ * in week 46 (9–15 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)". `start` and `target` come formatted.
+ */
+export const planSays = (c: C, from: number, to: number, start: string, target: string) =>
+  `from ${start} in ${weekSays(c, from, 'sentence')} to ${target} by ${weekSays(c, to, 'sentence')}`;

@@ -754,47 +754,31 @@ export function planChanges(input: ChangeInput): ChangeSet {
     // From and To are a goal year and its week (2026-W46); the old columns are weeks from the cycle's start.
     let dueChanged = false;
     if (d.kind === 'metric') {
-      const C = { startDate: cycle.startDate, weeks: cycle.weeks };
       const was = existing?.kind === 'metric' ? existing.plan : null;
-      const coded = (col: 'from' | 'to', head: string): number | null | false => {
-        const raw = has(r, col) ? val(r, col) : '';
-        if (!raw) return null;
-        const read = readWeekCode(C, raw);
-        if ('problem' in read) { raise('week-wrong', 'Goals', row, d.title, read.text ?? weekUnknownText(C, head, raw), { column: head }); return false; }
-        return read.n;
+      // One pair: the new column (a goal year's week) and the old (the cycle's week); null when neither says anything new.
+      const pair = (col: 'from' | 'to', old: 'plan from week' | 'due week', head: string, oldHead: string, cur: number | null): number | null | false => {
+        const said: [string, string, number][] = [];
+        for (const [c, h] of [[col, head], [old, oldHead]] as const) {
+          const raw = has(r, c) ? val(r, c) : '';
+          // An empty Due week is the cycle's end (it clears); any other empty cell says nothing.
+          if (!raw && !(c === 'due week' && has(r, c))) continue;
+          let n: number | null, msg: string | undefined;
+          if (c === col) { const x = readWeekCode(cycle, raw); n = 'n' in x ? x.n : null; msg = 'text' in x ? x.text : undefined; }
+          else if (c === 'due week' && raw) { const x = weekCell(raw, 'Goals', row, d.title); n = x.n; msg = x.problem; }
+          else n = raw ? parseNumber(raw) : cycle.weeks;
+          if (n == null || !Number.isInteger(n)) { raise('week-wrong', 'Goals', row, d.title, msg ?? weekUnknownText(cycle, h, raw), { column: h }); return false; }
+          if (n !== cur) said.push([h, raw, n]);
+        }
+        if (said.length === 2 && said[0]![2] !== said[1]![2]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${said[0]![1]} and ${oldHead} says ${said[1]![1]}. Change just one of them.`, { column: head }); return false; }
+        return said[0]?.[2] ?? null;
       };
-      const pick = (a: number | null, b: number | null, cur: number | null, head: string, oldHead: string, rawA: string, rawB: string): number | null | false => {
-        const differ = [a, b].filter((v): v is number => v != null && v !== cur);
-        if (differ.length === 2 && differ[0] !== differ[1]) { raise('week-wrong', 'Goals', row, d.title, `${head} says ${rawA} and ${oldHead} says ${rawB}. Change just one of them.`, { column: head }); return false; }
-        return differ[0] ?? null;
-      };
-      const fromCode = coded('from', 'From');
-      if (fromCode === false) return;
-      let fromOld: number | null = null;
-      if (has(r, 'plan from week') && val(r, 'plan from week')) {
-        const n = parseNumber(val(r, 'plan from week'));
-        if (n == null || !Number.isInteger(n)) return raise('week-wrong', 'Goals', row, d.title, weekUnknownText(C, 'Plan from week', val(r, 'plan from week')), { column: 'Plan from week' });
-        fromOld = n;
-      }
-      const from = pick(fromCode, fromOld, was ? was.fromWeek ?? 0 : null, 'From', 'Plan from week', val(r, 'from'), val(r, 'plan from week'));
+      const from = pair('from', 'plan from week', 'From', 'Plan from week', was ? was.fromWeek ?? 0 : null);
       if (from === false) return;
       if (from != null) d.fromWeek = String(from);
-      const toCode = coded('to', 'To');
-      if (toCode === false) return;
-      let toOld: number | null = null;
-      if (has(r, 'due week')) {
-        const w = val(r, 'due week');
-        const read = w ? weekCell(w, 'Goals', row, d.title) : { n: cycle.weeks };
-        if (read.problem) return raise('week-wrong', 'Goals', row, d.title, read.problem, { column: 'Due week' });
-        if (read.n == null || !Number.isInteger(read.n)) return raise('week-wrong', 'Goals', row, d.title, weekUnknownText(C, 'Due week', w), { column: 'Due week' });
-        toOld = read.n;
-      }
-      const to = pick(toCode, toOld, was ? planEnd(was, cycle.weeks) : null, 'To', 'Due week', val(r, 'to'), val(r, 'due week'));
-      if (to === false) return;
-      if (to != null) {
-        const next = to !== cycle.weeks ? String(to) : '';
-        dueChanged = next !== d.endWeek;
-        d.endWeek = next;
+      if (has(r, 'to') || has(r, 'due week')) {
+        const to = pair('to', 'due week', 'To', 'Due week', was ? planEnd(was, cycle.weeks) : null);
+        if (to === false) return;
+        if (to != null) { const next = to !== cycle.weeks ? String(to) : ''; dueChanged = next !== d.endWeek; d.endWeek = next; }
       }
     }
     if (d.kind === 'metric' && (!existing || d.fromWeek != null || dueChanged)) {

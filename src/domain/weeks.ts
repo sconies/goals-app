@@ -55,8 +55,7 @@ function spanOfYear(c: C, year: number): Span {
   return s;
 }
 
-/** How many weeks a goal year has, seen from this cycle. */
-export const weeksIn = (c: C, year: number) => spanOfYear(c, year).weeks;
+
 
 /** Rule 13. The inverse of `yearWeek`: the cycle week of a goal year's week, or null when that year has no such week. */
 export function cycleWeek(c: C, at: { year: number; week: number }): number | null {
@@ -85,7 +84,7 @@ export function readWeekCode(c: C, raw: string): { n: number } | { problem: 'wee
   if (coded) {
     const year = Number(coded[1]), week = Number(coded[2]);
     const n = cycleWeek(c, { year, week });
-    return n == null ? { problem: 'week-unknown', text: noSuchWeek(year, weeksIn(c, year)) } : { n };
+    return n == null ? { problem: 'week-unknown', text: noSuchWeek(year, spanOfYear(c, year).weeks) } : { n };
   }
   const plain = /^W?\s*(-?\d{1,3})$/i.exec(v);
   if (plain) return { n: Number(plain[1]) };
@@ -141,11 +140,3 @@ export function weeksProblem(c: C, from: number, to: number): { id: 'to-before-f
   if (to <= from) return { id: 'to-before-from', field: 'to', text: `To (${weekSays(c, to, 'short')}, ${datesOf(c, to)}) isn’t after From (${weekSays(c, from, 'short')}, ${datesOf(c, from)}). The plan has to run forwards.` };
   return null;
 }
-
-/**
- * A number goal's plan in one sentence, the same on the read-back, the goal page and the AI tools (rule 13): "from 42 min
- * in week 46 (9–15 Nov 2026) to 30 min by week 13 of 2027 (29 Mar–4 Apr 2027)". `start` and `target` come formatted.
- */
-export const planSays = (c: C, from: number, to: number, start: string, target: string) =>
-  `from ${start} in ${weekSays(c, from, 'sentence')} to ${target} by ${weekSays(c, to, 'sentence')}`;
-
