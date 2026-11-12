@@ -203,10 +203,12 @@ describe('plan changes after check-ins start', () => {
 });
 
 describe('closing a cycle', () => {
-  it('picks the cycle that has started, or starts within the week', () => {
+  it('picks the latest cycle whose week 1 has begun (cycle-end rule 3)', () => {
     const next = { ...cycle, id: 'c2', startDate: '2027-01-25' };
     expect(currentCycle([cycle, next], today)!.id).toBe(cycle.id);
-    expect(currentCycle([cycle, next], new Date("2027-01-20T12:00:00Z"))!.id).toBe('c2');
+    // Its week 0 (from 25 January) is still the old cycle's; it opens for everyone on its week 1's Monday, 1 February.
+    expect(currentCycle([cycle, next], new Date('2027-01-31T12:00:00Z'))!.id).toBe(cycle.id);
+    expect(currentCycle([cycle, next], new Date('2027-02-01T12:00:00Z'))!.id).toBe('c2');
   });
   it('suggests how a goal landed from where it ended', () => {
     expect(suggestedResult(goal('lead-mq'), cycle, s.checkIns, today)).toBe('missed');

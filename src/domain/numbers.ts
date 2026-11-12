@@ -58,6 +58,8 @@ export const asWritten = (v: number, decimals: number) => Number(v.toFixed(decim
  */
 export function sameAsWritten(cell: string | number, written: number | null | undefined, decimals: number): boolean {
   if (written == null) return false;
+  // An empty cell says nothing, never a 0 (Number('') is 0): beside a written number it is a change.
+  if (String(cell).trim() === '') return false;
   if (String(cell).trim() === String(asWritten(written, decimals))) return true;
   const n = typeof cell === 'number' ? cell : Number(String(cell).trim().replace(/,/g, ''));
   return Number.isFinite(n) && asWritten(n, decimals) === asWritten(written, decimals);

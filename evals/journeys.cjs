@@ -318,7 +318,20 @@ const shapeMismatches = (p) => p.$$eval('svg.status-shape[data-status]', (els) =
 
 /* ---------------- the ten journeys ---------------- */
 const J = [];
-const journey = (id, reqs, title, budget, fn, na = []) => J.push({ id, reqs, title, budget, fn, na });
+/** Answer every question a check-in asks about a number (CK2's Check blocks) with its yes: the journey's number is meant. */
+async function answerChecks(p) {
+  for (let i = 0; i < 10; i++) {
+    const yes = p.locator('.level-check .level-actions button').first();
+    if (!(await yes.isVisible().catch(() => false))) return;
+    await yes.click();
+    await p.waitForTimeout(50);
+  }
+}
+const journey = (id, reqs, title, budget, fn, na = []) => {
+  // Each id once: a second journey with the same id runs in every shard and is counted as one (issue #150).
+  if (J.some((j) => j.id === id)) throw new Error(`Two journeys are called ${id}: give the newer one the next free number`);
+  J.push({ id, reqs, title, budget, fn, na });
+};
 
 journey('U1', ['UPDATE-ANYTIME', 'CARRY-OVER', 'CHECKIN-STATUS-VS-PLAN', 'REASON-BEHIND', 'PATH-TO-GREEN', 'ONE-PER-WEEK', 'CHANGE-LOG', 'DRAFTS', 'PROFILES', 'PERSIST'], 'Weekly check-in, all due goals in one pass', 17, async (h, device) => {
   // Rhea: two goals due. Image slimming is on plan (number, post, next: three interactions); the new CI cost goal comes
@@ -1235,22 +1248,127 @@ journey('U10', ['RETRO', 'CHANGE-LOG', 'ADMIN'], 'Close the cycle: owners wrap u
   // Amara, an admin, starts the next cycle.
   await viewAs(p, 'Amara');
   await see(p, 'The year is ending', 'an admin is told the year is ending');
-  await p.goto(late('/retro'));
-  await h.click(p.getByRole('button', { name: 'Start it' }));
-  await h.click(p.getByRole('button', { name: 'Start next year' }));
-  await see(p, 'has started');
+  // Starting next year is its own page with a read-back (cycle-end 2.4); it prepares 2027 and moves nobody yet.
+  await p.goto(late('/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
   s = await h.snapshot('ws_wrap');
   const c2 = s.cycles.find((c) => c.id !== 'cycle');
   const carried = s.goals.filter((g) => g.cycleId === c2?.id);
-  h.set('finish', !!c2 && carried.length === s.goals.filter((g) => g.cycleId === 'cycle').length - 1 && !carried.some((g) => g.title === 'Post-incident actions closed within 30 days'), 'the next cycle does not carry the right goals');
+  const before = s.goals.filter((g) => g.cycleId === 'cycle' && !g.stoppedAt && !g.removedAt).length;
+  h.set('finish', !!c2 && carried.length > 0 && carried.length < before && !carried.some((g) => g.title === 'Post-incident actions closed within 30 days'), 'the next cycle does not carry the right goals');
   h.set('logged', s.changes.some((c) => c.entity === 'cycle' && c.actorId === 'amara'), 'starting the cycle is not logged');
-  await p.goto(late('/goals?scope=all'));
+  // On 4 January 2027 everyone is in 2027, with the goals that carried on.
+  const jan = (path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=2027-01-04';
+  await p.goto(jan('/goals?scope=all'));
   await see(p, 'Lead time for changes', 'the new cycle shows the carried goals');
   if (await p.getByText('Post-incident actions closed within 30 days').count()) fail('a stopped goal came into the new cycle');
   await p.context().close();
 });
 
-journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days', 6, async (h, device) => {
+journey('U115', ['CARRY-GOALS'], 'Start 2027 only prepares it: on 21 Dec 2026 the read-back counts every goal once; afterwards everyone is still in 2026 and Cycles offers Undo, which puts 2026 back; started again, 2027 opens for everyone on 4 Jan 2027. A workspace whose only year is 2027 says when it starts and has nothing due', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'amara'));
+  await p.goto(url('/'));
+  await p.locator('.hero').waitFor();
+  // The example copied into a workspace of Amara's own, so it keeps 2026 when the clock moves (as U10 does).
+  await p.evaluate(async () => {
+    const full = await window.__goalsStore.load('platform-org');
+    localStorage.setItem('goals-app-v2:workspaces', JSON.stringify([{ id: 'ws_turn', name: 'Year turn', kind: 'own', createdAt: '2026-10-01T00:00:00Z' }]));
+    localStorage.setItem('goals-app-v2:ws_turn', JSON.stringify({ ...full }));
+    localStorage.setItem('goals-app-workspace', 'ws_turn');
+    localStorage.setItem('goals-app-viewer:ws_turn', 'amara');
+  });
+  const on = (day, path) => BASE + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + day;
+  const s0 = await h.snapshot('ws_turn');
+  const live = s0.goals.filter((g) => !g.stoppedAt && !g.removedAt).length;
+  await p.goto(on('2026-12-21', '/workspace/cycles'));
+  await h.inView(p.getByRole('link', { name: 'Start 2027' }), 'entry', 'Start 2027 on Cycles');
+  await h.click(p.getByRole('link', { name: 'Start 2027' }));
+  await see(p, 'Everyone stays in 2026 until Sun 3 Jan 2027');
+  const counts = await p.locator('.read-back-n').allInnerTexts();
+  h.set('attention', counts.length === 4 && counts.reduce((n, c) => n + Number(c), 0) === live, `the read-back's counts (${counts.join(', ')}) don't add up to the ${live} goals`);
+  await h.checkpoint('read-back');
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  // Nobody moves: Home is still 2026.
+  await p.goto(on('2026-12-21', '/'));
+  await p.locator('.hero').first().waitFor();
+  h.set('progress', /2026 · week 52/.test(await p.locator('body').innerText()), 'starting 2027 moved everyone into it early');
+  // Undo puts 2026 back as it was.
+  await p.goto(on('2026-12-22', '/workspace/cycles'));
+  await h.click(p.getByRole('region', { name: '2027 is ready' }).getByRole('button', { name: 'Undo' }));
+  await see(p, '2027 was undone');
+  let s = await h.snapshot('ws_turn');
+  const undone = s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 0;
+  h.set('errors', undone && s.changes.some((c) => c.summary === 'Undid the start of 2027'), 'Undo did not put 2026 back');
+  // Started again, then 4 January 2027: everyone is in 2027.
+  await p.goto(on('2026-12-23', '/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await see(p, '2027 is ready');
+  await p.goto(on('2027-01-04', '/'));
+  await p.locator('.hero').first().waitFor();
+  const jan = await p.locator('body').innerText();
+  s = await h.snapshot('ws_turn');
+  h.set('finish', /2027 · week 1 · Q1/.test(jan) && s.cycles.filter((c) => c.name === '2027' && !c.removedAt).length === 1, `on 4 Jan 2027 the frame said “${(jan.match(/20\d\d[^\n]{0,30}/) || [''])[0]}”`);
+  h.set('logged', s.changes.filter((c) => c.entity === 'cycle' && c.summary.startsWith('Started 2027')).length === 2);
+  // What came with the goals (CY4): watches, metric links and open asks follow; no stage is due after week 52; no number plan starts late.
+  const y27 = s.cycles.find((c) => c.name === '2027' && !c.removedAt);
+  const ids27 = new Set(s.goals.filter((g) => g.cycleId === y27.id).map((g) => g.id));
+  const came = (s.watches || []).some((w) => !w.removedAt && ids27.has(w.ref)) && (s.requests || []).some((r) => r.status === 'open' && r.goalIds.some((id) => ids27.has(id))) && (((s.modules || {}).metrics || {}).metricLinks || []).some((l) => !l.removedAt && ids27.has(l.goalId));
+  const planned = s.goals.filter((g) => ids27.has(g.id)).every((g) => g.kind === 'milestone' ? g.stages.every((x) => x.dueWeek <= 52) : g.kind !== 'metric' || (g.plan.fromWeek || 0) <= 0);
+  h.set('attention', came && planned, `carried goals came without their watches, asks or metric links, or with a plan past week 52 (${came}, ${planned})`);
+  // A workspace whose only year is 2027, on 11 Nov 2026: it says when it starts, and nothing is due.
+  await p.evaluate((snap) => {
+    const c = snap.cycles[0];
+    const only = { ...snap, cycles: [{ ...c, name: '2027', startDate: '2026-12-28', weeks: 52 }], goals: snap.goals.filter((g) => g.cycleId === c.id).map((g) => ({ ...g, createdAt: '2026-11-01T00:00:00Z' })), checkIns: [], changes: [] };
+    localStorage.setItem('goals-app-v2:ws_turn', JSON.stringify(only));
+    localStorage.setItem('goals-app-viewer:ws_turn', 'rhea');
+  }, s0);
+  await p.goto(on('2026-11-11', '/'));
+  await p.locator('.hero').first().waitFor();
+  const before = await p.locator('main').innerText();
+  h.set('parity', /2027 starts on Mon 4 Jan 2027, in 7 weeks\. Nothing is due until then\./.test(before) && !/check-ins? to do|days late|No recent update/.test(before), `a year not begun: “${before.replace(/\s+/g, ' ').slice(0, 200)}”`);
+  await p.context().close();
+}, ['budget']);
+
+journey('U111', ['HONEST-CHECKIN', 'ONE-PER-WEEK'], 'A number that looks wrong is asked about: ten times last week’s blocks Continue until it is answered; Change the number goes back to the field, and the corrected number posts and is compared with last week', 6, async (h, device) => {
+  // Rhea's image slimming (ci-docker), due this week. She types ten times last week's number by mistake.
+  const p = h.use(await newPage(device, 'rhea'));
+  await p.goto(url('/check-in/ci-docker'));
+  const s0 = await h.snapshot();
+  const last = s0.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week < NOW && c.value != null).sort((a, b) => a.week - b.week || a.postedAt.localeCompare(b.postedAt)).pop();
+  const field = p.getByLabel('This week’s value');
+  await h.inView(field, 'entry', 'the number field');
+  await h.fill(field, String(last.value * 10));
+  // The question is a Check block: the word, the question and two plain buttons. No status shape in it.
+  const check = p.locator('.level-check');
+  await check.waitFor();
+  const q = await check.innerText();
+  h.set('attention', /Check/.test(q) && /right\?/.test(q), `the question read “${q.replace(/\s+/g, ' ')}”`);
+  await h.click(p.getByRole('button', { name: 'Continue' }));
+  await see(p, 'Answer the question above first.', 'Continue with a question open says why it does nothing');
+  const s1 = await h.snapshot();
+  h.set('errors', s1.checkIns.length === s0.checkIns.length, 'something posted with the question unanswered');
+  await h.checkpoint('asked');
+  // "Change the number" goes back to the field; the right number posts, with no question.
+  await h.click(p.getByRole('button', { name: 'Change the number' }));
+  const focused = await field.evaluate((el) => el === document.activeElement);
+  h.set('progress', focused, 'Change the number did not put the cursor back in the field');
+  const right = String(Math.round(planAt(s0.goals.find((g) => g.id === 'ci-docker').plan, NOW)));
+  await h.fill(field, right);
+  // The far question is gone; the plan's number may be last week's too, which asks whether it was measured again.
+  const after = (await check.count()) ? await check.innerText() : '';
+  if (/right\?/.test(after)) fail('the question stayed after the number was corrected');
+  if (/measure it again/.test(after)) await h.click(p.getByRole('button', { name: 'Yes, measured again' }));
+  await h.click(p.getByRole('button', { name: 'Post check-in' }));
+  await see(p, 'Check-in saved');
+  const s2 = await h.snapshot();
+  const posted = s2.checkIns.filter((c) => c.goalId === 'ci-docker' && c.week === NOW);
+  h.set('finish', posted.length === 1 && posted[0].value === Number(right), `week ${NOW} holds ${posted.map((c) => c.value).join(', ') || 'nothing'}`);
+  await h.checkpoint('posted');
+});
+
+journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody starting the next: on 11 Jan 2027 the frame says 2026 has ended, nothing is due, late or out of date, Q4 is closed, and Cycles gives the year’s real days; started then, 2026’s wrap-up stays open', 6, async (h, device) => {
   // Rhea owns goals behind and one gone quiet. The example is copied into a workspace of her own (as U10 does), so it
   // keeps 2026 when the clock moves past the year's end (the demo rebuilds its example around the day it's opened).
   const p = h.use(await newPage(device, 'rhea'));
@@ -1291,6 +1409,28 @@ journey('U117', ['RESULTS', 'YEAR'], 'The year ends on its last day with nobody 
   await cycles.waitFor();
   const row = (await cycles.innerText()).replace(/\s+/g, ' ');
   h.set('parity', /2026 · ended 3 Jan 2027/.test(row) && /29 Dec 2025 to 3 Jan 2027/.test(row), `Cycles: “${row.slice(0, 200)}”`);
+  // After the wrap-up has closed (5 Feb 2027) an admin can still start 2027, from Cycles and from the wrap-up page (build review, 11 Nov).
+  await p.goto(on('2027-02-05', '/workspace/cycles'));
+  await cycles.waitFor();
+  const late = await p.getByRole('link', { name: 'Start 2027' }).count();
+  await p.goto(on('2027-02-05', '/retro'));
+  await see(p, 'The wrap-up closed on Sun 31 Jan 2027');
+  const fromRetro = await p.getByRole('link', { name: 'Start 2027' }).count();
+  h.set('finish', late > 0 && fromRetro > 0, `after the wrap-up closed, Start 2027 was on Cycles ${late} time(s) and on the wrap-up ${fromRetro}`);
+  // Started on 11 Jan 2027, 2027 is current at once and 2026's wrap-up stays open until 31 Jan (rule 3; build review of #133, high).
+  await p.goto(on('2027-01-11', '/workspace/cycles/next'));
+  await h.click(p.getByRole('button', { name: 'Start 2027' }));
+  await p.getByRole('list', { name: 'Cycles' }).waitFor();
+  await p.goto(on('2027-01-11', '/retro'));
+  await see(p, '2026 ended on Sun 3 Jan 2027');
+  const wrapRows = await p.locator('.retro-row').count();
+  await h.click(p.locator('.retro-row').getByRole('link', { name: 'Wrap up' }).first());
+  await h.fill(p.getByLabel('What did you learn?'), 'Moved more slowly than we planned');
+  await h.click(p.getByRole('button', { name: /Save/ }));
+  await p.waitForURL(/\/retro/);
+  const saved = await p.getByText(/^Wrapped up /).first().isVisible().catch(() => false);
+  const cyclesAfter = await (async () => { await p.goto(on('2027-01-11', '/workspace/cycles')); const l = p.getByRole('list', { name: 'Cycles' }); await l.waitFor(); return l.getByRole('link', { name: 'Open the wrap-up' }).count(); })();
+  h.set('finish', wrapRows > 0 && saved && cyclesAfter > 0, `with 2027 current on 11 Jan, 2026’s wrap-up showed ${wrapRows} goals, saving said “Wrapped up” ${saved}, and Cycles offered 2026’s wrap-up ${cyclesAfter} time(s)`);
   h.set('logged', true);
   await p.context().close();
 }, ['budget']);
@@ -1763,6 +1903,7 @@ journey('U31', ['HONEST-NUMBERS', 'WALKTHROUGHS', 'WATCHING', 'ONE-WATCHING'], '
     const asks = (await row.getByRole('textbox').count()) > 1 || (await row.locator('select').evaluateAll((els) => els.some((e) => !e.value)));
     if (asks) fail(`a number on plan asks why: ${(await row.innerText()).split('\n')[0]}`);
   }
+  await answerChecks(p);
   await h.click(p.getByRole('button', { name: /^Post/ }));
   // The table lands on the check-in's own confirmation (deep review U12).
   await see(p, 'Posted from the table', 'posting the table did not confirm').catch(async (e) => {
@@ -2881,6 +3022,16 @@ journey('U70', ['NAV-BACK'], 'Back agrees: the back link names where it goes and
   await p.goForward();
   await p.waitForURL(/\/goals\/ns-lead(\?|$)/, { timeout: 5000 }).catch(() => {});
   h.set('parity', /\/goals\/ns-lead(\?|$)/.test(p.url()), `after the back link, Forward went to ${p.url()}`);
+  // Settings scrolls to its foot on a computer: the section links never pull the page back up, and the last is lit.
+  if (device !== 'phone') {
+    await p.goto(url('/settings'));
+    await p.locator('.section-links').first().waitFor({ timeout: 5000 }).catch(() => {});
+    await p.mouse.move(700, 500);
+    for (let i = 0; i < 40; i++) { await p.mouse.wheel(0, 60); await p.waitForTimeout(30); }
+    await p.waitForTimeout(300);
+    const at = await p.evaluate(() => ({ y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight, lit: document.querySelector('.section-links [aria-current="true"]')?.textContent?.trim() ?? '' }));
+    h.set('progress', at.y >= at.max - 2 && at.lit === 'Leave', `Settings scrolled to ${at.y} of ${at.max}, with “${at.lit}” lit`);
+  }
   h.set('attention', true); h.set('one-action', true);
   await p.context().close();
 }, ['logged']);
@@ -3415,7 +3566,7 @@ journey('U71', ['CHECK-IN-QUEUE'], 'See your check-ins before you start: the wee
 
 // GL2 (goals spec, 2.1, 2.3, 2.4): Layout and Views are menus on every width; the head and the bar don't move between
 // layouts; on the Map, Group and Sort can't be used and the bar's search goes to a goal; a phone has one View sheet.
-journey('U87', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
+journey('U135', ['GOALS-MENUS', 'GOAL-MAP', 'SAVED-VIEWS'], 'The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet', 14, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   await p.goto(url('/goals?scope=all'));
   const phone = await phoneBar(p);
@@ -4181,6 +4332,7 @@ journey('U27', ['WALKTHROUGHS', 'DEMO-MODE'], 'Take a walkthrough: the coach poi
   const s0 = await h.snapshot();
   const g = s0.goals.find((x) => x.id === 'ci-docker');
   await h.fill(p.getByLabel('This week’s value'), valueAt(g, NOW, 1.02));
+  await answerChecks(p);
   await see(coach, 'step 3 of 4', 'the coach did not move on when the number was typed');
   h.set('progress', true);
   await h.click(p.locator('.focus-foot button[type=submit]'));
@@ -4514,6 +4666,60 @@ journey('U84', ['NEW-GOAL-STEPS', 'FIND-AND-PICK'], 'New goal in the order peopl
 }, ['logged']);
 
 journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 28, async (h, device) => {
+/* The metric library as a place (ML1, docs/design/metrics/spec.md): the library in the menu, a page per metric. */
+journey('U81', ['METRICS-LIBRARY', 'OLD-ADDRESSES'], 'The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands', 8, async (h, device) => {
+  const p = h.use(await newPage(device, 'oskar'));
+  await p.goto(url('/'));
+  await navTo(h, p, 'Metrics');
+  await p.waitForURL(/\/demo\/metrics(\?|$)/);
+  await p.locator('.metric-row').first().waitFor();
+  const find = p.getByPlaceholder('Find by name, unit, owner or meaning');
+  await h.inView(find, 'entry', 'Find a metric');
+  const count = (await p.locator('.count-line').innerText()).trim();
+  h.set('progress', count === '13 metrics, A to Z.' && (await p.locator('.metric-row .metric-name').first().innerText()) === 'Change failure rate', `the library’s count line says “${count}”`);
+  await h.checkpoint('library');
+  await h.fill(find, 'queue');
+  await see(p, /^\d+ metrics? match(es)?\.$/, 'a search for “queue” does not say how many match');
+  await see(p.locator('.metric-row'), 'Pipeline queue wait (p90)', 'a search for “queue” does not find Pipeline queue wait (p90)');
+  h.set('attention', /[?&]q=queue/.test(p.url()), `the search is not in the address: ${p.url()}`);
+  await h.click(p.locator('.metric-row', { hasText: 'Pipeline queue wait (p90)' }));
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  await see(p.locator('.metric-meaning'), /\w{12,}/, 'the metric’s page does not say what it means');
+  // Its goal, side by side: status as shape and word, For, now, target with its week, and against plan.
+  const row = p.locator('.metric-goals tbody tr').first();
+  const cells = (await row.innerText()).replace(/\s+/g, ' ');
+  const shaped = await row.locator('.mg-status svg[data-status]').count();
+  h.set('finish', shaped === 1 && /Off track|At risk|On track|No recent update/.test(cells) && /CI\/CD/.test(cells) && /\d+ min/.test(cells) && /by (year end|week \d+)/.test(cells) && /plan|limit/.test(cells), `its goals table row says “${cells}”`);
+  await h.checkpoint('metric');
+  const changes = async () => (await p.getByRole('link', { name: /^(Change this metric|Say what it means|Choose an owner)/ }).count()) + (await p.getByRole('button', { name: /^Remove this metric/ }).count());
+  let offered = await changes();
+  const seeIt = p.getByRole('link', { name: 'See its goal' });
+  await h.inView(seeIt, 'entry', 'See its goal');
+  await h.click(seeIt);
+  await p.waitForURL(/\/demo\/goals\/lead-ci-time/);
+  await p.locator('.goal-bar').waitFor();
+  // A computer's summary says it; a phone keeps its summary short, and the page's section says it.
+  await see(p.locator(device === 'phone' ? '.metric-block' : '.goal-bar'), 'Measured by Pipeline queue wait (p90)', 'the goal’s page does not say what measures it');
+  await p.goBack();
+  await p.getByRole('heading', { level: 1, name: 'Pipeline queue wait (p90)' }).waitFor();
+  await p.goto(url('/metrics/lead-time'));
+  await p.getByRole('heading', { level: 1, name: 'Lead time for changes' }).waitFor();
+  offered += await changes();
+  await see(p, 'Rhea Kapoor or an admin can change this.', 'the page does not say who can change it');
+  h.set('errors', offered === 0, `a member was offered ${offered} controls that change a metric`);
+  // Every old address of Wednesday's Metrics page under Data lands where the spec's table says, without a history entry.
+  const old = [['/data/metrics', /\/demo\/metrics\?today=/], ['/data/metrics?m=metric_lead-time', /\/demo\/metrics\/lead-time\?today=/], ['/data/metrics?m=metric_lead-time&edit', /\/demo\/metrics\/lead-time\/edit\?today=/], ['/data/metrics?new', /\/demo\/metrics\/new\?today=/]];
+  const wrong = [];
+  for (const [from, to] of old) {
+    await p.goto(url(from));
+    await p.locator('main h1, .focus h1').first().waitFor();
+    if (!to.test(p.url())) wrong.push(`${from} → ${p.url()}`);
+  }
+  h.set('logged', !wrong.length, `old addresses: ${wrong.join('; ')}`);
+  await p.context().close();
+}, []);
+
+journey('U85', ['NEW-GOAL-TRUTH'], 'A goal isn’t born late: a stage already past is asked about, and a first number can restart the plan', 26, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
   // A stages goal with a stage due in week 1: asked whether it's done; yes records it done in week 1, so nothing is late.
   await p.goto(url('/goals/new'));
@@ -4749,6 +4955,19 @@ async function platformChecks() {
       if (mute.length) problems.push(`${who} ${route}: ${mute.length} status shapes without a word (${[...new Set(mute)].join(', ')})`);
       (await shapeMismatches(r)).forEach((x) => problems.push(`${who} ${route}: ${x}`));
     }
+    // A status in a found row (Find, and every picker's rows, which share them) shows its shape at a real size, not 0 by 0.
+    await r.goto(url('/'));
+    await r.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
+    await r.reload();
+    await r.locator('.page').first().waitFor({ timeout: 5000 }).catch(() => {});
+    if (device === 'phone') await r.locator('.find-btn:visible').first().click().catch(() => {});
+    else await r.keyboard.press('Control+k');
+    const finder = r.getByRole('dialog', { name: 'Find' });
+    await finder.getByRole('combobox').fill('rhea').catch(() => {});
+    await finder.locator('.pick-status').first().waitFor({ timeout: 5000 }).catch(() => {});
+    const sizes = await r.$$eval('.pick-status', (els) => els.map((e) => { const b = e.querySelector('svg.status-shape')?.getBoundingClientRect(); return b ? Math.min(b.width, b.height) : 0; }));
+    if (!sizes.length) problems.push('Find "rhea": no goal row with a status');
+    else if (sizes.some((x) => x < 8)) problems.push(`Find "rhea": ${sizes.filter((x) => x < 8).length} goal rows whose status shape has no size`);
     add(device === 'phone' ? 'P3' : 'P4', device === 'phone' ? ['PHONE', 'A11Y', 'SHAPE-MATCHES-WORD'] : ['A11Y', 'SHAPE-MATCHES-WORD'], `Every screen on ${device}: no sideways scroll, no serious accessibility issues, status as shape plus word`, !problems.length, problems.slice(0, 5).join(' | '));
     await c3.close();
     lap(device === 'phone' ? 'P3' : 'P4');
@@ -4759,7 +4978,7 @@ async function platformChecks() {
     const c4 = await browser.newContext({ viewport: vp });
     const r = await c4.newPage();
     for (const [who, route] of [['rhea', '/'], ['amara', '/'], ['rhea', '/goals'], ['rhea', '/goals?scope=all&view=table'], ['rhea', '/goals?scope=all&view=board'], ['rhea', '/goals?scope=all&view=history'], ['rhea', '/goals?scope=all&view=map'],
-      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/whats-new']]) {
+      ['rhea', '/goals/ns-lead'], ['rhea', '/goals/lead-mq'], ['amara', '/reviews/weekly'], ['rhea', '/watching'], ['mateo', '/quick-check-in'], ['mateo', '/data/import'], ['rhea', '/activity'], ['grace', '/data'], ['grace', '/workspace'], ['grace', '/people'], ['oskar', '/people/rhea'], ['oskar', '/teams'], ['grace', '/teams/cicd'], ['grace', '/feedback'], ['grace', '/workspace/features'], ['jun', '/check-in'], ['tariq', '/goals/ns-ai/edit'], ['rhea', '/retro'], ['rhea', '/help'], ['rhea', '/help/status'], ['rhea', '/help/columns'], ['rhea', '/whats-new']]) {
       await r.goto(url(route));
       await r.evaluate((w) => localStorage.setItem('goals-app-viewer:platform-org', w), who);
       await r.reload();

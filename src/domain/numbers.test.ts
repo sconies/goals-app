@@ -61,8 +61,12 @@ describe('no silent rounding', () => {
   });
 
   it('reads a decimal comma as decimal places when an import works out a new goal’s decimals', () => {
-    const cs = planChanges(base({ goals: [rec({ Goal: 'Reduce build minutes', 'Owner email': owner.email ?? '', Start: '12,5', Target: '8' })] }));
-    expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    const t = { goals: [rec({ Goal: 'Reduce build minutes', 'Owner email': owner.email ?? '', Unit: 'min', Start: '12,5', Target: '8' })] };
+    const asked = planChanges(base(t));
+    expect(asked.issues.filter((i) => i.severity === 'error')).toEqual([]);
+    // A comma as the decimal mark is read, and asked about once for the file.
+    expect(asked.groups.filter((g) => g.level !== 'note').map((g) => g.kind)).toEqual(['decimal-comma']);
+    const cs = planChanges({ ...base(t), answers: { [asked.groups.find((g) => g.kind === 'decimal-comma')!.id]: { choice: 'right' } } });
     expect((cs.commit!.goals!.find((g) => g.title === 'Reduce build minutes') as MetricGoal).decimals).toBe(1);
   });
 
@@ -112,7 +116,7 @@ describe('plausibility: asked, never refused', () => {
     const g = { ...whole, unit: '%', decimals: 0, plan: { ...whole.plan, start: 30, target: 75 } } as MetricGoal;
     expect(farOutside(400, 30, 75)).toBe(true);
     expect(farOutside(110, 30, 75)).toBe(false);
-    expect(valueProblem('99', null, 'tickets', { ...g, unit: 'tickets', plan: { ...g.plan, start: 3, target: 9 } })).toEqual({ block: false, text: 'That’s far outside this goal’s plan (3 to 9 tickets). Is 99 right?' });
+    expect(valueProblem('99', null, 'tickets', { ...g, unit: 'tickets', plan: { ...g.plan, start: 3, target: 9 } })).toEqual({ block: false, text: 'That’s far outside this goal’s plan (3 to 9 tickets). Is 99 right?', id: 'far-outside-plan' });
   });
 
   it('asks about a set-up number below zero for a time, money or percentage, a target a hundred times the start, or a billion', () => {
@@ -125,9 +129,12 @@ describe('plausibility: asked, never refused', () => {
     expect(planHint({ kind: 'range', unit: 'min', start: '', target: '', limit: '-3' })).toMatch(/Below zero min/);
   });
 
-  it('notes it in an import without refusing the row', () => {
-    const cs = planChanges(base({ goals: [rec({ Goal: 'Grow weekly signups', 'Owner email': owner.email ?? '', Start: '10', Target: '5000', Unit: 'signups' })] }));
+  it('asks it in an import without refusing the row, and saves once it is answered (C6)', () => {
+    const t = { goals: [rec({ Goal: 'Grow weekly signups', 'Owner email': owner.email ?? '', Start: '10', Target: '5000', Unit: 'signups' })] };
+    const cs = planChanges(base(t));
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
-    expect(cs.issues.find((i) => i.severity === 'note')?.message).toMatch(/over 100 times the start/);
+    expect(cs.issues.find((i) => i.kind === 'odd-number')).toMatchObject({ level: 'check', message: expect.stringMatching(/over 100 times the start/) });
+    expect(cs.commit).toBeNull();
+    expect(planChanges({ ...base(t), answers: { [cs.groups.find((g) => g.kind === 'odd-number')!.id]: { choice: 'right' } } }).commit).not.toBeNull();
   });
 });

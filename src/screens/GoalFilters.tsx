@@ -5,7 +5,7 @@ import { movedGoals } from '../domain/goalsPage';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router';
 import { useApp } from '../app/state';
-import { LEVEL_LABEL } from '../domain/format';
+import { levelIds, levelName } from '../domain/levels';
 import {
   EMPTY_QUERY, KIND_OPTIONS, NEED_OPTIONS, parseQuery, QUERY_KEYS, queryEntries, queryParts, RESULT_OPTIONS, SORT_OPTIONS, STATUS_OPTIONS, without,
   type GoalQuery, type SortKey,
@@ -275,7 +275,7 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
       <span className="filter-options">{opts.map(([k, l]) => <label key={k} className="check"><input type="checkbox" checked={(q[key] as string[]).includes(k)} onChange={() => setQ((cur) => ({ ...cur, [key]: toggle(cur[key] as string[], k) }))} /> {l}</label>)}</span>
     </fieldset>
   );
-  const levels: [Level, string][] = (['north-star', 'svp', 'team'] as Level[]).map((l) => [l, LEVEL_LABEL[l]]);
+  const levels: [Level, string][] = levelIds(app.cycle).map((l) => [l, levelName(app.cycle, l)]);
   const people = app.snapshot.people.filter((p) => app.snapshot.goals.some((g) => g.ownerId === p.id));
   const match = people.filter((p) => owner.trim() && p.name.toLowerCase().includes(owner.trim().toLowerCase()) && !q.owner.includes(p.id)).slice(0, 6);
   return (

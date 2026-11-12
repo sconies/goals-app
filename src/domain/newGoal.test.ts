@@ -1,7 +1,6 @@
 // @vitest-environment node
 /* New goal's own rules (onboarding spec, rules 1, 2 and 5; OB1), with the spec's worked examples on the demo. */
 import { buildPlatformOrg } from '../data/platformOrg';
-import { LEVEL_LABEL } from './format';
 import { feedRefusal, NEW_GOAL_STEPS, parentSuggestions, planNote, startLevel, stepIndex } from './newGoal';
 import type { Goal } from './types';
 
@@ -19,44 +18,44 @@ describe('the steps (onboarding spec, 1)', () => {
 
 describe('rule 1: the level a new goal starts at', () => {
   it('Rhea, no parent (CI/CD owns SVP goals and her north star): none, so she is asked', () => {
-    expect(startLevel('rhea', s.teams, s.goals, null)).toBeNull();
+    expect(startLevel(cycle, 'rhea', s.teams, s.goals, null)).toBeNull();
   });
   it('Tunde, no parent: Team', () => {
-    expect(startLevel('tunde', s.teams, s.goals, null)).toBe('team');
+    expect(startLevel(cycle, 'tunde', s.teams, s.goals, null)).toBe('team');
   });
   it('anyone, under a north star: SVP; under an SVP goal: Team', () => {
-    expect(startLevel('tunde', s.teams, s.goals, goal('ns-lead'))).toBe('svp');
-    expect(startLevel('rhea', s.teams, s.goals, goal('lead-flaky'))).toBe('team');
+    expect(startLevel(cycle, 'tunde', s.teams, s.goals, goal('ns-lead'))).toBe('svp');
+    expect(startLevel(cycle, 'rhea', s.teams, s.goals, goal('lead-flaky'))).toBe('team');
   });
   it('a lead whose team owns a north star: none', () => {
     const own = { teams: [{ id: 'office', name: 'Office of the VP', leadId: 'amara', objective: '' }], goals: [{ ...goal('ns-lead'), teamId: 'office' }] };
-    expect(startLevel('amara', own.teams, own.goals, null)).toBeNull();
+    expect(startLevel(cycle, 'amara', own.teams, own.goals, null)).toBeNull();
   });
 });
 
 describe('rule 2: suggestions for “Feeds into”', () => {
   it('Tunde, a Team goal in Build & Release: Build & Release’s SVP goals first', () => {
-    const got = parentSuggestions('team', 'build', 'tunde', s.goals, byTitle);
+    const got = parentSuggestions(cycle, 'team', 'build', 'tunde', s.goals, byTitle);
     expect(got.length).toBeLessThanOrEqual(6);
     expect(got.every((g) => g.level === 'svp')).toBe(true);
     const own = s.goals.filter((g) => g.level === 'svp' && g.teamId === 'build').length;
     expect(got.slice(0, Math.min(6, own)).every((g) => g.teamId === 'build')).toBe(true);
   });
   it('Rhea, an SVP goal in CI/CD: the north stars, CI/CD’s own first', () => {
-    const got = parentSuggestions('svp', 'cicd', 'rhea', s.goals, byTitle);
+    const got = parentSuggestions(cycle, 'svp', 'cicd', 'rhea', s.goals, byTitle);
     expect(got[0]!.title).toBe('Lead time for changes');
     expect(got.every((g) => g.level === 'north-star')).toBe(true);
   });
   it('a team with no goals a level up: goals opened lately above the level, else none', () => {
-    expect(parentSuggestions('team', 'office', 'amara', s.goals, byTitle, ['ns-cfr', 'lead-merge', 'nope']).map((g) => g.id)).toEqual(['ns-cfr', 'lead-merge']);
-    expect(parentSuggestions('team', 'office', 'amara', s.goals, byTitle)).toEqual([]);
+    expect(parentSuggestions(cycle, 'team', 'office', 'amara', s.goals, byTitle, ['ns-cfr', 'lead-merge', 'nope']).map((g) => g.id)).toEqual(['ns-cfr', 'lead-merge']);
+    expect(parentSuggestions(cycle, 'team', 'office', 'amara', s.goals, byTitle)).toEqual([]);
   });
   it('a north star: none', () => {
-    expect(parentSuggestions('north-star', 'cicd', 'rhea', s.goals, byTitle)).toEqual([]);
+    expect(parentSuggestions(cycle, 'north-star', 'cicd', 'rhea', s.goals, byTitle)).toEqual([]);
   });
   it('a goal at the same or a lower level is said, not offered', () => {
-    expect(feedRefusal('team', goal('lead-flaky'), LEVEL_LABEL)).toBeNull();
-    expect(feedRefusal('svp', goal('lead-flaky'), LEVEL_LABEL)).toBe('An SVP goal can’t feed an SVP goal.');
+    expect(feedRefusal(cycle, 'team', goal('lead-flaky'))).toBeNull();
+    expect(feedRefusal(cycle, 'svp', goal('lead-flaky'))).toBe('An SVP goal can’t feed an SVP goal.');
   });
 });
 

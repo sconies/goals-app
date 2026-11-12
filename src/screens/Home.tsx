@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { usePrefs } from '../app/search';
 import { gettingStarted, type DayOneFacts } from '../domain/dayOne';
 import { workspaceName } from '../domain/workspaceAttention';
-import { dayOneRows } from '../app/reads';
+import { dayOneRows, wrapUpScope } from '../app/reads';
 import { useApp, type AppState } from '../app/state';
 import { checkInDraftKey, hasDraft } from '../app/drafts';
 import { attentionList, attentionOrder, splitAttention } from '../domain/attention';
@@ -12,7 +12,7 @@ import { dashboard, groupWatched, type Dashboard } from '../domain/home';
 import { daysToReview, onTimeStreak, reviewDate, weekCompletion, weekProgress, WEEKDAY } from '../domain/progress';
 import { agendaOf, dayText, daysPast, nextSessionWeek, pastText, reviewedLabel, reviewSession, sessionDate, sessionToDo, sessionPlan, upcomingSessionWeek, walkOrder, watchedGoals } from '../domain/review';
 import { hasEnded, weekDates } from '../domain/plan';
-import { cycleDates, cycleState, dayWithYear, placeLine, wrapUpOpenOn } from '../domain/cycle';
+import { beforeStartLine, cycleDates, cycleState, dayWithYear, laterCycle, nextCycleShape, placeLine, wrapUpOpenOn } from '../domain/cycle';
 import { isOverdue, openForPerson } from '../domain/asks';
 import { periodWord } from '../domain/year';
 import { ATTENTION, LABEL } from '../domain/vocabulary';
@@ -24,7 +24,7 @@ import { saveReviewOrder } from './Inspect';
 import { GoalRow } from '../ui/goalRows';
 import { HandledGroup } from '../ui/HandledGroup';
 import { FirstReports } from '../ui/FirstReports';
-import { HomeNews } from './Help';
+import { HomeNews } from '../ui/HelpLinks';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -76,7 +76,9 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
   // Needs attention is new information; a goal someone has looked at since its latest check-in is being handled.
   const { needs, handled } = splitAttention(att);
   const rest = mine.filter((g) => !att.some((a) => a.goal.id === g.id));
-  const wrapLeft = wrapUpOpenOn(app.cycle, app.today) ? mine.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)) : [];
+  // The wrap-up this year's, or last year's while it stays open after the next year is current (cycle-end rule 3).
+  const wrap = wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today);
+  const wrapLeft = wrapUpOpenOn(wrap.cycle, app.today) ? wrap.snapshot.goals.filter((g) => g.ownerId === app.viewer.id && !wrap.snapshot.retros.some((r) => r.goalId === g.id)) : [];
   const myReview = app.snapshot.reviews.filter((r) => r.people.includes(app.viewer.id)).map((r) => reviewSession(r, app.snapshot, app.cycle, app.today, app.week)).find((s) => sessionToDo(s, app.snapshot, app.week, app.today));
   const resuming = p.due.some((g) => hasDraft(checkInDraftKey(app.ws.id, g.id, app.week)));
   const minutes = Math.max(1, Math.round(p.due.length * 0.75));
@@ -101,7 +103,7 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
             </>
           ) : wrapLeft.length ? (
             <>
-              <span className="eyebrow">{`${app.cycle.name} ${cycleState(app.cycle, app.today) === 'ending' ? 'ends' : 'ended'} on ${dayWithYear(cycleDates(app.cycle).lastDay)}`}</span>
+              <span className="eyebrow">{`${wrap.cycle.name} ${cycleState(wrap.cycle, app.today) === 'ending' ? 'ends' : 'ended'} on ${dayWithYear(cycleDates(wrap.cycle).lastDay)}`}</span>
               <h2 className="hero-title">Wrap up {wrapLeft.length === 1 ? 'your goal' : `your ${wrapLeft.length} goals`}</h2>
               <span className="muted">How each one landed, one thing you learned, and whether it carries on. About a minute each.</span>
               <div className="row" style={{ marginTop: 8 }}><Link className="btn primary big-btn" to={`/retro/${wrapLeft[0]!.id}`}>Start the wrap-up</Link></div>
@@ -131,6 +133,14 @@ function MyWeek({ side, after, news }: { side?: ReactNode; after?: ReactNode; ne
                   </>
                 );
               })()}
+            </>
+          ) : mine.length && beforeStartLine(app.cycle, app.today) ? (
+            <>
+              {/* Before the year's week 1 nothing is due, and it says when it starts (cycle-end 2.10). */}
+              <span className="eyebrow">{placeLine(app.cycle, app.today)}</span>
+              <h2 className="hero-title">Nothing is due yet</h2>
+              <span className="muted">{beforeStartLine(app.cycle, app.today, true)}</span>
+              <div className="row" style={{ marginTop: 8 }}><Link className="btn" to="/goals?show=mine">See your goals</Link></div>
             </>
           ) : mine.length && (app.week < 1 || (p.upcoming.length && !p.done.length)) ? (
             <>
@@ -314,13 +324,34 @@ function WatchedGoals() {
 function AdminCard() {
   const app = useApp();
   if (!app.viewer.admin) return null;
-  if (wrapUpOpenOn(app.cycle, app.today)) {
-    const ended = cycleState(app.cycle, app.today) === 'ended';
-    const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const over = hasEnded(app.cycle, app.today);
+  // Last year's wrap-up, still open after this year began (cycle-end rule 3).
+  const wrap = wrapUpScope(app.full, app.cycle, app.snapshot, app.week, app.today);
+  if (wrap.earlier) {
+    const left = wrap.snapshot.goals.filter((g) => !wrap.snapshot.retros.some((r) => r.goalId === g.id)).length;
     return (
       <section className="block note-card">
-        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{ended ? `${app.cycle.name} ended on ${dayWithYear(cycleDates(app.cycle).lastDay)}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. '}Start the next {periodWord(app.cycle)} when you’re ready.</span></span>
-        <Link className="btn" to="/retro">See the wrap-up</Link>
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{wrap.cycle.name}’s wrap-up is open until {dayWithYear(cycleDates(wrap.cycle).wrapUpCloses)}</strong><span className="hint">{left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up.` : 'Every goal is wrapped up.'}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}><Link className="btn" to="/retro">See the wrap-up</Link></span>
+      </section>
+    );
+  }
+  if (wrapUpOpenOn(app.cycle, app.today) || (over && !later)) {
+    const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
+    const next = later?.name ?? nextCycleShape(app.cycle).name;
+    const lastDay = dayWithYear(cycleDates(app.cycle).lastDay);
+    // The next year is prepared, not moved into: it opens for everyone on its week 1's Monday (cycle-end 2.9).
+    const nextLine = later ? `${next} is ready. It opens for everyone on ${dayWithYear(cycleDates(later).firstDay)}.`
+      : over ? `Start ${next}: it opens for everyone as soon as you start it.`
+      : `${next} isn’t set up yet. It can be started now; everyone stays in ${app.cycle.name} until ${lastDay}.`;
+    return (
+      <section className="block note-card">
+        <span className="stack" style={{ gap: 'var(--s1)' }}><strong>{over ? `${app.cycle.name} ended on ${lastDay}` : `The ${periodWord(app.cycle)} is ending`}</strong><span className="hint">{wrapUpOpenOn(app.cycle, app.today) ? (left ? `${left} ${left === 1 ? 'goal' : 'goals'} still to wrap up. ` : 'Every goal is wrapped up. ') : ''}{nextLine}</span></span>
+        <span className="row" style={{ gap: 'var(--s2)' }}>
+          {wrapUpOpenOn(app.cycle, app.today) && <Link className="btn" to="/retro">See the wrap-up</Link>}
+          <Link className="btn" to={later ? '/workspace/cycles' : '/workspace/cycles/next'}>{later ? 'See Cycles' : `Start ${next}`}</Link>
+        </span>
       </section>
     );
   }
@@ -425,7 +456,7 @@ function GettingStarted() {
     prefs.set(...key, next); setFacts(next);
   }, [facts, app.ws.kind, app.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (p: Partial<DayOneFacts>) => { const next = { ...facts, ...p }; prefs.set(...key, next); setFacts(next); };
-  const rows = gettingStarted(app.viewer.id, dayOneRows(app.snapshot), { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
+  const rows = gettingStarted(app.viewer.id, { ...dayOneRows(app.snapshot), ended: hasEnded(app.cycle, app.today) }, { name: workspaceName(app.ws, app.mode).name, kind: app.ws.kind, createdAt: app.ws.createdAt }, facts, app.today, WEEKDAY[app.cycle.reviewDay] ?? 'the review');
   if (!rows.length) return null;
   const invite = `${location.origin}${app.mode === 'demo' ? '/demo' : ''}/?workspace=${encodeURIComponent(app.ws.id)}`;
   return (

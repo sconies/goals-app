@@ -20,7 +20,7 @@ export interface PlaceProps {
   'home.blocks': Record<never, never>;
   /** A goal's summary, one line under its owner and level: a fact about the goal, such as what measures it (goal spec, section 5). */
   'goal.facts': { goal: Goal };
-  /** A goal's page, after its own sections. */
+  /** A goal's page, inside About this goal, after its facts (goal spec, 5: a module's block is about the goal, not a section of the page). */
   'goal.sections': { goal: Goal };
   /** Data's toolbar, after Columns and Saved layouts. `asShown` is the open table exactly as laid out. */
   'data.tools': { table: string; asShown: () => { rows: Cell[][]; muted?: string[]; scope: string } };
@@ -28,20 +28,22 @@ export interface PlaceProps {
   'goals.tools': { goals: Goal[]; viewName: string; inMenu?: boolean };
   /**
    * New goal and goal edit, with the goal's own fields: what measures the goal (backlog 0b). Given the goal as saved
-   * (null while it's new) and the form's kind, unit and team as typed. `onChange` says what to save with it: a metric and
-   * a slice, null for none, or undefined to leave it as it is; and, optionally, the words New goal’s Check says for it
-   * ("Measured by Pipeline queue wait (p90), for CI/CD."). The form saves it after the goal (app.linkGoalMetric or
-   * app.unlinkGoalMetric). Nothing renders here unless a module fills it.
+   * (null while it's new) and the form's kind, unit and team as typed. `onChange` says what to save with it: one of the
+   * module's own actions and its input for the goal as saved (measured by a metric, say, or no longer), or undefined to
+   * leave it as it is. The form runs it after the goal (app.run). Nothing renders here unless a module fills it.
    */
-  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | null | undefined, words?: string) => void };
+  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | undefined) => void };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */
   'people.team': { team: Team };
+  /** A Help article, under its title and before its sections: given the article's id, so a module draws only in its own article (the spreadsheets module's field table in `columns`). */
+  'help.article': { article: string };
 }
 
-/** What a goal form saves after the goal, from the goal.measure place: a metric, for a team or the whole company (null). */
-export interface MeasurePick { metricId: string; teamId: string | null }
+/** What a goal form saves after the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its
+    input for the goal as saved. The core names no module's records or actions. */
+export interface MeasurePick { action: string; input: (goal: Goal) => unknown }
 
 export interface ModuleRoute {
   /** As React Router writes it; listed in the module's module.json too, and each has a Help article. */

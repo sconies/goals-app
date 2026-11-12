@@ -2,6 +2,7 @@
    the set-up steps, or read from a file (the set-up template, or a whole workbook exported from another workspace).
    It is the bulk-change engine in "create" mode (domain/changeset): the same columns, the same rules and the same
    problems as the Import screen, with every row new. Nothing is saved until every row is right. */
+import { levelIds } from './levels';
 import { planChanges, type Tables } from './changeset';
 import { GOALS, PEOPLE } from './columns';
 import { currentWeek } from './plan';
@@ -103,12 +104,14 @@ export function buildWorkspace(input: { name: string; startDate: string; people:
     snapshot: empty, cycle, week: Math.max(0, currentWeek(cycle, input.now)), actor: setter, now: input.now.toISOString(), newId, via: 'setup', mode: 'create',
   });
   const notes: ImportIssue[] = [];
-  for (const i of cs.issues) (i.severity === 'error' ? issues : i.severity === 'note' ? notes : []).push({ table: i.sheet, row: i.row, message: i.goal && !i.message.includes(i.goal) ? `“${i.goal}”: ${i.message}` : i.message });
+  // Must fix blocks set-up; a Check (a question set-up's own steps don't ask yet: IM8 brings it the import's preview) and
+  // how a row was read are said beside the row.
+  for (const i of cs.issues) (i.level === 'must' ? issues : notes).push({ table: i.sheet, row: i.row, message: i.name && !i.message.includes(i.name) ? `“${i.name}”: ${i.message}` : i.message });
   if (!people.length && !issues.length) issues.push({ table: 'People', row: 1, message: 'Add at least one person.' });
   const c = cs.created!;
   // The weekly review and the pinned views, set up by the first person (you).
   const at = input.now.toISOString(), by = c.people[0]?.id ?? 'setting-up';
-  const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: ['north-star', 'svp', 'team'] }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
+  const review: Review = { id: newId('rev', 'weekly'), name: WEEKLY_REVIEW, everyWeeks: 1, weekday: cycle.reviewDay, scope: { goals: [], trees: [], levels: levelIds(cycle) }, people: c.people.map((p) => p.id), createdBy: by, createdAt: at };
   const views: SavedView[] = DEFAULT_VIEWS.map(([name, params]) => ({ id: newId('view', name), personId: by, name, params, pinned: true, createdAt: at, updatedAt: at, deletedAt: null }));
   const logged: Change = { id: newId('chg', 'weekly review'), at, actorId: by, goalId: null, entity: 'review', entityId: review.id, action: 'created', summary: `Set up a review: “${review.name}”`, diffs: [{ field: 'Review', from: '—', to: review.name }] };
   return { snapshot: { ...empty, people: c.people, teams: c.teams, goals: c.goals, checkIns: c.checkIns, requests: c.requests, reviews: [review], views, changes: [logged], ...(c.keysIssued ? { keysIssued: c.keysIssued } : {}) }, issues, ...(notes.length ? { notes } : {}) };

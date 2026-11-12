@@ -6,13 +6,14 @@ import type { FromTable } from './CheckInFlow';
 import { Link, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import type { Rec } from '../domain/changeset';
-import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, type Draft, type Missing } from '../domain/checkin';
+import { CAUSES_AHEAD, CAUSES_BEHIND, causeLabel, checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, MISSING_TEXT, numberCheck, REASON_CODES, unanswered, type Answers, type Draft, type Missing } from '../domain/checkin';
 import { fmt } from '../domain/format';
 import { planAt, weekDates } from '../domain/plan';
 import { checkInsFor } from '../domain/status';
 import type { Cause, Goal, MetricGoal, RangeGoal } from '../domain/types';
 import { Chip, Empty, TitleTell } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { CheckBlock } from '../ui/Levels';
 
 /** A select with the app's own chevron, so its text sits where an input's does. */
 function Select({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
@@ -49,6 +50,8 @@ export function QuickCheckIn() {
   const [hasDraft, setHasDraft] = useState(() => Object.values(rows).some((r) => r.value.trim()));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Questions answered yes, by goal (rule 2): the same Checks as the one-by-one check-in, under each row.
+  const [answers, setAnswers] = useState<Record<string, Answers>>({});
   const set = (id: string, patch: Partial<Row>) => {
     const g = goals.find((x) => x.id === id);
     const next: Row = { ...blank, ...rows[id], ...patch };
@@ -70,17 +73,19 @@ export function QuickCheckIn() {
   const judged = useMemo(() => goals.map((g) => {
     const r = rows[g.id] ?? blank;
     const posted = app.snapshot.checkIns.find((c) => c.goalId === g.id && c.week === app.week) ?? null;
-    if (!r.value.trim()) return { g, r, posted, e: null, problem: null };
+    if (!r.value.trim()) return { g, r, posted, e: null, problem: null, open: [] };
     // The number itself comes first: until it's a possible value there's no status to show or reason to ask for.
-    const problem = numberCheck(g, r.value, app.snapshot.checkIns);
+    const problem = numberCheck(g, r.value, app.snapshot.checkIns, app.week);
     const d: Draft = { ...emptyDraft(g, null), value: r.value, cause: r.cause, why: r.why, ptgWhat: r.path, ptgBy: r.by, ptgState: 'plan' };
-    return { g, r, posted, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem };
-  }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week]);
+    const open = problem?.block ? [] : unanswered(checkInLevels(g, app.week, d, checkInsFor(g, app.snapshot.checkIns)).checks, answers[g.id]);
+    return { g, r, posted, e: evaluate(g, app.cycle, app.week, d, app.snapshot.checkIns), problem, open };
+  }), [goals, rows, app.snapshot.checkIns, app.cycle, app.week, answers]);
 
   const filled = judged.filter((x) => x.e);
-  const ready = filled.filter((x) => x.e!.canPost);
+  const ready = filled.filter((x) => x.e!.canPost && !x.open.length);
   const badNumbers = filled.filter((x) => x.problem?.block).length;
-  const needReasons = filled.length - ready.length - badNumbers;
+  const toAnswer = filled.filter((x) => !x.problem?.block && x.open.length).length;
+  const needReasons = filled.length - ready.length - badNumbers - toAnswer;
   // A second press while saving does nothing (a ref, because state updates too late to stop a quick double tap).
   const inFlight = useRef(false);
   // Post counts the rows that are ready, and posts those; a row that isn't ready stays in the table, as a draft (U12).
@@ -106,7 +111,7 @@ export function QuickCheckIn() {
   };
   const weeks = Array.from({ length: Math.max(0, app.cycle.weeks - app.week) }, (_, k) => app.week + 1 + k);
 
-  const notReady = [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : ''].filter(Boolean).join('; ');
+  const notReady = [badNumbers ? `${badNumbers} ${badNumbers === 1 ? 'row needs' : 'rows need'} a possible number` : '', toAnswer ? `${toAnswer} ${toAnswer === 1 ? 'row has' : 'rows have'} a question to answer` : '', needReasons ? `${needReasons} ${needReasons === 1 ? 'row needs' : 'rows need'} a reason or a path to green` : ''].filter(Boolean).join('; ');
   // Rows that aren't ready are said before Post, so a count that leaves them out is never a surprise.
   const summary = tried && !filled.length
     ? 'Type at least one number.'
@@ -125,7 +130,7 @@ export function QuickCheckIn() {
         <form className="stack" style={{ gap: 'var(--s3)' }} onSubmit={(e) => { e.preventDefault(); void save(); }} noValidate>
           {hasDraft && <p className="restored small">Picked up the numbers you hadn’t posted yet. <button type="button" className="linkish" onClick={startOver}>Start over</button></p>}
           <div className="glist qgrid">
-            {judged.map(({ g, r, posted, e: judgedE, problem }) => {
+            {judged.map(({ g, r, posted, e: judgedE, problem, open }) => {
               const invalidNumber = !!problem?.block;
               const e = invalidNumber ? null : judgedE;
               const last = checkInsFor(g, app.snapshot.checkIns).filter((c) => c.value != null).pop();
@@ -136,7 +141,7 @@ export function QuickCheckIn() {
               // Once they've pressed Post, outline exactly the fields the row still needs, the empty selects included.
               const missWhy = tried && !!e && e.codes.some((c) => REASON_CODES.includes(c));
               const missPath = tried && !!e && e.codes.includes('path');
-              const bad = invalidNumber || (tried && !!e && !e.canPost);
+              const bad = invalidNumber || (tried && !!e && (!e.canPost || open.length > 0));
               return (
                 <div key={g.id} className={'qrow' + (bad ? ' invalid' : '')}>
                   <div className="qrow-main">
@@ -152,12 +157,19 @@ export function QuickCheckIn() {
                     {/* The unit stays beside the number once it's typed; the field is empty until you type. */}
                     <label className={'qvalue input' + (invalidNumber ? ' invalid' : '')}>
                       <span className="sr">{g.title}: this week’s number{g.unit ? ` in ${g.unit}` : ''}</span>
-                      <input inputMode="decimal" autoComplete="off" value={r.value} onChange={(ev) => set(g.id, { value: ev.target.value })} aria-invalid={invalidNumber || undefined} aria-describedby={problem ? `q-${g.id}-problem` : undefined} />
+                      <input data-q={g.id} inputMode="decimal" autoComplete="off" value={r.value} onChange={(ev) => set(g.id, { value: ev.target.value })} aria-invalid={invalidNumber || undefined} aria-describedby={problem ? `q-${g.id}-problem` : undefined} />
                       {g.unit && <span className="qunit" aria-hidden="true">{g.unit}</span>}
                     </label>
-                    {problem && <span id={`q-${g.id}-problem`} className={'qproblem hint' + (problem.block ? ' tone-off' : '')} role={problem.block ? 'alert' : undefined}>{problem.text}</span>}
+                    {problem?.block && <span id={`q-${g.id}-problem`} className="qproblem hint tone-off" role="alert">{problem.text}</span>}
                     <span className={'qstatus' + (e ? '' : ' empty')}>{e ? <Chip k={e.status} /> : <span className="hint">—</span>}</span>
                   </div>
+                  {open[0] && (
+                    <div className="qrow-more">
+                      <CheckBlock key={open[0].id + open[0].key} id={`q-${g.id}-check`} question={open[0].question} yes={open[0].yes} no={open[0].no} alert={tried}
+                        onYes={() => setAnswers((x) => ({ ...x, [g.id]: { ...x[g.id], [open[0]!.id]: open[0]!.key } }))}
+                        onNo={() => { if (open[0]!.id === 'same-as-last') set(g.id, { value: '' }); else document.querySelector<HTMLInputElement>(`[data-q="${g.id}"]`)?.focus(); }} />
+                    </div>
+                  )}
                   {(showWhy || showPath) && (
                     <div className="qrow-more">
                       {showWhy && (

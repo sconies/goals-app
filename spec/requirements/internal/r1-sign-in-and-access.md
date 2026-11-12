@@ -30,7 +30,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts) |
+| Post or correct a check-in; change a goal or its plan (in a form, a spreadsheet, a bulk edit or through the AI) | The goal’s owner, or an admin | [`planChanges`](../../../src/domain/changeset.ts), [`postCheckIn`](../../../src/domain/changeset.ts) |
 | Add a goal | Anyone, for a goal they own; an admin, for anyone | [`planChanges`](../../../src/domain/changeset.ts) |
 | Stop a goal that has check-ins (with a reason); delete one that has none | The goal’s owner, or an admin | [`stopGoal`](../../../src/domain/removal.ts), [`deleteGoal`](../../../src/domain/removal.ts) |
 | Delete a goal’s latest check-in (after a newer one it can only be corrected) | Whoever posted it, or an admin | [`deleteCheckIn`](../../../src/domain/removal.ts), [`canDeleteCheckIn`](../../../src/domain/removal.ts) |
@@ -81,7 +81,7 @@ Read from Faro’s shared actions: each line names the function that enforces it
 | Mark someone as left (handing over their goals and asks); delete someone with no history | Admins; not themselves, and never the only admin | [`markPersonLeft`](../../../src/domain/removal.ts), [`deletePerson`](../../../src/domain/removal.ts), [`leaving`](../../../src/domain/removal.ts) |
 | Leave the workspace yourself (handing over your goals and asks) | Anyone; never the only admin | [`leaveWorkspace`](../../../src/domain/removal.ts) |
 | Add, rename, lead or remove a team | Admins | [`saveTeam`](../../../src/domain/actions.ts), [`removeTeam`](../../../src/domain/actions.ts) |
-| Start the next cycle; delete a cycle no one has checked in to | Admins | [`startNextCycle`](../../../src/domain/actions.ts), [`deleteCycle`](../../../src/domain/removal.ts) |
+| Start the next cycle (from the day the wrap-up opens; once); undo the start while nobody has used it; delete a cycle no one has checked in to | Admins | [`startNextCycle`](../../../src/domain/actions.ts), [`undoStart`](../../../src/domain/removal.ts), [`deleteCycle`](../../../src/domain/removal.ts) |
 | Rename the workspace; turn recording on or off; switch features on or off; delete the workspace | Admins | [`renameWorkspace`](../../../src/domain/actions.ts), [`setRecording`](../../../src/domain/actions.ts), [`setModule`](../../../src/domain/actions.ts), [`canDeleteWorkspace`](../../../src/domain/actions.ts) |
 | Restore something removed, stopped or marked as left (within 30 days), and see it on Recently removed | An admin (everything), or whoever removed it (their own) | [`restoreRemoved`](../../../src/domain/removal.ts), [`canRestore`](../../../src/domain/removal.ts) |
 | Make an MCP token for someone | Admins | [`createToken`](../../../src/domain/actions.ts) |
@@ -92,9 +92,9 @@ Read from Faro’s shared actions: each line names the function that enforces it
 
 | What | Who may | Enforced today by |
 |---|---|---|
-| Add a metric to the library | Anyone; they own it unless they name another owner | [`saveMetric`](../../../src/domain/metrics.ts) |
-| Change or remove a metric | Its owner, or an admin | [`saveMetric`](../../../src/domain/metrics.ts), [`removeMetric`](../../../src/domain/metrics.ts), [`canEditMetric`](../../../src/domain/metrics.ts) |
-| Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/domain/metrics.ts), [`unlinkGoalMetric`](../../../src/domain/metrics.ts), [`canLinkGoal`](../../../src/domain/metrics.ts) |
+| Add a metric to the library | Anyone; they own it unless they name another owner | [`saveMetric`](../../../src/modules/metrics/rules.ts) |
+| Change or remove a metric | Its owner, or an admin | [`saveMetric`](../../../src/modules/metrics/rules.ts), [`removeMetric`](../../../src/modules/metrics/rules.ts), [`canEditMetric`](../../../src/modules/metrics/rules.ts) |
+| Say which metric measures a goal, or stop | The goal’s owner, or an admin | [`linkGoalMetric`](../../../src/modules/metrics/rules.ts), [`unlinkGoalMetric`](../../../src/modules/metrics/rules.ts), [`canLinkGoal`](../../../src/modules/metrics/rules.ts) |
 
 ## What Faro does today
 

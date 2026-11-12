@@ -9,7 +9,8 @@ import { dueOptions, isYear } from '../domain/year';
 import { clearDraft, goalDraftKey, peekDraft, useDraft } from '../app/drafts';
 import { parseNumber } from '../domain/checkin';
 import { blankGoal, buildGoal, planHint, validateGoal, withPoints, type GoalDraft, type GoalErrors } from '../domain/goal';
-import { fmt, LEVEL_LABEL } from '../domain/format';
+import { fmt } from '../domain/format';
+import { isTop, levelName } from '../domain/levels';
 import { sameTitleGoals } from '../domain/people';
 import { feedRefusal, NEW_GOAL_STEPS, parentSuggestions, startLevel, stepIndex } from '../domain/newGoal';
 import { worstFirst } from '../domain/order';
@@ -82,8 +83,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const endChoice = parseNumber(d.endWeek) ?? cycle.weeks;
   const top = useRef<HTMLDivElement>(null);
   // What measures the goal, when a module offers it (the goal.measure place): saved after the goal, said on Check.
-  const [measure, setMeasure] = useState<MeasurePick | null | undefined>(undefined);
-  const [measureWords, setMeasureWords] = useState('');
+  const [measure, setMeasure] = useState<MeasurePick | undefined>(undefined);
 
   // A parent chosen in the draft that has gone since: said once, and "Feeds into" is empty again (2.5).
   const [gone] = useState(() => (d.parentId && !app.goal(d.parentId) ? d.parentId : ''));
@@ -91,11 +91,11 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const parent = app.goal(d.parentId);
 
   // The level: chosen by hand, or rule 1 (one below the parent; Team; or none when the owner leads a team above Team).
-  const level: Level | null = d.levelByHand ? d.level : startLevel(d.ownerId, app.snapshot.teams, app.snapshot.goals, parent ?? null);
+  const level: Level | null = d.levelByHand ? d.level : startLevel(cycle, d.ownerId, app.snapshot.teams, app.snapshot.goals, parent ?? null);
   const goal: WizardDraft = { ...d, level: level ?? d.level };
   const errors: Partial<Record<StepError, string>> = { ...validateGoal(goal, cycle, null, week), ...(level ? {} : { level: 'Choose a level.' }) };
   if (!d.ownerId) errors.ownerId = 'Choose who owns it.';
-  if (d.parentId && parent && level && feedRefusal(level, parent, LEVEL_LABEL)) errors.level = feedRefusal(level, parent, LEVEL_LABEL)!;
+  if (d.parentId && parent && level && feedRefusal(cycle, level, parent)) errors.level = feedRefusal(cycle, level, parent)!;
   const stepErrors = (i: number) => STEP_FIELDS[i]!.filter((k) => errors[k]);
   const shown = tried.includes(step);
   const showErr = (k: StepError) => (shown && errors[k] ? <FieldError>{errors[k]}</FieldError> : null);
@@ -128,7 +128,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
       // Stages said to be already done are recorded done in their own weeks, in the same save, so the goal isn't born late (rule 3).
       const done = g.kind === 'milestone' ? d.stages.filter((s) => s.done === 'yes').map((s) => s.id) : [];
       await app.saveGoal(g, null, undefined, done.length ? { stagesDone: done } : undefined);
-      if (measure) await app.linkGoalMetric(g, measure.metricId, measure.teamId);
+      if (measure) await app.run(measure.action, measure.input(g));
       clear();
       app.toast(`Published “${g.title}”`);
       nav('/goals/' + g.id + '?published=1', { replace: true });
@@ -152,7 +152,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
   const unitFmt = { unit: d.unit, decimals: parseNumber(d.decimals) ?? 0 };
   const num = (s: string) => { const n = parseNumber(s); return n == null ? '' : fmt(n, unitFmt); };
   const suggestions = useMemo(
-    () => (level ? parentSuggestions(level, d.teamId, app.viewer.id, app.snapshot.goals, worstFirst(app), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'goal').map((r) => r.id)) : []),
+    () => (level ? parentSuggestions(cycle, level, d.teamId, app.viewer.id, app.snapshot.goals, worstFirst(app), recentsOf(prefs, app.ws.id, app.viewer.id).filter((r) => r.kind === 'goal').map((r) => r.id)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [level, d.teamId, app.snapshot],
   );
@@ -169,13 +169,13 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
     { step: 1, label: 'Owner', value: [owner?.name ?? 'No one yet', teamName(d.teamId) ? `${teamName(d.teamId)} team` : ''].filter(Boolean).join(' · ') },
     {
       step: 1, label: 'Where it fits', value: [
-        level ? `${LEVEL_LABEL[level]} level` : 'No level yet',
+        level ? `${levelName(cycle, level)} level` : 'No level yet',
         parent ? `feeds “${parent.title}”${d.effect ? `, by about ${d.effect}${parent.kind !== 'milestone' && parent.unit ? ' ' + parent.unit : ''}` : ''}` : 'top of its own tree',
         ...(alsoHelps.length ? [`also helps ${alsoHelps.map((g) => `“${g.title}”`).join(', ')}`] : []),
         ...(d.guardrail ? ['a guardrail'] : []),
       ].join(', ') + '.',
     },
-    ...(number ? [{ step: 2, label: 'Measured by', value: measureWords || `No metric: ${d.definition.trim() || 'not described yet'}.` }] : []),
+    ...(number ? [{ step: 2, label: 'Measured by', value: measure ? 'The metric chosen on step 3.' : `No metric: ${d.definition.trim() || 'not described yet'}.` }] : []),
     {
       step: 2, label: d.kind === 'milestone' ? 'Stages' : 'Numbers', value: d.kind === 'metric' ? (num(d.start) && num(d.target) ? `${num(d.start)} to ${num(d.target)} by week ${endChoice}` : 'Not set yet')
         : d.kind === 'range' ? (num(d.limit) ? `${d.bound === 'atMost' ? 'At most' : 'At least'} ${num(d.limit)}` : 'Not set yet')
@@ -252,9 +252,9 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
             <LevelField level={level ?? (null as unknown as Level)} onChange={(l) => set({ level: l, levelByHand: true })} labelClass="small strong" />
             {showErr('level')}
             <PickOne kind="goal" label="Feeds into · optional" none="Nothing: top of its own tree" value={d.parentId || null}
-              first={suggestions.map((g) => ({ id: g.id, note: LEVEL_LABEL[g.level] }))}
-              refuse={(row) => { const g = app.goal(row.id); return g && level ? feedRefusal(level, g, LEVEL_LABEL) : null; }}
-              hint={level === 'north-star' ? 'A north star is the top of its tree.' : !d.parentId ? 'Goals that feed nothing and have nothing feeding them show as not linked.' : undefined}
+              first={suggestions.map((g) => ({ id: g.id, note: levelName(cycle, g.level) }))}
+              refuse={(row) => { const g = app.goal(row.id); return g && level ? feedRefusal(cycle, level, g) : null; }}
+              hint={level && isTop(cycle, level) ? `${levelName(cycle, level)} goals are the top of their tree.` : !d.parentId ? 'Goals that feed nothing and have nothing feeding them show as not linked.' : undefined}
               onChange={(id) => set({ parentId: id ?? '', alsoHelps: (d.alsoHelps ?? []).filter((x) => x !== id) })} />
             {d.parentId && (
               <label className="field" style={{ maxWidth: 300 }}><span className="small strong">How much will it move “{parent?.title}”? <span className="muted" style={{ fontWeight: 400 }}>· optional</span></span>
@@ -276,7 +276,7 @@ function Wizard({ onFresh }: { onFresh: () => void }) {
           <>
             <h1 className="qtitle big">{d.kind === 'metric' ? 'Where does it start, and where should it end?' : d.kind === 'range' ? 'Where is the line it mustn’t cross?' : 'What are the stages, and when is each due?'}</h1>
             {/* What measures it (the goal.measure place), first on the step, for the owner's team; empty unless a module fills it. */}
-            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={(pick, words) => { setMeasure(pick); setMeasureWords(pick ? words ?? '' : ''); }} />}
+            {number && <Place name="goal.measure" goal={null} kind={d.kind} unit={d.unit} teamId={d.teamId} onChange={setMeasure} />}
             {number && (
               <div className="num-pair">
                 <label className="field"><span className="small strong">Unit</span><input className="input" value={d.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="%, days, ms" /></label>

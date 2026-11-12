@@ -18,13 +18,15 @@ import { useModules, type WorkspaceSection } from '../core/app';
 import { sectionsFor } from '../core/module';
 import { Avatar, Sheet } from '../ui/bits';
 import { adminsLine, cycleLine, NEEDS_SHOWN, workspaceName, workspaceNeeds, yearLine } from '../domain/workspaceAttention';
-import { canRestore, cycleStanding } from '../domain/removal';
+import { canRestore, canUndoStart, cycleStanding, startOf } from '../domain/removal';
 import { AccessTokens } from '../ui/AiAssistants';
 import { RemoveAdmin, useSetAdmin } from '../ui/AdminControls';
 import { PickOne } from '../ui/Pick';
 import { Icon } from '../ui/Icon';
 import { RecentlyRemoved } from '../ui/RecentlyRemoved';
-import { wrapUpOpenOn } from '../domain/cycle';
+import type { Cycle } from '../domain/types';
+import { canStartNext, cycleDates, dayWithYear, laterCycle, nextCycleShape, wrapUpCycle, wrapUpOpenOn } from '../domain/cycle';
+import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
@@ -272,20 +274,45 @@ function CyclesSection() {
   const cycles = app.full.cycles.filter((c) => !c.removedAt).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const left = app.snapshot.goals.filter((g) => !app.snapshot.retros.some((r) => r.goalId === g.id)).length;
   const anyCheckIn = app.snapshot.checkIns.length > 0;
+  // A next year set up from the wrap-up (cycle-end 2.4, 2.5): ready, opening on its week 1's Monday, undoable until used.
+  const later = laterCycle(app.full.cycles, app.cycle);
+  const undo = later && startOf(app.full, later.id) ? canUndoStart(app.full, later.id) : null;
+  const [undoing, setUndoing] = useState(false);
+  const undoStart = async (c: Cycle | undefined = later) => {
+    if (!c) return;
+    const before = app.full.cycles.filter((x) => !x.removedAt && x.startDate < c.startDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+    setUndoing(true);
+    try { await app.undoStart(c.id); app.toast(`${c.name} was undone. ${before?.name ?? 'The year before'} is as it was.`, 'success'); } catch { /* said by the toast */ } finally { setUndoing(false); }
+  };
   return (
     <>
       <SectionHead id="cycles">A cycle is a goal year: its goals, plans and check-ins.</SectionHead>
+      {later && undo?.ok && (
+        <section className="block note-card cycle-ready" aria-label={`${later.name} is ready`}>
+          <span className="small"><WarnMark /> <strong>{later.name} is ready.</strong> {cycleStanding(app.full, later.id).goals.toLocaleString('en-GB')} goals are set up. It opens for everyone on <strong>{dayWithYear(cycleDates(later).firstDay)}</strong>. Until then this is still {app.cycle.name}, week {Math.max(1, app.week)}.</span>
+          {admin && <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart(later)}>Undo</button>}
+        </section>
+      )}
       <section className="block cycles-block" aria-label="Cycles">
         <ul className="removed-list" aria-label="Cycles">
           {cycles.map((c) => {
             const st = cycleStanding(app.full, c.id);
             const current = c.id === app.cycle.id;
             const line = cycleLine(c, current, app.week, app.today, st);
-            const open = current && wrapUpOpenOn(c, app.today);
-            const action = !current ? null
-              : open && admin && left === 0 ? <Link className="btn sm primary" to="/retro">Start the next cycle</Link>
-              : open ? <Link className="btn sm primary" to="/retro">Wrap it up</Link>
-              : anyCheckIn ? <Link className="btn sm" to="/retro">See the wrap-up</Link> : null;
+            // An earlier year's wrap-up stays open after the next year is current, until the day it closes (cycle-end rule 3).
+            const open = wrapUpOpenOn(c, app.today) && (current || wrapUpCycle(app.full.cycles, app.today)?.id === c.id);
+            const start = startOf(app.full, c.id);
+            const can = start ? canUndoStart(app.full, c.id) : null;
+            const next = nextCycleShape(c).name;
+            // Starting the next year isn't part of the wrap-up's weeks: it's offered from the day the wrap-up opens for as
+            // long as no later year exists, even once the wrap-up has closed (build review, 11 Nov).
+            const canStart = current && admin && canStartNext(app.full.cycles, c, app.today);
+            const startLink = canStart ? <Link className="btn sm primary" to="/workspace/cycles/next">Start {next}</Link> : null;
+            // Undo stays on a started year's own row once it's current, while nobody has used it (cycle-end rule 9).
+            const undoHere = admin && can?.ok && c.id !== later?.id ? <button type="button" className="btn sm" disabled={undoing} onClick={() => void undoStart(c)}>Undo</button> : null;
+            const action = !current ? (open ? <Link className="btn sm" to="/retro">Open the wrap-up</Link> : null)
+              : open ? <><Link className="btn sm" to="/retro">Open the wrap-up</Link>{startLink}{undoHere}</>
+              : <>{anyCheckIn && <Link className="btn sm" to="/retro">See the wrap-up</Link>}{startLink}{undoHere}</>;
             return (
               <li key={c.id} className="removed-row cycle-row">
                 <span className="removed-text cycle-when">
@@ -293,10 +320,11 @@ function CyclesSection() {
                   <span className="small">{line.when}</span>
                   <span className="hint">{line.counts}</span>
                   {current && <span className="hint">{yearLine(c, app.week, app.today, left).replace(/^.*?\.\s/, '')}</span>}
+                  {start && <span className="hint">Started by {app.person(start.actorId)?.name ?? 'an admin'} on {dayWithYear(start.at.slice(0, 10))}. {can?.ok ? 'It can be undone until someone checks in or changes a goal in it.' : `It can’t be undone now: ${can && !can.ok ? can.why : ''}.`}</span>}
                 </span>
                 <span className="team-actions">
                   {action}
-                  {admin && st.deletable && asking !== c.id && <button type="button" className="btn sm ghost" onClick={() => setAsking(c.id)} aria-label={`Delete the cycle ${c.name}`}>Delete…</button>}
+                  {admin && st.deletable && !start && asking !== c.id && <button type="button" className="btn sm ghost" onClick={() => setAsking(c.id)} aria-label={`Delete the cycle ${c.name}`}>Delete…</button>}
                 </span>
                 {asking === c.id && (
                   <span className="admin-confirm" role="group" aria-label={`Delete the cycle ${c.name}`}>

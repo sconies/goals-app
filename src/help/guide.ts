@@ -10,6 +10,7 @@ import { textMatches } from '../domain/find';
 import MODULE_HELP from 'virtual:faro-modules/help';
 import { ATTENTION, ATTENTION_FLAGS, FLAG, HANDLED_LINE, GAP, LABEL, lower, OWNER_VIEW_LABEL, QUARTER, RESULT, STAGE, STATUS, TREND } from '../domain/vocabulary';
 import { PROTOTYPE_LINE } from './about';
+import { closestRoute, routePaths, routeScore } from './match';
 
 /** "Word: what it means", as the vocabulary says it: how the guide states a definition. */
 const define = (t: { label: string; long: string }) => `${t.label}: ${t.long}`;
@@ -157,7 +158,7 @@ const CORE_ARTICLES: Article[] = [
         'Set-up doesn’t ask who leads each team, so no team has a lead yet: an admin picks one under Workspace, Teams.',
         'In the demo, a workspace you made can start over from the Demo panel: it is removed from this browser, drafts and all. The walkthroughs there open the example, whose people and goals they follow.',
       ] },
-      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.'] },
+      { heading: 'Saying who you are', text: ['Until company sign-in arrives, the app asks “Who are you?” once on each device (type your name to find it) and remembers the answer. Choose Not you? in the person menu to change it.',  'Where the app has a company sign-in instead, it opens a workspace as the person whose email you signed in with. If it can’t open you, it says you can’t open the workspace yet, and why: you aren’t signed in; no one there has that email; more than one person has it; or you’re marked as having left. Nothing of the workspace is shown. Copy a message for them writes the note to send whoever set it up, and Try again looks once more after they’ve fixed it.'] },
     ],
     routes: ['/workspace/new', '/ready'],
     screens: ['Onboarding', 'Start'],
@@ -215,9 +216,11 @@ const CORE_ARTICLES: Article[] = [
         'A number far outside the goal’s plan (more than twice the plan’s width beyond either end), or three times last week’s or a third of it, is questioned, never refused: real numbers can be odd.',
         'Letters in a number get the same message on every screen, sheet and AI tool: type digits only, with an example at the goal’s decimal places (like 29 for a goal of whole numbers). Every number Faro shows has its thousands grouped: 1,250.',
         'The check-in, the one-table check-in and a spreadsheet use one number check, with the same words. Below zero is refused for a percentage, a time, money or a count (pairs, deploys); a count past its target (41 of the top 40) is questioned.',
+        'A number that looks wrong (ten times last week’s, say) is a question you answer before posting: “Yes, it’s right” or change it. The same number as last week asks whether you measured it again. Your answer is kept in the goal’s History. A number that can’t be used says what to fix.',
       ] },
       { heading: 'Ad hoc check-ins and corrections', list: [
-        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status.',
+        'Check in as often as you like. Every check-in is kept with its time; the latest in a week is that week’s status. A second check-in in a week is compared with last week, not with your first one, and so is the goal’s “vs last week”.',
+        'Checking in again adds a check-in beside the week’s first. Correcting one replaces it and needs a reason, kept with it in History.',
         'Got something wrong? The receipt after posting links to correcting it. An admin can also correct a past check-in in Data.',
         'Answers you haven’t posted are kept as a draft and offered back when you return. Posting twice by accident is not possible.',
         'Right after publishing a goal, its owner is offered the first check-in, so everyone sees where it stands from day one.',
@@ -672,10 +675,10 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'A year ends on its last day, the Sunday of its last week, whether or not anyone starts the next. From the day after, nothing in it is due, late or out of date: each goal keeps the last status its owner gave, its result is worked out, and its last quarter closes on the numbers there are.',
-        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done.',
+        'The wrap-up opens on the Monday of the year’s last two weeks and stays open for four weeks after the year ends, so the last check-ins and the wrap-up can still be done. It stays open once the next year has begun: Home, Wrap up and Cycles show last year’s until it closes.',
         'Home offers the wrap-up when it opens. For each goal: how it landed (suggested from where it ended), one thing learned, and carry on or stop. About a minute each.',
         'Wrap up shows everyone which goals are wrapped up, and how.',
-        'An admin starts the next year. Carried goals start from where they ended: number goals from their last number, milestones with what is left. Links to stopped goals are dropped. Both are logged.',
+        'An admin starts the next year from its own page, after a read-back of what carries on, finishes and stops (see Starting the next year). A goal that met its target finishes; one its owner stopped stops; the rest carry on from where they ended: number goals from their last number, milestones with what is left. Links to goals that don’t carry on are dropped. Nobody moves into next year until this one’s last day.',
       ] },
       { heading: 'Who can', list: ['A goal’s owner, or an admin, wraps it up.', 'Only admins start the next year.'] },
     ],
@@ -683,7 +686,32 @@ const CORE_ARTICLES: Article[] = [
     screens: ['Retro'],
     reqs: ['RETRO', 'YEAR', 'RESULTS'],
     keywords: ['retro', 'retrospective', 'end of year', 'year end', 'year ended', 'last day', 'cycle', 'next year', 'carry on', 'stop', 'learned', 'close'],
-    related: ['history', 'workspace'],
+    related: ['history', 'workspace', 'start-next-year'],
+  },
+
+  {
+    id: 'start-next-year',
+    title: 'Starting the next year',
+    summary: 'An admin sets up next year from the day the wrap-up opens. Nobody moves into it until this year’s last day, and it can be undone until someone uses it.',
+    group: 'leading',
+    sections: [
+      { heading: 'How to use it', list: [
+        'From the day the wrap-up opens, an admin can open Start {next year} from Cycles, Home or the wrap-up. It says how long the next year runs, and that everyone stays in this year until its last day.',
+        'Before anything changes it reads back what will happen to every goal, in four counts that add up to all of them: how many carry on, how many finish because they met their target, how many stop because their owners said so, and how many aren’t wrapped up yet (and of those, which carry on as they are and which finish).',
+        'Then it says what next year starts with: the goals that carry on, each with its key, owner, team, level and metric; the stages not done that come with them; the open next steps and asks, watches and reviews that follow their goals; any goal that loses its “Feeds into” because the goal above it finishes or stops; plans set by hand that become straight lines; and when the first check-ins are due.',
+        'A number goal that carries on starts from its final number in week 1, with the same target, due at the end of next year. Stages not done are spread evenly over next year. A plan that already ran past the year keeps its dates.',
+        'A final number or a wrap-up given after next year was set up still counts: the carried goal follows it until someone checks in on it or changes it. After that, stop it in next year instead.',
+        'Starting it prepares next year. Everyone stays in this year until its last day, so the last check-ins and the wrap-up carry on; next year opens for everyone on its first Monday. Started after this year has ended, it opens at once.',
+        'Cycles then says the next year is ready, when it opens, and offers Undo. Undo works until someone checks in or changes a goal in the new year; after that Cycles says why it can’t.',
+        'Next year can be started only once. Before the wrap-up opens, the page says the day it can be started from.',
+      ] },
+      { heading: 'Who can', list: ['Everyone can read the page.', 'Only admins start the next year, or undo it.'] },
+    ],
+    routes: ['/workspace/cycles/next'],
+    screens: ['StartNext'],
+    reqs: ['CARRY-GOALS', 'RESULTS'],
+    keywords: ['next year', 'new year', 'start next year', 'carry on', 'finish', 'undo', 'read-back', 'cycle'],
+    related: ['wrap-up', 'workspace-cycles'],
   },
 
   /* ---------- Data in and out ---------- */
@@ -701,7 +729,7 @@ const CORE_ARTICLES: Article[] = [
         'Spreadsheets is where files come and go (when the workspace has it on): the table as shown, as CSV or Excel, with the visible columns in order, filtered and sorted; everything as a workbook or zipped CSVs; the template (its first sheet, Start here, says what every column needs: Help’s Every column, and what it needs is the same table); and Import. The columns that say which record each row is (a goal’s key and ID, a person’s email) are always added, greyed, at the end when the layout hides them, so the file loads back whatever you hid.',
         'IDs, keys and emails never change by accident: they are shown but not typed into, except a person’s email.',
       ] },
-      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
+      { heading: 'Changing data', list: ['Admins type into cells across tables, then Review changes shows each before and after with any problems: Must fix, or a Check to answer there, as on Import. Save applies them together, with the same rules and change log as Import.', 'A past check-in can be corrected here; it is logged with its old and new values. Columns the layout hides keep what the check-in says, so a value can be corrected without showing its cause.', 'Choices such as Level, Plan, Must stay, Call, Cause and Recovery offer the same words the spreadsheet uses. An owner or a team is found by typing: choose Change in its cell.'] },
       { heading: 'Who can', text: ['Anyone reads the tables. Admins change them; admins can also pin a saved layout for everyone.'] },
     ],
     routes: ['/data'],
@@ -1215,52 +1243,18 @@ export function searchGuide(query: string): Article[] {
   return scored.sort((x, y) => y.score - x.score || ARTICLES.indexOf(x.a) - ARTICLES.indexOf(y.a)).map((x) => x.a);
 }
 
-/** A route pattern's path and the query values it needs. */
-function parseRoute(r: string): { segs: string[]; query: [string, string][] } {
-  const [path = '/', q = ''] = r.split('?');
-  return { segs: path.split('/').filter(Boolean), query: [...new URLSearchParams(q).entries()] };
-}
-
-/**
- * How closely a route (as App.tsx and the guide write it) matches an address: null when it doesn't. Fixed path
- * segments beat parameters (/goals/new over /goals/:goalId), and a route that needs a query value beats one that
- * doesn't. Shared by the Help link on every page and by the named flows (src/help/flows.ts).
- */
-export function routeScore(route: string, pathname: string, search = ''): number | null {
-  const segs = pathname.split('/').filter(Boolean);
-  const p = parseRoute(route);
-  if (p.segs.length !== segs.length) return null;
-  if (!p.segs.every((s, i) => s.startsWith(':') || s === segs[i])) return null;
-  const q = new URLSearchParams(search);
-  if (!p.query.every(([k, v]) => (v === '*' ? q.has(k) && q.get(k) !== '' : q.get(k) === v))) return null;
-  return p.segs.filter((s) => !s.startsWith(':')).length * 10 + p.query.length * 100;
-}
+/** How closely a route matches an address (src/help/match.ts, shared with the light index in src/help/lookup.ts). */
+export { routeScore };
 
 /** The article for a page: the one whose route matches the address most closely. */
-export function articleForPath(pathname: string, search = ''): Article | undefined {
-  let best: { a: Article; score: number } | undefined;
-  for (const a of ARTICLES) {
-    for (const r of a.routes) {
-      const score = routeScore(r, pathname, search);
-      if (score !== null && (!best || score > best.score)) best = { a, score };
-    }
-  }
-  return best?.a;
-}
+export const articleForPath = (pathname: string, search = ''): Article | undefined => closestRoute(ARTICLES, (a) => a.routes, pathname, search)?.item;
 
 /** The App.tsx route an address is on, e.g. /goals/:goalId for /goals/G-12: what telemetry records instead of ids. */
 let appRoutes: string[] | null = null;
-export function appRouteFor(pathname: string): string | undefined {
-  let best: { r: string; score: number } | undefined;
-  for (const r of (appRoutes ??= guideRoutes())) {
-    const score = routeScore(r, pathname);
-    if (score !== null && (!best || score > best.score)) best = { r, score };
-  }
-  return best?.r;
-}
+export const appRouteFor = (pathname: string): string | undefined => closestRoute(appRoutes ??= guideRoutes(), (r) => [r], pathname)?.route;
 
 /** The route paths the guide explains, without their queries: for the checks that every route has an article. */
-export const guideRoutes = (): string[] => [...new Set(ARTICLES.flatMap((a) => a.routes.map((r) => r.split('?')[0]!)))];
+export const guideRoutes = (): string[] => routePaths(ARTICLES);
 
 /** An article as plain text: for the AI assistant. */
 export function articleText(a: Article): string {

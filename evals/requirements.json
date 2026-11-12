@@ -69,7 +69,7 @@
     {
       "id": "HONEST-CHECKIN",
       "area": "Check-in",
-      "text": "A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation."
+      "text": "A check-in says which week it is for and where it is in the week's queue, even after a reload; last week's reason and plan, copied in to edit, are changed or explicitly said to be still true before they post; one number check is used by the check-in, the one-table check-in and the import; the goal page never folds the newest check-in into a range; the one-table check-in shares each goal's draft, posts only the rows that are ready and ends on the check-in's confirmation. A number that looks wrong (far from last week's, far outside the plan, past a count's target, over 100%) or the same as last week's on a number still to move is asked about, can't be posted until the question is answered, and the answer is kept in History."
     },
     {
       "id": "REASON-AHEAD",
@@ -89,7 +89,7 @@
     {
       "id": "ONE-PER-WEEK",
       "area": "Check-in",
-      "text": "Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so and is logged as such."
+      "text": "Owners can check in as often as they like (ad hoc). Every check-in is kept with its time and reason; the latest in a week is that week’s status for reviews, quarters, charts and exports. A second check-in in a week says so, is logged as such and is compared with last week, never with the first. Checking in again and correcting a week are different: a correction replaces the week's newest and needs a reason. Every screen posts a check-in through the same engine as the table, the import and the AI tools."
     },
     {
       "id": "UPDATE-ANYTIME",
@@ -300,6 +300,11 @@
       "id": "RESULTS",
       "area": "Cycles",
       "text": "A cycle ends on its last day (its last week's Sunday) whether or not the next is started: results and the last quarter close on the numbers there are, and nothing in it is due, late or out of date afterwards. Every place that says where the year stands gives its real first and last days: running, ending (the wrap-up's weeks), ended or not begun."
+    },
+    {
+      "id": "CARRY-GOALS",
+      "area": "Cycles",
+      "text": "An admin starts the next cycle from the day the wrap-up opens, once, after a read-back in counts that add up to every goal (carry on, finish, stop, not wrapped up yet), and can undo it until someone uses it (a check-in, or a goal changed, in it). Everyone stays in the old cycle until its last day; the next opens on its week 1's Monday, and before that every screen says when it starts and nothing is due. A goal that met its target finishes; one its owner stopped at the wrap-up stops; the rest carry on from their final number, from week 1, with their key, metric, watchers, open asks and place in reviews; no carried plan changes direction, starts late or has a stage after the year's end. Until someone uses a carried goal, a later final number or wrap-up keeps it true."
     },
     {
       "id": "QUARTER-RESULTS",
@@ -602,6 +607,11 @@
       "text": "Anyone finds a person or a team, and gets from either to their goals (app redesign WR1). People (/people, in the sidebar; on a phone under More) lists everyone not marked as left, A to Z ignoring case and accents, 50 a page; a search matches when every word typed starts a word of the name, job title or team; filters for a team (its lead counts) or no team, and admins only; everything in the address. A row links to the person, with their job title, team and line (Admin; what they lead; their goals this year). A person's page: team, email, role here, goals counted by status as shape and word (each a link to those goals), reviews, and \"See {name}’s goals\". Teams (/teams) lists each team with its lead, people and goals by status, the same numbers as Goals' By team; a team's page says what it is here to do, its goals by status and its people, with \"See its goals\". Members see no control that changes anything; admins add, change and mark people as left, and add, change and remove teams there."
     },
     {
+      "id": "METRICS-LIBRARY",
+      "area": "Metrics",
+      "text": "Anyone can find a metric, read what it means, and see every goal measured by it side by side (ML1). Metrics (/metrics, in the menu after People; on a phone under More) lists every metric in use A to Z ignoring case and accents, 50 a page; a search matches the name, unit, \"lower is better\" or \"higher is better\", the owner and the meaning; filters for the unit, the team or the whole company a goal measures it for, the owner, which way is better, no goals, and something to sort out; sorts A to Z, most goals first and changed lately; everything in the address. A row links to the metric, says its unit, direction and owner, and its goals by status as shape and word, worst first. A metric's page says what it means and how it's calculated, then its goals as a table (status, goal, for, now, target with its week, against plan, owner), worst first, with the lowest and highest now when two or more have a number, then its source, the source's owner, refresh, caveats and who added and last changed it. Its owner and admins see what it still needs and can change or remove it; everyone else sees who can. A goal's summary says what measures it; a person's page lists the metrics they own and a team's the metrics its goals use. Old addresses under /data/metrics lead to the library, a metric or the form."
+    },
+    {
       "id": "OLD-ADDRESSES",
       "area": "Platform",
       "text": "Every address that worked before still lands on the right page, without a history entry and keeping its query: /workspace/people goes to /people, /workspace/people?team=<id> to that team's page, /workspace/teams to /teams, and /workspace#people and #teams to People and Teams (domain/directory movedTo)."
@@ -810,6 +820,11 @@
       "id": "FIELD-TABLE",
       "area": "Data",
       "text": "Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from."
+    },
+    {
+      "id": "IMPORT-LEVELS",
+      "area": "Data",
+      "text": "Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused."
     },
     {
       "id": "IMPORT-ACTIONS",

@@ -229,6 +229,16 @@ select.input { padding-right: 28px; }
 /* Last time's words still untouched: one explicit choice (deep review U9). A full outline when it's still needed. */
 .still-true { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line); border-radius: 10px; }
 .still-true.invalid { border-color: var(--off-mark); }
+/* The two levels (src/ui/Levels.tsx): a Check is outlined all round; a Must fix has the off-track wash. Never an edge. */
+.level-block { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line-strong); border-radius: 10px; }
+.level-block.level-fix { background: var(--off-wash); border-color: var(--off-line); }
+.level-block.level-alert { border-color: var(--off-mark); }
+.level-head { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--fg-2); }
+.level-head svg { width: 14px; height: 14px; flex: none; }
+.level-word { font-weight: 600; }
+.level-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+.level-actions .btn { min-height: 44px; white-space: normal; text-align: left; }
+.foot-says { margin: var(--s2) 0 0; }
 /* What the ring counts, under the number and inside the ring (deep review U16). A finished ring is its tick alone. */
 .ring:has(> .ring-counts) { flex-direction: column; }
 .ring-counts { position: relative; font-weight: 500; font-size: 0.625rem; line-height: 1; margin-top: 1px; color: var(--muted); }
@@ -620,8 +630,6 @@ svg.chart { display: block; overflow: visible; }
 
 /* Goal levels: a quiet tag; north star a touch stronger. */
 .level { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2); border-radius: 6px; font-size: var(--t-xs); font-weight: 650; line-height: 1.25rem; white-space: nowrap; border: 1px solid var(--line-strong); color: var(--fg-2); }
-.level-north-star { border-color: transparent; background: var(--accent-soft); color: var(--accent-text); }
-.level-north-star::before { content: none; }
 .btn.watching { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-text); }
 .trow-title .level, .outcome-title .level { margin-left: var(--s2); vertical-align: 2px; }
 .tree li.covered > .trow { opacity: .6; }
@@ -773,6 +781,10 @@ h1[tabindex='-1']:focus { outline: none; }
 .issue-list li { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) var(--s3); border: 1px solid var(--line); background: var(--surface); border-radius: 6px; font-size: var(--t-sm); }
 .problems .issue-list li { border-color: var(--off-line); background: var(--off-wash); }
 .issue-list .label { font-size: 0.75rem; color: var(--muted); }
+.answer-row { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s1); }
+.answer-row .btn { min-height: 36px; }
+@media (pointer: coarse) { .answer-row .btn { min-height: 44px; } }
+.answer-line { flex-direction: row !important; align-items: center; justify-content: space-between; }
 .change-goal { border-top: 1px solid var(--line-2); }
 .change-goal:first-child { border-top: 0; }
 .change-goal > summary { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); cursor: pointer; list-style: none; }
@@ -1139,8 +1151,7 @@ a.arow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .filter-more > .filter-sheet { margin-top: var(--s3); }
 .sheet-foot { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s4) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--surface); border-top: 1px solid var(--line); }
 /* Levels are quiet words, not filled labels: the status, the number and the action carry the emphasis (visual review 2). */
-.level, .level-north-star { padding: 0; border: 0; border-radius: 0; background: none; font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.level-north-star { color: var(--accent-text); }
+.level { padding: 0; border: 0; border-radius: 0; background: none; font-size: 0.6875rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .map-key-more { display: inline-block; position: relative; }
 .map-key-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; }
 .map-key-more > summary::-webkit-details-marker { display: none; }

@@ -25,8 +25,9 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
   if (!url || !key) throw new Error('The server has no database settings (SUPABASE_URL and the public key, VITE_SUPABASE_KEY).');
   const db = client ?? faroClient(url, key);
   const store = new SupabaseStore(url, key, db);
-  // The hash of the token this request came with, to note when it was used.
-  let seen: string | null = null;
+  // Each token's hash by its id, as findToken saw it, so touch notes the right one even when one Deps serves requests
+  // side by side.
+  const seen = new Map<string, string>();
   return {
     // Through okr_token_find (migration 0024): the table itself is closed to the public key.
     async findToken(hash) {
@@ -35,7 +36,7 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
       if (error) throw new Error('The goals database didn’t answer. Try again in a moment.');
       const row = ((data ?? []) as TokenRow[])[0];
       if (!row) return null;
-      seen = hash;
+      seen.set(row.id, hash);
       return { token: tokenFromRow(row), workspaceId: row.workspace_id };
     },
     async workspaceName(id) {
@@ -45,7 +46,7 @@ export function supabaseDeps(origin: string, env: Record<string, string | undefi
     load: (ws) => store.load(ws),
     commit: (ws, c) => store.commit(ws, c),
     // Through okr_token_touch (migration 0024), which stamps the time itself. A failure here never stops the answer.
-    async touch() { if (seen) await db.rpc('okr_token_touch', { hash: seen }); },
+    async touch(id) { const hash = seen.get(id); if (hash) await db.rpc('okr_token_touch', { hash }); },
     issueToken: (ws, c) => store.issueToken(ws, c),
     // The inbox's tools, for any token, through the database's functions for it (no new secret). Pictures are read by
     // their public address (migration 0031).

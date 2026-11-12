@@ -1,12 +1,17 @@
 /* The metric library's AI tools (backlog 0b): list and read the metrics, add, change or remove one, and say which
-   metric measures a goal. Every rule is domain/metrics.ts's, so an assistant meets exactly the rules a person does,
+   metric measures a goal. Every rule is rules.ts's, so an assistant meets exactly the rules a person does,
    and every change is logged as that person, via the AI assistant. A removed metric comes back with restore_removed
    (kind metric). In a workspace that has switched the metric library off, these say so instead of running. */
 import { NotAllowed, type ActionContext } from '../../domain/actions';
 import type { Commit } from '../../domain/commit';
 import { findGoal, isKey } from '../../domain/goalKey';
-import * as M from '../../domain/metrics';
-import type { Metric, MetricDirection, MetricRefresh } from '../../domain/types';
+import * as M from './rules';
+import * as L from './rulesLibrary';
+import { goalsOfMetric, libraryReads } from './reads';
+import { goalStatus } from '../../domain/status';
+import { LABEL } from '../../domain/vocabulary';
+import type { DisplayStatus } from '../../domain/types';
+import type { Metric, MetricDirection, MetricRefresh } from './types';
 import type { McpContext, ToolDef, ToolResult } from '../../mcp/tools';
 import { VIA_MCP } from '../../domain/changeset';
 
@@ -56,7 +61,7 @@ function metricData(ctx: McpContext, m: Metric) {
     direction: m.direction, directionLabel: M.DIRECTION_LABEL[m.direction], source: m.source, sourceOwner: m.sourceOwner,
     refresh: m.refresh, owner: name(ctx, m.ownerId), ownerId: m.ownerId, caveats: m.caveats, updatedAt: m.updatedAt,
     youCanChange: M.canEditMetric(ctx.actor, m),
-    measures: M.goalsMeasuredBy(ctx.snapshot, m.id).map((g) => {
+    measures: M.goalsMeasuredBy(ctx.snapshot, ctx.snapshot.goals, m.id).map((g) => {
       const me = M.measureOf(ctx.snapshot, g)!;
       return { goalId: g.id, key: g.key ?? null, goal: g.title, owner: name(ctx, g.ownerId), slice: me.slice, target: me.target, targetText: me.targetText };
     }),
@@ -80,31 +85,61 @@ const tools: ToolDef[] = [
   {
     name: 'list_metrics',
     title: 'List the metric library',
-    description: 'Every metric in the library, by name: its unit, which way is better, its owner and how many goals it measures. Give a search to narrow it by name, meaning or source. get_metric has one in full.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: { search: str('Words to look for in the name, meaning or source.') } },
+    description: 'The metric library as its page lists it (rule 1 of the library): every metric in use, A to Z, with its unit, which way is better, its owner, its goals by status, worst first, and (for its owner and admins) what it still needs. Narrow it as the page does: words to find (name, unit, “lower is better”, owner, meaning, source), a unit, the team or the whole company a goal measures it for, an owner, a direction, unused ones, or those with something to sort out; sort A to Z, by most goals or by the latest change. get_metric has one in full.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {
+      search: str('Words to find, each starting a word of the name, unit, “lower is better” or “higher is better”, the owner’s name, the meaning or the source.'),
+      unit: str('Only metrics in this unit (any case).'),
+      team: str('Only metrics a goal measures for this team (ID or name), or “company” for the whole company.'),
+      owner: str('Only metrics this person owns, by ID, email or name.'),
+      direction: str('Only metrics where this way is better.', { enum: ['higher', 'lower'] }),
+      unused: { type: 'boolean', description: 'Only metrics no live goal uses.' },
+      sort_out: { type: 'boolean', description: 'Only metrics with something to sort out: no owner (or one who has left), no meaning, no source, or no goal after 14 days.' },
+      sort: str('A to Z (name, the default), most goals first (goals), or the latest change first (changed).', { enum: ['name', 'goals', 'changed'] }),
+      page: { type: 'integer', minimum: 1, description: 'Which page of 50.' },
+    } },
     annotations: READ,
     async run(a, ctx) {
-      const q = String(a.search ?? '').trim().toLowerCase();
-      const list = M.liveMetrics(ctx.snapshot).filter((m) => !q || [m.name, m.meaning, m.source].some((t) => t.toLowerCase().includes(q)));
-      const rows = list.map((m) => ({ id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner: name(ctx, m.ownerId), goals: M.goalsMeasuredBy(ctx.snapshot, m.id).length }));
-      return { data: { metrics: rows }, text: rows.length ? rows.map((r) => `${r.id} · ${r.name} (${r.unit}, ${M.DIRECTION_LABEL[r.direction].toLowerCase()}) · owner ${r.owner ?? '—'} · measures ${r.goals} ${r.goals === 1 ? 'goal' : 'goals'}`).join('\n') : q ? `No metric matches “${q}”.` : 'The metric library is empty. Add one with save_metric.' };
+      return ruled(async () => {
+        const team = a.team == null || a.team === '' ? undefined : /^(the )?(whole )?company$/i.test(String(a.team).trim()) ? 'company' : sliceOf(ctx, a.team) ?? undefined;
+        const ask: L.LibraryAsk = {
+          q: String(a.search ?? ''), unit: a.unit ? String(a.unit) : undefined, teamId: team, ownerId: a.owner ? personOf(ctx, a.owner) : undefined,
+          dir: a.direction === 'higher' || a.direction === 'lower' ? a.direction : undefined, unused: a.unused === true, sortout: a.sort_out === true,
+          sort: a.sort === 'goals' || a.sort === 'changed' ? a.sort : 'name', page: typeof a.page === 'number' ? a.page : 1,
+        };
+        const found = L.findMetrics(libraryReads(ctx.snapshot, ctx.now), ask);
+        const statusOf = (id: string) => { const g = ctx.snapshot.goals.find((x) => x.id === id); return g ? goalStatus(g, ctx.cycle, ctx.snapshot.checkIns, ctx.today).status : null; };
+        const rows = found.rows.map(({ metric: m, owner, goalIds, needs }) => {
+          const byStatus = L.goalsByStatus(goalIds.map(statusOf).filter((s): s is DisplayStatus => !!s));
+          return { id: m.id, name: m.name, unit: m.unit, direction: m.direction, owner, goals: goalIds.length, goalsByStatus: byStatus.map((c) => ({ status: c.status, count: c.n, label: LABEL[c.status] })), needs: M.canEditMetric(ctx.actor, m) ? needs.map((x) => ({ id: x.id, sentence: x.sentence })) : [] };
+        });
+        const words = (r: (typeof rows)[number]) => `${r.id} · ${r.name} (${r.unit}, ${L.directionWords(r.direction)}) · ${r.owner ? `owner ${r.owner}` : 'no owner'} · ${r.goalsByStatus.length ? r.goalsByStatus.map((c) => `${c.count} ${c.label.toLowerCase()}`).join(', ') : 'no goals yet'}${r.needs.length ? ` · to sort out: ${r.needs.map((x) => x.sentence).join('; ')}` : ''}`;
+        const head = found.total > found.rows.length ? `${found.from} to ${found.to} of ${found.total} metrics.\n` : '';
+        return { data: { total: found.total, page: found.page, pages: found.pages, metrics: rows }, text: rows.length ? head + rows.map(words).join('\n') : M.liveMetrics(ctx.snapshot).length ? 'No metric matches.' : 'The metric library is empty. Add one with save_metric.' };
+      });
     },
   },
   {
     name: 'get_metric',
     title: 'Read a metric',
-    description: 'One metric in full, by ID or name: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats, and every goal it measures with its slice (a team, or the whole company) and the goal’s target.',
+    description: 'One metric in full, by ID or name, as its page shows it: what it means and how it’s calculated, unit, decimals, direction, source and its owner, refresh, owner, caveats; every goal it measures, worst first, with its status, slice (a team, or the whole company), latest number, target with its week, where it stands against plan and owner (rule 2 of the library), and the lowest and highest now; and, for its owner and admins, what it still needs (rule 3).',
     inputSchema: { type: 'object', additionalProperties: false, required: ['metric'], properties: { metric: str('The metric’s ID or name.') } },
     annotations: READ,
     async run(a, ctx) {
       return ruled(async () => {
-        const d = metricData(ctx, metricOf(ctx, a.metric));
+        const m = metricOf(ctx, a.metric);
+        const d = metricData(ctx, m);
+        const side = goalsOfMetric(ctx.snapshot, ctx.cycle, ctx.today, ctx.week, m.id);
+        const goals = side.map((r) => ({ goalId: r.goal.id, key: r.goal.key ?? null, goal: r.goal.title, status: r.status, statusLabel: LABEL[r.status], slice: r.slice, now: r.now, target: r.target, vsPlan: r.vsPlan, owner: r.owner }));
+        const summary = L.summaryLine(side);
+        const needs = M.canEditMetric(ctx.actor, m) ? L.metricNeeds(m, libraryReads(ctx.snapshot, ctx.now)).map((x) => ({ id: x.id, sentence: x.sentence })) : [];
         const lines = [
-          `${d.name} (${d.id})`, `Unit: ${d.unit}, ${d.decimals} decimals · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
+          `${d.name} (${d.id})`, `Unit: ${d.unit}, ${L.decimalsWords(d.decimals)} · ${d.directionLabel}`, `Meaning: ${d.meaning || '—'}`,
           `Source: ${d.source || '—'} (owned by ${d.sourceOwner || '—'}) · refresh: ${d.refresh ?? 'not said'}`, `Owner: ${d.owner ?? '—'}`, `Caveats: ${d.caveats || '—'}`,
-          d.measures.length ? `Measures: ${d.measures.map((x) => `${x.key ?? x.goalId} ${x.goal} (${x.slice})`).join('; ')}` : 'Measures no goal yet.',
+          goals.length ? `Goals measured by it (${goals.length}):\n${goals.map((x) => `- ${x.statusLabel} · ${x.key ?? x.goalId} ${x.goal} · for ${x.slice} · now ${x.now} · target ${x.target} · ${x.vsPlan} · ${x.owner}`).join('\n')}` : 'Measures no goal yet.',
+          ...(summary ? [summary] : []),
+          ...(needs.length ? [`To sort out: ${needs.map((x) => x.sentence).join('; ')}`] : []),
         ];
-        return { data: d, text: lines.join('\n') };
+        return { data: { ...d, goals, summary, needs }, text: lines.join('\n') };
       });
     },
   },
@@ -146,7 +181,7 @@ const tools: ToolDef[] = [
       return ruled(async () => {
         const c = M.removeMetric(ax(ctx), metricOf(ctx, a.metric).id);
         await save(ctx, c);
-        return { data: { removed: true, unlinked: (c.metricLinks ?? []).map((l) => l.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
+        return { data: { removed: true, unlinked: M.linksOf(c).map((l) => l.goalId) }, text: `${c.changes[0]!.summary} (as ${ctx.actor.name}). It can be restored for 30 days: restore_removed, or an admin on Workspace → Recently removed.` };
       });
     },
   },

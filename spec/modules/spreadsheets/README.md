@@ -14,9 +14,10 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | Routes | `/data/import` |
 | Old addresses | `/import` → `/data/import` |
 | Navigation | none |
-| Places on core screens | `data.tools`, `goals.tools` |
+| Places on core screens | `data.tools`, `goals.tools`, `help.article` |
 | Workspace sections | none |
 | Database tables | none |
+| Its own records | none |
 | AI tools | `export`, `export_table` |
 | Help articles | “Importing from a spreadsheet” (`import`), “Exporting” (`export`), “Every column, and what it needs” (`columns`) |
 | Outside its folder | none |
@@ -28,6 +29,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 - `IMPORT-ACTIONS`: A spreadsheet’s Action column stops a goal with check-ins (with a Reason) or deletes one with none, and marks someone as left (their goals, open asks and teams going to Takes over, by email), with the same rules, refusals and consequences as the app (domain/removal), shown in the preview. The import’s Undo puts every one back: the goal live again, the deleted goal restored, the person back with their goals, asks, reviews and teams. Tests: `evals/format.eval.ts`.
 - `SPREADSHEETS-ON-DATA`: Spreadsheets live on Data: its Spreadsheets menu saves the open table as laid out (CSV or Excel), everything as a workbook or as zipped CSVs, and the template (a Start here sheet, then the columns a person fills in on Goals, Plan, Check-ins and People, required headers in bold, and example rows that are never imported), and opens Import at /data/import, which shows every change before saving. Goals keeps only a quiet Export these goals; set-up keeps its own upload; old /import links lead to Data’s Import. It is the spreadsheets module (src/modules/spreadsheets). Tests: `evals/modules.eval.ts`.
 - `FIELD-TABLE`: Every column a person can fill in says whether a new row must have it, its format, an example and what an empty cell means, in one list that the template, the workbook’s first sheet, Help, the import’s preview and the goal form are made from. Tests: `src/domain/fieldTable.test.ts`.
+- `IMPORT-LEVELS`: Every problem an import finds is Must fix, Check or fine. Must fix blocks saving; a Check is a question that must be answered; a problem is said once per kind with its count, and one answer covers every row with the same question. A near miss is asked about, never guessed and never silently refused. Tests: `src/domain/problemLevels.test.ts`, `evals/format.eval.ts`.
 
 ## Journeys and checks
 
@@ -37,7 +39,7 @@ Module id `spreadsheets`, in [src/modules/spreadsheets/](../../../src/modules/sp
 | U20 | Load a spreadsheet from Data: a new goal, then its past weeks, with every change shown before saving | `evals/journeys.cjs` |
 | U46 | An admin exports everything, stops a goal and moves an owner by email in the workbook, loads it back to see exactly those changes, saves and undoes them; then fills in the emails people are missing | `evals/journeys.cjs` |
 | U48 | An admin switches Spreadsheets off for the workspace: Data, Goals, Help and the old Import link lose it, the change is logged, and switching it back on, or Undo straight after switching it off, brings it all back | `evals/journeys.cjs` |
-| U87 | The same menus everywhere: Layout says what is drawn, the head stays put, the Map is found from the bar, and a phone keeps Layout, Group and saved views in one View sheet | `evals/journeys.cjs` |
+| U87 | What a file needs, before uploading: Import says what a new goal, check-in and person must have; Help’s table says Goal and Owner are Required, Start is Required for a number goal and Status is worked out; the template’s first sheet is the same table, its example rows say Example, and loaded back unchanged it changes nothing, with 3 example rows left out | `evals/journeys.cjs` |
 | F7 | Fit and finish, data-workspace | `evals/finish/7-data-workspace.cjs` |
 | F8 | ${t.fontSize}/${t.fontWeight}/${t.color} | `evals/finish/8-sheets.cjs` |
 | N5 | Review notes, data-ids | `evals/notes/5-data-ids.cjs` |

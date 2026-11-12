@@ -2,6 +2,9 @@
 
    1. The rules layer, src/domain, is plain TypeScript: it imports only other files in src/domain, and uses no browser,
       network or storage (fetch, window, document, localStorage…). Tests in it may use fixtures from elsewhere.
+   1b. A module's rules (its rules*.ts, AS part 2) are as pure as src/domain: they import only src/domain and their own
+      module's folder, and use no browser, network or storage either. A module's records, screens and tools may import
+      anything the core offers; its rules may not.
    2. The core never depends on a module: nothing outside src/modules imports a file in it. Modules join the app only
       through the registry the build makes (vite.modules.ts, `virtual:faro-modules…`).
    3. A module imports another module only if its module.json lists it under `needs`.
@@ -14,13 +17,19 @@
       `Pick<Snapshot, …>` naming goals, checkIns, changes or requests), or cast something to `Snapshot`, except the files listed in
       scripts/whole-workspace.json, and those no more times than it says. The list may only shrink: src/app/reads.ts
       turns the loaded workspace into the rows a new rule reads.
+   7. Browser storage stays behind the ports (AX9): localStorage, sessionStorage and indexedDB only in src/adapters and
+      src/ports, except the files listed in scripts/browser-storage.json (index.html's own scripts among them), and those
+      exactly as many times as it says, so a count that falls must be lowered. Read with TypeScript's parser. The list
+      may only shrink, and each entry says what it keeps and where the internal app keeps it (the table in
+      spec/rebuild/adapters.md is made from it); a file that no longer uses storage leaves the list.
 
    npm run lint:layers runs it; CI runs it, and so does npm test (src/core/layers.test.ts). */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
-const CODE = /\.(ts|tsx|mjs|cjs|js)$/;
+const CODE = /\.(ts|tsx|mts|cts|mjs|cjs|js|jsx)$/;
 const isTest = (f) => /\.test\.tsx?$/.test(f);
 
 /** Every code file under dir, relative to root, with forward slashes. */
@@ -78,6 +87,47 @@ const withoutComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.repla
 /** A file whose code is rules: src/domain, and a module's rules*.ts. */
 const isRules = (f) => !isTest(f) && (f.startsWith('src/domain/') || /^src\/modules\/[^/]+\/rules[^/]*\.ts$/.test(f));
 
+/** Browser storage, as only the adapters and ports may use it. */
+const STORAGE_NAMES = new Set(['localStorage', 'sessionStorage', 'indexedDB']);
+/** Where browser storage may be used freely: the adapters and the ports, and tests. */
+const mayStore = (f) => /\.test\.[cm]?[jt]sx?$/.test(f) || f === 'src/test-setup.ts' || f.startsWith('src/adapters/') || f.startsWith('src/ports/');
+
+/**
+ * How many times code uses browser storage, read by TypeScript's own parser so no spelling slips past: a name anywhere in
+ * the code (in a template literal's ${…}, in JSX, after a string holding //), and a string that is exactly the name
+ * (window['localStorage'], 'indexedDB' in window). Comments and the words inside a message don't count.
+ */
+export function storageUsesIn(code, fileName = 'x.tsx') {
+  const kind = /\.[cm]?jsx?$/.test(fileName) ? (fileName.endsWith('x') ? ts.ScriptKind.JSX : ts.ScriptKind.JS) : fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const source = ts.createSourceFile(fileName, code, ts.ScriptTarget.Latest, false, kind);
+  let n = 0;
+  const visit = (node) => {
+    if (ts.isIdentifier(node) && STORAGE_NAMES.has(node.text)) n++;
+    else if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && STORAGE_NAMES.has(node.text)) n++;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return n;
+}
+
+/** The inline scripts of an HTML page, joined: what runs before the app's own code. */
+const inlineScripts = (html) => [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join('\n;\n');
+
+/** How many times each file outside the adapters and ports uses browser storage, by file: src, and index.html's own scripts. */
+export function browserStorageUses(root) {
+  const out = {};
+  for (const file of files(root, 'src').filter((f) => !mayStore(f))) {
+    const n = storageUsesIn(fs.readFileSync(path.join(root, file), 'utf8'), file);
+    if (n) out[file] = n;
+  }
+  const page = path.join(root, 'index.html');
+  if (fs.existsSync(page)) {
+    const n = storageUsesIn(inlineScripts(fs.readFileSync(page, 'utf8')), 'index.js');
+    if (n) out['index.html'] = n;
+  }
+  return out;
+}
+
 /** How many times each rules file takes the whole workspace, by file. */
 export function wholeWorkspaceUses(root) {
   const out = {};
@@ -105,10 +155,13 @@ export function checkLayers(root) {
     const imports = importsOf(raw);
     const inDomain = file.startsWith('src/domain/');
     const mine = moduleOf(file);
+    const moduleRules = isRules(file) && !inDomain;
     for (const { spec, line } of imports) {
       const to = target(file, spec);
       // 1. The rules layer imports only itself (its tests may use fixtures).
       if (inDomain && !isTest(file) && (!to || !to.startsWith('src/domain/'))) problems.push(`${file}:${line}: the rules layer (src/domain) imports ${spec}; it may import only other files in src/domain`);
+      // 1b. A module's rules import only src/domain and their own folder.
+      if (moduleRules && (!to || !(to.startsWith('src/domain/') || to.startsWith(`src/modules/${mine}/`)))) problems.push(`${file}:${line}: a module’s rules (${mine}) import ${spec}; they may import only src/domain and their own folder, src/modules/${mine}/`);
       const theirs = to ? moduleOf(to + '/') ?? moduleOf(to) : null;
       // 2. The core never depends on a module.
       if (theirs && !mine && !isTest(file)) problems.push(`${file}:${line}: imports ${spec} from the ${theirs} module; the core never depends on a module (it joins through the registry, vite.modules.ts)`);
@@ -117,10 +170,10 @@ export function checkLayers(root) {
       // 4. Only Supabase's adapters import Supabase.
       if (spec.startsWith('@supabase/') && !isTest(file) && !file.startsWith('src/adapters/supabase/')) problems.push(`${file}:${line}: imports ${spec}; only src/adapters/supabase/ may import Supabase (use the interfaces in src/ports)`);
     }
-    if (inDomain && !isTest(file)) {
+    if ((inDomain && !isTest(file)) || moduleRules) {
       codeOnly(raw).split('\n').forEach((l, i) => {
         const m = OUTSIDE.exec(l);
-        if (m) problems.push(`${file}:${i + 1}: the rules layer (src/domain) uses ${m[0].replace(/\s*[.(]$/, '')}; browser, network and storage code belongs in src/app or src/data`);
+        if (m) problems.push(`${file}:${i + 1}: the rules layer (${inDomain ? 'src/domain' : 'a module’s rules'}) uses ${m[0].replace(/\s*[.(]$/, '')}; browser, network and storage code belongs in src/app or src/data`);
       });
     }
     // 5. The rules don't read the clock.
@@ -137,16 +190,27 @@ export function checkLayers(root) {
     const may = allowed[file] ?? 0;
     if (n > may) problems.push(`${file}: takes the whole workspace (Snapshot, a Pick of it naming goals, checkIns, changes or requests, or a cast to it) ${n} time(s)${may ? `, more than the ${may} scripts/whole-workspace.json allows` : ''}; a new rule takes only the rows it reads (src/app/reads.ts makes them)`);
   }
+  // 7. Browser storage stays behind the ports.
+  const storageFile = path.join(root, 'scripts/browser-storage.json');
+  const listed = fs.existsSync(storageFile) ? JSON.parse(fs.readFileSync(storageFile, 'utf8')).files : {};
+  const used = browserStorageUses(root);
+  for (const [file, n] of Object.entries(used)) {
+    const may = listed[file]?.uses ?? 0;
+    if (n > may) problems.push(`${file}: uses browser storage (localStorage, sessionStorage or indexedDB) ${n} time(s)${may ? `, more than the ${may} scripts/browser-storage.json allows` : ''}; keep it behind a port (Prefs, src/ports/prefs.ts, or an adapter in src/adapters)`);
+    else if (n < may) problems.push(`${file}: uses browser storage ${n} time(s), fewer than the ${may} scripts/browser-storage.json lists; lower its count to ${n}, so the list only shrinks`);
+  }
+  for (const file of Object.keys(listed)) if (!used[file]) problems.push(`${file}: no longer uses browser storage; take it off scripts/browser-storage.json`);
   return problems;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   if (process.argv.includes('--whole-workspace')) { console.log(JSON.stringify(wholeWorkspaceUses(root), null, 2)); process.exit(0); }
+  if (process.argv.includes('--browser-storage')) { console.log(JSON.stringify(browserStorageUses(root), null, 2)); process.exit(0); }
   const problems = checkLayers(root);
   if (problems.length) {
     console.error(`The layers lint found ${problems.length} problem(s) (docs/architecture.md):\n${problems.map((p) => `  ${p}`).join('\n')}`);
     process.exit(1);
   }
-  console.log('Layers: the rules layer imports only itself and reads no clock, new rules take only what they read, the core depends on no module, and only Supabase’s adapters import Supabase.');
+  console.log('Layers: the rules layer imports only itself and a module’s rules only it and their own folder, they read no clock, new rules take only what they read, browser storage stays behind the ports, the core depends on no module, and only Supabase’s adapters import Supabase.');
 }
