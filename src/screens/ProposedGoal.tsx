@@ -11,7 +11,7 @@ import { activeReadBack } from '../domain/readBack';
 import { MEASURE_UNSAID, measureUnsaid } from '../domain/proposedSummary';
 import { mayActivate, readyToActivate } from '../domain/proposedActions';
 import { mayChangeGoal } from '../domain/goalRights';
-import { fmt, targetText } from '../domain/format';
+import { fmt, staysText, targetText } from '../domain/format';
 import { levelName } from '../domain/levels';
 import { planEnd } from '../domain/plan';
 import { weekSays } from '../domain/weeks';
@@ -32,7 +32,7 @@ export function wouldSay(goal: Goal, parent: Goal | undefined, weeks: number): s
   const feeds = parent ? `, and feed “${parent.title}”${parent.key ? ` (${parent.key})` : ''}` : '';
   const what = goal.kind === 'metric'
     ? `move from ${fmt(goal.plan.start, goal)} to ${fmt(goal.plan.target, goal)} over ${plural(planEnd(goal.plan, weeks) - (goal.plan.fromWeek ?? 0), 'week')}`
-    : goal.kind === 'range' ? `stay at or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}` : `hit ${plural(goal.stages.length, 'stage')}`;
+    : goal.kind === 'range' ? (goal.range.bound === 'between' ? `stay ${staysText(goal)}` : `stay at or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}`) : `hit ${plural(goal.stages.length, 'stage')}`;
   return `It would ${what}${feeds}.`;
 }
 
@@ -159,7 +159,7 @@ function MakeActive({ goal, onClose }: { goal: Goal; onClose: () => void }) {
   const go = async () => {
     if (before && past !== 'yes') return;
     setBusy(true);
-    try { await app.run('activate', { goalId: goal.id, ...(goal.kind === 'metric' ? { fromWeek: from } : {}) }); onClose(); } catch { setBusy(false); }
+    try { await app.run('activate', { goalId: goal.id, ...(goal.kind === 'metric' ? { fromWeek: from, confirm: past === 'yes' } : {}) }); onClose(); } catch { setBusy(false); }
   };
   const body = (
     <div className="stack make-active" data-part="Make it active">

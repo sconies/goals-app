@@ -8,11 +8,14 @@
    fails when an action that says who may do something (src/domain/actions.ts, src/domain/removal.ts) isn't in it, or a
    function it names has gone. A worked example with `run` is run against Faro's code, by the same test and by the
    generator, which refuses to write one that isn't true. Pure apart from those imports: the caller writes the files. */
+import { daysSinceIn, homeTime, momentOf, weekIn } from './zones';
 import { arrive, createToken, NotAllowed, renameWorkspace, saveRetro, savePerson, canDeleteWorkspace, startNextCycle, type ActionContext } from '../domain/actions';
 import { canAnswer, canMarkDone, canWithdraw } from '../domain/asks';
 import { currentWeek, daysSince } from '../domain/plan';
 import { levelIds, levelName } from '../domain/levels';
 import { sessionDate } from '../domain/review';
+import { splitTables } from '../domain/splitFile';
+import { CHANGES_SAVE_MAX } from '../domain/importLimits';
 import type { Ask, Goal, Person, Review, Snapshot } from '../domain/types';
 import { CYCLE } from './examples';
 import { cell, link, table } from './md';
@@ -259,17 +262,18 @@ export const INTERNAL: InternalRequirement[] = [
     ],
     examples: [
       { given: 'Faro today: a cycle starting Monday 7 September 2026. A check-in is posted at 2026-09-14T03:30Z, which is 23:30 on Sunday in New York. Which week is it, by the server’s clock?', then: '1', run: () => String(currentWeek(CYCLE, new Date('2026-09-14T03:30:00Z'))) },
-      { given: 'Required: the same check-in, in a workspace whose home zone is America/New_York.', then: 'It is still Sunday in the home zone, so week 0: the check-in is on time for week 0.' },
+      { given: 'Required: the same check-in, in a workspace whose home zone is America/New_York. Which week, and what time is it there?', then: 'week 0, at 2026-09-13 23:30: still Sunday in the home zone, so the check-in is on time for week 0', run: () => `week ${weekIn(CYCLE, new Date('2026-09-14T03:30:00Z'), 'America/New_York')}, at ${homeTime('2026-09-14T03:30:00Z', 'America/New_York')}: still Sunday in the home zone, so the check-in is on time for week 0` },
       { given: 'Faro today: the last check-in was posted at 2026-09-13T23:30Z. How many days without an update at 2026-09-14T00:30Z?', then: '1', run: () => String(daysSince('2026-09-13T23:30:00Z', new Date('2026-09-14T00:30:00Z'))) },
-      { given: 'Required: the same two moments in a workspace whose home zone is Europe/London (summer time, UTC+1).', then: '0: both are 14 September in London.' },
+      { given: 'Required: the same two moments in a workspace whose home zone is Europe/London (summer time, UTC+1).', then: '0: 2026-09-14 00:30 and 2026-09-14 01:30 in London', run: () => `${daysSinceIn('2026-09-13T23:30:00Z', new Date('2026-09-14T00:30:00Z'), 'Europe/London')}: ${homeTime('2026-09-13T23:30:00Z', 'Europe/London')} and ${homeTime('2026-09-14T00:30:00Z', 'Europe/London')} in London` },
       { given: 'Faro today: a weekly review on Thursdays. When is its session in week 1?', then: '2026-09-17, a date with no time', run: () => `${sessionDate({ everyWeeks: 1, weekday: 3 } as Review, CYCLE, 1)}, a date with no time` },
-      { given: 'Required: a review on Thursdays at 14:00 Europe/London. Its sessions on 22 and 29 October 2026, seen from New York.', then: '22 Oct: 13:00Z, 09:00 in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): 14:00Z, 10:00 in New York. Both show as 14:00 London time.' },
+      { given: 'Required: a review on Thursdays at 14:00 Europe/London. Its sessions on 22 and 29 October 2026, seen from New York.', then: '22 Oct: 13:00Z, 09:00 in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): 14:00Z, 10:00 in New York. Both show as 14:00 London time.', run: () => { const s = (d: string) => momentOf(`${d}T14:00`, 'Europe/London').toISOString(); return `22 Oct: ${s('2026-10-22').slice(11, 16)}Z, ${homeTime(s('2026-10-22'), 'America/New_York').slice(11)} in New York. 29 Oct (London’s clocks went back on 25 Oct, New York’s go back on 1 Nov): ${s('2026-10-29').slice(11, 16)}Z, ${homeTime(s('2026-10-29'), 'America/New_York').slice(11)} in New York. Both show as ${homeTime(s('2026-10-22'), 'Europe/London').slice(11)} London time.`; } },
       { given: 'Required: Oskar, in Singapore, reads a check-in Maya posted at 2026-09-14T09:00Z in a London workspace.', then: 'He sees “Mon 14 Sep, 17:00”; the week it counts for is London’s week.' },
     ],
     checks: [
       'Every stored timestamp is a UTC instant written by the server; none is a local time.',
       'A workspace has a home zone, UTC until an admin sets one, and changing it is logged.',
       'With the home zone UTC, a rebuild of the rules passes stage 1’s conformance data unchanged (the data is judged at noon UTC).',
+      'With the home zone America/New_York, the rules give every row of `spec/conformance/zone.csv` (`"also": ["zone"]` in `drill.json`): weeks that turn at midnight there, days counted there, and the night the clocks go back.',
       'Two people in different zones, at the same moment, see the same week, the same statuses and the same days without an update, in the app and through the AI assistant.',
       'A check-in posted just before midnight in the home zone counts for that day’s week, wherever its author is.',
       'A review session keeps its time in its own zone across a clock change, and each person sees it in their own zone, with the zone named when it differs.',
@@ -470,6 +474,46 @@ export const INTERNAL: InternalRequirement[] = [
   R8,
   R9,
   R10,
+  {
+    id: 'R11', file: 'r11-large-imports', title: 'R11. Large imports, a server-side job',
+    summary: 'An import of tens of thousands of rows is a job on the server (R-L1 to R-L6): checked there by the same rules, saved in one transaction or in batches that end in one state, with Undo kept per import, and the browser’s preview only advice.',
+    why: [
+      'Faro checks and saves an import in the browser: it checks up to 30,000 rows in a worker, with progress and Stop, and saves up to 5,000 changes at a time (requirement IMPORT-LARGE). That shows the pattern; a company’s quarterly upload of every team’s goals and check-ins is larger, and must not depend on a tab staying open.',
+      'An import is the largest single change anyone makes. Half-saved, or saved without the rules the server keeps, it does damage no one sees until a review.',
+    ],
+    rule: [
+      '1. **R-L1. A job on the server.** Upload, check, preview, save: each a step of one job the server keeps. It survives a closed tab, and its preview shows the same groups and counts as Faro’s (sheets read, Must fix, Check, then the changes).',
+      '2. **R-L2. One state at the end.** Saving is one transaction, or batches that can be resumed and end in one state. A job that fails leaves nothing half-saved, or says exactly what was saved and offers to finish or undo it.',
+      '3. **R-L3. The server runs the rules.** The import’s checks are the change engine’s (stage 2), run by the server, which writes the audit entries with the actor and the time. A preview made in the browser is advice; the server checks again before it saves.',
+      '4. **R-L4. Undo is kept per import.** The before-image of every record an import changed is kept with the import for a stated time (suggested 90 days), not inside one audit row, so Undo works for a large import as for a small one.',
+      '5. **R-L5. Fast enough, and one at a time.** 30,000 rows are checked in under 30 seconds and saved in under 2 minutes. Two imports touching the same goal can’t interleave: the second waits, or is refused with who holds the goal.',
+      '6. **R-L6. Files are handled safely.** Uploaded files are scanned, limited in size, and not kept after the job ends.',
+    ].join('\n'),
+    today: [
+      'The browser reads the file and checks it with the change engine (`planChangesInChunks` in `src/domain/changeset.ts`); a file of more than 500 rows is checked in a worker (`src/modules/spreadsheets/worker.ts`), with progress every 500 rows and Stop (`src/modules/spreadsheets/Large.tsx`).',
+      'Saving is one commit from the browser; a file that would change more than 5,000 rows is checked, not saved, and offered in parts (`src/domain/splitFile.ts`). The limits are in `src/domain/importLimits.ts`.',
+      'Undo keeps the before-images inside the import’s summary change (`undo` on the change, `src/domain/removal.ts` undoImport).',
+      'Nothing on the server checks a row: the database keeps its own constraints and access rules only.',
+    ],
+    examples: [
+      { given: 'A file of 6,000 new goals, checked in Faro.', then: '2 parts', run: () => String(splitTables({ goals: Array.from({ length: 6000 }, (_, i) => ({ goal: `Goal ${i + 1}`, owner: 'Rhea' })) }, CHANGES_SAVE_MAX).length) + ' parts' },
+      { given: 'Priya uploads 28,000 rows at 17:55 and closes her laptop.', then: 'The job carries on; at 09:00 she opens Imports and finds the preview waiting, with the same groups and counts.' },
+      { given: 'The save fails at row 12,400 of 20,000.', then: 'Nothing is saved, or the job says 12,399 rows were saved and offers to finish or undo them.' },
+      { given: 'Two admins import files that both change the Platform north star.', then: 'The second waits until the first is saved or undone, or is told who holds the goal.' },
+    ],
+    checks: [
+      'An import job survives the browser closing between check and save.',
+      'A failed save leaves the workspace as it was, or as the job says it is.',
+      'An import’s Undo works 89 days later and is refused, with why, after 90.',
+      '30,000 rows are checked in under 30 seconds and saved in under 2 minutes on the platform’s test data.',
+      'An uploaded file is gone from storage once its job ends.',
+    ],
+    stage: { file: 'stage-2-core-data.md', title: 'Stage 2: the core data and the change engine', why: 'the import is the change engine run over a file; the server runs it (R-L3) and the browser’s preview is advice.' },
+    decided: [
+      'The limits (5,000 changes saved at once in Faro; 30 seconds and 2 minutes for 30,000 rows on the platform; 90 days of Undo) are proposals for the internal team to confirm.',
+      'Faro splits a file too large to save into parts, each with its own Undo, rather than saving in batches: a model in the browser can’t promise one state at the end.',
+    ],
+  },
 ];
 
 /* ---------- the pages ---------- */

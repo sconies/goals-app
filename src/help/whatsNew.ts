@@ -34,6 +34,63 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['any-device', 'home'],
   },
   {
+    id: 'range-between',
+    date: '2026-11-12',
+    title: 'Keep a number between two others',
+    points: [
+      'A range can now keep a number between two others: “keep it between 99.5% and 99.95%”. Must stay has Between beside At most and At least, in New goal and Change this goal.',
+      'It is out of range above the upper limit or below the lower one, and at risk within the warning margin of either. The chart draws both limits.',
+      'In a spreadsheet, write both numbers in Limit (99.5–99.95, or 99.5 to 99.95); an export writes them the same way.',
+    ],
+    articles: ['new-goal', 'edit-goal'],
+  },
+  {
+    id: 'mcp-keys-pages',
+    date: '2026-11-12',
+    title: 'AI assistants get the right key and a page of goals at a time',
+    points: [
+      'When an AI assistant adds goals, the key it is told is the one the goal holds once saved, even when someone else adds a goal at the same moment.',
+      'A dry run says the key each new goal would get and no ID yet; a change that isn’t saved lists no new goals.',
+      'Finding goals answers 50 at a time, with how many match in all and how to ask for the next page.',
+      'History’s key now has None due and Not applicable, and a goal’s printed page says Not applicable for a quarter that ended before it was set up, as its page does.',
+    ],
+    articles: ['ai-assistants', 'history'],
+  },
+  {
+    id: 'proposed-fixes',
+    date: '2026-11-12',
+    title: 'Proposed goals, four fixes',
+    points: [
+      'Proposing a goal with stages no longer asks whether a past stage is done: it has no check-ins until it is made active.',
+      'When someone is marked as left, the goals proposed for them are handed over with the rest.',
+      'Making a goal active from an earlier week asks whether it has been running since then, for the AI assistant too.',
+      'The last step of a proposal no longer promises a Home row that isn’t there yet.',
+    ],
+    articles: ['goal-proposed'],
+  },
+  {
+    id: 'map-comes-back-fresh',
+    date: '2026-11-12',
+    title: 'The Map behaves when you come back to it',
+    points: [
+      'Coming back to the Map from another layout no longer jumps to the last goal you found.',
+      'Emptying the Map’s search shows every goal again at once, without pressing Enter.',
+      'On the Map, Filters no longer offers a sort: the Map always shows the trees.',
+      'Goals takes its phone layout on any screen under 700 pixels wide, not only under 600.',
+    ],
+    articles: ['goal-map', 'goals'],
+  },
+  {
+    id: 'import-large',
+    date: '2026-11-12',
+    title: 'Large files show progress',
+    points: [
+      'Faro checks a big file without freezing and shows how far it has got, with Stop. Changes are shown 50 at a time.',
+      'It says up front how much it can save at once: a file that would change more than 5,000 rows is checked, then offered in parts to import one after the other.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'metric-defined',
     date: '2026-11-12',
     title: 'Metrics say what’s still to say',

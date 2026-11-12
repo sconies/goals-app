@@ -3,6 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { daysSinceIn, weekIn } from './zones';
 import { homeFor, type HomeFacts } from '../domain/home';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
@@ -12,7 +13,8 @@ import { everydayLevel, hasLevels, isEveryday, isTop, levelIds, levelName, level
 import { dayOneRows } from '../app/reads';
 import { arrived, DAY_ONE_DAYS, gettingStarted, invitedTo, inviteLink, NEW_WORKSPACE_DAYS, stepCounter } from '../domain/dayOne';
 import { arrivalIntro, arrivalLine, readInvitation } from '../domain/arrival';
-import { describe, MIN_CORRECT_REASON, planChanges, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { describe, MIN_CORRECT_REASON, planChanges, planChangesInChunks, postCheckIn, type ChangeInput, type Rec } from '../domain/changeset';
+import { splitTables } from '../domain/splitFile';
 import { CHECK_KINDS, MUST_KINDS, near, whereText } from '../domain/problemLevels';
 import { readHeader, readLine, readTables } from '../domain/sheets';
 import { leaveOut } from '../domain/leaveOut';
@@ -21,9 +23,9 @@ import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, p
 import { notStarted } from '../domain/plan';
 import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
 import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
-import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
-import { fmt } from '../domain/format';
+import { directionLabel, fmt, gapText } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
 import { MAX_WORKSPACE_NAME, MIN_NAME, nameLength, nameProblem, RULES, TREND_SPAN } from '../domain/thresholds';
 import { cycleStanding, importName, leaveWorkspace, keptText, pastImports, undoPreview } from '../domain/removal';
@@ -159,12 +161,15 @@ export async function prepareExamples() {
   await demoWorkspace();
   if (!dir) { const full = (await import('../data/platformOrg/generate')).buildPlatformOrg(DIR_NOW); dir = scopeToCycle(full, full.cycles[0]!); }
 }
-function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
+function changeInput(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}): ChangeInput {
   const s = demo!;
   const cycle = s.cycles[0]!;
   const today = new Date(CHECK_IN_MOMENT);
   let k = 0;
-  return planChanges({ tables, snapshot: s, cycle, week: currentWeek(cycle, today), actor: s.people.find((p) => p.id === actor)!, now: today.toISOString(), newId: (p) => `${p}_x${++k}`, via: 'spreadsheet', ...extra });
+  return { tables, snapshot: s, cycle, week: currentWeek(cycle, today), actor: s.people.find((p) => p.id === actor)!, now: today.toISOString(), newId: (p) => `${p}_x${++k}`, via: 'spreadsheet', ...extra };
+}
+function change(actor: string, tables: ChangeInput['tables'], extra: Partial<ChangeInput> = {}) {
+  return planChanges(changeInput(actor, tables, extra));
 }
 /** An action in the demo workspace, by one of its people, for the metric library's examples. A rule that says no gives its words. */
 function asPerson<T>(actor: string, run: (x: ActionContext) => T): T | string {
@@ -193,7 +198,11 @@ export const RULE_LIST: Rule[] = [
     tests: ['src/domain/rules.test.ts#plan', 'src/domain/rules.test.ts#goals', 'src/domain/year.test.ts', 'src/domain/firstWeek.test.ts'],
     reqs: ['PLAN-SHAPE', 'REBASELINE', 'PLAN-CHANGE', 'CALENDAR-WEEKS', 'YEAR'],
     body: `
-**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC. The week on a day is \`floor(days since the start / 7)\`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
+**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC.
+
+**The home zone is a parameter** ([R3](../../requirements/internal/r3-time-zones.md)). Faro counts every day and week here in UTC. The internal app counts them in the workspace's home zone: read the moment on the home zone's clock, then count exactly as below (\`weekIn\` and \`daysSinceIn\` in \`src/spec/zones.ts\`). A week turns at midnight on Sunday there, a check-in posted at 23:30 on Sunday there counts for that Sunday's week, and a day is the home zone's date, across a clock change too. With the home zone UTC nothing changes. [zone.csv](../../conformance/zone.csv) scores it.
+
+**Counting.** The week on a day is \`floor(days since the start / 7)\`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
 
 **Set up part way through a week.** Nothing is late on the day it's set up. A goal's first check-in is due in the first week whose review day (the cycle's \`reviewDay\`, 0 = Monday) falls on or after the day the goal was created; a review's first session is the first of its sessions on or after the day it was set up (its own weekday, every \`everyWeeks\` weeks). So a goal or review set up on the review day or before it starts that week, and one set up after it (on the Sunday, say) starts the next week. Anything set up before the cycle starts begins in week 1. Before its first week a goal is not due, not flagged as due, and doesn't count for or against the on-time streak.
 
@@ -213,6 +222,7 @@ export const RULE_LIST: Rule[] = [
 **Plans that changed.** When a plan changes after check-ins started, the plan before is kept (\`planHistory\`, oldest first: each applied to the weeks before its \`untilWeek\`). The plan *as of* a week is the first kept plan whose \`untilWeek\` is later than that week, or else the current plan. (Older data keeps only \`originalPlan\` and \`rebaselinedWeek\`: read it as one kept plan until that week.) A check-in is always judged against the plan as of its own week.`,
     examples: [
       { given: 'The 13-week cycle starts Monday 7 September 2026. What week is Sunday 13 September at 23:00 UTC, and Monday 14 September?', then: '0, 1', run: () => `${currentWeek(CYCLE, at('2026-09-13T23:00:00Z'))}, ${currentWeek(CYCLE, at('2026-09-14T00:00:00Z'))}` },
+      { given: 'The same cycle with a home zone (R3). A check-in posted at 2026-09-14T03:30Z: its week by UTC, and with the home zone America/New_York (where it is 23:30 on Sunday). Days from it to 2026-09-28T04:30Z (00:30 on Monday there), the same two ways.', then: 'week 1, week 0; 14 days, 15 days', run: () => { const p = '2026-09-14T03:30:00Z', d = at('2026-09-28T04:30:00Z'); return `week ${currentWeek(CYCLE, at(p))}, week ${weekIn(CYCLE, at(p), 'America/New_York')}; ${daysSince(p, d)} days, ${daysSinceIn(p, d, 'America/New_York')} days`; } },
       { given: 'A day long after the cycle ends (1 March 2027).', then: '13', run: () => String(currentWeek(CYCLE, at('2027-03-01T00:00:00Z'))) },
       { given: 'Reviews on Thursdays. A goal set up on Monday 28 September (week 3), on Thursday 1 October (its review day) and on Sunday 4 October: the week its first check-in is due.', then: '3, 3, 4', run: () => ['2026-09-28T09:00:00Z', '2026-10-01T16:00:00Z', '2026-10-04T10:00:00Z'].map((d) => firstWeekFrom(CYCLE, d, CYCLE.reviewDay)).join(', ') },
       { given: 'A straight plan from 30 to 75 over 13 weeks: the plan in week 4.', then: '43.846', run: () => n(planAt(g3075.plan, 4, 13)) },
@@ -262,7 +272,7 @@ The calculation gives one of \`on\`, \`risk\`, \`off\`, \`done\`, \`planned\` (w
 6. Otherwise: ratio ≥ ${RULES.onTrack} is \`on\`; ≥ ${RULES.atRisk} is \`risk\`; below that \`off\`. It is *well ahead* at ratio ≥ ${RULES.wellAhead} (still \`on\`) and *behind* below ${RULES.onTrack}.
 7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction.
 
-**A number to keep in range** (\`range\`): a limit, a side (\`atMost\` or \`atLeast\`) and a warning margin. A value is *out* when it is strictly past the limit on the wrong side (\`atMost\`: > *limit*; \`atLeast\`: < *limit*; a value at the limit is not out) and *near* when strictly within the margin (\`atMost\`: > *limit* − *margin*; \`atLeast\`: < *limit* + *margin*). *previous* is the number of the latest check-in with a number for an earlier week (by week, not by when it was posted).
+**A number to keep in range** (\`range\`): a limit, a side (\`atMost\`, \`atLeast\` or \`between\`) and a warning margin; \`between\` also has a *lower* bound, below the limit, which is then the upper bound (“between 99.5% and 99.95%”). A value is *out* when it is strictly past a bound on the wrong side (\`atMost\`: > *limit*; \`atLeast\`: < *limit*; \`between\`: > *limit* or < *lower*; a value at a bound is not out) and *near* when strictly within the margin of a bound (\`atMost\`: > *limit* − *margin*; \`atLeast\`: < *limit* + *margin*; \`between\`: > *limit* − *margin* or < *lower* + *margin*). Where the words or a gap name one bound of a \`between\` range, it is the nearer one to the number: the lower below the middle, (*lower* + *limit*) / 2, else the upper. *previous* is the number of the latest check-in with a number for an earlier week (by week, not by when it was posted).
 
 - Week 0: \`planned\`; no number: \`none\`.
 - Out this week and out at *previous*: \`off\`.
@@ -309,6 +319,8 @@ The owner's call is official, even where the numbers disagree. A call is *greene
       { given: 'A cost in USD with 2 decimals, 0.42 down to 0.30 over 13 weeks (week 1 plan 0.4108): 0.41, 0.42 and 0.40 in week 1.', then: '0.41: on; 0.42: off, behind; 0.40: on, well ahead', run: () => { const g = { ...metric(0.42, 0.3), unit: 'USD', decimals: 2 }; return [0.41, 0.42, 0.4].map((v) => { const a = assessMetric(g, 13, 1, v, []); return `${v.toFixed(2)}: ${a.calc}${a.behind ? ', behind' : ''}${a.ahead ? ', well ahead' : ''}`; }).join('; '); } },
       { given: 'A range, at most 12.0% with a 1-point margin: 10.5 after 10.6; 11.2 after 10.6; 12.6 after 11.2; 10.4 after 12.6; 12.4 after 12.6.', then: 'on, risk, risk, risk, off', run: () => [[10.5, 10.6], [11.2, 10.6], [12.6, 11.2], [10.4, 12.6], [12.4, 12.6]].map(([v, p]) => assessRange(RANGE, 5, v!, p!).calc).join(', ') },
       { given: 'A range, at least 99 with a 0.5 margin: 99.8 after 99.9; 99.3 after 99.9; 98 after 98.5.', then: 'on, risk, off', run: () => { const g = { ...RANGE, range: { bound: 'atLeast' as const, limit: 99, margin: 0.5 } }; return [[99.8, 99.9], [99.3, 99.9], [98, 98.5]].map(([v, p]) => assessRange(g, 2, v!, p!).calc).join(', '); } },
+      { given: 'A range between 99.5 and 99.95 with a 0.1 margin: 99.7 after 99.7; 99.9 after 99.7 (near the upper); 99.55 after 99.7 (near the lower); 99.95 after 99.7 (at the upper); 99.96 after 99.7; 99.4 after 99.3.', then: 'on, risk, risk, risk, risk, off', run: () => { const g = { ...RANGE, unit: '%', decimals: 2, range: { bound: 'between' as const, lower: 99.5, limit: 99.95, margin: 0.1 } }; return [[99.7, 99.7], [99.9, 99.7], [99.55, 99.7], [99.95, 99.7], [99.96, 99.7], [99.4, 99.3]].map(([v, p]) => assessRange(g, 2, v!, p!).calc).join(', '); } },
+      { given: 'The same range, said in words, and its gap at 99.96 and at 99.4 (each against the nearer bound).', then: 'between 99.50% and 99.95% / Over the 99.95% limit / Under the 99.50% limit', run: () => { const g = { ...RANGE, unit: '%', decimals: 2, range: { bound: 'between' as const, lower: 99.5, limit: 99.95, margin: 0.1 } }; return [directionLabel(g), ...[99.96, 99.4].map((v) => gapText(g, assessRange(g, 2, v, 99.7)).short)].join(' / '); } },
       { given: 'Stages A (due week 3) and B (due week 7). In week 4, A done in week 3 and B expected in week 9; then B expected in week 10.', then: 'risk, off', run: () => [9, 10].map((f) => assessMilestone(MILESTONE, 4, [{ stageId: 'a', doneWeek: 3, forecastWeek: null }, { stageId: 'b', doneWeek: null, forecastWeek: f }]).calc).join(', ') },
       { given: 'The same stages in week 6 with no updates at all: stage A is overdue.', then: 'A: off, 3 weeks late; goal: off', run: () => { const a = assessMilestone(MILESTONE, 6, null); return `A: ${a.stages[0]!.kind}, ${a.stages[0]!.weeksLate} weeks late; goal: ${a.calc}`; } },
       { given: 'In week 9, A done in week 3 and B done in week 9.', then: 'done; B was 2 weeks late', run: () => { const a = assessMilestone(MILESTONE, 9, [{ stageId: 'a', doneWeek: 3, forecastWeek: null }, { stageId: 'b', doneWeek: 9, forecastWeek: null }]); return `${a.calc}; B was ${a.stages[1]!.weeksLate} weeks late`; } },
@@ -549,7 +561,7 @@ A goal **needs attention** when it has a flag other than \`due\` and isn't being
 
 **How likely** (\`likelihood(mark, projection, better, floor)\`), worked in the better direction (+1 when higher is better): *half* = max(half the projected range's width, *floor*, 10⁻⁹); *d* = (*mark* − likeliest value) × *better* / *half*. *d* ≤ −0.5: **Likely**; ≤ 1: **Possible**; ≤ 2: **Unlikely**; above: **Very unlikely**. Words, never a percentage. The floor for a target is max(2% of the planned change, half the goal's last decimal place); for a limit, the same with the margin (or 10% of the limit when there is no margin) in place of the planned change.
 
-**Where the numbers come from.** A number to move and a range are judged by \`assessPosted\` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from \`assessPosted\`, with the plan as of the latest check-in's week); for a range, +1 for \`atLeast\`, −1 for \`atMost\`.
+**Where the numbers come from.** A number to move and a range are judged by \`assessPosted\` in week *w* (the latest check-in up to week *w*, by week then posting, in its own week); dated stages by the status rule in week *w*. *better* is +1 when higher is better and −1 when lower is: for a number to move, +1 when the **current** plan's target ≥ its start (so the direction, the target, the due week and the likelihood floor come from the goal's current plan, while *plan*, *actual* and the projection come from \`assessPosted\`, with the plan as of the latest check-in's week); for a range, +1 for \`atLeast\`, −1 for \`atMost\`; for \`between\`, the side of the bound nearer the latest number (the status rule), whose limit is the one the cells measure against.
 
 **Tones.** \`plan\`: ahead \`good\`, behind \`bad\`, on plan or no number \`flat\`. \`since\`: better \`good\`, worse \`bad\`, otherwise \`flat\`. \`target\`: reached \`good\`, else \`flat\`. \`hit\`: Likely \`good\`, Possible \`flat\`, Unlikely and Very unlikely \`bad\`, Can’t say and Too early \`flat\`. \`limit\`: outside \`bad\`, near \`flat\`, inside \`good\`. \`room\`: over \`bad\`; near as [the status](status.md) says it (strictly within the margin), or at the limit, \`flat\`; else \`good\`. So \`limit\` and \`room\` always agree: a number exactly the margin inside its limit is not near, and both cells say so. \`done\`: at least as many done as are due \`good\`, else \`flat\`. \`late\`: any behind \`bad\`, none \`good\`. \`next\`: expected after its due week \`bad\`, else \`flat\`; All done \`good\`. A margin of 0 counts as none for the likelihood floor. \`likelihood\` is set only on a \`hit\` cell that says a likelihood. Every cell that says "No value yet" is \`flat\`.
 
@@ -660,10 +672,12 @@ For a range, better means further from the limit on its safe side.
 
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
 
-**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (\`src/domain/importSpeed.test.ts\`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in \`src/domain/importLimits.ts\`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (\`src/domain/importSpeed.test.ts\`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in \`src/domain/importLimits.ts\`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB. \`planChangesInChunks(input)\` is the same engine a chunk at a time: it yields how far it has got (rows read, and what they would add, change and must fix) every 500 rows, so the import's worker can report progress and stop between chunks; \`planChanges\` runs it to the end. A file that would change more than 5,000 rows is checked, not saved, and split into parts (\`splitTables\` in \`src/domain/splitFile.ts\`): people first, each goal with its plan and check-ins, a goal before the goals that feed into it, and a goal larger than a part on its own.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.`,
     examples: [
+      { given: 'A file of 6,000 new goals, the 6,000th feeding into the first; each part holds at most 5,000 rows.', then: '2 parts: 5,000 and 1,000 rows; the first goal in part 1', run: () => { const goals = Array.from({ length: 6000 }, (_, i) => ({ goal: `Goal ${i + 1}`, owner: 'Rhea', ...(i === 5999 ? { 'feeds into': 'Goal 1' } : {}) })); const parts = splitTables({ goals }, 5000); return `${parts.length} parts: ${parts.map((p) => p.goals!.length.toLocaleString('en-GB')).join(' and ')} rows; the first goal in part ${parts.findIndex((p) => p.goals!.some((g) => g.goal === 'Goal 1')) + 1}`; } },
+      { given: 'The engine run a chunk at a time over 1,200 new goals.', then: 'progress at 500 and 1,000 rows of 1,200', run: () => { const goals = Array.from({ length: 1200 }, (_, i) => ({ goal: `Chunked goal ${i + 1}`, owner: 'Rhea Kapoor', unit: '%', start: '1', target: '9' })); const run = planChangesInChunks(changeInput('amara', { goals })); const at: string[] = []; for (let s = run.next(); !s.done; s = run.next()) at.push(s.value.done.toLocaleString('en-GB')); return `progress at ${at.join(' and ')} rows of 1,200`; } },
       { given: 'A plan week of 0.125 kept at 2 decimal places, written 0.13 by the export, read back as 0.13; and as 0.12.', then: 'no change / a change', run: () => `${sameAsWritten('0.13', 0.125, 2) ? 'no change' : 'a change'} / ${sameAsWritten('0.12', 0.125, 2) ? 'no change' : 'a change'}` },
       { given: 'Rhea loads three new goals into the demo workspace: Ref top; Ref mid, Feeds into ref top; Ref leaf, Feeds into ref mid.', then: 'mid feeds top, leaf feeds mid', run: () => { const g = (ref: string, t: string, x: Record<string, string> = {}) => rec({ Ref: ref, Goal: t, Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '10', Target: '50', ...x }); const cs = change('rhea', { goals: [g('top', 'Top'), g('mid', 'Mid', { 'Feeds into ref': 'top' }), g('leaf', 'Leaf', { 'Feeds into ref': 'mid' })].map((r, i) => ({ ...r, __row: String(i + 2) })) }); const made = cs.commit?.goals ?? []; const t = (id: string | null) => made.find((x) => x.id === id)?.title.toLowerCase() ?? 'nothing'; return made.filter((x) => x.parentId).map((x) => `${x.title.toLowerCase()} feeds ${t(x.parentId)}`).join(', '); } },
       { given: 'In the demo workspace, Tariq (its owner) changes the AI-assisted reviews north star (ns-ai) to a target of 90, with no reason.', then: 'needs a reason; nothing to save', run: () => { const cs = change('tariq', { goals: [rec({ ID: 'ns-ai', Target: '90' })] }); return `${cs.needsReason ? 'needs a reason' : 'no reason needed'}; ${cs.commit ? 'ready to save' : 'nothing to save'}`; } },
@@ -793,7 +807,6 @@ An issue carries its sheet and row, the record's name, its column in the sheet's
       { given: 'Headers Name, Department, Salary band.', then: 'no Faro sheet', run: () => (readHeader([['Name', 'Department', 'Salary band']]).kind ? 'a Faro sheet' : 'no Faro sheet') },
       { given: 'Headers Key, Goal, Targett.', then: 'Targett is near Target', run: () => { const c = readHeader([['Key', 'Goal', 'Targett']]).columns[2]!; return `${c.header} is ${c.how} ${c.as}`; } },
     ],
-    unclear: ['Reading a file in a worker, with progress and Stop, is IM6.'],
   },
   /* ---------- an import's undo, and past imports (backlog IM4) ---------- */
   {
@@ -1487,6 +1500,8 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (\`mayActivate\`); whoever proposed it may also change or withdraw it while it is proposed (\`mayChangeGoal\`).
 
 **Making it active** (\`activate\`): refused unless \`mayActivate\` and \`readyToActivate\` (rule 2's full list, empty). A number goal's From becomes the week chosen, this week unless said, and hand-set weeks before it are dropped. History: "Made it active, from week {n}". The read-back (\`activeReadBack\`) says the plan from then with its dates, "{n} weeks, not the {m} you proposed" when the span changed, and when the first check-in is due.
+
+A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes \`confirm\` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (\`leaving\`).
 
 **Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (\`state-has-check-ins\` in a file).
 

@@ -18,7 +18,7 @@ import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
 import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, examplesOf, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
-import type { Answers, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
+import type { Answers, ChangeInput, ChangeSet, CheckInPost, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
 import { commitOf, loadEngine, loadGoalEntry, MODULE_ACTIONS, perform, performAny, ready, type ActionInput, type ActionName, type RunContext, type RunResult } from './actions';
 import { telemetry } from '../telemetry';
@@ -161,6 +161,8 @@ export interface AppState {
   /** Works out what a set of rows would change (from a spreadsheet, the bulk grid or a table action), without saving. */
   /** `posts`: check-ins from a screen (the table check-in), judged as the form's are, so what they answered is kept. */
   previewChanges(tables: Tables, via: Via, reason?: string, confirm?: boolean, answers?: Answers, file?: { name: string; leftOut?: number }, posts?: CheckInPost[]): ChangeSet;
+  /** What previewChanges hands the engine, made now, for a check run off this thread (the import's worker, backlog IM6). */
+  changeInput(tables: Tables, via: Via, answers?: Answers, file?: { name: string; leftOut?: number }): ChangeInput;
   /** Saves a change set worked out by previewChanges: all of it, or none. */
   applyChanges(cs: ChangeSet): Promise<void>;
   /** Admins: a personal token for an AI assistant to act as this person. Returns the token, shown once. */
@@ -793,6 +795,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
         if (mode === 'demo') void sendDemoFeedback({ mood, text, path, persona: `${viewer.name}${viewer.role ? ', ' + viewer.role : ''}` });
       },
       // A change set is worked out here and saved by applyChanges, so the screen shows the preview the person agreed to.
+      changeInput: (tables, via, answers, file) => { const x = ax(); return { tables, snapshot: x.snapshot, cycle: x.cycle, week: x.week, actor: x.actor, now: x.now, newId: x.newId, via, answers, full: x.full, records: x.records, ...(file ? { file } : {}) }; },
       previewChanges: (tables, via, reason, confirm, answers, file, posts) => perform(rx(), 'planChanges', { tables, via, reason, confirm, answers, ...(file ? { file } : {}), ...(posts?.length ? { posts } : {}) }),
       applyChanges: async (cs) => {
         if (!cs.commit) throw new Error('These changes can’t be saved yet.');

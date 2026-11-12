@@ -216,7 +216,7 @@ export function isCount(goal?: Goal): boolean {
 }
 function planValues(goal: Goal): number[] {
   if (goal.kind === 'metric') return [goal.plan.start, goal.plan.target, ...(goal.plan.points ?? []).map((p) => p.value)];
-  if (goal.kind === 'range') return [goal.range.limit];
+  if (goal.kind === 'range') return goal.range.bound === 'between' ? [goal.range.lower!, goal.range.limit] : [goal.range.limit];
   return [];
 }
 
