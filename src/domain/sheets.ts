@@ -95,10 +95,17 @@ export interface ReadTables {
 }
 
 /** Named grids (a workbook's sheets, a zip's files, one CSV) as the tables the engine reads, each by its header. */
-export function readTables(grids: NamedGrid[]): ReadTables {
+export function readTables(grids: NamedGrid[], moduleSheets: readonly { name: string; columns: readonly { header: string }[] }[] = []): ReadTables {
   const out: ReadTables = { tables: {}, read: [], skipped: [] };
+  // A module's own sheet (Metrics), known by its header: the same columns the export writes, in any order.
+  const ownSheet = (head: readonly string[]) => {
+    const h = new Set(head.map((x) => x.trim().toLowerCase()).filter(Boolean));
+    return moduleSheets.find((m) => m.columns.length && m.columns.every((c) => h.has(c.header.toLowerCase())));
+  };
   for (const g of grids) {
     if (!g.rows.length) continue;
+    const own = ownSheet(g.rows[0]!);
+    if (own) { out.skipped.push({ name: g.name, why: `the ${own.name} sheet, written for reading; not loaded back` }); continue; }
     const kind = sheetKindOf(g.rows[0]!);
     const key = kind ? LOADED[kind] : undefined;
     if (!kind) out.skipped.push({ name: g.name, why: 'not a sheet this app reads (its header row doesn’t match one)' });

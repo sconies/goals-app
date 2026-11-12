@@ -3,18 +3,19 @@ import { systemClock, viewerPicker } from '../adapters/local';
 import type { Clock, Identity, NoEntry } from '../ports';
 import * as A from '../domain/actions';
 import { attentionFor, type GoalAttention } from '../domain/attention';
-import { goalChange, type Lookup } from '../domain/changes';
+import type { Lookup } from '../domain/changes';
+import type { GoalDraft } from '../domain/goal';
+import type { SaveGoalInput } from '../domain/goalEntry';
 import type { Draft } from '../domain/checkin';
 import { currentWeek } from '../domain/plan';
 import { checkInsFor, goalStatus, type GoalStatus } from '../domain/status';
 import type { CheckIn, Cycle, Decision, Goal, Ask, Person, Retro, Review, Snapshot, Team, Watch, Workspace } from '../domain/types';
-import { makesLoop } from '../domain/tree';
 import { currentCycle, scopeToCycle, withArchivedGoal, withoutRemoved } from '../domain/cycle';
-import { findGoal, nextKey, withKeys } from '../domain/goalKey';
+import { findGoal, withKeys } from '../domain/goalKey';
 import type { TableLayout } from '../domain/tableLayout';
 import { sendDemoFeedback } from './research';
 import { MODULES } from '../core/registry';
-import { MODULE_RECORDS } from '../core/records';
+import { MODULE_RECORDS, recordsOn } from '../core/records';
 import { applyCommit, EXAMPLE, isStale, newId, withExpectations, type Commit, type Mode, type Store } from '../data/store';
 import type { Answers, ChangeSet, PostMode, Tables, Via } from '../domain/changeset';
 import { ACTIONS } from '../mcp/parity';
@@ -117,9 +118,12 @@ export interface AppState {
   linkRequest(r: Ask, goal: Goal): Promise<void>;
   /** Withdraw an ask; on a goal linked to another goal's request, stop waiting on it. */
   withdrawRequest(r: Ask, goal?: Goal): Promise<void>;
-  /** Saves a goal and logs what changed, with the owner's reason when the plan or target moved. A new goal's stages said
-      to be already done (`stagesDone`, onboarding rule 3) are recorded done in the same save (actions.recordStagesDone). */
-  saveGoal(after: Goal, before: Goal | null, why?: string, opts?: { stagesDone?: string[] }): Promise<void>;
+  /** Saves a goal from its draft through the `saveGoal` action (goal entry, rule 7: domain/goalEntry planGoal): the same
+      rights and Must fix as a file and the AI tools, and History with the reason when the plan moved. `goal` is the goal
+      being changed (null for a new one). A new goal's stages said to be already done (`stagesDone`, onboarding rule 3)
+      are recorded done in the same save. `also`: a module's action for the goal as saved (what measures it, from the
+      goal.measure place), run on the workspace with the goal in it and saved in the same commit. Gives back the goal as saved. */
+  saveGoal(draft: GoalDraft, goal: Goal | null, opts?: Omit<SaveGoalInput, 'draft' | 'goalId'> & { also?: { action: string; input: (goal: Goal) => unknown } }): Promise<Goal>;
   /** A logged comment on a goal. Anyone can comment; it doesn't change the status, and it asks nothing of anyone. */
   addNote(goal: Goal, text: string): Promise<void>;
   /** Ask a goal's owner for an update: open on their Home until they check in or answer it, or it's withdrawn. */
@@ -684,21 +688,23 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       askQuestion: async (goal, text) => { await run('askQuestion', { goalId: goal.id, text }); },
       linkRequest: async (r, goal) => { await run('linkRequest', { askId: r.id, goalId: goal.id }); },
       withdrawRequest: async (r, goal) => { await run('withdrawRequest', { askId: r.id, goalId: goal?.id }); },
-      saveGoal: async (after, before, why, opts) => {
-        if (makesLoop(after.id, after.parentId, sc.goals)) {
-          toast('That would make a loop: the goal it feeds already feeds into it. Pick another.', 'error');
-          throw new Error('loop');
-        }
-        // A new goal takes the workspace's next key; a goal being changed keeps its own.
-        if (!before && !after.key) after = { ...after, key: nextKey(sc.goals, sc.keysIssued) };
-        const change = goalChange(before, after, lookup, viewer.id, stamp(), newId('chg'));
-        if (change && why?.trim()) change.diffs.push({ field: 'Why', from: '—', to: why.trim() });
-        // Stages already done at set-up go in the same save as the goal, so it is never seen late in between.
-        let done: Commit | null = null;
-        if (!before && opts?.stagesDone?.length) {
-          try { done = A.recordStagesDone({ ...ax(), snapshot: { ...sc, goals: [...sc.goals, after] } }, after, opts.stagesDone); } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
-        }
-        await save({ goals: [after], changes: [...(change ? [change] : []), ...(done?.changes ?? [])], ...(done?.checkIns ? { checkIns: done.checkIns } : {}) });
+      // One way to save a goal (goal entry, rule 7; AX2): the dispatcher runs the rule, so the form saves nothing itself.
+      // What the form's module place chose (goal.measure) is run on the workspace with the goal in it and saved in the
+      // same commit: run after the save, it would see the workspace from before it, without the goal.
+      saveGoal: async (draft, goal, opts) => {
+        const { also, ...rest } = opts ?? {};
+        const input = { draft, ...(goal ? { goalId: goal.id } : {}), ...rest };
+        if (!also) return (await run('saveGoal', input)).goal;
+        if (!signedIn.current) { toast(NOBODY, 'error'); throw new Error(NOBODY); }
+        let out: { commit: Commit | null; goal: Goal }, extra: Commit | null;
+        try {
+          out = performAny(rx(), 'saveGoal', input) as { commit: Commit | null; goal: Goal };
+          const g = out.goal, given = also.input(g);
+          extra = commitOf(also.action, performAny({ ...rx(), snapshot: { ...sc, goals: [...sc.goals.filter((v) => v.id !== g.id), g] } }, also.action, given), given);
+        } catch (e) { if (e instanceof A.NotAllowed) toast(e.message, 'error'); throw e; }
+        const c = out.commit ? A.mergeCommits(out.commit, extra) : extra;
+        if (c) await save(c);
+        return out.goal;
       },
       addNote: async (goal, text) => { await run('addNote', { goalId: goal.id, text }); },
       askForUpdate: async (goal) => { await run('askForUpdate', { goalId: goal.id }); },
@@ -748,7 +754,7 @@ export function AppProvider({ store, identity: given, mode = 'demo', clock = sys
       undoStart: async (id) => { await run('undoStart', { cycleId: id }); },
       undoImport: async (importId) => { const out = await run('undoImport', { importId }); return { restored: out.restored, skipped: out.skipped }; },
       restoreRemoved: async (kind, id) => { await run('restoreRemoved', { kind, id }); },
-      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, MODULE_RECORDS),
+      recentlyRemoved: () => R.recentlyRemoved(snapshot, now, undefined, recordsOn(ws)),
       comment: (id) => (comments ??= R.commentsOf(sc.changes)).get(id),
       pinView: async (id, pinned) => { await run('pinView', { viewId: id, pinned }); },
       revokeToken: async (id) => { await run('revokeToken', { tokenId: id }); },

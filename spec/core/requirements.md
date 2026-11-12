@@ -41,7 +41,7 @@ Once check-ins have started, the owner (or an admin) can change the plan directl
 
 - **Rule:** [Weeks and plans](rules/weeks-and-plans.md)
 - **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
-- **Journeys and checks:** F9, U7
+- **Journeys and checks:** F9, U7, U136
 
 ### CHART-READ
 
@@ -269,6 +269,14 @@ New goal asks what, who and where, how it's measured, then reads it back; each s
 - **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
 - **Journeys and checks:** F16, U84
 
+### GOAL-ENTRY-REQUIRED
+
+Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back.
+
+- **Rule:** [Goal entry](rules/goal-entry.md)
+- **Help:** “Setting up a goal” (`new-goal`), screens `GoalWizard`
+- **Journeys and checks:** U93
+
 ### NEW-GOAL-TRUTH
 
 A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan.
@@ -319,7 +327,7 @@ Straight after a goal is published, its owner is offered the first check-in, so 
 
 Search, filter and sort the goals in every layout and in exports. Search covers titles, owners, teams, levels, reasons and recovery plans, and a goal's key however it is typed ("G-48", "g48", "48"). "Decision or help needed" is one rule (an open ask for a decision or help on a goal that isn't done) for the filter, the saved views built on it, the Table's story line and the Board's order. Filters cover status, level, team, owner, type, what needs someone (a decision, no recovery plan, a slipped or missed date, a call greener than the numbers), due date, time since the last check-in, last quarter, result, a goal's tree and also-helps links. Every setting is in the link, so a view can be shared. A view can be saved under a name; it's yours, and an admin can pin one for everyone. The AI assistant's find_goals takes the same query or a saved view's name. History's range (this quarter or the whole year) is part of the view and the link. The search box keeps what is typed or pasted, at any speed, and the address follows once typing pauses; Back puts the box back as the address has it. Clearing the search or the filters keeps the tab, the layout and the sort.
 
-- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`
+- **Help:** “Search, filters, sort and saved views” (`goals-filters`), screens `GoalFilters`, `GoalFilterSheet`
 - **Tests:** `evals/scenarios.eval.ts` (3)
 - **Journeys and checks:** N10, U32, U33, U34, U135
 
@@ -370,6 +378,13 @@ A goal's history shows every week, checked in or not, tells reviews from changes
 - **Rule:** [A goal’s history](rules/goal-history.md)
 - **Help:** “A goal’s page” (`goal-page`), screens `GoalScreen`
 - **Journeys and checks:** N15, U79
+
+### GOAL-EDIT-PAGE
+
+Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section.
+
+- **Help:** “Changing a goal or its plan” (`edit-goal`), screens `GoalEdit`
+- **Journeys and checks:** U136
 
 ### GOAL-SAYS
 
@@ -1076,7 +1091,7 @@ One back link per page, “‹ {where}” above the title, never on a place's fi
 A form has one way out, top right, in words: “Close and keep the draft” where a draft is kept (check-in, New goal, goal edit, set-up), “Close without saving” where nothing is (a review's set-up and edit, a goal's wrap-up), which first asks “Close without saving? What you typed here will be lost.” with Keep editing when something was typed.
 
 - **Help:** “Getting around” (`getting-around`)
-- **Journeys and checks:** U72
+- **Journeys and checks:** U72, U136
 
 ## Finding
 
@@ -1092,7 +1107,7 @@ Every list is searched, filtered, sorted and counted the same way, and its addre
 A person, team, goal or metric is always chosen by typing to find it, never from a list of everything: one control everywhere, which suggests you, your team and what you chose lately before anything is typed, then finds by the words on each row (a goal's key included), says how many match, draws at most 50, and is worked with arrow keys, Enter and Escape. The choice reads as plain words with Change or Remove.
 
 - **Help:** “Finding and choosing” (`finding`)
-- **Journeys and checks:** F11, N12, U63, U84, U91
+- **Journeys and checks:** F11, N12, U63, U82, U84, U91, U136
 
 ### FIND-ANYWHERE
 
@@ -1149,7 +1164,7 @@ The app records traces, logs and metrics in its own database in OpenTelemetry's 
 
 ### STALE-RELOAD
 
-After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop.
+After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back.
 
 - **Help:** “On a phone, a tablet or a big screen” (`any-device`)
 - **Journeys and checks:** N8

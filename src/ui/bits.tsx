@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Flag, GoalAttention } from '../domain/attention';
 import { LABEL } from '../domain/status';
@@ -103,6 +103,15 @@ export function Stat({ label, value, note, tone }: { label: string; value: strin
       {note && <span className="tiny" style={{ color: 'var(--fg-2)' }}>{note}</span>}
     </div>
   );
+}
+
+/** While a page that loads when opened is on its way (every page but Home): nothing for a moment, so a fast connection
+    sees no flash, then a quiet line, so a slow one doesn't look stuck (#167's review). It holds a screen's height
+    meanwhile, so the page's footer waits below the fold and nothing on screen jumps when the page arrives. */
+export function PageWait({ after = 300 }: { after?: number }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShown(true), after); return () => clearTimeout(t); }, [after]);
+  return <div className="page narrow page-wait" data-page-wait>{shown && <p className="hint" role="status">Opening…</p>}</div>;
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {

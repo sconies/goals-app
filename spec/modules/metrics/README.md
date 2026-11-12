@@ -14,23 +14,27 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 | Routes | `/metrics`, `/metrics/new`, `/metrics/:metricId`, `/metrics/:metricId/edit` |
 | Old addresses | `/data/metrics` → `/metrics` |
 | Navigation | Metrics |
-| Places on core screens | `goal.facts`, `goal.sections`, `people.person`, `people.team` |
+| Places on core screens | `goal.facts`, `goal.measure`, `goal.sections`, `people.person`, `people.team` |
 | Workspace sections | none |
 | Database tables | `okr_metrics` (0033_metric_library.sql): The metric library: one row per metric, never deleted (removed_at when removed).; `okr_goal_metrics` (0033_metric_library.sql): Which metric measures a goal, and for which slice (a team, or the whole company when team_id is null): one row per goal, removed_at when unlinked. |
 | Its own records | metric (`okr_metrics`, filed under `modules.metrics.metrics`; removable and restorable); metric link (`okr_goal_metrics`, filed under `modules.metrics.metricLinks`) |
 | AI tools | `list_metrics`, `get_metric`, `save_metric`, `remove_metric`, `link_goal_metric` |
-| Help articles | “Metrics: what each number means” (`metrics`), “Adding or changing a metric” (`metric-add`) |
+| Help articles | “Metrics: what each number means” (`metrics`), “Adding or changing a metric” (`metric-add`), “Measured by: choosing a goal’s metric” (`metric-measured-by`) |
 | Outside its folder | none |
 
 ## Requirements
 
 - `METRICS-LIBRARY`: Anyone can find a metric, read what it means, and see every goal measured by it side by side (ML1). Metrics (/metrics, in the menu after People; on a phone under More) lists every metric in use A to Z ignoring case and accents, 50 a page; a search matches the name, unit, "lower is better" or "higher is better", the owner and the meaning; filters for the unit, the team or the whole company a goal measures it for, the owner, which way is better, no goals, and something to sort out; sorts A to Z, most goals first and changed lately; everything in the address. A row links to the metric, says its unit, direction and owner, and its goals by status as shape and word, worst first. A metric's page says what it means and how it's calculated, then its goals as a table (status, goal, for, now, target with its week, against plan, owner), worst first, with the lowest and highest now when two or more have a number, then its source, the source's owner, refresh, caveats and who added and last changed it. Its owner and admins see what it still needs and can change or remove it; everyone else sees who can. A goal's summary says what measures it; a person's page lists the metrics they own and a team's the metrics its goals use. Old addresses under /data/metrics lead to the library, a metric or the form.
+- `METRICS-MEASURED-BY`: A goal's metric is chosen by typing to find it where the goal is made or changed, or added there, and fills in what the metric already says (ML2). In New goal, "Measured by" is the first field on the measure step (under the name when changing a goal), never for a goal with dated stages or for someone who may not link the goal: find-and-pick with "No metric" first, metrics in the goal's unit offered first, and "Add “…” as a new metric" last. Choosing one shows its meaning, the goal's team or the whole company under "For", and, on a new goal whose unit and decimals nobody typed, sets them from the metric and says so in one line with "Use different ones". A unit that differs stops the save with the reason. Added in place, a metric needs a name, a unit and which way is better, is owned by whoever adds it, and is chosen. Check says "Measured by {metric}, for {team}". Goals filters by the metric (?metric=, "Measured by" in the filter line), and a metric's page opens Goals filtered to it.
+- `METRICS-CARE`: A metric's owner and admins are shown what it is missing; removing or changing one says what happens to its goals (ML3). A metric's page lists, for its owner and admins only, what it still needs in order (no owner, no meaning, no source, no goal after 14 days), each with a button that opens the form at that field. Adding a metric whose name is close to one in use (one name's words contain the other's, or they share two words and differ by one, leaving out filler words and brackets) asks "This looks like …" with Use that one, as a status that never stops the save. The form keeps a draft through Close, Back and a reload; each error shows under its field once the field is left or on the first try to save, and the first field in error takes the focus. Changing the unit or direction of a metric goals use asks first, saying how many goals and how many will show a warning. Remove says which goals stop being measured (a stopped goal's too); Undo puts the metric and its links back, and Put it back later restores the links it had to goals still there. Workspace → About tells admins how many metrics have no owner, with See them.
 
 ## Journeys and checks
 
 | Id | What | Where |
 |---|---|---|
 | U81 | The library is a place: as Oskar, Metrics from the menu (More on a phone) lists 13 metrics A to Z; “queue” finds Pipeline queue wait (p90); its page says what it means and lists its goal with status, For, now, target and against plan; See its goal opens it; nothing on his pages changes a metric; every old address of Metrics under Data lands | `evals/journeys.cjs` |
+| U82 | A goal is linked where it is made: as Rhea in New goal, “Measured by” comes first on the measure step; typing “queue” finds Pipeline queue wait (p90); choosing it shows its meaning, “min, whole numbers, lower is better: from the metric.” and For: CI/CD; Check has its row; after publishing, the goal says Measured by and the metric’s page lists it for CI/CD. Again with “Add “runner wait” as a new metric”: the small form, the goal carries on, and the library has it with “No meaning yet” for Rhea. A dated-stages goal has no “Measured by” | `evals/journeys.cjs` |
+| U83 | Looking after a metric: as Rhea, adding “CI cost per pipeline run” asks about CI compute cost per pipeline run and still saves; its To sort out lists what is missing and Say what it means opens the form at that field; changing a unit goals use asks first; Remove says which goals stop being measured, and Undo puts the metric and its links back. As Tunde the page has none of these and says who can change it. As Amara, About says 1 metric has no owner once its owner is marked as left | `evals/journeys.cjs` |
 | F15 | The metric library on a phone: the first metric near the top, rows of at most three lines, a metric’s goals as rows, nothing scrolls sideways | `evals/finish/15-metrics.cjs` |
 | N16 | One set of numbers: a metric’s row in the library counts the goals its page lists, status by status | `evals/notes/16-metrics.cjs` |
 
@@ -38,11 +42,12 @@ Module id `metrics`, in [src/modules/metrics/](../../../src/modules/metrics/modu
 
 - **Metrics: what each number means** (`metrics`): The metric library: each number goals are measured by, defined once, with its page saying what it means and every goal measured by it, side by side.
 - **Adding or changing a metric** (`metric-add`): Add a metric with a name, a unit and which way is better, and say what it means, where the number comes from and who owns it.
+- **Measured by: choosing a goal’s metric** (`metric-measured-by`): In New goal and when changing a goal, say which metric measures it by typing to find one, or add one there.
 
 ## Rules, conformance and rebuild stage
 
 Its rebuild stage: [stage 4](../../rebuild/stage-4-module-metrics.md) (an outline, with no drill yet).
-Its rules: [The metric library](rules.md), [The library as a place](rules.md), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
+Its rules: [The metric library](rules.md), [The library as a place](rules.md), [“Measured by”, found by typing](rules.md), [Looking after metrics](rules.md), in plain words with worked examples (run against the code by the spec’s own test). Its conformance rows: [metrics.csv](../../conformance/metrics.csv) ([what each column is](../../conformance/README.md#the-files)).
 
 Its own records, every field: [its records](records.md).
 

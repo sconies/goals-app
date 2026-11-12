@@ -47,6 +47,8 @@ export interface PickProps {
   shown?: string;
   /** Offered first, before anything is typed, each with a note ("who owns this goal"), then the usual suggestions. */
   first?: { id: string; note: string }[];
+  /** A last row once something is typed, to make what was typed as a new one ("Add “runner wait” as a new metric"). */
+  add?: { label: (q: string) => string; onAdd: (q: string) => void };
 }
 
 /** One person chosen, or none: Pick for the common case. */
@@ -71,7 +73,7 @@ export function Pick(p: PickProps) {
 }
 
 /** A picker that asks the source it is given: set-up's people, before the workspace exists. */
-export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, shown, first = [] }: PickProps & { source: PickSource }) {
+export function PickFrom({ source, kind, label, value, onChange, several = false, none, refuse, hide = [], hint, invalid = false, keep, compact = false, shown, first = [], add }: PickProps & { source: PickSource }) {
   const { search, viewerId, ws } = source;
   const app = { viewer: { id: viewerId }, ws: { id: ws } };
   const prefs = usePrefs();
@@ -213,6 +215,7 @@ export function PickFrom({ source, kind, label, value, onChange, several = false
                 })}
               </ul>
               {typed && total > rows.length && <div className="pick-note hint">Keep typing to narrow the other {total - rows.length}.</div>}
+              {typed && add && <button type="button" className="linkish pick-add" onClick={() => { const text = q.trim(); close(); add.onAdd(text); }}>{add.label(q.trim())}</button>}
             </>
           )}
           {several && <div className="pick-foot"><button type="button" className="btn primary" onClick={close}>Done</button></div>}

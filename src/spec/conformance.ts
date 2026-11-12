@@ -101,13 +101,15 @@ export function asOf(w: ConformanceWorkspace, moment: Date): Snapshot {
 
 /* ---------- the rows ---------- */
 
-export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][]; checkin: string[][] }
+export interface ConformanceTables { status: string[][]; flags: string[][]; projection: string[][]; scorecard: string[][]; 'scorecard-words': string[][]; checkin: string[][] }
 
 export const HEADERS: Record<keyof ConformanceTables, string[]> = {
   status: ['week', 'goal', 'kind', 'status', 'calculated', 'greener', 'latest_week', 'days_without_update'],
   flags: ['week', 'goal', 'flags', 'handled', 'needs_attention', 'attention_group'],
   projection: ['week', 'goal', 'kind', 'to_week', 'value', 'low', 'high', 'slope', 'first_week', 'last_week', 'forecast_misses'],
-  scorecard: ['week', 'goal', 'cell', 'value', 'tone', 'likelihood', 'label', 'sub'],
+  // The scorecard's codes are scored; its words are a file of their own, so a rebuild in other words still scores (AS part 3; deep review A5).
+  scorecard: ['week', 'goal', 'cell', 'tone', 'likelihood'],
+  'scorecard-words': ['week', 'goal', 'cell', 'value', 'label', 'sub'],
   checkin: ['checkin', 'week', 'goal', 'calculated', 'reason', 'asks_target', 'needs_path', 'missing', 'call', 'greener', 'call_missing'],
 };
 
@@ -120,7 +122,7 @@ const keyOf = (g: Goal) => g.key ?? g.id;
 export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
   const cycle = w.cycle;
   const last = currentWeek(cycle, new Date(w.builtFor));
-  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [], checkin: [] };
+  const out: ConformanceTables = { status: [], flags: [], projection: [], scorecard: [], 'scorecard-words': [], checkin: [] };
   for (let week = 0; week <= last; week++) {
     const moment = weekMoment(cycle, week);
     const s = asOf(w, moment);
@@ -145,7 +147,8 @@ export function conformanceTables(w: ConformanceWorkspace): ConformanceTables {
       }
 
       for (const c of goalScorecard(goal, cycle, s.checkIns, week, st.status === 'stale').cells) {
-        out.scorecard.push([W, k, c.key, c.value, c.tone, c.likelihood ?? '', c.label, c.sub]);
+        out.scorecard.push([W, k, c.key, c.tone, c.likelihood ?? '']);
+        out['scorecard-words'].push([W, k, c.key, c.value, c.label, c.sub]);
       }
     }
   }
@@ -272,6 +275,11 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'checkin-incomplete', actor: 'amara', sheet: 'checkIns', rows: [{ 'Goal key': 'G-14', Week: String(week), Call: 'Off track', 'Path to green': '' }] },
     { case: 'cant-change', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', Type: 'milestone' }] },
     { case: 'not-allowed', actor: 'tunde', sheet: 'goals', rows: [{ Key: 'G-1', Target: String(g1.plan.target - 1), Reason: 'Agreed at the review' }] },
+    // Goal entry's rule 2 (GE1): the same Must fix and words as New goal; anyone may add a goal for anyone, at any level.
+    { case: 'has-words', actor: 'amara', sheet: 'goals', rows: [fresh({ Start: '12 days' })] },
+    { case: 'same-as-start', actor: 'amara', sheet: 'goals', rows: [fresh({ Target: '10' })] },
+    { case: 'stage-twice', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design@50; design@51' }] },
+    { case: 'for-someone-else', actor: 'tunde', sheet: 'goals', rows: [fresh({ Goal: 'A north star for Rhea', Level: 'north star' })] },
     { case: 'removal-refused', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop' }] },
     { case: 'loop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-1', 'Feeds into key': 'G-1' }] },
     { case: 'near-ref', actor: 'amara', sheet: 'goals', rows: [fresh({ Team: 'CI/DC' })] },

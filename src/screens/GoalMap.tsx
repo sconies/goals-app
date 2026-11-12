@@ -193,8 +193,11 @@ export function GoalMap({ goals, matches, goTo }: { goals: Goal[]; matches?: Set
       if (size.w > 0 && size.h > 0) setBox((o) => (o && Math.abs(o.w - size.w) < 8 && Math.abs(o.h - size.h) < 8 ? o : size));
     };
     measure();
+    // The page slides in as it opens (a few px): measured mid-slide, the map would stop short of the window's foot, so
+    // measure again once it ends. A page that loads when opened slides in after the map has first measured.
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.addEventListener('animationend', measure);
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('animationend', measure); };
   });
   const height = phone ? `${Math.max(360, room?.phone ?? 520)}px` : `max(320px, calc(100dvh - ${(room?.top ?? 250) + 24 + (room?.tabs ?? 0)}px))`;
   const flow = useRef<Pick<ReactFlowInstance<Node<GoalNodeData>, Edge>, 'setViewport' | 'getViewport'> | null>(null);

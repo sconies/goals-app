@@ -51,7 +51,7 @@ async function settled(p) {
   await p.waitForFunction(() => {
     if (document.querySelector('.preboot, .boot')) return false;
     const main = document.querySelector('main');
-    return !!main && [...main.children].some((e) => !e.matches('.page-help'));
+    return !!main && [...main.children].some((e) => !e.matches('.page-help, [data-page-wait]'));
   }, null, { timeout: 20000 }).catch(() => {});
   await p.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || a.effect.getTiming().iterations === Infinity), null, { timeout: 8000 }).catch(() => {});
   // A count drawn frame by frame (not an animation) lands within a few frames of the motion ending.

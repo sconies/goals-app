@@ -3,6 +3,7 @@
    owns or a team's goals use on their pages. Its facts are in module.json. */
 import { lazy, Suspense, type ComponentType } from 'react';
 import type { AppModule } from '../../core/app';
+import { measuredByFilter, metricFinder, metricsToSortOut } from './finder';
 
 /* The library's screens, and its bits on other pages, load when first shown (the bundle budget, scripts/check-bundle.mjs). */
 const MetricsLibrary = lazy(() => import('./Metrics').then((m) => ({ default: m.MetricsLibrary })));
@@ -15,6 +16,9 @@ function later<K extends keyof Places>(name: K): Places[K] {
   return ((props: object) => <Suspense fallback={null}><Lazy {...props} /></Suspense>) as unknown as Places[K];
 }
 const GoalMeasuredBy = later('GoalMeasuredBy');
+// "Measured by" in the goal forms (ML2): loaded when a form first shows it.
+const LazyMeasuredBy = lazy(() => import('./MeasuredBy').then((m) => ({ default: m.MeasuredBy as ComponentType<object> })));
+const MeasuredBy = ((props: object) => <Suspense fallback={null}><LazyMeasuredBy {...props} /></Suspense>) as unknown as typeof import('./MeasuredBy').MeasuredBy;
 const GoalMetric = later('GoalMetric');
 const PersonMetrics = later('PersonMetrics');
 const TeamMetrics = later('TeamMetrics');
@@ -35,10 +39,14 @@ const metrics: AppModule = {
   navigation: [{ id: 'metrics', to: '/metrics', label: 'Metrics', icon, group: 'lookup' }],
   places: {
     'goal.facts': GoalMeasuredBy,
+    'goal.measure': MeasuredBy,
     'goal.sections': GoalMetric,
     'people.person': PersonMetrics,
     'people.team': TeamMetrics,
   },
+  finders: [metricFinder],
+  filters: [measuredByFilter],
+  toSortOut: metricsToSortOut,
 };
 
 export default metrics;

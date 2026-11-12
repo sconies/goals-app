@@ -10,6 +10,7 @@ import type { Cell } from '../domain/export';
 import type { Goal, GoalKind, Person, Snapshot, Team } from '../domain/types';
 import type { WorkspaceNeed } from '../domain/workspaceAttention';
 import type { NavGroup } from '../domain/navigation';
+import { addColumnParams, type QueryContext, type QueryNames } from '../domain/query';
 import type { Finder } from '../adapters/localSearch';
 import { MODULES, modulesOn } from './registry';
 import type { PlaceName } from './module';
@@ -32,7 +33,16 @@ export interface PlaceProps {
    * module's own actions and its input for the goal as saved (measured by a metric, say, or no longer), or undefined to
    * leave it as it is. The form runs it after the goal (app.run). Nothing renders here unless a module fills it.
    */
-  'goal.measure': { goal: Goal | null; kind: GoalKind; unit: string; teamId: string; onChange: (pick: MeasurePick | undefined) => void };
+  'goal.measure': {
+    goal: Goal | null; kind: GoalKind; unit: string; decimals: string; teamId: string;
+    /** On a new goal: the form's unit and decimals are still its own defaults (nobody has typed them). */
+    untouched?: boolean;
+    onChange: (pick: MeasurePick | undefined) => void;
+    /** Sets the form's unit and decimals from what's chosen, and whether their fields show (hidden: said in one line instead). */
+    fill?: (f: { unit: string; decimals: string; hidden: boolean }) => void;
+    /** Whether the person chose "No metric": the form then asks how it's measured in its own words. */
+    onNone?: (none: boolean) => void;
+  };
   /** A person's page in People, after their facts: what the module knows about them (the metrics they own, say). */
   'people.person': { person: Person };
   /** A team's page in People, after its people: what the module knows about the team. */
@@ -43,7 +53,14 @@ export interface PlaceProps {
 
 /** What a goal form saves after the goal, from the goal.measure place: a module's action (app.run, AS part 2), with its
     input for the goal as saved. The core names no module's records or actions. */
-export interface MeasurePick { action: string; input: (goal: Goal) => unknown }
+export interface MeasurePick {
+  action: string;
+  input: (goal: Goal) => unknown;
+  /** The choice in words, for New goal's Check ("Measured by Lead time for changes, for CI/CD."). */
+  says?: string;
+  /** Why it can't be saved with the goal as typed (a unit that differs): the form stops on its step and says so. */
+  blocks?: string;
+}
 
 export interface ModuleRoute {
   /** As React Router writes it; listed in the module's module.json too, and each has a Help article. */
@@ -74,7 +91,8 @@ export interface ModuleFinder {
   kind: string;
   /** Its nouns: "metric", "metrics". */
   things: { thing: string; things: string };
-  search: Finder;
+  /** Its search over the open workspace, for the person looking: made again whenever the workspace changes. */
+  search: (snapshot: Snapshot, viewer: Person, today: Date) => Finder;
   /** Where a row opens. */
   open(id: string): string;
 }
@@ -93,7 +111,14 @@ export interface ModuleFilter {
   column: string;
   /** The kind of thing it is chosen with (find-and-pick). */
   pick: string;
+  /** How the column is filled for a goal, from the open workspace: the value it holds (a metric's id), or null. */
+  fill: (snapshot: Snapshot) => (goal: Goal) => string | null;
+  /** The picked value in words, for the filter line ("Measured by Lead time for changes"); null when it names nothing. */
+  says: (snapshot: Snapshot, value: string) => string | null;
 }
+
+// Every module filter's parameter is read from a Goals address as the core's own are (domain/query).
+addColumnParams(APP.flatMap((m) => m.part.filters ?? []).map((f) => f.param));
 
 
 
@@ -156,6 +181,20 @@ export function useModules() {
       redirects: MODULES.filter((m) => r.on.has(m.id)).flatMap((m) => m.redirects),
     };
   }, [off]);
+}
+
+/** The filters of the modules that are on, for Goals: each column by its parameter, and its words for the filter line. */
+export function useGoalColumns(): { columns: NonNullable<QueryContext['columns']>; col: NonNullable<QueryNames['col']>; filters: ModuleFilter[] } {
+  const { screens } = useModules();
+  const app = useApp();
+  return useMemo(() => {
+    const filters = screens.flatMap((m) => m.filters ?? []).filter((f) => f.list === 'goals');
+    return {
+      filters,
+      columns: Object.fromEntries(filters.map((f) => [f.param, f.fill(app.snapshot)])),
+      col: (param, value) => { const f = filters.find((x) => x.param === param); const v = f?.says(app.snapshot, value); return f && v ? { label: f.label, value: v } : null; },
+    };
+  }, [screens, app.snapshot]);
 }
 
 /** Whatever the modules that are on put in one place on a core screen, in module order. */

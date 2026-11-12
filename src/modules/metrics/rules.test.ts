@@ -173,14 +173,24 @@ describe('removing a metric', () => {
     w.apply(R.undoRemoval(w.x('rhea'), c, before));
     expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
   });
-  it('is on Recently removed, and restoring brings the metric back without its old links', () => {
+  it('is on Recently removed, and restoring brings the metric back with the links it had (spec 2.2)', () => {
     const w = world();
     w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
     const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
     expect(item).toMatchObject({ id: 'metric_lead-time', label: 'Metric', name: 'Lead time for changes', by: 'rhea' });
     w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
     expect(M.findMetric(w.scoped, 'metric_lead-time')).toBeTruthy();
-    expect(M.measureOf(w.scoped, w.goal('ns-lead'))).toBeNull();
+    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time for changes');
+  });
+  it('restoring leaves out a link whose goal was measured by another metric since', () => {
+    const w = world();
+    w.apply(M.removeMetric(w.x('rhea'), 'metric_lead-time'));
+    w.apply(M.saveMetric(w.x('grace'), { name: 'Lead time, merge to production', unit: 'hours', direction: 'lower' }).commit);
+    const other = M.metricsOf(w.full).find((m) => m.name === 'Lead time, merge to production')!;
+    w.apply(M.linkGoalMetric(w.x('grace'), w.goal('ns-lead'), other.id, null));
+    const item = R.recentlyRemoved(w.full, today, undefined, MINE).find((r) => r.kind === 'metric')!;
+    w.apply(R.restoreRemoved(w.x('rhea'), 'metric', item.id, MINE));
+    expect(M.measureOf(w.scoped, w.goal('ns-lead'))!.metric.name).toBe('Lead time, merge to production');
   });
   it('can’t come back under a name another metric took since', () => {
     const w = world();
