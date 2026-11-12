@@ -133,7 +133,7 @@ Wireframe 3. Replaces OB1's 2.5 and today's sentence and rows.
 | | Dated stages: "Dated stages: {n} stage{s}, the last due week {w} ({dates})." then, when any: "1 stage is already done." / "1 stage is already overdue." (OB2) |
 | Who and where | "{Owner’s full name} owns it, in {team}. It’s {a\|an} {level} goal and feeds “{parent}” ({key})." / "… and feeds nothing: it’s at the top of its own tree." With also-helps: "It also helps “{a}” and “{b}”." Guardrail: "It’s a guardrail." |
 | Measured by | Number goals only. "{metric}, for {team \| the whole company}." / "No metric: “{description}”." / "No metric, and not described yet." |
-| Left as usual | Every default not changed, as short sentences in the field table's order: "Whole numbers." "From this week to the end of {year}." "Steady." "No early warning." "Feeds nothing." "Not a guardrail." "Helps no other goal." Omitted when nothing was defaulted. "Change" goes to the first of them. |
+| Left as usual | Every default not changed, as short sentences in the field table's order: "Whole numbers." "From this week to the end of {year}." "Steady." "No early warning." "Not a guardrail." (Feeding nothing is said once, in Who and where.) "Helps no other goal." Omitted when nothing was defaulted. "Change" goes to the first of them. |
 | You said | One sentence per answered Check (section 4's "Read-back" column). No "Change" (the question's own line on its step has it). Omitted when none. |
 
 4. **After you publish**, one block, from rule 5:
@@ -143,7 +143,7 @@ Wireframe 3. Replaces OB1's 2.5 and today's sentence and rows.
 | First check-in | "Its first check-in is due by {weekday} {date}, then every week. The first number sets where it stands; the plan says {plan next week} for week {w+1}." Stages: "… then every week. It asks which stages are done." Range: "… It asks for this week’s number." | "It shows as “No check-in yet” until {you post \| {owner} posts} its first number. Nothing is due." |
 | Who sees it | Owner is the viewer: "Everyone in {ws} can see it." Otherwise: "{Owner} sees it on {their} Home the next time {they} open Faro. Faro doesn’t send email." | The same |
 | Reviews (only with Reviews on) | "It joins {review}, which walks {every north star \| every SVP goal \| “{tree}” and what feeds it}." Several: "It joins {a} and {b}." None: "It joins no review yet." | The same |
-| Taking it back | Owner is the viewer: "Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason." Otherwise: "Only {owner} or an admin can change it once it is published. Until its first check-in they can change anything, or delete it." | The same |
+| Taking it back | Owner is the viewer: "Until its first check-in you can change anything, or delete it. After that, a change to the plan needs a reason." Otherwise: "Only {owner} or an admin can change it once it is published. Until its first check-in they can change anything, or delete it." With stages already done (saved as its first check-in): "Its stage already done is its first check-in, so it can be stopped, with a reason, but not deleted." | The same |
 
 5. With GE10: the question **"Is it under way?"** (2.15), a radio group: "Yes: publish it as active" and "Not yet: propose it". It starts on Yes, except when the owner is someone else, where it starts on "Not yet".
 6. Foot: "Back" and **"Publish goal"** ("Propose goal" when "Not yet" is chosen).

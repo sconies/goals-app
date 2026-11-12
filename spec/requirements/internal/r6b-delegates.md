@@ -24,7 +24,7 @@ A delegate keeps the weekly loop going without moving the goal: the owner is sti
 
 ## What Faro does today
 
-- Only a goal’s owner posts or corrects its check-ins (`mayPostCheckIn` in `src/domain/goalRights.ts`, asked by the change engine; R1’s access table). An admin may still bring someone’s check-ins in from a workbook and correct one in Data’s tables, logged as the admin with nothing saying for whom. The goal itself is changed by its owner or an admin. There is no delegate and no co-owner.
+- Only a goal’s owner posts or corrects its check-ins (`mayPostCheckIn` in `src/domain/goalRights.ts`, asked by the change engine; R1’s access table). Its two exceptions, both for an admin (Lane, 12 Nov): bringing check-ins in from a workbook, and correcting one in Data’s tables. Each is logged as the admin, with the route as its Via (Spreadsheet, Set-up, Data tables) and the check-in it replaced, but nothing saying for whom. The goal itself is changed by its owner or an admin. There is no delegate and no co-owner.
 - A goal whose owner is away shows No recent update after 14 days; an ask for an update waits for the owner.
 - Goals change hands only for good: when someone leaves, an admin hands each goal over (`markPersonLeft` in `src/domain/removal.ts`).
 

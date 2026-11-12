@@ -35,6 +35,17 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['import'],
   },
   {
+    id: 'read-back-holds',
+    date: '2026-11-12',
+    title: 'Check keeps your metric',
+    points: [
+      'On New goal’s Check, the metric you chose stays chosen after a reload or when you come back to a kept draft, and it is published with the goal.',
+      'Choose another team from Check and the metric is for the new team.',
+      'Check reads as one row under another at every width, and says truly when a goal with stages already done can only be stopped, not deleted.',
+    ],
+    articles: ['new-goal'],
+  },
+  {
     id: 'weeks-picked-steadier',
     date: '2026-11-12',
     title: 'Weeks in files and the week list: fewer surprises',
