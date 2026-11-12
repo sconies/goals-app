@@ -72,18 +72,26 @@ export function flipDeltas(before: Map<string, Pos>, after: Map<string, Pos>): {
   return { moved, added };
 }
 
-/** The rows that move: goals in lists, the table, the board and cards, the attention lists and a review's agenda. */
-export const FLIP_ITEMS = '.tree > li, .gtable > tbody > tr, .alist > *, .glist > *, .board-col > .board-card';
+/** The kinds of row that move: goals in lists, the table, the board and cards, the attention lists and a review's agenda. */
+const FLIP_KINDS = ['.tree > li', '.gtable > tbody > tr', '.alist > *', '.glist > *', '.board-col > .board-card'];
+export const FLIP_ITEMS = FLIP_KINDS.join(', ');
 
-/** A row's identity: its own data-flip, else the goal it links to; a row with neither follows the row before it. */
+/**
+ * A row's identity: its kind, then its own data-flip, else the goal it links to; a row with neither follows the row
+ * before it. The kind is part of it: a goal's list row and its board card are not one row moving, so switching layout
+ * (List, Table, Board) draws the new layout in place instead of sliding every row from where the old one had it
+ * (review of 12 Nov: Board and Table looked misaligned just after a switch).
+ */
 function keyOf(el: Element, prev: string): string {
+  const kind = FLIP_KINDS.findIndex((s) => el.matches(s));
   const own = (el as HTMLElement).dataset?.flip;
-  if (own) return own;
+  if (own) return `${kind}:${own}`;
   const a = el.matches('a[href]') ? el : el.querySelector('a[href]');
-  return a ? a.getAttribute('href')! : prev + '+';
+  return a ? `${kind}:${a.getAttribute('href')!}` : prev + '+';
 }
 
-function collect(root: Element): { els: HTMLElement[]; keys: string[] } {
+/** The rows in the work area that move, outermost only, with their identities (exported for the evals). */
+export function collect(root: Element): { els: HTMLElement[]; keys: string[] } {
   // Only the outermost rows: a nested list moves with its parent row.
   const all = [...root.querySelectorAll<HTMLElement>(FLIP_ITEMS)];
   const set = new Set<Element>(all);

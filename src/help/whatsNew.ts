@@ -33,6 +33,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['goal-page'],
   },
   {
+    id: 'polish-layout-switch',
+    date: '2026-11-12',
+    title: 'Board and Table line up straight away',
+    points: [
+      'Switching between List, Table and Board draws the new layout in place. Before, every row slid in from where the old layout had it, so the page looked out of line for a moment.',
+      'Rows still slide when a sort or a filter changes their order within a layout.',
+    ],
+    articles: ['goals'],
+  },
+  {
     id: 'polish-map-wait',
     date: '2026-11-12',
     title: 'The map opens without a flash',
