@@ -55,3 +55,46 @@ export const OTHER_VIEWS: OtherView[] = [
   { name: 'Page not found', file: 'src/App.tsx', component: 'NotFound', where: 'Any address that leads nowhere.', mainAction: 'Go to Home.' },
   { name: 'The error page', file: 'src/telemetry/react.tsx', component: 'ErrorBoundary', where: 'Instead of a screen that failed to draw, or a part that can’t load while offline, or while a new version loads.', mainAction: 'Reload, or Try again when offline.' },
 ];
+
+/** The widths every picture is taken at: a phone and a desktop, as the journeys run (KT gap 3). */
+export const WIDTHS = [390, 1440] as const;
+/**
+ * A picture of each screen (by its name in MAIN_ACTION, or a view's in OTHER_VIEWS): who is looking (`who`, a person
+ * in the demo; empty for nobody chosen yet), the address in the demo, and a key to press first (an overlay).
+ * `npm run spec:shots` takes them into spec/core/screens/; screens.md shows them; src/spec/spec.test.ts checks every
+ * one named is there and every core screen has one.
+ */
+export interface Shot { who: string; at: string; keys?: string; live?: boolean }
+export const SHOTS: Record<string, Shot> = {
+  Home: { who: 'rhea', at: '/' },
+  CheckInFlow: { who: 'rhea', at: '/check-in/lead-flaky' },
+  QuickCheckIn: { who: 'rhea', at: '/quick-check-in' },
+  Research: { who: 'amara', at: '/research' },
+  Review: { who: 'amara', at: '/reviews/weekly' },
+  Watching: { who: 'rhea', at: '/goals?scope=watching' },
+  Retro: { who: 'rhea', at: '/retro' },
+  StartNext: { who: 'amara', at: '/workspace/cycles/next' },
+  GoalsScreen: { who: 'amara', at: '/goals' },
+  GoalWizard: { who: 'rhea', at: '/goals/new' },
+  GoalScreen: { who: 'amara', at: '/goals/ns-lead' },
+  GoalEdit: { who: 'rhea', at: '/goals/ns-lead/edit' },
+  Print: { who: 'amara', at: '/goals/ns-lead/print' },
+  Activity: { who: 'amara', at: '/activity' },
+  DataTables: { who: 'amara', at: '/data' },
+  Workspace: { who: 'amara', at: '/workspace' },
+  People: { who: 'amara', at: '/people' },
+  Feedback: { who: 'amara', at: '/feedback' },
+  Onboarding: { who: 'amara', at: '/workspace/new' },
+  Settings: { who: 'rhea', at: '/settings' },
+  Help: { who: 'rhea', at: '/help' },
+  Start: { who: '', at: '/', live: true },
+  'Check-in: the week’s list': { who: 'rhea', at: '/check-in' },
+  'Goals: the table': { who: 'amara', at: '/goals?view=table' },
+  'Goals: the board': { who: 'amara', at: '/goals?view=board' },
+  'Goals: the map': { who: 'amara', at: '/goals?view=map' },
+  'Goals: history': { who: 'amara', at: '/goals?view=history' },
+  Find: { who: 'rhea', at: '/', keys: 'Control+K' },
+  'Page not found': { who: 'rhea', at: '/nowhere' },
+};
+/** A picture's file in spec/core/screens/. */
+export const shotFile = (name: string, width: number) => `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${width}.jpg`;

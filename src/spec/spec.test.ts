@@ -5,7 +5,7 @@ import path from 'node:path';
 import { buildSpec } from './build';
 import { MORE_RULE_PAGES, RULE_PAGES, systemOverview } from './overview';
 import { RULE_LIST, wrongExamples } from './rules';
-import { MAIN_ACTION, OTHER_VIEWS } from './screens';
+import { MAIN_ACTION, OTHER_VIEWS, SHOTS, WIDTHS, shotFile } from './screens';
 import { screenFacts } from './screenFacts';
 import { ARTICLES } from '../help/guide';
 import { checks, coreRoutes, requirements } from './sources';
@@ -24,7 +24,7 @@ describe('the spec', () => {
     const walk = (rel: string) => { for (const e of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) { const p = `${rel}/${e.name}`; if (e.isDirectory()) walk(p); else onDisk.push(p); } };
     walk('spec');
     const stale = Object.entries(want).filter(([f, text]) => !fs.existsSync(path.join(root, f)) || fs.readFileSync(path.join(root, f), 'utf8') !== text).map(([f]) => f);
-    expect({ stale, extra: onDisk.filter((f) => !(f in want)) }).toEqual({ stale: [], extra: [] });
+    expect({ stale, extra: onDisk.filter((f) => !(f in want) && !/^spec\/core\/screens\/[^/]+\.jpg$/.test(f)) }).toEqual({ stale: [], extra: [] });
   }, 60_000);
 
   it('says the same overview in llms.txt as the AI assistant’s describe_system', () => {
@@ -55,6 +55,13 @@ describe('the spec', () => {
       expect(goal.fields).toContainEqual(expect.objectContaining({ name: 'Your reply', kind: 'textarea' }));
       expect(screenFacts(r, 'src/App.tsx', 'NotFound').buttons.map((b) => [b.words, b.kind])).toEqual([['Go to Home', 'primary'], ['Help', 'link']]);
       expect(screenFacts(r, 'src/telemetry/react.tsx', 'ErrorBoundary').states.map((x) => x.words)).toContain('Something went wrong on this page');
+    });
+
+    it('has a picture of every core screen at both widths, and every picture it names is there', () => {
+      expect(Object.keys(MAIN_ACTION).filter((n) => !SHOTS[n])).toEqual([]);
+      expect(Object.keys(SHOTS).filter((n) => !(n in MAIN_ACTION) && !OTHER_VIEWS.some((v) => v.name === n) && n !== 'Find')).toEqual([]);
+      const missing = Object.keys(SHOTS).flatMap((n) => WIDTHS.map((w) => `spec/core/screens/${shotFile(n, w)}`)).filter((f) => !fs.existsSync(path.join(root, f)));
+      expect(missing, 'run npm run spec:shots').toEqual([]);
     });
 
     it('carries the design rules and every Help article in full', async () => {
