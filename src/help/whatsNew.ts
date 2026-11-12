@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'room-agrees-with-limit',
+    date: '2026-11-12',
+    title: 'A number kept in range: two cells that agree',
+    points: [
+      'On a goal kept within a limit, “Room to the limit” now turns muted only when the number is near the limit, exactly as “Vs the limit” says it.',
+      'A number exactly the warning margin inside its limit is not near: both cells now say so.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'home-asks-first',
     date: '2026-11-12',
     title: 'Home starts with what is asked of you today, and is quiet when nothing is',

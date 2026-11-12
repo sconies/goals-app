@@ -15,7 +15,7 @@ import { MAIN_ACTION } from './screens';
 import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
-import { rebuildFiles, stages, type ModuleWithRebuild, type Stage } from './rebuild';
+import { rebuildFiles, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
 import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
@@ -109,6 +109,24 @@ function rulePage(rule: Rule, tests: TestCase[], reqText: Map<string, string>): 
   }
   return out.join('\n');
 }
+
+/** A module's rules, all on one page (spec/modules/<id>/rules.md): each rule's page one heading level down, so none
+    replaces another (the metric library's page once held only the last of its four: kit review, gap 10). */
+function moduleRulesPage(name: string, rules: Rule[], tests: TestCase[], reqText: Map<string, string>): string {
+  const body = (rule: Rule) => rulePage(rule, tests, reqText).replace(GENERATED('src/spec/rules.ts and the code it names'), '').replace(/^(#+) /gm, '#$1 ').trim() + '\n';
+  return GENERATED('src/spec/rules.ts and the code it names') + [
+    `# ${name}: its rules`,
+    '',
+    `The module’s ${rules.length} rules, in order. Each is a section of its own below, with its worked examples (run against the code by the spec’s own test), where it lives, its requirements and the tests that check it.`,
+    '',
+    table(['Rule', 'What it decides'], rules.map((r) => [`[${r.title}](#${anchor(r.title)})`, cell(r.summary)])),
+    '',
+    ...rules.map(body),
+  ].join('\n');
+}
+
+/** The anchor a Markdown heading gets on GitHub. */
+export const anchor = (heading: string) => heading.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s/g, '-');
 
 function rulesIndex(): string {
   return GENERATED('src/spec/rules.ts') + [
@@ -279,7 +297,7 @@ function modulePage(m: ModuleWithRebuild, r: Repo, tests: TestCase[], stage: Sta
     '',
     stage ? `Its rebuild stage: [stage ${stage.n}](../../rebuild/${stage.file}) (${stage.status === 'drill' ? 'with a drill' : 'an outline, with no drill yet'}).` : `${UNCLEAR} it has no rebuild stage: add \`rebuild\` to its module.json (CI fails until it has one).`,
     ...(RULE_LIST.some((x) => x.module === m.id)
-      ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md)`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${MODULE_FILES.some((f) => f.module === m.id) ? `Its conformance rows: ${MODULE_FILES.filter((f) => f.module === m.id).map((f) => `[${f.file}.csv](../../conformance/${f.file}.csv)`).join(', ')} ([what each column is](../../conformance/README.md#the-files)).` : `${UNCLEAR} it has no conformance rows of its own yet.`}`]
+      ? [`Its rules: ${RULE_LIST.filter((x) => x.module === m.id).map((x) => `[${x.title}](rules.md#${anchor(x.title)})`).join(', ')}, in plain words with worked examples (run against the code by the spec’s own test). ${MODULE_FILES.some((f) => f.module === m.id) ? `Its conformance rows: ${MODULE_FILES.filter((f) => f.module === m.id).map((f) => `[${f.file}.csv](../../conformance/${f.file}.csv)`).join(', ')} ([what each column is](../../conformance/README.md#the-files)).` : `${UNCLEAR} it has no conformance rows of its own yet.`}`]
       : [`${UNCLEAR} it has no rules section or conformance rows of its own yet. It uses only the core rules (its imports go through [the change engine](../../core/rules/change-engine.md)), and its behaviour is in its code, its Help articles and the journeys above.`]),
     ...(m.records?.length ? ['', `Its own records, every field: [its records](records.md).`] : []),
     ...(m.growth?.length ? ['', `What was left out on purpose, and how it could grow: [growth notes](growth.md).`] : []),
@@ -439,8 +457,10 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
     'spec/core/requirements.md': requirementsPage(r, mods, tests),
     'spec/modules/README.md': modulesIndex(mods),
   };
-  for (const rule of RULE_LIST) out[rule.module ? `spec/modules/${rule.module}/rules.md` : `spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
+  for (const rule of RULE_LIST.filter((x) => !x.module)) out[`spec/core/rules/${rule.id}.md`] = rulePage(rule, tests, reqText);
   for (const m of mods) {
+    const own = RULE_LIST.filter((x) => x.module === m.id);
+    if (own.length) out[`spec/modules/${m.id}/rules.md`] = moduleRulesPage(m.name, own, tests, reqText);
     out[`spec/modules/${m.id}/README.md`] = modulePage(m, r, tests, stages(mods).find((s) => s.module === m.id));
     if (m.growth?.length) out[`spec/modules/${m.id}/growth.md`] = growthPage(m);
     if (m.records?.length) out[`spec/modules/${m.id}/records.md`] = recordsPage(m, r);
@@ -451,8 +471,9 @@ export async function buildSpec(root: string): Promise<Record<string, string>> {
   out['spec/conformance/workspace.json'] = workspaceJson(w);
   for (const [f, text] of Object.entries(files)) out[`spec/conformance/${f}`] = text;
   out['spec/conformance/README.md'] = conformanceReadme(w, files);
-  // Stage 1's files only: find.csv belongs to the find rules, scored when asked.
-  const rows = Object.fromEntries(Object.entries(files).filter(([f]) => f.replace('.csv', '') in HEADERS).map(([f, text]) => [f.replace('.csv', ''), text.trimEnd().split('\n').length - 1]));
+  // Stage 1's scored files only: scorecard-words.csv, find.csv and the rest are scored when asked.
+  const stage1 = ['status', 'flags', 'projection', 'scorecard', 'checkin'] as const;
+  const rows = Object.fromEntries(stage1.map((f) => [f, { rows: files[`${f}.csv`]!.trimEnd().split('\n').length - 1, header: HEADERS[f] }])) as Stage1Files;
   Object.assign(out, internalFiles());
   Object.assign(out, rebuildFiles(mods as ModuleWithRebuild[], rows, read(r, 'scripts/drill.mjs'), JSON.parse(read(r, 'scripts/browser-storage.json')).files));
   Object.assign(out, await databaseFiles(root));
