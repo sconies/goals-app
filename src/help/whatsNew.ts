@@ -23,6 +23,16 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'history-asks-by-review',
+    date: '2026-11-12',
+    title: 'Renaming a review keeps its asks under Reviews',
+    points: [
+      'In a goal’s History, an ask raised in a review stays under Reviews after the review is renamed. It used to move to Comments.',
+      'An ask raised outside a review is under Comments, whatever its words say.',
+    ],
+    articles: ['goal-page'],
+  },
+  {
     id: 'carry-stays-true',
     date: '2026-11-12',
     title: 'Next year’s goals follow this year’s last changes',
