@@ -20502,6 +20502,8 @@ function systemOverview() {
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
 		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
+		"- [The actions](spec/core/actions.md): every change a person can make, as the command port runs it: input, result, who may and refusals",
+		"- [The AI tools](spec/core/tools.md): every MCP tool’s input schema, what it gives back, its refusals and the actions it does the same as",
 		"- [Every issue a spreadsheet can raise](spec/core/import-issues.md): each kind’s level, trigger, sentence and answers, and every column’s other spellings",
 		"",
 		"## Conformance data",
