@@ -13,7 +13,7 @@ import { PickOne } from '../ui/Pick';
 import { useGoalQuery } from './GoalFilters';
 
 /** Every filter, changing the goals behind it as you go. */
-export function FilterSheet({ open = true, onClose }: { open?: boolean; onClose: () => void }) {
+export function FilterSheet({ open = true, onClose, sortOff }: { open?: boolean; onClose: () => void; sortOff?: string }) {
   const app = useApp();
   const [q, setQ] = useGoalQuery();
   const { filters: modFilters } = useGoalColumns();
@@ -31,13 +31,14 @@ export function FilterSheet({ open = true, onClose }: { open?: boolean; onClose:
   return (
     <Sheet open={open} onClose={onClose} title="Filter goals" wide>
       <div className="filter-sheet">
-        <fieldset className="filter-group"><legend className="field-label">Sort</legend>
+        {/* On the Map there is no sort (it is always the trees), so the sheet doesn't offer one (goals spec, 2.3). */}
+        {!sortOff && <fieldset className="filter-group"><legend className="field-label">Sort</legend>
           <select className="input" aria-label="Sort" value={q.sort ? `${q.sort}${q.dir === -1 ? '.desc' : ''}` : ''} onChange={(e) => { const [k, d] = e.target.value.split('.'); setQ((cur) => ({ ...cur, sort: (k || null) as SortKey | null, dir: d === 'desc' ? -1 : 1 })); }}>
             <option value="">As grouped</option>
             {SORT_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             {SORT_OPTIONS.filter(([k]) => k === 'title' || k === 'due').map(([k, l]) => <option key={k + '.desc'} value={k + '.desc'}>{l}, reversed</option>)}
           </select>
-        </fieldset>
+        </fieldset>}
         {checks('Status', STATUS_OPTIONS, 'status')}
         {/* The one Needs attention rule (domain/attention.ts), as Home, Watching and the map have it; narrowed by why, if you like. */}
         <fieldset className="filter-group"><legend className="field-label">{ATTENTION.needs.label}</legend>
