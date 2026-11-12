@@ -2,7 +2,7 @@
    save and the change-log entries. The app (app/state.tsx) and the AI assistants' MCP server (mcp/tools.ts) both call
    these, so a person and their assistant can do the same things, under the same rules. Check-ins, goal edits, plans
    and spreadsheet rows go through the bulk-change engine (domain/changeset.ts) instead. */
-import { mayChangeGoal } from './goalRights';
+import { mayChangeGoal, mayPostCheckIn } from './goalRights';
 import { isLevel, levelsOf } from './levels';
 import { acceptNote, MIN_ACCEPT_REASON } from './decide';
 import { nameProblem } from './thresholds';
@@ -594,10 +594,11 @@ export function canDeleteWorkspace(actor: Person, kind: 'own' | 'example', name:
 
 /**
  * Record the stages said to be already done when a goal was set up: one check-in, in the week of the latest of them,
- * each stage done in its own due week. The goal's owner or an admin, and only before its first check-in.
+ * each stage done in its own due week. A check-in, so the goal's owner only (R1; goalRights mayPostCheckIn, the form's
+ * door), and only before its first check-in.
  */
 export function recordStagesDone(x: ActionContext, goal: Goal, stageIds: string[]): Commit | null {
-  if (!ownsOrAdmin(x, goal)) no('Only the goal’s owner or an admin can say which stages are done.');
+  if (!mayPostCheckIn(x.actor, goal, 'form')) no(`Only ${x.snapshot.people.find((p) => p.id === goal.ownerId)?.name ?? 'its owner'} (its owner) can say which stages are done.`);
   if (checkInsFor(goal, x.snapshot.checkIns).length) no('This goal has check-ins already: say a stage is done in a check-in.');
   const c = stagesDoneAtSetUp(goal, stageIds, x.actor.id, x.now, x.newId('ci'));
   if (!c) return null;
