@@ -639,7 +639,7 @@ For a range, better means further from the limit on its safe side.
     title: 'The change engine',
     summary: 'The one way many changes come in at once: a spreadsheet, set-up, the bulk check-in grid, the data tables and MCP.',
     code: [{ file: 'src/domain/changeset.ts', names: ['planChanges', 'postCheckIn', 'records', 'describe'] }, { file: 'src/domain/columns.ts', names: ['sheetKindOf'] }, { file: 'src/domain/numbers.ts', names: ['sameAsWritten'] }, { file: 'src/domain/commit.ts', names: ['Commit'] }],
-    tests: ['src/domain/changeset.test.ts', 'src/domain/postCheckIn.test.ts', 'src/domain/roundtrip.test.ts', 'src/domain/removal.test.ts'],
+    tests: ['src/domain/changeset.test.ts', 'src/domain/postCheckIn.test.ts', 'src/domain/roundtrip.test.ts', 'src/domain/removal.test.ts', 'src/domain/importSpeed.test.ts'],
     reqs: ['BULK-IMPORT', 'BULK-EDIT', 'ONE-FORMAT', 'ROUND-TRIP', 'IMPORT-ACTIONS', 'IMPORT-UNDO', 'DATA-TABLES', 'ONE-PER-WEEK'],
     body: `
 \`planChanges(input)\` turns rows into a change set: **parse → validate → preview → apply → log**. Nothing is saved until the whole set is valid; then one *commit* saves it all, and one summary entry in the change log can undo all of it.
@@ -653,6 +653,8 @@ For a range, better means further from the limit on its safe side.
 **A batch names its own rows** (backlog BT). A Goals row's **Ref** is a label of the file's own, kept nowhere: **Feeds into ref** on another Goals row, and **Goal ref** on a Check-ins row, name the goal that row adds or changes, so one file (or one \`bulk_change\`) builds a whole tree, with numbers, before any new goal has a key. A Ref on two rows is Must fix on both (and neither row saves); a ref that no row has, or that names a row that can't be saved, is Must fix on the row that uses it. A row with its own Ref is its own goal, even beside another new row of the same name. An empty ref says nothing: the other columns say what a goal feeds, so an export (where both are empty) loads back unchanged. Leaving a new goal out leaves out the rows that name it by Ref, as by name.
 
 **A row that gives a week.** A Check-ins row with "Back on plan by week" and no Recovery is a plan: the old record's recovery state is read only when the row gives neither, so a correction never loses the week it gives.
+
+**Speed** (import spec, rule 10). No row scans a list: goals by id, key and folded name, people by id, the saved check-ins by goal, and the issues by row are maps built once and kept up as rows are read, and a name one letter out is worked out once per name. Results are the same as a scan's, in the same order. A file costs about what its rows do: in Faro's tests, 5,000 new rows are checked in well under a second, and an unedited workbook of nearly 30,000 rows in about two (\`src/domain/importSpeed.test.ts\`, with N18's limits of 3, 8 and 20 seconds for 1,000, 5,000 and 30,000 rows). The size limits are in \`src/domain/importLimits.ts\`: comfortable up to 5,000 rows, and read up to 30,000 rows or 20 MB.
 
 **What it gives:** the items (each a change to one record, with its field-by-field differences), what was unchanged, the issues (errors that block, warnings to check, notes on how a row was read), whether a reason is needed, counts, and the commit (null while anything blocks). In "create" mode (set-up) the workspace starts empty and every row is new.`,
     examples: [

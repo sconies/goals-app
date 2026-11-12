@@ -9310,7 +9310,11 @@ function groupTitle(kind, sheet, count, first) {
 */
 function groupIssues(issues) {
 	const by = /* @__PURE__ */ new Map();
-	for (const i of issues) by.set(i.group, [...by.get(i.group) ?? [], i]);
+	for (const i of issues) {
+		const l = by.get(i.group);
+		if (l) l.push(i);
+		else by.set(i.group, [i]);
+	}
 	return [...by.entries()].map(([id, list]) => {
 		const first = list[0];
 		const rows = [...new Set(list.map((x) => x.row))].sort((a, b) => a - b);
@@ -9732,18 +9736,29 @@ function planChanges(input) {
 	/** A problem, a question or a note on one row: its level comes from its kind (domain/problemLevels). */
 	/** Columns a header one letter out may be, while that question is open: their Must fix waits for the answer (#199 review). */
 	const held = /* @__PURE__ */ new Set();
+	/** Every issue by its sheet and row (rule 10: a row's questions are found without reading every issue). */
+	const issuesAt = /* @__PURE__ */ new Map();
 	const raise = (kind, sheet, row, name, message, x = {}) => {
 		if (x.column && held.has(`${sheet}|${x.column.toLowerCase()}`) && levelOf(kind) === "must") return;
-		issues.push(issueOf(kind, sheet, row, name, message, x));
+		const i = issueOf(kind, sheet, row, name, message, x);
+		issues.push(i);
+		const at = `${sheet}|${row}`;
+		const list = issuesAt.get(at);
+		if (list) list.push(i);
+		else issuesAt.set(at, [i]);
 	};
 	const note = (kind, sheet, row, name, message, x = {}) => raise(kind, sheet, row, name, message, x);
 	/** The answer given to a group, if any (rule 7). */
 	const answerOf = (kind, sheet, column, found) => answers[groupId(kind, sheet, column, found)];
+	const leftSet = /* @__PURE__ */ new Set();
 	const leave = (sheet, row) => {
-		if (!leftOut.some((x) => x.sheet === sheet && x.row === row)) leftOut.push({
-			sheet,
-			row
-		});
+		if (!leftSet.has(`${sheet}|${row}`)) {
+			leftSet.add(`${sheet}|${row}`);
+			leftOut.push({
+				sheet,
+				row
+			});
+		}
 	};
 	input = {
 		...input,
@@ -9797,6 +9812,11 @@ function planChanges(input) {
 		raise(kind, sheet, row, name, message, x);
 		return null;
 	};
+	/** The workspace as saved, by id (rule 10). */
+	const savedGoal = new Map(s.goals.map((g) => [g.id, g]));
+	const savedPerson = new Map(s.people.map((p) => [p.id, p]));
+	const savedTeam = new Map(s.teams.map((t) => [t.id, t]));
+	const savedCheckIn = new Map(s.checkIns.map((c) => [c.id, c]));
 	const people = new Map(s.people.map((p) => [p.id, p]));
 	const teams = new Map(s.teams.map((t) => [t.id, t]));
 	const teamNamed = (name) => [...teams.values()].find((t) => fold$1(t.name) === fold$1(name));
@@ -10229,9 +10249,9 @@ function planChanges(input) {
 		}
 	}
 	if (create && !people.size && (input.tables.people ?? []).length && !issues.some((x) => x.level === "must")) raise("required-empty", "People", 1, "", "Add at least one person.", { column: "Name" });
-	const work = new Map(s.goals.map((g) => [g.id, g]));
+	const work = new GoalSet(s.goals);
 	const fileIds = /* @__PURE__ */ new Map();
-	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? findGoal([...work.values()], r) : void 0;
+	const goalByRef = (r) => r ? work.get(fileIds.get(r) ?? r) ?? work.byRef(r) : void 0;
 	/** The goal a row says: its key first (a goal carried into this cycle keeps its key, not its ID), then its ID. */
 	const goalOf = (keyRef, id) => goalOfRow(keyRef, id).g;
 	/** The same, with a problem when the key and the ID name different goals (an ID from another cycle is just passed over). */
@@ -10242,7 +10262,7 @@ function planChanges(input) {
 		return { g: byKey ?? byId };
 	};
 	/** The goals with a name (folded), but one. */
-	const titled = (t, but = "") => [...work.values()].filter((g) => g.id !== but && fold$1(g.title) === fold$1(t));
+	const titled = (t, but = "") => work.titled(t, but);
 	/**
 	* The goal a name names (Feeds into, a check-in's Goal): the one goal with that name; one one letter out is asked
 	* about; several with it, or none, is Must fix. Undefined with the problem raised.
@@ -10265,9 +10285,7 @@ function planChanges(input) {
 			});
 			return;
 		}
-		const all = [...work.values()].filter((g) => g.id !== but);
-		const m = near(v, all.map((g) => g.title));
-		const hit = "near" in m ? all.find((g) => g.title === m.near) : void 0;
+		const hit = work.nearTitle(v, but);
 		const a = answerOf(hit ? "near-ref" : "unknown-ref", sheet, column, v);
 		if (a?.choice === "leave") {
 			leave(sheet, row);
@@ -10337,7 +10355,8 @@ function planChanges(input) {
 	const fileKeys = create ? (input.tables.goals ?? []).map((r) => normalKey(val(r, "key"))).filter((k) => !!k) : [];
 	let lastKeyGiven = Math.max(lastKey(s.goals, s.keysIssued), ...fileKeys.map((k) => Number(k.replace(/\D/g, ""))), 0);
 	const touched = /* @__PURE__ */ new Map();
-	const started = (id) => s.checkIns.some((c) => c.goalId === id);
+	const withCheckIns = new Set(s.checkIns.map((c) => c.goalId));
+	const started = (id) => withCheckIns.has(id);
 	const canChange = (g) => mayChangeGoal({
 		id: actor.id,
 		admin: admin()
@@ -10896,7 +10915,7 @@ function planChanges(input) {
 			};
 		});
 		if (missing) {
-			if (leftOut.some((x) => x.sheet === "Goals" && x.row === l.row)) touched.delete(l.id);
+			if (leftSet.has(`Goals|${l.row}`)) touched.delete(l.id);
 			continue;
 		}
 		const ids = new Set(found.map((x) => x.p?.id ?? ""));
@@ -10972,7 +10991,7 @@ function planChanges(input) {
 		}
 		const id = g.id;
 		if (g.kind !== "metric") return raise("cant-change", "Plan", row, g.title, "Only number goals have plan numbers.", { column: "Key" });
-		const orig = touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? g;
+		const orig = touched.get(id)?.before ?? savedGoal.get(id) ?? g;
 		const origEnd = planEnd(orig.plan, cycle.weeks);
 		const numberAt = (head, raw) => {
 			if (isFormula(raw)) {
@@ -11031,7 +11050,7 @@ function planChanges(input) {
 			target,
 			...points.length ? { points } : {}
 		};
-		const before = touched.get(id)?.before ?? s.goals.find((x) => x.id === id) ?? null;
+		const before = touched.get(id)?.before ?? savedGoal.get(id) ?? null;
 		const next = {
 			...g,
 			plan,
@@ -11057,8 +11076,11 @@ function planChanges(input) {
 	};
 	const goalFor = (r) => val(r, "goal key") || val(r, "goal id") ? goalOf(val(r, "goal key"), val(r, "goal id")) : byTitle(val(r, "goal"));
 	const precise = /* @__PURE__ */ new Map();
-	for (const { r } of ciRows) {
+	/** The first check-in row naming each goal. */
+	const firstRow = /* @__PURE__ */ new Map();
+	for (const { r, row } of ciRows) {
 		const g = goalFor(r);
+		if (g && !firstRow.has(g.id)) firstRow.set(g.id, row);
 		const raw = val(r, "value");
 		if (!g || g.kind === "milestone" || !raw) continue;
 		const n = parseNumber(raw);
@@ -11071,9 +11093,9 @@ function planChanges(input) {
 			...g,
 			decimals: places
 		});
-		const row = ciRows.find(({ r }) => goalFor(r)?.id === gid).row;
+		const row = firstRow.get(gid);
 		if (!touched.has(gid)) touched.set(gid, {
-			before: s.goals.find((x) => x.id === gid) ?? null,
+			before: savedGoal.get(gid) ?? null,
 			row,
 			sheet: "Check-ins",
 			reason: "",
@@ -11121,7 +11143,7 @@ function planChanges(input) {
 		}
 		goalOut.set(id, after);
 		changes.push(ch);
-		const asked = issues.filter((x) => x.sheet === t.sheet && x.row === t.row && x.level === "check" && GOAL_QUESTION.includes(x.kind)).map((x) => ({
+		const asked = (issuesAt.get(`${t.sheet}|${t.row}`) ?? []).filter((x) => x.level === "check" && GOAL_QUESTION.includes(x.kind)).map((x) => ({
 			id: x.kind === "plan-question" ? x.found === "direction" ? "direction" : "far-from-plan" : x.kind === "no-unit" || !x.found || x.kind === "feeds-lower" ? x.kind : x.found,
 			field: x.column ?? "Goal",
 			text: x.message
@@ -11174,11 +11196,7 @@ function planChanges(input) {
 		const v = val(r, "goal");
 		if (!v || val(r, "goal key") || val(r, "goal id")) return void 0;
 		const a = answerOf("near-ref", "Check-ins", "Goal", v) ?? answerOf("unknown-ref", "Check-ins", "Goal", v);
-		if (a?.choice === "use") {
-			const all = [...work.values()];
-			const m = near(v, all.map((g) => g.title));
-			return "near" in m ? all.find((g) => g.title === m.near) : void 0;
-		}
+		if (a?.choice === "use") return work.nearTitle(v);
 		if (a?.choice === "choose" && a.value) return goalByRef(normalKey(a.value) ?? a.value) ?? byTitle(a.value);
 	};
 	const skipCheckIns = twice("Check-ins", ciRows.map(({ r, row }) => {
@@ -11379,7 +11397,7 @@ function planChanges(input) {
 			continue;
 		}
 		const cid = create ? "" : val(r, "id");
-		const byId = cid ? s.checkIns.find((c) => c.id === cid) : void 0;
+		const byId = cid ? savedCheckIn.get(cid) : void 0;
 		if (cid && (!byId || byId.goalId !== g.id)) {
 			raise("bad-key", "Check-ins", row, g.title, `There’s no check-in with ID ${cid} on this goal. Leave ID empty to add a check-in.`, {
 				column: "ID",
@@ -11495,7 +11513,7 @@ function planChanges(input) {
 	}
 	for (const [i, p] of (input.posts ?? []).entries()) {
 		const row = i + 1;
-		const g = work.get(p.goalId) ?? s.goals.find((x) => x.id === p.goalId);
+		const g = work.get(p.goalId) ?? savedGoal.get(p.goalId);
 		if (!g) {
 			raise("bad-key", "Check-ins", row, p.goalId, "That goal no longer exists. Reload to see the latest.");
 			continue;
@@ -11550,8 +11568,10 @@ function planChanges(input) {
 	}
 	const reqOut = /* @__PURE__ */ new Map();
 	const requestsNow = () => [...(s.requests ?? []).filter((x) => !reqOut.has(x.id)), ...reqOut.values()];
+	const lastWeek = /* @__PURE__ */ new Map();
+	for (const x of [...s.checkIns, ...ciOut]) lastWeek.set(x.goalId, Math.max(lastWeek.get(x.goalId) ?? -Infinity, x.week));
 	for (const c of ciOut) {
-		const later = s.checkIns.some((x) => x.goalId === c.goalId && x.week > c.week) || ciOut.some((x) => x.goalId === c.goalId && x.week > c.week);
+		const later = (lastWeek.get(c.goalId) ?? -Infinity) > c.week;
 		const g = work.get(c.goalId);
 		if (later || !g) continue;
 		const r = requestsAfterCheckIn(g, c, {
@@ -11620,13 +11640,14 @@ function planChanges(input) {
 	const reviewsOut = /* @__PURE__ */ new Map();
 	const reviewsBefore = /* @__PURE__ */ new Map();
 	if (removals.length || leaving.length) {
+		const written = new Set(ciOut.map((o) => o.id));
 		const xOf = () => ({
 			snapshot: {
 				...s,
 				people: [...people.values()],
 				teams: [...teams.values()],
 				goals: [...work.values()],
-				checkIns: [...s.checkIns.filter((c) => !ciOut.some((o) => o.id === c.id)), ...ciOut],
+				checkIns: [...s.checkIns.filter((c) => !written.has(c.id)), ...ciOut],
 				requests: requestsNow(),
 				reviews: s.reviews.map((v) => reviewsOut.get(v.id) ?? v)
 			},
@@ -11643,7 +11664,7 @@ function planChanges(input) {
 		const merge = (c) => {
 			for (const g of c.goals ?? []) {
 				if (!touched.has(g.id)) touched.set(g.id, {
-					before: s.goals.find((x) => x.id === g.id) ?? null,
+					before: savedGoal.get(g.id) ?? null,
 					row: 0,
 					sheet: "Goals",
 					reason: "",
@@ -11655,7 +11676,7 @@ function planChanges(input) {
 			for (const r of c.requests ?? []) reqOut.set(r.id, r);
 			for (const p of c.people ?? []) {
 				if (!peopleTouched.has(p.id)) peopleTouched.set(p.id, {
-					before: s.people.find((x) => x.id === p.id) ?? null,
+					before: savedPerson.get(p.id) ?? null,
 					row: 0
 				});
 				people.set(p.id, p);
@@ -11667,7 +11688,7 @@ function planChanges(input) {
 			}
 			for (const t of c.teams ?? []) {
 				if (!teamsTouched.has(t.id)) teamsTouched.set(t.id, {
-					before: s.teams.find((x) => x.id === t.id) ?? null,
+					before: savedTeam.get(t.id) ?? null,
 					row: 0
 				});
 				teams.set(t.id, t);
@@ -11755,9 +11776,12 @@ function planChanges(input) {
 	};
 	const ordered = [];
 	const pending = [...goalOut.values()];
+	const waiting = new Set(pending.map((g) => g.id));
 	while (pending.length) {
-		const i = pending.findIndex((g) => !g.parentId || !pending.some((x) => x.id === g.parentId));
-		ordered.push(...pending.splice(i < 0 ? 0 : i, 1));
+		const i = pending.findIndex((g) => !g.parentId || !waiting.has(g.parentId));
+		const [g] = pending.splice(i < 0 ? 0 : i, 1);
+		waiting.delete(g.id);
+		ordered.push(g);
 	}
 	if (create) {
 		result.created = {
@@ -11807,7 +11831,7 @@ function planChanges(input) {
 				})),
 				people: [...peopleOut.values()].map((p) => ({
 					id: p.id,
-					before: s.people.find((x) => x.id === p.id) ?? null
+					before: savedPerson.get(p.id) ?? null
 				})),
 				requests: [...reqOut.values()].map((r) => ({
 					id: r.id,
@@ -11819,7 +11843,7 @@ function planChanges(input) {
 				})) } : {},
 				...teamsOut.size ? { teams: [...teamsOut.keys()].map((id) => ({
 					id,
-					before: s.teams.find((x) => x.id === id) ?? null
+					before: savedTeam.get(id) ?? null
 				})) } : {}
 			}
 		};
@@ -11893,7 +11917,7 @@ function keepsTheRules(c) {
 	const greener = rank(c.status) >= rank(c.calculated) || c.greenerWhy.trim().length >= 10;
 	return wayBack && greener;
 }
-var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf;
+var ASKS_NUMBERS, TYPED_ON_SCREEN, has, val, ref, rowOf, blankRow, plural$1, commaDecimal, isFormula, oddKind, examplesLine, FIELD_COLUMN, MUST_KIND, ENGINE_CHECK, GOAL_QUESTION, CONFIRMED, TABLE_SHEETS, initialsOf, GoalSet;
 var init_changeset = __esmMin((() => {
 	init_actions();
 	init_changes();
@@ -12027,6 +12051,72 @@ var init_changeset = __esmMin((() => {
 	];
 	initialsOf = (name) => name.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join("") || "?";
 	oneOf(Object.values(CALL_WORDS.word));
+	GoalSet = class extends Map {
+		byKey = /* @__PURE__ */ new Map();
+		titles = /* @__PURE__ */ new Map();
+		folded = /* @__PURE__ */ new Map();
+		order = /* @__PURE__ */ new Map();
+		nearMemo = /* @__PURE__ */ new Map();
+		constructor(goals) {
+			super();
+			for (const g of goals) this.set(g.id, g);
+		}
+		set(id, g) {
+			const old = super.get(id);
+			if (old) this.unindex(id, old);
+			if (!this.order.has(id)) this.order.set(id, this.order.size);
+			super.set(id, g);
+			if (g.key && !this.byKey.has(g.key)) this.byKey.set(g.key, id);
+			const f = fold$1(g.title);
+			this.folded.set(id, f);
+			const list = this.titles.get(f);
+			if (list) list.add(id);
+			else this.titles.set(f, /* @__PURE__ */ new Set([id]));
+			this.nearMemo.clear();
+			return this;
+		}
+		delete(id) {
+			const old = super.get(id);
+			if (old) {
+				this.unindex(id, old);
+				this.nearMemo.clear();
+			}
+			return super.delete(id);
+		}
+		unindex(id, g) {
+			if (g.key && this.byKey.get(g.key) === id) {
+				this.byKey.delete(g.key);
+				for (const [other, x] of this) if (other !== id && x.key === g.key) {
+					this.byKey.set(g.key, other);
+					break;
+				}
+			}
+			this.titles.get(this.folded.get(id) ?? "")?.delete(id);
+		}
+		/** A goal by its id, else its key (findGoal over the set). */
+		byRef(ref) {
+			if (!ref) return void 0;
+			const hit = super.get(ref);
+			if (hit) return hit;
+			const k = normalKey(ref);
+			const id = k ? this.byKey.get(k) : void 0;
+			return id ? super.get(id) : void 0;
+		}
+		/** The goals with a name (folded), but one, in the order they were first set. */
+		titled(t, but = "") {
+			return [...this.titles.get(fold$1(t)) ?? []].filter((id) => id !== but).sort((a, b) => this.order.get(a) - this.order.get(b)).map((id) => super.get(id));
+		}
+		/** The one goal whose name is one letter out from `v` (rule 4), but one; undefined when none or several are. */
+		nearTitle(v, but = "") {
+			const memo = `${but}\u0000${v}`;
+			if (this.nearMemo.has(memo)) return this.nearMemo.get(memo);
+			const all = [...this.values()].filter((g) => g.id !== but);
+			const m = near(v, all.map((g) => g.title));
+			const hit = "near" in m ? all.find((g) => g.title === m.near) : void 0;
+			this.nearMemo.set(memo, hit);
+			return hit;
+		}
+	};
 }));
 // src/modules/metrics/rules.ts
 /** A live metric by id, or by name (any case). */
@@ -14807,7 +14897,7 @@ var help$2 = [
 				heading: "How to use it",
 				list: [
 					"On Data, choose Import, beside Export. Export everything first to start from what is already in the app, or download the template from the Import page to start from nothing.",
-					"Drop a file or choose one (up to 5,000 rows a file is comfortable; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
+					"Drop a file or choose one (up to 5,000 rows a file is comfortable, and checked in a second or two; Faro reads up to 30,000 rows or 20 MB in one file), or paste rows straight from Excel or Sheets with their header row: or paste rows from a spreadsheet, then Check these rows. Copy the Goals headers puts the columns you fill in on the clipboard.",
 					`What a new row must have is on the Import page and in Every column, and what it needs: a goal needs ${requiredLine("goals")} A check-in, ${requiredLine("checkIns")} A person, ${requiredLine("people")}`,
 					"Change it in Excel, then drop it in or choose the file: an .xlsx workbook, a .zip of CSVs, or one .csv or tab-separated file. Anything Export these goals or Data saves loads back.",
 					"A title row above the headers is fine: the header row is found in the first ten rows, and the preview says which row it was. A column under another name is read as the column it means (Goal name is Goal, Units is Unit); one a letter out (Targett) is asked about once, and so are two columns that mean the same one (Goal and Goal name): you choose which is read.",
@@ -17599,6 +17689,13 @@ var WHATS_NEW = [
 		articles: ["import", "ai-assistants"]
 	},
 	{
+		id: "import-faster",
+		date: "2026-11-12",
+		title: "Large files are checked much faster",
+		points: ["A file of thousands of rows is checked in a second or two, not tens of seconds, and answering a question about it is as quick.", "Import still says up front how large a file can be: up to 5,000 rows is comfortable."],
+		articles: ["import"]
+	},
+	{
 		id: "assistant-goals-link-tab",
 		date: "2026-11-12",
 		title: "A pasted Goals link keeps its tab",
@@ -19823,6 +19920,7 @@ var _virtual_faro_modules_default = [{
 			"Fourteen rows with one typo (“Platfrom”) are one question; answered “Use Platform”, all fourteen save as Platform. A name or word one letter out is asked about, never guessed.",
 			"The template loaded straight back changes nothing, and its example rows (Action says Example) are left out and counted.",
 			"The rebuild's field table gives every column the same need, format and example as Faro's (core rule: the field table).",
+			"A file of 5,000 new rows is checked within 8 seconds, and an unedited workbook of 30,000 rows within 20, giving the same result a row-by-row scan would (core rule: the change engine, Speed).",
 			"Every row of the conformance file import.csv gives the same kind, level, group and sentence (the drill scores it when drill.json lists \"import\" under \"also\").",
 			"An import of 5 goals and 10 check-ins, with one check-in posted on an imported goal since, previews Undo as 14 rows going back and 1 staying, naming who posted the check-in and when; Undo then does exactly that, and Past imports says when and by whom it was undone."
 		],
@@ -20020,7 +20118,9 @@ function systemOverview() {
 		"- [The vocabulary](spec/core/vocabulary.md): every status word, its code, its meaning and the rule that decides it",
 		...RULE_PAGES.map(([id, title, what]) => `- [${title}](spec/core/rules/${id}.md): ${what}`),
 		`- [Every core rule](spec/core/rules/README.md), the ten above and ${MORE_RULE_PAGES.length} more: ${MORE_RULE_PAGES.map(([id, title]) => `[${title}](spec/core/rules/${id}.md)`).join(", ")}`,
-		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action",
+		"- [The screens](spec/core/screens.md): each core screen’s purpose, named parts and main action, and its fields, states and buttons (with who sees each); the views and overlays with no route of their own",
+		"- [The design rules](spec/core/design-rules.md): the look, what is banned and what we do instead",
+		"- [The Help guide](spec/core/help-guide.md): every Help article in full",
 		"- [The journeys](spec/core/journeys.md): what people do, end to end, and the checks that drive them",
 		"- [The requirements](spec/core/requirements.md): each one, linked to its code and tests",
 		"- [The export format](spec/core/export-format.md): every spreadsheet sheet and column, and how each is read back",
