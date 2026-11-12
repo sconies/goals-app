@@ -48,6 +48,7 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #167 Help loads when opened | 4 | 0 | 1 | 2 |
 | #139 AS part 2: the metric library as a module with its own records | 3 | 1 (older) | 1 | 3 |
 | #168 Goals rewrites its address only while on Goals | planning | 0 | 0 | 1 |
+| #152 CY4: the carry rule, and what comes with a goal | 5 | 3 | 6 | 3 |
 | #170 Last year's wrap-up stays open once the next year is current | 5 | 0 | 0 | 0 |
 | #172 Review fixes for #154 and #141 | 4 | 0 | 0 | 0 |
 
@@ -61,6 +62,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #141: Undo pressed after switching workspace saves into the workspace now open | Track 4, 19:25 UTC | **Open**; re-run on main after #172 at 00:10 UTC on 12 Nov, same result |
 | #133: once the next year is current, the old year's wrap-up can't be reached or saved | Track 5, 21:50 UTC | **Fixed** by #170 (read, with its new unit tests; not re-run on screen) |
 | Met in #139, older: on the database stores, Undo after a removal doesn't bring the record back | Track 4, 23:56 UTC | **Open** |
+| #152: after an early start, "Stop" then "Carry it on" makes a second copy under a new key | Track 5, 00:35 UTC, 12 Nov | **Open** |
+| #152: a parent's copy leaves the new year and its children's copies keep pointing at it | Track 5, 00:35 UTC, 12 Nov | **Open** |
+| #152: most ways of changing the old year never run `recarry` | Track 5, 00:35 UTC, 12 Nov | **Open** |
 
 The ten PRs merged between 17:28 and 18:04 UTC were each read first by a separate reviewing session with the same brief, in the demo and the code. Every high finding, and each medium marked "re-run" or "read", was then checked again by this reviewer; the rest are the first reader's, each with its own reproduction, and are marked "first reader".
 
@@ -486,6 +490,28 @@ Read, with its tests: the storage lint now needs exact counts and reads `index.h
 
 **It does not close #141's high.** Re-run on main after this PR: switch Spreadsheets off in the example, change workspace, press Undo: "Spreadsheets is back on.", the example still off, and "Switched on Spreadsheets" in the other workspace's log.
 
-### #152 CY4: the carry rule (track 5, merged 23:09 UTC)
+### #152 CY4: the carry rule, and what comes with a goal (track 5, merged 23:09 UTC)
 
-Being read; to follow.
+Read against `docs/design/cycle-end/spec.md`, rules 5 and 6. Rule 5 is right on the demo: each worked example gives its kind and its starting number, a copy differs from its original only in the fields the rule owns, and the start page's counts (106 carried, 20 finish, 18 asks, 71 watches, 4 reviews) match what the start makes. A copy a person has touched is never overwritten. Starting twice is refused; undo and start again leaves no duplicate.
+
+The three highs are all in `recarry`, which keeps a copy true when the year was started before its predecessor ended. The runs are the first reader's, on the demo with the year started on 22 Dec; this reviewer confirmed each in the code. Sent to track 5.
+
+**1. High. "Stop" then "Carry it on" at the wrap-up makes a second copy under a new key.** `src/domain/recarry.ts:23` looks for a live copy only, and `:31` mints a new id when there is none; the removed copy still holds the key, so the new one is renumbered. G-37: 2027 ends with G-37 removed and a live G-127. Stop again saves only the wrap-up and leaves G-127 live; an old-year check-in instead adds a live G-128 beside it; restoring the first copy gives two live copies. Seen in the app for G-1. Fix: bring back the removed copy, same id and key, with what came with it.
+
+**2. High. When a parent's copy leaves the new year, its children's copies keep pointing at it, with their effect.** `recarry.ts:40-50` removes the copy and touches no child; a copy added back gets an id no child points to. Stop G-1: the copies of G-2, G-6, G-11 and G-14 keep the removed copy as parent, where a start made then gives them none (rule 5's last row).
+
+**3. High. Most ways of changing the old year never run `recarry`.** It has two call sites: `src/domain/actions.ts:320` (`saveRetro`) and `src/domain/changeset.ts:927-929` (a check-in, and only when the whole workspace is passed). The AI tools don't pass it (`src/mcp/tools.ts:117`): `post_check_in` of 35 on G-37 saves and the copy still starts from 29. Deleting or restoring a check-in, a target change, `stopGoal`, `deleteGoal` and restarting a stopped goal all leave the copy as it was. Rule 6 names `postCheckIn`, `stopGoal` and a plan change. Fix: one place, after any commit that touches a goal, check-in or wrap-up of a cycle that has a later one.
+
+**4. Medium (first reader). On the database stores any old-year check-in rewrites an untouched copy and logs a false change**: `recarry.ts:34` compares the two as JSON text, and a goal read back from rows has another key order and no `fromWeek: 0`. The log line says "final number" for a limit and for stages too.
+
+**5. Medium (first reader). After `recarry` adds a copy, Undo of the start is refused** ("1 goal in it has been changed") though nobody used the new year (`src/domain/removal.ts:415-416`).
+
+**6. Medium (read). U115's new assertion reads `s.metricLinks`** (`evals/journeys.cjs:1316`), which #139 moved under `s.modules.metrics`, so its links term is always false and the journey's `attention` flag can't pass. Not run here.
+
+**7. Medium (first reader). A copy removed by `recarry` is offered on Recently removed**, with no year, and comes back without its watches, link, asks or reviews while its 2026 goal still says stop.
+
+**8. Medium (first reader). A carried copy's "Also helps" still names the old year's goals** (`src/domain/carry.ts:159`), so the dotted lines vanish. Older; this PR rebuilt the copy.
+
+**9. Medium (first reader). Tests:** nothing covers `recarry`'s add path, the parent and child links, the tools' path, a deleted or restored check-in, a plan change, `stopGoal`, or Undo after `recarry`. `src/domain/startYear.ts:48-54` restates `carryExtras`' filters to count.
+
+**Low (first reader).** `byRecarry` tells its own changes from a person's by the sentence. `saveRetro` says "It already has check-ins in 2027" when the copy was only edited. No demo goal is of the `keep` kind.
