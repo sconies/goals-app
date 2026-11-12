@@ -5,7 +5,7 @@
 
 Every requirement in `evals/requirements.json` that no module owns (a module’s are in its section). For each: the rule that implements it (when it is one of the core rules), the Help article that explains it and the screens that article covers, the tests tagged with it (`[ID]` in a test’s title), and the journeys and checks that exercise it.
 
-Each also says what the rebuild does with it: **copy** it; **replace** it with a requirement for the internal app, whose platform provides the machinery ([the requirements for the internal app](../requirements/internal/README.md)); or **demo only**, Faro’s own, not to copy. Of all 179: 152 copy, 13 replace, 14 demo only.
+Each also says what the rebuild does with it: **copy** it; **replace** it with a requirement for the internal app, whose platform provides the machinery ([the requirements for the internal app](../requirements/internal/README.md)); or **demo only**, Faro’s own, not to copy. Of all 180: 153 copy, 13 replace, 14 demo only.
 
 **Not self-explanatory:** a requirement with no rule, test or journey listed is checked only by the screens and Help named, or not yet by anything automatic; its words are the spec.
 
