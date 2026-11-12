@@ -429,6 +429,7 @@ const CORE_ARTICLES: Article[] = [
     sections: [
       { heading: 'How to use it', list: [
         'Choose Map from Layout on Goals (in View on a phone). North stars are at the top; solid lines mean feeds into, dotted lines mean also helps.',
+        'Choose Map and the goals appear as soon as it is drawn; only a wait you would notice (over about a third of a second) says “Drawing the map…”.',
         'It opens on every top goal, with only the critical path, the inputs most likely to make a top goal miss, drawn bold beneath them. The number on a goal’s fold button says how many goals feeding it are hidden: press it to show them, or the minus to hide them. Unfold all shows every goal; Fold to the top goes back.',
         'Each goal shows its status, its number, its target and how far it is from plan. A goal others feed also says what’s under it: the worst status of everything feeding it, at any depth, and how many are behind, counted the way the List’s tree cards count.',
         'On the Map, the search at the top of Goals finds a goal and takes you to it: type its name or its key (G-48), then choose it from the list under the field. Its tree opens, the goal is outlined and the map moves to it, without hiding any other goal; press Enter on the goal to read its story. Press Enter in the field without choosing, and the map shows only the goals that match, as the other layouts do.',

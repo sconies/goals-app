@@ -35,6 +35,16 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['home'],
   },
   {
+    id: 'polish-map-wait',
+    date: '2026-11-12',
+    title: 'The map opens without a flash',
+    points: [
+      'Choosing Map no longer flashes “Drawing the map…” for a moment before the goals appear.',
+      'It says so only when drawing takes long enough to notice.',
+    ],
+    articles: ['goal-map'],
+  },
+  {
     id: 'your-goals-worst-first',
     date: '2026-11-12',
     title: 'Your goals, worst first',
