@@ -17,7 +17,7 @@ function exported(file: string): { name: string; body: string }[] {
 }
 
 /** Whether a function decides who may do something: it refuses with "Only …", checks an admin or the owner, or asks a can… rule. */
-const saysWho = (body: string) => /no\([`'"]Only |\.admin\b|ownsOrAdmin\(|\bcan(Answer|MarkDone|Withdraw|Change|DeleteCheckIn|UndoImport)\(/.test(body);
+const saysWho = (body: string) => /no\([`'"]Only |\.admin\b|ownsOrAdmin\(|may(Change|Add)Goal\(|\bcan(Answer|MarkDone|Withdraw|Change|DeleteCheckIn|UndoImport)\(/.test(body);
 
 describe('the requirements for the internal app', () => {
   it('gives what each Faro-today example says, run against the code', () => {

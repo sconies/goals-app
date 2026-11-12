@@ -6,7 +6,7 @@ import { buildPlatformOrg } from '../data/platformOrg';
 import { planChanges, records, type ChangeInput, type Rec } from './changeset';
 import { LEVEL_WORDS, TYPE_WORDS, wordsAndAlso } from './columns';
 import { CHECK_KINDS, editDistance, fold, groupIssues, issueOf, levelOf, MUST_KINDS, near, whereText } from './problemLevels';
-import { currentWeek } from './plan';
+import { currentWeek, planAt } from './plan';
 import type { MetricGoal, Snapshot } from './types';
 
 const today = new Date('2026-11-11T12:00:00Z');
@@ -110,6 +110,15 @@ describe('rule 7: one answer covers every row in its group', () => {
     expect(done.issues.filter((i) => i.level === 'must')).toEqual([]);
     expect((done.commit?.goals ?? []).find((x) => x.id === g.id)).toMatchObject({ decimals: 2 });
   });
+  it('[IMPORT-LEVELS] a decimal comma is asked about in a file, and read as a decimal point in the check-in grid, where it’s typed', () => {
+    const g = s.goals.find((x) => x.cycleId === cycle.id && x.kind === 'metric' && x.decimals === 1 && !x.removedAt && !s.checkIns.some((c) => c.goalId === x.id && c.week === week)) as MetricGoal;
+    const at = planAt(g.plan, week, cycle.weeks).toFixed(1);
+    const t = { checkIns: [rec({ 'Goal ID': g.id, Week: String(week), Value: at.replace('.', ',') })] };
+    expect(run('amara', t).issues.map((i) => i.kind)).toContain('decimal-comma');
+    const grid = run('amara', t, { via: 'bulk' });
+    expect(grid.issues.filter((i) => i.level !== 'note')).toEqual([]);
+    expect(grid.commit!.checkIns!.find((c) => c.goalId === g.id)).toMatchObject({ week, value: Number(at) });
+  });
   it('[IMPORT-LEVELS] a stage already past (C4): “They’re done” records them done in their due weeks; “Count them from this week” moves them', () => {
     const t = { goals: [rec({ Goal: 'Runbooks rewritten', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Draft@40; Signed off@50' })] };
     const cs = run('amara', t);
@@ -137,7 +146,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
   const others = s.checkIns.filter((c) => c.authorId === 'rhea' && c.week < week - 2).slice(-10);
   const cases: [kind: string, actor: string, tables: ChangeInput['tables'], sentence: RegExp, extra?: Partial<ChangeInput>][] = [
     ['required-empty', 'amara', { goals: [rec({ Goal: 'No owner', Unit: '%', Start: '1', Target: '2' })] }, /A new goal needs an owner: Owner email, or Owner\./],
-    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /Start is empty\. A number goal needs where it starts\./],
+    ['required-empty', 'amara', { goals: [newGoal({ Start: '' })] }, /^Enter where it starts today\.$/],
     ['not-a-number', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: 'six' })] }, /“six” isn’t a number/],
     ['formula', 'amara', { goals: [newGoal({ Target: '=20+2' })] }, /Target holds a formula \(“=20\+2”\), not a number\. In Excel, copy the column and paste it as values\./],
     ['precision', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: String(week), Value: '6.25' })] }, /has 2 decimal places, but this goal keeps whole numbers/],
@@ -153,7 +162,7 @@ describe('section 4: a case per kind, with its sentence and level', () => {
     ['type-unclear', 'amara', { goals: [rec({ Goal: 'Nothing to measure', Owner: 'Rhea Kapoor' })] }, /Type is empty and the row has no Start and Target, Limit or Stages\./],
     ['plan-order', 'amara', { goals: [newGoal({ 'Due week': '10' })] }, /Due week \(10\) has to come after the plan starts \(week 46\)\./],
     ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Design; Pilot@50' })] }, /“Design” has no week\. Write it as Name@week, like Pilot@52\./],
-    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /Two stages are called “pilot”/],
+    ['stage-format', 'amara', { goals: [rec({ Goal: 'Stages goal', Owner: 'Rhea Kapoor', Type: 'milestone', Stages: 'Pilot@50; pilot@52' })] }, /^Two stages are called “Pilot”\. Give each its own name, such as “pilot review”\.$/],
     ['week-wrong', 'amara', { checkIns: [rec({ 'Goal key': 'G-14', Week: '50', Value: '6' })] }, /Week 50 hasn’t happened yet; it’s week 46\./],
     ['checkin-incomplete', 'amara', { checkIns: [rec({ 'Goal key': 'G-126', Week: String(week), Value: '4.1' })] }, /needs a Cause and a Why of 10 characters or more/],
     ['cant-change', 'amara', { goals: [rec({ Key: 'G-1', Type: 'milestone' })] }, /A goal’s type can’t change\. Add a new goal instead\./],

@@ -9,6 +9,8 @@ function env(start = 1_000_000) {
     storage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } },
     reload: () => { e.reloads++; },
     now: () => e.t,
+    isOnline: true,
+    online: () => e.isOnline,
   };
   return e;
 }
@@ -53,5 +55,16 @@ describe('stale code after a deploy (review F16)', () => {
     expect(recoverFromStaleCode(new Error('boom'), e)).toBe(false);
     expect(reloadOnce({ storage: null, reload: e.reload, now: e.now })).toBe(false);
     expect(e.reloads).toBe(0);
+  });
+
+  it('never reloads while offline, and still reloads once when back online (#167)', () => {
+    const e = env();
+    e.isOnline = false;
+    expect(recoverFromStaleCode(new TypeError('Failed to fetch dynamically imported module'), e)).toBe(false);
+    expect(reloadOnce(e)).toBe(false);
+    expect(e.reloads).toBe(0);
+    e.isOnline = true;
+    expect(recoverFromStaleCode(new TypeError('Failed to fetch dynamically imported module'), e)).toBe(true);
+    expect(e.reloads).toBe(1);
   });
 });

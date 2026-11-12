@@ -122,6 +122,11 @@
       "text": "New goal asks what, who and where, how it's measured, then reads it back; each step has an address and nothing is chosen from a list of everything."
     },
     {
+      "id": "GOAL-ENTRY-REQUIRED",
+      "area": "Goals",
+      "text": "Every way of adding a goal says what it needs before it is refused, checks it with one rule, and asks rather than assumes where a value is possible but unlikely; nothing is saved before it has been read back."
+    },
+    {
       "id": "NEW-GOAL-TRUTH",
       "area": "Goals",
       "text": "A goal is never late or behind because of when it was typed in: a date already past is asked about, and a first number may restart the plan."
@@ -467,6 +472,11 @@
       "text": "A goal's history shows every week, checked in or not, tells reviews from changes, and can be linked to."
     },
     {
+      "id": "GOAL-EDIT-PAGE",
+      "area": "Goals",
+      "text": "Changing a goal is one page in four sections an address can open at (What it is #definition, Plan and target #plan, Who and where #owner, More details), with one way out, “Close and keep the draft”, and Save changes held at the foot of the window without covering a field. An old ?part= link lands on the matching section."
+    },
+    {
       "id": "GOAL-SAYS",
       "area": "Goals",
       "text": "Watching and commenting say who will see what before you do them."
@@ -679,7 +689,7 @@
     {
       "id": "STALE-RELOAD",
       "area": "Observability",
-      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop."
+      "text": "After a deploy, a tab still running the old build that fails to load a part of it (a dynamically imported file that has gone) reloads itself once, at the same address, instead of showing an error; drafts are kept because they are saved as people type. If the same part fails again within a minute of that reload, the page shows the error page with Reload and Home, so it never reloads in a loop. Offline, nothing reloads (a reload would load nothing): the page says it needs a connection, with Try again and Go back."
     },
     {
       "id": "TELEMETRY-PRIVACY",

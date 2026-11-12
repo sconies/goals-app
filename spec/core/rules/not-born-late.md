@@ -28,7 +28,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 
 ## Where it lives
 
-- [src/domain/goal.ts](../../../src/domain/goal.ts): `pastStage`, `stagesDoneAtSetUp`, `validateGoal`
+- [src/domain/goal.ts](../../../src/domain/goal.ts): `pastStage`, `stagesDoneAtSetUp`
+- [src/domain/goalEntry.ts](../../../src/domain/goalEntry.ts): `goalMustFix`
 - [src/domain/checkin.ts](../../../src/domain/checkin.ts): `rebaseOffer`, `rebase`, `REBASE_WEEKS`
 - [src/domain/actions.ts](../../../src/domain/actions.ts): `recordStagesDone`
 

@@ -61,7 +61,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - bulk changes › lets an owner load the whole workbook back after changing only their own goal (research round 1)
 - bulk changes › tells which sheet is which from its header alone
 - bulk changes › adds a new goal and changes an existing one, logging both
-- bulk changes › only lets owners change their own goals; admins can change any
+- bulk changes › only lets owners change their own goals; admins can change any; anyone may add a goal for anyone
 - bulk changes › asks for a reason when a plan changes after check-ins started
 - bulk changes › sets plan numbers by hand from the Plan sheet
 - bulk changes › loads past weeks as backfilled check-ins, judged by the same rules
@@ -105,6 +105,7 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 - a typed cell is the same as what was written › compares numbers at the column’s written precision, never with a tolerance
 - one reader › reads RFC 4180 CSV in one pass: quotes, doubled quotes, line breaks in a cell, a byte-order mark, CRLF
 - one reader › knows each sheet by its header, whatever the file is called
+- a module’s own sheet in a file loaded back (AS part 3) › is named as written for reading, not called unknown
 
 ### [src/domain/removal.test.ts](../../../src/domain/removal.test.ts)
 

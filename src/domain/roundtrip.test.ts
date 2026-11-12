@@ -204,3 +204,16 @@ describe('one reader', () => {
     expect(r.skipped.map((x) => x.name)).toEqual(['Goals']);
   });
 });
+
+describe('a module’s own sheet in a file loaded back (AS part 3)', () => {
+  it('is named as written for reading, not called unknown', async () => {
+    const { readTables } = await import('./sheets');
+    const metrics = { name: 'Metrics', columns: [{ header: 'ID' }, { header: 'Metric' }, { header: 'Unit' }] };
+    const out = readTables([{ name: 'Metrics', rows: [['ID', 'Metric', 'Unit'], ['m1', 'Build time', 'min']] }, { name: 'Other', rows: [['Colour'], ['red']] }], [metrics]);
+    expect(out.skipped).toEqual([
+      { name: 'Metrics', why: 'the Metrics sheet, written for reading; not loaded back' },
+      { name: 'Other', why: 'not a sheet this app reads (its header row doesn’t match one)' },
+    ]);
+    expect(out.tables).toEqual({});
+  });
+});

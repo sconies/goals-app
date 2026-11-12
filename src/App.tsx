@@ -5,11 +5,9 @@ import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
-import { GoalEdit } from './screens/GoalEdit';
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { Watching } from './screens/Watching';
-import { GoalWizard } from './screens/GoalWizard';
 import { Home } from './screens/Home';
 import { ReviewEdit, ReviewHome, ReviewRedirect, Reviews, ReviewSummary } from './screens/Review';
 import { PeopleList, PersonPage, TeamPage, TeamsList } from './screens/People';
@@ -18,6 +16,7 @@ import { Ready, WhoAreYou } from './screens/Start';
 import { Shell } from './ui/Shell';
 import { QuickCheckIn } from './screens/QuickCheckIn';
 import { MotionLayer } from './ui/Count';
+import { PageWait } from './ui/bits';
 import { ErrorBoundary, TelemetryRoutes } from './telemetry/react';
 import { Moved, useModules } from './core/app';
 
@@ -33,6 +32,9 @@ const MotionLab = lazy(() => import('./ui/MotionLab').then((m) => ({ default: m.
 const DataTables = lazy(() => import('./screens/DataTables').then((m) => ({ default: m.DataTables })));
 const WorkspaceHome = lazy(() => import('./screens/Workspace').then((m) => ({ default: m.WorkspaceHome })));
 const Feedback = lazy(() => import('./screens/Feedback').then((m) => ({ default: m.Feedback })));
+// Changing a goal is opened by its owner now and then, never on a first visit.
+const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
+const GoalWizard = lazy(() => import('./screens/GoalWizard').then((m) => ({ default: m.GoalWizard })));
 const GoalPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.GoalPrint })));
 const ReviewPrint = lazy(() => import('./screens/Print').then((m) => ({ default: m.ReviewPrint })));
 const WrapUp = lazy(() => import('./screens/Retro').then((m) => ({ default: m.WrapUp })));
@@ -55,7 +57,7 @@ export function Routed() {
       <Suspense fallback={null}><MotionLab /></Suspense>
       {/* A crash on one page is recorded and offers a way on; moving to another page starts afresh. */}
       <ErrorBoundary at={pathname}>
-      <Suspense fallback={null}>
+      <Suspense fallback={<PageWait />}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/check-in" element={<CheckInFlow />} />
