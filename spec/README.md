@@ -20,6 +20,8 @@ As the code is (`docs/architecture.md`): a small core, and feature modules that 
 | [core/journeys.md](core/journeys.md) | The core journeys and checks, the requirements each covers, and where each is driven |
 | [core/requirements.md](core/requirements.md) | Every core requirement, linked to its code, its Help article, its tests and its journeys |
 | [core/export-format.md](core/export-format.md) | The spreadsheet format: every sheet and column of the export, the set-up template and the import, how each is read back, its words, the JSON and the brief |
+| [core/actions.md](core/actions.md) | Every action a person can take, as the command port runs it: its input, its result, who may and the words it refuses with |
+| [core/tools.md](core/tools.md) | Every AI tool the MCP server offers: its input schema, what it gives back, its refusals and the actions it does the same as |
 | [core/import-issues.md](core/import-issues.md) | Every kind of issue a spreadsheet can raise: its level, what raises it, what it says and the answers it takes, and every other spelling of a column or a word |
 | [modules/](modules/README.md) | One section per feature module, from its `module.json` |
 | [conformance/](conformance/README.md) | The demo workspace and what the rules give for every goal in every week, as CSV, with how a rebuild proves itself |

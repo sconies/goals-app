@@ -407,6 +407,8 @@ const CORE_TOOLS: ToolDef[] = [
 
 /** Which feature module each module tool is from (src/modules/<id>/tools.ts). */
 const TOOL_MODULE = new Map(MODULE_TOOLS.flatMap((m) => m.part.map((t) => [t.name, m.id] as const)));
+/** The feature module a tool belongs to, if it isn't the core's. */
+export const toolModule = (name: string): string | undefined => TOOL_MODULE.get(name);
 
 /** Everything a person can do in the app, their assistant can do here: reading, check-ins, goals and plans above;
     requests, reviews, watching, people, wrap-ups, views, tokens and feedback in workTools.ts; then each feature
