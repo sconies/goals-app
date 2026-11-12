@@ -5462,8 +5462,11 @@ journey('U83', ['METRICS-CARE'], 'Looking after a metric: as Rhea, adding “CI 
 
 journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “Deploy sucess rate” in % with no direction and the meaning “Deploys that worked.” is refused with “1 to fix, 2 to check.”: the Must fix under Which way is better, the name’s Check naming Deploy success rate (Use that one opens it and keeps the draft), the meaning’s Check answered It’s right as written. Saved, its page says what is still to say in words, never a number; adding the three says Fully defined. As Tunde the line shows with no links', 24, async (h, device) => {
   const p = h.use(await newPage(device, 'rhea'));
-  // The metric a letter away, added first, fully said, so the typo has something to be close to.
-  await p.goto(url('/metrics/new'));
+  // The metric a letter away, added first, fully said, so the typo has something to be close to. From the library.
+  await p.goto(url('/metrics'));
+  await h.click(p.getByRole('link', { name: 'Add a metric' }).first());
+  await p.waitForURL(/\/metrics\/new/);
+  h.set('entry', true);
   await h.fill(p.getByLabel('Name', { exact: true }), 'Deploy success rate');
   await h.fill(p.getByLabel('Unit', { exact: true }), '%');
   await h.click(p.getByRole('button', { name: 'Higher is better' }));
@@ -5490,9 +5493,11 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await h.click(name.getByRole('button', { name: 'Use that one' }));
   await p.getByRole('heading', { level: 1, name: 'Deploy success rate' }).waitFor();
   await p.goto(url('/metrics/new'));
+  await see(p, 'Picked up what you hadn’t saved.', 'the draft was not kept after Use that one');
   h.set('progress', (await p.getByLabel('Name', { exact: true }).inputValue()) === 'Deploy sucess rate', 'the draft was not kept after Use that one');
   // Answered and given a direction, it saves.
   await h.click(p.getByRole('button', { name: 'Higher is better' }));
+  await p.getByRole('button', { name: 'Higher is better', pressed: true }).waitFor();
   await h.click(p.getByRole('button', { name: 'Add the metric' }));
   await see(p.locator('.fix-line'), 'Answer the question above first.', 'an unanswered Check does not stop the save');
   await h.click(p.locator('[data-check="name"]').getByRole('button', { name: 'Mine is different: keep it' }));
@@ -5503,14 +5508,17 @@ journey('U105', ['METRIC-DEFINED'], 'Defining a metric well: as Rhea, adding “
   await see(still, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'the page does not say what is still to say');
   const words = await still.innerText();
   h.set('attention', !/\d/.test(words) && (await p.locator('.metric-head progress, .metric-head meter, .metric-head [role="progressbar"]').count()) === 0, `the line is a score: “${words}”`);
-  const address = new URL(p.url()).pathname;
-  // Tunde reads the same line, with nothing to click in it.
-  const t = h.use(await newPage(device, 'tunde'));
-  await t.goto(url(address));
-  const his = t.locator('.metric-head .metric-still');
+  const address = new URL(p.url()).pathname.replace(/^\/demo/, '');
+  // Tunde reads the same line, with nothing to click in it (the same browser, whose demo holds the new metric).
+  const viewerKey = 'goals-app-viewer:platform-org';
+  await p.evaluate((k) => localStorage.setItem(k, 'tunde'), viewerKey);
+  await p.goto(url(address));
+  const his = p.locator('.metric-head .metric-still');
   await see(his, 'Still to say: where the number comes from, who owns that source, how often it refreshes.', 'Tunde does not see the line');
   h.set('parity', (await his.getByRole('link').count()) === 0, 'Tunde is offered links to change a metric he doesn’t own');
-  await t.context().close();
+  await p.evaluate((k) => localStorage.setItem(k, 'rhea'), viewerKey);
+  await p.goto(url(address));
+  await still.waitFor();
   // Each item opens the form at its field; with the three said, it is Fully defined.
   await h.click(still.getByRole('link', { name: 'where the number comes from' }));
   await p.waitForURL(/\/edit\?field=source/);

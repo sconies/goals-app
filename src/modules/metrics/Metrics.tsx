@@ -381,7 +381,9 @@ export function MetricForm() {
   const [tried, setTried] = useState(false);
   // Fields left once: their errors show from then on, not while the first thing is being typed.
   const [left, setLeft] = useState<Set<string>>(() => new Set());
-  const leave = (k: string) => () => setLeft((x) => (x.has(k) ? x : new Set(x).add(k)));
+  // Shown a moment after the field is left, so what appears above the button never moves it under a click already on
+  // its way (leaving the meaning by pressing Add the metric).
+  const leave = (k: string) => () => { window.setTimeout(() => setLeft((x) => (x.has(k) ? x : new Set(x).add(k))), 250); };
   const [busy, setBusy] = useState(false);
   // Changing the unit or direction goals use is asked first (spec 2.3).
   const [asking, setAsking] = useState(false);
