@@ -15,7 +15,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U2 | What needs me? Home shows what’s due, off track, stale or slipping | Team lead | `ATTENTION` `PROFILES` `STALE` | 1 | `evals/journeys.cjs` |
 | U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `REVIEW-DECIDE` `ONE-ASK` | 30 | `evals/journeys.cjs` |
 | U4 | Set up a goal, step by step | Team lead | `GOAL-CREATE` `PLAN-SHAPE` `HIERARCHY` `LEVELS` `CHANGE-LOG` `DRAFTS` | 13 | `evals/journeys.cjs` |
-| U5 | Load your own data and switch between it and the example | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
+| U5 | Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
 | U7 | An owner changes a target with a reason; a watcher sees it | Owner, then sponsor | `REASON-AHEAD` `REBASELINE` `CHANGE-LOG` `PLAN-CHANGE` `WATCHING` | 16 | `evals/journeys.cjs` |
 | U8 | Watching: see what has gone quiet and chase it | Goals coach | `STALE` `ATTENTION` `WATCHING` `ONE-WATCHING` `ONE-ASK` | 5 | `evals/journeys.cjs` |
@@ -50,7 +50,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U39 | Something changed: what changed, what happens next and by when on one screen; the walkthrough coach never covers what it points at |  | `ONE-ACCOUNT` `PATH-TO-GREEN` `WALKTHROUGHS` | 14 | `evals/journeys.cjs` |
 | U40 | Research notes followed up: a cause for anything else, demo feedback that says where it goes, and a research session that ends after its last task |  | `OTHER-CAUSE` `DEMO-FEEDBACK` `RESEARCH` | 16 | `evals/journeys.cjs` |
 | U41 | Mark up a screen on a phone and a desktop: draw, add a note, check the picture, say what should change, send | Anyone using the app | `MARKUP` | 14 | `evals/journeys.cjs` |
-| U42 | Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand | Anyone using the app | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` | 23 | `evals/journeys.cjs` |
+| U42 | Anyone opens the inbox with no sign-in; an admin opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand. A member reads it all with no way to change a status, and /inbox opens it | Anyone using the app | `MARKUP` `MARKUP-INBOX` `FEEDBACK-INBOX` `INBOX-TRIAGE` | 23 | `evals/journeys.cjs` |
 | U43 | An admin marks someone as left: first who takes over their goals and asks, then they leave every list, and history keeps their name | An admin | `PERSON-LEFT` `UNDO-REMOVE` `REMOVE-ANYTHING` | 10 | `evals/journeys.cjs` |
 | U44 | An owner stops a goal with history, then deletes a goal set up by mistake and undoes it | A goal owner | `GOAL-STOP` `UNDO-REMOVE` `REMOVE-ANYTHING` | 11 | `evals/journeys.cjs` |
 | U45 | Undo an import: every row back as it was, and a row changed since skipped and listed | A goal owner | `IMPORT-UNDO` `BULK-EDIT` | 8 | `evals/journeys.cjs` |

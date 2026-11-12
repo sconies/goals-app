@@ -651,7 +651,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await p.context().close();
 }, ['attention']);
 
-journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your own data and switch between it and the example', 15, async (h, device) => {
+journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/'));
   // Setting up your own is in the workspace switcher, at the top of the sidebar or the phone's top bar (backlog WS).
@@ -706,11 +706,15 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
   const s = await h.snapshot(wsId);
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
-  // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns.
+  // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns. It
+  // reads as a control, not a title: on a computer it says Switch (outside review, 12 Nov).
+  if (device === 'desktop') h.set('entry', await p.locator('.side .ws-switch .ws-switch-word').isVisible(), 'the workspace switcher does not say Switch');
+  // Last time in the example this browser was Rhea, a member: landing there says so, once (outside review, 12 Nov).
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
   const sw2 = await openSwitcher(p);
   // The example's row says what kind it is (WR2): its name is the same as the one just made.
   await sw2.getByRole('button', { name: /Example data/ }).click();
-  await see(p, 'Grace', 'switching back shows the example again');
+  await see(p, 'You’re Rhea Kapoor here, a member.', 'landing in another workspace as someone else does not say who you are there');
   await p.locator('.side .ws-name:visible, .ws-switch-top:visible').filter({ hasText: /Platform Engineering|Example data/ }).first().waitFor();
   await p.goBack();
   const back = await p.waitForFunction((id) => localStorage.getItem('goals-app-workspace') === id, wsId, { timeout: 5000 }).then(() => true, () => false);
@@ -2659,12 +2663,12 @@ const tabCount = async (inbox, name) => Number((await inbox.getByRole('tab', { n
 /** On a phone an open item takes the screen: back to the list (and its tabs) first. */
 const toInboxList = async (h, inbox) => { const back = inbox.getByRole('button', { name: 'Back to the list' }); if (await back.isVisible().catch(() => false)) await h.click(back); };
 
-journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the inbox with no sign-in, opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand', 23, async (h, device) => {
+journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX', 'INBOX-TRIAGE'], 'Anyone opens the inbox with no sign-in; an admin opens a markup, toggles the drawing, marks it in hand and undoes it, opens its GitHub issue and keeps the link, and marks it fixed; then marks a piece of feedback in hand. A member reads it all with no way to change a status, and /inbox opens it', 23, async (h, device) => {
   if (!DOWN) fail('U42 needs the build with a database address (DOWN)');
   const down = (path) => DOWN + '/demo' + path + (path.includes('?') ? '&' : '?') + 'today=' + TODAY;
-  const p = h.use(await newPage(device, 'rhea'));
+  const p = h.use(await newPage(device, 'amara'));
   const { db } = await fakeSupabase(p.context());
-  // Rhea marks up Home in the demo (her markup goes to the database, marked demo), with the shortcut.
+  // Amara, an admin (only admins triage, Lane 12 Nov), marks up Home in the demo (her markup goes to the database, marked demo), with the shortcut.
   await p.goto(down('/'));
   await sendHomeMarkup(p, device, 'The week strip should say which week it is');
   const sent = db.markups[0];
@@ -2705,7 +2709,7 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   await h.click(inbox.getByRole('tab', { name: /^In hand/ }));
   await h.click(inbox.locator('.ibx-row').first().locator('.ibx-open'));
   await see(detail.locator('.mk-status').first(), 'In hand', 'not marked in hand');
-  await see(detail, 'Marked in hand by Rhea Kapoor', 'the markup does not say who marked it');
+  await see(detail, 'Marked in hand by Amara Nwosu', 'the markup does not say who marked it');
   const [tab] = await Promise.all([p.context().waitForEvent('page'), h.click(detail.getByRole('button', { name: 'Open GitHub issue' }))]);
   // The address the app opened. GitHub sends a browser that isn't signed in on to its sign-in page, with that address
   // as return_to (a public repository does this since 8 Nov), so read it from there when it has.
@@ -2722,7 +2726,7 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   const link = issue.origin + issue.pathname === 'https://github.com/sconies/goals-app/issues/new' && /The week strip/.test(issue.searchParams.get('title') || '') && (issue.searchParams.get('body') || '').includes(`/feedback?markup=${m.id}`);
   h.set('finish', drawn === 1 && hidden === 0 && link, `drawing layer ${drawn} then ${hidden}; issue link ${tab.url().slice(0, 160)}`);
   h.set('logged', shared && db.signIns === 0 && db.pictureReads.includes(`${m.id}/screen.png`)
-    && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'Rhea Kapoor' && db.patches.length === 5,
+    && m.status === 'fixed' && m.fixed_in && m.issue_url === 'https://github.com/sconies/goals-app/issues/101' && m.status_by === 'Amara Nwosu' && db.patches.length === 5,
   `sent ${shared}, sign-ins ${db.signIns}, pictures ${JSON.stringify(db.pictureReads)}, stored ${JSON.stringify({ status: m.status, fixed: m.fixed_in, issue: m.issue_url, by: m.status_by, patches: db.patches.length })}`);
   // Feedback sent with a mood and a few words is in the same inbox, with the same states.
   await toInboxList(h, inbox);
@@ -2735,8 +2739,21 @@ journey('U42', ['MARKUP', 'MARKUP-INBOX', 'FEEDBACK-INBOX'], 'Anyone opens the i
   await h.click(fbDetail.getByRole('button', { name: 'Mark in hand' }));
   await see(inbox, 'Nothing new.', 'the inbox does not say there is nothing new');
   const fp = db.fbPatches[0] || {};
-  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'Rhea Kapoor' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
+  h.set('logged', db.fbPatches.length === 1 && fp.status === 'in-hand' && fp.status_by === 'Amara Nwosu' && db.feedback[0].status === 'in-hand', `feedback stored ${JSON.stringify(db.fbPatches)}`);
   await p.context().close();
+  // Rhea, not an admin, reads the same inbox from its guessed address (/inbox gave Page not found, 12 Nov), with a line
+  // saying only an admin changes a status, and no button or key to change one.
+  const q = h.use(await newPage(device, 'rhea'));
+  await fakeSupabase(q.context());
+  await q.goto(down('/inbox'));
+  await q.waitForURL(/\/feedback/, { timeout: 5000 });
+  const qi = q.locator('#inbox');
+  await qi.locator('.ibx-row').first().waitFor({ timeout: 10000 });
+  await qi.locator('.ibx-row .ibx-open').first().click();
+  await see(qi, 'Only an admin can change the status of feedback.', 'a member is not told who changes a status');
+  const buttons = await qi.getByRole('button', { name: /^(Mark in hand|Mark fixed|Won’t fix|Mark new again)/ }).count() + await qi.locator('.ibx-pick input').count();
+  if (buttons) fail(`a member is offered ${buttons} ways to change a status`);
+  await q.context().close();
 }, ['progress']);
 
 journey('U47', ['CONNECT-CLAUDE', 'MARKUP-INBOX'], 'Someone else, in another browser, opens the inbox with no sign-in, sees a markup sent from the demo with its picture, says why it won’t be fixed and sees who said so', 12, async (h, device) => {
