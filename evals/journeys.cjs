@@ -5590,7 +5590,7 @@ journey('U90', ['IMPORT-UNDO'], 'Undo and past imports: as Amara, save an import
     await window.__goalsStore.commit('platform-org', { checkIns: [ci], changes: [{ id: 'chg_u90', at, actorId: 'rhea', goalId, entity: 'check-in', entityId: 'ci_u90', action: 'posted', summary: `Checked in for week ${week}`, diffs: [] }] });
   }, { goalId: first.id, week: NOW });
   await p.reload();
-  await see(p, '1 of its 15 rows have changed since, so Undo would put back 14.', 'Past imports does not say a row changed since');
+  await see(p, '1 of its 15 rows has changed since, so Undo would put back 14.', 'Past imports does not say a row changed since');
   await h.click(p.getByRole('button', { name: 'Undo 14 rows' }));
   const sheet = p.getByRole('dialog');
   await see(sheet, '14 rows go back to how they were on', 'the Undo sheet does not say how many rows go back');
