@@ -9,6 +9,7 @@ import { findGoal, isKey } from '../domain/goalKey';
 import * as R from '../domain/removal';
 import { checkInsFor } from '../domain/status';
 import type { McpContext, ToolDef, ToolResult } from './tools';
+import { listed } from './listed';
 import { COMMENT_REMOVED, ENDED, NOTE_REMOVED } from '../domain/vocabulary';
 import { VIA_MCP } from '../domain/via';
 
@@ -50,7 +51,7 @@ export const REMOVE_TOOLS: ToolDef[] = [
       const all = R.recentlyRemoved(ctx.full ?? ctx.snapshot, ctx.today, undefined, recordsOn(ctx.ws)).filter((r) => R.canRestore(ctx.actor, r));
       const who = (id: string | null) => (ctx.full ?? ctx.snapshot).people.find((p) => p.id === id)?.name ?? '—';
       const list = all.map((r) => ({ kind: r.kind, label: r.label, id: r.id, name: r.name, removedBy: who(r.by), at: r.at }));
-      return { data: { removed: list }, text: list.length ? list.map((r) => `${r.kind} · ${r.id} · ${r.label}: ${r.name} · by ${r.removedBy}, ${r.at.slice(0, 10)}`).join('\n') : 'Nothing removed in the last 30 days.' };
+      return listed({ removed: list });
     },
   },
   {
