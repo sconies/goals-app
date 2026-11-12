@@ -27,9 +27,9 @@ export const judged = <G extends Pick<Goal, 'proposedAt' | 'stoppedAt'>>(goals: 
 export const withProposed = (s: { goals: Goal[]; proposed?: Goal[] }): Goal[] => (s.proposed?.length ? [...s.goals, ...s.proposed] : s.goals);
 
 /** Whether a draft says nothing yet about how it is measured: none of its type's own required fields is filled in. */
-export function measureEmpty(d: Pick<GoalDraft, 'kind' | 'start' | 'target' | 'limit' | 'stages'>): boolean {
+export function measureEmpty(d: Pick<GoalDraft, 'kind' | 'start' | 'target' | 'limit' | 'stages'> & Partial<Pick<GoalDraft, 'lower'>>): boolean {
   if (d.kind === 'metric') return !d.start.trim() && !d.target.trim();
-  if (d.kind === 'range') return !d.limit.trim();
+  if (d.kind === 'range') return !d.limit.trim() && !d.lower?.trim();
   return !d.stages.some((s) => s.name.trim() || s.dueWeek.trim());
 }
 

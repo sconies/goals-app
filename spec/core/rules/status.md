@@ -36,7 +36,7 @@ The calculation gives one of `on`, `risk`, `off`, `done`, `planned` (week 0) or 
 6. Otherwise: ratio ≥ 0.95 is `on`; ≥ 0.8 is `risk`; below that `off`. It is *well ahead* at ratio ≥ 1.2 (still `on`) and *behind* below 0.95.
 7. It also carries the projection to the due week (see [the projection](projection.md)) from the earlier numbers plus this one, and *forecastMisses*: the projection's likeliest value falls short of the target in the better direction.
 
-**A number to keep in range** (`range`): a limit, a side (`atMost` or `atLeast`) and a warning margin. A value is *out* when it is strictly past the limit on the wrong side (`atMost`: > *limit*; `atLeast`: < *limit*; a value at the limit is not out) and *near* when strictly within the margin (`atMost`: > *limit* − *margin*; `atLeast`: < *limit* + *margin*). *previous* is the number of the latest check-in with a number for an earlier week (by week, not by when it was posted).
+**A number to keep in range** (`range`): a limit, a side (`atMost`, `atLeast` or `between`) and a warning margin; `between` also has a *lower* bound, below the limit, which is then the upper bound (“between 99.5% and 99.95%”). A value is *out* when it is strictly past a bound on the wrong side (`atMost`: > *limit*; `atLeast`: < *limit*; `between`: > *limit* or < *lower*; a value at a bound is not out) and *near* when strictly within the margin of a bound (`atMost`: > *limit* − *margin*; `atLeast`: < *limit* + *margin*; `between`: > *limit* − *margin* or < *lower* + *margin*). Where the words or a gap name one bound of a `between` range, it is the nearer one to the number: the lower below the middle, (*lower* + *limit*) / 2, else the upper. *previous* is the number of the latest check-in with a number for an earlier week (by week, not by when it was posted).
 
 - Week 0: `planned`; no number: `none`.
 - Out this week and out at *previous*: `off`.
@@ -89,6 +89,8 @@ Each is run against the real rule by `src/spec/spec.test.ts`: the result is what
 | A cost in USD with 2 decimals, 0.42 down to 0.30 over 13 weeks (week 1 plan 0.4108): 0.41, 0.42 and 0.40 in week 1. | `0.41: on; 0.42: off, behind; 0.40: on, well ahead` |
 | A range, at most 12.0% with a 1-point margin: 10.5 after 10.6; 11.2 after 10.6; 12.6 after 11.2; 10.4 after 12.6; 12.4 after 12.6. | `on, risk, risk, risk, off` |
 | A range, at least 99 with a 0.5 margin: 99.8 after 99.9; 99.3 after 99.9; 98 after 98.5. | `on, risk, off` |
+| A range between 99.5 and 99.95 with a 0.1 margin: 99.7 after 99.7; 99.9 after 99.7 (near the upper); 99.55 after 99.7 (near the lower); 99.95 after 99.7 (at the upper); 99.96 after 99.7; 99.4 after 99.3. | `on, risk, risk, risk, risk, off` |
+| The same range, said in words, and its gap at 99.96 and at 99.4 (each against the nearer bound). | `between 99.50% and 99.95% / Over the 99.95% limit / Under the 99.50% limit` |
 | Stages A (due week 3) and B (due week 7). In week 4, A done in week 3 and B expected in week 9; then B expected in week 10. | `risk, off` |
 | The same stages in week 6 with no updates at all: stage A is overdue. | `A: off, 3 weeks late; goal: off` |
 | In week 9, A done in week 3 and B done in week 9. | `done; B was 2 weeks late` |

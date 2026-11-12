@@ -135,8 +135,9 @@ type Io = 'input' | 'output'
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `bound` | `'atMost' \| 'atLeast'` | yes |  |
+| `bound` | `'atMost' \| 'atLeast' \| 'between'` | yes | Which side the number must stay: at most the limit, at least it, or between `lower` and the limit (the upper bound). |
 | `limit` | `number` | yes |  |
+| `lower` | `number` | no | A range between two numbers: the lower bound, below the limit. Absent for a one-sided range. |
 | `margin` | `number` | yes | Values this close to the limit count as at risk. |
 
 ### Stage

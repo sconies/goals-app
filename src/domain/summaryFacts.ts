@@ -4,7 +4,8 @@
    ranges and dated stages alike. Pure: the goal page, its shared image and anything else asks here, never restates it. */
 import { fixed } from './numbers';
 import { isShare, previousFor } from './checkin';
-import { fmt, fmtDiff, NO_VALUE, rangeText } from './format';
+import { fmt, fmtDiff, NO_VALUE, staysText, rangeText } from './format';
+import { rangeOut, rangeSide } from './range';
 import { goalAsOf, planAt, planEnd, projectionFor, type Projection } from './plan';
 import { assessMetric, assessMilestone, assessPosted, checkInsFor, LABEL } from './status';
 import { TREND_SPAN } from './thresholds';
@@ -165,13 +166,14 @@ function sinceFact(goal: MetricGoal | RangeGoal, own: CheckIn[], better: number)
 /* ---------- a number to keep in range ---------- */
 
 function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolean): SummaryFact[] {
-  const { bound, limit } = goal.range;
-  // Positive is towards the limit's safe side: lower for "at most", higher for "at least".
-  const safe = bound === 'atMost' ? -1 : 1;
   const valued = own.filter((c) => c.value != null);
   const last = valued[valued.length - 1];
+  // Between two numbers: against the bound nearer the latest number.
+  const { bound, limit } = rangeSide(goal.range, last?.value);
+  // Positive is towards the limit's safe side: lower for "at most", higher for "at least".
+  const safe = bound === 'atMost' ? -1 : 1;
   const out: SummaryFact[] = [];
-  const lim = `${bound === 'atMost' ? 'at most' : 'at least'} ${fmt(limit, goal)}`;
+  const lim = staysText(goal);
 
   if (!last) out.push({ key: 'plan', label: 'Against the limit', value: NO_VALUE, detail: `Must stay ${lim}`, tone: 'flat' });
   else {
@@ -204,10 +206,11 @@ function rangeFacts(goal: RangeGoal, cycle: Cycle, own: CheckIn[], stale: boolea
   if (stale) out.push({ key: 'projection', label: 'Projection', value: 'Not projected', detail: 'The last check-in is too old to project from', tone: 'flat' });
   else if (!pr) out.push({ key: 'projection', label: 'Projection', value: 'Not enough check-ins yet', detail: 'Projected by the app once there are three weeks of numbers', tone: 'flat' });
   else {
-    const outside = bound === 'atMost' ? pr.value > limit : pr.value < limit;
+    const outside = rangeOut(goal.range, pr.value);
+    const near = fmt(rangeSide(goal.range, pr.value).limit, goal);
     out.push({
       key: 'projection', label: 'Projection', value: `${rangeText(pr, goal, isShare(goal))} by week ${due}`,
-      detail: `${outside ? `Outside the ${fmt(limit, goal)} limit` : `Inside the ${fmt(limit, goal)} limit`}. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
+      detail: `${outside ? 'Outside' : 'Inside'} the ${near} limit. Projected by the app from the last ${pr.to - pr.from + 1} weeks`,
       tone: outside ? 'bad' : 'good',
       projection: pr,
     });
