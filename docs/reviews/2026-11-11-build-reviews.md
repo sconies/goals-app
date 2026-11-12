@@ -71,6 +71,9 @@ Only confirmed findings are listed: each was traced in the code on main and, whe
 | #188 ML3: looking after metrics | 3 | 0 | 3 | 2 |
 | #191 IM3: the import's preview | 3 | 0 | 4 | 3 |
 | #194 GE9: dates picked | 2 | 0 | 5 | 7 |
+| #198 Metrics: the build review's findings on ML2 and ML3 | 3 | 0 | 0 | 0 |
+| #201 Backlog: NR | planning | 0 | 0 | 0 |
+| #197 Goal entry review fixes | 2 | 0 | 0 | 0 |
 
 **High findings, and where each stands**
 
@@ -779,3 +782,30 @@ Read first by a separate reviewing session, on screen at 1440 and 390 in three t
 - Small slips: ArrowUp on a year's first week does not cross to the year before; "53" with 2027 shown says "isn't a week" where "2027 has 52 weeks" would help; `goalEntry.ts:183` hard-codes "like 2026-W46".
 
 **Checked and fine.** Week 0, 1, 53, 54 and 105 of the demo year; the inverse both ways; leap years and 53-week years. The export loads back with no change, and a file without From and To loads as before. Existing goals read and save the same weeks. Typed dates are day then month, and two-digit years are refused, not guessed. The arithmetic is in `src/domain` only. The picker works by keyboard, names itself, and returns focus to the field. No stripes, pills or emoji.
+
+### #198 Metrics: the build review's findings on ML2 and ML3 (track 3, merged 14:03 UTC, 12 Nov)
+
+Takes all seven mediums from #185 and #188, and #144's "See goals in {unit}". Read, not re-run on screen:
+- the chosen metric and its slice are kept in the goal form's draft (`src/modules/metrics/MeasuredBy.tsx`, `kept` and `onKeep`);
+- whoever creates a goal may choose its metric in that save (`rules.ts`, `creating`);
+- `find_goals` reads a module's Goals column on the server;
+- changing a unit or direction that live goals use is one rule, `metricChangeQuestion`, asked by the form and by `save_metric`, which gains `confirm`;
+- a goal whose metric now differs says so on its page;
+- Remove counts every goal it unlinks, stopped ones too, and "Put it back" relinks them.
+
+No finding. #185's and #188's lows stay open.
+
+### #201 Backlog: NR (merged 14:10 UTC, 12 Nov)
+
+One backlog line. Nothing to review.
+
+### #197 Goal entry review fixes (track 2, merged 14:13 UTC, 12 Nov)
+
+Takes #186's medium, #189's two mediums and three of its lows, and #129's medium 2 and 3. Read, not re-run on screen:
+- a file or MCP row that feeds a goal has its Effect judged as the form does (`src/domain/changeset.ts`, `feeds`);
+- on Change a goal, Save with a question open focuses the first one and says where it is above Save, and "No" goes back to the field (`src/screens/GoalEdit.tsx`);
+- the wrong-side question is asked by the saving rule, the engine and MCP for a goal already measured, through a module's `measures`, and its answer is kept as Checked;
+- New goal's steps are in focus mode again (`src/ui/Shell.tsx:225`), and F16 now checks nothing covers Back or Continue;
+- the engine asks when a row clears a unit, the saving rule records only past stages as done, and MCP reads the engine's list of question kinds.
+
+No finding. Still open with track 2: #129's 1 (Continue goes dead after "Change" on Check) and 6 (Check cuts its values to one line), #184's two lows, #189's "confirm writes Checked" low, the stale-draft medium (GE4), and all of #194's.
