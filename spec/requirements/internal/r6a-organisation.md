@@ -21,6 +21,7 @@ It is the first thing a leader looks for in week one (the deep review of 10 Nov,
 5. **Scope.** Every list and count (Home, Goals, Activity, Needs attention, the review agendas, the AI tools) takes an optional scope: a team and everything under it, or a person’s reports (direct, or their whole chain). A leader’s Home starts scoped to the team they lead. Counts in a scope come from the summary rows ([R4](r4-scale-and-safety.md)), never from loading the scope’s goals.
 6. **Moves are history.** When a team moves in the tree or a person changes manager or team, the change is logged. A goal keeps its team unless someone changes it; past check-ins and statuses stay as they were. Counts for a scope are worked out from the tree as it stands now.
 7. **Scope narrows what you see first, never what you may see.** Reading stays open to every member of the workspace ([R1](r1-sign-in-and-access.md), rule 3).
+8. **A workspace is said in one sentence**, and every screen keeps to it. Faro’s is `WORKSPACE_MEANS` (`src/domain/vocabulary.ts`), the first line of Workspace’s About and the glossary’s entry. The rebuild states its own the same way. Someone signed in is one person in every workspace; their role may differ, and landing in a workspace with a different role says so once (“You’re an admin here”).
 
 ## What Faro does today
 

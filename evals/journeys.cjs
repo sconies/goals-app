@@ -626,7 +626,7 @@ journey('U4', ['GOAL-CREATE', 'PLAN-SHAPE', 'HIERARCHY', 'LEVELS', 'CHANGE-LOG',
   await p.context().close();
 }, ['attention']);
 
-journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your own data and switch between it and the example', 15, async (h, device) => {
+journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there', 15, async (h, device) => {
   const p = h.use(await newPage(device, 'grace'));
   await p.goto(url('/'));
   // Setting up your own is in the workspace switcher, at the top of the sidebar or the phone's top bar (backlog WS).
@@ -681,11 +681,15 @@ journey('U5', ['WORKSPACES', 'ONBOARDING', 'CHANGE-LOG', 'ADMIN'], 'Load your ow
   const wsId = await p.evaluate(() => localStorage.getItem('goals-app-workspace'));
   const s = await h.snapshot(wsId);
   h.set('logged', !!s && s.changes.some((c) => c.action === 'imported' && /5 people/.test(c.summary)), 'creating the workspace is not logged');
-  // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns.
+  // Switching workspace is the switcher at the top of the sidebar (backlog WS), as real navigation: Back returns. It
+  // reads as a control, not a title: on a computer it says Switch (outside review, 12 Nov).
+  if (device === 'desktop') h.set('entry', await p.locator('.side .ws-switch .ws-switch-word').isVisible(), 'the workspace switcher does not say Switch');
+  // Last time in the example this browser was Rhea, a member: landing there says so, once (outside review, 12 Nov).
+  await p.evaluate(() => localStorage.setItem('goals-app-viewer:platform-org', 'rhea'));
   const sw2 = await openSwitcher(p);
   // The example's row says what kind it is (WR2): its name is the same as the one just made.
   await sw2.getByRole('button', { name: /Example data/ }).click();
-  await see(p, 'Grace', 'switching back shows the example again');
+  await see(p, 'You’re Rhea Kapoor here, a member.', 'landing in another workspace as someone else does not say who you are there');
   await p.locator('.side .ws-name:visible, .ws-switch-top:visible').filter({ hasText: /Platform Engineering|Example data/ }).first().waitFor();
   await p.goBack();
   const back = await p.waitForFunction((id) => localStorage.getItem('goals-app-workspace') === id, wsId, { timeout: 5000 }).then(() => true, () => false);

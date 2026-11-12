@@ -138,4 +138,12 @@ describe('Admins look after the workspace: its name and its teams', () => {
     expect(A.mayStartOver(member, 'own')).toBe(false);
     expect(A.mayStartOver(admin, 'own')).toBe(true);
   });
+  it(R('after a switch, one line says who you are there and your role, when either changed; the same person and role, nothing'), async () => {
+    const { landingLine } = await import('../src/domain/workspaceAttention');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Rhea Kapoor', admin: false })).toBe('You’re Rhea Kapoor here, a member.');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Grace Achterberg', admin: false })).toBe('You’re Grace Achterberg here, a member.');
+    expect(landingLine({ name: 'Rhea Kapoor', admin: false }, { name: 'Rhea Kapoor', admin: true })).toBe('You’re Rhea Kapoor here, an admin.');
+    expect(landingLine({ name: 'Grace Achterberg', admin: true }, { name: 'Grace Achterberg', admin: true })).toBeNull();
+    expect(landingLine(null, { name: 'Rhea Kapoor' })).toBe('You’re Rhea Kapoor here, a member.');
+  });
 });

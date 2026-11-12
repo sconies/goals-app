@@ -15,7 +15,7 @@ Each drives the built app in Chromium as a person would, on a phone (390px) and 
 | U2 | What needs me? Home shows what’s due, off track, stale or slipping | Team lead | `ATTENTION` `PROFILES` `STALE` | 1 | `evals/journeys.cjs` |
 | U3 | Weekly review: walk the goals worst first, decide what happens next and record what was said | Sponsor | `REVIEW` `INSPECT-ACT` `OUTCOME-TREE` `ATTENTION` `CHANGE-LOG` `REVIEW-RUN` `REVIEW-DECIDE` `ONE-ASK` | 30 | `evals/journeys.cjs` |
 | U4 | Set up a goal, step by step | Team lead | `GOAL-CREATE` `PLAN-SHAPE` `HIERARCHY` `LEVELS` `CHANGE-LOG` `DRAFTS` | 13 | `evals/journeys.cjs` |
-| U5 | Load your own data and switch between it and the example | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
+| U5 | Load your own data and switch between it and the example; the switcher says Switch, and landing as someone else says who you are there | Goals coach | `WORKSPACES` `ONBOARDING` `CHANGE-LOG` `ADMIN` | 15 | `evals/journeys.cjs` |
 | U6 | Understand a goal and its change history | Anyone | `NOTES` `GOAL-PAGE` `CHANGE-LOG` `ATTENTION` `REBASELINE` | 3 | `evals/journeys.cjs` |
 | U7 | An owner changes a target with a reason; a watcher sees it | Owner, then sponsor | `REASON-AHEAD` `REBASELINE` `CHANGE-LOG` `PLAN-CHANGE` `WATCHING` | 16 | `evals/journeys.cjs` |
 | U8 | Watching: see what has gone quiet and chase it | Goals coach | `STALE` `ATTENTION` `WATCHING` `ONE-WATCHING` `ONE-ASK` | 5 | `evals/journeys.cjs` |

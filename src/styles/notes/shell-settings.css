@@ -55,8 +55,10 @@
   .side .side-brand { justify-content: center; padding: 4px 0; }
   .side .side-brand .faro-logo { display: none; }
   .side .side-brand .faro-mark { display: block; }
-  /* The rail has the F above; the workspace's name needs the full sidebar. */
-  .side .ws-head { display: none; }
+  /* The rail has the F above; the workspace's name needs the full sidebar, so the switcher is its icon (12 Nov). */
+  .side .ws-head { width: 48px; justify-content: center; padding: 0; min-height: 44px; }
+  .side .ws-head > :not(.ws-rail-icon) { display: none; }
+  .side .ws-head .ws-rail-icon { display: inline-flex; }
   /* The rail keeps Goals and Watching (it has an icon); the other items under Goals are on the Goals page itself. */
   .side .nav.sub:not(.has-icon) { display: none; }
   .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
@@ -72,7 +74,9 @@
   .app.nav-icons .side .side-brand { justify-content: center; padding: 4px 0; }
   .app.nav-icons .side .side-brand .faro-logo { display: none; }
   .app.nav-icons .side .side-brand .faro-mark { display: block; }
-  .app.nav-icons .side .ws-head { display: none; }
+  .app.nav-icons .side .ws-head { width: 48px; justify-content: center; padding: 0; min-height: 44px; }
+  .app.nav-icons .side .ws-head > :not(.ws-rail-icon) { display: none; }
+  .app.nav-icons .side .ws-head .ws-rail-icon { display: inline-flex; }
   .app.nav-icons .side .nav.sub:not(.has-icon) { display: none; }
   .app.nav-icons .side .nav.sub.has-icon { padding: 0; min-height: 38px; }
   .app.nav-icons .side .nav.sub .sub-icon { display: inline-flex; }

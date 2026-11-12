@@ -30,6 +30,7 @@ import { WarnMark } from '../ui/bits';
 import { useWidth } from '../ui/useWidth';
 import { CORE_SECTION_LABELS } from './workspaceSections';
 import { movedTo } from '../domain/directory';
+import { WORKSPACE_MEANS } from '../domain/vocabulary';
 
 /** Below this width, Workspace is About and then its other sections as a list, one section at a time (a phone). */
 const NARROW = 720;
@@ -230,6 +231,8 @@ function AboutSection() {
   const fact = (label: string, body: ReactNode) => <><dt>{label}</dt><dd>{body}</dd></>;
   return (
     <>
+      {/* What a workspace is, in one sentence, before anything about this one (outside review, 12 Nov). */}
+      <p className="hint ws-means">{WORKSPACE_MEANS}</p>
       {needs.length > 0 && (
         <section className="stack ws-needs-block" style={{ gap: 'var(--s2)' }} aria-labelledby="ws-needs-title">
           <h2 className="label" id="ws-needs-title">To sort out · {needs.length}</h2>

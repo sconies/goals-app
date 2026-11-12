@@ -9,11 +9,11 @@
    - part-way through a task with a draft (a check-in, a goal, a review), it asks first, and says the draft stays in
      its own workspace, in this browser, for when you come back;
    - while the other workspace loads, the screen says "Opening <name>…" instead of mixing the two. */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useApp } from '../app/state';
 import { placeLine } from '../domain/cycle';
-import { workspaceName } from '../domain/workspaceAttention';
+import { landingLine, workspaceName } from '../domain/workspaceAttention';
 import { Sheet } from './bits';
 import { Icon } from './Icon';
 
@@ -68,12 +68,23 @@ export function WorkspaceSwitchProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.key]);
 
+  // Once a switch has landed, who you are there and your role, if either changed (landingLine).
+  const landing = useRef<{ id: string; was: { name: string; admin?: boolean } } | null>(null);
+  useEffect(() => {
+    const l = landing.current;
+    if (!l || app.opening || app.ws.id !== l.id || !app.viewerChosen) return;
+    landing.current = null;
+    const said = landingLine(l.was, app.viewer);
+    if (said) app.toast(said);
+  }, [app, app.ws.id, app.opening, app.viewer, app.viewerChosen]);
+
   const move = useCallback((id: string, to?: string) => {
     const from = app.ws.id;
+    landing.current = { id, was: { name: app.viewer.name, admin: app.viewer.admin } };
     // The entry you're leaving remembers its workspace, so Back returns to it.
     nav(loc.pathname + loc.search + loc.hash, { replace: true, state: { ...(state ?? {}), ws: from } });
     nav(to ?? landingFor(loc.pathname), { state: { ws: id } });
-  }, [app.ws.id, loc.pathname, loc.search, loc.hash, nav, state]);
+  }, [app.ws.id, app.viewer.name, app.viewer.admin, loc.pathname, loc.search, loc.hash, nav, state]);
 
   const go = useCallback<Switch>((id, to) => {
     if (id === app.ws.id && !app.opening) { if (to) nav(to); return; }
@@ -117,12 +128,16 @@ export function WorkspaceSwitcher({ variant }: { variant: 'side' | 'top' }) {
   const [q, setQ] = useState('');
   const go = (to: string) => { setOpen(false); nav(to); };
   const button = variant === 'side' ? (
-    <button type="button" className="ws-head ws-switch" title={shown.name} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+    <button type="button" className="ws-head ws-switch" title={`${shown.name}: switch workspace`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      {/* On the icon rail the name has no room: the switch icon stands for it (outside review, 12 Nov). */}
+      <Icon name="switch" size={18} className="ws-rail-icon" />
       <span className="stack ws-head-text" style={{ gap: 0, minWidth: 0, flex: 1 }}>
         {/* "Example: Platform Engineering" was cut to "Example: Platf…": the name, with "Example" as the quieter line. */}
         <b className="ws-name">{name}</b>
         <span className="tiny muted ws-meta">{app.opening ? 'Opening…' : `${app.ws.kind === 'example' ? 'Example · ' : ''}${placeLine(app.cycle, app.today)}`}</span>
       </span>
+      {/* Said, not only read out: it looked like a title, and a careful tester missed it (outside review, 12 Nov). */}
+      <span className="tiny muted ws-switch-word" aria-hidden="true">Switch</span>
       <Icon name="chevron-down" size={14} className="ws-switch-chev" />
       <span className="sr">: switch workspace, or set one up</span>
     </button>

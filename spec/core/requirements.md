@@ -1022,7 +1022,7 @@ The app moves with purpose: numbers and status change visibly when a check-in po
 Admins can rename the workspace and add, rename and remove teams (a team with people or goals is moved first), as well as delete it. In a workspace of someone’s own only an admin may Start over; in the shared example anyone may.
 
 - **Help:** “Workspace: about this one” (`workspace`), screens `Workspace`; “Teams” (`teams`)
-- **Tests:** `evals/workspace-admin.eval.ts` (7)
+- **Tests:** `evals/workspace-admin.eval.ts` (8)
 - **Journeys and checks:** N4, U60
 
 ### WORKSPACE-SECTIONS

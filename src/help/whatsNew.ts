@@ -25,13 +25,15 @@ export const WHATS_NEW: NewsEntry[] = [
   {
     id: 'admins-triage-and-start-over',
     date: '2026-11-12',
-    title: 'Admins change feedback, and start a workspace over',
+    title: 'Where one workspace ends, and who you are there',
     points: [
-      'Anyone can still read Feedback and send their own. Only an admin marks it in hand, fixed or won’t fix; everyone else sees a line saying so.',
-      'Feedback’s address /inbox now opens it, instead of Page not found.',
+      'The switcher at the top of the sidebar says Switch, and on the icon rail it is the switch icon. A workspace you can’t open yet lists the others.',
+      'Land in another workspace as someone else, or with another role, and one line says so: “You’re Rhea Kapoor here, a member.”',
+      'About opens with what a workspace is, in one sentence.',
+      'Anyone can read Feedback and send their own; only an admin changes its status. Its address /inbox now opens it.',
       'In a workspace of your own, only an admin sees Start over in the Demo panel. In the example, anyone still may.',
     ],
-    articles: ['inbox', 'demo'],
+    articles: ['inbox', 'demo', 'workspace'],
   },
   {
     id: 'import-preview-steadier',
