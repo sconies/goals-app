@@ -5,7 +5,8 @@ import type { Mode, Store } from './data/store';
 import type { Clock, Identity } from './ports';
 import { Activity } from './screens/Activity';
 import { CheckInFlow } from './screens/CheckInFlow';
-import { GoalEdit } from './screens/GoalEdit';
+// Changing a goal is never part of a first visit: its screen loads when opened (the bundle budget).
+const GoalEdit = lazy(() => import('./screens/GoalEdit').then((m) => ({ default: m.GoalEdit })));
 import { GoalScreen } from './screens/GoalScreen';
 import { GoalsScreen } from './screens/GoalsScreen';
 import { Watching } from './screens/Watching';
