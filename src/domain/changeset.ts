@@ -685,12 +685,30 @@ export function planChanges(input: ChangeInput): ChangeSet {
   const fromInDoubt = via !== 'mcp' && !(input.tables.goals ?? []).some((r) => has(r, 'start'));
   const goalRows = (input.tables.goals ?? []).map((r, i) => ({ r, row: rowOf(r, i), i })).filter(({ r }) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) !== 'example');
   examples += (input.tables.goals ?? []).filter((r) => !blankRow(r) && codeOf(GOAL_ACTION_WORDS, val(r, 'action')) === 'example').length;
+  // A batch names its own rows (backlog BT): a Goals row's Ref lets Feeds into ref and Goal ref in the same file name
+  // the goal it adds, before it has a key. Refs live only in the file; one used on two rows names neither.
+  const refRows = new Map<string, number[]>();
+  for (const { r, row } of goalRows) { const x = fold(val(r, 'ref')); if (x) refRows.set(x, [...(refRows.get(x) ?? []), row]); }
+  const refGoal = new Map<string, string>();
+  for (const { r, row } of goalRows) {
+    const x = fold(val(r, 'ref')), at = refRows.get(x);
+    if (at && at.length > 1) raise('duplicate', 'Goals', row, val(r, 'goal') || val(r, 'ref'), `Ref “${val(r, 'ref')}” is on rows ${at.join(' and ')}. Give each row its own Ref.`, { column: 'Ref', found: val(r, 'ref') });
+  }
+  /** The goal a Ref names, or why it names none: a ref no row has, or a row that isn't saved. */
+  const goalOfRef = (v: string): { g?: Goal; problem?: string } => {
+    const x = fold(v), at = refRows.get(x);
+    if (!at) return { problem: `No row on Goals has the Ref “${v}”.` };
+    if (at.length > 1) return { problem: `Ref “${v}” is on more than one row on Goals.` };
+    const g = refGoal.has(x) ? work.get(refGoal.get(x)!) : undefined;
+    return g ? { g } : { problem: `Ref “${v}” names Goals row ${at[0]}, which isn’t saved: fix that row first.` };
+  };
   examples += (input.tables.people ?? []).filter((r) => !blankRow(r) && codeOf(PERSON_ACTION_WORDS, val(r, 'action')) === 'example').length;
   const skipGoals = twice('Goals', goalRows.map(({ r, row }) => {
     const keyRef = val(r, 'key'), id = val(r, 'id');
     const g = create ? undefined : goalOfRow(keyRef, id).g;
     const k = normalKey(keyRef);
-    return { row, name: val(r, 'goal') || keyRef || id, id: g ? 'g:' + g.id : k ? 'k:' + k : id ? 'i:' + id : val(r, 'goal') ? `n:${fold(val(r, 'goal'))}|${fold(ref(r, 'team'))}` : '' };
+    // A new row with its own Ref is its own goal (backlog BT), even where another new row has its name.
+    return { row, name: val(r, 'goal') || keyRef || id, id: g ? 'g:' + g.id : k ? 'k:' + k : id ? 'i:' + id : refRows.get(fold(val(r, 'ref')))?.length === 1 ? 'r:' + fold(val(r, 'ref')) : val(r, 'goal') ? `n:${fold(val(r, 'goal'))}|${fold(ref(r, 'team'))}` : '' };
   }), (x) => (/^G-/i.test(x.name) ? `Key ${x.name} is on rows ${x.list}. Give each goal one row.` : `“${x.name}” is on rows ${x.list}. Give each goal one row.`), 'Key');
   // Five or more rows that stop, delete or mark someone as left: asked once (big-removal).
   const removalRows = [
@@ -700,6 +718,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
   goalRows.forEach(({ r, row, i }) => {
     if (skipGoals.has(row)) return;
+    if ((refRows.get(fold(val(r, 'ref'))) ?? []).length > 1) return;
     const id = val(r, 'id');
     let keyRef = val(r, 'key');
     const title = val(r, 'goal');
@@ -912,7 +931,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const ownerNow = people.get(d.ownerId);
     // What it feeds is read once every goal in the file exists (below), but whether it feeds one is known now: a row that
     // names a goal in a Feeds into column, else what the goal feeds already. The Effect is judged with it, as the form does.
-    const feedsCols = (['feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(r, c));
+    const feedsCols = (['feeds into ref', 'feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(r, c) && (c !== 'feeds into ref' || !!ref(r, c)));
     const feeds = feedsCols.length ? feedsCols.some((c) => !!ref(r, c)) : !!d.parentId;
     const fix = goalMustFix({ ...d, parentId: feeds ? d.parentId || '(read below)' : '' }, { cycleWeeks: cycle.weeks, week, existing, startDate: cycle.startDate, checkIns: existing ? s.checkIns.filter((c) => c.goalId === existing!.id) : [], door: 'table', owner: ownerNow ? { name: ownerNow.name, teamId: ownerNow.teamId ?? null } : null });
     if (fix.length) {
@@ -941,6 +960,7 @@ export function planChanges(input: ChangeInput): ChangeSet {
 
     const gid = existing?.id ?? newId('goal', d.title);
     if (create && id) fileIds.set(id, gid);
+    if (val(r, 'ref')) refGoal.set(fold(val(r, 'ref')), gid);
     const key = existing ? existing.key : (create && normalKey(keyRef)) || formatKey(++lastKeyGiven);
     parentLinks.push({ id: gid, row, r });
     let built = buildGoal({ ...d, parentId: existing?.parentId ?? '' }, cycle, { id: gid, createdAt: existing?.createdAt ?? new Date(Date.parse(now) + i).toISOString() }, existing, started(gid), week);
@@ -979,13 +999,18 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const g = work.get(l.id)!;
     const before = touched.get(l.id)?.before ?? null;
     const current = before?.parentId ? work.get(before.parentId) ?? null : null;
-    const cols = (['feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(l.r, c));
-    const says = (c: string, v: string) => (!current ? v === '' : c === 'feeds into key' ? normalKey(v) === current.key : c === 'feeds into id' ? v === current.id || fileIds.get(v) === current.id : fold(v) === fold(current.title));
+    const cols = (['feeds into ref', 'feeds into key', 'feeds into id', 'feeds into'] as const).filter((c) => has(l.r, c) && (c !== 'feeds into ref' || !!ref(l.r, c)));
+    const says = (c: string, v: string) => (!current ? v === '' : c === 'feeds into ref' ? refGoal.get(fold(v)) === current.id : c === 'feeds into key' ? normalKey(v) === current.key : c === 'feeds into id' ? v === current.id || fileIds.get(v) === current.id : fold(v) === fold(current.title));
     const changed = cols.map((c) => [c, ref(l.r, c)] as const).filter(([c, v]) => !(before && says(c, v)) && (before || v));
     if (!changed.length) continue;
     let missing = false;
     const found = changed.map(([c, v]) => {
       if (!v) return { c, p: null as Goal | null };
+      if (c === 'feeds into ref') {
+        const x = goalOfRef(v);
+        if (!x.g) { missing = true; raise('bad-key', 'Goals', l.row, g.title, `Feeds into ref: ${x.problem}`, { column: 'Feeds into ref', found: v }); }
+        return { c, p: x.g ?? null };
+      }
       if (c === 'feeds into') {
         const p = goalNamed('Goals', l.row, g.title, 'Feeds into', v, l.id, `“${g.title}” feeds into “${v}”, which isn’t a goal in ${cycle.name}.`, `Several goals are called “${v}”. Use Feeds into key to say which.`);
         if (!p) missing = true;
@@ -1275,8 +1300,14 @@ export function planChanges(input: ChangeInput): ChangeSet {
     const refText = val(r, 'goal key') || val(r, 'goal id');
     const clash = refText ? goalOfRow(val(r, 'goal key'), val(r, 'goal id')).problem : undefined;
     if (clash) { raise('cant-change', 'Check-ins', row, val(r, 'goal') || refText, clash.replace(/^Key/, 'Goal key'), { column: 'Goal key' }); continue; }
-    const name = val(r, 'goal') || refText;
+    const name = val(r, 'goal') || refText || val(r, 'goal ref');
     let g = goalFor(r);
+    if (val(r, 'goal ref')) {
+      const x = goalOfRef(val(r, 'goal ref'));
+      if (!x.g) { raise('bad-key', 'Check-ins', row, name, `Goal ref: ${x.problem}`, { column: 'Goal ref', found: val(r, 'goal ref') }); continue; }
+      if (g && g.id !== x.g.id) { raise('conflicting-refs', 'Check-ins', row, name, 'Goal ref and the other goal columns name different goals. Change just one of them.', { column: 'Goal ref' }); continue; }
+      g = x.g;
+    }
     const stopped = !g ? (stoppedByRef(val(r, 'goal key')) ?? stoppedByRef(val(r, 'goal id')) ?? (s.archive?.goals ?? []).find((x) => fold(x.title) === fold(val(r, 'goal')))) : undefined;
     if (stopped) { leftAlone('Check-ins', row, stopped); continue; }
     if (!g && refText) { raise('bad-key', 'Check-ins', row, name, `There’s no goal with ${val(r, 'goal key') ? `key ${val(r, 'goal key')}` : `ID ${refText}`}.`, { column: val(r, 'goal key') ? 'Goal key' : 'Goal ID', found: refText }); continue; }

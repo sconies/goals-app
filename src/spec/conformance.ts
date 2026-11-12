@@ -365,6 +365,9 @@ export function importCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'many-admins', actor: 'amara', sheet: 'people', rows: ['rhea', 'tunde', 'samir'].map((id) => ({ ID: id, Admin: 'yes' })) },
     { case: 'totals-row', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'TOTAL', Start: '10', Target: '550' }] },
     { case: 'big-removal', actor: 'amara', sheet: 'goals', rows: rheas.map((x) => ({ ID: x.id, Action: 'Stop', Reason: 'No longer needed this year.' })) },
+    // A batch names its own rows (backlog BT): a Ref on two rows, and a Feeds into ref that names no row.
+    { case: 'ref-twice', actor: 'amara', sheet: 'goals', rows: [fresh({ Ref: 'top', Goal: 'Register top' }), fresh({ Ref: 'top', Goal: 'Register part' })] },
+    { case: 'ref-unknown', actor: 'amara', sheet: 'goals', rows: [fresh({ Ref: 'part', 'Feeds into ref': 'top' })] },
   ];
 }
 export const IMPORT_HEADER = ['case', 'actor', 'sheet', 'rows', 'answers', 'kind', 'level', 'group', 'message', 'must', 'questions', 'saves'];
@@ -413,6 +416,12 @@ export function changeCases(w: ConformanceWorkspace): ImportCase[] {
     { case: 'saves-new-goal', actor: 'amara', sheet: 'goals', rows: [{ Goal: 'Runbooks for every paging service', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '40', Target: '90' }] },
     { case: 'saves-person', actor: 'amara', sheet: 'people', rows: [{ ID: 'rhea', Team: 'Build & Release' }] },
     { case: 'saves-stop', actor: 'amara', sheet: 'goals', rows: [{ Key: 'G-14', Action: 'Stop', Reason: 'Folded into the platform goal this quarter.' }] },
+    // A whole tree in one batch (backlog BT): each row's Ref names the goal it adds, so the next row can feed into it.
+    { case: 'saves-tree-by-ref', actor: 'amara', sheet: 'goals', rows: [
+      { Ref: 'top', Goal: 'Register: incidents closed in time', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '60', Target: '90' },
+      { Ref: 'mid', Goal: 'Register: runbooks reviewed', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '40', Target: '80', 'Feeds into ref': 'top' },
+      { Ref: 'leaf', Goal: 'Register: alerts with an owner', Owner: 'Rhea Kapoor', Team: 'CI/CD', Unit: '%', Start: '50', Target: '95', 'Feeds into ref': 'mid' },
+    ] },
   ];
 }
 export const CHANGES_HEADER = ['case', 'row', 'actor', 'sheet', 'line', 'rows', 'answers', 'target', 'name', 'kind', 'diffs', 'counts', 'unchanged', 'needs_reason', 'saves'];

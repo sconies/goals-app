@@ -23,6 +23,17 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'batch-refs',
+    date: '2026-11-12',
+    title: 'Build a whole tree of goals in one file',
+    points: [
+      'A spreadsheet, a bulk change or an AI tool can now add goals that feed each other in one go: give each new goal’s row a Ref of your own, and name it in Feeds into ref on the rows below.',
+      'A check-in row can name a new goal the same way, with Goal ref, so its first number goes in with it.',
+      'Two new goals with the same name stay two goals when each row has its own Ref.',
+    ],
+    articles: ['import', 'ai-assistants'],
+  },
+  {
     id: 'check-ins-owners-words',
     date: '2026-11-12',
     title: 'Check-ins are the owner’s, said everywhere',
