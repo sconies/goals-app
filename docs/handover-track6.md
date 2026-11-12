@@ -45,7 +45,7 @@ The ground rules:
    - **Order:** search and prefs first, then store, then goals.
    - **Not yet:**
      - The **goals contract** waits for track 4's next PR. It changes `among` to `scope`, puts `goals.csv` in rule order, and makes the last case "narrows to a scope".
-     - The **store contract** waits until track 4 sends AX5 part 2's shape.
+     - The **store contract** waits until AX5 part 2 merges. Track 4 sent its planned shape on 12 Nov: `load(ws, window?)`, where `{ from }` trims check-ins and change-log entries but keeps notes, ask, cycle and import anchors; `Snapshot.history`; and `history(ws, { before, goalId, size })` for keyset paging. It brings three new contract cases (a windowed load, paging history, a whole load). They fit the case format as multi-step cases. Track 4 will say when it merges.
      - Keep the names of the goals contract's four structural checks: `ports-at-scale.md` cites them.
 3. **Gap 2:** generate `docs/export-format.md` into `spec/`, add a page with every issue kind (trigger, level, sentence) and every column's other spellings, and grow `import.csv` until every kind has a row.
 4. **Gap 3:** the screens. Put `docs/design-rules.md` and the Help guide in the kit, generate a fields-and-states table per screen, and add screenshots at 390 and 1440 wide. Give the missing screens entries.
