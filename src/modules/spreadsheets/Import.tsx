@@ -32,7 +32,8 @@ export function Import() {
   const app = useApp();
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
-  const lost = !!(useLocation().state as { lost?: boolean } | null)?.lost;
+  const [stopped] = useState(() => importStore.get().stopped);
+  const lost = !!(useLocation().state as { lost?: boolean } | null)?.lost && !stopped;
   const file = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState<{ text: string; template?: boolean; headers?: boolean } | null>(null);
@@ -68,6 +69,7 @@ export function Import() {
       </div>
 
       {lost && <p className="hint" role="status">Choose the file again: nothing was saved.</p>}
+      {stopped && <p className="hint" role="status">Stopped. Nothing was saved.</p>}
       <input ref={file} type="file" accept=".xlsx,.zip,.csv,.tsv,.txt" className="sr" aria-label="Choose a spreadsheet" onChange={(e) => void pick(e.target.files?.[0])} />
       {pasting ? (
         <section className="stack import-paste" aria-labelledby="paste-h">

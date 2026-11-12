@@ -45,3 +45,8 @@
 .import-starts .h3 { margin: 0; }
 .import-paste textarea { font-family: var(--mono, ui-monospace, monospace); font-size: var(--t-sm); min-height: 160px; }
 .import-copy { display: inline-flex; vertical-align: middle; }
+/* Large files (backlog IM6): the Reading panel and the block in place of Save. */
+.import-progress p { margin: 0; }
+.import-bar { width: 100%; height: 8px; accent-color: var(--fg); }
+.import-reading .linkish { min-height: 44px; display: inline-flex; align-items: center; }
+.import-too-many { margin-top: var(--s3); }
