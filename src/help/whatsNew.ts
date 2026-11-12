@@ -23,6 +23,18 @@ export interface NewsEntry {
 
 export const WHATS_NEW: NewsEntry[] = [
   {
+    id: 'undo-import-every-kind',
+    date: '2026-11-12',
+    title: 'Undoing an import puts back teams too',
+    points: [
+      'An import that only changed a team can be undone, and Undo counts the team.',
+      'A goal that fed one Undo deletes moves up, as it does when a goal is deleted by hand.',
+      'Someone an import added stays while they lead a team, sit in a review or have an ask.',
+      'A corrected check-in and a bulk edit on People are named as such on Past imports.',
+    ],
+    articles: ['past-imports'],
+  },
+  {
     id: 'read-back-holds',
     date: '2026-11-12',
     title: 'Check keeps your metric',
