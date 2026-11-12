@@ -32,6 +32,8 @@ export const WHATS_NEW: NewsEntry[] = [
       'A metric’s page opens its goals on Goals, and Filters on Goals has Measured by.',
     ],
     articles: ['metric-measured-by', 'new-goal', 'metrics'],
+  },
+  {
     id: 'offline-page-needs-connection',
     date: '2026-11-12',
     title: 'Offline, a page that hasn’t loaded says so',
