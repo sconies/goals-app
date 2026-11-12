@@ -1939,7 +1939,24 @@ function mayAddGoal(_actor, _ownerId) {
 function mayChangeGoal(actor, goal) {
 	return !!actor.admin || goal.ownerId === actor.id;
 }
-var init_goalRights = __esmMin((() => {}));
+/**
+* Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+* at the check-in screens, the one-table check-in and through the AI tools. Two admin doors stay open, for Lane to
+* decide, since closing them removes a feature: loading a workbook (a spreadsheet import, or setting up from an export)
+* brings in everyone's history, and Data's tables let an admin correct a past check-in.
+*/
+function mayPostCheckIn(actor, goal, via) {
+	if (goal.ownerId === actor.id) return true;
+	return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+var ADMIN_CHECK_IN_DOORS;
+var init_goalRights = __esmMin((() => {
+	ADMIN_CHECK_IN_DOORS = [
+		"spreadsheet",
+		"setup",
+		"table"
+	];
+}));
 // src/domain/levels.ts
 var DEFAULT_LEVELS, all, levelsOf$1, levelIds, levelDef, isLevel, levelName, everydayLevel, isEveryday, isTop, levelRank, hasLevels, LEVEL_WORDS, EVERYDAY_WORD;
 var init_levels = __esmMin((() => {
@@ -10923,12 +10940,15 @@ function planChanges(input) {
 			raise("cant-change", "Check-ins", row, g.title, `This file also says ${GOAL_ACTION_WORDS.word[removing.how]} for “${g.title}”, so its check-ins can’t change in it. Make the change, or the ${GOAL_ACTION_WORDS.word[removing.how].toLowerCase()}, on its own.`);
 			return;
 		}
-		if (!create && !canChange(g)) {
+		if (!create && !mayPostCheckIn({
+			id: actor.id,
+			admin: admin()
+		}, g, via)) {
 			if (!post && answerOf("not-allowed", "Check-ins")?.choice === "leave") {
 				leave("Check-ins", row);
 				return;
 			}
-			raise("not-allowed", "Check-ins", row, g.title, notYours(g), post ? {} : { answers: ANSWERS.leaveOnly });
+			raise("not-allowed", "Check-ins", row, g.title, `Only ${people.get(g.ownerId)?.name ?? "its owner"} (its owner) can check in on “${g.title}”.`, post ? {} : { answers: ANSWERS.leaveOnly });
 			return;
 		}
 		const asked = post ? checkInLevels(g, w, draft, ctx).checks : [];
@@ -15112,7 +15132,7 @@ var CORE_ARTICLES = [
 			},
 			{
 				heading: "Who can",
-				text: ["Only a goal’s owner checks in on it. Anyone can ask the owner for an update from the goal’s page."]
+				text: ["Only a goal’s owner checks in on it, here, in the one table or through the AI assistant; an admin is no exception. An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet. Anyone can ask the owner for an update from the goal’s page."]
 			}
 		],
 		routes: ["/check-in", "/check-in/:goalId"],
@@ -17262,6 +17282,13 @@ function articleText(a) {
 }
 // src/help/whatsNew.ts
 var WHATS_NEW = [
+	{
+		id: "check-ins-owner-only",
+		date: "2026-11-12",
+		title: "Check-ins are the owner’s",
+		points: ["Only a goal’s owner checks in on it, also through the AI assistant and the one-table check-in. An admin’s token can no longer post one for someone else.", "An admin can still correct a past check-in in Data, and bring in everyone’s history from a spreadsheet."],
+		articles: ["check-in"]
+	},
 	{
 		id: "admins-triage-and-start-over",
 		date: "2026-11-12",

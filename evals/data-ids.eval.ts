@@ -112,7 +112,7 @@ describe('readable goal keys', () => {
       goals: [rec({ Key: 'G-7', Level: 'svp' }), { ...rec({ ID: 'G-102', 'Feeds into ID': 'G-59' }), __row: '3' }],
       plan: [rec({ Key: 'G-17', 'Week 50': '81' })],
       checkIns: [rec({ 'Goal key': 'G-49', Week: String(week), Value: '61', Cause: 'Change landed early', Why: 'Rules tuned for the noisiest services', 'Path to green': 'Add two reviewers on call', 'Back on plan by week': '48' })],
-    }), reason: 'Faster runners arrive in December' });
+    }), via: 'spreadsheet', reason: 'Faster runners arrive in December' }); // an admin brings others' check-ins in only from a workbook
     expect(cs.issues.filter((i) => i.severity === 'error')).toEqual([]);
     const by = (id: string) => cs.commit!.goals!.find((g) => g.id === id)!;
     expect(by('lead-mq').level).toBe('svp');

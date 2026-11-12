@@ -2,6 +2,7 @@
    (goalEntry planGoal), the change engine (changeset planChanges: a Goals row, a bulk edit, the AI tools) and the
    removals all ask these, so every door gives the same answer. Pure. */
 import type { Goal, Person } from './types';
+import type { Via } from './via';
 
 type Actor = Pick<Person, 'id' | 'admin'>;
 
@@ -17,3 +18,16 @@ export function mayAddGoal(_actor: Actor, _ownerId: string): boolean {
 export function mayChangeGoal(actor: Actor, goal: Pick<Goal, 'ownerId'>): boolean {
   return !!actor.admin || goal.ownerId === actor.id;
 }
+
+/**
+ * Whether `actor` may post or correct a check-in on `goal` (Lane, 12 Nov: check-ins are the owner's). Only its owner
+ * at the check-in screens, the one-table check-in and through the AI tools. Two admin doors stay open, for Lane to
+ * decide, since closing them removes a feature: loading a workbook (a spreadsheet import, or setting up from an export)
+ * brings in everyone's history, and Data's tables let an admin correct a past check-in.
+ */
+export function mayPostCheckIn(actor: Actor, goal: Pick<Goal, 'ownerId'>, via: Via): boolean {
+  if (goal.ownerId === actor.id) return true;
+  return !!actor.admin && ADMIN_CHECK_IN_DOORS.includes(via);
+}
+/** Where an admin may still bring in or correct someone else's check-in (mayPostCheckIn). */
+export const ADMIN_CHECK_IN_DOORS: readonly Via[] = ['spreadsheet', 'setup', 'table'];
