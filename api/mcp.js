@@ -7643,7 +7643,7 @@ function checksOf(d, ctx) {
 		const r = numberAsTyped(v, d.unit);
 		return "problem" in r ? null : r.n;
 	};
-	if (d.kind === "milestone" && !ctx.existing && ctx.door !== "table") d.stages.forEach((st, i) => {
+	if (d.kind === "milestone" && !ctx.existing && !ctx.proposing && ctx.door !== "table") d.stages.forEach((st, i) => {
 		const w = parseNumber(st.dueWeek);
 		if (!st.name.trim() || w == null || !Number.isInteger(w) || w < 1 || w > ctx.cycleWeeks || !pastStage(w, ctx.week)) return;
 		const ago = ctx.week - w;
@@ -8024,6 +8024,10 @@ function activate(x, i) {
 	if (!isProposed(g)) no$2(`“${g.title}” is already active.`);
 	if (!mayActivate(x.actor, g)) no$2(`${nameOf(x, g.ownerId) ?? "Its owner"} or an admin can make this active.`);
 	const from = i.fromWeek ?? Math.max(0, x.week);
+	const to = g.kind === "metric" ? planEnd(g.plan, x.cycle.weeks) : 0;
+	if (g.kind === "metric" && (!Number.isInteger(from) || from < 0 || from >= to)) no$2(`From must be a week of this cycle before the plan’s To: week 0 to week ${to - 1}.`);
+	const asked = g.kind === "metric" && from < x.week ? fromPastQuestion(g, from, x) : null;
+	if (asked && !i.confirm) no$2(`Not saved. Check with the person first: ${asked}`);
 	const missing = readyToActivate(g, {
 		cycleWeeks: x.cycle.weeks,
 		week: x.week,
@@ -8049,11 +8053,25 @@ function activate(x, i) {
 		goal
 	};
 }
+/** Rule 3's from-past question for a number goal made active from an earlier week, in the words New goal uses. */
+function fromPastQuestion(g, from, x) {
+	return goalChecks({
+		...draftFor(g),
+		fromWeek: String(from)
+	}, {
+		week: x.week,
+		cycleWeeks: x.cycle.weeks,
+		existing: null,
+		door: "form",
+		startDate: x.cycle.startDate
+	}).find((c) => c.id === "from-past")?.question ?? null;
+}
 var NOTHING_TO_CHECK_IN, mayActivate, no$2, goalIn, nameOf, change$1;
 var init_proposedActions = __esmMin((() => {
 	init_actions();
 	init_proposed();
 	init_goal();
+	init_plan();
 	init_goalEntry();
 	NOTHING_TO_CHECK_IN = "This goal is proposed, so there is nothing to check in. Make it active first.";
 	mayActivate = (actor, goal) => !!actor.admin || goal.ownerId === actor.id;
@@ -8209,7 +8227,7 @@ function personHistory(s, id) {
 function leaving(x, id) {
 	const full = x.full ?? x.snapshot;
 	const later = new Set(full.cycles.filter((c) => !c.removedAt && c.startDate > x.cycle.startDate).map((c) => c.id));
-	const goals = [...x.snapshot.goals.filter((g) => g.ownerId === id), ...full.goals.filter((g) => later.has(g.cycleId) && g.ownerId === id && !g.removedAt && !g.stoppedAt)];
+	const goals = [...withProposed(x.snapshot).filter((g) => g.ownerId === id), ...full.goals.filter((g) => later.has(g.cycleId) && g.ownerId === id && !g.removedAt && !g.stoppedAt)];
 	const open = asksOf(x.snapshot).filter((r) => r.status === "open");
 	return {
 		goals,
@@ -16837,7 +16855,7 @@ var CORE_ARTICLES = [
 				list: [
 					"Propose one from New goal: on Check, answer “Is it under way?” with “Not yet: propose it”, then Propose goal. It gets a key and a page at once. How it’s measured may wait.",
 					"Its page says Proposed above the title, as a word: it has no status shape, no scorecard and no chart. One block says what it would measure and what it would feed. History lists its changes and comments, with no weeks.",
-					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
+					"Make it active (its owner or an admin): From starts as this week, whatever was typed when it was proposed, and the line under it reads the plan back with its dates and the day the first check-in is due. A week already past is asked about, here and by the AI assistant. Stages already done are marked at the first check-in. After it, the page is a new goal’s, with “Post the first check-in”, and the toast has Undo. If something an active goal needs is missing, the button is Finish it, which opens Change at it.",
 					"Change it: the same page as any goal, with no reason ever asked. Withdraw it: it goes to Recently removed for 30 days, with Undo.",
 					"Proposed goals are in no count, health line, Needs attention, review agenda, check-in or wrap-up: Goals counts them apart (“· 2 proposed”) and lists them with the State filter, newest first, each with what it would measure. Find lists them with the word Proposed.",
 					"A spreadsheet’s Goals sheet has a State column (active or proposed), and the AI assistant’s create_goal and update_goal take state; make_goal_active makes one active. A goal with check-ins can’t go back to proposed: stop it instead."
@@ -18216,6 +18234,18 @@ var WHATS_NEW = [
 			"Admins see again when the year is ending, with Start for the next one."
 		],
 		articles: ["home"]
+	},
+	{
+		id: "proposed-fixes",
+		date: "2026-11-12",
+		title: "Proposed goals, four fixes",
+		points: [
+			"Proposing a goal with stages no longer asks whether a past stage is done: it has no check-ins until it is made active.",
+			"When someone is marked as left, the goals proposed for them are handed over with the rest.",
+			"Making a goal active from an earlier week asks whether it has been running since then, for the AI assistant too.",
+			"The last step of a proposal no longer promises a Home row that isn’t there yet."
+		],
+		articles: ["goal-proposed"]
 	},
 	{
 		id: "map-comes-back-fresh",
@@ -25185,6 +25215,7 @@ var CORE_TOOLS = [
 			properties: {
 				goal_id: str("The goal’s ID or its key, e.g. G-12."),
 				from: str("Number goals: the week its plan runs from, as a year and a week (2026-W48) or the week’s number. Left out: this week."),
+				confirm: bool("True once the person has said the goal has been running since an earlier From (the question comes back otherwise)."),
 				dry_run: DRY
 			}
 		},
@@ -25206,7 +25237,8 @@ var CORE_TOOLS = [
 			try {
 				out = activate(ctx, {
 					goalId: g.id,
-					fromWeek
+					fromWeek,
+					confirm: a.confirm === true
 				});
 			} catch (e) {
 				if (e instanceof NotAllowed) return {

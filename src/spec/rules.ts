@@ -3,6 +3,7 @@
    rule by src/spec/spec.test.ts (and by the generator, which refuses to write an example that isn't true), so an
    example can't drift from the code: change a rule and its example fails until it's brought up to date.
    The examples use the same goals as src/domain/rules.test.ts (src/spec/examples.ts). */
+import { daysSinceIn, weekIn } from './zones';
 import { homeFor, type HomeFacts } from '../domain/home';
 import { acceptedReason, acceptNote, MIN_ACCEPT_REASON, needsDecision } from '../domain/decide';
 import { DIRECTORY_PAGE, movedTo, personLine, teamSummary } from '../domain/directory';
@@ -22,7 +23,7 @@ import { checkInLevels, emptyDraft, evaluate, MIN_PATH, MIN_REASON, NO_REASON, p
 import { notStarted } from '../domain/plan';
 import { cycleWeek, readWeekCode, weekCode, weekSays, yearWeek } from '../domain/weeks';
 import { planSays, readWeek, spanSays, weekChoices } from '../domain/weekChoices';
-import { currentWeek, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
+import { currentWeek, daysSince, firstWeekFrom, resultWeek, isCount, isShare, NOT_A_COUNT, planAt, planAsOf, PROJECTION_WEEKS, projection, projectionFor, shapeProgress, valueSeries } from '../domain/plan';
 import { amount, byWeekWords, goalScorecard, likelihood } from '../domain/scorecard';
 import { fmt } from '../domain/format';
 import { assessMetric, assessMilestone, assessRange, goalStatus, projects, RANK, worst } from '../domain/status';
@@ -197,7 +198,11 @@ export const RULE_LIST: Rule[] = [
     tests: ['src/domain/rules.test.ts#plan', 'src/domain/rules.test.ts#goals', 'src/domain/year.test.ts', 'src/domain/firstWeek.test.ts'],
     reqs: ['PLAN-SHAPE', 'REBASELINE', 'PLAN-CHANGE', 'CALENDAR-WEEKS', 'YEAR'],
     body: `
-**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC. The week on a day is \`floor(days since the start / 7)\`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
+**Weeks.** A cycle has a start date (week 0's Monday) and a number of weeks. Days are counted by calendar date in UTC.
+
+**The home zone is a parameter** ([R3](../../requirements/internal/r3-time-zones.md)). Faro counts every day and week here in UTC. The internal app counts them in the workspace's home zone: read the moment on the home zone's clock, then count exactly as below (\`weekIn\` and \`daysSinceIn\` in \`src/spec/zones.ts\`). A week turns at midnight on Sunday there, a check-in posted at 23:30 on Sunday there counts for that Sunday's week, and a day is the home zone's date, across a clock change too. With the home zone UTC nothing changes. [zone.csv](../../conformance/zone.csv) scores it.
+
+**Counting.** The week on a day is \`floor(days since the start / 7)\`: 0 before the start and in the first seven days, never more than the cycle's last week. Week *w*'s checkpoint date is the start plus 7·*w* days. Checkpoints run from week 0 to the last week; week 0 is set-up, and the first check-in is due in week 1.
 
 **Set up part way through a week.** Nothing is late on the day it's set up. A goal's first check-in is due in the first week whose review day (the cycle's \`reviewDay\`, 0 = Monday) falls on or after the day the goal was created; a review's first session is the first of its sessions on or after the day it was set up (its own weekday, every \`everyWeeks\` weeks). So a goal or review set up on the review day or before it starts that week, and one set up after it (on the Sunday, say) starts the next week. Anything set up before the cycle starts begins in week 1. Before its first week a goal is not due, not flagged as due, and doesn't count for or against the on-time streak.
 
@@ -217,6 +222,7 @@ export const RULE_LIST: Rule[] = [
 **Plans that changed.** When a plan changes after check-ins started, the plan before is kept (\`planHistory\`, oldest first: each applied to the weeks before its \`untilWeek\`). The plan *as of* a week is the first kept plan whose \`untilWeek\` is later than that week, or else the current plan. (Older data keeps only \`originalPlan\` and \`rebaselinedWeek\`: read it as one kept plan until that week.) A check-in is always judged against the plan as of its own week.`,
     examples: [
       { given: 'The 13-week cycle starts Monday 7 September 2026. What week is Sunday 13 September at 23:00 UTC, and Monday 14 September?', then: '0, 1', run: () => `${currentWeek(CYCLE, at('2026-09-13T23:00:00Z'))}, ${currentWeek(CYCLE, at('2026-09-14T00:00:00Z'))}` },
+      { given: 'The same cycle with a home zone (R3). A check-in posted at 2026-09-14T03:30Z: its week by UTC, and with the home zone America/New_York (where it is 23:30 on Sunday). Days from it to 2026-09-28T04:30Z (00:30 on Monday there), the same two ways.', then: 'week 1, week 0; 14 days, 15 days', run: () => { const p = '2026-09-14T03:30:00Z', d = at('2026-09-28T04:30:00Z'); return `week ${currentWeek(CYCLE, at(p))}, week ${weekIn(CYCLE, at(p), 'America/New_York')}; ${daysSince(p, d)} days, ${daysSinceIn(p, d, 'America/New_York')} days`; } },
       { given: 'A day long after the cycle ends (1 March 2027).', then: '13', run: () => String(currentWeek(CYCLE, at('2027-03-01T00:00:00Z'))) },
       { given: 'Reviews on Thursdays. A goal set up on Monday 28 September (week 3), on Thursday 1 October (its review day) and on Sunday 4 October: the week its first check-in is due.', then: '3, 3, 4', run: () => ['2026-09-28T09:00:00Z', '2026-10-01T16:00:00Z', '2026-10-04T10:00:00Z'].map((d) => firstWeekFrom(CYCLE, d, CYCLE.reviewDay)).join(', ') },
       { given: 'A straight plan from 30 to 75 over 13 weeks: the plan in week 4.', then: '43.846', run: () => n(planAt(g3075.plan, 4, 13)) },
@@ -1492,6 +1498,8 @@ Every way a goal comes in asks the same rule, in the same words: New goal, the e
 **Who.** Anyone may propose a goal for anyone. Its owner or an admin makes it active (\`mayActivate\`); whoever proposed it may also change or withdraw it while it is proposed (\`mayChangeGoal\`).
 
 **Making it active** (\`activate\`): refused unless \`mayActivate\` and \`readyToActivate\` (rule 2's full list, empty). A number goal's From becomes the week chosen, this week unless said, and hand-set weeks before it are dropped. History: "Made it active, from week {n}". The read-back (\`activeReadBack\`) says the plan from then with its dates, "{n} weeks, not the {m} you proposed" when the span changed, and when the first check-in is due.
+
+A From before this week is asked at every door (rule 3's from-past, in New goal's words; a tool passes \`confirm\` once the person has said yes), and a From outside week 0 to the week before the plan's To is refused: "From must be a week of this cycle before the plan’s To: week 0 to week {n}." A proposal has no check-ins, so proposing a stages goal asks nothing about stages already past and saves no check-in for them; they are marked done at its first check-in. Marking an owner as left hands over their proposed goals with the rest (\`leaving\`).
 
 **Back to proposed** (\`backToProposed\`): an active goal with no check-ins, by its owner or an admin. One with a check-in can't: "It has check-ins, so it can’t go back to proposed. Stop it instead." (\`state-has-check-ins\` in a file).
 

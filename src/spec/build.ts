@@ -21,6 +21,7 @@ import { RULE_PAGES, systemOverview } from './overview';
 import { checks, coreRoutes, moduleFacts, read, requirements, screenParts, testIndex, type Check, type Repo, type Requirement, type TestCase } from './sources';
 import { internalFiles, wrongInternalExamples } from './internal';
 import { rebuildFiles, STAGE_FILES, stages, type ModuleWithRebuild, type Stage, type Stage1Files } from './rebuild';
+import { ZONE_HEADER } from './zones';
 import { CHECK_IN_MOMENT, conformanceFiles, conformanceWorkspace, FIND_HEADER, GOALS_HEADER, HEADERS, HOME_HEADER, IMPORT_HEADER, CHANGES_HEADER, MODULE_FILES, NAV_HEADER, READBACK_HEADER, type ConformanceWorkspace } from './conformance';
 import type { ModuleFacts } from '../core/module';
 import { currentWeek } from '../domain/plan';
@@ -479,6 +480,7 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
       ['[readback.csv](readback.csv) (stage 3)', String(rows('readback.csv')), 'draft New goal reads back', READBACK_HEADER.map((x) => `\`${x}\``).join(', ')],
       ...MODULE_FILES.map((f) => [`[${f.file}.csv](${f.file}.csv) (the ${f.module} module, not stage 1)`, String(rows(`${f.file}.csv`)), 'rule and what it is asked', f.header.map((x) => `\`${x}\``).join(', ')]),
       ['[home.csv](home.csv) (stage 3)', String(rows('home.csv')), 'viewer and day', HOME_HEADER.map((x) => `\`${x}\``).join(', ')],
+      ['[zone.csv](zone.csv) (R3)', String(rows('zone.csv')), 'moment and goal of the home-zone case', ZONE_HEADER.map((x) => `\`${x}\``).join(', ')],
     ]),
     '',
     'What each column is, and the rule that gives it:',
@@ -503,6 +505,8 @@ function conformanceReadme(w: ConformanceWorkspace, files: Record<string, string
     '',
     ...MODULE_FILES.flatMap((f) => [`- **${f.file}.csv**: ${f.about}`, '']),
     '- **home.csv** ([Home](../core/rules/home.md)): stage 3’s, scored like find.csv (`"also": ["home"]`). For four viewers (`tunde` owns two goals, `rhea` owns goals and is in a review, `amara` owns none and leads reviews, `oskar` only watches) on each of the fourteen days up to the moment the workspace is built for, at noon UTC, with the workspace as it stood then (`asOf`) and `homeFor(homeFacts(…))`: `lead` the lead’s kind (`check-in-late`, `check-in`, `wrap-up`, `review`) and `title` its title, or both empty; `quiet` the quiet sentence and its line, or empty when there is a lead. No check-in draft is kept. Watches carry no date, so they are taken as they are now.',
+    '',
+    '- **zone.csv** ([R3, time zones](../requirements/internal/r3-time-zones.md)): the home zone, scored like find.csv (`"also": ["zone"]`). Its input is `zone` in `workspace.json`, a case of its own: a home zone (`America/New_York`), a goal year starting Monday 19 October 2026, four check-ins (only `postedAt` matters) posted near midnight there and either side of the night the clocks go back (Sunday 1 November, 02:00 back to 01:00), and the moments to judge them at. One row per moment and goal, by moment then goal: `home_time` is the home zone’s clock (`yyyy-mm-dd hh:mm`); `week` is the goal year’s week, counted in the home zone (it turns at midnight on Sunday there, not in UTC); `latest_posted` is the goal’s check-in posted most recently by the moment (empty: none); `days_without_update` counts calendar days between the two in the home zone; `stale` is `yes` at 14 or more. The reference is `src/spec/zones.ts`: read both moments on the home zone’s wall clock and count as the UTC rules do. The rest of the workspace is judged in UTC, as before: a home zone of UTC changes nothing.',
     '',
     'Numbers are written with up to 6 decimal places and no trailing zeros; text with commas or quotes is quoted as CSV does. Every yes-or-no column (`greener`, `needs_attention`, `forecast_misses`, `asks_target`, `needs_path`) is written `yes` or `no`; a list of codes (`flags`, `missing`, `call_missing`) is separated by single spaces and empty when there are none.',
     '',
