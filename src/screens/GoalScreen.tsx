@@ -975,6 +975,10 @@ function NoteComposer({ goal, startOpen }: { goal: Goal; startOpen?: boolean }) 
  *  reason out, inside a group that says it once; `sameAs` points to the newer week that already said it. */
 function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: { goal: Goal; c: CheckIn; quiet?: boolean; sameAs?: number; sameAsWhere?: 'above' | 'below'; above?: boolean; latestWeek?: number }) {
   const [isOpen, setOpen] = useState(false);
+  const app = useApp();
+  // A corrected check-in says so on its row (check-in spec 2.7): the engine's own summary and the reason given.
+  const fix = [...app.snapshot.changes].reverse().find((x) => x.entity === 'check-in' && x.entityId === c.id && x.diffs.some((d) => d.field === 'Why corrected'));
+  const why = fix?.diffs.find((d) => d.field === 'Why corrected')?.to;
   return (
     <li className={isOpen ? 'is-open' : undefined}>
       <button type="button" className="ci-row" aria-expanded={isOpen} aria-controls={'ci-' + c.id} onClick={() => setOpen(!isOpen)}>
@@ -983,6 +987,7 @@ function CheckInRow({ goal, c, quiet, sameAs, sameAsWhere, above, latestWeek }: 
         <Chip k={c.status} />
         <span className="ci-tail">{above && c.why && c.why !== NO_REASON ? <span className="small muted cilist-why">The reason is above, under Why.</span> : quiet ? <span className="small muted cilist-why">Same reason</span> : sameAs != null ? <span className="small muted cilist-why">{sameAs === latestWeek ? `The same reason as week ${sameAs}, under Why` : sameReasonText(sameAs, sameAsWhere)}</span> : c.why && c.why !== NO_REASON ? <span className="small cilist-why">{c.why}</span> : <span className="small muted cilist-why">{GAP['on-plan'].label}</span>}<Icon name={isOpen ? 'chevron-up' : 'chevron-down'} className="muted ci-chev" /></span>
       </button>
+      {fix && <span className="small muted ci-corrected" style={{ display: 'block', gridColumn: '1 / -1', minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{fix.summary}, by {app.person(fix.actorId)?.name ?? 'someone'}{why ? `: “${why}”` : ''}</span>}
       {isOpen && <CheckInFull goal={goal} c={c} id={'ci-' + c.id} />}
     </li>
   );
