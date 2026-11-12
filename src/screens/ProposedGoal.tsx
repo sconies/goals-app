@@ -13,6 +13,7 @@ import { mayActivate, readyToActivate } from '../domain/proposedActions';
 import { mayChangeGoal } from '../domain/goalRights';
 import { fmt, targetText } from '../domain/format';
 import { levelName } from '../domain/levels';
+import { planEnd } from '../domain/plan';
 import { weekSays } from '../domain/weeks';
 import type { Goal } from '../domain/types';
 import { GoalBack } from '../ui/BackLink';
@@ -26,11 +27,11 @@ const DAY = (iso: string) => { const d = new Date(iso); return `${d.getUTCDate()
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : one + 's'}`;
 
 /** What it would measure, in one sentence (2.15, item 3). */
-export function wouldSay(goal: Goal, parent: Goal | undefined): string {
+export function wouldSay(goal: Goal, parent: Goal | undefined, weeks: number): string {
   if (measureUnsaid(goal)) return MEASURE_UNSAID;
   const feeds = parent ? `, and feed “${parent.title}”${parent.key ? ` (${parent.key})` : ''}` : '';
   const what = goal.kind === 'metric'
-    ? `move from ${fmt(goal.plan.start, goal)} to ${fmt(goal.plan.target, goal)} over ${plural((goal.plan.endWeek ?? 0) - (goal.plan.fromWeek ?? 0), 'week')}`
+    ? `move from ${fmt(goal.plan.start, goal)} to ${fmt(goal.plan.target, goal)} over ${plural(planEnd(goal.plan, weeks) - (goal.plan.fromWeek ?? 0), 'week')}`
     : goal.kind === 'range' ? `stay at or ${goal.range.bound === 'atMost' ? 'under' : 'over'} ${fmt(goal.range.limit, goal)}` : `hit ${plural(goal.stages.length, 'stage')}`;
   return `It would ${what}${feeds}.`;
 }
@@ -112,7 +113,7 @@ function ProposedPage({ goal }: { goal: Goal }) {
 
       {/* In place of the summary, the scorecard and the chart. */}
       <section className="block proposed-block" data-part="Proposed" aria-label="Proposed, not yet active">
-        <p>Proposed, not yet active. Nothing is due and it has no status. {wouldSay(goal, parent)}</p>
+        <p>Proposed, not yet active. Nothing is due and it has no status. {wouldSay(goal, parent, app.cycle.weeks)}</p>
         <p className="hint">The scorecard, the chart and History’s weeks start when it is made active.</p>
       </section>
 
@@ -121,7 +122,7 @@ function ProposedPage({ goal }: { goal: Goal }) {
 
       <section className="block" aria-labelledby="p-about" data-part="About this goal">
         <h2 className="block-title" id="p-about">About this goal</h2>
-        <dl className="about-list small">
+        <dl className="details">
           <dt>Level</dt><dd>{levelName(app.cycle, goal.level)}</dd>
           <dt>Feeds into</dt><dd>{parent ? <Link to={'/goals/' + parent.id}>{parent.title}</Link> : 'Nothing: the top of its own tree'}</dd>
           {!measureUnsaid(goal) && <><dt>Target</dt><dd>{targetText(goal)}</dd></>}
