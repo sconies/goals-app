@@ -33,6 +33,18 @@ export const WHATS_NEW: NewsEntry[] = [
     articles: ['new-goal'],
   },
   {
+    id: 'import-preview',
+    date: '2026-11-12',
+    title: 'A clearer check before an import is saved',
+    points: [
+      'Counts by sheet first; then what must be fixed; then questions; then the changes, if you want them.',
+      'It says which sheets and columns it didn’t read.',
+      'Download just the rows to fix, or leave them out and save the rest.',
+      'An answered question stays on the page with Change, and a corrected file keeps your answers.',
+    ],
+    articles: ['import'],
+  },
+  {
     id: 'smaller-first-download',
     date: '2026-11-12',
     title: 'Faro opens faster',
